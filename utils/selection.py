@@ -140,7 +140,7 @@ def row_from_any(item_in, *descriptions):
 def record_from_any(item_in, *descriptions):
     rec_out = dict()
     for desc in descriptions:
-        assert isinstance(desc, (list, tuple)) and len(desc) > 1, 'for AnyFlux items description {} is not applicable'
+        assert isinstance(desc, (list, tuple)) and len(desc) > 1, 'for AnyStream items description {} is not applicable'
         f_out = desc[0]
         if len(desc) == 2:
             f_in = desc[1]

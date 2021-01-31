@@ -39,7 +39,7 @@ def check_lines(lines, skip_errors=False):
         yield i
 
 
-class LinesFlux(fx.AnyFlux):
+class LineStream(fx.AnyStream):
     def __init__(
             self,
             data,
@@ -72,9 +72,9 @@ class LinesFlux(fx.AnyFlux):
     def valid_items(items, skip_errors=False):
         return check_lines(items, skip_errors)
 
-    def parse_json(self, default_value=None, to='RecordsFlux'):
+    def parse_json(self, default_value=None, to='RecordStream'):
         if isinstance(to, str):
-            to = fx.FluxType(to)
+            to = fx.StreamType(to)
 
         def json_loads(line):
             try:
@@ -108,11 +108,11 @@ class LinesFlux(fx.AnyFlux):
             gzip=gzip,
             expected_count=expected_count,
             verbose=verbose,
-        ).to_lines_flux(
+        ).to_lines_stream(
             check=check,
             step=step,
         )
-        is_inherited = fx_lines.flux_type() != cls.__name__
+        is_inherited = fx_lines.stream_type() != cls.__name__
         if is_inherited:
             fx_lines = fx_lines.map(function=fs.same(), to=cls.__name__)
         if skip_first_line:
@@ -144,14 +144,14 @@ class LinesFlux(fx.AnyFlux):
                 end=end,
                 check=check,
                 verbose=verbose,
-                return_flux=True,
+                return_stream=True,
             )
         else:
             if gzip:
                 fileholder = gz.open(filename, 'w')
             else:
                 fileholder = open(filename, 'w', encoding=encoding) if encoding else open(filename, 'w')
-            return LinesFlux(
+            return LineStream(
                 write_and_yield(fileholder, self.get_items()),
                 **self.get_meta()
             )
@@ -161,9 +161,9 @@ class LinesFlux(fx.AnyFlux):
             filename,
             encoding=None, gzip=False,
             end='\n', check=arg.DEFAULT,
-            verbose=True, return_flux=True
+            verbose=True, return_stream=True
     ):
-        saved_flux = self.lazy_save(
+        saved_stream = self.lazy_save(
             filename,
             encoding=encoding,
             gzip=gzip,
@@ -173,10 +173,10 @@ class LinesFlux(fx.AnyFlux):
         )
         if verbose:
             message = ('Compressing gzip ito {}' if gzip else 'Writing {}').format(filename)
-            saved_flux = saved_flux.progress(expected_count=self.count, message=message)
-        saved_flux.pass_items()
+            saved_stream = saved_stream.progress(expected_count=self.count, message=message)
+        saved_stream.pass_items()
         meta = self.get_meta_except_count()
-        if return_flux:
+        if return_stream:
             return self.from_file(
                 filename,
                 encoding=encoding,
@@ -190,7 +190,7 @@ class LinesFlux(fx.AnyFlux):
     def to_rows(self, delimiter=None):
         lines = self.get_items()
         rows = csv.reader(lines, delimiter=delimiter) if delimiter else csv.reader(lines)
-        return fx.RowsFlux(
+        return fx.RowStream(
             rows,
             self.count,
         )
@@ -198,7 +198,7 @@ class LinesFlux(fx.AnyFlux):
     def to_pairs(self, delimiter=None):
         lines = self.get_items()
         rows = csv.reader(lines, delimiter=delimiter) if delimiter else csv.reader(lines)
-        return fx.RowsFlux(
+        return fx.RowStream(
             rows,
             self.count,
         ).to_pairs()

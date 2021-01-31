@@ -14,7 +14,7 @@ try:  # Assume we're a sub-module in a package.
     from loggers import logger_classes
     from functions import all_functions as fs
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from .. import fluxes as fx
+    from .. import stream_classes as fx
     from utils import (
         arguments as arg,
         mappers as ms,
@@ -25,7 +25,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...functions import all_functions as fs
 
 
-class AnyFlux:
+class AnyStream:
     def __init__(
             self,
             data,
@@ -61,8 +61,8 @@ class AnyFlux:
     def put_into_context(self, name=arg.DEFAULT):
         assert self.context, 'for put_into_context context must be defined'
         name = arg.undefault(name, self.name)
-        if name not in self.context.flux_instances:
-            self.context.flux_instances[name] = self
+        if name not in self.context.stream_instances:
+            self.context.stream_instances[name] = self
 
     def get_name(self):
         return self.name
@@ -70,7 +70,7 @@ class AnyFlux:
     def set_name(self, name, register=True):
         if register:
             old_name = self.get_name()
-            self.context.rename_flux(old_name, name)
+            self.context.rename_stream(old_name, name)
         self.name = name
         return self
 
@@ -113,7 +113,7 @@ class AnyFlux:
         if check:
             unsupported = [k for k in meta if k not in props]
             assert not unsupported, 'class {} does not support these properties: {}'.format(
-                self.flux_type(),
+                self.stream_type(),
                 unsupported,
             )
         for key, value in props.items():
@@ -127,18 +127,18 @@ class AnyFlux:
     def class_name(self):
         return self.__class__.__name__
 
-    def flux_type(self):
+    def stream_type(self):
         return fx.get_class(self.class_name())
 
     def get_class(self, other=None):
         if other is None:
             return self.__class__
-        elif isinstance(other, (fx.FluxType, str)):
-            return fx.get_class(fx.FluxType(other))
+        elif isinstance(other, (fx.StreamType, str)):
+            return fx.get_class(fx.StreamType(other))
         elif inspect.isclass(other):
             return other
         else:
-            raise TypeError('"other" parameter must be class or FluxType (got {})'.format(type(other)))
+            raise TypeError('"other" parameter must be class or StreamType (got {})'.format(type(other)))
 
     def get_property(self, name, *args, **kwargs):
         if callable(name):
@@ -171,16 +171,16 @@ class AnyFlux:
     def close(self, recursively=False):
         try:
             self.pass_items()
-            closed_fluxes = 1
+            closed_streams = 1
         except BaseException as e:
-            self.log(['Error while trying to close flux:', e], level=logger_classes.LoggingLevel.Warning)
-            closed_fluxes = 0
+            self.log(['Error while trying to close stream:', e], level=logger_classes.LoggingLevel.Warning)
+            closed_streams = 0
         closed_links = 0
         if recursively:
             for link in self.get_links():
                 if hasattr(link, 'close'):
                     closed_links += link.close() or 0
-        return closed_fluxes, closed_links
+        return closed_streams, closed_links
 
     @classmethod
     def from_json_file(
@@ -191,7 +191,7 @@ class AnyFlux:
             check=arg.DEFAULT,
             verbose=False,
     ):
-        parsed_flux = fx.LinesFlux.from_file(
+        parsed_stream = fx.LineStream.from_file(
             filename,
             encoding=encoding, gzip=gzip,
             skip_first_line=skip_first_line, max_count=max_count,
@@ -200,7 +200,7 @@ class AnyFlux:
         ).parse_json(
             to=cls.__name__,
         )
-        return parsed_flux
+        return parsed_stream
 
     @staticmethod
     def is_valid_item(item):
@@ -282,7 +282,7 @@ class AnyFlux:
             target_class = self.__class__
             props = self.get_meta() if save_count else self.get_meta_except_count()
         else:
-            target_class = AnyFlux
+            target_class = AnyStream
             props = dict(count=self.count) if save_count else dict()
         return target_class(
             self.lazy_calc(function) if lazy else self.calc(function),
@@ -297,7 +297,7 @@ class AnyFlux:
         )
 
     def map_to_any(self, function):
-        return AnyFlux(
+        return AnyStream(
             map(function, self.get_items()),
             count=self.count,
             less_than=self.count or self.less_than,
@@ -309,7 +309,7 @@ class AnyFlux:
                 return i if isinstance(i, dict) else dict(item=i)
             else:
                 return function(i)
-        return fx.RecordsFlux(
+        return fx.RecordStream(
             map(get_record, self.get_items()),
             count=self.count,
             less_than=self.less_than,
@@ -370,7 +370,7 @@ class AnyFlux:
                 function=lambda i: selection.record_from_any(i, *descriptions),
             )
         else:
-            message = 'for AnyFlux use either columns (returns RowsFlux) or expressions (returns RecordsFlux), not both'
+            message = 'for AnyStream use either columns (returns RowStream) or expressions (returns RecordStream), not both'
             raise ValueError(message)
 
     def enumerated_items(self):
@@ -382,8 +382,8 @@ class AnyFlux:
         if native:
             target_class = self.__class__
         else:
-            target_class = fx.PairsFlux
-            props['secondary'] = fx.FluxType(self.class_name())
+            target_class = fx.KeyValueStream
+            props['secondary'] = fx.StreamType(self.class_name())
         return target_class(
             self.enumerated_items(),
             **props
@@ -432,15 +432,15 @@ class AnyFlux:
         for _ in self.get_items():
             pass
 
-    def add(self, flux_or_items, before=False, **kwargs):
-        if isinstance(flux_or_items, AnyFlux):
-            return self.add_flux(
-                flux_or_items,
+    def add(self, stream_or_items, before=False, **kwargs):
+        if isinstance(stream_or_items, AnyStream):
+            return self.add_stream(
+                stream_or_items,
                 before=before,
             )
         else:
             return self.add_items(
-                flux_or_items,
+                stream_or_items,
                 before=before,
             )
 
@@ -457,15 +457,15 @@ class AnyFlux:
             **props
         )
 
-    def add_flux(self, flux, before=False):
+    def add_stream(self, stream, before=False):
         old_count = self.count
-        new_count = flux.count
+        new_count = stream.count
         if old_count is not None and new_count is not None:
             total_count = new_count + old_count
         else:
             total_count = None
         return self.add_items(
-            flux.get_items(),
+            stream.get_items(),
             before=before,
         ).update_meta(
             count=total_count,
@@ -489,31 +489,31 @@ class AnyFlux:
         if props.get('count'):
             props['count'] -= 1
         title_item = next(items)
-        data_flux = self.__class__(
+        data_stream = self.__class__(
             items,
             **props
         )
         return (
             title_item,
-            data_flux,
+            data_stream,
         )
 
     def split_by_pos(self, pos):
-        first_flux, second_flux = self.tee(2)
+        first_stream, second_stream = self.tee(2)
         return (
-            first_flux.take(pos),
-            second_flux.skip(pos),
+            first_stream.take(pos),
+            second_stream.skip(pos),
         )
 
     def split_by_list_pos(self, list_pos):
         count_limits = len(list_pos)
-        cloned_fluxes = self.tee(count_limits + 1)
-        filtered_fluxes = list()
+        cloned_streams = self.tee(count_limits + 1)
+        filtered_streams = list()
         prev_pos = 0
         for n, cur_pos in enumerate(list_pos):
             count_items = cur_pos - prev_pos
-            filtered_fluxes.append(
-                cloned_fluxes[n].skip(
+            filtered_streams.append(
+                cloned_streams[n].skip(
                     prev_pos,
                 ).take(
                     count_items,
@@ -522,12 +522,12 @@ class AnyFlux:
                 )
             )
             prev_pos = cur_pos
-        filtered_fluxes.append(
-            cloned_fluxes[-1].skip(
+        filtered_streams.append(
+            cloned_streams[-1].skip(
                 list_pos[-1],
             )
         )
-        return filtered_fluxes
+        return filtered_streams
 
     def split_by_numeric(self, func, count):
         return [
@@ -621,14 +621,14 @@ class AnyFlux:
     def disk_sort(self, key=fs.same(), reverse=False, step=arg.DEFAULT, verbose=False):
         step = arg.undefault(step, self.max_items_in_memory)
         key_function = fs.composite_key(key)
-        flux_parts = self.split_to_disk_by_step(
+        stream_parts = self.split_to_disk_by_step(
             step=step,
             sort_each_by=key_function, reverse=reverse,
             verbose=verbose,
         )
-        assert flux_parts, 'streams must be non-empty'
-        iterables = [f.iterable() for f in flux_parts]
-        counts = [f.count for f in flux_parts]
+        assert stream_parts, 'streams must be non-empty'
+        iterables = [f.iterable() for f in stream_parts]
+        counts = [f.count for f in stream_parts]
         props = self.get_meta()
         props['count'] = sum(counts)
         self.log('Merging {} parts... '.format(len(iterables)), verbose=verbose)
@@ -650,7 +650,7 @@ class AnyFlux:
             return self.disk_sort(key_function, reverse=reverse, step=step, verbose=verbose)
 
     def map_side_join(self, right, key, how='left', right_is_uniq=True):
-        assert fx.is_flux(right)
+        assert fx.is_stream(right)
         assert how in algo.JOIN_TYPES, 'only {} join types are supported ({} given)'.format(algo.JOIN_TYPES, how)
         keys = arg.update([key])
         joined_items = algo.map_side_join(
@@ -666,7 +666,7 @@ class AnyFlux:
         )
 
     def sorted_join(self, right, key, how='left', sorting_is_reversed=False):
-        assert fx.is_flux(right)
+        assert fx.is_stream(right)
         assert how in algo.JOIN_TYPES, 'only {} join types are supported ({} given)'.format(algo.JOIN_TYPES, how)
         keys = arg.update([key])
         joined_items = algo.sorted_join(
@@ -727,14 +727,14 @@ class AnyFlux:
         )
 
     def to_any(self):
-        return fx.AnyFlux(
+        return fx.AnyStream(
             self.get_items(),
             count=self.count,
             less_than=self.less_than,
         )
 
     def to_lines(self, **kwargs):
-        return fx.LinesFlux(
+        return fx.LineStream(
             self.map_to_any(str).get_items(),
             count=self.count,
             less_than=self.less_than,
@@ -754,7 +754,7 @@ class AnyFlux:
         if args:
             message = 'to_rows(): positional arguments are not supported for class {}'.format(self.class_name())
             raise ValueError(message)
-        return fx.RowsFlux(
+        return fx.RowStream(
             map(function, self.get_items()) if function is not None else self.get_items(),
             count=self.count,
             less_than=self.less_than,
@@ -768,7 +768,7 @@ class AnyFlux:
         pairs_data = self.map(
             lambda i: selection.row_from_any(i, key, value),
         ).get_items()
-        return fx.PairsFlux(
+        return fx.KeyValueStream(
             pairs_data,
             count=self.count,
             less_than=self.less_than,
@@ -786,13 +786,13 @@ class AnyFlux:
         else:
             self.log(self.one(), end='\n', verbose=True)
 
-    def print(self, flux_function='count', *args, **kwargs):
-        value = self.get_property(flux_function, *args, **kwargs)
+    def print(self, stream_function='count', *args, **kwargs):
+        value = self.get_property(stream_function, *args, **kwargs)
         self.log(value, end='\n', verbose=True)
         return self
 
-    def submit(self, external_object=print, flux_function='count', key=None, show=False):
-        value = self.get_property(flux_function)
+    def submit(self, external_object=print, stream_function='count', key=None, show=False):
+        value = self.get_property(stream_function)
         if key is not None:
             value = {key: value}
         self.log(value, verbose=show)

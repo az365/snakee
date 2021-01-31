@@ -48,7 +48,7 @@ def get_key_function(descriptions, take_hash=False):
         return key_function
 
 
-class RecordsFlux(fx.AnyFlux):
+class RecordStream(fx.AnyStream):
     def __init__(
             self,
             data,
@@ -87,7 +87,7 @@ class RecordsFlux(fx.AnyFlux):
         elif by_rows_count:
             df = self.take(by_rows_count).get_dataframe()
         else:
-            raise ValueError("Flux data isn't saved in memory and by_rows_count argument not provided")
+            raise ValueError("Stream data isn't saved in memory and by_rows_count argument not provided")
         return list(df.columns)
 
     def get_records(self, skip_errors=False, raise_errors=True):
@@ -107,9 +107,9 @@ class RecordsFlux(fx.AnyFlux):
             target_class = self.__class__
             enumerated = self.enumerated_records()
         else:
-            target_class = fx.PairsFlux
+            target_class = fx.KeyValueStream
             enumerated = self.enumerated_items()
-            props['secondary'] = fx.FluxType(self.class_name())
+            props['secondary'] = fx.StreamType(self.class_name())
         return target_class(
             enumerated,
             **props
@@ -179,9 +179,9 @@ class RecordsFlux(fx.AnyFlux):
                 accumulated.append(r)
             yield (prev_k, accumulated) if as_pairs else accumulated
         if as_pairs:
-            fx_groups = fx.PairsFlux(get_groups(), secondary=fx.FluxType.RowsFlux)
+            fx_groups = fx.KeyValueStream(get_groups(), secondary=fx.StreamType.RowStream)
         else:
-            fx_groups = fx.RowsFlux(get_groups(), check=False)
+            fx_groups = fx.RowStream(get_groups(), check=False)
         if values:
             fx_groups = fx_groups.map_to_records(
                 lambda r: ms.fold_lists(r, keys, values),
@@ -226,7 +226,7 @@ class RecordsFlux(fx.AnyFlux):
         return fx_sample.take(count).get_dataframe()
 
     def to_lines(self, columns, add_title_row=False, delimiter='\t'):
-        return fx.LinesFlux(
+        return fx.LineStream(
             self.to_rows(columns, add_title_row=add_title_row),
             count=self.count,
             less_than=self.less_than,
@@ -249,7 +249,7 @@ class RecordsFlux(fx.AnyFlux):
             count = None
         else:
             count = self.count + (1 if add_title_row else 0)
-        return fx.RowsFlux(
+        return fx.RowStream(
             get_rows(list(columns)),
             count=count,
             less_than=self.less_than,
@@ -271,11 +271,11 @@ class RecordsFlux(fx.AnyFlux):
                 k = selection.value_from_record(i, key)
                 v = i if value is None else selection.value_from_record(i, value)
                 yield k, v
-        return fx.PairsFlux(
+        return fx.KeyValueStream(
             list(get_pairs()) if self.is_in_memory() else get_pairs(),
             count=self.count,
             less_than=self.less_than,
-            secondary=fx.FluxType.RecordsFlux if value is None else fx.FluxType.AnyFlux,
+            secondary=fx.StreamType.RecordStream if value is None else fx.StreamType.AnyStream,
             check=False,
         )
 
@@ -283,15 +283,15 @@ class RecordsFlux(fx.AnyFlux):
             self,
             file,
             verbose=True,
-            return_flux=True,
+            return_stream=True,
     ):
         assert cs.is_file(file)
         meta = self.get_meta()
         if not file.gzip:
             meta.pop('count')
-        file.write_flux(self, verbose=verbose)
-        if return_flux:
-            return file.to_records_flux(verbose=verbose).update_meta(**meta)
+        file.write_stream(self, verbose=verbose)
+        if return_stream:
+            return file.to_records_stream(verbose=verbose).update_meta(**meta)
 
     def to_csv_file(
             self,
@@ -303,7 +303,7 @@ class RecordsFlux(fx.AnyFlux):
             gzip=False,
             check=True,
             verbose=True,
-            return_flux=True,
+            return_stream=True,
     ):
         encoding = arg.undefault(encoding, self.tmp_files_encoding)
         meta = self.get_meta()
@@ -320,9 +320,9 @@ class RecordsFlux(fx.AnyFlux):
             gzip=gzip,
             check=check,
             verbose=verbose,
-            return_flux=return_flux,
+            return_stream=return_stream,
         )
-        if return_flux:
+        if return_stream:
             return fx_csv_file.skip(
                 1 if add_title_row else 0,
             ).to_rows(
@@ -347,7 +347,7 @@ class RecordsFlux(fx.AnyFlux):
             verbose=True,
     ):
         encoding = arg.undefault(encoding, fx.TMP_FILES_ENCODING)
-        return fx.LinesFlux.from_file(
+        return fx.LineStream.from_file(
             filename,
             skip_first_line=skip_first_line,
             encoding=encoding,
@@ -372,7 +372,7 @@ class RecordsFlux(fx.AnyFlux):
             check=True,
             verbose=False,
     ):
-        parsed_flux = fx.LinesFlux.from_file(
+        parsed_stream = fx.LineStream.from_file(
             filename,
             encoding=encoding,
             gzip=gzip,
@@ -381,9 +381,9 @@ class RecordsFlux(fx.AnyFlux):
             verbose=verbose,
         ).parse_json(
             default_value=default_value,
-            to=fx.FluxType.RecordsFlux,
+            to=fx.StreamType.RecordStream,
         )
-        return parsed_flux
+        return parsed_stream
 
     def get_dict(self, key, value=None, of_lists=False):
         return self.to_pairs(

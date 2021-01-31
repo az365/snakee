@@ -26,7 +26,7 @@ def get_key(pair):
     return pair[0]
 
 
-class PairsFlux(fx.RowsFlux):
+class KeyValueStream(fx.RowStream):
     def __init__(
             self,
             data,
@@ -52,10 +52,10 @@ class PairsFlux(fx.RowsFlux):
             tmp_files_encoding=tmp_files_encoding,
         )
         if secondary is None:
-            self.secondary = fx.FluxType.AnyFlux
+            self.secondary = fx.StreamType.AnyStream
         else:
-            assert secondary in fx.FluxType
-            self.secondary = secondary or fx.FluxType.AnyFlux
+            assert secondary in fx.StreamType
+            self.secondary = secondary or fx.StreamType.AnyStream
 
     def is_valid_item(self, item):
         return is_pair(
@@ -71,7 +71,7 @@ class PairsFlux(fx.RowsFlux):
     def secondary_type(self):
         return self.secondary
 
-    def secondary_flux(self):
+    def secondary_stream(self):
         def get_values():
             for i in self.data:
                 yield i[1]
@@ -105,7 +105,7 @@ class PairsFlux(fx.RowsFlux):
                 prev_k = k
                 accumulated.append(v)
             yield prev_k, accumulated
-        fx_groups = fx.PairsFlux(
+        fx_groups = fx.KeyValueStream(
             get_groups(),
         )
         if self.is_in_memory():
@@ -113,7 +113,7 @@ class PairsFlux(fx.RowsFlux):
         return fx_groups
 
     def values(self):
-        return self.secondary_flux()
+        return self.secondary_stream()
 
     def keys(self):
         my_keys = list()
@@ -126,10 +126,10 @@ class PairsFlux(fx.RowsFlux):
         return my_keys
 
     def extract_keys_in_memory(self):
-        flux_for_keys, flux_for_items = self.tee(2)
+        stream_for_keys, stream_for_items = self.tee(2)
         return (
-            flux_for_keys.keys(),
-            flux_for_items,
+            stream_for_keys.keys(),
+            stream_for_items,
         )
 
     # def extract_keys_on_disk(self, file_template=arg.DEFAULT, encoding=arg.DEFAULT):

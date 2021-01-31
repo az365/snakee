@@ -11,7 +11,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from functions import all_functions as fs
 
 DEFAULT_STEP = 10000
-DEFAULT_LOGGER_NAME = 'flux'
+DEFAULT_LOGGER_NAME = 'stream'
 DEFAULT_LOGGING_LEVEL = logging.WARNING
 DEFAULT_FORMATTER = '%(asctime)s - %(levelname)s - %(message)s'
 DEFAULT_LINE_LEN = 127

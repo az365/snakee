@@ -2,46 +2,46 @@ from datetime import datetime
 import gc
 
 try:  # Assume we're a sub-module in a package.
-    from streams import stream_classes as fx
-    from connectors import connector_classes as cs
+    from streams import stream_classes as sm
+    from connectors import connector_classes as ct
     from utils import arguments as arg
     from loggers import logger_classes
     from schema import schema_classes as sh
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from .streams import stream_classes as fx
-    from .connectors import connector_classes as cs
+    from .streams import stream_classes as sm
+    from .connectors import connector_classes as ct
     from .utils import arguments as arg
     from .loggers import logger_classes
     from .schema import schema_classes as sh
 
 
-DEFAULT_FLUX_CONFIG = dict(
-    max_items_in_memory=fx.MAX_ITEMS_IN_MEMORY,
-    tmp_files_template=fx.TMP_FILES_TEMPLATE,
-    tmp_files_encoding=fx.TMP_FILES_ENCODING,
+DEFAULT_STREAM_CONFIG = dict(
+    max_items_in_memory=sm.MAX_ITEMS_IN_MEMORY,
+    tmp_files_template=sm.TMP_FILES_TEMPLATE,
+    tmp_files_encoding=sm.TMP_FILES_ENCODING,
 )
 
 
-class FluxContext:
+class SnakeeContext:
     def __new__(cls, *args, **kwargs):
         if not hasattr(cls, 'instance'):
-            cls.instance = super(FluxContext, cls).__new__(cls)
+            cls.instance = super(SnakeeContext, cls).__new__(cls)
         return cls.instance
 
     def __init__(
             self,
-            flux_config=arg.DEFAULT,
+            stream_config=arg.DEFAULT,
             conn_config=arg.DEFAULT,
             logger=arg.DEFAULT
     ):
         self.logger = arg.undefault(logger, logger_classes.get_logger())
-        self.flux_config = arg.undefault(flux_config, DEFAULT_FLUX_CONFIG)
+        self.stream_config = arg.undefault(stream_config, DEFAULT_STREAM_CONFIG)
         self.conn_config = arg.undefault(conn_config, dict())
-        self.flux_instances = dict()
+        self.stream_instances = dict()
         self.conn_instances = dict()
 
-        self.fx = fx
-        self.cs = cs
+        self.fx = sm
+        self.cs = ct
         self.sh = sh
 
     @staticmethod
@@ -73,41 +73,41 @@ class FluxContext:
         name = arg.undefault(name, self.get_default_instance_name())
         conn_object = self.conn_instances.get(name)
         if conn_object:
-            if redefine or cs.is_conn(conn):
+            if redefine or ct.is_conn(conn):
                 self.leave_conn(name, verbose=False)
             else:
                 return conn_object
-        if cs.is_conn(conn):
+        if ct.is_conn(conn):
             conn_object = conn
         else:
-            conn_class = cs.get_class(conn)
+            conn_class = ct.get_class(conn)
             conn_object = conn_class(context=self, **kwargs)
         self.conn_instances[name] = conn_object
         if check and hasattr(conn_object, 'check'):
             conn_object.check()
         return conn_object
 
-    def flux(self, flux, name=arg.DEFAULT, check=True, **kwargs):
+    def stream(self, stream, name=arg.DEFAULT, check=True, **kwargs):
         name = arg.undefault(name, self.get_default_instance_name())
-        if fx.is_flux(flux):
-            flux_object = flux
+        if sm.is_stream(stream):
+            stream_object = stream
         else:
-            flux_class = fx.get_class(flux)
-            flux_object = flux_class(**kwargs)
-        flux_object = flux_object.set_name(
+            stream_class = sm.get_class(stream)
+            stream_object = stream_class(**kwargs)
+        stream_object = stream_object.set_name(
             name,
             register=False,
         ).fill_meta(
             context=self,
             check=check,
-            **self.flux_config
+            **self.stream_config
         )
-        self.flux_instances[name] = flux_object
-        return flux_object
+        self.stream_instances[name] = stream_object
+        return stream_object
 
     def get(self, name, deep=True):
-        if name in self.flux_instances:
-            return self.flux_instances[name]
+        if name in self.stream_instances:
+            return self.stream_instances[name]
         elif name in self.conn_instances:
             return self.conn_instances[name]
         elif deep:
@@ -116,18 +116,18 @@ class FluxContext:
                     if name in c.get_items():
                         return c.get_items()[name]
 
-    def rename_flux(self, old_name, new_name):
-        assert old_name in self.flux_instances, 'Flux must be defined (name {} is not registered)'.format(old_name)
+    def rename_stream(self, old_name, new_name):
+        assert old_name in self.stream_instances, 'Stream must be defined (name {} is not registered)'.format(old_name)
         if new_name != old_name:
-            self.flux_instances[new_name] = self.flux_instances.pop(old_name)
+            self.stream_instances[new_name] = self.stream_instances.pop(old_name)
 
     def get_job_folder(self):
         job_folder_obj = self.conn_instances.get('job')
         if job_folder_obj:
             return job_folder_obj
         else:
-            job_folder_path = self.flux_config.get('job_folder', '')
-            job_folder_obj = cs.LocalFolder(job_folder_path, context=self)
+            job_folder_path = self.stream_config.get('job_folder', '')
+            job_folder_obj = ct.LocalFolder(job_folder_path, context=self)
             self.conn_instances['job'] = job_folder_obj
             return job_folder_obj
 
@@ -136,9 +136,9 @@ class FluxContext:
         if tmp_folder:
             return tmp_folder
         else:
-            tmp_files_template = self.flux_config.get('tmp_files_template')
+            tmp_files_template = self.stream_config.get('tmp_files_template')
             if tmp_files_template:
-                tmp_folder = cs.LocalFolder(tmp_files_template, context=self)
+                tmp_folder = ct.LocalFolder(tmp_files_template, context=self)
                 self.conn_instances['tmp'] = tmp_folder
                 return tmp_folder
 
@@ -154,16 +154,16 @@ class FluxContext:
         else:
             return closed_count
 
-    def close_flux(self, name, recursively=False, verbose=True):
-        this_flux = self.flux_instances[name]
-        closed_fluxes, closed_links = this_flux.close() or 0
-        if recursively and hasattr(this_flux, 'get_links'):
-            for link in this_flux.get_links():
+    def close_stream(self, name, recursively=False, verbose=True):
+        this_stream = self.stream_instances[name]
+        closed_stream, closed_links = this_stream.close() or 0
+        if recursively and hasattr(this_stream, 'get_links'):
+            for link in this_stream.get_links():
                 closed_links += link.close() or 0
         if verbose:
-            self.log('{} flux(es) and {} link(s) closed.'.format(closed_fluxes, closed_links))
+            self.log('{} stream(es) and {} link(s) closed.'.format(closed_stream, closed_links))
         else:
-            return closed_fluxes, closed_links
+            return closed_stream, closed_links
 
     def leave_conn(self, name, recursively=True, verbose=True):
         if name in self.conn_instances:
@@ -173,10 +173,10 @@ class FluxContext:
             if not verbose:
                 return 1
 
-    def leave_flux(self, name, recursively=True, verbose=True):
-        if name in self.flux_instances:
-            self.close_flux(name, recursively=recursively, verbose=verbose)
-            self.flux_instances.pop(name)
+    def leave_stream(self, name, recursively=True, verbose=True):
+        if name in self.stream_instances:
+            self.close_stream(name, recursively=recursively, verbose=verbose)
+            self.stream_instances.pop(name)
             gc.collect()
             if not verbose:
                 return 1
@@ -190,22 +190,22 @@ class FluxContext:
         else:
             return closed_count
 
-    def close_all_fluxes(self, recursively=False, verbose=True):
-        closed_fluxes, closed_links = 0, 0
-        for name in self.flux_instances:
-            closed_fluxes, closed_links = self.close_flux(name, recursively=recursively)
+    def close_all_streams(self, recursively=False, verbose=True):
+        closed_streams, closed_links = 0, 0
+        for name in self.stream_instances:
+            closed_streams, closed_links = self.close_stream(name, recursively=recursively)
         if verbose:
-            self.log('{} flux(es) and {} link(s) closed.'.format(closed_fluxes, closed_links))
+            self.log('{} stream(es) and {} link(s) closed.'.format(closed_streams, closed_links))
         else:
-            return closed_fluxes, closed_links
+            return closed_streams, closed_links
 
     def close_all(self, verbose=True):
         closed_conns = self.close_all_conns(recursively=True, verbose=False)
-        closed_fluxes, closed_links = self.close_all_fluxes(recursively=True, verbose=False)
+        closed_streams, closed_links = self.close_all_streams(recursively=True, verbose=False)
         if verbose:
-            self.log('{} conn(s), {} flux(es), {} link(s) closed.'.format(closed_conns, closed_fluxes, closed_links))
+            self.log('{} conn(s), {} stream(es), {} link(s) closed.'.format(closed_conns, closed_streams, closed_links))
         else:
-            return closed_conns, closed_fluxes, closed_links
+            return closed_conns, closed_streams, closed_links
 
     def leave_all_conns(self, recursively=False):
         closed_count = self.close_all_conns(verbose=False)
@@ -214,14 +214,15 @@ class FluxContext:
             left_count += self.leave_conn(name, recursively=recursively, verbose=False)
         self.log('{} connection(s) closed, {} connection(s) left.'.format(closed_count, left_count))
 
-    def leave_all_fluxes(self, recursively=False):
-        closed_fluxes, closed_links = self.close_all_fluxes(verbose=False)
+    def leave_all_streams(self, recursively=False):
+        closed_streams, closed_links = self.close_all_streams(verbose=False)
         left_count = 0
-        for name in self.flux_instances.copy():
-            left_count += self.leave_flux(name, recursively=recursively, verbose=False)
-        self.log('{} flux(es) and {} link(s) closed, {} flux(es) left'.format(closed_fluxes, closed_links, left_count))
+        for name in self.stream_instances.copy():
+            left_count += self.leave_stream(name, recursively=recursively, verbose=False)
+        message = '{} stream(es) and {} link(s) closed, {} stream(es) left'
+        self.log(message.format(closed_streams, closed_links, left_count))
 
     def leave_all(self):
         self.close_all(verbose=True)
         self.leave_all_conns(recursively=True)
-        self.leave_all_fluxes(recursively=True)
+        self.leave_all_streams(recursively=True)

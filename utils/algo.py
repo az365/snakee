@@ -147,13 +147,13 @@ def sorted_join(iter_left, iter_right, key_function, how='left', sorting_is_reve
                 group_right.append(cur_right)
         elif is_correct_order(left_key, right_key) or right_finished:
             take_next_left, take_next_right = True, False
-            assert is_correct_order(prev_left_key, left_key) or left_finished, 'left flux must be sorted'
+            assert is_correct_order(prev_left_key, left_key) or left_finished, 'left stream must be sorted'
             prev_left_key = left_key
             if take_next_left and not left_finished:
                 group_left.append(cur_left)
         else:  # next is right
             take_next_left, take_next_right = False, True
-            assert is_correct_order(prev_right_key, right_key) or right_finished, 'right flux must be sorted'
+            assert is_correct_order(prev_right_key, right_key) or right_finished, 'right stream must be sorted'
             prev_right_key = right_key
             if take_next_right and not right_finished:
                 group_right.append(cur_right)

@@ -24,7 +24,7 @@ def test_calc_histogram():
         ('x', {1: 3, 9: 1}),
         ('y', {2: 1, 4: 2, 6: 1})
     ]
-    received = fx.LinesFlux(
+    received = fx.LineStream(
         example,
     ).to_rows(
         '\t',
@@ -49,7 +49,7 @@ def test_sum_by_keys():
         {'a': 1, 'b': 2, 'h': 2},
     ]
     expected = [((2, 1), {'h': 3}), ((4, 3), {'h': 5})]
-    received = fx.AnyFlux(
+    received = fx.AnyStream(
         example,
     ).apply(
         lambda a: ms.sum_by_keys(

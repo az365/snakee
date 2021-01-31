@@ -86,7 +86,7 @@ def apply_schema_to_row(row, schema, skip_bad_values=False, logger=None):
         raise TypeError
 
 
-class SchemaFlux(fx.RowsFlux):
+class SchemaStream(fx.RowStream):
     def __init__(
             self,
             data,
@@ -130,7 +130,7 @@ class SchemaFlux(fx.RowsFlux):
         return self.schema
 
     def set_schema(self, schema, check=True):
-        return SchemaFlux(
+        return SchemaStream(
             check_rows(self.data, schema=schema) if check else self.data,
             count=self.count,
             less_than=self.less_than,
@@ -156,7 +156,7 @@ class SchemaFlux(fx.RowsFlux):
                             self.log(['Skip bad row:', r], verbose=verbose)
                     else:
                         yield apply_schema_to_row(r, schema, skip_bad_values, logger=self if verbose else None)
-        return SchemaFlux(
+        return SchemaStream(
             apply_schema_to_rows(self.data),
             count=None if skip_bad_rows else self.count,
             less_than=self.less_than,

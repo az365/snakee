@@ -218,10 +218,10 @@ class AbstractDatabase(ac.AbstractStorage):
     ):
         pass
 
-    def insert_schematized_flux(self, table, flux, skip_errors=False, step=DEFAULT_STEP, verbose=arg.DEFAULT):
-        columns = flux.get_columns()
-        expected_count = flux.count
-        final_count = flux.calc(
+    def insert_schematized_stream(self, table, stream, skip_errors=False, step=DEFAULT_STEP, verbose=arg.DEFAULT):
+        columns = stream.get_columns()
+        expected_count = stream.count
+        final_count = stream.calc(
             lambda a: self.insert_rows(
                 table, rows=a, columns=columns,
                 step=step, expected_count=expected_count,
@@ -241,23 +241,23 @@ class AbstractDatabase(ac.AbstractStorage):
             message = 'Schema as {} is deprecated, use sh.SchemaDescription instead'.format(type(schema))
             self.log(msg=message, level=logger_classes.LoggingLevel.Warning)
             schema = sh.SchemaDescription(schema)
-        if fx.is_flux(data):
+        if fx.is_stream(data):
             fx_input = data
         elif cs.is_file(data):
-            fx_input = data.to_schema_flux()
+            fx_input = data.to_schema_stream()
             assert fx_input.get_columns() == schema.get_columns()
         elif isinstance(data, str):
-            fx_input = fx.RowsFlux.from_csv_file(
+            fx_input = fx.RowStream.from_csv_file(
                 filename=data,
                 encoding=encoding,
                 skip_first_line=skip_first_line,
                 verbose=verbose,
             )
         else:
-            fx_input = fx.AnyFlux(data)
+            fx_input = fx.AnyStream(data)
         if skip_lines:
             fx_input = fx_input.skip(skip_lines)
-        if fx_input.flux_type() != fx.FluxType.SchemaFlux:
+        if fx_input.stream_type() != fx.StreamType.SchemaStream:
             fx_input = fx_input.schematize(
                 schema,
                 skip_bad_rows=True,
@@ -266,7 +266,7 @@ class AbstractDatabase(ac.AbstractStorage):
                 count=fx_input.count,
             )
         initial_count = fx_input.count + skip_lines
-        final_count = self.insert_schematized_flux(
+        final_count = self.insert_schematized_stream(
             table, fx_input,
             skip_errors=skip_errors, step=step,
             verbose=verbose,

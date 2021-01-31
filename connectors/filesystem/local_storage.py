@@ -185,12 +185,12 @@ class AbstractFile(ac.LeafConnector):
         folder.add_file(self, name)
 
     @staticmethod
-    def get_flux_type():
-        return fx.FluxType.AnyFlux
+    def get_stream_type():
+        return fx.StreamType.AnyStream
 
     @classmethod
-    def get_flux_class(cls):
-        return fx.get_class(cls.get_flux_type())
+    def get_stream_class(cls):
+        return fx.get_class(cls.get_stream_type())
 
     def is_directly_in_parent_folder(self):
         return self.get_path_delimiter() in self.get_name()
@@ -331,17 +331,17 @@ class TextFile(AbstractFile):
         return self.get_lines(verbose=verbose, step=step)
 
     @staticmethod
-    def get_flux_type():
-        return fx.FluxType.LinesFlux
+    def get_stream_type():
+        return fx.StreamType.LineStream
 
-    def get_flux(self, to=AUTO, verbose=AUTO):
-        to = arg.undefault(to, self.get_flux_type())
-        return self.to_flux_class(
-            flux_class=fx.get_class(to),
+    def get_stream(self, to=AUTO, verbose=AUTO):
+        to = arg.undefault(to, self.get_stream_type())
+        return self.to_stream_class(
+            stream_class=fx.get_class(to),
             verbose=verbose,
         )
 
-    def lines_flux_kwargs(self, verbose=AUTO, step=AUTO, **kwargs):
+    def lines_stream_kwargs(self, verbose=AUTO, step=AUTO, **kwargs):
         verbose = arg.undefault(verbose, self.verbose)
         result = dict(
             count=self.get_count(),
@@ -352,7 +352,7 @@ class TextFile(AbstractFile):
         result.update(kwargs)
         return result
 
-    def flux_kwargs(self, verbose=AUTO, step=AUTO, **kwargs):
+    def stream_kwargs(self, verbose=AUTO, step=AUTO, **kwargs):
         verbose = arg.undefault(verbose, self.verbose)
         result = dict(
             count=self.get_count(),
@@ -363,19 +363,19 @@ class TextFile(AbstractFile):
         result.update(kwargs)
         return result
 
-    def to_flux_class(self, flux_class, **kwargs):
-        return flux_class(
-            **self.flux_kwargs(**kwargs)
+    def to_stream_class(self, stream_class, **kwargs):
+        return stream_class(
+            **self.stream_kwargs(**kwargs)
         )
 
-    def to_lines_flux(self, **kwargs):
-        return fx.LinesFlux(
-            **self.lines_flux_kwargs(**kwargs)
+    def to_lines_stream(self, **kwargs):
+        return fx.LineStream(
+            **self.lines_stream_kwargs(**kwargs)
         )
 
-    def to_any_flux(self, **kwargs):
-        return fx.AnyFlux(
-            **self.flux_kwargs(**kwargs)
+    def to_any_stream(self, **kwargs):
+        return fx.AnyStream(
+            **self.stream_kwargs(**kwargs)
         )
 
     def write_lines(self, lines, verbose=AUTO):
@@ -415,18 +415,18 @@ class JsonFile(TextFile):
         self.default_value = default_value
 
     @staticmethod
-    def get_flux_type():
-        return fx.FluxType.AnyFlux
+    def get_stream_type():
+        return fx.StreamType.AnyStream
 
     def get_items(self, verbose=AUTO, step=AUTO):
-        return self.to_lines_flux(
+        return self.to_lines_stream(
             verbose=verbose
         ).parse_json(
             default_value=self.default_value
         ).get_items()
 
-    def to_records_flux(self, verbose=AUTO):
-        return fx.RecordsFlux(
+    def to_records_stream(self, verbose=AUTO):
+        return fx.RecordStream(
             self.get_items(verbose=verbose),
             count=self.count,
             source=self,
@@ -558,48 +558,48 @@ class CsvFile(TextFile):
             result[cur_key] = cur_value
         return result
 
-    def to_rows_flux(self, name=None, **kwargs):
+    def to_row_stream(self, name=None, **kwargs):
         data = self.get_rows()
-        flux = fx.RowsFlux(
-            **self.flux_kwargs(data=data, **kwargs)
+        stream = fx.RowStream(
+            **self.stream_kwargs(data=data, **kwargs)
         )
         if name:
-            flux.set_name(name)
-        return flux
+            stream.set_name(name)
+        return stream
 
-    def to_schema_flux(self, name=None, **kwargs):
+    def to_schema_stream(self, name=None, **kwargs):
         data = self.get_rows()
-        flux = fx.SchemaFlux(
+        stream = fx.SchemaStream(
             schema=self.schema,
-            **self.flux_kwargs(data=data, **kwargs)
+            **self.stream_kwargs(data=data, **kwargs)
         )
         if name:
-            flux.set_name(name)
-        return flux
+            stream.set_name(name)
+        return stream
 
-    def to_records_flux(self, name=None, **kwargs):
+    def to_record_stream(self, name=None, **kwargs):
         data = self.get_records()
-        flux = fx.RecordsFlux(**self.flux_kwargs(data=data, **kwargs))
+        stream = fx.RecordStream(**self.stream_kwargs(data=data, **kwargs))
         if name:
-            flux.set_name(name)
-        return flux
+            stream.set_name(name)
+        return stream
 
     def select(self, *args, **kwargs):
-        return self.to_records_flux().select(*args, **kwargs)
+        return self.to_record_stream().select(*args, **kwargs)
 
     def filter(self, *args, **kwargs):
-        return self.to_records_flux().filter(*args, **kwargs)
+        return self.to_record_stream().filter(*args, **kwargs)
 
     def take(self, count):
-        return self.to_records_flux().take(count)
+        return self.to_record_stream().take(count)
 
     def to_memory(self):
-        return self.to_records_flux().to_memory()
+        return self.to_record_stream().to_memory()
 
     def show(self, count=10, filters=[], recount=False):
         if recount:
             self.count_lines(True)
-        return self.to_records_flux().show(count, filters)
+        return self.to_record_stream().show(count, filters)
 
     def write_rows(self, rows, verbose=AUTO):
         def get_rows_with_title():
@@ -618,15 +618,17 @@ class CsvFile(TextFile):
         )
         self.write_rows(rows, verbose=verbose)
 
-    def write_flux(self, flux, verbose=AUTO):
-        assert fx.is_flux(flux)
-        methods_for_classes = dict(RecordsFlux=self.write_records, RowsFlux=self.write_rows, LinesFlux=self.write_lines)
-        method = methods_for_classes.get(flux.class_name())
+    def write_stream(self, stream, verbose=AUTO):
+        assert fx.is_stream(stream)
+        methods_for_classes = dict(
+            RecordStream=self.write_records, RowStream=self.write_rows, LineStream=self.write_lines,
+        )
+        method = methods_for_classes.get(stream.class_name())
         if method:
-            method(flux.data, verbose=verbose)
+            method(stream.data, verbose=verbose)
         else:
-            message = 'CsvFile.write_flux() supports RecordsFlux, RowsFlux, LinesFlux only (got {})'
-            raise TypeError(message.format(flux.class_name()))
+            message = 'CsvFile.write_stream() supports RecordStream, RowStream, LineStream only (got {})'
+            raise TypeError(message.format(stream.class_name()))
 
 
 class TsvFile(CsvFile):

@@ -44,16 +44,16 @@ class Table(ac.LeafConnector):
     def get_data(self, verbose=arg.DEFAULT):
         return self.database.select_all(self.name, verbose=verbose)
 
-    def get_flux(self):
+    def get_stream(self):
         count = self.get_count()
-        flux = fx.RowsFlux(
+        stream = fx.RowStream(
             self.get_data(),
             count=count,
             # source=self,
             context=self.get_context(),
         )
-        self.links.append(flux)
-        return flux
+        self.links.append(stream)
+        return stream
 
     def set_schema(self, schema):
         if schema is None:

@@ -8,7 +8,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from utils import arguments as arg
 
 
-class PandasFlux(fx.RecordsFlux):
+class PandasStream(fx.RecordStream):
     def __init__(
             self,
             data,
@@ -23,7 +23,7 @@ class PandasFlux(fx.RecordsFlux):
     ):
         if isinstance(data, pd.DataFrame):
             dataframe = data
-        elif isinstance(data, fx.RecordsFlux):
+        elif isinstance(data, fx.RecordStream):
             dataframe = data.get_dataframe()
         else:  # isinstance(data, (list, tuple)):
             dataframe = pd.DataFrame(data=data)
@@ -70,31 +70,31 @@ class PandasFlux(fx.RecordsFlux):
         else:
             frames = [self.data, dataframe]
         concatenated = pd.concat(frames)
-        return PandasFlux(concatenated)
+        return PandasStream(concatenated)
 
     def add_items(self, items, before=False):
         dataframe = pd.DataFrame(items)
         return self.add_dataframe(dataframe, before)
 
-    def add_flux(self, flux, before=False):
-        if isinstance(flux, PandasFlux):
-            return self.add_dataframe(flux.data, before)
+    def add_stream(self, stream, before=False):
+        if isinstance(stream, PandasStream):
+            return self.add_dataframe(stream.data, before)
         else:
-            return self.add_items(flux.get_items(), before)
+            return self.add_items(stream.get_items(), before)
 
-    def add(self, dataframe_or_flux_or_items, before=False, **kwargs):
+    def add(self, dataframe_or_stream_or_items, before=False, **kwargs):
         assert not kwargs
-        if isinstance(dataframe_or_flux_or_items, pd.DataFrame):
-            return self.add_dataframe(dataframe_or_flux_or_items, before)
-        elif fx.is_flux(dataframe_or_flux_or_items):
-            return self.add_flux(dataframe_or_flux_or_items, before)
+        if isinstance(dataframe_or_stream_or_items, pd.DataFrame):
+            return self.add_dataframe(dataframe_or_stream_or_items, before)
+        elif fx.is_stream(dataframe_or_stream_or_items):
+            return self.add_stream(dataframe_or_stream_or_items, before)
         else:
-            return self.add_items(dataframe_or_flux_or_items)
+            return self.add_items(dataframe_or_stream_or_items)
 
     def select(self, *fields, **expressions):
         assert not expressions, 'custom expressions are not implemented yet'
         dataframe = self.get_dataframe(columns=fields)
-        return PandasFlux(dataframe)
+        return PandasStream(dataframe)
 
     def filter(self, *filters, **expressions):
         assert not filters, 'custom filters are not implemented yet'
@@ -106,7 +106,7 @@ class PandasFlux(fx.RecordsFlux):
             else:
                 pandas_filter = one_filter
         if pandas_filter:
-            return PandasFlux(
+            return PandasStream(
                 self.data[pandas_filter],
                 **self.get_meta()
             )
@@ -118,14 +118,14 @@ class PandasFlux(fx.RecordsFlux):
             by=keys,
             ascending=not reverse,
         )
-        return PandasFlux(dataframe)
+        return PandasStream(dataframe)
 
     def group_by(self, *keys, step=arg.DEFAULT, as_pairs=True, verbose=True):
         grouped = self.get_dataframe().groupby(
             by=keys,
             as_index=as_pairs,
         )
-        return PandasFlux(grouped)
+        return PandasStream(grouped)
 
     def is_in_memory(self):
         return True
@@ -134,7 +134,7 @@ class PandasFlux(fx.RecordsFlux):
         pass
 
     def to_records(self, **kwargs):
-        return fx.RecordsFlux(
+        return fx.RecordStream(
             self.get_records(),
             count=self.expected_count(),
         )

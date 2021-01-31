@@ -3,90 +3,90 @@ import gc
 
 
 MAX_ITEMS_IN_MEMORY = 5000000
-TMP_FILES_TEMPLATE = 'flux_{}.tmp'
+TMP_FILES_TEMPLATE = 'stream_{}.tmp'
 TMP_FILES_ENCODING = 'utf8'
 
 
 try:  # Assume we're a sub-module in a package.
-    from streams.simple.any_stream import AnyFlux
-    from streams.simple.line_stream import LinesFlux
-    from streams.simple.row_stream import RowsFlux
-    from streams.pairs.key_value_stream import PairsFlux
-    from streams.typed.schema_stream import SchemaFlux
-    from streams.simple.record_stream import RecordsFlux
-    from streams.typed.pandas_stream import PandasFlux
+    from streams.simple.any_stream import AnyStream
+    from streams.simple.line_stream import LineStream
+    from streams.simple.row_stream import RowStream
+    from streams.pairs.key_value_stream import KeyValueStream
+    from streams.typed.schema_stream import SchemaStream
+    from streams.simple.record_stream import RecordStream
+    from streams.typed.pandas_stream import PandasStream
     from utils import arguments as arg
     from schema import schema_classes as sh
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from .simple.any_stream import AnyFlux
-    from .simple.line_stream import LinesFlux
-    from .simple.row_stream import RowsFlux
-    from .pairs.key_value_stream import PairsFlux
-    from .typed.schema_stream import SchemaFlux
-    from .simple.record_stream import RecordsFlux
-    from .typed.pandas_stream import PandasFlux
+    from .simple.any_stream import AnyStream
+    from .simple.line_stream import LineStream
+    from .simple.row_stream import RowStream
+    from .pairs.key_value_stream import KeyValueStream
+    from .typed.schema_stream import SchemaStream
+    from .simple.record_stream import RecordStream
+    from .typed.pandas_stream import PandasStream
     from ..utils import arguments as arg
     from ..schema import schema_classes as sh
 
 
-class FluxType(Enum):
-    AnyFlux = 'AnyFlux'
-    LinesFlux = 'LinesFlux'
-    RowsFlux = 'RowsFlux'
-    PairsFlux = 'PairsFlux'
-    SchemaFlux = 'SchemaFlux'
-    RecordsFlux = 'RecordsFlux'
-    PandasFlux = 'PandasFlux'
+class StreamType(Enum):
+    AnyStream = 'AnyStream'
+    LineStream = 'LineStream'
+    RowStream = 'RowStream'
+    KeyValueStream = 'KeyValueStream'
+    SchemaStream = 'SchemaStream'
+    RecordStream = 'RecordStream'
+    PandasStream = 'PandasStream'
 
 
-def get_class(flux_type):
-    if isinstance(flux_type, str):
-        flux_type = FluxType(flux_type)
-    assert isinstance(flux_type, FluxType), TypeError(
-        'flux_type must be an instance of FluxType (but {} as type {} received)'.format(flux_type, type(flux_type))
+def get_class(stream_type):
+    if isinstance(stream_type, str):
+        stream_type = StreamType(stream_type)
+    assert isinstance(stream_type, StreamType), TypeError(
+        'stream_type must be an instance of StreamType (but {} as type {} received)'.format(stream_type, type(stream_type))
     )
-    if flux_type == FluxType.AnyFlux:
-        return AnyFlux
-    elif flux_type == FluxType.LinesFlux:
-        return LinesFlux
-    elif flux_type == FluxType.RowsFlux:
-        return RowsFlux
-    elif flux_type == FluxType.PairsFlux:
-        return PairsFlux
-    elif flux_type == FluxType.SchemaFlux:
-        return SchemaFlux
-    elif flux_type == FluxType.RecordsFlux:
-        return RecordsFlux
-    elif flux_type == FluxType.PandasFlux:
-        return PandasFlux
+    if stream_type == StreamType.AnyStream:
+        return AnyStream
+    elif stream_type == StreamType.LineStream:
+        return LineStream
+    elif stream_type == StreamType.RowStream:
+        return RowStream
+    elif stream_type == StreamType.KeyValueStream:
+        return KeyValueStream
+    elif stream_type == StreamType.SchemaStream:
+        return SchemaStream
+    elif stream_type == StreamType.RecordStream:
+        return RecordStream
+    elif stream_type == StreamType.PandasStream:
+        return PandasStream
 
 
-def is_flux(obj):
+def is_stream(obj):
     return isinstance(
         obj,
-        (AnyFlux, LinesFlux, RowsFlux, PairsFlux, SchemaFlux, RecordsFlux, PandasFlux),
+        (AnyStream, LineStream, RowStream, KeyValueStream, SchemaStream, RecordStream, PandasStream),
     )
 
 
 def is_row(item):
-    return RowsFlux.is_valid_item(item)
+    return RowStream.is_valid_item(item)
 
 
 def is_record(item):
-    return RecordsFlux.is_valid_item(item)
+    return RecordStream.is_valid_item(item)
 
 
 def is_schema_row(item):
     return isinstance(item, sh.SchemaRow)
 
 
-def concat(*iter_fluxes):
-    iter_fluxes = arg.update(iter_fluxes)
+def concat(*iter_streams):
+    iter_streams = arg.update(iter_streams)
     result = None
-    for cur_flux in iter_fluxes:
+    for cur_stream in iter_streams:
         if result is None:
-            result = cur_flux
+            result = cur_stream
         else:
-            result = result.add_flux(cur_flux)
+            result = result.add_stream(cur_stream)
         gc.collect()
     return result

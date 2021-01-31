@@ -27,7 +27,7 @@ def check_rows(rows, skip_errors=False):
         yield i
 
 
-class RowsFlux(fx.AnyFlux):
+class RowStream(fx.AnyStream):
     def __init__(
             self,
             data,
@@ -75,13 +75,13 @@ class RowsFlux(fx.AnyFlux):
             records = get_records(self.get_items(), columns)
         else:
             records = map(lambda r: dict(row=r), self.get_items())
-        return fx.RecordsFlux(
+        return fx.RecordStream(
             records,
             **self.get_meta()
         )
 
     def schematize(self, schema, skip_bad_rows=False, skip_bad_values=False, verbose=True):
-        return fx.SchemaFlux(
+        return fx.SchemaStream(
             self.get_items(),
             **self.get_meta(),
         ).schematize(
@@ -101,7 +101,7 @@ class RowsFlux(fx.AnyFlux):
             check=arg.DEFAULT,
             verbose=False,
     ):
-        fx_rows = fx.LinesFlux.from_file(
+        fx_rows = fx.LineStream.from_file(
             filename,
             encoding=encoding, gzip=gzip,
             skip_first_line=skip_first_line, max_count=max_count,
@@ -120,7 +120,7 @@ class RowsFlux(fx.AnyFlux):
             gzip=False,
             check=arg.DEFAULT,
             verbose=True,
-            return_flux=True,
+            return_stream=True,
     ):
         encoding = arg.undefault(encoding, self.tmp_files_encoding)
         meta = self.get_meta()
@@ -134,9 +134,9 @@ class RowsFlux(fx.AnyFlux):
             gzip=gzip,
             check=check,
             verbose=verbose,
-            return_flux=return_flux,
+            return_stream=return_stream,
         )
-        if return_flux:
+        if return_stream:
             return fx_csv_file.to_rows(
                 delimiter=delimiter,
             ).update_meta(
@@ -144,7 +144,7 @@ class RowsFlux(fx.AnyFlux):
             )
 
     def to_lines(self, delimiter='\t'):
-        return fx.LinesFlux(
+        return fx.LineStream(
             map(lambda r: '\t'.join([str(c) for c in r]), self.get_items()),
             count=self.count,
         )
