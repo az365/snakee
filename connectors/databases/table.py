@@ -1,11 +1,11 @@
 try:  # Assume we're a sub-module in a package.
-    from streams import stream_classes as fx
+    from streams import stream_classes as sm
     from connectors import abstract_connector as ac
     from utils import arguments as arg
     from loggers import logger_classes
     from schema import schema_classes as sh
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...streams import stream_classes as fx
+    from ...streams import stream_classes as sm
     from .. import abstract_connector as ac
     from ...utils import arguments as arg
     from ...loggers import logger_classes
@@ -41,12 +41,18 @@ class Table(ac.LeafConnector):
     def get_count(self, verbose=arg.DEFAULT):
         return self.database.select_count(self.name, verbose=verbose)
 
+    def get_schema(self):
+        return self.schema
+
+    def get_columns(self):
+        return self.get_schema().get_columns()
+
     def get_data(self, verbose=arg.DEFAULT):
         return self.database.select_all(self.name, verbose=verbose)
 
     def get_stream(self):
         count = self.get_count()
-        stream = fx.RowStream(
+        stream = sm.RowStream(
             self.get_data(),
             count=count,
             # source=self,
@@ -54,6 +60,22 @@ class Table(ac.LeafConnector):
         )
         self.links.append(stream)
         return stream
+
+    def to_stream(self, stream_type=arg.DEFAULT):
+        stream_type = arg.undefault(stream_type, sm.RowStream)
+        stream = self.get_stream()
+        if isinstance(stream_type, sm.RowStream):
+            return stream
+        elif isinstance(stream_type, sm.RecordStream):
+            return stream.to_records(columns=self.get_columns())
+        elif isinstance(stream_type, sm.SchemaStream):
+            return stream.schematize(self.get_schema())
+        else:
+            raise ValueError('only RowStream, RecordStream, SchemaStream is supported for Table connector')
+
+    def from_stream(self, stream, **kwargs):
+        assert sm.is_stream(stream)
+        self.upload(data=stream, **kwargs)
 
     def set_schema(self, schema):
         if schema is None:
@@ -73,6 +95,9 @@ class Table(ac.LeafConnector):
         else:
             message = 'schema must be SchemaDescription or tuple with fields_description (got {})'.format(type(schema))
             raise TypeError(message)
+
+    def is_existing(self):
+        return self.get_database().exists_table(self.get_path())
 
     def create(self, drop_if_exists, verbose=arg.DEFAULT):
         return self.database.create_table(

@@ -115,6 +115,18 @@ class LeafConnector(AbstractConnector):
     def has_hierarchy(self):
         return False
 
+    @abstractmethod
+    def is_existing(self):
+        pass
+
+    @abstractmethod
+    def from_stream(self, stream):
+        pass
+
+    @abstractmethod
+    def to_stream(self, stream_type):
+        pass
+
 
 class HierarchicConnector(AbstractConnector):
     def __init__(

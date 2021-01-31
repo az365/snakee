@@ -1,10 +1,12 @@
 from enum import Enum
+from abc import abstractmethod
+import os
 import gzip as gz
 import csv
 
 try:  # Assume we're a sub-module in a package.
     import context as fc
-    from streams import stream_classes as fx
+    from streams import stream_classes as sm
     from connectors import (
         connector_classes as cs,
         abstract_connector as ac,
@@ -18,7 +20,7 @@ try:  # Assume we're a sub-module in a package.
     from functions import all_functions as fs
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from .. import context as fc
-    from streams import stream_classes as fx
+    from streams import stream_classes as sm
     from connectors import (
         connector_classes as cs,
         abstract_connector as ac,
@@ -186,11 +188,11 @@ class AbstractFile(ac.LeafConnector):
 
     @staticmethod
     def get_stream_type():
-        return fx.StreamType.AnyStream
+        return sm.StreamType.AnyStream
 
     @classmethod
     def get_stream_class(cls):
-        return fx.get_class(cls.get_stream_type())
+        return sm.get_class(cls.get_stream_type())
 
     def is_directly_in_parent_folder(self):
         return self.get_path_delimiter() in self.get_name()
@@ -247,6 +249,17 @@ class AbstractFile(ac.LeafConnector):
         meta = self.__dict__.copy()
         meta.pop('fileholder')
         return meta
+
+    def is_existing(self):
+        return os.path.exists(self.get_path())
+
+    @abstractmethod
+    def from_stream(self, stream):
+        pass
+
+    @abstractmethod
+    def to_stream(self, stream_type):
+        pass
 
 
 class TextFile(AbstractFile):
@@ -332,12 +345,12 @@ class TextFile(AbstractFile):
 
     @staticmethod
     def get_stream_type():
-        return fx.StreamType.LineStream
+        return sm.StreamType.LineStream
 
     def get_stream(self, to=AUTO, verbose=AUTO):
         to = arg.undefault(to, self.get_stream_type())
         return self.to_stream_class(
-            stream_class=fx.get_class(to),
+            stream_class=sm.get_class(to),
             verbose=verbose,
         )
 
@@ -369,12 +382,12 @@ class TextFile(AbstractFile):
         )
 
     def to_lines_stream(self, **kwargs):
-        return fx.LineStream(
+        return sm.LineStream(
             **self.lines_stream_kwargs(**kwargs)
         )
 
     def to_any_stream(self, **kwargs):
-        return fx.AnyStream(
+        return sm.AnyStream(
             **self.stream_kwargs(**kwargs)
         )
 
@@ -389,6 +402,13 @@ class TextFile(AbstractFile):
         self.fileholder.close()
         self.close()
         self.log('Done. {} rows has written into {}'.format(n + 1, self.get_name()), verbose=verbose)
+
+    def from_stream(self, stream):
+        assert isinstance(stream, sm.LineStream)
+        self.write_lines(stream.iterable())
+
+    def to_stream(self, stream_type):
+        return self.get_stream(to=stream_type)
 
 
 class JsonFile(TextFile):
@@ -416,7 +436,7 @@ class JsonFile(TextFile):
 
     @staticmethod
     def get_stream_type():
-        return fx.StreamType.AnyStream
+        return sm.StreamType.AnyStream
 
     def get_items(self, verbose=AUTO, step=AUTO):
         return self.to_lines_stream(
@@ -426,7 +446,7 @@ class JsonFile(TextFile):
         ).get_items()
 
     def to_records_stream(self, verbose=AUTO):
-        return fx.RecordStream(
+        return sm.RecordStream(
             self.get_items(verbose=verbose),
             count=self.count,
             source=self,
@@ -560,7 +580,7 @@ class CsvFile(TextFile):
 
     def to_row_stream(self, name=None, **kwargs):
         data = self.get_rows()
-        stream = fx.RowStream(
+        stream = sm.RowStream(
             **self.stream_kwargs(data=data, **kwargs)
         )
         if name:
@@ -569,7 +589,7 @@ class CsvFile(TextFile):
 
     def to_schema_stream(self, name=None, **kwargs):
         data = self.get_rows()
-        stream = fx.SchemaStream(
+        stream = sm.SchemaStream(
             schema=self.schema,
             **self.stream_kwargs(data=data, **kwargs)
         )
@@ -579,7 +599,7 @@ class CsvFile(TextFile):
 
     def to_record_stream(self, name=None, **kwargs):
         data = self.get_records()
-        stream = fx.RecordStream(**self.stream_kwargs(data=data, **kwargs))
+        stream = sm.RecordStream(**self.stream_kwargs(data=data, **kwargs))
         if name:
             stream.set_name(name)
         return stream
@@ -619,7 +639,7 @@ class CsvFile(TextFile):
         self.write_rows(rows, verbose=verbose)
 
     def write_stream(self, stream, verbose=AUTO):
-        assert fx.is_stream(stream)
+        assert sm.is_stream(stream)
         methods_for_classes = dict(
             RecordStream=self.write_records, RowStream=self.write_rows, LineStream=self.write_lines,
         )

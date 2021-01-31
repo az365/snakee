@@ -96,6 +96,11 @@ class AbstractDatabase(ac.AbstractStorage):
     def execute(self, query, get_data=ac.AUTO, commit=ac.AUTO, verbose=arg.DEFAULT):
         pass
 
+    def execute_query_from_file(self, file, get_data=ac.AUTO, commit=ac.AUTO, verbose=arg.DEFAULT):
+        assert isinstance(file, cs.TextFile)
+        query = '\n'.join(file.get_items())
+        return self.execute(query, get_data=get_data, commit=commit, verbose=verbose)
+
     def execute_if_exists(
             self, query, table,
             message_if_yes=None, message_if_no=None, stop_if_no=False, verbose=arg.DEFAULT,

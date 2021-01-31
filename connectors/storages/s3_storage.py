@@ -4,7 +4,7 @@ import boto3
 
 try:  # Assume we're a sub-module in a package.
     import context as fc
-    from streams import stream_classes as fx
+    from streams import stream_classes as sm
     from connectors import (
         abstract_connector as ac,
         connector_classes as cs,
@@ -13,7 +13,7 @@ try:  # Assume we're a sub-module in a package.
     from loggers import logger_classes
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ... import context as fc
-    from ...streams import stream_classes as fx
+    from ...streams import stream_classes as sm
     from .. import (
         abstract_connector as ac,
         connector_classes as cs,
@@ -188,7 +188,7 @@ class S3Bucket(ac.FlatFolder):
         else:
             return objects
 
-    def yield_objects(self, params):
+    def yield_objects(self, params={}):
         continuation_token = None
         if 'MaxKeys' not in params:
             params['MaxKeys'] = 1000
@@ -200,6 +200,13 @@ class S3Bucket(ac.FlatFolder):
             if not response.get('IsTruncated'):
                 break
             continuation_token = response.get('NextContinuationToken')
+
+    def yield_object_names(self):
+        for obj in self.yield_objects():
+            yield obj['Key']
+
+    def list_object_names(self):
+        return list(self.yield_object_names())
 
     def list_prefixes(self):
         return self.list_objects('CommonPrefixes')
@@ -259,11 +266,17 @@ class S3Object(ac.LeafConnector):
     def get_bucket(self):
         return self.get_folder().get_bucket()
 
+    def get_bucket_name(self):
+        return self.get_bucket().get_name()
+
     def get_object_path_in_bucket(self):
         if self.get_folder().get_name():
             return self.get_folder().get_name() + self.get_path_delimiter() + self.get_name()
         else:
             return self.get_name()
+
+    def get_client(self):
+        return self.get_bucket().get_client()
 
     def get_buffer(self):
         return self.get_folder().get_buffer(self.get_object_path_in_bucket())
@@ -280,3 +293,40 @@ class S3Object(ac.LeafConnector):
     def get_data(self):
         for line in self.get_body():
             yield line.decode('utf8', errors='ignore')
+
+    def put_object(self, data, storage_class='COLD'):
+        return self.get_client().put_object(
+            Bucket=self.get_bucket_name(),
+            Key=self.get_object_path_in_bucket(),
+            Body=data,
+            StorageClass=storage_class,
+        )
+
+    def upload_file(self, file, extra_args={}):
+        if isinstance(file, str):
+            filename = file
+        elif isinstance(file, ac.LeafConnector):
+            filename = file.get_path()
+        else:
+            message = 'file-argument must be path to local file or File(LeafConnector) object (got {} as {})'
+            raise TypeError(message.format(file, type(file)))
+        return self.get_client().upload_file(
+            Filename=filename,
+            Bucket=self.get_bucket_name(),
+            Key=self.get_path(),
+            ExtraArgs=extra_args,
+        )
+
+    def is_existing(self):
+        return self.get_object_path_in_bucket() in self.get_bucket().list_object_names()
+
+    def from_stream(self, stream, storage_class='COLD'):
+        assert isinstance(stream, sm.AnyStream)
+        return self.put_object(data=stream.iterable(), storage_class=storage_class)
+
+    def to_stream(self, stream_type, **kwargs):
+        stream_class = sm.get_class(stream_type)
+        return stream_class(
+            self.get_data(),
+            **kwargs
+        )
