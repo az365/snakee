@@ -1,16 +1,16 @@
 try:  # Assume we're a sub-module in a package.
-    from streams import stream_classes as sm
     from connectors import (
         abstract_connector as ac,
         connector_classes as cs,
     )
+    from streams import stream_classes as sm
     from utils import arguments as arg
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...streams import stream_classes as sm
     from .. import (
         connector_classes as cs,
         abstract_connector as ac,
     )
+    from ...streams import stream_classes as sm
     from ...utils import arguments as arg
 
 
@@ -20,7 +20,7 @@ class TwinSync(ac.LeafConnector):
             name,
             src,
             dst,
-            stream_type=sm.StreamType.AnyStream,
+            stream_type=arg.DEFAULT,
             procedure=None,
             apply_to_stream=True,
             context=arg.DEFAULT,
@@ -35,6 +35,7 @@ class TwinSync(ac.LeafConnector):
         self.dst = dst
         assert procedure is None or isinstance(procedure, callable)
         self.procedure = procedure
+        stream_type = arg.undefault(stream_type, sm.StreamType.AnyStream)
         assert isinstance(stream_type, sm.StreamType)
         self.stream_type = stream_type
         self.apply_to_stream = apply_to_stream
