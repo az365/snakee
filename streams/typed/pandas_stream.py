@@ -5,7 +5,7 @@ try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from .. import stream_classes as fx
-    from utils import arguments as arg
+    from ...utils import arguments as arg
 
 
 class PandasStream(fx.RecordStream):

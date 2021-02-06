@@ -18,8 +18,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         abstract_connector as ac,
         connector_classes as cs,
     )
-    from utils import arguments as arg
-    from loggers import logger_classes
+    from ...utils import arguments as arg
+    from ...loggers import logger_classes
 
 
 AUTO = arg.DEFAULT

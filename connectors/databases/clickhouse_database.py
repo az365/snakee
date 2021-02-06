@@ -1,8 +1,13 @@
 import requests
 
-from connectors.databases import abstract_database as ad
-from loggers import logger_classes
-from utils import arguments as arg
+try:  # Assume we're a sub-module in a package.
+    from connectors.databases import abstract_database as ad
+    from loggers import logger_classes
+    from utils import arguments as arg
+except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
+    from ..databases import abstract_database as ad
+    from ...loggers import logger_classes
+    from ...utils import arguments as arg
 
 
 class ClickhouseDatabase(ad.AbstractDatabase):

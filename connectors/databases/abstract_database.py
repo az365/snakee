@@ -2,7 +2,7 @@ from abc import abstractmethod
 from enum import Enum
 
 try:  # Assume we're a sub-module in a package.
-    from streams import stream_classes as fx
+    from streams import stream_classes as sm
     from connectors import (
         abstract_connector as ac,
         connector_classes as cs,
@@ -15,18 +15,18 @@ try:  # Assume we're a sub-module in a package.
     from schema import schema_classes as sh
     from functions import all_functions as fs
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from streams import stream_classes as fx
-    from connectors import (
+    from ...streams import stream_classes as sm
+    from .. import (
         connector_classes as cs,
         abstract_connector as ac,
     )
-    from utils import (
+    from ...utils import (
         arguments as arg,
         mappers as ms,
     )
-    from loggers import logger_classes
-    from schema import schema_classes as sh
-    from functions import all_functions as fs
+    from ...loggers import logger_classes
+    from ...schema import schema_classes as sh
+    from ...functions import all_functions as fs
 
 
 AUTO = arg.DEFAULT
@@ -246,23 +246,23 @@ class AbstractDatabase(ac.AbstractStorage):
             message = 'Schema as {} is deprecated, use sh.SchemaDescription instead'.format(type(schema))
             self.log(msg=message, level=logger_classes.LoggingLevel.Warning)
             schema = sh.SchemaDescription(schema)
-        if fx.is_stream(data):
+        if sm.is_stream(data):
             fx_input = data
         elif cs.is_file(data):
             fx_input = data.to_schema_stream()
             assert fx_input.get_columns() == schema.get_columns()
         elif isinstance(data, str):
-            fx_input = fx.RowStream.from_csv_file(
+            fx_input = sm.RowStream.from_csv_file(
                 filename=data,
                 encoding=encoding,
                 skip_first_line=skip_first_line,
                 verbose=verbose,
             )
         else:
-            fx_input = fx.AnyStream(data)
+            fx_input = sm.AnyStream(data)
         if skip_lines:
             fx_input = fx_input.skip(skip_lines)
-        if fx_input.stream_type() != fx.StreamType.SchemaStream:
+        if fx_input.stream_type() != sm.StreamType.SchemaStream:
             fx_input = fx_input.schematize(
                 schema,
                 skip_bad_rows=True,

@@ -15,7 +15,7 @@ try:  # Assume we're a sub-module in a package.
     from functions import all_functions as fs
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from .. import stream_classes as fx
-    from utils import (
+    from ...utils import (
         arguments as arg,
         mappers as ms,
         selection,

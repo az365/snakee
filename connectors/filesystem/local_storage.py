@@ -5,7 +5,7 @@ import gzip as gz
 import csv
 
 try:  # Assume we're a sub-module in a package.
-    import context as fc
+    import context as sx
     from streams import stream_classes as sm
     from connectors import (
         connector_classes as cs,
@@ -19,19 +19,19 @@ try:  # Assume we're a sub-module in a package.
     from schema import schema_classes as sh
     from functions import all_functions as fs
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from .. import context as fc
-    from streams import stream_classes as sm
-    from connectors import (
+    from ... import context as sx
+    from ...streams import stream_classes as sm
+    from .. import (
         connector_classes as cs,
         abstract_connector as ac,
     )
-    from utils import (
+    from ...utils import (
         arguments as arg,
         selection,
     )
-    from loggers import logger_classes
-    from schema import schema_classes as sh
-    from functions import all_functions as fs
+    from ...loggers import logger_classes
+    from ...schema import schema_classes as sh
+    from ...functions import all_functions as fs
 
 
 AUTO = arg.DEFAULT

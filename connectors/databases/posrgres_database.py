@@ -1,10 +1,16 @@
 import gc
 import psycopg2
 
-from connectors import abstract_connector as ac
-from connectors.databases import abstract_database as ad
-from loggers import logger_classes
-from utils import arguments as arg, mappers as ms
+try:  # Assume we're a sub-module in a package.
+    from connectors import abstract_connector as ac
+    from connectors.databases import abstract_database as ad
+    from loggers import logger_classes
+    from utils import arguments as arg, mappers as ms
+except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
+    from .. import abstract_connector as ac
+    from ..databases import abstract_database as ad
+    from ...loggers import logger_classes
+    from ...utils import arguments as arg
 
 
 class PostgresDatabase(ad.AbstractDatabase):
