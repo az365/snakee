@@ -40,8 +40,8 @@ class SnakeeContext:
         self.stream_instances = dict()
         self.conn_instances = dict()
 
-        self.fx = sm
-        self.cs = ct
+        self.sm = sm
+        self.ct = ct
         self.sh = sh
 
     @staticmethod
@@ -120,6 +120,12 @@ class SnakeeContext:
         assert old_name in self.stream_instances, 'Stream must be defined (name {} is not registered)'.format(old_name)
         if new_name != old_name:
             self.stream_instances[new_name] = self.stream_instances.pop(old_name)
+
+    def get_local_storage(self, name='filesystem'):
+        local_storage = self.conn_instances.get('name')
+        if not local_storage:
+            local_storage = ct.LocalStorage(name, context=self)
+        return local_storage
 
     def get_job_folder(self):
         job_folder_obj = self.conn_instances.get('job')
