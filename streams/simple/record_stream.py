@@ -13,7 +13,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .. import stream_classes as fx
     from ...connectors import connector_classes as cs
     from ...functions import all_functions as fs
-    from utils import (
+    from ...utils import (
         arguments as arg,
         mappers as ms,
         selection,
@@ -158,7 +158,7 @@ class RecordStream(fx.AnyStream):
     ):
         key_function = get_key_function(keys)
         step = arg.undefault(step, self.max_items_in_memory)
-        if self.can_be_in_memory():
+        if self.can_be_in_memory(step=step):
             return self.memory_sort(key_function, reverse, verbose=verbose)
         else:
             return self.disk_sort(key_function, reverse, step=step, verbose=verbose)
@@ -291,7 +291,7 @@ class RecordStream(fx.AnyStream):
             meta.pop('count')
         file.write_stream(self, verbose=verbose)
         if return_stream:
-            return file.to_records_stream(verbose=verbose).update_meta(**meta)
+            return file.to_record_stream(verbose=verbose).update_meta(**meta)
 
     def to_csv_file(
             self,
