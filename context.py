@@ -87,13 +87,12 @@ class SnakeeContext:
             conn_object.check()
         return conn_object
 
-    def stream(self, stream, name=arg.DEFAULT, check=True, **kwargs):
+    def stream(self, stream_type, name=arg.DEFAULT, check=True, **kwargs):
         name = arg.undefault(name, self.get_default_instance_name())
-        if sm.is_stream(stream):
-            stream_object = stream
+        if sm.is_stream(stream_type):
+            stream_object = stream_type
         else:
-            stream_class = sm.get_class(stream)
-            stream_object = stream_class(**kwargs)
+            stream_object = sm.stream(stream_type, **kwargs)
         stream_object = stream_object.set_name(
             name,
             register=False,

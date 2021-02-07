@@ -29,6 +29,14 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..schema import schema_classes as sh
 
 
+STREAM_CLASSES = (
+    AnyStream,
+    LineStream, RowStream, RecordStream,
+    KeyValueStream,
+    PandasStream, SchemaStream,
+)
+
+
 class StreamType(Enum):
     AnyStream = 'AnyStream'
     LineStream = 'LineStream'
@@ -38,34 +46,45 @@ class StreamType(Enum):
     RecordStream = 'RecordStream'
     PandasStream = 'PandasStream'
 
+    def get_class(self):
+        classes = dict(
+            AnyStream=AnyStream,
+            LineStream=LineStream,
+            RowStream=RowStream,
+            KeyValueStream=KeyValueStream,
+            SchemaStream=SchemaStream,
+            RecordStream=RecordStream,
+            PandasStream=PandasStream,
+        )
+        return classes.get(self.value)
+
+    def stream(self, *args, **kwargs):
+        stream_class = self.get_class()
+        return stream_class(*args, **kwargs)
+
 
 def get_class(stream_type):
     if isinstance(stream_type, str):
         stream_type = StreamType(stream_type)
-    assert isinstance(stream_type, StreamType), TypeError(
-        'stream_type must be an instance of StreamType (but {} as type {} received)'.format(stream_type, type(stream_type))
-    )
-    if stream_type == StreamType.AnyStream:
-        return AnyStream
-    elif stream_type == StreamType.LineStream:
-        return LineStream
-    elif stream_type == StreamType.RowStream:
-        return RowStream
-    elif stream_type == StreamType.KeyValueStream:
-        return KeyValueStream
-    elif stream_type == StreamType.SchemaStream:
-        return SchemaStream
-    elif stream_type == StreamType.RecordStream:
-        return RecordStream
-    elif stream_type == StreamType.PandasStream:
-        return PandasStream
+    message = 'stream_type must be an instance of StreamType (but {} as type {} received)'
+    assert isinstance(stream_type, StreamType), TypeError(message.format(stream_type, type(stream_type)))
+    return stream_type.get_class()
+
+
+def stream(stream_type, *args, **kwargs):
+    if is_stream_class(STREAM_CLASSES):
+        stream_class = stream_type
+    else:
+        stream_class = StreamType(stream_type).get_class()
+    return stream_class(*args, **kwargs)
+
+
+def is_stream_class(obj):
+    return obj in STREAM_CLASSES
 
 
 def is_stream(obj):
-    return isinstance(
-        obj,
-        (AnyStream, LineStream, RowStream, KeyValueStream, SchemaStream, RecordStream, PandasStream),
-    )
+    return isinstance(obj, STREAM_CLASSES)
 
 
 def is_row(item):
