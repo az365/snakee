@@ -1,4 +1,6 @@
 from enum import Enum
+import os
+import fnmatch
 
 try:  # Assume we're a sub-module in a package.
     from connectors import connector_classes as ct
@@ -17,20 +19,20 @@ class FileType(Enum):
     TskvFile = 'TskvFile'
 
 
-class LocalFolder(ct.FlatFolder):
+class LocalFolder(ct.HierarchicFolder):
     def __init__(
             self,
             path,
             path_is_relative=True,
-            storage=arg.DEFAULT,
+            parent=arg.DEFAULT,
             context=None,
             verbose=arg.DEFAULT,
     ):
-        storage = arg.undefault(storage, ct.LocalStorage(context=context))
-        assert isinstance(storage, ct.LocalStorage)
+        parent = arg.undefault(parent, ct.LocalStorage(context=context))
+        assert isinstance(parent, (LocalFolder, ct.LocalFolder, ct.LocalStorage))
         super().__init__(
             name=path,
-            parent=storage,
+            parent=parent,
             verbose=verbose,
         )
         self.path_is_relative = path_is_relative
@@ -39,25 +41,35 @@ class LocalFolder(ct.FlatFolder):
         return ct.TextFile
 
     @staticmethod
-    def get_child_class_by_filetype(filetype):
-        return ct.get_class(filetype)
+    def get_child_class_by_type(filetype):
+        return ct.ConnType(filetype).get_class()
 
     @staticmethod
-    def get_file_type_by_name(name):
-        file_ext = name.split('.')[-1]
-        return ct.DICT_EXT_TO_TYPE.get(file_ext, ct.ConnType.TextFile)
+    def get_type_by_name(name):
+        if '*' in name:
+            return ct.FileMask
+        else:
+            file_ext = name.split('.')[-1]
+            return ct.DICT_EXT_TO_TYPE.get(file_ext, ct.ConnType.TextFile)
 
     def get_child_class_by_name(self, name):
-        supposed_type = self.get_file_type_by_name(name)
-        return self.get_child_class_by_filetype(supposed_type)
+        supposed_type = self.get_type_by_name(name)
+        return self.get_child_class_by_type(supposed_type)
 
     def get_child_class_by_name_and_type(self, name, filetype=arg.DEFAULT):
-        supposed_type = self.get_file_type_by_name(name)
+        supposed_type = self.get_type_by_name(name)
         filetype = arg.undefault(filetype, supposed_type)
-        return self.get_child_class_by_filetype(filetype)
+        return self.get_child_class_by_type(filetype)
 
     def get_files(self):
-        return self.get_items()
+        for item in self.get_items():
+            if ct.is_file(item):
+                yield item
+
+    def get_subfolders(self):
+        for item in self.get_children():
+            if ct.is_folder(item):
+                yield item
 
     def file(self, name, filetype=arg.DEFAULT, **kwargs):
         file = self.get_children().get(name)
@@ -68,10 +80,26 @@ class LocalFolder(ct.FlatFolder):
             self.get_children()[name] = file
         return file
 
+    def subfolder(self, name, folder_type=arg.DEFAULT, **kwargs):
+        supposed_type = FileMask if '*' in name else LocalFolder
+        subfolder_type = arg.undefault(folder_type, supposed_type)
+        subfolder_class = ct.ConnType(subfolder_type).get_class()
+        subfolder_obj = subfolder_class(name, self, **kwargs)
+        self.add_subfolder(name, subfolder_obj)
+        return subfolder_obj
+
+    def mask(self, mask):
+        return self.subfolder(mask, ct.ConnType.FileMask)
+
     def add_file(self, name, file):
         assert ct.is_file(file), 'file must be an instance of *File (got {})'.format(type(file))
         assert name not in self.get_children(), 'file with name {} is already registered'.format(name)
         self.get_children()[name] = file
+
+    def add_subfolder(self, name, folder):
+        assert ct.is_folder(folder)
+        assert name not in self.get_children()
+        self.get_children()[name] = folder
 
     def get_links(self):
         for item in self.get_files():
@@ -98,3 +126,74 @@ class LocalFolder(ct.FlatFolder):
             return self.get_name()
         else:
             return super().get_path()
+
+    def get_folder_path(self):
+        return self.get_path()
+
+    def get_file_path(self, name):
+        if self.get_folder_path():
+            return self.get_folder_path() + self.get_path_delimiter() + name
+        else:
+            return name
+
+    def list_existing_names(self):
+        if self.get_name() in ['', '.']:
+            return os.listdir()
+        else:
+            return os.listdir(self.get_path())
+
+    def yield_existing_file_names(self):
+        for name in self.list_existing_names():
+            path = self.get_file_path(name)
+            if os.path.isfile(path):
+                yield name
+
+    def list_existing_file_names(self):
+        return list(self.yield_existing_file_names())
+
+    def all_existing_files(self, **kwargs):
+        for name in self.list_existing_file_names():
+            yield self.file(name, **kwargs)
+
+
+class FileMask(LocalFolder):
+    def __init__(
+            self,
+            mask,
+            parent,
+            context=None,
+            verbose=arg.DEFAULT,
+    ):
+        parent = arg.undefault(parent, ct.LocalStorage(context=context))
+        assert isinstance(parent, (LocalFolder, ct.LocalFolder, ct.LocalStorage))
+        super().__init__(
+            path=mask,
+            parent=parent,
+            verbose=verbose,
+        )
+
+    def get_mask(self):
+        return self.get_name()
+
+    def get_folder(self):
+        return self.get_parent()
+
+    def get_folder_path(self):
+        return self.get_folder().get_path()
+
+    def get_mask_path(self):
+        return self.get_folder_path() + self.get_path_delimiter() + self.get_mask()
+
+    def get_path(self, with_mask=True):
+        if with_mask:
+            return self.get_mask_path()
+        else:
+            return self.get_folder_path()
+
+    def yield_existing_names(self):
+        for name in self.get_folder().list_existing_names():
+            if fnmatch.fnmatch(name, self.get_mask()):
+                yield name
+
+    def list_existing_names(self):
+        return list(self.yield_existing_names())

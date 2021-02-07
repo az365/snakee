@@ -7,7 +7,7 @@ try:  # Assume we're a sub-module in a package.
     from connectors.abstract.abstract_folder import AbstractFolder, FlatFolder, HierarchicFolder
     from connectors.abstract.abstract_storage import AbstractStorage
     from connectors.filesystem.local_storage import LocalStorage
-    from connectors.filesystem.local_folder import LocalFolder
+    from connectors.filesystem.local_folder import LocalFolder, FileMask
     from connectors.filesystem.local_file import AbstractFile, TextFile, JsonFile, ColumnFile, CsvFile, TsvFile
     from connectors.storages.s3_storage import AbstractObjectStorage, S3Storage
     from connectors.storages.s3_bucket import S3Bucket, S3Folder
@@ -25,7 +25,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .abstract.abstract_folder import AbstractFolder, FlatFolder, HierarchicFolder
     from .abstract.abstract_storage import AbstractStorage
     from .filesystem.local_storage import LocalStorage
-    from .filesystem.local_folder import LocalFolder
+    from .filesystem.local_folder import LocalFolder, FileMask
     from .filesystem.local_file import AbstractFile, TextFile, JsonFile, ColumnFile, CsvFile, TsvFile
     from .storages.s3_storage import AbstractObjectStorage, S3Storage
     from .storages.s3_bucket import S3Bucket, S3Folder
@@ -45,7 +45,7 @@ CONN_CLASSES = (
     AbstractFolder, FlatFolder, HierarchicFolder,
     AbstractStorage,
     LocalStorage,
-    LocalFolder,
+    LocalFolder, FileMask,
     AbstractFile, TextFile, JsonFile, ColumnFile, CsvFile, TsvFile,
     AbstractObjectStorage, S3Storage,
     S3Bucket, S3Folder,
@@ -63,8 +63,10 @@ DICT_EXT_TO_TYPE = {'txt': TextFile, 'json': JsonFile, 'csv': CsvFile, 'tsv': Ts
 class ConnType(Enum):
     LocalStorage = 'LocalStorage'
     LocalFolder = 'LocalFolder'
+    FileMask = 'FileMask'
     TextFile = 'TextFile'
     JsonFile = 'JsonFile'
+    ColumnFile = 'ColumnFile'
     CsvFile = 'CsvFile'
     TsvFile = 'TsvFile'
     PostgresDatabase = 'PostgresDatabase'
@@ -80,8 +82,10 @@ class ConnType(Enum):
         classes = dict(
             LocalStorage=LocalStorage,
             LocalFolder=LocalFolder,
+            FileMask=FileMask,
             TextFile=TextFile,
             JsonFile=JsonFile,
+            ColumnFile=ColumnFile,
             CsvFile=CsvFile,
             TsvFile=TsvFile,
             PostgresDatabase=PostgresDatabase,
@@ -112,11 +116,11 @@ def is_conn(obj):
 
 
 def is_file(obj):
-    return isinstance(obj, (TextFile, JsonFile, CsvFile, TsvFile))
+    return isinstance(obj, (TextFile, JsonFile, ColumnFile, CsvFile, TsvFile))
 
 
 def is_folder(obj):
-    return obj.__class__.__name__ == 'LocalFolder'
+    return obj.__class__.__name__ in ('LocalFolder', 'FileMask', 'S3Folder')
 
 
 def is_database(obj):
