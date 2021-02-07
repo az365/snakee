@@ -90,9 +90,17 @@ class AbstractConnector(ABC):
         if self.is_root():
             return [self.get_path_prefix()]
         else:
-            return self.get_parent().get_path_as_list() + [self.name.split(self.get_path_delimiter())]
+            return self.get_parent().get_path_as_list() + self.get_name().split(self.get_path_delimiter())
 
     def get_meta(self):
         meta = self.__dict__.copy()
-        meta.pop('context')
+        meta.pop('parent')
         return meta
+
+    def get_config(self):
+        data = self.__dict__.copy()
+        for k, v in data.items():
+            if k == 'parent':
+                if hasattr(v, 'name'):
+                    data[k] = v.get_name()
+        return data
