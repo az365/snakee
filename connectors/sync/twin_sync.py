@@ -1,20 +1,14 @@
 try:  # Assume we're a sub-module in a package.
-    from connectors import (
-        abstract_connector as ac,
-        connector_classes as cs,
-    )
+    from connectors import connector_classes as ct
     from streams import stream_classes as sm
     from utils import arguments as arg
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from .. import (
-        connector_classes as cs,
-        abstract_connector as ac,
-    )
+    from .. import connector_classes as ct
     from ...streams import stream_classes as sm
     from ...utils import arguments as arg
 
 
-class TwinSync(ac.LeafConnector):
+class TwinSync(ct.LeafConnector):
     def __init__(
             self,
             name,
@@ -29,9 +23,9 @@ class TwinSync(ac.LeafConnector):
             name=name,
             parent=context,
         )
-        assert isinstance(src, ac.LeafConnector)
+        assert isinstance(src, ct.LeafConnector)
         self.src = src
-        assert isinstance(dst, ac.LeafConnector)
+        assert isinstance(dst, ct.LeafConnector)
         self.dst = dst
         assert procedure is None or isinstance(procedure, callable)
         self.procedure = procedure

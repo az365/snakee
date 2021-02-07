@@ -1,22 +1,17 @@
 from enum import Enum
 
 try:  # Assume we're a sub-module in a package.
-    from connectors.filesystem.local_storage import (
-        LocalStorage,
-        LocalFolder,
-        AbstractFile,
-        TextFile,
-        JsonFile,
-        CsvFile,
-        TsvFile,
-    )
-    from connectors.storages.s3_storage import (
-        AbstractObjectStorage,
-        S3Storage,
-        S3Bucket,
-        S3Folder,
-        S3Object,
-    )
+    from connectors.abstract.abstract_connector import AbstractConnector
+    from connectors.abstract.leaf_connector import LeafConnector
+    from connectors.abstract.hierarchic_connector import HierarchicConnector
+    from connectors.abstract.abstract_folder import AbstractFolder, FlatFolder, HierarchicFolder
+    from connectors.abstract.abstract_storage import AbstractStorage
+    from connectors.filesystem.local_storage import LocalStorage
+    from connectors.filesystem.local_folder import LocalFolder
+    from connectors.filesystem.local_file import AbstractFile, TextFile, JsonFile, ColumnFile, CsvFile, TsvFile
+    from connectors.storages.s3_storage import AbstractObjectStorage, S3Storage
+    from connectors.storages.s3_bucket import S3Bucket, S3Folder
+    from connectors.storages.s3_object import S3Object
     from connectors.databases.abstract_database import AbstractDatabase
     from connectors.databases.posrgres_database import PostgresDatabase
     from connectors.databases.clickhouse_database import ClickhouseDatabase
@@ -24,22 +19,17 @@ try:  # Assume we're a sub-module in a package.
     from connectors.sync.twin_sync import TwinSync
     from loggers.logger_classes import deprecated, deprecated_with_alternative
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from .filesystem.local_storage import (
-        LocalStorage,
-        LocalFolder,
-        AbstractFile,
-        TextFile,
-        JsonFile,
-        CsvFile,
-        TsvFile,
-    )
-    from .storages.s3_storage import (
-        AbstractObjectStorage,
-        S3Storage,
-        S3Bucket,
-        S3Folder,
-        S3Object,
-    )
+    from .abstract.abstract_connector import AbstractConnector
+    from .abstract.leaf_connector import LeafConnector
+    from .abstract.hierarchic_connector import HierarchicConnector
+    from .abstract.abstract_folder import AbstractFolder, FlatFolder, HierarchicFolder
+    from .abstract.abstract_storage import AbstractStorage
+    from .filesystem.local_storage import LocalStorage
+    from .filesystem.local_folder import LocalFolder
+    from .filesystem.local_file import AbstractFile, TextFile, JsonFile, ColumnFile, CsvFile, TsvFile
+    from .storages.s3_storage import AbstractObjectStorage, S3Storage
+    from .storages.s3_bucket import S3Bucket, S3Folder
+    from .storages.s3_object import S3Object
     from .databases.abstract_database import AbstractDatabase
     from .databases.posrgres_database import PostgresDatabase
     from .databases.clickhouse_database import ClickhouseDatabase
@@ -49,11 +39,22 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 
 
 CONN_CLASSES = (
-    LocalStorage, LocalFolder, AbstractFile,
-    TextFile, JsonFile, CsvFile, TsvFile,
-    AbstractDatabase, Table,
-    PostgresDatabase, ClickhouseDatabase,
-    # TwinSync,
+    AbstractConnector,
+    LeafConnector,
+    HierarchicConnector,
+    AbstractFolder, FlatFolder, HierarchicFolder,
+    AbstractStorage,
+    LocalStorage,
+    LocalFolder,
+    AbstractFile, TextFile, JsonFile, ColumnFile, CsvFile, TsvFile,
+    AbstractObjectStorage, S3Storage,
+    S3Bucket, S3Folder,
+    S3Object,
+    AbstractDatabase,
+    PostgresDatabase,
+    ClickhouseDatabase,
+    Table,
+    TwinSync,
 )
 DATABASE_TYPES = [PostgresDatabase.__class__.__name__, ClickhouseDatabase.__class__.__name__]
 DICT_EXT_TO_TYPE = {'txt': TextFile, 'json': JsonFile, 'csv': CsvFile, 'tsv': TsvFile}
@@ -76,34 +77,23 @@ class ConnType(Enum):
     TwinSync = 'TwinSync'
 
     def get_class(self):
-        if self == ConnType.LocalStorage:
-            return LocalStorage
-        elif self == ConnType.LocalFolder:
-            return LocalFolder
-        elif self == ConnType.TextFile:
-            return TextFile
-        elif self == ConnType.JsonFile:
-            return JsonFile
-        elif self == ConnType.CsvFile:
-            return CsvFile
-        elif self == ConnType.TsvFile:
-            return CsvFile
-        elif self == ConnType.S3Storage:
-            return S3Storage
-        elif self == ConnType.S3Bucket:
-            return S3Bucket
-        elif self == ConnType.S3Folder:
-            return S3Folder
-        elif self == ConnType.S3Object:
-            return S3Object
-        elif self == ConnType.PostgresDatabase:
-            return PostgresDatabase
-        elif self == ConnType.ClickhouseDatabase:
-            return ClickhouseDatabase
-        elif self == ConnType.Table:
-            return Table
-        elif self == ConnType.TwinSync:
-            return TwinSync
+        classes = dict(
+            LocalStorage=LocalStorage,
+            LocalFolder=LocalFolder,
+            TextFile=TextFile,
+            JsonFile=JsonFile,
+            CsvFile=CsvFile,
+            TsvFile=TsvFile,
+            PostgresDatabase=PostgresDatabase,
+            ClickhouseDatabase=ClickhouseDatabase,
+            Table=Table,
+            S3Storage=S3Storage,
+            S3Bucket=S3Bucket,
+            S3Folder=S3Folder,
+            S3Object=S3Object,
+            TwinSync=TwinSync,
+        )
+        return classes[self.value]
 
 
 @deprecated_with_alternative('ConnType.get_class()')

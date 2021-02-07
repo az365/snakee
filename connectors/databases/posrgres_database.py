@@ -1,16 +1,21 @@
 import gc
 import psycopg2
+import psycopg2.extras
 
 try:  # Assume we're a sub-module in a package.
-    from connectors import abstract_connector as ac
     from connectors.databases import abstract_database as ad
     from loggers import logger_classes
-    from utils import arguments as arg, mappers as ms
+    from utils import (
+        arguments as arg,
+        mappers as ms,
+    )
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from .. import abstract_connector as ac
     from ..databases import abstract_database as ad
     from ...loggers import logger_classes
-    from ...utils import arguments as arg
+    from ...utils import (
+        arguments as arg,
+        mappers as ms,
+    )
 
 
 class PostgresDatabase(ad.AbstractDatabase):
@@ -62,12 +67,12 @@ class PostgresDatabase(ad.AbstractDatabase):
             self.connection = None
             return 1
 
-    def execute(self, query=ad.TEST_QUERY, get_data=ac.AUTO, commit=ac.AUTO, data=None, verbose=arg.DEFAULT):
+    def execute(self, query=ad.TEST_QUERY, get_data=arg.DEFAULT, commit=arg.DEFAULT, data=None, verbose=arg.DEFAULT):
         verbose = arg.undefault(verbose, self.verbose)
         message = verbose if isinstance(verbose, str) else 'Execute:'
         level = logger_classes.LoggingLevel.Debug
         self.log([message, ms.remove_extra_spaces(query)], level=level, end='\r', verbose=verbose)
-        if get_data == ac.AUTO:
+        if get_data == arg.DEFAULT:
             if 'SELECT' in query and 'GRANT' not in query:
                 get_data, commit = True, False
             else:
@@ -89,9 +94,8 @@ class PostgresDatabase(ad.AbstractDatabase):
         if get_data:
             return result
 
-    def execute_batch(self, query, batch, step=ad.DEFAULT_STEP, cursor=ac.AUTO):
-        if cursor == ac.AUTO:
-            cursor = self.connect().cursor()
+    def execute_batch(self, query, batch, step=ad.DEFAULT_STEP, cursor=arg.DEFAULT):
+        cursor = arg.undefault(cursor, self.connect().cursor())
         psycopg2.extras.execute_batch(cursor, query, batch, page_size=step)
 
     def grant_permission(self, name, permission='SELECT', group=ad.DEFAULT_GROUP, verbose=arg.DEFAULT):

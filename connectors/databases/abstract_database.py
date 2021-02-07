@@ -2,31 +2,17 @@ from abc import abstractmethod
 from enum import Enum
 
 try:  # Assume we're a sub-module in a package.
+    from connectors import connector_classes as ct
     from streams import stream_classes as sm
-    from connectors import (
-        abstract_connector as ac,
-        connector_classes as cs,
-    )
-    from utils import (
-        arguments as arg,
-        mappers as ms,
-    )
+    from utils import arguments as arg
     from loggers import logger_classes
     from schema import schema_classes as sh
-    from functions import all_functions as fs
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
+    from .. import connector_classes as ct
     from ...streams import stream_classes as sm
-    from .. import (
-        connector_classes as cs,
-        abstract_connector as ac,
-    )
-    from ...utils import (
-        arguments as arg,
-        mappers as ms,
-    )
+    from ...utils import arguments as arg
     from ...loggers import logger_classes
     from ...schema import schema_classes as sh
-    from ...functions import all_functions as fs
 
 
 AUTO = arg.DEFAULT
@@ -41,8 +27,8 @@ class DatabaseType(Enum):
     ClickhouseDatabase = 'ch'
 
 
-class AbstractDatabase(ac.AbstractStorage):
-    def __init__(self, name, host, port, db, user, password, verbose=ac.AUTO, context=None, **kwargs):
+class AbstractDatabase(ct.AbstractStorage):
+    def __init__(self, name, host, port, db, user, password, verbose=arg.DEFAULT, context=None, **kwargs):
         super().__init__(
             name=name,
             context=context,
@@ -56,8 +42,9 @@ class AbstractDatabase(ac.AbstractStorage):
         self.conn_kwargs = kwargs
         self.connection = None
 
-    def get_default_child_class(self):
-        return cs.Table
+    @staticmethod
+    def get_default_child_class():
+        return ct.Table
 
     def get_tables(self):
         return self.get_items()
@@ -68,7 +55,7 @@ class AbstractDatabase(ac.AbstractStorage):
             assert not kwargs, 'table connection {} is already registered'.format(name)
         else:
             assert schema is not None, 'for create table schema must be defined'
-            table = cs.Table(name, schema=schema, database=self, **kwargs)
+            table = ct.Table(name, schema=schema, database=self, **kwargs)
             self.get_tables()[name] = table
         return table
 
@@ -93,11 +80,11 @@ class AbstractDatabase(ac.AbstractStorage):
         pass
 
     @abstractmethod
-    def execute(self, query, get_data=ac.AUTO, commit=ac.AUTO, verbose=arg.DEFAULT):
+    def execute(self, query, get_data=arg.DEFAULT, commit=arg.DEFAULT, verbose=arg.DEFAULT):
         pass
 
-    def execute_query_from_file(self, file, get_data=ac.AUTO, commit=ac.AUTO, verbose=arg.DEFAULT):
-        assert isinstance(file, cs.TextFile)
+    def execute_query_from_file(self, file, get_data=arg.DEFAULT, commit=arg.DEFAULT, verbose=arg.DEFAULT):
+        assert isinstance(file, ct.TextFile)
         query = '\n'.join(file.get_items())
         return self.execute(query, get_data=get_data, commit=commit, verbose=verbose)
 
@@ -248,7 +235,7 @@ class AbstractDatabase(ac.AbstractStorage):
             schema = sh.SchemaDescription(schema)
         if sm.is_stream(data):
             fx_input = data
-        elif cs.is_file(data):
+        elif ct.is_file(data):
             fx_input = data.to_schema_stream()
             assert fx_input.get_columns() == schema.get_columns()
         elif isinstance(data, str):

@@ -1,18 +1,18 @@
 try:  # Assume we're a sub-module in a package.
     from streams import stream_classes as sm
-    from connectors import abstract_connector as ac
+    from connectors import connector_classes as ct
     from utils import arguments as arg
     from loggers import logger_classes
     from schema import schema_classes as sh
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...streams import stream_classes as sm
-    from .. import abstract_connector as ac
+    from ...connectors import connector_classes as ct
     from ...utils import arguments as arg
     from ...loggers import logger_classes
     from ...schema import schema_classes as sh
 
 
-class Table(ac.LeafConnector):
+class Table(ct.LeafConnector):
     def __init__(
             self,
             name,
@@ -87,7 +87,7 @@ class Table(ac.LeafConnector):
                 self.schema = sh.SchemaDescription(schema)
             else:
                 self.schema = sh.detect_schema_by_title_row(schema)
-        elif schema == ac.AUTO:
+        elif schema == arg.DEFAULT:
             if self.first_line_is_title:
                 self.schema = self.detect_schema_by_title_row()
             else:
