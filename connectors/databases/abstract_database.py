@@ -47,7 +47,7 @@ class AbstractDatabase(ct.AbstractStorage):
         return ct.Table
 
     def get_tables(self):
-        return self.get_items()
+        return self.get_children()
 
     def table(self, name, schema=None, **kwargs):
         table = self.get_tables().get(name)

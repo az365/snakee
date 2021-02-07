@@ -111,9 +111,9 @@ class SnakeeContext:
             return self.conn_instances[name]
         elif deep:
             for c in self.conn_instances:
-                if hasattr(c, 'get_items'):
-                    if name in c.get_items():
-                        return c.get_items()[name]
+                if hasattr(c, 'get_children'):
+                    if name in c.get_children():
+                        return c.get_children()[name]
 
     def rename_stream(self, old_name, new_name):
         assert old_name in self.stream_instances, 'Stream must be defined (name {} is not registered)'.format(old_name)

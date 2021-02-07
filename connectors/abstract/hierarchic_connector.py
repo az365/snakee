@@ -36,8 +36,12 @@ class HierarchicConnector(ct.AbstractConnector):
             self.children[name] = cur_child
         return cur_child
 
-    def get_items(self):
+    def get_children(self):
         return self.children
+
+    def get_items(self):
+        for name, child in self.get_children().items():
+            yield child
 
     def get_meta(self):
         meta = super().get_meta()

@@ -60,18 +60,18 @@ class LocalFolder(ct.FlatFolder):
         return self.get_items()
 
     def file(self, name, filetype=arg.DEFAULT, **kwargs):
-        file = self.get_files().get(name)
+        file = self.get_children().get(name)
         if kwargs or not file:
             filename = kwargs.pop('filename', name)
             file_class = self.get_child_class_by_name_and_type(name, filetype)
             file = file_class(filename, folder=self, **kwargs)
-            self.get_files()[name] = file
+            self.get_children()[name] = file
         return file
 
     def add_file(self, name, file):
         assert ct.is_file(file), 'file must be an instance of *File (got {})'.format(type(file))
-        assert name not in self.get_files(), 'file with name {} is already registered'.format(name)
-        self.get_files()[name] = file
+        assert name not in self.get_children(), 'file with name {} is already registered'.format(name)
+        self.get_children()[name] = file
 
     def get_links(self):
         for item in self.get_files():
@@ -80,11 +80,11 @@ class LocalFolder(ct.FlatFolder):
     def close(self, name=None):
         closed_count = 0
         if name:
-            file = self.get_files().get(name)
+            file = self.get_children().get(name)
             if file:
                 closed_count += file.close() or 0
         else:
-            for file in self.get_files().values():
+            for file in self.get_items():
                 closed_count += file.close() or 0
         return closed_count
 
