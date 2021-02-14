@@ -1,8 +1,8 @@
 try:  # Assume we're a sub-module in a package.
-    from streams import stream_classes as fx
+    from streams import stream_classes as sm
     from utils import arguments as arg
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from .. import stream_classes as fx
+    from .. import stream_classes as sm
     from ...utils import arguments as arg
 
 
@@ -26,7 +26,7 @@ def get_key(pair):
     return pair[0]
 
 
-class KeyValueStream(fx.RowStream):
+class KeyValueStream(sm.RowStream):
     def __init__(
             self,
             data,
@@ -36,9 +36,9 @@ class KeyValueStream(fx.RowStream):
             secondary=None,
             source=None,
             context=None,
-            max_items_in_memory=fx.MAX_ITEMS_IN_MEMORY,
-            tmp_files_template=fx.TMP_FILES_TEMPLATE,
-            tmp_files_encoding=fx.TMP_FILES_ENCODING,
+            max_items_in_memory=sm.MAX_ITEMS_IN_MEMORY,
+            tmp_files_template=sm.TMP_FILES_TEMPLATE,
+            tmp_files_encoding=sm.TMP_FILES_ENCODING,
     ):
         super().__init__(
             check_pairs(data) if check else data,
@@ -52,10 +52,10 @@ class KeyValueStream(fx.RowStream):
             tmp_files_encoding=tmp_files_encoding,
         )
         if secondary is None:
-            self.secondary = fx.StreamType.AnyStream
+            self.secondary = sm.StreamType.AnyStream
         else:
-            assert secondary in fx.StreamType
-            self.secondary = secondary or fx.StreamType.AnyStream
+            assert secondary in sm.StreamType
+            self.secondary = secondary or sm.StreamType.AnyStream
 
     def is_valid_item(self, item):
         return is_pair(
@@ -75,7 +75,7 @@ class KeyValueStream(fx.RowStream):
         def get_values():
             for i in self.data:
                 yield i[1]
-        return fx.get_class(self.secondary)(
+        return sm.get_class(self.secondary)(
             list(get_values()) if self.is_in_memory() else get_values(),
             count=self.count,
         )
@@ -105,7 +105,7 @@ class KeyValueStream(fx.RowStream):
                 prev_k = k
                 accumulated.append(v)
             yield prev_k, accumulated
-        fx_groups = fx.KeyValueStream(
+        fx_groups = sm.KeyValueStream(
             get_groups(),
         )
         if self.is_in_memory():
@@ -131,19 +131,6 @@ class KeyValueStream(fx.RowStream):
             stream_for_keys.keys(),
             stream_for_items,
         )
-
-    # def extract_keys_on_disk(self, file_template=arg.DEFAULT, encoding=arg.DEFAULT):
-    #     encoding = arg.undefault(encoding, self.tmp_files_encoding)
-    #     file_template = arg.undefault(file_template, self.tmp_files_template)
-    #     filename = file_template.format('json') if '{}' in file_template else file_template
-    #     self.to_records().to_json().to_file(
-    #         filename,
-    #         encoding=encoding,
-    #     )
-    #     return (
-    #         readers.from_file(filename, encoding).to_records().map(lambda r: r.get('key')),
-    #         readers.from_file(filename, encoding).to_records().to_pairs('key', 'value'),
-    #     )
 
     def extract_keys(self):
         if self.is_in_memory():
