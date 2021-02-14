@@ -39,7 +39,7 @@ class Table(ct.LeafConnector):
         return self.parent
 
     def get_count(self, verbose=arg.DEFAULT):
-        return self.database.select_count(self.name, verbose=verbose)
+        return self.get_database().select_count(self.name, verbose=verbose)
 
     def get_schema(self):
         return self.schema
@@ -48,7 +48,7 @@ class Table(ct.LeafConnector):
         return self.get_schema().get_columns()
 
     def get_data(self, verbose=arg.DEFAULT):
-        return self.database.select_all(self.name, verbose=verbose)
+        return self.get_database().select_all(self.name, verbose=verbose)
 
     def get_stream(self):
         count = self.get_count()
@@ -87,11 +87,6 @@ class Table(ct.LeafConnector):
                 self.schema = sh.SchemaDescription(schema)
             else:
                 self.schema = sh.detect_schema_by_title_row(schema)
-        elif schema == arg.DEFAULT:
-            if self.first_line_is_title:
-                self.schema = self.detect_schema_by_title_row()
-            else:
-                self.schema = None
         else:
             message = 'schema must be SchemaDescription or tuple with fields_description (got {})'.format(type(schema))
             raise TypeError(message)
@@ -100,7 +95,7 @@ class Table(ct.LeafConnector):
         return self.get_database().exists_table(self.get_path())
 
     def create(self, drop_if_exists, verbose=arg.DEFAULT):
-        return self.database.create_table(
+        return self.get_database().create_table(
             self.name,
             schema=self.schema,
             drop_if_exists=drop_if_exists,
@@ -113,7 +108,7 @@ class Table(ct.LeafConnector):
             skip_lines=0, max_error_rate=0.0,
             verbose=arg.DEFAULT
     ):
-        return self.database.safe_upload_table(
+        return self.get_database().safe_upload_table(
             self.name,
             data=data,
             schema=self.schema,
