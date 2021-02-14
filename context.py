@@ -121,7 +121,7 @@ class SnakeeContext:
             self.stream_instances[new_name] = self.stream_instances.pop(old_name)
 
     def get_local_storage(self, name='filesystem'):
-        local_storage = self.conn_instances.get('name')
+        local_storage = self.conn_instances.get(name)
         if not local_storage:
             local_storage = ct.LocalStorage(name, context=self)
         return local_storage
