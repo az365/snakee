@@ -4,12 +4,12 @@ import csv
 import gzip as gz
 
 try:
-    from streams import stream_classes as sm
+    from streams import stream_classes as fx
     from connectors import connector_classes as cs
     from utils import arguments as arg
     from functions import all_functions as fs
 except ImportError:
-    from .. import stream_classes as sm
+    from .. import stream_classes as fx
     from ...connectors import connector_classes as cs
     from ...utils import arguments as arg
     from ...functions import all_functions as fs
@@ -39,7 +39,7 @@ def check_lines(lines, skip_errors=False):
         yield i
 
 
-class LineStream(sm.AnyStream):
+class LineStream(fx.AnyStream):
     def __init__(
             self,
             data,
@@ -47,9 +47,9 @@ class LineStream(sm.AnyStream):
             less_than=None,
             check=True,
             source=None,
-            max_items_in_memory=sm.MAX_ITEMS_IN_MEMORY,
-            tmp_files_template=sm.TMP_FILES_TEMPLATE,
-            tmp_files_encoding=sm.TMP_FILES_ENCODING,
+            max_items_in_memory=fx.MAX_ITEMS_IN_MEMORY,
+            tmp_files_template=fx.TMP_FILES_TEMPLATE,
+            tmp_files_encoding=fx.TMP_FILES_ENCODING,
             context=None,
     ):
         super().__init__(
@@ -74,7 +74,7 @@ class LineStream(sm.AnyStream):
 
     def parse_json(self, default_value=None, to='RecordStream'):
         if isinstance(to, str):
-            to = sm.StreamType(to)
+            to = fx.StreamType(to)
 
         def json_loads(line):
             try:
@@ -92,7 +92,7 @@ class LineStream(sm.AnyStream):
         )
 
     @classmethod
-    def from_text_file(
+    def from_file(
             cls,
             filename,
             encoding=None, gzip=False,
@@ -102,7 +102,7 @@ class LineStream(sm.AnyStream):
             verbose=False,
             step=arg.DEFAULT,
     ):
-        sm_lines = cs.TextFile(
+        fx_lines = cs.TextFile(
             filename,
             encoding=encoding,
             gzip=gzip,
@@ -112,14 +112,14 @@ class LineStream(sm.AnyStream):
             check=check,
             step=step,
         )
-        is_inherited = sm_lines.get_stream_type() != cls.__name__
+        is_inherited = fx_lines.stream_type() != cls.__name__
         if is_inherited:
-            sm_lines = sm_lines.map(function=fs.same(), to=cls.__name__)
+            fx_lines = fx_lines.map(function=fs.same(), to=cls.__name__)
         if skip_first_line:
-            sm_lines = sm_lines.skip(1)
+            fx_lines = fx_lines.skip(1)
         if max_count:
-            sm_lines = sm_lines.take(max_count)
-        return sm_lines
+            fx_lines = fx_lines.take(max_count)
+        return fx_lines
 
     def lazy_save(
             self,
@@ -138,7 +138,7 @@ class LineStream(sm.AnyStream):
             fh.close()
             self.log('Done. {} rows has written into {}'.format(n + 1, filename), verbose=verbose)
         if immediately:
-            self.to_text_file(
+            self.to_file(
                 filename,
                 encoding=encoding,
                 end=end,
@@ -156,7 +156,7 @@ class LineStream(sm.AnyStream):
                 **self.get_meta()
             )
 
-    def to_text_file(
+    def to_file(
             self,
             filename,
             encoding=None, gzip=False,
@@ -177,7 +177,7 @@ class LineStream(sm.AnyStream):
         saved_stream.pass_items()
         meta = self.get_meta_except_count()
         if return_stream:
-            return self.from_text_file(
+            return self.from_file(
                 filename,
                 encoding=encoding,
                 gzip=gzip,
@@ -190,7 +190,7 @@ class LineStream(sm.AnyStream):
     def to_rows(self, delimiter=None):
         lines = self.get_items()
         rows = csv.reader(lines, delimiter=delimiter) if delimiter else csv.reader(lines)
-        return sm.RowStream(
+        return fx.RowStream(
             rows,
             self.count,
         )
@@ -198,7 +198,7 @@ class LineStream(sm.AnyStream):
     def to_pairs(self, delimiter=None):
         lines = self.get_items()
         rows = csv.reader(lines, delimiter=delimiter) if delimiter else csv.reader(lines)
-        return sm.RowStream(
+        return fx.RowStream(
             rows,
             self.count,
         ).to_pairs()

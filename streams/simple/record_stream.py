@@ -1,20 +1,18 @@
 import pandas as pd
 
 try:  # Assume we're a sub-module in a package.
-    from streams import stream_classes as sm
+    from streams import stream_classes as fx
     from connectors import connector_classes as cs
     from functions import all_functions as fs
-    from loggers.logger_classes import deprecated_with_alternative
     from utils import (
         arguments as arg,
         mappers as ms,
         selection,
     )
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from .. import stream_classes as sm
+    from .. import stream_classes as fx
     from ...connectors import connector_classes as cs
     from ...functions import all_functions as fs
-    from ...loggers.logger_classes import deprecated_with_alternative
     from ...utils import (
         arguments as arg,
         mappers as ms,
@@ -50,7 +48,7 @@ def get_key_function(descriptions, take_hash=False):
         return key_function
 
 
-class RecordStream(sm.AnyStream):
+class RecordStream(fx.AnyStream):
     def __init__(
             self,
             data,
@@ -59,9 +57,9 @@ class RecordStream(sm.AnyStream):
             check=True,
             source=None,
             context=None,
-            max_items_in_memory=sm.MAX_ITEMS_IN_MEMORY,
-            tmp_files_template=sm.TMP_FILES_TEMPLATE,
-            tmp_files_encoding=sm.TMP_FILES_ENCODING,
+            max_items_in_memory=fx.MAX_ITEMS_IN_MEMORY,
+            tmp_files_template=fx.TMP_FILES_TEMPLATE,
+            tmp_files_encoding=fx.TMP_FILES_ENCODING,
     ):
         super().__init__(
             check_records(data) if check else data,
@@ -109,9 +107,9 @@ class RecordStream(sm.AnyStream):
             target_class = self.__class__
             enumerated = self.enumerated_records()
         else:
-            target_class = sm.KeyValueStream
+            target_class = fx.KeyValueStream
             enumerated = self.enumerated_items()
-            props['secondary'] = sm.StreamType(self.get_class_name())
+            props['secondary'] = fx.StreamType(self.class_name())
         return target_class(
             enumerated,
             **props
@@ -181,18 +179,18 @@ class RecordStream(sm.AnyStream):
                 accumulated.append(r)
             yield (prev_k, accumulated) if as_pairs else accumulated
         if as_pairs:
-            sm_groups = sm.KeyValueStream(get_groups(), secondary=sm.StreamType.RowStream)
+            fx_groups = fx.KeyValueStream(get_groups(), secondary=fx.StreamType.RowStream)
         else:
-            sm_groups = sm.RowStream(get_groups(), check=False)
+            fx_groups = fx.RowStream(get_groups(), check=False)
         if values:
-            sm_groups = sm_groups.map_to_records(
+            fx_groups = fx_groups.map_to_records(
                 lambda r: ms.fold_lists(r, keys, values),
             )
         if self.is_in_memory():
-            return sm_groups.to_memory()
+            return fx_groups.to_memory()
         else:
-            sm_groups.less_than = self.count or self.less_than
-            return sm_groups
+            fx_groups.less_than = self.count or self.less_than
+            return fx_groups
 
     def group_by(self, *keys, values=None, step=arg.DEFAULT, as_pairs=False, take_hash=True, verbose=True):
         keys = arg.update(keys)
@@ -201,17 +199,17 @@ class RecordStream(sm.AnyStream):
             key_for_sort = keys
         else:
             key_for_sort = get_key_function(keys, take_hash=take_hash)
-        sorted_stream = self.sort(
+        sorted_fx = self.sort(
             key_for_sort,
             step=step,
             verbose=verbose,
         )
-        grouped_stream = sorted_stream.sorted_group_by(
+        grouped_fx = sorted_fx.sorted_group_by(
             keys,
             values=values,
             as_pairs=as_pairs,
         )
-        return grouped_stream
+        return grouped_fx
 
     def get_dataframe(self, columns=None):
         dataframe = pd.DataFrame(self.data)
@@ -224,11 +222,11 @@ class RecordStream(sm.AnyStream):
             self.data = self.get_list()
             self.count = self.get_count()
         print(self.expected_count(), self.get_columns())
-        sm_sample = self.filter(*filters) if filters else self
-        return sm_sample.take(count).get_dataframe()
+        fx_sample = self.filter(*filters) if filters else self
+        return fx_sample.take(count).get_dataframe()
 
     def to_lines(self, columns, add_title_row=False, delimiter='\t'):
-        return sm.LineStream(
+        return fx.LineStream(
             self.to_rows(columns, add_title_row=add_title_row),
             count=self.count,
             less_than=self.less_than,
@@ -251,7 +249,7 @@ class RecordStream(sm.AnyStream):
             count = None
         else:
             count = self.count + (1 if add_title_row else 0)
-        return sm.RowStream(
+        return fx.RowStream(
             get_rows(list(columns)),
             count=count,
             less_than=self.less_than,
@@ -267,27 +265,27 @@ class RecordStream(sm.AnyStream):
             verbose=verbose,
         )
 
-    def to_pairs(self, key='key', value=None):
+    def to_pairs(self, key, value=None):
         def get_pairs():
             for i in self.get_items():
                 k = selection.value_from_record(i, key)
                 v = i if value is None else selection.value_from_record(i, value)
                 yield k, v
-        return sm.KeyValueStream(
+        return fx.KeyValueStream(
             list(get_pairs()) if self.is_in_memory() else get_pairs(),
             count=self.count,
             less_than=self.less_than,
-            secondary=sm.StreamType.RecordStream if value is None else sm.StreamType.AnyStream,
+            secondary=fx.StreamType.RecordStream if value is None else fx.StreamType.AnyStream,
             check=False,
         )
 
-    def to_file(
+    def to_tsv_file(
             self,
             file,
             verbose=True,
             return_stream=True,
     ):
-        assert cs.is_file(file), TypeError('Expected TsvFile, got {} as {}'.format(file, type(file)))
+        assert cs.is_file(file)
         meta = self.get_meta()
         if not file.gzip:
             meta.pop('count')
@@ -295,11 +293,7 @@ class RecordStream(sm.AnyStream):
         if return_stream:
             return file.to_record_stream(verbose=verbose).update_meta(**meta)
 
-    @deprecated_with_alternative('RecordStream.to_file()')
-    def to_tsv_file(self, *args, **kwargs):
-        return self.to_file(*args, **kwargs)
-
-    def to_column_file(
+    def to_csv_file(
             self,
             filename,
             columns,
@@ -315,12 +309,12 @@ class RecordStream(sm.AnyStream):
         meta = self.get_meta()
         if not gzip:
             meta.pop('count')
-        sm_csv_file = self.to_rows(
+        fx_csv_file = self.to_rows(
             columns=columns,
             add_title_row=add_title_row,
         ).to_lines(
             delimiter=delimiter,
-        ).to_text_file(
+        ).to_file(
             filename,
             encoding=encoding,
             gzip=gzip,
@@ -329,7 +323,7 @@ class RecordStream(sm.AnyStream):
             return_stream=return_stream,
         )
         if return_stream:
-            return sm_csv_file.skip(
+            return fx_csv_file.skip(
                 1 if add_title_row else 0,
             ).to_rows(
                 delimiter=delimiter,
@@ -340,7 +334,7 @@ class RecordStream(sm.AnyStream):
             )
 
     @classmethod
-    def from_column_file(
+    def from_csv_file(
             cls,
             filename,
             columns,
@@ -352,8 +346,8 @@ class RecordStream(sm.AnyStream):
             expected_count=arg.DEFAULT,
             verbose=True,
     ):
-        encoding = arg.undefault(encoding, sm.TMP_FILES_ENCODING)
-        return sm.LineStream.from_text_file(
+        encoding = arg.undefault(encoding, fx.TMP_FILES_ENCODING)
+        return fx.LineStream.from_file(
             filename,
             skip_first_line=skip_first_line,
             encoding=encoding,
@@ -378,7 +372,7 @@ class RecordStream(sm.AnyStream):
             check=True,
             verbose=False,
     ):
-        parsed_stream = sm.LineStream.from_text_file(
+        parsed_stream = fx.LineStream.from_file(
             filename,
             encoding=encoding,
             gzip=gzip,
@@ -387,7 +381,7 @@ class RecordStream(sm.AnyStream):
             verbose=verbose,
         ).parse_json(
             default_value=default_value,
-            to=sm.StreamType.RecordStream,
+            to=fx.StreamType.RecordStream,
         )
         return parsed_stream
 
