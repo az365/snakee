@@ -56,7 +56,15 @@ CONN_CLASSES = (
     Table,
     TwinSync,
 )
-DICT_EXT_TO_TYPE = {'txt': TextFile, 'json': JsonFile, 'csv': CsvFile, 'tsv': TsvFile}
+DICT_CONN_CLASSES = {c.__name__: c for c in CONN_CLASSES}
+FOLDER_CLASSES = (LocalFolder, FileMask, S3Folder)
+FOLDER_CLASS_NAMES = tuple([c.__name__ for c in FOLDER_CLASSES])
+FILE_CLASSES = tuple([c for c in CONN_CLASSES if c.__name__.endswith('File')])
+FILE_CLASS_NAMES = tuple([c.__name__ for c in FILE_CLASSES])
+DICT_EXT_TO_CLASS = {
+    c.get_default_file_extension(): c for c in CONN_CLASSES
+    if c in FILE_CLASSES and not c.__name__.startswith('Abstract')
+}
 DICT_DB_TO_DIALECT = {PostgresDatabase.__name__: 'pg', ClickhouseDatabase.__name__: 'ch'}
 DB_CLASS_NAMES = DICT_DB_TO_DIALECT.keys()
 
@@ -100,18 +108,24 @@ def is_conn(obj):
 
 
 def is_file(obj):
-    return isinstance(obj, (TextFile, JsonFile, ColumnFile, CsvFile, TsvFile))
+    return isinstance(obj, AbstractFile) or obj.__class__.__name__ in FILE_CLASS_NAMES
 
 
 def is_folder(obj):
-    return obj.__class__.__name__ in ('LocalFolder', 'FileMask', 'S3Folder')
+    return isinstance(obj, AbstractFolder) or obj.__class__.__name__ in FOLDER_CLASS_NAMES
 
 
 def is_database(obj):
-    return obj.__class__.__name__ in DATABASE_TYPES
+    return isinstance(obj, AbstractDatabase) or obj.__class__.__name__ in DB_CLASS_NAMES
 
 
 def get_dialect_type(database_type):
     return DICT_DB_TO_DIALECT.get(ConnType(database_type).value)
 
 
+def get_type_by_ext(ext, default=ConnType.TextFile):
+    conn_class = DICT_EXT_TO_CLASS.get(ext)
+    if conn_class:
+        return ConnType(conn_class.__name__)
+    else:
+        return default

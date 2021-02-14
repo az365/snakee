@@ -55,6 +55,10 @@ class AbstractFile(cs.LeafConnector):
         folder.add_file(self, name)
 
     @staticmethod
+    def get_default_file_extension():
+        pass
+
+    @staticmethod
     def get_stream_type():
         return sm.StreamType.AnyStream
 
@@ -212,6 +216,10 @@ class TextFile(AbstractFile):
         return self.get_lines(verbose=verbose, step=step)
 
     @staticmethod
+    def get_default_file_extension():
+        return 'txt'
+
+    @staticmethod
     def get_stream_type():
         return sm.StreamType.LineStream
 
@@ -271,6 +279,13 @@ class TextFile(AbstractFile):
         self.close()
         self.log('Done. {} rows has written into {}'.format(n + 1, self.get_name()), verbose=verbose)
 
+    def write_stream(self, stream, verbose=AUTO):
+        assert sm.is_stream(stream)
+        return self.write_lines(
+            stream.to_lines().data,
+            verbose=verbose,
+        )
+
     def from_stream(self, stream):
         assert isinstance(stream, sm.LineStream)
         self.write_lines(stream.iterable())
@@ -303,6 +318,10 @@ class JsonFile(TextFile):
         self.default_value = default_value
 
     @staticmethod
+    def get_default_file_extension():
+        return 'json'
+
+    @staticmethod
     def get_stream_type():
         return sm.StreamType.AnyStream
 
@@ -321,6 +340,13 @@ class JsonFile(TextFile):
             context=self.get_context(),
         )
 
+    def write_stream(self, stream, verbose=AUTO):
+        assert sm.is_stream(stream)
+        return self.write_lines(
+            stream.to_json().data,
+            verbose=verbose,
+        )
+
 
 class ColumnFile(TextFile):
     def __init__(
@@ -329,7 +355,7 @@ class ColumnFile(TextFile):
             gzip=False,
             encoding='utf8',
             end='\n',
-            delimiter=',',
+            delimiter='\t',
             first_line_is_title=True,
             expected_count=AUTO,
             schema=AUTO,
@@ -511,12 +537,20 @@ class ColumnFile(TextFile):
         methods_for_classes = dict(
             RecordStream=self.write_records, RowStream=self.write_rows, LineStream=self.write_lines,
         )
-        method = methods_for_classes.get(stream.class_name())
+        method = methods_for_classes.get(stream.get_class_name())
         if method:
-            method(stream.data, verbose=verbose)
+            return method(stream.data, verbose=verbose)
         else:
-            message = 'CsvFile.write_stream() supports RecordStream, RowStream, LineStream only (got {})'
-            raise TypeError(message.format(stream.class_name()))
+            message = '{}.write_stream() supports RecordStream, RowStream, LineStream only (got {})'
+            raise TypeError(message.format(self.__class__.__name__, stream.__class__.__name__))
+
+    @staticmethod
+    def get_default_file_extension():
+        return 'tsv'
+
+    @staticmethod
+    def get_stream_type():
+        return sm.StreamType.RowStream
 
 
 # @deprecated_with_alternative('ConnType.get_class()')
@@ -548,6 +582,14 @@ class CsvFile(ColumnFile):
         self.schema = None
         self.set_schema(schema)
 
+    @staticmethod
+    def get_default_file_extension():
+        return 'csv'
+
+    @staticmethod
+    def get_stream_type():
+        return sm.StreamType.RecordStream
+
 
 # @deprecated_with_alternative('ConnType.get_class()')
 class TsvFile(ColumnFile):
@@ -577,5 +619,10 @@ class TsvFile(ColumnFile):
             verbose=verbose,
         )
 
+    @staticmethod
+    def get_default_file_extension():
+        return 'tsv'
 
-# class TskvFile(ColumnFile):
+    @staticmethod
+    def get_stream_type():
+        return sm.StreamType.RecordStream

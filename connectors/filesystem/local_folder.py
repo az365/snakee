@@ -50,7 +50,7 @@ class LocalFolder(ct.HierarchicFolder):
             return ct.FileMask
         else:
             file_ext = name.split('.')[-1]
-            return ct.DICT_EXT_TO_TYPE.get(file_ext, ct.ConnType.TextFile)
+            return ct.get_type_by_ext(file_ext)
 
     def get_child_class_by_name(self, name):
         supposed_type = self.get_type_by_name(name)
@@ -115,11 +115,6 @@ class LocalFolder(ct.HierarchicFolder):
             for file in self.get_items():
                 closed_count += file.close() or 0
         return closed_count
-
-    def get_meta(self):
-        meta = self.__dict__.copy()
-        meta.pop('files')
-        return meta
 
     def get_path(self):
         if self.path_is_relative:
