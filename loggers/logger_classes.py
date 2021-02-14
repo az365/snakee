@@ -5,10 +5,8 @@ import logging
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
-    from functions import all_functions as fs
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from utils import arguments as arg
-    from functions import all_functions as fs
+    from ..utils import arguments as arg
 
 DEFAULT_STEP = 10000
 DEFAULT_LOGGER_NAME = 'stream'
@@ -204,6 +202,14 @@ class Progress:
         if self.expected_count:
             return self.position >= self.expected_count
 
+    def get_percent(self, round_digits=1, default_value='UNK'):
+        share = self.evaluate_share()
+        if share is None or share > 1:
+            return default_value
+        else:
+            share = round(100 * share, round_digits)
+            return '{}%'.format(share)
+
     def evaluate_share(self):
         if self.expected_count:
             return (self.position + 1) / self.expected_count
@@ -252,8 +258,12 @@ class Progress:
         if self.state != OperationStatus.InProgress:
             self.start(cur)
         if self.expected_count:
-            percent = fs.percent(str)(self.evaluate_share())
-            line = '{}: {} ({}/{}) items processed'.format(self.name, percent, self.position + 1, self.expected_count)
+            line = '{name}: {percent} ({pos}/{count}) items processed'.format(
+                name=self.name,
+                percent=self.get_percent(),
+                pos=self.position + 1,
+                count=self.expected_count,
+            )
         else:
             line = '{}: {} items processed'.format(self.name, self.position + 1)
         if self.timing:
