@@ -1,11 +1,11 @@
 try:  # Assume we're a sub-module in a package.
-    from streams import stream_classes as fx
+    from streams import stream_classes as sm
     from utils import (
         arguments as arg,
         selection,
     )
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from .. import stream_classes as fx
+    from .. import stream_classes as sm
     from ...utils import (
         arguments as arg,
         selection,
@@ -27,7 +27,7 @@ def check_rows(rows, skip_errors=False):
         yield i
 
 
-class RowStream(fx.AnyStream):
+class RowStream(sm.AnyStream):
     def __init__(
             self,
             data,
@@ -35,9 +35,9 @@ class RowStream(fx.AnyStream):
             less_than=None,
             check=True,
             source=None,
-            max_items_in_memory=fx.MAX_ITEMS_IN_MEMORY,
-            tmp_files_template=fx.TMP_FILES_TEMPLATE,
-            tmp_files_encoding=fx.TMP_FILES_ENCODING,
+            max_items_in_memory=sm.MAX_ITEMS_IN_MEMORY,
+            tmp_files_template=sm.TMP_FILES_TEMPLATE,
+            tmp_files_encoding=sm.TMP_FILES_ENCODING,
             context=None,
     ):
         super().__init__(
@@ -75,13 +75,13 @@ class RowStream(fx.AnyStream):
             records = get_records(self.get_items(), columns)
         else:
             records = map(lambda r: dict(row=r), self.get_items())
-        return fx.RecordStream(
+        return sm.RecordStream(
             records,
             **self.get_meta()
         )
 
     def schematize(self, schema, skip_bad_rows=False, skip_bad_values=False, verbose=True):
-        return fx.SchemaStream(
+        return sm.SchemaStream(
             self.get_items(),
             **self.get_meta(),
         ).schematize(
@@ -92,7 +92,7 @@ class RowStream(fx.AnyStream):
         )
 
     @classmethod
-    def from_csv_file(
+    def from_column_file(
             cls,
             filename,
             encoding=None, gzip=False,
@@ -101,7 +101,7 @@ class RowStream(fx.AnyStream):
             check=arg.DEFAULT,
             verbose=False,
     ):
-        fx_rows = fx.LineStream.from_file(
+        fx_rows = sm.LineStream.from_text_file(
             filename,
             encoding=encoding, gzip=gzip,
             skip_first_line=skip_first_line, max_count=max_count,
@@ -112,7 +112,7 @@ class RowStream(fx.AnyStream):
         )
         return fx_rows
 
-    def to_csv_file(
+    def to_column_file(
             self,
             filename,
             delimiter='\t',
@@ -128,7 +128,7 @@ class RowStream(fx.AnyStream):
             meta.pop('count')
         fx_csv_file = self.to_lines(
             delimiter=delimiter,
-        ).to_file(
+        ).to_text_file(
             filename,
             encoding=encoding,
             gzip=gzip,
@@ -144,7 +144,7 @@ class RowStream(fx.AnyStream):
             )
 
     def to_lines(self, delimiter='\t'):
-        return fx.LineStream(
+        return sm.LineStream(
             map(lambda r: '\t'.join([str(c) for c in r]), self.get_items()),
             count=self.count,
         )
