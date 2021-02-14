@@ -13,7 +13,7 @@ try:  # Assume we're a sub-module in a package.
     from connectors.storages.s3_bucket import S3Bucket, S3Folder
     from connectors.storages.s3_object import S3Object
     from connectors.databases.abstract_database import AbstractDatabase
-    from connectors.databases.posrgres_database import PostgresDatabase
+    from connectors.databases.postgres_database import PostgresDatabase
     from connectors.databases.clickhouse_database import ClickhouseDatabase
     from connectors.databases.table import Table
     from connectors.sync.twin_sync import TwinSync
@@ -31,7 +31,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .storages.s3_bucket import S3Bucket, S3Folder
     from .storages.s3_object import S3Object
     from .databases.abstract_database import AbstractDatabase
-    from .databases.posrgres_database import PostgresDatabase
+    from .databases.postgres_database import PostgresDatabase
     from .databases.clickhouse_database import ClickhouseDatabase
     from .databases.table import Table
     from .sync.twin_sync import TwinSync
