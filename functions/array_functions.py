@@ -55,6 +55,10 @@ def first():
     return elem_no(0)
 
 
+def second():
+    return elem_no(1)
+
+
 def last():
     return elem_no(-1)
 

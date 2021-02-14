@@ -1,12 +1,13 @@
 try:  # Assume we're a sub-module in a package.
     from functions.basic_functions import (
         partial, same, const, defined, is_none, not_none, nonzero, equal, not_equal,
-        at_least, more_than, safe_more_than,
-        cast, percent,
+        at_least, more_than, safe_more_than, between, not_between,
+        percent,
+        cast, DICT_CAST_TYPES,
     )
     from functions.array_functions import (
         is_in, not_in,
-        elem_no, first, last,
+        elem_no, first, second, last,
         is_ordered, uniq, compare_lists, list_minus, values_not_none,
         unfold_lists, top, mean,
     )
@@ -16,12 +17,13 @@ try:  # Assume we're a sub-module in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from .basic_functions import (
         partial, same, const, defined, is_none, not_none, nonzero, equal, not_equal,
-        at_least, more_than, safe_more_than,
-        cast, percent,
+        at_least, more_than, safe_more_than, between, not_between,
+        percent,
+        cast, DICT_CAST_TYPES,
     )
     from .array_functions import (
         is_in, not_in,
-        elem_no, first, last,
+        elem_no, first, second, last,
         is_ordered, uniq, compare_lists, list_minus, values_not_none,
         unfold_lists, top, mean,
     )
