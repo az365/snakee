@@ -9,7 +9,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils import arguments as arg
 
 
-class S3Bucket(ct.FlatFolder):
+class S3Bucket(ct.HierarchicFolder):
     def __init__(
             self,
             name,
