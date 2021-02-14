@@ -27,7 +27,9 @@ def set_min_year(year):
 
 def check_iso_date(d):
     if isinstance(d, str):
-        return list(map(len, d.split('-'))) == [4, 2, 2]
+        if len(d) >= 10:
+            d = d[:10]
+            return list(map(len, d.split('-'))) == [4, 2, 2]
 
 
 def raise_date_type_error(d):
@@ -35,21 +37,22 @@ def raise_date_type_error(d):
 
 
 def get_date(d):
-    is_iso_date = check_iso_date(d)
     if isinstance(d, date):
         return d
-    elif is_iso_date:
-        return date.fromisoformat(d)
+    elif check_iso_date(d):
+        return date.fromisoformat(d[:10])
     else:
         raise_date_type_error(d)
 
 
 def to_date(d, as_iso_date=False):
-    cur_date = get_date(d)
     if as_iso_date:
-        return cur_date.isoformat()
+        if check_iso_date(d):
+            return d[:10]
+        else:
+            return d.isoformat()
     else:
-        return cur_date
+        return get_date(d)
 
 
 def get_shifted_date(d, *args, **kwargs):
@@ -143,15 +146,23 @@ def get_next_week_date(d, increment=1, round_to_monday=False):
         return dt
 
 
-def get_weeks_range(date_min, date_max):
+def get_weeks_range(date_min, date_max, round_to_monday=False, including_right=True, as_week_abs=False):
     weeks_range = list()
     cur_date = get_monday_date(date_min)
+    if round_to_monday:
+        date_min = cur_date
+        date_max = get_monday_date(date_max)
     if cur_date < date_min:
         cur_date = get_next_week_date(cur_date, increment=1)
-    while cur_date <= date_max:
+    while cur_date < date_max:
         weeks_range.append(cur_date)
         cur_date = get_next_week_date(cur_date, increment=1)
-    return weeks_range
+    if including_right and cur_date == date_max:
+        weeks_range.append(cur_date)
+    if as_week_abs:
+        return [get_week_abs_from_date(d) for d in weeks_range]
+    else:
+        return weeks_range
 
 
 def get_months_range(date_min, date_max):
@@ -279,6 +290,10 @@ def get_year_from_date(d, decimal=False):
     if decimal:
         year += get_days_between(get_year_start_monday(year), d) / DAYS_IN_YEAR
     return year
+
+
+def get_year_decimal_from_date(d):
+    return get_year_from_date(d, decimal=True)
 
 
 def get_date_from_numeric(numeric, from_scale='days'):
