@@ -24,7 +24,7 @@ def test_map():
         lambda i: -i,
     ).submit(
         received_types,
-        lambda f: f.class_name(),
+        lambda f: f.get_class_name(),
     ).get_list()
     assert received_0 == expected_0, 'test case 0'
     expected_1 = [str(-i) for i in EXAMPLE_INT_SEQUENCE]
@@ -35,7 +35,7 @@ def test_map():
         to=sm.LineStream,
     ).submit(
         received_types,
-        lambda f: f.class_name(),
+        lambda f: f.get_class_name(),
     ).get_list()
     assert received_1 == expected_1, 'test case 1'
     expected_2 = [str(-i) for i in EXAMPLE_INT_SEQUENCE]
@@ -46,7 +46,7 @@ def test_map():
         to=sm.StreamType.LineStream,
     ).submit(
         received_types,
-        lambda f: f.class_name(),
+        lambda f: f.get_class_name(),
     ).get_list()
     assert received_2 == expected_2, 'test case 2'
     expected_3 = [str(-i) for i in EXAMPLE_INT_SEQUENCE]
@@ -57,7 +57,7 @@ def test_map():
         to='LineStream',
     ).submit(
         received_types,
-        lambda f: f.class_name(),
+        lambda f: f.get_class_name(),
     ).get_list()
     assert received_3 == expected_3, 'test case 3'
     assert received_types == expected_types, 'test for types'

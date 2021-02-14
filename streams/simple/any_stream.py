@@ -4,24 +4,24 @@ import inspect
 import json
 
 try:  # Assume we're a sub-module in a package.
-    from streams import stream_classes as fx
+    from streams import stream_classes as sm
     from utils import (
         arguments as arg,
         mappers as ms,
         selection,
         algo,
     )
-    from loggers import logger_classes
+    from loggers import logger_classes as log
     from functions import all_functions as fs
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from .. import stream_classes as fx
+    from .. import stream_classes as sm
     from ...utils import (
         arguments as arg,
         mappers as ms,
         selection,
         algo,
     )
-    from ...loggers import logger_classes
+    from ...loggers import logger_classes as log
     from ...functions import all_functions as fs
 
 
@@ -33,9 +33,9 @@ class AnyStream:
             less_than=None,
             source=None,
             context=None,
-            max_items_in_memory=fx.MAX_ITEMS_IN_MEMORY,
-            tmp_files_template=fx.TMP_FILES_TEMPLATE,
-            tmp_files_encoding=fx.TMP_FILES_ENCODING,
+            max_items_in_memory=sm.MAX_ITEMS_IN_MEMORY,
+            tmp_files_template=sm.TMP_FILES_TEMPLATE,
+            tmp_files_encoding=sm.TMP_FILES_ENCODING,
     ):
         self.data = data
         if isinstance(data, (list, tuple)):
@@ -76,9 +76,9 @@ class AnyStream:
 
     def get_logger(self):
         if self.context is not None:
-            return self.context.get_logger()
+            return self.get_context().get_logger()
         else:
-            return logger_classes.get_logger()
+            return log.get_logger()
 
     def get_items(self):
         return self.data
@@ -113,7 +113,7 @@ class AnyStream:
         if check:
             unsupported = [k for k in meta if k not in props]
             assert not unsupported, 'class {} does not support these properties: {}'.format(
-                self.stream_type(),
+                self.get_stream_type(),
                 unsupported,
             )
         for key, value in props.items():
@@ -124,17 +124,18 @@ class AnyStream:
             **props
         )
 
-    def class_name(self):
+    def get_class_name(self):
         return self.__class__.__name__
 
-    def stream_type(self):
-        return fx.get_class(self.class_name())
+    def get_stream_type(self):
+        return sm.StreamType(self.get_class_name())
 
-    def get_class(self, other=None):
+    @classmethod
+    def get_class(cls, other=None):
         if other is None:
-            return self.__class__
-        elif isinstance(other, (fx.StreamType, str)):
-            return fx.get_class(fx.StreamType(other))
+            return cls
+        elif isinstance(other, (sm.StreamType, str)):
+            return sm.StreamType(other).get_class()
         elif inspect.isclass(other):
             return other
         else:
@@ -191,7 +192,7 @@ class AnyStream:
             check=arg.DEFAULT,
             verbose=False,
     ):
-        parsed_stream = fx.LineStream.from_file(
+        parsed_stream = sm.LineStream.from_text_file(
             filename,
             encoding=encoding, gzip=gzip,
             skip_first_line=skip_first_line, max_count=max_count,
@@ -277,17 +278,27 @@ class AnyStream:
     def lazy_calc(self, function):
         yield from function(self.data)
 
-    def apply(self, function, native=True, save_count=False, lazy=True):
-        if native:
-            target_class = self.__class__
+    def apply_to_data(self, function, to=arg.DEFAULT, save_count=False, lazy=True):
+        stream_type = arg.undefault(to, self.get_stream_type())
+        # target_class = sm.get_class(stream_type)
+        target_class = sm.get_class(stream_type)
+        if to == arg.DEFAULT:
             props = self.get_meta() if save_count else self.get_meta_except_count()
         else:
-            target_class = AnyStream
             props = dict(count=self.count) if save_count else dict()
         return target_class(
             self.lazy_calc(function) if lazy else self.calc(function),
             **props
         )
+
+    def apply_to_stream(self, function, *args, **kwargs):
+        return function(self, *args, **kwargs)
+
+    def apply(self, function, *args, to_stream=False, **kwargs):
+        if to_stream:
+            return self.apply_to_stream(function, *args, **kwargs)
+        else:
+            return self.apply_to_data(function, *args, **kwargs)
 
     def native_map(self, function):
         return self.__class__(
@@ -309,34 +320,38 @@ class AnyStream:
                 return i if isinstance(i, dict) else dict(item=i)
             else:
                 return function(i)
-        return fx.RecordStream(
+        return sm.RecordStream(
             map(get_record, self.get_items()),
             count=self.count,
             less_than=self.less_than,
             check=True,
         )
 
-    def map(self, function=lambda i: i, to=None):
-        fx_class = self.get_class(to)
-        new_props_keys = fx_class([]).get_meta().keys()
+    def map(self, function, to=arg.DEFAULT):
+        to = arg.undefault(to, self.get_stream_type())
+        stream_class = sm.get_class(to)
+        new_props_keys = stream_class([]).get_meta().keys()
         props = {k: v for k, v in self.get_meta().items() if k in new_props_keys}
         items = map(function, self.iterable())
-        if self.is_in_memory():
-            items = list(items)
-        return fx_class(
+        result = stream_class(
             items,
             **props
         )
+        if self.is_in_memory():
+            return result.to_memory()
+        else:
+            return result
 
-    def flat_map(self, function=lambda i: i, to=None):
+    def flat_map(self, function, to=arg.DEFAULT):
         def get_items():
             for i in self.iterable():
                 yield from function(i)
-        fx_class = self.get_class(to)
-        new_props_keys = fx_class([]).get_meta().keys()
+        to = arg.undefault(to, self.get_stream_type())
+        stream_class = sm.get_class(to)
+        new_props_keys = stream_class([]).get_meta().keys()
         props = {k: v for k, v in self.get_meta().items() if k in new_props_keys}
         props.pop('count')
-        return fx_class(
+        return stream_class(
             get_items(),
             **props
         )
@@ -382,8 +397,8 @@ class AnyStream:
         if native:
             target_class = self.__class__
         else:
-            target_class = fx.KeyValueStream
-            props['secondary'] = fx.StreamType(self.class_name())
+            target_class = sm.KeyValueStream
+            props['secondary'] = sm.StreamType(self.get_class_name())
         return target_class(
             self.enumerated_items(),
             **props
@@ -433,7 +448,7 @@ class AnyStream:
             pass
 
     def add(self, stream_or_items, before=False, **kwargs):
-        if isinstance(stream_or_items, AnyStream):
+        if sm.is_stream(stream_or_items):
             return self.add_stream(
                 stream_or_items,
                 before=before,
@@ -587,18 +602,18 @@ class AnyStream:
         file_template = arg.undefault(file_template, self.tmp_files_template)
         encoding = arg.undefault(encoding, self.tmp_files_encoding)
         result_parts = list()
-        for part_no, fx_part in enumerate(self.to_iter().split_to_iter_by_step(step)):
+        for part_no, sm_part in enumerate(self.to_iter().split_to_iter_by_step(step)):
             part_fn = file_template.format(part_no)
             self.log('Sorting part {} and saving into {} ... '.format(part_no, part_fn), verbose=verbose)
             if sort_each_by:
-                fx_part = fx_part.memory_sort(
+                sm_part = sm_part.memory_sort(
                     key=sort_each_by,
                     reverse=reverse,
                     verbose=verbose,
                 )
             self.log('Writing {} ...'.format(part_fn), end='\r', verbose=verbose)
-            fx_part = fx_part.to_json().to_file(part_fn, encoding=encoding).map_to_any(json.loads)
-            result_parts.append(fx_part)
+            sm_part = sm_part.to_json().to_text_file(part_fn, encoding=encoding).map_to_any(json.loads)
+            result_parts.append(sm_part)
         return result_parts
 
     def memory_sort(self, key=fs.same(), reverse=False, verbose=False):
@@ -650,7 +665,7 @@ class AnyStream:
             return self.disk_sort(key_function, reverse=reverse, step=step, verbose=verbose)
 
     def map_side_join(self, right, key, how='left', right_is_uniq=True):
-        assert fx.is_stream(right)
+        assert sm.is_stream(right)
         assert how in algo.JOIN_TYPES, 'only {} join types are supported ({} given)'.format(algo.JOIN_TYPES, how)
         keys = arg.update([key])
         joined_items = algo.map_side_join(
@@ -666,7 +681,7 @@ class AnyStream:
         )
 
     def sorted_join(self, right, key, how='left', sorting_is_reversed=False):
-        assert fx.is_stream(right)
+        assert sm.is_stream(right)
         assert how in algo.JOIN_TYPES, 'only {} join types are supported ({} given)'.format(algo.JOIN_TYPES, how)
         keys = arg.update([key])
         joined_items = algo.sorted_join(
@@ -727,14 +742,14 @@ class AnyStream:
         )
 
     def to_any(self):
-        return fx.AnyStream(
+        return sm.AnyStream(
             self.get_items(),
             count=self.count,
             less_than=self.less_than,
         )
 
     def to_lines(self, **kwargs):
-        return fx.LineStream(
+        return sm.LineStream(
             self.map_to_any(str).get_items(),
             count=self.count,
             less_than=self.less_than,
@@ -749,12 +764,12 @@ class AnyStream:
     def to_rows(self, *args, **kwargs):
         function = kwargs.pop('function', None)
         if kwargs:
-            message = 'to_rows(): kwargs {} are not supported for class {}'.format(kwargs.keys(), self.class_name())
+            message = 'to_rows(): kwargs {} are not supported for class {}'.format(kwargs.keys(), self.get_class_name())
             raise ValueError(message)
         if args:
-            message = 'to_rows(): positional arguments are not supported for class {}'.format(self.class_name())
+            message = 'to_rows(): positional arguments are not supported for class {}'.format(self.get_class_name())
             raise ValueError(message)
-        return fx.RowStream(
+        return sm.RowStream(
             map(function, self.get_items()) if function is not None else self.get_items(),
             count=self.count,
             less_than=self.less_than,
@@ -768,7 +783,7 @@ class AnyStream:
         pairs_data = self.map(
             lambda i: selection.row_from_any(i, key, value),
         ).get_items()
-        return fx.KeyValueStream(
+        return sm.KeyValueStream(
             pairs_data,
             count=self.count,
             less_than=self.less_than,
@@ -779,7 +794,7 @@ class AnyStream:
         return self.map_to_records(function)
 
     def show(self, count=3):
-        self.log([self.class_name(), self.get_meta()], end='\n', verbose=True)
+        self.log([self.get_class_name(), self.get_meta()], end='\n', verbose=True)
         if self.is_in_memory():
             for i in self.get_items()[:count]:
                 self.log(i, end='\n', verbose=True)
