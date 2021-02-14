@@ -56,11 +56,13 @@ CONN_CLASSES = (
     Table,
     TwinSync,
 )
-DATABASE_TYPES = [PostgresDatabase.__class__.__name__, ClickhouseDatabase.__class__.__name__]
 DICT_EXT_TO_TYPE = {'txt': TextFile, 'json': JsonFile, 'csv': CsvFile, 'tsv': TsvFile}
+DICT_DB_TO_DIALECT = {PostgresDatabase.__name__: 'pg', ClickhouseDatabase.__name__: 'ch'}
+DB_CLASS_NAMES = DICT_DB_TO_DIALECT.keys()
 
 
 class ConnType(Enum):
+    # Only concrete classes, not abstract ones
     LocalStorage = 'LocalStorage'
     LocalFolder = 'LocalFolder'
     FileMask = 'FileMask'
@@ -79,25 +81,7 @@ class ConnType(Enum):
     TwinSync = 'TwinSync'
 
     def get_class(self):
-        classes = dict(
-            LocalStorage=LocalStorage,
-            LocalFolder=LocalFolder,
-            FileMask=FileMask,
-            TextFile=TextFile,
-            JsonFile=JsonFile,
-            ColumnFile=ColumnFile,
-            CsvFile=CsvFile,
-            TsvFile=TsvFile,
-            PostgresDatabase=PostgresDatabase,
-            ClickhouseDatabase=ClickhouseDatabase,
-            Table=Table,
-            S3Storage=S3Storage,
-            S3Bucket=S3Bucket,
-            S3Folder=S3Folder,
-            S3Object=S3Object,
-            TwinSync=TwinSync,
-        )
-        return classes[self.value]
+        return DICT_CONN_CLASSES[self.value]
 
 
 @deprecated_with_alternative('ConnType.get_class()')
@@ -125,3 +109,9 @@ def is_folder(obj):
 
 def is_database(obj):
     return obj.__class__.__name__ in DATABASE_TYPES
+
+
+def get_dialect_type(database_type):
+    return DICT_DB_TO_DIALECT.get(ConnType(database_type).value)
+
+

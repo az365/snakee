@@ -22,11 +22,6 @@ DEFAULT_STEP = 1000
 DEFAULT_ERRORS_THRESHOLD = 0.05
 
 
-class DatabaseType(Enum):
-    PostgresDatabase = 'pg'
-    ClickhouseDatabase = 'ch'
-
-
 class AbstractDatabase(ct.AbstractStorage):
     def __init__(self, name, host, port, db, user, password, verbose=arg.DEFAULT, context=None, **kwargs):
         super().__init__(
@@ -71,9 +66,8 @@ class AbstractDatabase(ct.AbstractStorage):
     def need_connection(cls):
         return hasattr(cls, 'connection')
 
-    @abstractmethod
     def get_dialect_name(self):
-        pass
+        return ct.get_dialect_type(self.__class__.__name__)
 
     @abstractmethod
     def exists_table(self, name, verbose=arg.DEFAULT):
@@ -239,7 +233,7 @@ class AbstractDatabase(ct.AbstractStorage):
             fx_input = data.to_schema_stream()
             assert fx_input.get_columns() == schema.get_columns()
         elif isinstance(data, str):
-            fx_input = sm.RowStream.from_csv_file(
+            fx_input = sm.RowStream.from_column_file(
                 filename=data,
                 encoding=encoding,
                 skip_first_line=skip_first_line,
@@ -249,7 +243,7 @@ class AbstractDatabase(ct.AbstractStorage):
             fx_input = sm.AnyStream(data)
         if skip_lines:
             fx_input = fx_input.skip(skip_lines)
-        if fx_input.stream_type() != sm.StreamType.SchemaStream:
+        if fx_input.get_stream_type() != sm.StreamType.SchemaStream:
             fx_input = fx_input.schematize(
                 schema,
                 skip_bad_rows=True,
