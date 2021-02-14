@@ -1,13 +1,14 @@
 from enum import Enum
 import json
 
-import connectors.databases.clickhouse_database
-import connectors.databases.posrgres_database
-
 try:  # Assume we're a sub-module in a package.
     from connectors import connector_classes as cs
+    from connectors.databases.clickhouse_database import ClickhouseDatabase
+    from connectors.databases.posrgres_database import PostgresDatabase
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..connectors import connector_classes as cs
+    from ..connectors.databases.clickhouse_database import ClickhouseDatabase
+    from ..connectors.databases.posrgres_database import PostgresDatabase
 
 
 class FieldType(Enum):
@@ -101,19 +102,17 @@ def get_canonic_type(field_type, ignore_absent=False):
 def get_dialect_for_conn_type(db_obj):
     if isinstance(db_obj, cs.CONN_CLASSES):
         db_class = db_obj
-    elif isinstance(db_obj, cs.ConnType):
-        db_class = cs.get_class(db_obj)
-    elif isinstance(db_obj, str):
-        db_class = (cs.get_class(cs.ConnType(db_obj)))
+    elif isinstance(db_obj, (str, cs.ConnType)):
+        db_class = cs.ConnType(db_obj).get_class()
     elif db_obj is None:
         db_class = None
     else:
         raise ValueError
     if db_class is None:
         return 'py'
-    elif db_class == connectors.databases.posrgres_database.PostgresDatabase:
+    elif db_class == PostgresDatabase:
         return 'pg'
-    elif db_class == connectors.databases.clickhouse_database.ClickhouseDatabase:
+    elif db_class == ClickhouseDatabase:
         return 'ch'
     else:
         return 'str'
