@@ -83,7 +83,7 @@ class ClickhouseDatabase(ad.AbstractDatabase):
         )
         message = verbose if isinstance(verbose, str) else 'Inserting into {table}'.format(table=table)
         progress = logger_classes.Progress(
-            message, count=count, verbose=verbose, logger=self.get_logger(), context=self.context,
+            message, count=count, verbose=verbose, logger=self.get_logger(), context=self.get_context(),
         )
         progress.start()
         n = 0
@@ -103,6 +103,3 @@ class ClickhouseDatabase(ad.AbstractDatabase):
         progress.finish(n)
         if return_count:
             return n
-
-    def get_dialect_name(self):
-        return ad.DatabaseType.ClickhouseDatabase.value

@@ -150,7 +150,7 @@ class PostgresDatabase(ad.AbstractDatabase):
         query = query_template.format(**query_args)
         message = verbose if isinstance(verbose, str) else 'Committing {}-rows batches into {}'.format(step, table)
         progress = logger_classes.Progress(
-            message, count=count, verbose=verbose, logger=self.get_logger(), context=self.context,
+            message, count=count, verbose=verbose, logger=self.get_logger(), context=self.get_context(),
         )
         progress.start()
         records_batch = list()
@@ -180,6 +180,3 @@ class PostgresDatabase(ad.AbstractDatabase):
         progress.finish(n)
         if return_count:
             return n
-
-    def get_dialect_name(self):
-        return ad.DatabaseType.PostgresDatabase.value
