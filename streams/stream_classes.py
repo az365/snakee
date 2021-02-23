@@ -2,11 +2,9 @@ from enum import Enum
 import inspect
 import gc
 
-
 MAX_ITEMS_IN_MEMORY = 5000000
 TMP_FILES_TEMPLATE = 'stream_{}.tmp'
 TMP_FILES_ENCODING = 'utf8'
-
 
 try:  # Assume we're a sub-module in a package.
     from streams.simple.any_stream import AnyStream
@@ -29,13 +27,13 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..utils import arguments as arg
     from ..schema import schema_classes as sh
 
-
 STREAM_CLASSES = (
     AnyStream,
     LineStream, RowStream, RecordStream,
     KeyValueStream,
     PandasStream, SchemaStream,
 )
+context = None
 
 
 class StreamType(Enum):
@@ -74,11 +72,23 @@ def get_class(stream_type):
     return stream_type.get_class()
 
 
+def get_context():
+    global context
+    return context
+
+
+def set_context(cx):
+    global context
+    context = cx
+
+
 def stream(stream_type, *args, **kwargs):
     if is_stream_class(STREAM_CLASSES):
         stream_class = stream_type
     else:
         stream_class = StreamType(stream_type).get_class()
+    if 'context' not in kwargs:
+        kwargs['context'] = get_context()
     return stream_class(*args, **kwargs)
 
 

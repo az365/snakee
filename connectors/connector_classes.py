@@ -68,6 +68,8 @@ DICT_EXT_TO_CLASS = {
 DICT_DB_TO_DIALECT = {PostgresDatabase.__name__: 'pg', ClickhouseDatabase.__name__: 'ch'}
 DB_CLASS_NAMES = DICT_DB_TO_DIALECT.keys()
 
+context = None
+
 
 class ConnType(Enum):
     # Only concrete classes, not abstract ones
@@ -101,6 +103,16 @@ def get_class(conn_type):
     message = 'conn_type must be an instance of ConnType (but {} as type {} received)'
     assert isinstance(conn_type, ConnType), TypeError(message.format(conn_type, type(conn_type)))
     return conn_type.get_class()
+
+
+def get_context():
+    global context
+    return context
+
+
+def set_context(cx):
+    global context
+    context = cx
 
 
 def is_conn(obj):

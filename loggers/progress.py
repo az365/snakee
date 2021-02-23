@@ -26,13 +26,21 @@ class Progress:
         self.timing = timing
         self.start_time = None
         self.past_time = timedelta(0)
-        self.context = context
         if logger is None:
             self.logger = None
         elif logger == arg.DEFAULT:
             self.logger = context.get_logger() if context else log.get_logger()
         else:
             self.logger = logger
+        if context:
+            self.context = context
+        elif logger:
+            self.context = logger.get_context()
+        else:
+            self.context = None
+
+    def get_context(self):
+        return self.context
 
     def get_logger(self):
         return self.logger

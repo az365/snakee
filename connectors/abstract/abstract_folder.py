@@ -47,15 +47,6 @@ class FlatFolder(AbstractFolder):
     def get_default_child_class(self):
         pass
 
-    def get_path_prefix(self):
-        return self.get_storage().get_path_prefix()
-
-    def get_path_delimiter(self):
-        return self.get_storage().get_path_delimiter()
-
-    def get_path_as_list(self):
-        return self.get_parent().get_path_as_list() + self.get_name().split(self.get_path_delimiter())
-
 
 class HierarchicFolder(ct.HierarchicConnector):
     def __init__(
@@ -74,7 +65,6 @@ class HierarchicFolder(ct.HierarchicConnector):
         return self.__class__
 
     def get_folders(self):
-        folders = list()
-        for folder in self.children:
-            folders.append(folder)
-        return folders
+        for obj in self.get_items():
+            if isinstance(obj, (AbstractFolder, ct.AbstractFolder, ct.AbstractFile)):
+                yield obj

@@ -25,7 +25,7 @@ class LocalFolder(ct.HierarchicFolder):
             path,
             path_is_relative=True,
             parent=arg.DEFAULT,
-            context=None,
+            context=arg.DEFAULT,
             verbose=arg.DEFAULT,
     ):
         parent = arg.undefault(parent, ct.LocalStorage(context=context))

@@ -23,10 +23,10 @@ DEFAULT_ERRORS_THRESHOLD = 0.05
 
 
 class AbstractDatabase(ct.AbstractStorage):
-    def __init__(self, name, host, port, db, user, password, verbose=arg.DEFAULT, context=None, **kwargs):
+    def __init__(self, name, host, port, db, user, password, verbose=arg.DEFAULT, context=arg.DEFAULT, **kwargs):
         super().__init__(
             name=name,
-            context=context,
+            context=arg.undefault(context, ct.get_context()),
             verbose=verbose,
         )
         self.host = host

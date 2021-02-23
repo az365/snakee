@@ -1,6 +1,8 @@
 try:  # Assume we're a sub-module in a package.
+    from utils import arguments as arg
     from connectors import connector_classes as ct
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
+    from ...utils import arguments as arg
     from .. import connector_classes as ct
 
 
@@ -11,13 +13,13 @@ class LocalStorage(ct.AbstractStorage):
     def __init__(
             self,
             name='filesystem',
-            context=None,
+            context=arg.DEFAULT,
             verbose=True,
             path_delimiter=PATH_DELIMITER,
     ):
         super().__init__(
             name=name,
-            context=context,
+            context=arg.undefault(context, ct.get_context()),
             verbose=verbose,
         )
         self.path_delimiter = path_delimiter

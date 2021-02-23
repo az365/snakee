@@ -4,14 +4,14 @@ import psycopg2.extras
 
 try:  # Assume we're a sub-module in a package.
     from connectors.databases import abstract_database as ad
-    from loggers import logger_classes
+    from loggers import logger_classes as log
     from utils import (
         arguments as arg,
         mappers as ms,
     )
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..databases import abstract_database as ad
-    from ...loggers import logger_classes
+    from ...loggers import logger_classes as log
     from ...utils import (
         arguments as arg,
         mappers as ms,
@@ -19,7 +19,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 
 
 class PostgresDatabase(ad.AbstractDatabase):
-    def __init__(self, name, host, port, db, user, password, context=None, **kwargs):
+    def __init__(self, name, host, port, db, user, password, context=arg.DEFAULT, **kwargs):
         super().__init__(
             name=name,
             host=host,
@@ -61,7 +61,7 @@ class PostgresDatabase(ad.AbstractDatabase):
                     self.connection.close()
                 except psycopg2.OperationalError:
                     message = 'Connection to {} already closed.'.format(self.host)
-                    self.log(message, level=logger_classes.LoggingLevel.Warning, verbose=verbose)
+                    self.log(message, level=log.LoggingLevel.Warning, verbose=verbose)
             else:
                 self.connection.close()
             self.connection = None
@@ -70,7 +70,7 @@ class PostgresDatabase(ad.AbstractDatabase):
     def execute(self, query=ad.TEST_QUERY, get_data=arg.DEFAULT, commit=arg.DEFAULT, data=None, verbose=arg.DEFAULT):
         verbose = arg.undefault(verbose, self.verbose)
         message = verbose if isinstance(verbose, str) else 'Execute:'
-        level = logger_classes.LoggingLevel.Debug
+        level = log.LoggingLevel.Debug
         self.log([message, ms.remove_extra_spaces(query)], level=level, end='\r', verbose=verbose)
         if get_data == arg.DEFAULT:
             if 'SELECT' in query and 'GRANT' not in query:
@@ -149,7 +149,7 @@ class PostgresDatabase(ad.AbstractDatabase):
         query_args['values'] = ', '.join(placeholders)
         query = query_template.format(**query_args)
         message = verbose if isinstance(verbose, str) else 'Committing {}-rows batches into {}'.format(step, table)
-        progress = logger_classes.Progress(
+        progress = log.Progress(
             message, count=count, verbose=verbose, logger=self.get_logger(), context=self.get_context(),
         )
         progress.start()
@@ -163,8 +163,8 @@ class PostgresDatabase(ad.AbstractDatabase):
                 try:
                     cur.execute(query, row)
                 except TypeError or IndexError as e:  # TypeError: not all arguments converted during string formatting
-                    self.log(['Error line:', str(row)], level=logger_classes.LoggingLevel.Debug, verbose=verbose)
-                    self.log([e.__class__.__name__, e], level=logger_classes.LoggingLevel.Error)
+                    self.log(['Error line:', str(row)], level=log.LoggingLevel.Debug, verbose=verbose)
+                    self.log([e.__class__.__name__, e], level=log.LoggingLevel.Error)
             if (n + 1) % step == 0:
                 if use_fast_batch_method:
                     self.execute_batch(query, records_batch, step, cursor=cur)

@@ -48,10 +48,12 @@ class AnyStream:
             self.name = source.get_name()
         else:
             self.name = arg.DEFAULT
-        self.context = context
         self.max_items_in_memory = max_items_in_memory
         self.tmp_files_template = tmp_files_template
         self.tmp_files_encoding = tmp_files_encoding
+        if not context:
+            context = sm.get_context()
+        self.context = context
         if context is not None:
             self.put_into_context()
 
@@ -75,7 +77,7 @@ class AnyStream:
         return self
 
     def get_logger(self):
-        if self.context is not None:
+        if self.get_context():
             return self.get_context().get_logger()
         else:
             return log.get_logger()
@@ -174,7 +176,7 @@ class AnyStream:
             self.pass_items()
             closed_streams = 1
         except BaseException as e:
-            self.log(['Error while trying to close stream:', e], level=logger_classes.LoggingLevel.Warning)
+            self.log(['Error while trying to close stream:', e], level=log.LoggingLevel.Warning)
             closed_streams = 0
         closed_links = 0
         if recursively:
@@ -280,7 +282,6 @@ class AnyStream:
 
     def apply_to_data(self, function, to=arg.DEFAULT, save_count=False, lazy=True):
         stream_type = arg.undefault(to, self.get_stream_type())
-        # target_class = sm.get_class(stream_type)
         target_class = sm.get_class(stream_type)
         if to == arg.DEFAULT:
             props = self.get_meta() if save_count else self.get_meta_except_count()
@@ -406,8 +407,9 @@ class AnyStream:
 
     def progress(self, expected_count=arg.DEFAULT, step=arg.DEFAULT, message='Progress'):
         count = arg.undefault(expected_count, self.count) or self.less_than
+        items_with_logger = self.get_logger().progress(self.data, name=message, count=count, step=step)
         return self.__class__(
-            self.get_logger().progress(self.data, name=message, count=count, step=step),
+            items_with_logger,
             **self.get_meta()
         )
 

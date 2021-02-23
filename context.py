@@ -5,13 +5,13 @@ try:  # Assume we're a sub-module in a package.
     from streams import stream_classes as sm
     from connectors import connector_classes as ct
     from utils import arguments as arg
-    from loggers import logger_classes
+    from loggers import logger_classes as log
     from schema import schema_classes as sh
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from .streams import stream_classes as sm
     from .connectors import connector_classes as ct
     from .utils import arguments as arg
-    from .loggers import logger_classes
+    from .loggers import logger_classes as log
     from .schema import schema_classes as sh
 
 
@@ -34,14 +34,16 @@ class SnakeeContext:
             conn_config=arg.DEFAULT,
             logger=arg.DEFAULT
     ):
-        self.logger = arg.undefault(logger, logger_classes.get_logger())
+        self.logger = arg.undefault(logger, log.get_logger(context=self))
         self.stream_config = arg.undefault(stream_config, DEFAULT_STREAM_CONFIG)
         self.conn_config = arg.undefault(conn_config, dict())
         self.stream_instances = dict()
         self.conn_instances = dict()
 
         self.sm = sm
+        self.sm.set_context(self)
         self.ct = ct
+        self.ct.set_context(self)
         self.sh = sh
 
     @staticmethod
@@ -52,10 +54,12 @@ class SnakeeContext:
         return self
 
     def get_logger(self):
-        if self.logger is not None:
+        if self.logger:
+            if not self.logger.get_context():
+                self.logger.set_context(self)
             return self.logger
         else:
-            return logger_classes.get_logger()
+            return log.get_logger(context=self)
 
     def log(self, msg, level=arg.DEFAULT, end=arg.DEFAULT, verbose=True):
         logger = self.get_logger()

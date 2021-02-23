@@ -2,11 +2,11 @@ import requests
 
 try:  # Assume we're a sub-module in a package.
     from connectors.databases import abstract_database as ad
-    from loggers import logger_classes
+    from loggers import logger_classes as log
     from utils import arguments as arg
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..databases import abstract_database as ad
-    from ...loggers import logger_classes
+    from ...loggers import logger_classes as log
     from ...utils import arguments as arg
 
 
@@ -19,7 +19,7 @@ class ClickhouseDatabase(ad.AbstractDatabase):
             db='public',
             user=arg.DEFAULT,
             password=arg.DEFAULT,
-            context=None,
+            context=arg.DEFAULT,
             **kwargs
     ):
         super().__init__(
@@ -82,7 +82,7 @@ class ClickhouseDatabase(ad.AbstractDatabase):
             values='{}',
         )
         message = verbose if isinstance(verbose, str) else 'Inserting into {table}'.format(table=table)
-        progress = logger_classes.Progress(
+        progress = log.Progress(
             message, count=count, verbose=verbose, logger=self.get_logger(), context=self.get_context(),
         )
         progress.start()
@@ -94,8 +94,8 @@ class ClickhouseDatabase(ad.AbstractDatabase):
                 try:
                     self.execute(cur_query)
                 except requests.RequestException as e:
-                    self.log(['Error line:', str(row)], level=logger_classes.LoggingLevel.Debug, verbose=verbose)
-                    self.log([e.__class__.__name__, e], level=logger_classes.LoggingLevel.Error)
+                    self.log(['Error line:', str(row)], level=log.LoggingLevel.Debug, verbose=verbose)
+                    self.log([e.__class__.__name__, e], level=log.LoggingLevel.Error)
             else:
                 self.execute(cur_query)
             if (n + 1) % step == 0:
