@@ -38,9 +38,25 @@ class Progress:
             self.context = logger.get_context()
         else:
             self.context = None
+        self.selection_logger = None
 
     def get_context(self):
         return self.context
+
+    def has_selection_logger(self):
+        return self.selection_logger is not None
+
+    def get_selection_logger(self):
+        if not self.selection_logger:
+            if self.get_context():
+                self.selection_logger = self.get_context().get_selection_logger()
+                self.selection_logger.set_name(self.name)
+            else:
+                self.selection_logger = log.SelectionMessageCollector(self.name)
+        return self.selection_logger
+
+    def reset_selection_logger(self, **kwargs):
+        self.get_logger().reset_selection_logger(**kwargs)
 
     def get_logger(self):
         return self.logger
@@ -53,6 +69,15 @@ class Progress:
                 msg=msg, level=level, end=end,
                 verbose=arg.undefault(verbose, self.verbose),
             )
+
+    def log_selection_batch(self, level=arg.DEFAULT, reset_after=True):
+        selection = self.get_selection_logger()
+        if selection.has_errors():
+            batch = selection.get_message_batch()
+            for msg in batch:
+                self.log(msg, level=level)
+        if reset_after:
+            self.reset_selection_logger()
 
     def is_started(self):
         return self.start_time is not None
@@ -117,7 +142,7 @@ class Progress:
         if self.state != log.OperationStatus.InProgress:
             self.start(cur)
         if self.expected_count:
-            line = '{name}: {percent} ({pos}/{count}) items processed'.format(
+            line = '{name}: {percent} ({pos}/{count}) processed'.format(
                 name=self.name,
                 percent=self.get_percent(),
                 pos=self.position + 1,
@@ -125,6 +150,8 @@ class Progress:
             )
         else:
             line = '{}: {} items processed'.format(self.name, self.position + 1)
+        if self.has_selection_logger():
+            line = '{}, {} errors'.format(line, self.get_selection_logger().get_err_count())
         if self.timing:
             line = '{} {} ({} it/sec)'.format(self.get_timing_str(), line, self.evaluate_speed())
         self.log(line, level=log.LoggingLevel.Debug, end='\r')
@@ -156,15 +183,17 @@ class Progress:
         elif self.verbose:
             self.log('{} ({} items): starting...'.format(self.name, self.expected_count))
 
-    def finish(self, position=None):
+    def finish(self, position=None, log_selection_batch=True):
         self.expected_count = position
         self.update(position)
         message = '{}: Done. {} items processed'.format(self.name, self.position + 1)
         if self.timing:
             message = '{} {} ({} it/sec)'.format(self.get_timing_str(), message, self.evaluate_speed())
         self.log(message)
+        if log_selection_batch:
+            self.log_selection_batch()
 
-    def iterate(self, items, name=None, expected_count=None, step=arg.DEFAULT):
+    def iterate(self, items, name=None, expected_count=None, step=arg.DEFAULT, log_selection_batch=True):
         self.name = name or self.name
         if isinstance(items, (set, list, tuple)):
             self.expected_count = len(items)
@@ -175,4 +204,4 @@ class Progress:
         for n, item in enumerate(items):
             self.update(n, step)
             yield item
-        self.finish(n)
+        self.finish(n, log_selection_batch=log_selection_batch)

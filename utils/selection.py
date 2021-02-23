@@ -1,9 +1,9 @@
 try:  # Assume we're a sub-module in a package.
-    from streams import stream_classes as fx
+    from streams import stream_classes as sm
     from utils import algo
     from functions import all_functions as fs
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..streams import stream_classes as fx
+    from ..streams import stream_classes as sm
     from . import algo
     from ..functions import all_functions as fs
 
@@ -81,11 +81,14 @@ def value_from_record(record, description, logger=None, skip_errors=True):
         values = [record.get(f) for f in fields]
         try:
             return function(*values)
-        except BaseException as e:
+        except TypeError or ValueError as e:
             if logger:
-                level = 30 if skip_errors else 40
-                message = 'Error while processing function {} over fields {} with values {}.'
-                logger.log(msg=message.format(function.__name__, fields, values), level=level)
+                if hasattr(logger, 'log_selection_error'):
+                    logger.log_selection_error(function, fields, values, record, e)
+                else:
+                    level = 30 if skip_errors else 40
+                    message = 'Error while processing function {} over fields {} with values {}.'
+                    logger.log(msg=message.format(function.__name__, fields, values), level=level)
             if not skip_errors:
                 raise e
     else:
@@ -103,8 +106,8 @@ def value_from_any(item, description):
         return fs.value_by_key(description)(item)
 
 
-def tuple_from_record(record, descriptions):
-    return tuple([value_from_record(record, d) for d in descriptions])
+def tuple_from_record(record, descriptions, logger=None):
+    return tuple([value_from_record(record, d, logger=logger) for d in descriptions])
 
 
 def row_from_row(row_in, *descriptions):
@@ -125,7 +128,7 @@ def row_from_any(item_in, *descriptions):
     c = 0
     for desc in descriptions:
         if desc == '*':
-            if fx.is_row(item_in):
+            if sm.is_row(item_in):
                 row_out = row_out[:c] + list(item_in) + row_out[c + 1:]
                 c += len(item_in)
             else:
@@ -137,7 +140,7 @@ def row_from_any(item_in, *descriptions):
     return tuple(row_out)
 
 
-def record_from_any(item_in, *descriptions):
+def record_from_any(item_in, *descriptions, logger=None):
     rec_out = dict()
     for desc in descriptions:
         assert isinstance(desc, (list, tuple)) and len(desc) > 1, 'for AnyStream items description {} is not applicable'
@@ -150,11 +153,11 @@ def record_from_any(item_in, *descriptions):
                 rec_out[f_out] = rec_out.get(f_in)
         else:
             fs_in = desc[1:]
-            rec_out[f_out] = value_from_record(rec_out, fs_in)
+            rec_out[f_out] = value_from_record(rec_out, fs_in, logger=logger)
     return rec_out
 
 
-def record_from_record(rec_in, *descriptions):
+def record_from_record(rec_in, *descriptions, logger=None):
     record = rec_in.copy()
     fields_out = list()
     for desc in descriptions:
@@ -164,7 +167,7 @@ def record_from_record(rec_in, *descriptions):
             if len(desc) > 1:
                 f_out = desc[0]
                 fs_in = desc[1] if len(desc) == 2 else desc[1:]
-                record[f_out] = value_from_record(record, fs_in)
+                record[f_out] = value_from_record(record, fs_in, logger=logger)
                 fields_out.append(f_out)
             else:
                 raise ValueError('incorrect field description: {}'.format(desc))

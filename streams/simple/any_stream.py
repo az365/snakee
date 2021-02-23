@@ -82,6 +82,12 @@ class AnyStream:
         else:
             return log.get_logger()
 
+    def get_selection_logger(self):
+        if self.get_context():
+            return self.get_context().get_selection_logger()
+        else:
+            return log.get_selection_logger()
+
     def get_items(self):
         return self.data
 

@@ -6,10 +6,14 @@ try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from loggers.extended_logger import ExtendedLogger, SingletonLogger
     from loggers.progress import Progress
+    from loggers.detailed_message import DetailedMessage, SelectionError
+    from loggers.message_collector import MessageCollector, SelectionMessageCollector, CommonMessageCollector
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
     from .extended_logger import ExtendedLogger, SingletonLogger
     from .progress import Progress
+    from .detailed_message import DetailedMessage, SelectionError
+    from .message_collector import MessageCollector, SelectionMessageCollector, CommonMessageCollector
 
 DEFAULT_STEP = 10000
 DEFAULT_LOGGER_NAME = 'stream'
@@ -48,11 +52,11 @@ def get_method_name(level=LoggingLevel.Info):
         return 'critical'
 
 
-def get_logger(name=DEFAULT_LOGGER_NAME, level=DEFAULT_LOGGING_LEVEL):
+def get_logger(name=DEFAULT_LOGGER_NAME, level=DEFAULT_LOGGING_LEVEL, context=None):
     if name == DEFAULT_LOGGER_NAME:
-        return SingletonLogger(name=name, level=level)
+        return SingletonLogger(name=name, level=level, context=context)
     else:
-        return ExtendedLogger(name=name, level=level)
+        return ExtendedLogger(name=name, level=level, context=context)
 
 
 def get_base_logger(name=DEFAULT_LOGGER_NAME, level=DEFAULT_LOGGING_LEVEL, formatter=DEFAULT_FORMATTER):
@@ -65,6 +69,10 @@ def get_base_logger(name=DEFAULT_LOGGER_NAME, level=DEFAULT_LOGGING_LEVEL, forma
         sh.setFormatter(formatter)
         base_logger.addHandler(sh)
     return base_logger
+
+
+def get_selection_logger(**kwargs):
+    return get_logger().get_selection_logger(**kwargs)
 
 
 def deprecated(func):

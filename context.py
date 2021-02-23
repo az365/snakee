@@ -35,6 +35,7 @@ class SnakeeContext:
             logger=arg.DEFAULT
     ):
         self.logger = arg.undefault(logger, log.get_logger(context=self))
+        self.common_selection_logger = None
         self.stream_config = arg.undefault(stream_config, DEFAULT_STREAM_CONFIG)
         self.conn_config = arg.undefault(conn_config, dict())
         self.stream_instances = dict()
@@ -60,6 +61,16 @@ class SnakeeContext:
             return self.logger
         else:
             return log.get_logger(context=self)
+
+    def get_selection_logger(self, *args, **kwargs):
+        if self.get_logger():
+            return self.get_logger().get_selection_logger()
+        if not self.common_selection_logger:
+            self.reset_selection_logger(*args, **kwargs)
+        return self.common_selection_logger
+
+    def reset_selection_logger(self, *args, **kwargs):
+        self.common_selection_logger = log.get_selection_logger(*args, **kwargs)
 
     def log(self, msg, level=arg.DEFAULT, end=arg.DEFAULT, verbose=True):
         logger = self.get_logger()

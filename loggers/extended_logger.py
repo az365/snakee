@@ -17,6 +17,7 @@ class BaseLogger:
         level = arg.undefault(level, log.DEFAULT_LOGGING_LEVEL)
         formatter = arg.undefault(formatter, log.DEFAULT_FORMATTER)
         self.base_logger = log.get_base_logger(name, level, formatter)
+        self.name = name
 
 
 class ExtendedLogger(BaseLogger):
@@ -26,23 +27,44 @@ class ExtendedLogger(BaseLogger):
             level=arg.DEFAULT,
             formatter=arg.DEFAULT,
             max_line_len=arg.DEFAULT,
+            context=None,
     ):
         super().__init__(name=name, level=level, formatter=formatter)
         self.level = arg.undefault(level, log.DEFAULT_LOGGING_LEVEL)
         self.max_line_len = arg.undefault(max_line_len, log.DEFAULT_LINE_LEN)
+        self.progress_trackers = list()
+        self.context = context
 
-    def progress(self, items, name='Progress', count=None, step=arg.DEFAULT):
-        return log.Progress(
+    def get_context(self):
+        return self.context
+
+    def set_context(self, context):
+        self.context = context
+
+    def progress(self, items, name='Progress', count=None, step=arg.DEFAULT, context=arg.DEFAULT):
+        progress = log.Progress(
             name,
             count=count,
             logger=self,
-        ).iterate(
+            context=arg.undefault(context, self.get_context()),
+        )
+        self.progress_trackers.append(progress)
+        return progress.iterate(
             items,
             step=arg.undefault(step, log.DEFAULT_STEP),
         )
 
     def new_progress(self, name, **kwargs):
         return log.Progress(name, logger=self, **kwargs)
+
+    def get_current_progress(self):
+        for progress in reversed(self.progress_trackers):
+            assert isinstance(progress, log.Progress)
+            if not progress.is_finished():
+                return progress
+
+    def get_selection_logger(self, **kwargs):
+        log.get_selection_logger(**kwargs)
 
     def log(self, msg, level=arg.DEFAULT, logger=arg.DEFAULT, end=arg.DEFAULT, verbose=True):
         level = arg.undefault(level, log.LoggingLevel.Info if verbose else log.LoggingLevel.Debug)
@@ -99,3 +121,24 @@ class SingletonLogger(ExtendedLogger):
         if not hasattr(cls, 'instance'):
             cls.instance = super(SingletonLogger, cls).__new__(cls)
         return cls.instance
+
+    def __init__(
+            self,
+            name=arg.DEFAULT,
+            level=arg.DEFAULT,
+            formatter=arg.DEFAULT,
+            max_line_len=arg.DEFAULT,
+            context=None,
+    ):
+        super().__init__(name, level, formatter, max_line_len, context)
+        self.selection_logger = None
+
+    def get_selection_logger(self, **kwargs):
+        if self.selection_logger:
+            self.selection_logger.set_options(**kwargs)
+        else:
+            self.reset_selection_logger(**kwargs)
+        return self.selection_logger
+
+    def reset_selection_logger(self, **kwargs):
+        self.selection_logger = log.CommonMessageCollector(**kwargs)

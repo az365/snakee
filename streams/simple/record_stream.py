@@ -119,13 +119,14 @@ class RecordStream(sm.AnyStream):
 
     def select(self, *fields, **expressions):
         logger_for_cyclic_dependencies = self.get_logger()
+        logger_for_selection = self.get_selection_logger()
         descriptions = selection.flatten_descriptions(
             *fields,
             logger=logger_for_cyclic_dependencies,
             **expressions
         )
         return self.native_map(
-            lambda r: selection.record_from_record(r, *descriptions),
+            lambda r: selection.record_from_record(r, *descriptions, logger=logger_for_selection),
         )
 
     def filter(self, *fields, **expressions):
