@@ -3,7 +3,7 @@ try:  # Assume we're a sub-module in a package.
     from series.simple.any_series import AnySeries
     from series.simple.numeric_series import NumericSeries
     from series.simple.sorted_series import SortedSeries
-    from series.pairs.sorted_numeric_series import SortedNumericSeries
+    from series.simple.sorted_numeric_series import SortedNumericSeries
     from series.simple.date_series import DateSeries
     from series.pairs.key_value_series import KeyValueSeries
     from series.pairs.sorted_key_value_series import SortedKeyValueSeries
@@ -18,7 +18,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..series.simple.any_series import AnySeries
     from ..series.simple.numeric_series import NumericSeries
     from ..series.simple.sorted_series import SortedSeries
-    from ..series.pairs.sorted_numeric_series import SortedNumericSeries
+    from ..series.simple.sorted_numeric_series import SortedNumericSeries
     from ..series.simple.date_series import DateSeries
     from ..series.pairs.key_value_series import KeyValueSeries
     from ..series.pairs.sorted_key_value_series import SortedKeyValueSeries

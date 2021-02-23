@@ -5,8 +5,8 @@ try:  # Assume we're a sub-module in a package.
         dates as dt,
     )
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from .. import series_classes as sc
-    from ...utils import (
+    from series import series_classes as sc
+    from utils import (
         numeric as nm,
         dates as dt,
     )
@@ -41,7 +41,6 @@ class SortedNumericSeries(sc.SortedSeries, sc.NumericSeries):
     def to_dates(self, as_iso_date=False, from_scale='days'):
         return self.map(
             function=lambda d: dt.get_date_from_numeric(d, from_scale=from_scale),
-            sorting_changed=False,
         ).assume_dates()
 
     def get_range_len(self):
