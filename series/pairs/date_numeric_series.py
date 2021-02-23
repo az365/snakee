@@ -87,7 +87,7 @@ class DateNumericSeries(sc.SortedNumericKeyValueSeries, sc.DateSeries):
     def get_segment(self, date):
         nearest_dates = [i for i in self.get_two_nearest_dates(date) if i]
         return self.new().from_items(
-            [(d, self.get_value(d)) for d in nearest_dates],
+            [(d, self.get_value_by_key(d)) for d in nearest_dates],
         )
 
     def get_nearest_value(self, value, distance_func=None):
@@ -216,7 +216,7 @@ class DateNumericSeries(sc.SortedNumericKeyValueSeries, sc.DateSeries):
         if not self.cached_yoy:
             self.cached_yoy = self.yoy(interpolation_kwargs=interpolation_kwargs)
         if date in self.cached_yoy:
-            return self.get_value(date)
+            return self.get_value_by_key(date)
         elif date < self.get_first_date():
             return self.first_year().get_mean()
         elif date > self.get_last_date():

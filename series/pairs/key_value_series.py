@@ -3,7 +3,7 @@ try:  # Assume we're a sub-module in a package.
     from utils import numeric as nm
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from .. import series_classes as sc
-    from utils import numeric as nm
+    from ...utils import numeric as nm
 
 
 class KeyValueSeries(sc.AnySeries):
@@ -52,7 +52,7 @@ class KeyValueSeries(sc.AnySeries):
     def value_series(self):
         return sc.AnySeries(self.get_values())
 
-    def get_value(self, key, default=None):
+    def get_value_by_key(self, key, default=None):
         return self.get_dict().get(key, default)
 
     def get_keys(self):
@@ -107,7 +107,7 @@ class KeyValueSeries(sc.AnySeries):
             return new
 
     def add(self, key_value_series, to_the_begin=False):
-        assert isinstance(key_value_series, sc.KeyValueSeries)
+        assert isinstance(key_value_series, (KeyValueSeries, sc.KeyValueSeries, sc.DateNumericSeries))
         if to_the_begin:
             keys = key_value_series.get_keys() + self.get_keys()
             values = key_value_series.get_values() + self.get_values()

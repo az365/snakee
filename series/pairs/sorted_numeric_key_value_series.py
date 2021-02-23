@@ -92,7 +92,7 @@ class SortedNumericKeyValueSeries(sc.SortedKeyValueSeries, sc.SortedNumericSerie
 
     def get_nearest_item(self, key):
         nearest_key = self.get_nearest_key(key)
-        return nearest_key, self.get_value(nearest_key)
+        return nearest_key, self.get_value_by_key(nearest_key)
 
     def get_two_nearest_keys(self, key):
         if self.get_count() < 2:
@@ -106,7 +106,7 @@ class SortedNumericKeyValueSeries(sc.SortedKeyValueSeries, sc.SortedNumericSerie
     def get_segment(self, key):
         nearest_keys = [i for i in self.get_two_nearest_keys(key) if i]
         return self.new().from_items(
-            [(d, self.get_value(d)) for d in nearest_keys],
+            [(d, self.get_value_by_key(d)) for d in nearest_keys],
         )
 
     def derivative(self, extend=False, default=0):
