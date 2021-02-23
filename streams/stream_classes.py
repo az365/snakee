@@ -1,4 +1,5 @@
 from enum import Enum
+import inspect
 import gc
 
 
@@ -64,6 +65,8 @@ class StreamType(Enum):
 
 
 def get_class(stream_type):
+    if inspect.isclass(stream_type):
+        return stream_type
     if isinstance(stream_type, str):
         stream_type = StreamType(stream_type)
     message = 'stream_type must be an instance of StreamType (but {} as type {} received)'
