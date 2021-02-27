@@ -743,6 +743,16 @@ class AnyStream:
             **props
         )
 
+    def collect(self):
+        return self.to_memory()
+
+    def write_to(self, connector, verbose=True, return_stream=True):
+        msg = 'connector-argument must be an instance of LeafConnector or have write_stream() method'
+        assert hasattr(connector, 'write_stream'), msg
+        connector.write_stream(self, verbose=verbose)
+        if return_stream:
+            return connector.to_stream(verbose=verbose).update_meta(**self.get_meta())
+
     def to_iter(self):
         return self.__class__(
             self.iterable(),

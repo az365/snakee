@@ -133,6 +133,9 @@ class AbstractFile(cs.LeafConnector):
     def to_stream(self, stream_type):
         pass
 
+    def collect(self):
+        return self.to_stream().collect()
+
 
 class TextFile(AbstractFile):
     def __init__(
@@ -417,6 +420,20 @@ class ColumnFile(TextFile):
         if set_schema:
             self.schema = schema
         return schema
+
+    def check(self, must_exists=False, check_types=False):
+        file_exists = self.is_existing()
+        if must_exists:
+            assert file_exists, 'file {} must exists'.format(self.get_name())
+        expected_schema = self.get_schema()
+        if file_exists:
+            received_schema = self.detect_schema_by_title_row()
+            if check_types:
+                assert received_schema == expected_schema
+            else:
+                assert received_schema.get_columns() == expected_schema.get_columns()
+        else:
+            assert expected_schema, 'schema for {} must be defined'.format(self.get_name())
 
     def add_fields(self, *fields, default_type=None, return_file=True):
         self.schema.add_fields(*fields, default_type=default_type, return_schema=False)

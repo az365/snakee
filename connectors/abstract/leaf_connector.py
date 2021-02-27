@@ -27,6 +27,13 @@ class LeafConnector(ct.AbstractConnector):
     def is_existing(self):
         pass
 
+    def check(self, must_exists=True):
+        if must_exists:
+            assert self.is_existing(), 'object {} must exists'.format(self.get_name())
+
+    def write_stream(self, stream):
+        return self.from_stream()
+
     @abstractmethod
     def from_stream(self, stream):
         pass
