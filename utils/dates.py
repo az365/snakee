@@ -32,6 +32,30 @@ def check_iso_date(d):
             return list(map(len, d.split('-'))) == [4, 2, 2]
 
 
+def check_gost_date(d):
+    if isinstance(d, str):
+        if len(d) >= 10:
+            d = d[:10]
+            return list(map(len, d.split('.'))) == [2, 2, 4]
+
+
+def from_gost_format(d, as_iso_date=False):
+    gost_str = d.split(' ')
+    day, month, year = gost_str.split('.')[:3]
+    if year < 100:
+        year = 2000 + year
+    standard_date = date(year=year, month=month, day=day)
+    if as_iso_date:
+        return standard_date.isoformat()
+    else:
+        return standard_date
+
+
+def to_gost_format(d):
+    d = to_date(d)
+    return '{:02}.{:02}.{:04}'.format(d.day, d.month, d.year)
+
+
 def raise_date_type_error(d):
     raise TypeError('Argument must be date in iso-format as str or python date (got {})'.format(type(d)))
 
@@ -41,6 +65,8 @@ def get_date(d):
         return d
     elif check_iso_date(d):
         return date.fromisoformat(d[:10])
+    elif check_gost_date(d):
+        return from_gost_format(d)
     else:
         raise_date_type_error(d)
 
