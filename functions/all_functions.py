@@ -2,6 +2,7 @@ try:  # Assume we're a sub-module in a package.
     from functions.basic_functions import (
         partial, same, const, defined, is_none, not_none, nonzero, equal, not_equal,
         at_least, more_than, safe_more_than, between, not_between,
+        apply_dict,
         percent,
         cast, DICT_CAST_TYPES,
     )
@@ -18,6 +19,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .basic_functions import (
         partial, same, const, defined, is_none, not_none, nonzero, equal, not_equal,
         at_least, more_than, safe_more_than, between, not_between,
+        apply_dict,
         percent,
         cast, DICT_CAST_TYPES,
     )

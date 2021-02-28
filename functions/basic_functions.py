@@ -2,19 +2,9 @@ import math
 import numpy as np
 
 try:  # Assume we're a sub-module in a package.
-    from streams import stream_classes as fx
-    from utils import (
-        arguments as arg,
-        mappers as ms,
-        selection,
-    )
+    from utils import arguments as arg
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..streams import stream_classes as fx
-    from ..utils import (
-        arguments as arg,
-        mappers as ms,
-        selection,
-    )
+    from ..utils import arguments as arg
 
 
 DICT_CAST_TYPES = dict(bool=bool, int=int, float=float, str=str, text=str, date=str)
