@@ -62,7 +62,11 @@ class RowStream(sm.AnyStream):
 
     def select(self, *columns):
         return self.native_map(
-            lambda r: selection.row_from_row(r, *columns),
+            selection.select(
+                *columns,
+                target_item_type='row', input_item_type='row',
+                logger=self.get_logger(), selection_logger=self.get_logger(),
+            )
         )
 
     def to_records(self, function=None, columns=tuple()):

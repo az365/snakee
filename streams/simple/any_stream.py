@@ -384,16 +384,28 @@ class AnyStream:
     def select(self, *columns, **expressions):
         if columns and not expressions:
             return self.to_rows(
-                function=lambda i: selection.row_from_any(i, *columns),
+                function=selection.select(
+                    *columns,
+                    target_item_type='row', input_item_type='any',
+                    logger=self.get_logger(), selection_logger=self.get_selection_logger(),
+                ),
             )
         elif expressions and not columns:
-            descriptions = selection.flatten_descriptions(**expressions)
             return self.to_records(
-                function=lambda i: selection.record_from_any(i, *descriptions),
+                function=selection.select(
+                    **expressions,
+                    target_item_type='record', input_item_type='any',
+                    logger=self.get_logger(), selection_logger=self.get_selection_logger(),
+                ),
             )
         else:
-            message = 'for AnyStream use either columns (returns RowStream) or expressions (returns RecordStream), not both'
-            raise ValueError(message)
+            return self.map(
+                function=selection.select(
+                    *columns, **expressions,
+                    target_item_type=arg.DEFAULT, input_item_type=arg.DEFAULT,
+                    logger=self.get_logger(), selection_logger=self.get_selection_logger(),
+                ),
+            )
 
     def enumerated_items(self):
         for n, i in enumerate(self.get_items()):

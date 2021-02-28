@@ -118,15 +118,12 @@ class RecordStream(sm.AnyStream):
         )
 
     def select(self, *fields, **expressions):
-        logger_for_cyclic_dependencies = self.get_logger()
-        logger_for_selection = self.get_selection_logger()
-        descriptions = selection.flatten_descriptions(
-            *fields,
-            logger=logger_for_cyclic_dependencies,
-            **expressions
-        )
         return self.native_map(
-            lambda r: selection.record_from_record(r, *descriptions, logger=logger_for_selection),
+            selection.select(
+                *fields, **expressions,
+                target_item_type='record', input_item_type='record',
+                logger=self.get_logger(), selection_logger=self.get_selection_logger(),
+            )
         )
 
     def filter(self, *fields, **expressions):
@@ -282,12 +279,7 @@ class RecordStream(sm.AnyStream):
             check=False,
         )
 
-    def to_file(
-            self,
-            file,
-            verbose=True,
-            return_stream=True,
-    ):
+    def to_file(self, file, verbose=True, return_stream=True):
         assert cs.is_file(file), TypeError('Expected TsvFile, got {} as {}'.format(file, type(file)))
         meta = self.get_meta()
         if not file.gzip:

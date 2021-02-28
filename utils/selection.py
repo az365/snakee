@@ -65,13 +65,28 @@ def flatten_descriptions(*fields, **expressions):
     return descriptions
 
 
-def value_from_row(row, description):
+def safe_apply_function(function, fields, values, item={}, logger=None, skip_errors=True):
+    try:
+        return function(*values)
+    except TypeError or ValueError as e:
+        if logger:
+            if hasattr(logger, 'log_selection_error'):
+                logger.log_selection_error(function, fields, values, item, e)
+            else:
+                level = 30 if skip_errors else 40
+                message = 'Error while processing function {} over fields {} with values {}.'
+                logger.log(msg=message.format(function.__name__, fields, values), level=level)
+        if not skip_errors:
+            raise e
+
+
+def value_from_row(row, description, logger=None, skip_errors=True):
     if callable(description):
         return description(row)
     elif isinstance(description, (list, tuple)):
         function, columns = process_description(description)
         values = [row[f] for f in columns]
-        return function(*values)
+        return safe_apply_function(function, columns, values, item=row, logger=logger, skip_errors=skip_errors)
     elif isinstance(description, int):
         return row[description]
     else:
@@ -79,7 +94,7 @@ def value_from_row(row, description):
         raise TypeError(message.format(description, type(description)))
 
 
-def value_from_schema_row(row, description):
+def value_from_schema_row(row, description, logger=None, skip_errors=True):
     if callable(description):
         return description(row)
     elif isinstance(description, (int, str)):
@@ -87,7 +102,7 @@ def value_from_schema_row(row, description):
     elif isinstance(description, (list, tuple)):
         function, fields = process_description(description)
         values = [row.get_value(c) for c in fields]
-        return function(*values)
+        return safe_apply_function(function, fields, values, item=row, logger=logger, skip_errors=skip_errors)
 
 
 def value_from_record(record, description, logger=None, skip_errors=True):
@@ -96,29 +111,18 @@ def value_from_record(record, description, logger=None, skip_errors=True):
     elif isinstance(description, (list, tuple)):
         function, fields = process_description(description)
         values = [record.get(f) for f in fields]
-        try:
-            return function(*values)
-        except TypeError or ValueError as e:
-            if logger:
-                if hasattr(logger, 'log_selection_error'):
-                    logger.log_selection_error(function, fields, values, record, e)
-                else:
-                    level = 30 if skip_errors else 40
-                    message = 'Error while processing function {} over fields {} with values {}.'
-                    logger.log(msg=message.format(function.__name__, fields, values), level=level)
-            if not skip_errors:
-                raise e
+        return safe_apply_function(function, fields, values, item=record, logger=logger, skip_errors=skip_errors)
     else:
         return record.get(description)
 
 
-def value_from_any(item, description):
+def value_from_any(item, description, logger=None, skip_errors=True):
     if callable(description):
         return description(item)
     elif isinstance(description, (list, tuple)):
         function, fields = process_description(description)
         values = fs.values_by_keys(fields)(item)
-        return function(*values)
+        return safe_apply_function(function, fields, values, item=item, logger=logger, skip_errors=skip_errors)
     else:
         return fs.value_by_key(description)(item)
 
@@ -137,7 +141,7 @@ def value_from_item(item, description, item_type=None, logger=None, skip_errors=
             fields, item, item_type=item_type,
             skip_errors=skip_errors, logger=logger, default=default,
         )
-        return function(*values)
+        return safe_apply_function(function, fields, values, item=item, logger=logger, skip_errors=skip_errors)
     else:
         message = 'field description must be int, callable or tuple ({} as {} given)'
         raise TypeError(message.format(description, type(description)))
@@ -213,3 +217,36 @@ def record_from_record(rec_in, *descriptions, logger=None):
                 record[desc] = None
             fields_out.append(desc)
     return {f: record[f] for f in fields_out}
+
+
+def auto_to_auto(item, *descriptions, logger=None):
+    item_type = it.detect_item_type(item)
+    if item_type == 'record':
+        return record_from_record(item, *descriptions, logger=logger)
+    elif item_type == 'row':
+        return row_from_row(item, *descriptions)
+    else:
+        return fs.composite_key(*descriptions)(item)
+
+
+def select(
+        *fields,
+        target_item_type=arg.DEFAULT, input_item_type=arg.DEFAULT,
+        logger=None, selection_logger=arg.DEFAULT,
+        **expressions
+):
+    descriptions = flatten_descriptions(
+        *fields,
+        logger=logger,
+        **expressions
+    )
+    if target_item_type == 'record' and input_item_type == 'record':
+        return lambda r: record_from_record(r, *descriptions, logger=selection_logger)
+    elif target_item_type == 'row' and input_item_type == 'row':
+        return lambda r: row_from_row(r, *descriptions)
+    elif target_item_type == 'row' and input_item_type == 'any':
+        return lambda i: row_from_any(i, *descriptions)
+    elif target_item_type == 'record' and input_item_type == 'any':
+        return lambda i: record_from_any(i, *descriptions, logger=logger)
+    else:
+        return lambda i: auto_to_auto(i, *descriptions, logger=logger)
