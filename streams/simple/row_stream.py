@@ -2,12 +2,14 @@ try:  # Assume we're a sub-module in a package.
     from streams import stream_classes as sm
     from utils import (
         arguments as arg,
+        items as it,
         selection,
     )
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from .. import stream_classes as sm
     from ...utils import (
         arguments as arg,
+        items as it,
         selection,
     )
 
@@ -64,8 +66,8 @@ class RowStream(sm.AnyStream):
         return self.native_map(
             selection.select(
                 *columns,
-                target_item_type='row', input_item_type='row',
-                logger=self.get_logger(), selection_logger=self.get_logger(),
+                target_item_type=it.ItemType.Row, input_item_type=it.ItemType.Row,
+                logger=self.get_logger(), selection_logger=self.get_selection_logger(),
             )
         )
 

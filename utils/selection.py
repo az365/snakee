@@ -127,7 +127,7 @@ def value_from_any(item, description, logger=None, skip_errors=True):
         return fs.value_by_key(description)(item)
 
 
-def value_from_item(item, description, item_type=None, logger=None, skip_errors=True, default=None):
+def value_from_item(item, description, item_type=it.ItemType.Auto, logger=None, skip_errors=True, default=None):
     if callable(description):
         return description(item)
     elif isinstance(description, (int, str)):
@@ -155,7 +155,7 @@ def row_from_row(row_in, *descriptions):
     row_out = [None] * len(descriptions)
     c = 0
     for d in descriptions:
-        if d == '*':
+        if d == it.STAR:
             row_out = row_out[:c] + list(row_in) + row_out[c + 1:]
             c += len(row_in)
         else:
@@ -168,8 +168,8 @@ def row_from_any(item_in, *descriptions):
     row_out = [None] * len(descriptions)
     c = 0
     for desc in descriptions:
-        if desc == '*':
-            if it.is_row(item_in):
+        if desc == it.STAR:
+            if it.ItemType.Row.isinstance(item_in):
                 row_out = row_out[:c] + list(item_in) + row_out[c + 1:]
                 c += len(item_in)
             else:
@@ -202,7 +202,7 @@ def record_from_record(rec_in, *descriptions, logger=None):
     record = rec_in.copy()
     fields_out = list()
     for desc in descriptions:
-        if desc == '*':
+        if desc == it.STAR:
             fields_out += list(rec_in.keys())
         elif isinstance(desc, (list, tuple)):
             if len(desc) > 1:
@@ -220,10 +220,10 @@ def record_from_record(rec_in, *descriptions, logger=None):
 
 
 def auto_to_auto(item, *descriptions, logger=None):
-    item_type = it.detect_item_type(item)
-    if item_type == 'record':
+    item_type = it.ItemType.detect(item)
+    if item_type == it.ItemType.Record:
         return record_from_record(item, *descriptions, logger=logger)
-    elif item_type == 'row':
+    elif item_type == it.ItemType.Row:
         return row_from_row(item, *descriptions)
     else:
         return fs.composite_key(*descriptions)(item)
@@ -231,7 +231,7 @@ def auto_to_auto(item, *descriptions, logger=None):
 
 def select(
         *fields,
-        target_item_type=arg.DEFAULT, input_item_type=arg.DEFAULT,
+        target_item_type=it.ItemType.Auto, input_item_type=it.ItemType.Auto,
         logger=None, selection_logger=arg.DEFAULT,
         **expressions
 ):
@@ -240,13 +240,13 @@ def select(
         logger=logger,
         **expressions
     )
-    if target_item_type == 'record' and input_item_type == 'record':
+    if target_item_type == it.ItemType.Record and input_item_type == it.ItemType.Record:
         return lambda r: record_from_record(r, *descriptions, logger=selection_logger)
-    elif target_item_type == 'row' and input_item_type == 'row':
+    elif target_item_type == it.ItemType.Row and input_item_type == it.ItemType.Row:
         return lambda r: row_from_row(r, *descriptions)
-    elif target_item_type == 'row' and input_item_type == 'any':
+    elif target_item_type == it.ItemType.Row and input_item_type == it.ItemType.Any:
         return lambda i: row_from_any(i, *descriptions)
-    elif target_item_type == 'record' and input_item_type == 'any':
+    elif target_item_type == it.ItemType.Record and input_item_type == it.ItemType.Any:
         return lambda i: record_from_any(i, *descriptions, logger=logger)
     else:
         return lambda i: auto_to_auto(i, *descriptions, logger=logger)

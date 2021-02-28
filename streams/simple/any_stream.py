@@ -8,6 +8,7 @@ try:  # Assume we're a sub-module in a package.
     from utils import (
         arguments as arg,
         mappers as ms,
+        items as it,
         selection,
         algo,
     )
@@ -18,6 +19,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils import (
         arguments as arg,
         mappers as ms,
+        items as it,
         selection,
         algo,
     )
@@ -312,6 +314,8 @@ class AnyStream:
             map(function, self.get_items()),
             count=self.count,
             less_than=self.count or self.less_than,
+        ).set_meta(
+            **self.get_meta_except_count(),
         )
 
     def map_to_any(self, function):
@@ -383,29 +387,26 @@ class AnyStream:
 
     def select(self, *columns, **expressions):
         if columns and not expressions:
-            return self.to_rows(
-                function=selection.select(
-                    *columns,
-                    target_item_type='row', input_item_type='any',
-                    logger=self.get_logger(), selection_logger=self.get_selection_logger(),
-                ),
-            )
+            target_stream_type = sm.StreamType.RowStream
+            target_item_type = it.ItemType.Row
+            input_item_type = it.ItemType.Any
         elif expressions and not columns:
-            return self.to_records(
-                function=selection.select(
-                    **expressions,
-                    target_item_type='record', input_item_type='any',
-                    logger=self.get_logger(), selection_logger=self.get_selection_logger(),
-                ),
-            )
+            target_stream_type = sm.StreamType.RecordStream
+            target_item_type = it.ItemType.Record
+            input_item_type = it.ItemType.Any
         else:
-            return self.map(
-                function=selection.select(
-                    *columns, **expressions,
-                    target_item_type=arg.DEFAULT, input_item_type=arg.DEFAULT,
-                    logger=self.get_logger(), selection_logger=self.get_selection_logger(),
-                ),
-            )
+            target_stream_type = sm.StreamType.AnyStream
+            target_item_type = it.ItemType.Auto
+            input_item_type = it.ItemType.Auto
+        select_function = selection.select(
+            *columns, **expressions,
+            target_item_type=target_item_type, input_item_type=input_item_type,
+            logger=self.get_logger(), selection_logger=self.get_selection_logger(),
+        )
+        return self.map(
+            function=select_function,
+            to=target_stream_type,
+        )
 
     def enumerated_items(self):
         for n, i in enumerate(self.get_items()):

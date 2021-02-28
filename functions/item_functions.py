@@ -21,9 +21,9 @@ def composite_key(*functions):
             if callable(f):
                 value = f(item)
             else:
-                if it.is_record(item):
+                if it.ItemType.Record.isinstance(item):
                     value = selection.value_from_record(item, f)
-                elif it.is_row(item):
+                elif it.ItemType.Row.isinstance(item):
                     value = selection.value_from_row(item, f)
                 else:
                     value = selection.value_from_any(item, f)
