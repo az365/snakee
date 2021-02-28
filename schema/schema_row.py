@@ -1,14 +1,22 @@
+from typing import Union, Optional
+
 try:  # Assume we're a sub-module in a package.
     from schema import schema_classes as sh
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from . import schema_classes as sh
 
 
+Row = Union[list, tuple]
+FieldName = str
+FieldNo = int
+FieldId = Union[FieldName, FieldNo]
+
+
 class SchemaRow:
     def __init__(
             self,
-            data,
-            schema,
+            data: Row = [],
+            schema: Union[Row, sh.SchemaDescription] = [],
             check=True,
     ):
         if isinstance(schema, sh.SchemaDescription):
@@ -21,7 +29,13 @@ class SchemaRow:
         else:
             self.data = data
 
-    def set_data(self, row, check=True):
+    def get_schema(self) -> sh.SchemaDescription:
+        return self.schema
+
+    def get_data(self) -> Row:
+        return self.data
+
+    def set_data(self, row: Row, check=True):
         if check:
             assert isinstance(row, (list, tuple)), 'Row must be list or tuple (got {})'.format(type(row))
             expected_fields_count = self.schema.get_fields_count()
@@ -38,6 +52,11 @@ class SchemaRow:
         else:
             self.data = row
 
+    def set_value(self, field: FieldId, value):
+        if isinstance(field, FieldName):
+            field = self.get_schema().get_field_position(field)
+        self.data[field] = value
+
     def get_record(self):
         return {k.name: v for k, v in zip(self.schema.fields_descriptions, self.data)}
 
@@ -53,21 +72,37 @@ class SchemaRow:
             list_str.append(str(value))
         return delimiter.join(list_str)
 
-    def get_value(self, name, skip_errors=False, logger=None, default=None):
-        position = self.schema.get_field_position(name)
-        if position is None and isinstance(name, int):
-            position = name
+    def get_columns(self) -> Row:
+        return self.get_schema().get_columns()
+
+    def get_field_position(self, field: FieldId) -> Optional[FieldNo]:
+        if isinstance(field, FieldNo):
+            return field
+        else:  # isinstance(field, FieldName):
+            return self.get_schema().get_field_position(field)
+
+    def get_fields_positions(self, fields: Row) -> Row:
+        return [self.get_field_position(f) for f in fields]
+
+    def get_value(self, field: FieldId, skip_missing=False, logger=None, default=None):
+        position = self.get_field_position(field)
         try:
             return self.data[position]
         except IndexError or TypeError:
-            msg = 'Field {} does no exists in current row'.format(name)
-            if skip_errors:
+            msg = 'Field {} does no exists in current row'.format(field)
+            if skip_missing:
                 if logger:
                     logger.log(msg)
                 return default
             else:
                 raise IndexError(msg)
 
-    def get_values(self, names):
-        positions = self.schema.get_fields_positions(names)
+    def get_values(self, fields: Row) -> Row:
+        positions = self.get_fields_positions(fields)
         return [self.data[p] for p in positions]
+
+    def simple_select_fields(self, fields: Row):
+        return SchemaRow(
+            data=self.get_values(fields),
+            schema=self.get_schema().simple_select_fields(fields)
+        )

@@ -25,6 +25,9 @@ class FieldDescription:
         assert aggr_hint in sh.AGGR_HINTS
         self.aggr_hint = aggr_hint
 
+    def get_field_type(self):
+        return self.get_type_in(None)
+
     def get_type_in(self, dialect):
         if dialect is None:
             return self.field_type.value
