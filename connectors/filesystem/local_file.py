@@ -6,18 +6,12 @@ import csv
 try:  # Assume we're a sub-module in a package.
     from connectors import connector_classes as cs
     from streams import stream_classes as sm
-    from utils import (
-        arguments as arg,
-        selection,
-    )
+    from utils import arguments as arg
     from schema import schema_classes as sh
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from .. import connector_classes as cs
     from ...streams import stream_classes as sm
-    from ...utils import (
-        arguments as arg,
-        selection,
-    )
+    from ...utils import arguments as arg
     from ...schema import schema_classes as sh
 
 
@@ -481,13 +475,7 @@ class ColumnFile(TextFile):
             yield {k: v for k, v in zip(self.get_schema().get_columns(), item)}
 
     def get_dict(self, key, value, skip_errors=False):
-        result = dict()
-        kws = dict(logger=self.get_logger(), skip_errors=skip_errors)
-        for r in self.get_records():
-            cur_key = selection.value_from_record(r, key, **kws)
-            cur_value = selection.value_from_record(r, value, **kws)
-            result[cur_key] = cur_value
-        return result
+        return self.to_record_stream().get_dict(key, value, skip_errors=skip_errors)
 
     def to_row_stream(self, name=None, **kwargs):
         data = self.get_rows()
