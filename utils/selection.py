@@ -1,10 +1,16 @@
 try:  # Assume we're a sub-module in a package.
-    from streams import stream_classes as sm
-    from utils import algo
+    from utils import (
+        algo,
+        arguments as arg,
+        items as it,
+    )
     from functions import all_functions as fs
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..streams import stream_classes as sm
-    from . import algo
+    from . import (
+        algo,
+        arguments as arg,
+        items as it,
+    )
     from ..functions import all_functions as fs
 
 
@@ -73,6 +79,17 @@ def value_from_row(row, description):
         raise TypeError(message.format(description, type(description)))
 
 
+def value_from_schema_row(row, description):
+    if callable(description):
+        return description(row)
+    elif isinstance(description, (int, str)):
+        return row.get_value(description)
+    elif isinstance(description, (list, tuple)):
+        function, fields = process_description(description)
+        values = [row.get_value(c) for c in fields]
+        return function(*values)
+
+
 def value_from_record(record, description, logger=None, skip_errors=True):
     if callable(description):
         return description(record)
@@ -106,6 +123,26 @@ def value_from_any(item, description):
         return fs.value_by_key(description)(item)
 
 
+def value_from_item(item, description, item_type=None, logger=None, skip_errors=True, default=None):
+    if callable(description):
+        return description(item)
+    elif isinstance(description, (int, str)):
+        return it.get_field_value_from_item(
+            description, item, item_type=item_type,
+            skip_errors=skip_errors, logger=logger, default=default,
+        )
+    elif isinstance(description, (list, tuple)):
+        function, fields = process_description(description)
+        values = it.get_fields_values_from_item(
+            fields, item, item_type=item_type,
+            skip_errors=skip_errors, logger=logger, default=default,
+        )
+        return function(*values)
+    else:
+        message = 'field description must be int, callable or tuple ({} as {} given)'
+        raise TypeError(message.format(description, type(description)))
+
+
 def tuple_from_record(record, descriptions, logger=None):
     return tuple([value_from_record(record, d, logger=logger) for d in descriptions])
 
@@ -128,7 +165,7 @@ def row_from_any(item_in, *descriptions):
     c = 0
     for desc in descriptions:
         if desc == '*':
-            if sm.is_row(item_in):
+            if it.is_row(item_in):
                 row_out = row_out[:c] + list(item_in) + row_out[c + 1:]
                 c += len(item_in)
             else:

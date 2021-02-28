@@ -1,13 +1,13 @@
 try:  # Assume we're a sub-module in a package.
-    from streams import stream_classes as sm
     from utils import (
         arguments as arg,
+        items as it,
         selection,
     )
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..streams import stream_classes as sm
     from ..utils import (
         arguments as arg,
+        items as it,
         selection,
     )
 
@@ -21,9 +21,9 @@ def composite_key(*functions):
             if callable(f):
                 value = f(item)
             else:
-                if sm.is_record(item):
+                if it.is_record(item):
                     value = selection.value_from_record(item, f)
-                elif sm.is_row(item):
+                elif it.is_row(item):
                     value = selection.value_from_row(item, f)
                 else:
                     value = selection.value_from_any(item, f)
