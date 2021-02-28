@@ -7,6 +7,8 @@ TMP_FILES_TEMPLATE = 'stream_{}.tmp'
 TMP_FILES_ENCODING = 'utf8'
 
 try:  # Assume we're a sub-module in a package.
+    from streams.abstract.abstract_stream import AbstractStream
+    from streams.abstract.iterable_stream import IterableStream
     from streams.simple.any_stream import AnyStream
     from streams.simple.line_stream import LineStream
     from streams.simple.row_stream import RowStream
@@ -17,6 +19,8 @@ try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from schema import schema_classes as sh
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
+    from .abstract.abstract_stream import AbstractStream
+    from .abstract.iterable_stream import IterableStream
     from .simple.any_stream import AnyStream
     from .simple.line_stream import LineStream
     from .simple.row_stream import RowStream
@@ -28,6 +32,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..schema import schema_classes as sh
 
 STREAM_CLASSES = (
+    AbstractStream, IterableStream,
     AnyStream,
     LineStream, RowStream, RecordStream,
     KeyValueStream,

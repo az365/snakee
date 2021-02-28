@@ -1,6 +1,5 @@
 from itertools import chain, tee
 from datetime import datetime
-import inspect
 import json
 
 try:  # Assume we're a sub-module in a package.
@@ -29,7 +28,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...functions import all_functions as fs
 
 
-class AnyStream:
+class AnyStream(sm.IterableStream):
     def __init__(
             self,
             data,
@@ -41,159 +40,21 @@ class AnyStream:
             tmp_files_template=sm.TMP_FILES_TEMPLATE,
             tmp_files_encoding=sm.TMP_FILES_ENCODING,
     ):
-        self.data = data
+        super().__init__(data=data, source=source, context=context)
         if isinstance(data, (list, tuple)):
             self.count = len(data)
         else:
             self.count = count
         self.less_than = less_than or self.count
-        self.source = source
-        if source:
-            self.name = source.get_name()
-        else:
-            self.name = arg.DEFAULT
         self.max_items_in_memory = max_items_in_memory
         self.tmp_files_template = tmp_files_template
         self.tmp_files_encoding = tmp_files_encoding
-        if not context:
-            context = sm.get_context()
-        self.context = context
-        if context is not None:
-            self.put_into_context()
-
-    def get_context(self):
-        return self.context
-
-    def put_into_context(self, name=arg.DEFAULT):
-        assert self.context, 'for put_into_context context must be defined'
-        name = arg.undefault(name, self.name)
-        if name not in self.context.stream_instances:
-            self.context.stream_instances[name] = self
-
-    def get_name(self):
-        return self.name
-
-    def set_name(self, name, register=True):
-        if register:
-            old_name = self.get_name()
-            self.context.rename_stream(old_name, name)
-        self.name = name
-        return self
-
-    def get_logger(self):
-        if self.get_context():
-            return self.get_context().get_logger()
-        else:
-            return log.get_logger()
 
     def get_selection_logger(self):
         if self.get_context():
             return self.get_context().get_selection_logger()
         else:
             return log.get_selection_logger()
-
-    def get_items(self):
-        return self.data
-
-    def get_meta(self):
-        meta = self.__dict__.copy()
-        meta.pop('data')
-        meta.pop('name')
-        return meta
-
-    def get_meta_except_count(self):
-        meta = self.get_meta()
-        meta.pop('count')
-        return meta
-
-    def set_meta(self, **meta):
-        return self.__class__(
-            self.data,
-            **meta
-        )
-
-    def update_meta(self, **meta):
-        props = self.get_meta()
-        props.update(meta)
-        return self.__class__(
-            self.data,
-            **props
-        )
-
-    def fill_meta(self, check=True, **meta):
-        props = self.get_meta()
-        if check:
-            unsupported = [k for k in meta if k not in props]
-            assert not unsupported, 'class {} does not support these properties: {}'.format(
-                self.get_stream_type(),
-                unsupported,
-            )
-        for key, value in props.items():
-            if value is None or value == arg.DEFAULT:
-                props[key] = meta.get(key)
-        return self.__class__(
-            self.data,
-            **props
-        )
-
-    def get_class_name(self):
-        return self.__class__.__name__
-
-    def get_stream_type(self):
-        return sm.StreamType(self.get_class_name())
-
-    @classmethod
-    def get_class(cls, other=None):
-        if other is None:
-            return cls
-        elif isinstance(other, (sm.StreamType, str)):
-            return sm.StreamType(other).get_class()
-        elif inspect.isclass(other):
-            return other
-        else:
-            raise TypeError('"other" parameter must be class or StreamType (got {})'.format(type(other)))
-
-    def get_property(self, name, *args, **kwargs):
-        if callable(name):
-            value = name(self)
-        elif isinstance(name, str):
-            meta = self.get_meta()
-            if name in meta:
-                value = meta.get(name)
-            else:
-                try:
-                    value = self.__getattribute__(name)(*args, **kwargs)
-                except AttributeError:
-                    value = None
-        else:
-            raise TypeError('property name must be function, meta-field or attribute name')
-        return value
-
-    def log(self, msg, level=arg.DEFAULT, end=arg.DEFAULT, verbose=True):
-        logger = self.get_logger()
-        if logger is not None:
-            logger.log(
-                msg=msg, level=level,
-                end=end, verbose=verbose,
-            )
-
-    def get_links(self):
-        if self.source is not None:
-            yield self.source
-
-    def close(self, recursively=False):
-        try:
-            self.pass_items()
-            closed_streams = 1
-        except BaseException as e:
-            self.log(['Error while trying to close stream:', e], level=log.LoggingLevel.Warning)
-            closed_streams = 0
-        closed_links = 0
-        if recursively:
-            for link in self.get_links():
-                if hasattr(link, 'close'):
-                    closed_links += link.close() or 0
-        return closed_streams, closed_links
 
     @classmethod
     def from_json_file(
@@ -229,51 +90,6 @@ class AnyStream:
             **self.get_meta()
         )
 
-    def iterable(self):
-        yield from self.get_items()
-
-    def next(self):
-        return next(
-            self.iterable(),
-        )
-
-    def one(self):
-        for i in self.get_items():
-            return i
-
-    def expected_count(self):
-        return self.count
-
-    def final_count(self):
-        result = 0
-        for _ in self.get_items():
-            result += 1
-        return result
-
-    def get_count(self, in_memory=False, final=False):
-        if in_memory:
-            self.data = self.get_list()
-            self.count = len(self.data)
-            return self.count
-        elif final:
-            return self.final_count()
-        else:
-            return self.expected_count()
-
-    def estimate_count(self):
-        return self.count or self.less_than
-
-    def tee(self, n=2):
-        return [
-            self.__class__(
-                i,
-                count=self.count,
-            ) for i in tee(
-                self.get_items(),
-                n,
-            )
-        ]
-
     def copy(self):
         if self.is_in_memory():
             copy_data = self.get_list().copy()
@@ -283,33 +99,6 @@ class AnyStream:
             copy_data,
             **self.get_meta()
         )
-
-    def calc(self, function):
-        return function(self.data)
-
-    def lazy_calc(self, function):
-        yield from function(self.data)
-
-    def apply_to_data(self, function, to=arg.DEFAULT, save_count=False, lazy=True):
-        stream_type = arg.undefault(to, self.get_stream_type())
-        target_class = sm.get_class(stream_type)
-        if to == arg.DEFAULT:
-            props = self.get_meta() if save_count else self.get_meta_except_count()
-        else:
-            props = dict(count=self.count) if save_count else dict()
-        return target_class(
-            self.lazy_calc(function) if lazy else self.calc(function),
-            **props
-        )
-
-    def apply_to_stream(self, function, *args, **kwargs):
-        return function(self, *args, **kwargs)
-
-    def apply(self, function, *args, to_stream=False, **kwargs):
-        if to_stream:
-            return self.apply_to_stream(function, *args, **kwargs)
-        else:
-            return self.apply_to_data(function, *args, **kwargs)
 
     def native_map(self, function):
         return self.__class__(
