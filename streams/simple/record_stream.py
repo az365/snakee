@@ -5,8 +5,10 @@ try:  # Assume we're a sub-module in a package.
     from connectors import connector_classes as cs
     from functions import all_functions as fs
     from loggers.logger_classes import deprecated_with_alternative
+    from selection import selection_classes as sn
     from utils import (
         arguments as arg,
+        items as it,
         mappers as ms,
         selection,
     )
@@ -15,8 +17,10 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...connectors import connector_classes as cs
     from ...functions import all_functions as fs
     from ...loggers.logger_classes import deprecated_with_alternative
+    from ...selection import selection_classes as sn
     from ...utils import (
         arguments as arg,
+        items as it,
         mappers as ms,
         selection,
     )
@@ -119,9 +123,9 @@ class RecordStream(sm.AnyStream):
 
     def select(self, *fields, **expressions):
         return self.native_map(
-            selection.select(
+            sn.select(
                 *fields, **expressions,
-                target_item_type='record', input_item_type='record',
+                target_item_type=it.ItemType.Record, input_item_type=it.ItemType.Record,
                 logger=self.get_logger(), selection_logger=self.get_selection_logger(),
             )
         )
@@ -265,11 +269,13 @@ class RecordStream(sm.AnyStream):
             verbose=verbose,
         )
 
-    def to_pairs(self, key='key', value=None):
+    def to_pairs(self, key='key', value=None, skip_errors=False):
+        kws = dict(logger=self.get_logger(), skip_errors=skip_errors)
+
         def get_pairs():
             for i in self.get_items():
-                k = selection.value_from_record(i, key)
-                v = i if value is None else selection.value_from_record(i, value)
+                k = selection.value_from_record(i, key, **kws)
+                v = i if value is None else selection.value_from_record(i, value, **kws)
                 yield k, v
         return sm.KeyValueStream(
             list(get_pairs()) if self.is_in_memory() else get_pairs(),
@@ -384,10 +390,10 @@ class RecordStream(sm.AnyStream):
         )
         return parsed_stream
 
-    def get_dict(self, key, value=None, of_lists=False):
+    def get_dict(self, key, value=None, of_lists=False, skip_errors=False):
         return self.to_pairs(
-            key,
-            value,
+            key, value,
+            skip_errors=skip_errors,
         ).get_dict(
             of_lists,
         )

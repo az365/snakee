@@ -5,6 +5,7 @@ try:  # Assume we're a sub-module in a package.
         items as it,
         selection,
     )
+    from selection import selection_classes as sn
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from .. import stream_classes as sm
     from ...utils import (
@@ -12,6 +13,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         items as it,
         selection,
     )
+    from ...selection import selection_classes as sn
 
 
 def is_row(row):
@@ -64,7 +66,7 @@ class RowStream(sm.AnyStream):
 
     def select(self, *columns):
         return self.native_map(
-            selection.select(
+            sn.select(
                 *columns,
                 target_item_type=it.ItemType.Row, input_item_type=it.ItemType.Row,
                 logger=self.get_logger(), selection_logger=self.get_selection_logger(),

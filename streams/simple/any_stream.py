@@ -12,6 +12,7 @@ try:  # Assume we're a sub-module in a package.
         selection,
         algo,
     )
+    from selection import selection_classes as sn
     from loggers import logger_classes as log
     from functions import all_functions as fs
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -23,6 +24,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         selection,
         algo,
     )
+    from ...selection import selection_classes as sn
     from ...loggers import logger_classes as log
     from ...functions import all_functions as fs
 
@@ -398,7 +400,7 @@ class AnyStream:
             target_stream_type = sm.StreamType.AnyStream
             target_item_type = it.ItemType.Auto
             input_item_type = it.ItemType.Auto
-        select_function = selection.select(
+        select_function = sn.select(
             *columns, **expressions,
             target_item_type=target_item_type, input_item_type=input_item_type,
             logger=self.get_logger(), selection_logger=self.get_selection_logger(),

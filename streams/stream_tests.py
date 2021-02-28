@@ -159,7 +159,7 @@ def test_any_select():
         example,
     ).select(
         a=len,
-        b=('a', float),
+        b=lambda i: float(len(i)),
         c=(str, ),
     ).get_list()
     assert received_2 == expected_2, 'test case 1: AnyStream to RowStream'
@@ -188,9 +188,9 @@ def test_records_select():
     ).get_list()
     assert received_1 == expected_1, 'test case 1: records'
     expected_2 = [
-        (1.00, 'a', '1', 'a'),
-        (2.22, 'b', '2.22', 'b'),
-        (3.00, 'c', '3', 'c'),
+        (1.00, ('a', '1'), 'a'),
+        (2.22, ('b', '2.22'), 'b'),
+        (3.00, ('c', '3'), 'c'),
     ]
     received_2 = sm.AnyStream(
         EXAMPLE_CSV_ROWS,
