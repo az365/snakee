@@ -42,6 +42,8 @@ class Table(ct.LeafConnector):
         return self.get_database().select_count(self.name, verbose=verbose)
 
     def get_schema(self):
+        if not self.schema:
+            self.set_schema(schema=arg.DEFAULT)
         return self.schema
 
     def get_columns(self):
@@ -61,7 +63,7 @@ class Table(ct.LeafConnector):
         self.links.append(stream)
         return stream
 
-    def to_stream(self, stream_type=arg.DEFAULT):
+    def to_stream(self, stream_type=arg.DEFAULT, verbose=arg.DEFAULT):
         stream_type = arg.undefault(stream_type, sm.RowStream)
         stream = self.get_stream()
         if isinstance(stream_type, sm.RowStream):
@@ -69,7 +71,7 @@ class Table(ct.LeafConnector):
         elif isinstance(stream_type, sm.RecordStream):
             return stream.to_records(columns=self.get_columns())
         elif isinstance(stream_type, sm.SchemaStream):
-            return stream.schematize(self.get_schema())
+            return stream.schematize(self.get_schema(), verbose=verbose)
         else:
             raise ValueError('only RowStream, RecordStream, SchemaStream is supported for Table connector')
 
@@ -87,12 +89,23 @@ class Table(ct.LeafConnector):
                 self.schema = sh.SchemaDescription(schema)
             else:
                 self.schema = sh.detect_schema_by_title_row(schema)
+        elif schema == arg.DEFAULT:
+            self.schema = self.get_schema_from_database()
         else:
             message = 'schema must be SchemaDescription or tuple with fields_description (got {})'.format(type(schema))
             raise TypeError(message)
 
     def is_existing(self):
         return self.get_database().exists_table(self.get_path())
+
+    def describe(self):
+        return self.get_database().describe_table(self.get_path())
+
+    def get_schema_from_database(self, set_schema=False):
+        schema = sh.SchemaDescription(self.describe())
+        if set_schema:
+            self.schema = schema
+        return schema
 
     def create(self, drop_if_exists, verbose=arg.DEFAULT):
         return self.get_database().create_table(

@@ -57,8 +57,14 @@ class ClickhouseDatabase(ad.AbstractDatabase):
 
     def exists_table(self, name, verbose=arg.DEFAULT):
         query = 'EXISTS TABLE {}'.format(name)
-        answer = self.execute(query, verbose)
+        answer = self.execute(query, verbose=verbose)
         return answer[0] == '1'
+
+    def describe_table(self, name, output_format=None, verbose=arg.DEFAULT):
+        query = 'DESCRIBE TABLE {table}'.format(table=self.get_path())
+        if output_format:
+            query = '{} FORMAT {}'.format(query, output_format)
+        return self.execute(query, verbose=verbose)
 
     def insert_rows(
             self, table, rows, columns,

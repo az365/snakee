@@ -83,6 +83,8 @@ class PostgresDatabase(ad.AbstractDatabase):
             cur.execute(query)
         if get_data:
             result = cur.fetchall()
+        else:
+            result = None
         if commit:
             self.get_connection().commit()
         cur.close()
@@ -124,6 +126,13 @@ class PostgresDatabase(ad.AbstractDatabase):
         """.format(schema=schema, table=table)
         return bool(self.execute(query, verbose))
 
+    def describe_table(self, name, verbose=arg.DEFAULT):
+        return self.select(
+            table_name='information_schema.COLUMNS',
+            fields=['COLUMN_NAME', 'DATA_TYPE'],
+            filters=["TABLE_NAME = '{table}'".format(table=name)],
+        )
+
     def insert_rows(
             self,
             table, rows, columns,
@@ -140,7 +149,7 @@ class PostgresDatabase(ad.AbstractDatabase):
         if use_fast_batch_method:
             query_template = 'INSERT INTO {table} VALUES ({values});'
             placeholders = ['%({})s'.format(c) for c in columns]
-        elif skip_errors:
+        else:  # elif skip_errors:
             query_template = 'INSERT INTO {table} ({columns}) VALUES ({values})'
             placeholders = ['%s' for _ in columns]
             query_args['columns'] = ', '.join(columns)
