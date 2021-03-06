@@ -120,11 +120,17 @@ def is_conn(obj):
 
 
 def is_file(obj):
-    return isinstance(obj, AbstractFile) or obj.__class__.__name__ in FILE_CLASS_NAMES
+    if isinstance(obj, AbstractFile) or obj.__class__.__name__ in FILE_CLASS_NAMES:
+        return True
+    elif hasattr(obj, 'is_file'):
+        return obj.is_file()
 
 
 def is_folder(obj):
-    return isinstance(obj, AbstractFolder) or obj.__class__.__name__ in FOLDER_CLASS_NAMES
+    if isinstance(obj, AbstractFolder) or obj.__class__.__name__ in FOLDER_CLASS_NAMES:
+        return True
+    elif hasattr(obj, 'is_folder'):
+        return obj.is_folder()
 
 
 def is_database(obj):

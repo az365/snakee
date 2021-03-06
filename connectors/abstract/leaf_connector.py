@@ -17,7 +17,16 @@ class LeafConnector(ct.AbstractConnector):
             parent=parent,
         )
 
-    def is_root(self):
+    @staticmethod
+    def is_root():
+        return False
+
+    @staticmethod
+    def is_leaf():
+        return True
+
+    @staticmethod
+    def is_folder():
         return False
 
     def has_hierarchy(self):
@@ -39,5 +48,5 @@ class LeafConnector(ct.AbstractConnector):
         pass
 
     @abstractmethod
-    def to_stream(self, stream_type):
+    def to_stream(self, **kwargs):
         pass

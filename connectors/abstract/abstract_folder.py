@@ -1,14 +1,14 @@
 from abc import abstractmethod
 
 try:  # Assume we're a sub-module in a package.
-    from connectors import connector_classes as ct
     from utils import arguments as arg
+    from connectors.abstract.hierarchic_connector import HierarchicConnector
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from .. import connector_classes as ct
     from ...utils import arguments as arg
+    from .hierarchic_connector import HierarchicConnector
 
 
-class AbstractFolder(ct.HierarchicConnector):
+class AbstractFolder(HierarchicConnector):
     def __init__(
             self,
             name,
@@ -24,6 +24,14 @@ class AbstractFolder(ct.HierarchicConnector):
     @staticmethod
     def is_root():
         return False
+
+    @staticmethod
+    def is_storage():
+        return False
+
+    @staticmethod
+    def is_folder():
+        return True
 
     @abstractmethod
     def get_default_child_class(self):
@@ -48,7 +56,7 @@ class FlatFolder(AbstractFolder):
         pass
 
 
-class HierarchicFolder(ct.HierarchicConnector):
+class HierarchicFolder(AbstractFolder, HierarchicConnector):
     def __init__(
             self,
             name,
@@ -66,5 +74,6 @@ class HierarchicFolder(ct.HierarchicConnector):
 
     def get_folders(self):
         for obj in self.get_items():
-            if isinstance(obj, (AbstractFolder, ct.AbstractFolder, ct.AbstractFile)):
-                yield obj
+            if hasattr(obj, 'is_folder'):
+                if obj.is_folder():  # isinstance(obj, (AbstractFolder, ct.AbstractFolder, ct.AbstractFile)):
+                    yield obj

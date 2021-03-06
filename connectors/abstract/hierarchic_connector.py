@@ -18,8 +18,21 @@ class HierarchicConnector(ct.AbstractConnector):
         )
         self.children = dict()
 
-    def has_hierarchy(self):
+    @staticmethod
+    def has_hierarchy():
         return True
+
+    @staticmethod
+    def is_leaf():
+        return False
+
+    def get_leafs(self):
+        for child in self.get_children():
+            if hasattr(child, 'is_leaf'):
+                if child.is_leaf():
+                    yield child
+            if hasattr(child, 'get_leafs'):
+                yield from self.get_leafs()
 
     @abstractmethod
     def get_default_child_class(self):
@@ -36,7 +49,7 @@ class HierarchicConnector(ct.AbstractConnector):
             self.children[name] = cur_child
         return cur_child
 
-    def get_children(self):
+    def get_children(self) -> dict:
         return self.children
 
     def get_items(self):
