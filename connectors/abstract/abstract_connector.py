@@ -27,7 +27,16 @@ class AbstractConnector(ABC):
         return False
 
     def is_root(self):
-        return self.get_parent().is_context()
+        parent = self.get_parent()
+        return parent is None or parent.is_context()
+
+    @staticmethod
+    def is_folder():
+        return False
+
+    @staticmethod
+    def is_leaf():
+        return False
 
     @abstractmethod
     def has_hierarchy(self):

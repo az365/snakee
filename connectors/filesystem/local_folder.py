@@ -63,13 +63,9 @@ class LocalFolder(ct.HierarchicFolder):
 
     def get_files(self):
         for item in self.get_items():
-            if ct.is_file(item):
-                yield item
-
-    def get_subfolders(self):
-        for item in self.get_children():
-            if ct.is_folder(item):
-                yield item
+            if hasattr(item, 'is_leaf'):
+                if item.is_leaf():
+                    yield item
 
     def file(self, name, filetype=arg.DEFAULT, **kwargs):
         file = self.get_children().get(name)
@@ -80,24 +76,24 @@ class LocalFolder(ct.HierarchicFolder):
             self.get_children()[name] = file
         return file
 
-    def subfolder(self, name, folder_type=arg.DEFAULT, **kwargs):
-        supposed_type = FileMask if '*' in name else LocalFolder
+    def folder(self, name, folder_type=arg.DEFAULT, **kwargs):
+        supposed_type = ct.ConnType.FileMask if '*' in name else ct.ConnType.LocalFolder
         subfolder_type = arg.undefault(folder_type, supposed_type)
         subfolder_class = ct.ConnType(subfolder_type).get_class()
-        subfolder_obj = subfolder_class(name, self, **kwargs)
-        self.add_subfolder(name, subfolder_obj)
+        subfolder_obj = subfolder_class(name, parent=self, **kwargs)
+        self.add_folder(name, subfolder_obj)
         return subfolder_obj
 
     def mask(self, mask):
-        return self.subfolder(mask, ct.ConnType.FileMask)
+        return self.folder(mask, ct.ConnType.FileMask)
 
     def add_file(self, name, file):
-        assert ct.is_file(file), 'file must be an instance of *File (got {})'.format(type(file))
+        assert file.is_leaf(), 'file must be an instance of *File (got {})'.format(type(file))
         assert name not in self.get_children(), 'file with name {} is already registered'.format(name)
         self.get_children()[name] = file
 
-    def add_subfolder(self, name, folder):
-        assert ct.is_folder(folder)
+    def add_folder(self, name, folder):
+        assert folder.is_folder()
         assert name not in self.get_children()
         self.get_children()[name] = folder
 
@@ -116,8 +112,17 @@ class LocalFolder(ct.HierarchicFolder):
                 closed_count += file.close() or 0
         return closed_count
 
+    def has_parent_folder(self):
+        return self.get_parent().is_folder()
+
+    def has_path_relative(self):
+        if self.has_parent_folder():
+            return self.get_parent().has_path_relative()
+        else:
+            return self.path_is_relative
+
     def get_path(self):
-        if self.path_is_relative:
+        if self.has_path_relative() and not self.has_parent_folder():
             return self.get_name()
         else:
             return super().get_path()
