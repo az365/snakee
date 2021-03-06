@@ -1,9 +1,9 @@
 try:  # Assume we're a sub-module in a package.
     from utils import mappers as ms
-    from functions import all_functions as fs
+    from functions import array_functions as fs
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..utils import mappers as ms
-    from functions import all_functions as fs
+    from . import mappers as ms
+    from ..functions import array_functions as fs
 
 JOIN_TYPES = ('left', 'right', 'inner', 'full')
 
