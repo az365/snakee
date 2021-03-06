@@ -1,17 +1,16 @@
 from abc import abstractmethod
-from enum import Enum
 
 try:  # Assume we're a sub-module in a package.
+    from utils import arguments as arg
+    from loggers import logger_classes as log
     from connectors import connector_classes as ct
     from streams import stream_classes as sm
-    from utils import arguments as arg
-    from loggers import logger_classes
     from schema import schema_classes as sh
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
+    from ...utils import arguments as arg
+    from ...loggers import logger_classes as log
     from .. import connector_classes as ct
     from ...streams import stream_classes as sm
-    from ...utils import arguments as arg
-    from ...loggers import logger_classes
     from ...schema import schema_classes as sh
 
 
@@ -36,6 +35,7 @@ class AbstractDatabase(ct.AbstractStorage):
         self.password = password
         self.conn_kwargs = kwargs
         self.connection = None
+        self.LoggingLevel = log.LoggingLevel
 
     @staticmethod
     def get_default_child_class():
@@ -71,6 +71,10 @@ class AbstractDatabase(ct.AbstractStorage):
 
     @abstractmethod
     def exists_table(self, name, verbose=arg.DEFAULT):
+        pass
+
+    @abstractmethod
+    def describe_table(self, name, verbose=arg.DEFAULT):
         pass
 
     @abstractmethod
@@ -113,11 +117,11 @@ class AbstractDatabase(ct.AbstractStorage):
         elif isinstance(schema, str):
             schema_str = schema
             message = 'String Schemas is deprecated. Use schema.SchemaDescription instead.'
-            self.log(msg=message, level=logger_classes.LoggingLevel.Warning)
+            self.log(msg=message, level=log.LoggingLevel.Warning)
         else:
             schema_str = ', '.join(['{} {}'.format(c[0], c[1]) for c in schema])
             message = 'Tuple Schemas is deprecated. Use schema.SchemaDescription instead.'
-            self.log(msg=message, level=logger_classes.LoggingLevel.Warning)
+            self.log(msg=message, level=log.LoggingLevel.Warning)
         if drop_if_exists:
             self.drop_table(name, verbose=verbose)
         message = 'Creating table:'
@@ -225,7 +229,7 @@ class AbstractDatabase(ct.AbstractStorage):
     ):
         if not isinstance(schema, sh.SchemaDescription):
             message = 'Schema as {} is deprecated, use sh.SchemaDescription instead'.format(type(schema))
-            self.log(msg=message, level=logger_classes.LoggingLevel.Warning)
+            self.log(msg=message, level=log.LoggingLevel.Warning)
             schema = sh.SchemaDescription(schema)
         if sm.is_stream(data):
             fx_input = data
