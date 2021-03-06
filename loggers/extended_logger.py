@@ -34,6 +34,7 @@ class ExtendedLogger(BaseLogger):
         self.max_line_len = arg.undefault(max_line_len, log.DEFAULT_LINE_LEN)
         self.progress_trackers = list()
         self.context = context
+        self.LoggingLevel = log.LoggingLevel
 
     def get_context(self):
         return self.context

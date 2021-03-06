@@ -2,10 +2,10 @@ from abc import ABC, abstractmethod
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
-    from loggers import logger_classes
+    from loggers import logger_classes as log
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
-    from ...loggers import logger_classes
+    from ...loggers import logger_classes as log
 
 
 AUTO = arg.DEFAULT
@@ -53,7 +53,7 @@ class AbstractConnector(ABC):
         if self.get_context():
             return self.get_context().get_logger()
         else:
-            return logger_classes.get_logger()
+            return log.get_logger()
 
     def log(self, msg, level=AUTO, end=AUTO, verbose=True):
         logger = self.get_logger()
@@ -62,6 +62,11 @@ class AbstractConnector(ABC):
                 msg=msg, level=level,
                 end=end, verbose=verbose,
             )
+
+    def new_progress(self, name, **kwargs):
+        logger = self.get_logger()
+        if logger is not None:
+            return logger.new_progress(name, **kwargs)
 
     def get_names_hierarchy(self):
         if self.is_root():
