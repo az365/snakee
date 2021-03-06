@@ -124,11 +124,11 @@ class AbstractFile(cs.LeafConnector):
         pass
 
     @abstractmethod
-    def to_stream(self, stream_type):
+    def to_stream(self, **kwargs):
         pass
 
-    def collect(self):
-        return self.to_stream().collect()
+    def collect(self, **kwargs):
+        return self.to_stream(**kwargs).collect()
 
 
 class TextFile(AbstractFile):
@@ -287,8 +287,8 @@ class TextFile(AbstractFile):
         assert isinstance(stream, sm.LineStream)
         self.write_lines(stream.iterable())
 
-    def to_stream(self, stream_type):
-        return self.get_stream(to=stream_type)
+    def to_stream(self, stream_type=arg.DEFAULT, verbose=arg.DEFAULT):
+        return self.get_stream(to=stream_type, verbose=verbose)
 
 
 class JsonFile(TextFile):
@@ -415,7 +415,7 @@ class ColumnFile(TextFile):
             self.schema = schema
         return schema
 
-    def check(self, must_exists=False, check_types=False):
+    def check(self, must_exists=False, check_types=False, check_order=False):
         file_exists = self.is_existing()
         if must_exists:
             assert file_exists, 'file {} must exists'.format(self.get_name())
@@ -423,9 +423,17 @@ class ColumnFile(TextFile):
         if file_exists:
             received_schema = self.detect_schema_by_title_row()
             if check_types:
-                assert received_schema == expected_schema
+                if check_order:
+                    assert received_schema == expected_schema
+                else:
+                    assert sorted(received_schema) == sorted(expected_schema)
             else:
-                assert received_schema.get_columns() == expected_schema.get_columns()
+                cols_expected = expected_schema.get_columns()
+                cols_received = received_schema.get_columns()
+                if check_order:
+                    assert cols_received == cols_expected
+                else:
+                    assert set(cols_received) == set(cols_expected)
         else:
             assert expected_schema, 'schema for {} must be defined'.format(self.get_name())
 
