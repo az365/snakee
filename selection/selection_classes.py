@@ -2,6 +2,7 @@ try:  # Assume we're a sub-module in a package.
     from utils import (
         arguments as arg,
         items as it,
+        selection as sf,
     )
     from selection.abstract_expression import (
         AbstractDescription, SingleFieldDescription, MultipleFieldDescription, TrivialMultipleDescription,
@@ -17,6 +18,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..utils import (
         arguments as arg,
         items as it,
+        selection as sf,
     )
     from .abstract_expression import (
         AbstractDescription, SingleFieldDescription, MultipleFieldDescription, TrivialMultipleDescription,
@@ -32,18 +34,29 @@ def select(
         *fields,
         target_item_type=it.ItemType.Auto, input_item_type=it.ItemType.Auto,
         logger=None, selection_logger=arg.DEFAULT,
+        use_extended_method=True,
         **expressions
 ):
-    return SelectionDescription.with_expressions(
-        fields=list(fields),
-        expressions=expressions,
-        target_item_type=target_item_type,
-        input_item_type=input_item_type,
-        logger=logger,
-        selection_logger=selection_logger,
-    ).get_mapper(
-        logger=selection_logger,
-    )
+    if use_extended_method:
+        return SelectionDescription.with_expressions(
+            fields=list(fields),
+            expressions=expressions,
+            target_item_type=target_item_type,
+            input_item_type=input_item_type,
+            logger=logger,
+            selection_logger=selection_logger,
+        ).get_mapper(
+            logger=selection_logger,
+        )
+    else:
+        return sf.select(
+            *fields,
+            target_item_type=target_item_type,
+            input_item_type=input_item_type,
+            logger=logger,
+            selection_logger=selection_logger,
+            **expressions,
+        )
 
 
 def drop(*fields, **kwargs):

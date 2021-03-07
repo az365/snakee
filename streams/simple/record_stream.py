@@ -58,6 +58,7 @@ class RecordStream(sm.AnyStream):
     def __init__(
             self,
             data,
+            name=arg.DEFAULT,
             count=None,
             less_than=None,
             check=True,
@@ -69,6 +70,7 @@ class RecordStream(sm.AnyStream):
     ):
         super().__init__(
             check_records(data) if check else data,
+            name=name,
             count=count,
             less_than=less_than,
             source=source,
@@ -121,12 +123,13 @@ class RecordStream(sm.AnyStream):
             **props
         )
 
-    def select(self, *fields, **expressions):
+    def select(self, *fields, use_extended_method=False, **expressions):
         return self.native_map(
             sn.select(
                 *fields, **expressions,
                 target_item_type=it.ItemType.Record, input_item_type=it.ItemType.Record,
                 logger=self.get_logger(), selection_logger=self.get_selection_logger(),
+                use_extended_method=use_extended_method,
             )
         )
 
