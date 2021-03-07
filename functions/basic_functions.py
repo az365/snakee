@@ -16,12 +16,6 @@ def partial(function, *args, **kwargs) -> Callable:
     return new_func
 
 
-def same() -> Callable:
-    def func(item):
-        return item
-    return func
-
-
 def const(value) -> Callable:
     def func(_):
         return value
