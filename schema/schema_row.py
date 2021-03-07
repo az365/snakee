@@ -1,9 +1,11 @@
 from typing import Union, Optional
 
 try:  # Assume we're a sub-module in a package.
-    from schema import schema_classes as sh
+    from connectors.databases import dialect as di
+    from schema.schema_description import SchemaDescription
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from . import schema_classes as sh
+    from ..connectors.databases import dialect as di
+    from .schema_classes import SchemaDescription
 
 
 Row = Union[list, tuple]
@@ -16,20 +18,20 @@ class SchemaRow:
     def __init__(
             self,
             data: Row = [],
-            schema: Union[Row, sh.SchemaDescription] = [],
+            schema: Union[Row, SchemaDescription] = [],
             check=True,
     ):
-        if isinstance(schema, sh.SchemaDescription):
+        if isinstance(schema, SchemaDescription):
             self.schema = schema
         else:
-            self.schema = sh.SchemaDescription(schema)
+            self.schema = SchemaDescription(schema)
         if check:
             self.data = list()
             self.set_data(data, check)
         else:
             self.data = data
 
-    def get_schema(self) -> sh.SchemaDescription:
+    def get_schema(self) -> SchemaDescription:
         return self.schema
 
     def get_data(self) -> Row:
@@ -61,7 +63,7 @@ class SchemaRow:
         return {k.name: v for k, v in zip(self.schema.fields_descriptions, self.data)}
 
     def get_line(self, dialect='str', delimiter='\t', need_quotes=False):
-        assert dialect in sh.DIALECTS
+        assert dialect in di.DIALECTS
         list_str = list()
         for k, v in zip(self.schema.fields_descriptions, self.data):
             convert = k.get_converter('py', dialect)

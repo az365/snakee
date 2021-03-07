@@ -1,9 +1,9 @@
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
-    from schema import schema_classes as sh
+    from schema import field_types as ft
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
-    from . import schema_classes as sh
+    from . import field_types as ft
 
 
 class FieldDescription:
@@ -15,14 +15,14 @@ class FieldDescription:
             aggr_hint=None,
     ):
         self.name = name
-        field_type = arg.undefault(field_type, sh.FieldType.Any)
+        field_type = arg.undefault(field_type, ft.FieldType.Any)
         if field_type is None:
-            self.field_type = sh.detect_field_type_by_name(name)
+            self.field_type = ft.detect_field_type_by_name(name)
         else:
-            self.field_type = sh.get_canonic_type(field_type)
+            self.field_type = ft.get_canonic_type(field_type)
         assert isinstance(nullable, bool)
         self.nullable = nullable
-        assert aggr_hint in sh.AGGR_HINTS
+        assert aggr_hint in ft.AGGR_HINTS
         self.aggr_hint = aggr_hint
 
     def get_field_type(self):
@@ -32,12 +32,12 @@ class FieldDescription:
         if dialect is None:
             return self.field_type.value
         else:
-            assert dialect in sh.DIALECTS
-            return sh.FIELD_TYPES.get(self.field_type.value, {}).get(dialect)
+            assert dialect in ft.DIALECTS
+            return ft.FIELD_TYPES.get(self.field_type.value, {}).get(dialect)
 
     def get_converter(self, source, target):
         converter_name = '{}_to_{}'.format(source, target)
-        return sh.FIELD_TYPES.get(self.field_type.value, {}).get(converter_name, str)
+        return ft.FIELD_TYPES.get(self.field_type.value, {}).get(converter_name, str)
 
     def check_value(self, value):
         py_type = self.get_type_in('py')
