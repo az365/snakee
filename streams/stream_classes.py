@@ -1,6 +1,8 @@
 from enum import Enum
 import inspect
 import gc
+from datetime import datetime
+from random import randint
 
 MAX_ITEMS_IN_MEMORY = 5000000
 TMP_FILES_TEMPLATE = 'stream_{}.tmp'
@@ -9,6 +11,9 @@ TMP_FILES_ENCODING = 'utf8'
 try:  # Assume we're a sub-module in a package.
     from streams.abstract.abstract_stream import AbstractStream
     from streams.abstract.iterable_stream import IterableStream
+    from streams.abstract.local_stream import LocalStream
+    from streams.abstract.wrapper_stream import WrapperStream
+    from streams.abstract.columnar_stream import ColumnarStream
     from streams.simple.any_stream import AnyStream
     from streams.simple.line_stream import LineStream
     from streams.simple.row_stream import RowStream
@@ -21,6 +26,9 @@ try:  # Assume we're a sub-module in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from .abstract.abstract_stream import AbstractStream
     from .abstract.iterable_stream import IterableStream
+    from .abstract.local_stream import LocalStream
+    from .abstract.wrapper_stream import WrapperStream
+    from .abstract.columnar_stream import ColumnarStream
     from .simple.any_stream import AnyStream
     from .simple.line_stream import LineStream
     from .simple.row_stream import RowStream
@@ -115,6 +123,14 @@ def is_record(item):
 
 def is_schema_row(item):
     return isinstance(item, sh.SchemaRow)
+
+
+def generate_name():
+    cur_time = datetime.now().strftime('%y%m%d_%H%M%S')
+    random = randint(0, 1000)
+    # cur_name = cur_name.replace(':', '_').replace('-', '_')
+    cur_name = '{}_{:03}'.format(cur_time, random)
+    return cur_name
 
 
 def concat(*iter_streams):

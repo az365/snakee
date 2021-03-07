@@ -3,7 +3,8 @@ try:  # Assume we're a sub-module in a package.
     from utils import (
         arguments as arg,
         items as it,
-        selection,
+        numeric as nm,
+        selection as sf,
     )
     from selection import selection_classes as sn
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -11,13 +12,14 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils import (
         arguments as arg,
         items as it,
-        selection,
+        numeric as nm,
+        selection as sf,
     )
     from ...selection import selection_classes as sn
 
 
-def is_row(row):
-    return isinstance(row, (list, tuple))
+def is_row(item):
+    return it.ItemType.Row.isinstance(item)
 
 
 def check_rows(rows, skip_errors=False):
@@ -31,10 +33,11 @@ def check_rows(rows, skip_errors=False):
         yield i
 
 
-class RowStream(sm.AnyStream):
+class RowStream(sm.AnyStream, sm.ColumnarStream):
     def __init__(
             self,
             data,
+            name=arg.DEFAULT,
             count=None,
             less_than=None,
             check=True,
@@ -46,6 +49,7 @@ class RowStream(sm.AnyStream):
     ):
         super().__init__(
             check_rows(data) if check else data,
+            name=name,
             count=count,
             less_than=less_than,
             source=source,
@@ -57,36 +61,91 @@ class RowStream(sm.AnyStream):
         self.check = check
 
     @staticmethod
+    def get_item_type():
+        return it.ItemType.Row
+
+    @staticmethod
     def is_valid_item(item):
         return is_row(item)
 
     @staticmethod
-    def valid_items(items, skip_errors=False):
+    def get_valid_items(items, skip_errors=False):
         return check_rows(items, skip_errors)
 
-    def select(self, *columns):
+    def get_column_count(self, take=10, get_max=True, get_min=False):
+        if self.is_in_memory() and (get_max or get_min):
+            example_stream = self.take(take)
+        else:
+            example_stream = self.get_tee_stream().take(take)
+        count = 0
+        for row in example_stream.get_items():
+            row_len = len(row)
+            if get_max:
+                if row_len > count:
+                    count = row_len
+            else:  # elif get_min:
+                if row_len < count:
+                    count = row_len
+        return count
+
+    def get_columns(self, **kwargs):
+        count = self.get_column_count(**kwargs)
+        return list(range(count))
+
+    def get_one_column(self, column):
+        return self.select([column])
+
+    def select(self, *columns, use_extended_method=True):
+        if use_extended_method:
+            selection_method = sn.select
+        else:
+            selection_method = sf.select
+        select_function = selection_method(
+            *columns,
+            target_item_type=it.ItemType.Row, input_item_type=it.ItemType.Row,
+            logger=self.get_logger(), selection_logger=self.get_selection_logger(),
+        )
         return self.native_map(
-            sn.select(
-                *columns,
-                target_item_type=it.ItemType.Row, input_item_type=it.ItemType.Row,
-                logger=self.get_logger(), selection_logger=self.get_selection_logger(),
-            )
+            select_function,
+        )
+
+    def group_by(self, *keys):
+        items = self.select(keys, lambda r: r).get_items()
+        return sm.KeyValueStream(items, **self.get_meta())
+
+    def get_dataframe(self, columns=None):
+        if columns:
+            return nm.pd.DataFrame(self.get_data(), columns=columns)
+        else:
+            return nm.pd.DataFrame(self.get_data())
+
+    def to_lines(self, delimiter='\t'):
+        return sm.LineStream(
+            map(lambda r: '\t'.join([str(c) for c in r]), self.get_items()),
+            count=self.count,
         )
 
     def to_records(self, function=None, columns=tuple()):
-        def get_records(rows, cols):
-            for r in rows:
-                yield {k: v for k, v in zip(cols, r)}
         if function:
             records = map(function, self.get_items())
         elif columns:
-            records = get_records(self.get_items(), columns)
+            records = self.get_records(columns=columns)
         else:
             records = map(lambda r: dict(row=r), self.get_items())
         return sm.RecordStream(
             records,
             **self.get_meta()
         )
+
+    def get_records(self, columns=arg.DEFAULT):
+        # columns = arg.undefault(columns, self.get_columns())
+        if columns == arg.DEFAULT:
+            columns = self.get_columns()
+        for row in self.get_rows():
+            yield {k: v for k, v in zip(columns, row)}
+
+    def get_rows(self):
+        return self.get_data()
 
     def schematize(self, schema, skip_bad_rows=False, skip_bad_values=False, verbose=True):
         return sm.SchemaStream(
@@ -150,9 +209,3 @@ class RowStream(sm.AnyStream):
             ).update_meta(
                 **meta
             )
-
-    def to_lines(self, delimiter='\t'):
-        return sm.LineStream(
-            map(lambda r: '\t'.join([str(c) for c in r]), self.get_items()),
-            count=self.count,
-        )
