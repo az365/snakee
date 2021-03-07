@@ -1,16 +1,68 @@
 import math
-import numpy as np
-from scipy import interpolate
-import pandas as pd
-from matplotlib import pyplot as plt
+
+try:
+    import numpy as np
+except ImportError:
+    np = None
+try:
+    from scipy import interpolate
+except ImportError:
+    interpolate = None
+try:
+    import pandas as pd
+except ImportError:
+    pd = None
+try:
+    from matplotlib import pyplot as plt
+except ImportError:
+    plt = None
+
+
+def is_none(value):
+    if value is None:
+        return True
+    elif math.isnan(value):
+        return True
+    elif np:
+        return value is np.nan
+    else:
+        return False
 
 
 def is_defined(value):
-    return value is not None and value is not np.nan and not math.isnan(value)
+    return not is_none(value)
 
 
 def is_nonzero(value):
-    return (value or 0) > 0 or (value or 0) < 0
+    if is_defined():
+        return value != 0
+
+
+def div(x, y, default=None):
+    if y:
+        return (x or 0) / y
+    else:
+        return default
+
+
+def mean(a, default=None):
+    if a:
+        if np:
+            return np.mean(a)
+        else:
+            return div(sum(a), len(a), default=default)
+    else:
+        return default
+
+
+def sqrt(value, default=None):
+    if value:
+        if np:
+            return np.sqrt(value)
+        else:
+            return math.sqrt(value)
+    else:
+        return default
 
 
 def diff(c, v, take_abs=False):
@@ -30,19 +82,43 @@ def is_local_extremum(x_left, x_center, x_right, local_max=True, local_min=True)
     return result
 
 
-def spline_interpolate(x, y):
-    assert len(x) == len(y)
-    kind = 'cubic' if len(x) > 3 else 'linear'
-    return interpolate.interp1d(x, y, kind=kind)
+def corr(a, b, ignore_import_error=False):
+    if np:
+        return np.corrcoef(a, b)[0, 1]
+    elif not ignore_import_error:
+        raise ImportError('numpy not installed')
 
 
-def get_dataframe(*args, **kwargs):
-    return pd.DataFrame(*args, **kwargs)
+def spline_interpolate(x, y, ignore_import_error=False):
+    if interpolate:
+        assert len(x) == len(y)
+        try:
+            return interpolate.interp1d(x, y, kind='cubic')
+        except ValueError:
+            return interpolate.interp1d(x, y, kind='linear')
+    elif not ignore_import_error:
+        raise ImportError('scipy not installed')
 
 
-def plot(*args, **kwargs):
-    plt.plot(*args, **kwargs)
+def get_dataframe(*args, ignore_import_error=False, **kwargs):
+    if pd:
+        return pd.DataFrame(*args, **kwargs)
+    elif not ignore_import_error:
+        raise ImportError('pandas not installed')
 
 
-def plot_dates(*args, **kwargs):
-    plt.plot_date(*args, **kwargs)
+def plot(*args, ignore_import_error=False, **kwargs):
+    if plt:
+        assert plt, ImportError('mathplotlib not installed')
+        kwargs.pop('fmt')
+        plt.plot(*args, **kwargs)
+    elif not ignore_import_error:
+        raise ImportError('matplotlib not installed')
+
+
+def plot_dates(*args, ignore_import_error=False, **kwargs):
+    if plt:
+        kwargs.pop('fmt')
+        plt.plot_date(*args, **kwargs)
+    elif not ignore_import_error:
+        raise ImportError('matplotlib not installed')

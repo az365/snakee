@@ -1,37 +1,40 @@
-import numpy as np
+from typing import Callable, Union
+from collections.abc import Iterable
 
 try:  # Assume we're a sub-module in a package.
     from utils import (
         arguments as arg,
         mappers as ms,
+        numeric as nm,
     )
     from functions import basic_functions as bf
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import (
         arguments as arg,
         mappers as ms,
+        numeric as nm,
     )
     from . import basic_functions as bf
 
 
-def is_in(*list_values):
+def is_in(*list_values) -> Callable:
     list_values = arg.update(list_values)
 
-    def func(value):
+    def func(value) -> bool:
         return value in list_values
     return func
 
 
-def not_in(*list_values):
+def not_in(*list_values) -> Callable:
     list_values = arg.update(list_values)
 
-    def func(value):
+    def func(value) -> bool:
         return value not in list_values
     return func
 
 
-def is_ordered(reverse=False, including=True):
-    def func(previous, current):
+def is_ordered(reverse=False, including=True) -> Callable:
+    def func(previous, current) -> bool:
         if current == previous:
             return including
         elif reverse:
@@ -41,7 +44,7 @@ def is_ordered(reverse=False, including=True):
     return func
 
 
-def elem_no(position, default=None):
+def elem_no(position, default=None) -> Callable:
     def func(array):
         count = len(array)
         if isinstance(array, (list, tuple)) and -count <= position < count:
@@ -51,21 +54,21 @@ def elem_no(position, default=None):
     return func
 
 
-def first():
+def first() -> Callable:
     return elem_no(0)
 
 
-def second():
+def second() -> Callable:
     return elem_no(1)
 
 
-def last():
+def last() -> Callable:
     return elem_no(-1)
 
 
-def uniq():
-    def func(array):
-        if isinstance(array, (set, list, tuple)):
+def uniq() -> Callable:
+    def func(array) -> list:
+        if isinstance(array, Iterable):
             result = list()
             for i in array:
                 if i not in result:
@@ -74,14 +77,14 @@ def uniq():
     return func
 
 
-def unfold_lists(fields, number_field='n', default_value=0):
-    def func(record):
+def unfold_lists(fields, number_field='n', default_value=0) -> Callable:
+    def func(record) -> Iterable:
         yield from ms.unfold_lists(record, fields=fields, number_field=number_field, default_value=default_value)
     return func
 
 
-def compare_lists(a_field='a_only', b_field='b_only', ab_field='common', as_dict=True):
-    def func(list_a, list_b):
+def compare_lists(a_field='a_only', b_field='b_only', ab_field='common', as_dict=True) -> Callable:
+    def func(list_a, list_b) -> Union[list, dict]:
         items_common, items_a_only, items_b_only = list(), list(), list()
         for item in list_a:
             if item in list_b:
@@ -99,26 +102,26 @@ def compare_lists(a_field='a_only', b_field='b_only', ab_field='common', as_dict
     return func
 
 
-def list_minus():
-    def func(list_a, list_b):
+def list_minus() -> Callable:
+    def func(list_a, list_b) -> list:
         return [i for i in list_a if i not in list_b]
     return func
 
 
-def values_not_none():
-    def func(a):
+def values_not_none() -> Callable:
+    def func(a) -> list:
         return [v for v in a if bf.not_none()(v)]
     return func
 
 
-def mean():
-    def func(a):
-        return np.mean(values_not_none()(a))
+def mean() -> Callable:
+    def func(a) -> float:
+        return nm.mean(values_not_none()(a))
     return func
 
 
-def top(count=10, output_values=False):
-    def func(keys, values=None):
+def top(count=10, output_values=False) -> Callable:
+    def func(keys, values=None) -> list:
         if values:
             pairs = sorted(zip(keys, values), key=lambda i: i[1], reverse=True)
         else:
