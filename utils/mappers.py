@@ -2,9 +2,9 @@ import csv
 import re
 
 try:  # Assume we're a sub-module in a package.
-    from streams import stream_classes as fx
+    from utils import items as it
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..streams import stream_classes as fx
+    from ..utils import items as it
 
 
 RE_LETTERS = re.compile('[^a-zа-я ]')
@@ -128,20 +128,20 @@ def get_first_values(records, fields):
 
 
 def merge_two_items(first, second, default_right_name='_right'):
-    if fx.is_row(first):
+    if it.ItemType.Row.isinstance(first):
         if second is None:
             result = first
-        elif fx.is_row(second):
+        elif it.ItemType.Row.isinstance(second):
             result = tuple(list(first) + list(second))
         else:
             result = tuple(list(first) + [second])
-    elif fx.is_record(first):
+    elif it.ItemType.Record.isinstance(first):
         result = first.copy()
-        if fx.is_record(second):
+        if it.ItemType.Record.isinstance(second):
             result.update(second)
         else:
             result[default_right_name] = second
-    elif first is None and fx.is_record(second):
+    elif first is None and it.ItemType.Record.isinstance(second):
         result = second
     else:
         result = (first, second)
@@ -176,7 +176,7 @@ def unfold_lists(record, fields, number_field='n', default_value=0):
     fold_values = [record.get(f, []) for f in fields]
     if default_value is not None:
         max_len = max([len(a or []) for a in fold_values])
-        fold_values = [(a or []) + [default_value] * (max_len - len(a)) for a in fold_values]
+        fold_values = [list(a or []) + [default_value] * (max_len - len(a or [])) for a in fold_values]
     for n, unfold_values in enumerate(zip(*fold_values)):
         rec_out = rec_common.copy()
         rec_out.update({k: v for k, v in zip(fields, unfold_values)})
