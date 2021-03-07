@@ -41,3 +41,9 @@ def is_in_sample(sample_rate, sample_bucket=1, as_str=True, hash_func=hash) -> C
             elem_id = str(elem_id)
         return hash_func(elem_id) % sample_rate == sample_bucket
     return func
+
+
+def same() -> Callable:
+    def func(item):
+        return item
+    return func
