@@ -1,38 +1,26 @@
+from typing import Callable
+
 try:  # Assume we're a sub-module in a package.
     from utils import (
         arguments as arg,
-        items as it,
-        selection,
+        selection as sf,
     )
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import (
         arguments as arg,
-        items as it,
-        selection,
+        selection as sf,
     )
 
 
-def composite_key(*functions):
+def composite_key(*functions) -> Callable:
     key_functions = arg.update(functions)
 
-    def func(item):
-        result = list()
-        for f in key_functions:
-            if callable(f):
-                value = f(item)
-            else:
-                if it.ItemType.Record.isinstance(item):
-                    value = selection.value_from_record(item, f)
-                elif it.ItemType.Row.isinstance(item):
-                    value = selection.value_from_row(item, f)
-                else:
-                    value = selection.value_from_any(item, f)
-            result.append(value)
-        return tuple(result)
+    def func(item) -> tuple:
+        return sf.get_composite_key(item=item, keys_descriptions=key_functions)
     return func
 
 
-def value_by_key(key, default=None):
+def value_by_key(key, default=None) -> Callable:
     def func(item):
         if isinstance(item, dict):
             return item.get(key, default)
@@ -41,14 +29,14 @@ def value_by_key(key, default=None):
     return func
 
 
-def values_by_keys(keys, default=None):
-    def func(item):
+def values_by_keys(keys, default=None) -> Callable:
+    def func(item) -> list:
         return [value_by_key(k, default)(item) for k in keys]
     return func
 
 
-def is_in_sample(sample_rate, sample_bucket=1, as_str=True, hash_func=hash):
-    def func(elem_id):
+def is_in_sample(sample_rate, sample_bucket=1, as_str=True, hash_func=hash) -> Callable:
+    def func(elem_id) -> bool:
         if as_str:
             elem_id = str(elem_id)
         return hash_func(elem_id) % sample_rate == sample_bucket

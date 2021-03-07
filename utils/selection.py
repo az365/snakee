@@ -4,14 +4,12 @@ try:  # Assume we're a sub-module in a package.
         arguments as arg,
         items as it,
     )
-    from functions import all_functions as fs
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from . import (
         algo,
         arguments as arg,
         items as it,
     )
-    from ..functions import all_functions as fs
 
 
 IGNORE_CYCLIC_DEPENDENCIES = False
@@ -121,10 +119,10 @@ def value_from_any(item, description, logger=None, skip_errors=True):
         return description(item)
     elif isinstance(description, (list, tuple)):
         function, fields = process_description(description)
-        values = fs.values_by_keys(fields)(item)
+        values = it.get_fields_values_from_item(fields, item)
         return safe_apply_function(function, fields, values, item=item, logger=logger, skip_errors=skip_errors)
     else:
-        return fs.value_by_key(description)(item)
+        return it.get_field_value_from_item(description, item)
 
 
 def value_from_item(item, description, item_type=it.ItemType.Auto, logger=None, skip_errors=True, default=None):
@@ -145,6 +143,18 @@ def value_from_item(item, description, item_type=it.ItemType.Auto, logger=None, 
     else:
         message = 'field description must be int, callable or tuple ({} as {} given)'
         raise TypeError(message.format(description, type(description)))
+
+
+def get_composite_key(item, keys_descriptions, item_type=it.ItemType.Auto, logger=None, skip_errors=True):
+    keys_descriptions = arg.update(keys_descriptions)
+    result = list()
+    for d in keys_descriptions:
+        if callable(d):
+            value = d(item)
+        else:
+            value = value_from_item(item, d, item_type, logger=logger, skip_errors=skip_errors)
+        result.append(value)
+    return tuple(result)
 
 
 def tuple_from_record(record, descriptions, logger=None):
@@ -226,7 +236,7 @@ def auto_to_auto(item, *descriptions, logger=None):
     elif item_type == it.ItemType.Row:
         return row_from_row(item, *descriptions)
     else:
-        return fs.composite_key(*descriptions)(item)
+        return get_composite_key(item, descriptions)
 
 
 def select(
