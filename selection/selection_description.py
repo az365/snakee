@@ -46,29 +46,27 @@ def build_expression_description(left, right=None, **kwargs):
 def compose_descriptions(
         fields, expressions,
         target_item_type: it.ItemType, input_item_type: it.ItemType,
+        skip_errors=False,
         logger=None, selection_logger=None,
 ):
     assert isinstance(target_item_type, it.ItemType)
     target_is_row = target_item_type == it.ItemType.Row
+    kwargs = dict(
+        target_item_type=target_item_type, input_item_type=input_item_type,
+        skip_errors=skip_errors,
+        logger=selection_logger,
+    )
     finish_descriptions = list()
     for n, f in enumerate(fields):
         args = (n, f) if target_is_row else (f, )
-        cur_desc = build_expression_description(
-            *args,
-            target_item_type=target_item_type, input_item_type=input_item_type,
-            logger=selection_logger,
-        )
+        cur_desc = build_expression_description(*args, **kwargs)
         if cur_desc.must_finish():
             finish_descriptions.append(cur_desc)
         else:
             yield cur_desc
     ignore_cycles = logger is not None
     for args in sf.topologically_sorted(expressions, ignore_cycles=ignore_cycles, logger=logger):
-        yield build_expression_description(
-            *args,
-            target_item_type=target_item_type, input_item_type=input_item_type,
-            logger=selection_logger,
-        )
+        yield build_expression_description(*args, **kwargs)
     yield from finish_descriptions
 
 
@@ -79,8 +77,7 @@ class SelectionDescription:
             target_item_type: it.ItemType = it.ItemType.Auto,
             input_item_type: it.ItemType = it.ItemType.Auto,
             input_schema=None,
-            logger=None,
-            selection_logger=arg.DEFAULT,
+            logger=None, selection_logger=arg.DEFAULT,
     ):
         self.descriptions = descriptions
         self.target_item_type = target_item_type
@@ -95,16 +92,19 @@ class SelectionDescription:
     def with_expressions(
             cls, fields: list, expressions: dict,
             target_item_type=it.ItemType.Auto, input_item_type=it.ItemType.Auto,
+            input_schema=None, skip_errors=True,
             logger=None, selection_logger=arg.DEFAULT,
     ):
         descriptions = compose_descriptions(
             fields, expressions,
             target_item_type=target_item_type, input_item_type=input_item_type,
+            skip_errors=skip_errors,
             logger=logger, selection_logger=selection_logger,
         )
         return cls(
             descriptions=list(descriptions),
             target_item_type=target_item_type, input_item_type=input_item_type,
+            input_schema=input_schema,
             logger=logger, selection_logger=selection_logger,
         )
 
@@ -204,10 +204,7 @@ class SelectionDescription:
         target_item_type = arg.undefault(self.get_target_item_type(), input_item_type)
         assert isinstance(target_item_type, it.ItemType)
         if target_item_type == input_item_type and target_item_type != it.ItemType.Row:
-            if isinstance(item, tuple):
-                new_item = list(item)
-            else:
-                new_item = item.copy()
+            new_item = it.get_copy(item)
             self.apply_inplace(new_item)
             new_item = self.select_output_fields(new_item)
         else:

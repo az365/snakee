@@ -3,10 +3,10 @@ from typing import Union
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
-    from schema.schema_classes import SchemaRow
+    from schema.schema_row import SchemaRow
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from . import arguments as arg
-    from ..schema.schema_classes import SchemaRow
+    from ..schema.schema_row import SchemaRow
 
 
 STAR = '*'
@@ -71,15 +71,19 @@ class ItemType(Enum):
     def is_selectable(self):
         return self in self.get_selectable_types()
 
-    def get_value_from_item(self, item, field: FieldID, default=None):
-        if self == ItemType.Row:
-            return get_field_value_from_row(column=field, row=item, default=default)
+    def get_value_from_item(self, item: SelectableItem, field: FieldID, default=None, skip_errors=False):
+        if self == ItemType.Auto:
+            return self.detect(item).get_value_from_item(item, field, default, skip_errors)
+        elif self == ItemType.Row:
+            return get_field_value_from_row(column=field, row=item, default=default, skip_missing=skip_errors)
         elif self == ItemType.Record:
-            return get_field_value_from_record(field=field, record=item, default=default)
+            return get_field_value_from_record(field=field, record=item, default=default, skip_missing=skip_errors)
         elif self == ItemType.SchemaRow:
-            return get_field_value_from_schema_row(key=field, row=item, default=default)
-        else:
+            return get_field_value_from_schema_row(key=field, row=item, default=default, skip_missing=skip_errors)
+        elif skip_errors:
             return default
+        else:
+            return TypeError('type {} not supported'.format(self.value))
 
 
 def set_to_item_inplace(field, value, item: SelectableItem, item_type=ItemType.Auto):
@@ -131,7 +135,7 @@ def get_field_value_from_item(field, item, item_type=ItemType.Auto, skip_errors=
     if field == STAR:
         return item
     if not item_type:
-        item_type = ItemType.detect(item)
+        item_type = arg.undefault(item_type, ItemType.detect(item))
     try:
         return ItemType(item_type).get_value_from_item(item=item, field=field, default=default)
     except IndexError or TypeError:
@@ -161,6 +165,24 @@ def simple_select_fields(fields: Array, item: SelectableItem, item_type=ItemType
         return [item[f] for f in fields]
     elif item_type == ItemType.SchemaRow:
         return item.simple_select_fields(fields)
+
+
+def get_values_by_keys_from_item(item, keys, default=None):  # equivalent get_fields_values_from_items()
+    return [get_value_by_key_from_item(item, k, default) for k in keys]
+
+
+def get_value_by_key_from_item(item, key, default=None):  # equivalent get_field_value_from_item()
+    if ItemType.Record.isinstance(item):
+        return item.get(key, default)
+    elif ItemType.Row.isinstance(item):
+        return item[key] if isinstance(key, int) and 0 <= key <= len(item) else default
+
+
+def get_copy(item):
+    if isinstance(item, tuple):
+        return list(item)
+    else:
+        return item.copy()
 
 
 def get_frozen(item):
