@@ -13,7 +13,7 @@ try:  # Assume we're a sub-module in a package.
     from streams.abstract.iterable_stream import IterableStream
     from streams.abstract.local_stream import LocalStream
     from streams.abstract.wrapper_stream import WrapperStream
-    from streams.abstract.columnar_stream import ColumnarStream
+    from streams.mixin.columnar_mixin import ColumnarMixin
     from streams.simple.any_stream import AnyStream
     from streams.simple.line_stream import LineStream
     from streams.simple.row_stream import RowStream
@@ -28,7 +28,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .abstract.iterable_stream import IterableStream
     from .abstract.local_stream import LocalStream
     from .abstract.wrapper_stream import WrapperStream
-    from .abstract.columnar_stream import ColumnarStream
+    from streams.mixin.columnar_mixin import ColumnarMixin
     from .simple.any_stream import AnyStream
     from .simple.line_stream import LineStream
     from .simple.row_stream import RowStream

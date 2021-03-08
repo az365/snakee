@@ -4,39 +4,32 @@ try:  # Assume we're a sub-module in a package.
     from streams import stream_classes as sm
     from utils import arguments as arg
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from .. import stream_classes as sm
-    from ...utils import arguments as arg
+    from streams import stream_classes as sm
+    from utils import arguments as arg
 
 
-class ColumnarStream(sm.AbstractStream, ABC):
-    def __init__(
-            self,
-            data,
-            name=arg.DEFAULT,
-            source=None,
-            context=None,
-            check=True,
-    ):
-        super().__init__(
-            data=data,
-            name=name,
-            source=source,
-            context=context,
-        )
-        self.check = check
+class ColumnarMixin(sm.AbstractStream, ABC):
 
     @abstractmethod
     def get_item_type(self):
         pass
 
-    @staticmethod
-    @abstractmethod
-    def is_valid_item(item):
-        pass
+    @classmethod
+    def is_valid_item(cls, item):
+        return cls.get_item_type().isinstance(item)
 
-    @staticmethod
-    def get_valid_items(items, **kwargs):
-        pass
+    @classmethod
+    def get_validated(cls, items, skip_errors=False, context=None):
+        for i in items:
+            if cls.is_valid_item(i):
+                yield i
+            else:
+                message = 'get_validated(): item {} is not a {}'.format(i, cls.get_item_type())
+                if skip_errors:
+                    if context:
+                        context.get_logger().log(message)
+                else:
+                    raise TypeError(message)
 
     @abstractmethod
     def get_items(self):
@@ -44,7 +37,7 @@ class ColumnarStream(sm.AbstractStream, ABC):
 
     def validated(self, skip_errors=False):
         return self.__class__(
-            self.get_valid_items(self.get_items(), skip_errors=skip_errors),
+            self.get_validated(self.get_items(), skip_errors=skip_errors),
             **self.get_meta()
         )
 
@@ -103,23 +96,6 @@ class ColumnarStream(sm.AbstractStream, ABC):
     @abstractmethod
     def get_dataframe(self, columns=None):
         pass
-
-    def to_records(self, **kwargs):
-        return sm.RecordStream(
-            self.get_records(),
-            count=self.get_expected_count(),
-        )
-
-    def to_rows(self, *columns, **kwargs):
-        return self.select(
-            columns,
-        ).to_records()
-
-    # def get_description(self):
-    #     if self.can_be_in_memory():
-    #         self.data = self.get_list()
-    #         self.count = self.get_count()
-    #     return [self.get_expected_count(), self.get_columns()]
 
     def get_demo_example(self, count=10, filters=[], columns=None):
         sm_sample = self.filter(*filters) if filters else self
