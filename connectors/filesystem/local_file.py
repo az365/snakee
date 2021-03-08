@@ -111,8 +111,16 @@ class AbstractFile(cs.LeafConnector):
         else:
             self.fileholder = open(self.get_path(), 'r')
 
-    def get_meta(self):
-        meta = self.__dict__.copy()
+    def remove(self, log=True):
+        file_path = self.get_path()
+        if log:
+            self.get_logger().log('Trying remove {}...'.format(file_path))
+        os.remove(file_path)
+        if log:
+            self.get_logger().log('Successfully removed {}.'.format(file_path))
+
+    def get_meta(self, ex=None):
+        meta = super().get_meta(ex=ex)
         meta.pop('fileholder')
         return meta
 
@@ -285,7 +293,7 @@ class TextFile(AbstractFile):
 
     def from_stream(self, stream):
         assert isinstance(stream, sm.LineStream)
-        self.write_lines(stream.iterable())
+        self.write_lines(stream.get_iter())
 
     def to_stream(self, stream_type=arg.DEFAULT, verbose=arg.DEFAULT):
         return self.get_stream(to=stream_type, verbose=verbose)
@@ -324,9 +332,9 @@ class JsonFile(TextFile):
 
     def get_items(self, verbose=AUTO, step=AUTO):
         return self.to_lines_stream(
-            verbose=verbose
+            verbose=verbose,
         ).parse_json(
-            default_value=self.default_value
+            default_value=self.default_value,
         ).get_items()
 
     def to_records_stream(self, verbose=AUTO):
@@ -470,16 +478,18 @@ class ColumnFile(TextFile):
                     converted_row.append(converted_value)
                 yield converted_row
 
-    def get_items(self, verbose=AUTO, step=AUTO):
-        return self.get_rows(verbose=verbose, step=step)
+    def get_items(self, kind='rows', *args, **kwargs):
+        method_name = 'get_{}'.format(kind)
+        method_callable = self.__getattribute__(method_name)
+        return method_callable(*args, **kwargs)
 
-    def get_schema_rows(self):
+    def get_schema_rows(self, verbose=AUTO, step=AUTO):
         assert self.schema is not None, 'For getting schematized rows schema must be defined.'
-        for row in self.get_rows():
+        for row in self.get_rows(verbose=verbose, step=step):
             yield sh.SchemaRow(row, schema=self.schema)
 
     def get_records(self, convert_types=True):
-        for item in self.get_rows(convert_types=convert_types):
+        for item in self.get_rows(convert_types=convert_types, verbose=AUTO, step=AUTO):
             yield {k: v for k, v in zip(self.get_schema().get_columns(), item)}
 
     def get_dict(self, key, value, skip_errors=False):
