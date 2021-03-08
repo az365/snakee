@@ -9,6 +9,7 @@ try:  # Assume we're a sub-module in a package.
     from connectors.filesystem.local_storage import LocalStorage
     from connectors.filesystem.local_folder import LocalFolder, FileMask
     from connectors.filesystem.local_file import AbstractFile, TextFile, JsonFile, ColumnFile, CsvFile, TsvFile
+    from connectors.filesystem.temporary_files import TemporaryLocation, TemporaryFilesMask
     from connectors.storages.s3_storage import AbstractObjectStorage, S3Storage
     from connectors.storages.s3_bucket import S3Bucket, S3Folder
     from connectors.storages.s3_object import S3Object
@@ -27,6 +28,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .filesystem.local_storage import LocalStorage
     from .filesystem.local_folder import LocalFolder, FileMask
     from .filesystem.local_file import AbstractFile, TextFile, JsonFile, ColumnFile, CsvFile, TsvFile
+    from .filesystem.temporary_files import TemporaryLocation, TemporaryFilesMask
     from .storages.s3_storage import AbstractObjectStorage, S3Storage
     from .storages.s3_bucket import S3Bucket, S3Folder
     from .storages.s3_object import S3Object
