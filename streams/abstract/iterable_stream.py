@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from itertools import chain, tee
+from typing import Iterable
 from datetime import datetime
 
 try:  # Assume we're a sub-module in a package.
@@ -23,16 +24,15 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 class IterableStream(sm.AbstractStream, ABC):
     def __init__(
             self,
-            data,
+            data: Iterable,
             name=arg.DEFAULT,
-            source=None,
-            context=None,
-            count=None,
-            less_than=None,
-            max_items_in_memory=sm.MAX_ITEMS_IN_MEMORY,
+            source=None, context=None,
+            count=None, less_than=None,
+            check=False,
+            max_items_in_memory=arg.DEFAULT,
     ):
         super().__init__(
-            data=data,
+            data=self.get_validated(data, context=context) if check else data,
             name=name,
             source=source,
             context=context,
@@ -42,19 +42,36 @@ class IterableStream(sm.AbstractStream, ABC):
         else:
             self.count = count
         self.less_than = less_than or self.count
-        self.max_items_in_memory = max_items_in_memory
+        self.check = check
+        self.max_items_in_memory = arg.undefault(max_items_in_memory, sm.MAX_ITEMS_IN_MEMORY)
 
     def get_items(self):
         return self.get_data()
 
     def get_meta_except_count(self):
-        meta = self.get_meta()
-        meta.pop('count')
-        meta.pop('less_than')  # ?
-        return meta
+        return self.get_meta(
+            ex=['count', 'less_than'],
+        )
 
     def get_expected_count(self):
         return self.count
+
+    @staticmethod
+    def is_valid_item(item):
+        return True
+
+    @classmethod
+    def get_validated(cls, items, skip_errors=False, context=None):
+        for i in items:
+            if cls.is_valid_item(i):
+                yield i
+            else:
+                message = 'get_validated() found invalid item {} for {}'.format(i, cls.get_stream_type())
+                if skip_errors:
+                    if context:
+                        context.get_logger().log(message)
+                else:
+                    raise TypeError(message)
 
     def close(self, recursively=False):
         try:
@@ -70,12 +87,12 @@ class IterableStream(sm.AbstractStream, ABC):
                     closed_links += link.close() or 0
         return closed_streams, closed_links
 
-    def iterable(self):
+    def get_iter(self):
         yield from self.get_items()
 
     def next(self):
         return next(
-            self.iterable(),
+            self.get_iter(),
         )
 
     def one(self):
@@ -122,7 +139,7 @@ class IterableStream(sm.AbstractStream, ABC):
             target_class = self.__class__
         else:
             target_class = sm.KeyValueStream
-            props['secondary'] = sm.StreamType(self.get_class_name())
+            props['value_stream_type'] = sm.StreamType(self.get_class_name())
         return target_class(
             self.enumerated_items(),
             **props
@@ -164,7 +181,7 @@ class IterableStream(sm.AbstractStream, ABC):
         for _ in self.get_items():
             pass
 
-    def tee(self, n=2):
+    def get_tee(self, n=2):
         return [
             self.__class__(
                 i,
@@ -181,9 +198,8 @@ class IterableStream(sm.AbstractStream, ABC):
         return tee_items
 
     def get_tee_stream(self):
-        return self.__class__(
+        return self.stream(
             self.get_tee_items(),
-            **self.get_meta()
         )
 
     def add(self, stream_or_items, before=False, **kwargs):
@@ -199,16 +215,26 @@ class IterableStream(sm.AbstractStream, ABC):
             )
 
     def add_items(self, items, before=False):
-        old_items = self.iterable()
+        old_items = self.get_items()
         new_items = items
         if before:
             chain_records = chain(new_items, old_items)
         else:
             chain_records = chain(old_items, new_items)
-        props = self.get_meta_except_count()
-        return self.__class__(
+        if isinstance(items, (list, tuple)):
+            count = self.count
+            if count:
+                count += len(items)
+            less_than = self.less_than
+            if less_than:
+                less_than += len(items)
+        else:
+            count = None
+            less_than = None
+        return self.stream(
             chain_records,
-            **props
+            count=count,
+            less_than=less_than,
         )
 
     def add_stream(self, stream, before=False):
@@ -238,7 +264,7 @@ class IterableStream(sm.AbstractStream, ABC):
         )
 
     def separate_first(self):
-        items = self.iterable()
+        items = self.get_iter()
         props = self.get_meta()
         if props.get('count'):
             props['count'] -= 1
@@ -253,7 +279,7 @@ class IterableStream(sm.AbstractStream, ABC):
         )
 
     def split_by_pos(self, pos):
-        first_stream, second_stream = self.tee(2)
+        first_stream, second_stream = self.get_tee(2)
         return (
             first_stream.take(pos),
             second_stream.skip(pos),
@@ -261,7 +287,7 @@ class IterableStream(sm.AbstractStream, ABC):
 
     def split_by_list_pos(self, list_pos):
         count_limits = len(list_pos)
-        cloned_streams = self.tee(count_limits + 1)
+        cloned_streams = self.get_tee(count_limits + 1)
         filtered_streams = list()
         prev_pos = 0
         for n, cur_pos in enumerate(list_pos):
@@ -288,7 +314,7 @@ class IterableStream(sm.AbstractStream, ABC):
             f.filter(
                 lambda i, n=n: func(i) == n,
             ) for n, f in enumerate(
-                self.tee(count),
+                self.get_tee(count),
             )
         ]
 
@@ -312,7 +338,7 @@ class IterableStream(sm.AbstractStream, ABC):
             raise TypeError('split(by): by-argument must be int, list, tuple or function, {} received'.format(type(by)))
 
     def split_to_iter_by_step(self, step):
-        iterable = self.iterable()
+        iterable = self.get_iter()
 
         def take_items():
             output_items = list()
@@ -333,7 +359,7 @@ class IterableStream(sm.AbstractStream, ABC):
 
     def flat_map(self, function, to=arg.DEFAULT):
         def get_items():
-            for i in self.iterable():
+            for i in self.get_iter():
                 yield from function(i)
         to = arg.undefault(to, self.get_stream_type())
         stream_class = sm.get_class(to)

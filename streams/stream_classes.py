@@ -14,6 +14,7 @@ try:  # Assume we're a sub-module in a package.
     from streams.abstract.local_stream import LocalStream
     from streams.abstract.wrapper_stream import WrapperStream
     from streams.mixin.columnar_mixin import ColumnarMixin
+    from streams.mixin.convert_mixin import ConvertMixin
     from streams.simple.any_stream import AnyStream
     from streams.simple.line_stream import LineStream
     from streams.simple.row_stream import RowStream
@@ -28,7 +29,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .abstract.iterable_stream import IterableStream
     from .abstract.local_stream import LocalStream
     from .abstract.wrapper_stream import WrapperStream
-    from streams.mixin.columnar_mixin import ColumnarMixin
+    from .mixin.columnar_mixin import ColumnarMixin
+    from .mixin.convert_mixin import ConvertMixin
     from .simple.any_stream import AnyStream
     from .simple.line_stream import LineStream
     from .simple.row_stream import RowStream
@@ -46,7 +48,7 @@ STREAM_CLASSES = (
     KeyValueStream,
     PandasStream, SchemaStream,
 )
-context = None
+context = None  # global
 
 
 class StreamType(Enum):
@@ -70,9 +72,37 @@ class StreamType(Enum):
         )
         return classes.get(self.value)
 
-    def stream(self, *args, **kwargs):
+    def stream(self, *args, provide_context=True, **kwargs):
         stream_class = self.get_class()
+        if provide_context:
+            global context
+            kwargs['context'] = context
         return stream_class(*args, **kwargs)
+
+    @staticmethod
+    def detect(obj):
+        if inspect.isclass(obj):
+            name = obj.__name__
+        else:
+            name = obj.__class__.__name__
+            if name == 'ItemType':
+                if obj.value == 'SchemaRow':
+                    return StreamType.SchemaStream
+                else:
+                    return StreamType('{}Stream'.format(name))
+        return StreamType(name)
+
+    @classmethod
+    def of(cls, obj):
+        if isinstance(obj, StreamType):
+            return obj
+        elif isinstance(obj, str):
+            return StreamType(obj)
+        else:
+            return cls.detect(obj)
+
+    def isinstance(self, sm: AbstractStream):
+        return sm.get_stream_type() == self
 
 
 def get_class(stream_type):

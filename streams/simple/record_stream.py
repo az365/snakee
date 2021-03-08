@@ -26,21 +26,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     )
 
 
-def is_record(item):
-    return isinstance(item, dict)
-
-
-def check_records(records, skip_errors=False):
-    for r in records:
-        if is_record(r):
-            pass
-        elif skip_errors:
-            continue
-        else:
-            raise TypeError('check_records(): this item is not record: {}'.format(r))
-        yield r
-
-
 def get_key_function(descriptions, take_hash=False):
     if len(descriptions) == 0:
         raise ValueError('key must be defined')
@@ -54,27 +39,22 @@ def get_key_function(descriptions, take_hash=False):
         return key_function
 
 
-class RecordStream(sm.AnyStream):
+class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
     def __init__(
             self,
             data,
-            name=arg.DEFAULT,
-            count=None,
-            less_than=None,
-            check=True,
-            source=None,
-            context=None,
+            name=arg.DEFAULT, check=True,
+            count=None, less_than=None,
+            source=None, context=None,
             max_items_in_memory=sm.MAX_ITEMS_IN_MEMORY,
             tmp_files_template=sm.TMP_FILES_TEMPLATE,
             tmp_files_encoding=sm.TMP_FILES_ENCODING,
     ):
         super().__init__(
-            check_records(data) if check else data,
+            data=data,
             name=name,
-            count=count,
-            less_than=less_than,
-            source=source,
-            context=context,
+            count=count, less_than=less_than,
+            source=source, context=context,
             max_items_in_memory=max_items_in_memory,
             tmp_files_template=tmp_files_template,
             tmp_files_encoding=tmp_files_encoding,
@@ -82,46 +62,48 @@ class RecordStream(sm.AnyStream):
         self.check = check
 
     @staticmethod
-    def is_valid_item(item):
-        return is_record(item)
+    def get_item_type():
+        return it.ItemType.Record
 
-    @staticmethod
-    def valid_items(items, skip_errors=False):
-        return check_records(items, skip_errors)
+    def get_one_column(self, column, as_list=False):
+        if as_list:
+            return list(self.get_one_column(as_list=False))
+        else:
+            for r in self.get_records():
+                yield r
 
     def get_columns(self, by_rows_count=100):
         if self.is_in_memory():
-            df = self.get_dataframe()
-        elif by_rows_count:
-            df = self.take(by_rows_count).get_dataframe()
+            examples = self.take(by_rows_count)
         else:
-            raise ValueError("Stream data isn't saved in memory and by_rows_count argument not provided")
-        return list(df.columns)
+            examples = self.get_tee_stream().take(by_rows_count)
+        columns = set()
+        for r in examples.get_items():
+            columns.update(r.keys())
+        return columns
 
-    def get_records(self, skip_errors=False, raise_errors=True):
-        if skip_errors or raise_errors:
-            return check_records(self.data, skip_errors)
+    def get_records(self, columns=arg.DEFAULT):
+        if columns == arg.DEFAULT:
+            return self.get_items()
         else:
-            return self.data
+            return self.select(*columns)
 
-    def enumerated_records(self, field='#', first=1):
+    def get_enumerated_records(self, field='#', first=1):
         for n, r in enumerate(self.data):
             r[field] = n + first
             yield r
 
     def enumerate(self, native=False):
-        props = self.get_meta()
         if native:
-            target_class = self.__class__
-            enumerated = self.enumerated_records()
+            return self.stream(
+                self.get_enumerated_records(),
+            )
         else:
-            target_class = sm.KeyValueStream
-            enumerated = self.enumerated_items()
-            props['secondary'] = sm.StreamType(self.get_class_name())
-        return target_class(
-            enumerated,
-            **props
-        )
+            return self.stream(
+                self.enumerated_items(),
+                stream_type=sm.StreamType.KeyValueStream,
+                secondary=self.get_stream_type(),
+            )
 
     def select(self, *fields, use_extended_method=False, **expressions):
         return self.native_map(
@@ -186,12 +168,13 @@ class RecordStream(sm.AnyStream):
                 accumulated.append(r)
             yield (prev_k, accumulated) if as_pairs else accumulated
         if as_pairs:
-            sm_groups = sm.KeyValueStream(get_groups(), secondary=sm.StreamType.RowStream)
+            sm_groups = sm.KeyValueStream(get_groups(), value_stream_type=sm.StreamType.RowStream)
         else:
             sm_groups = sm.RowStream(get_groups(), check=False)
         if values:
-            sm_groups = sm_groups.map_to_records(
+            sm_groups = sm_groups.map_to_type(
                 lambda r: ms.fold_lists(r, keys, values),
+                stream_type=sm.StreamType.RecordStream,
             )
         if self.is_in_memory():
             return sm_groups.to_memory()
@@ -224,14 +207,6 @@ class RecordStream(sm.AnyStream):
             dataframe = dataframe[columns]
         return dataframe
 
-    def show(self, count=10, filters=[]):
-        if self.can_be_in_memory():
-            self.data = self.get_list()
-            self.count = self.get_count()
-        print(self.expected_count(), self.get_columns())
-        sm_sample = self.filter(*filters) if filters else self
-        return sm_sample.take(count).get_dataframe()
-
     def to_lines(self, columns, add_title_row=False, delimiter='\t'):
         return sm.LineStream(
             self.to_rows(columns, add_title_row=add_title_row),
@@ -241,23 +216,25 @@ class RecordStream(sm.AnyStream):
             delimiter.join,
         )
 
+    def get_rows(self, columns=arg.DEFAULT, add_title_row=False):
+        columns = arg.undefault(columns, self.get_columns())
+        if add_title_row:
+            yield columns
+        for r in self.get_items():
+            yield [r.get(c) for c in columns]
+
     def to_rows(self, *columns, **kwargs):
         add_title_row = kwargs.pop('add_title_row', None)
         columns = arg.update(columns, kwargs.pop('columns', None))
         if kwargs:
             raise ValueError('to_rows(): {} arguments are not supported'.format(kwargs.keys()))
 
-        def get_rows(columns_list):
-            if add_title_row:
-                yield columns_list
-            for r in self.get_items():
-                yield [r.get(f) for f in columns_list]
         if self.count is None:
             count = None
         else:
             count = self.count + (1 if add_title_row else 0)
         return sm.RowStream(
-            get_rows(list(columns)),
+            self.get_rows(list(columns)),
             count=count,
             less_than=self.less_than,
         )
@@ -272,7 +249,7 @@ class RecordStream(sm.AnyStream):
             verbose=verbose,
         )
 
-    def to_pairs(self, key='key', value=None, skip_errors=False):
+    def to_key_value(self, key='key', value=None, skip_errors=False):
         kws = dict(logger=self.get_logger(), skip_errors=skip_errors)
 
         def get_pairs():
@@ -280,11 +257,10 @@ class RecordStream(sm.AnyStream):
                 k = selection.value_from_record(i, key, **kws)
                 v = i if value is None else selection.value_from_record(i, value, **kws)
                 yield k, v
-        return sm.KeyValueStream(
+        return self.stream(
             list(get_pairs()) if self.is_in_memory() else get_pairs(),
-            count=self.count,
-            less_than=self.less_than,
-            secondary=sm.StreamType.RecordStream if value is None else sm.StreamType.AnyStream,
+            stream_type=sm.StreamType.KeyValueStream,
+            value_stream_type=sm.StreamType.RecordStream if value is None else sm.StreamType.AnyStream,
             check=False,
         )
 
@@ -394,9 +370,16 @@ class RecordStream(sm.AnyStream):
         return parsed_stream
 
     def get_dict(self, key, value=None, of_lists=False, skip_errors=False):
-        return self.to_pairs(
+        return self.to_key_value(
             key, value,
             skip_errors=skip_errors,
         ).get_dict(
             of_lists,
+        )
+
+    def get_description(self):
+        return '{} rows, {} columns: {}'.format(
+            self.get_str_count(),
+            self.get_column_count(),
+            ', '.join(self.get_columns()),
         )

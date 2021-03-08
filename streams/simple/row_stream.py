@@ -7,6 +7,7 @@ try:  # Assume we're a sub-module in a package.
         selection as sf,
     )
     from selection import selection_classes as sn
+    from loggers.logger_classes import deprecated_with_alternative
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from .. import stream_classes as sm
     from ...utils import (
@@ -16,44 +17,25 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         selection as sf,
     )
     from ...selection import selection_classes as sn
+    from ...loggers.logger_classes import deprecated_with_alternative
 
 
-def is_row(item):
-    return it.ItemType.Row.isinstance(item)
-
-
-def check_rows(rows, skip_errors=False):
-    for i in rows:
-        if is_row(i):
-            pass
-        elif skip_errors:
-            continue
-        else:
-            raise TypeError('check_rows(): this item is not row: {}'.format(i))
-        yield i
-
-
-class RowStream(sm.AnyStream, sm.ColumnarStream):
+class RowStream(sm.AnyStream, sm.ColumnarMixin):
     def __init__(
             self,
             data,
-            name=arg.DEFAULT,
-            count=None,
-            less_than=None,
-            check=True,
-            source=None,
+            name=arg.DEFAULT, check=True,
+            count=None, less_than=None,
+            source=None, context=None,
             max_items_in_memory=sm.MAX_ITEMS_IN_MEMORY,
             tmp_files_template=sm.TMP_FILES_TEMPLATE,
             tmp_files_encoding=sm.TMP_FILES_ENCODING,
-            context=None,
     ):
         super().__init__(
-            check_rows(data) if check else data,
-            name=name,
-            count=count,
-            less_than=less_than,
-            source=source,
-            context=context,
+            data,
+            name=name, check=check,
+            count=count, less_than=less_than,
+            source=source, context=context,
             max_items_in_memory=max_items_in_memory,
             tmp_files_template=tmp_files_template,
             tmp_files_encoding=tmp_files_encoding,
@@ -63,14 +45,6 @@ class RowStream(sm.AnyStream, sm.ColumnarStream):
     @staticmethod
     def get_item_type():
         return it.ItemType.Row
-
-    @staticmethod
-    def is_valid_item(item):
-        return is_row(item)
-
-    @staticmethod
-    def get_valid_items(items, skip_errors=False):
-        return check_rows(items, skip_errors)
 
     def get_column_count(self, take=10, get_max=True, get_min=False):
         if self.is_in_memory() and (get_max or get_min):
@@ -125,26 +99,13 @@ class RowStream(sm.AnyStream, sm.ColumnarStream):
             count=self.count,
         )
 
-    def to_records(self, function=None, columns=tuple()):
-        if function:
-            records = map(function, self.get_items())
-        elif columns:
-            records = self.get_records(columns=columns)
-        else:
-            records = map(lambda r: dict(row=r), self.get_items())
-        return sm.RecordStream(
-            records,
-            **self.get_meta()
-        )
-
     def get_records(self, columns=arg.DEFAULT):
-        # columns = arg.undefault(columns, self.get_columns())
         if columns == arg.DEFAULT:
             columns = self.get_columns()
         for row in self.get_rows():
             yield {k: v for k, v in zip(columns, row)}
 
-    def get_rows(self):
+    def get_rows(self, **kwargs):
         return self.get_data()
 
     def schematize(self, schema, skip_bad_rows=False, skip_bad_values=False, verbose=True):
@@ -159,6 +120,7 @@ class RowStream(sm.AnyStream, sm.ColumnarStream):
         )
 
     @classmethod
+    @deprecated_with_alternative('connectors.ColumnFile()')
     def from_column_file(
             cls,
             filename,
@@ -179,6 +141,7 @@ class RowStream(sm.AnyStream, sm.ColumnarStream):
         )
         return fx_rows
 
+    @deprecated_with_alternative('to_file(Connectors.ColumnFile)')
     def to_column_file(
             self,
             filename,

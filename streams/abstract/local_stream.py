@@ -1,5 +1,6 @@
-from abc import ABC, abstractmethod
-from itertools import chain, tee
+from abc import ABC
+from itertools import tee
+from typing import Iterable
 import json
 
 try:  # Assume we're a sub-module in a package.
@@ -21,25 +22,27 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 class LocalStream(sm.IterableStream, ABC):
     def __init__(
             self,
-            data,
-            name=arg.DEFAULT,
-            count=None,
-            less_than=None,
-            source=None,
-            context=None,
-            max_items_in_memory=sm.MAX_ITEMS_IN_MEMORY,
-            tmp_files_template=sm.TMP_FILES_TEMPLATE,
-            tmp_files_encoding=sm.TMP_FILES_ENCODING,
+            data: Iterable,
+            name=arg.DEFAULT, check=False,
+            count=None, less_than=None,
+            source=None, context=None,
+            max_items_in_memory=arg.DEFAULT,
+            tmp_files_template=arg.DEFAULT,
+            tmp_files_encoding=arg.DEFAULT,
     ):
-        super().__init__(data=data, name=name, source=source, context=context)
+        super().__init__(
+            data=data,
+            name=name, check=check,
+            source=source, context=context,
+            max_items_in_memory=max_items_in_memory,
+        )
         if isinstance(data, (list, tuple)):
             self.count = len(data)
         else:
             self.count = count
         self.less_than = less_than or self.count
-        self.max_items_in_memory = max_items_in_memory
-        self.tmp_files_template = tmp_files_template
-        self.tmp_files_encoding = tmp_files_encoding
+        self.tmp_files_template = arg.undefault(tmp_files_template, sm.TMP_FILES_TEMPLATE)
+        self.tmp_files_encoding = arg.undefault(tmp_files_encoding, sm.TMP_FILES_ENCODING)
 
     def get_list(self):
         return list(self.get_items())
@@ -48,9 +51,8 @@ class LocalStream(sm.IterableStream, ABC):
         return isinstance(self.data, (list, tuple))
 
     def to_iter(self):
-        return self.__class__(
-            self.iterable(),
-            **self.get_meta()
+        return self.stream(
+            self.get_iter(),
         )
 
     def can_be_in_memory(self, step=arg.DEFAULT):
@@ -78,7 +80,7 @@ class LocalStream(sm.IterableStream, ABC):
         if self.is_in_memory():
             copy_data = self.get_list().copy()
         else:
-            self.data, copy_data = tee(self.iterable(), 2)
+            self.data, copy_data = tee(self.get_iter(), 2)
         return self.__class__(
             copy_data,
             **self.get_meta()
@@ -86,13 +88,9 @@ class LocalStream(sm.IterableStream, ABC):
 
     def map(self, function, to=arg.DEFAULT):
         to = arg.undefault(to, self.get_stream_type())
-        stream_class = sm.get_class(to)
-        new_props_keys = stream_class([]).get_meta().keys()
-        props = {k: v for k, v in self.get_meta().items() if k in new_props_keys}
-        items = map(function, self.iterable())
-        result = stream_class(
-            items,
-            **props
+        result = self.stream(
+            map(function, self.get_iter()),
+            stream_type=to,
         )
         if self.is_in_memory():
             return result.to_memory()
@@ -106,7 +104,7 @@ class LocalStream(sm.IterableStream, ABC):
                     return False
             return True
         props = self.get_meta_except_count()
-        filtered_items = filter(filter_function, self.iterable())
+        filtered_items = filter(filter_function, self.get_iter())
         if self.is_in_memory():
             filtered_items = list(filtered_items)
             props['count'] = len(filtered_items)
@@ -143,7 +141,7 @@ class LocalStream(sm.IterableStream, ABC):
             verbose=verbose,
         )
         assert stream_parts, 'streams must be non-empty'
-        iterables = [f.iterable() for f in stream_parts]
+        iterables = [f.get_iter() for f in stream_parts]
         counts = [f.count for f in stream_parts]
         props = self.get_meta()
         props['count'] = sum(counts)
@@ -170,8 +168,8 @@ class LocalStream(sm.IterableStream, ABC):
         assert how in algo.JOIN_TYPES, 'only {} join types are supported ({} given)'.format(algo.JOIN_TYPES, how)
         keys = arg.update([key])
         joined_items = algo.sorted_join(
-            iter_left=self.iterable(),
-            iter_right=right.iterable(),
+            iter_left=self.get_iter(),
+            iter_right=right.get_iter(),
             key_function=fs.composite_key(keys),
             how=how,
             sorting_is_reversed=sorting_is_reversed,
@@ -216,7 +214,13 @@ class LocalStream(sm.IterableStream, ABC):
                     verbose=verbose,
                 )
             self.log('Writing {} ...'.format(part_fn), end='\r', verbose=verbose)
-            sm_part = sm_part.to_json().to_text_file(part_fn, encoding=encoding).map_to_any(json.loads)
+            sm_part = sm_part.to_json().to_text_file(
+                part_fn,
+                encoding=encoding,
+            ).map_to_type(
+                json.loads,
+                stream_type=sm.StreamType.AnyStream,
+            )
             result_parts.append(sm_part)
         return result_parts
 

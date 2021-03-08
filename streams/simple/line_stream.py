@@ -1,76 +1,52 @@
-import sys
 import json
-import csv
 import gzip as gz
 
 try:
     from streams import stream_classes as sm
     from connectors import connector_classes as cs
-    from utils import arguments as arg
     from functions import all_functions as fs
+    from utils import (
+        arguments as arg,
+        items as it,
+    )
 except ImportError:
     from .. import stream_classes as sm
     from ...connectors import connector_classes as cs
-    from ...utils import arguments as arg
     from ...functions import all_functions as fs
-
-
-max_int = sys.maxsize
-while True:  # To prevent _csv.Error: field larger than field limit (131072)
-    try:  # decrease the max_int value by factor 10 as long as the OverflowError occurs.
-        csv.field_size_limit(max_int)
-        break
-    except OverflowError:
-        max_int = int(max_int / 10)
-
-
-def is_line(line):
-    return isinstance(line, str)
-
-
-def check_lines(lines, skip_errors=False):
-    for i in lines:
-        if is_line(i):
-            pass
-        elif skip_errors:
-            continue
-        else:
-            raise TypeError('check_lines(): this item is not a line: {}'.format(i))
-        yield i
+    from ...utils import (
+        arguments as arg,
+        items as it,
+    )
 
 
 class LineStream(sm.AnyStream):
     def __init__(
             self,
             data,
-            count=None,
-            less_than=None,
-            check=True,
-            source=None,
-            max_items_in_memory=sm.MAX_ITEMS_IN_MEMORY,
-            tmp_files_template=sm.TMP_FILES_TEMPLATE,
-            tmp_files_encoding=sm.TMP_FILES_ENCODING,
-            context=None,
+            name=arg.DEFAULT, check=True,
+            count=None, less_than=None,
+            source=None, context=None,
+            max_items_in_memory=arg.DEFAULT,
+            tmp_files_template=arg.DEFAULT,
+            tmp_files_encoding=arg.DEFAULT,
     ):
         super().__init__(
-            check_lines(data) if check else data,
-            count=count,
-            less_than=less_than,
-            source=source,
-            context=context,
+            data,
+            name=name, check=check,
+            count=count, less_than=less_than,
+            source=source, context=context,
             max_items_in_memory=max_items_in_memory,
             tmp_files_template=tmp_files_template,
             tmp_files_encoding=tmp_files_encoding,
         )
-        self.check = check
 
     @staticmethod
-    def is_valid_item(item):
-        return is_line(item)
+    def get_item_type():
+        return it.ItemType.Line
 
-    @staticmethod
-    def valid_items(items, skip_errors=False):
-        return check_lines(items, skip_errors)
+    @classmethod
+    def is_valid_item(cls, item):
+        return cls.get_item_type().isinstance(item)
 
     def parse_json(self, default_value=None, to='RecordStream'):
         if isinstance(to, str):
@@ -186,19 +162,3 @@ class LineStream(sm.AnyStream):
             ).update_meta(
                 **meta
             )
-
-    def to_rows(self, delimiter=None):
-        lines = self.get_items()
-        rows = csv.reader(lines, delimiter=delimiter) if delimiter else csv.reader(lines)
-        return sm.RowStream(
-            rows,
-            self.count,
-        )
-
-    def to_pairs(self, delimiter=None):
-        lines = self.get_items()
-        rows = csv.reader(lines, delimiter=delimiter) if delimiter else csv.reader(lines)
-        return sm.RowStream(
-            rows,
-            self.count,
-        ).to_pairs()

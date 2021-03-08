@@ -4,16 +4,25 @@ try:  # Assume we're a sub-module in a package.
     from schema import schema_classes as sh
     from functions import all_functions as fs
     from selection import selection_classes as sn
-    from utils import selection
+    from utils import (
+        arguments as arg,
+        selection as sf,
+    )
+    from loggers.logger_classes import deprecated_with_alternative
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from .. import stream_classes as sm
     from ...loggers import logger_classes as log
     from ...schema import schema_classes as sh
     from ...functions import all_functions as fs
     from ...selection import selection_classes as sn
-    from ...utils import selection
+    from ...utils import (
+        arguments as arg,
+        selection as sf,
+    )
+    from ...loggers.logger_classes import deprecated_with_alternative
 
 
+DATA_MEMBERS = ['data', 'schema']
 NAME_POS, TYPE_POS, HINT_POS = 0, 1, 2  # schema fields
 
 
@@ -54,6 +63,7 @@ def check_rows(rows, schema, skip_errors=False):
         yield r
 
 
+@deprecated_with_alternative('schema.SchemaRow()')
 def apply_schema_to_row(row, schema, skip_bad_values=False, logger=None):
     if isinstance(schema, sh.SchemaDescription):
         converters = schema.get_converters('str', 'py')
@@ -93,29 +103,32 @@ def apply_schema_to_row(row, schema, skip_bad_values=False, logger=None):
 class SchemaStream(sm.RowStream):
     def __init__(
             self,
-            data,
-            count=None,
-            less_than=None,
-            check=True,
-            schema=None,
-            source=None,
-            context=None,
+            data, schema=None,
+            name=arg.DEFAULT, check=True,
+            count=None, less_than=None,
+            source=None, context=None,
             max_items_in_memory=sm.MAX_ITEMS_IN_MEMORY,
             tmp_files_template=sm.TMP_FILES_TEMPLATE,
             tmp_files_encoding=sm.TMP_FILES_ENCODING,
     ):
         super().__init__(
-            check_rows(data, schema) if check else data,
-            count=count,
-            less_than=less_than,
-            check=check,
-            source=source,
-            context=context,
+            data,
+            name=name, check=check,
+            count=count, less_than=less_than,
+            source=source, context=context,
             max_items_in_memory=max_items_in_memory,
             tmp_files_template=tmp_files_template,
             tmp_files_encoding=tmp_files_encoding,
         )
         self.schema = schema or list()
+
+    @staticmethod
+    def get_data_members():
+        return DATA_MEMBERS
+
+    @staticmethod
+    def get_item_type():
+        return sh.SchemaRow
 
     def is_valid_item(self, item):
         return is_valid(
@@ -123,7 +136,7 @@ class SchemaStream(sm.RowStream):
             schema=self.schema,
         )
 
-    def valid_items(self, items, skip_errors=False):
+    def get_validated(self, items, skip_errors=False):
         return check_rows(
             items,
             self.schema,
@@ -147,7 +160,7 @@ class SchemaStream(sm.RowStream):
 
     def schematize(self, schema, skip_bad_rows=False, skip_bad_values=False, verbose=True):
         def apply_schema_to_rows(rows):
-            if isinstance(schema, sh.SchemaDescription):
+            if isinstance(schema, sh.SchemaDescription):  # actual approach
                 converters = schema.get_converters('str', 'py')
                 for r in rows:
                     converted_row = list()
@@ -155,7 +168,7 @@ class SchemaStream(sm.RowStream):
                         converted_value = converter(value)
                         converted_row.append(converted_value)
                     yield converted_row.copy()
-            else:
+            else:  # deprecated approach
                 for r in rows:
                     if skip_bad_rows:
                         try:
@@ -204,25 +217,18 @@ class SchemaStream(sm.RowStream):
         )
 
     def filter(self, *fields, **expressions):
-        expressions_list = [
-            (k, fs.equal(v) if isinstance(v, (str, int, float, bool)) else v)
-            for k, v in expressions.items()
-        ]
-        extended_filters_list = list(fields) + expressions_list
+        primitives = (str, int, float, bool)
+        expressions_list = [(k, fs.equal(v) if isinstance(v, primitives) else v) for k, v in expressions.items()]
+        expressions_list = list(fields) + expressions_list
+        # selection_method = sf.value_from_schema_row if use_extended_method else sn.value_from_schema_row
+        selection_method = sf.value_from_schema_row
 
         def filter_function(r):
-            for f in extended_filters_list:
-                if not selection.value_from_schema_row(r, f):
+            for f in expressions_list:
+                if not selection_method(r, f):
                     return False
             return True
-        props = self.get_meta()
-        props.pop('count')
-        filtered_items = filter(filter_function, self.get_items())
-        if self.is_in_memory():
-            filtered_items = list(filtered_items)
-            props['count'] = len(filtered_items)
-        return self.__class__(
-            filtered_items,
-            **props
+        result = self.stream(
+            filter(filter_function, self.get_items()),
         )
-
+        return result.to_memory() if self.is_in_memory() else result
