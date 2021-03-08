@@ -106,9 +106,13 @@ class AbstractConnector(ABC):
         else:
             return self.get_parent().get_path_as_list() + self.get_name().split(self.get_path_delimiter())
 
-    def get_meta(self):
+    def get_meta(self, ex=None):
         meta = self.__dict__.copy()
-        meta.pop('parent')
+        if isinstance(ex, str):
+            meta.pop(ex)
+        elif isinstance(ex, (list, tuple)):
+            for m in ex:
+                meta.pop(m)
         return meta
 
     def get_config(self):
@@ -118,3 +122,13 @@ class AbstractConnector(ABC):
                 if hasattr(v, 'name'):
                     data[k] = v.get_name()
         return data
+
+    def __repr__(self):
+        return "{}('{}')".format(self.__class__.__name__, self.get_name())
+
+    def __str__(self):
+        str_repr = '{}({})'.format(self.__class__.__name__, self.get_meta())
+        if self.get_parent():
+            return '<{}.{}>'.format(self.__repr__(), str_repr)
+        else:
+            return '<{}>'.format(str_repr)

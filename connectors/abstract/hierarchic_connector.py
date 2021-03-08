@@ -56,7 +56,7 @@ class HierarchicConnector(ct.AbstractConnector):
         for name, child in self.get_children().items():
             yield child
 
-    def get_meta(self):
-        meta = super().get_meta()
+    def get_meta(self, ex=None):
+        meta = super().get_meta(ex=ex)
         meta.pop('children')
         return meta
