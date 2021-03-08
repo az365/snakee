@@ -1,4 +1,19 @@
-DEFAULT = -1
+DEFAULT_VALUE = 'DefaultArgument'
+
+
+class DefaultArgument:
+    @staticmethod
+    def get_value():
+        return DEFAULT_VALUE
+
+    def __str__(self):
+        return str(self.get_value())
+
+    def __eq__(self, other):
+        return other == self.get_value()
+
+
+DEFAULT = DefaultArgument()
 
 
 def update(args, addition=None):
