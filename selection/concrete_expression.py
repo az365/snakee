@@ -161,6 +161,11 @@ class FunctionDescription(ae.SingleFieldDescription):
         else:
             return [it.STAR]
 
+    def get_input_field_types(self):
+        field_types = self.get_function().__annotations__
+        field_types.pop('return')
+        return field_types
+
     def get_value_from_item(self, item):
         return sf.safe_apply_function(
             function=self.get_function(),

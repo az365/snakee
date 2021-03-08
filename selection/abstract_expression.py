@@ -112,12 +112,14 @@ class SingleFieldDescription(AbstractDescription, ABC):
         pass
 
     def apply_inplace(self, item):
-        assert self.get_target_item_type() == self.get_input_item_type()
+        item_type = self.get_input_item_type()
+        if item_type == arg.DEFAULT:
+            item_type = it.ItemType.detect(item)
         it.set_to_item_inplace(
             field=self.get_target_field_name(),
             value=self.get_value_from_item(item),
             item=item,
-            item_type=arg.undefault(self.get_target_item_type(), it.ItemType.detect(item)),
+            item_type=item_type,
         )
 
 

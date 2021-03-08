@@ -200,9 +200,12 @@ class SelectionDescription:
         return output_item
 
     def process_item(self, item):
-        input_item_type = arg.undefault(self.get_input_item_type(), it.ItemType.detect(item))
-        target_item_type = arg.undefault(self.get_target_item_type(), input_item_type)
-        assert isinstance(target_item_type, it.ItemType)
+        input_item_type = self.get_input_item_type()
+        target_item_type = self.get_target_item_type()
+        if input_item_type == arg.DEFAULT:
+            input_item_type = it.ItemType.detect(item)
+        if target_item_type == arg.DEFAULT:
+            target_item_type = input_item_type
         if target_item_type == input_item_type and target_item_type != it.ItemType.Row:
             new_item = it.get_copy(item)
             self.apply_inplace(new_item)
