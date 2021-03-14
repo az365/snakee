@@ -125,12 +125,6 @@ class KeyValueStream(sm.RowStream):
             sm_groups = sm_groups.to_memory()
         return sm_groups
 
-    # def to_records(self, key='key', value='value', **kwargs):
-    #     function = kwargs.get('function') or (lambda i: {key: i[0], value: i[1]})
-    #     return self.map_to_records(
-    #         function,
-    #     )
-
     def get_dict(self, of_lists=False):
         result = dict()
         if of_lists:

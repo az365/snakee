@@ -93,7 +93,7 @@ class RowStream(sm.AnyStream, sm.ColumnarMixin):
         else:
             return nm.pd.DataFrame(self.get_data())
 
-    def to_lines(self, delimiter='\t'):
+    def to_line_stream(self, delimiter='\t'):
         return sm.LineStream(
             map(lambda r: '\t'.join([str(c) for c in r]), self.get_items()),
             count=self.count,
@@ -136,7 +136,7 @@ class RowStream(sm.AnyStream, sm.ColumnarMixin):
             skip_first_line=skip_first_line, max_count=max_count,
             check=check,
             verbose=verbose,
-        ).to_rows(
+        ).to_row_stream(
             delimiter=delimiter
         )
         return fx_rows
@@ -156,7 +156,7 @@ class RowStream(sm.AnyStream, sm.ColumnarMixin):
         meta = self.get_meta()
         if not gzip:
             meta.pop('count')
-        fx_csv_file = self.to_lines(
+        fx_csv_file = self.to_line_stream(
             delimiter=delimiter,
         ).to_text_file(
             filename,
@@ -167,7 +167,7 @@ class RowStream(sm.AnyStream, sm.ColumnarMixin):
             return_stream=return_stream,
         )
         if return_stream:
-            return fx_csv_file.to_rows(
+            return fx_csv_file.to_row_stream(
                 delimiter=delimiter,
             ).update_meta(
                 **meta

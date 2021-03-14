@@ -26,9 +26,9 @@ def test_calc_histogram():
     ]
     received = sm.LineStream(
         example,
-    ).to_rows(
+    ).to_row_stream(
         '\t',
-    ).to_records(
+    ).to_record_stream(
         columns=('x', 'y', 'z'),
     ).select(
         '*',

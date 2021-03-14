@@ -69,7 +69,7 @@ class Table(ct.LeafConnector):
         if isinstance(stream_type, sm.RowStream):
             return stream
         elif isinstance(stream_type, sm.RecordStream):
-            return stream.to_records(columns=self.get_columns())
+            return stream.to_record_stream(columns=self.get_columns())
         elif isinstance(stream_type, sm.SchemaStream):
             return stream.schematize(self.get_schema(), verbose=verbose)
         else:

@@ -1,8 +1,8 @@
 from abc import ABC
-from typing import Union
 import sys
 import json
 import csv
+from typing import Type, Union, Iterable, Any
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
@@ -13,8 +13,16 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils import arguments as arg
     from .. import stream_classes as sm
     from ...functions import item_functions as fs
-    from loggers.logger_classes import deprecated_with_alternative
+    from ...loggers.logger_classes import deprecated_with_alternative
 
+
+Stream = Union[sm.IterableStream, Type[sm.IterableStream], Any]
+AnyStream = Stream
+LineStream = Stream
+RecordStream = Stream
+RowStream = Stream
+KeyValueStream = Stream
+SchemaStream = Stream
 
 max_int = sys.maxsize
 while True:  # To prevent _csv.Error: field larger than field limit (131072)
@@ -25,32 +33,34 @@ while True:  # To prevent _csv.Error: field larger than field limit (131072)
         max_int = int(max_int / 10)
 
 
-class ConvertMixin(sm.AbstractStream, ABC):
-
-    def get_compatible_meta(self, stream=arg.DEFAULT, **kwargs):
-        current_meta = self.get_meta()
-        if stream == arg.DEFAULT:
-            return current_meta
-        elif sm.is_stream(stream):
-            other_meta = stream.get_meta()
+class ConvertMixin(sm.IterableStream, ABC):
+    def get_rows(self, columns: Union[tuple, arg.DefaultArgument] = arg.DEFAULT) -> Iterable:
+        if columns == arg.DEFAULT:
+            if sm.StreamType.RecordStream.isinstance(self):
+                for r in self.get_items():
+                    yield [r.get(c) for c in columns]
+            else:
+                return sm.RowStream.get_typing_validated_items(self.get_items())
         else:
-            other_meta = sm.StreamType.of(stream).stream([], provide_context=False).get_meta()
-        compatible_meta = dict()
-        for k, v in list(current_meta.items()) + list(kwargs.items()):
-            if k in other_meta:
-                compatible_meta[k] = v
-        return compatible_meta
+            return self.get_mapped_items(fs.composite_key(columns))
 
-    def stream(self, data, stream_type=arg.DEFAULT, save_name=True, save_count=True, **kwargs):
+    def get_records(self, columns: Union[tuple, arg.DefaultArgument] = arg.DEFAULT) -> Iterable:
+        if columns == arg.DEFAULT:
+            return self.get_mapped_items(lambda i: dict(item=i))
+        else:
+            return self.get_mapped_items(lambda i: dict(zip(columns, fs.composite_key(columns)(i))))
+
+    def stream(self, data, stream_type=arg.DEFAULT, save_name=True, save_count=True, **kwargs) -> Stream:
         stream_type = arg.undefault(stream_type, self.get_stream_type())
         meta = self.get_compatible_meta(stream_type)
         if not save_name:
             meta.pop('name')
         if not save_count:
             meta.pop('count')
+        meta.update(kwargs)
         return sm.StreamType.of(stream_type).stream(data, **meta)
 
-    def map_to_type(self, function, stream_type=arg.DEFAULT):
+    def map_to_type(self, function, stream_type=arg.DEFAULT) -> Stream:
         stream_type = arg.undefault(stream_type, self.get_stream_type())
         result = self.stream(
             map(function, self.get_items()),
@@ -62,26 +72,26 @@ class ConvertMixin(sm.AbstractStream, ABC):
         return result
 
     @deprecated_with_alternative('map_to_type()')
-    def map_to_records(self, function):
+    def map_to_records(self, function) -> RecordStream:
         return self.map_to_type(
             function,
             stream_type=sm.StreamType.RecordStream,
         )
 
     @deprecated_with_alternative('map_to_type()')
-    def map_to_any(self, function):
+    def map_to_any(self, function) -> AnyStream:
         return self.map_to_type(
             function,
             stream_type=sm.StreamType.AnyStream,
         )
 
-    def to_any(self):
+    def to_any_stream(self) -> AnyStream:
         return self.stream(
             self.get_items(),
             stream_type=sm.StreamType.AnyStream,
         )
 
-    def to_lines(self, delimiter: Union[str, arg.DefaultArgument] = arg.DEFAULT):
+    def to_line_stream(self, delimiter: Union[str, arg.DefaultArgument] = arg.DEFAULT) -> LineStream:
         delimiter = arg.undefault(delimiter, '\t' if sm.StreamType.RowStream.isinstance(self) else None)
         if delimiter:
             func = delimiter.join
@@ -92,13 +102,13 @@ class ConvertMixin(sm.AbstractStream, ABC):
             stream_type=sm.StreamType.LineStream,
         )
 
-    def to_json(self):
+    def to_json(self) -> LineStream:
         return self.stream(
             self.get_mapped_items(json.dumps),
             stream_type=sm.StreamType.LineStream,
         )
 
-    def to_records(self, *args, **kwargs):
+    def to_record_stream(self, *args, **kwargs) -> RecordStream:
         if 'function' in kwargs:
             func = kwargs.pop('function')
             items = self.get_mapped_items(lambda i: func(i, *args, **kwargs))
@@ -106,9 +116,11 @@ class ConvertMixin(sm.AbstractStream, ABC):
             columns = kwargs.pop('columns')
             assert not args
             items = self.get_records(columns)
+        elif self.get_stream_type() == sm.StreamType.RecordStream:
+            return self
         elif kwargs:  # and not args
             assert not args
-            return self.to_any().select(**kwargs)
+            return self.to_any_stream().select(**kwargs)
         elif args:  # and not kwargs
             if len(kwargs) == 1:
                 if callable(args[0]):
@@ -127,7 +139,7 @@ class ConvertMixin(sm.AbstractStream, ABC):
             stream_type=sm.StreamType.RecordStream,
         )
 
-    def to_rows(self, *args, **kwargs):
+    def to_row_stream(self, *args, **kwargs) -> RowStream:
         function, delimiter = None, None
         if 'function' in kwargs:
             function = kwargs.pop('function')
@@ -147,7 +159,7 @@ class ConvertMixin(sm.AbstractStream, ABC):
             delimiter = kwargs.pop('delimiter')
         elif args:
             assert not kwargs
-            return self.to_any().select(*args)
+            return self.to_any_stream().select(*args)
         if function:
             items = self.get_mapped_items(lambda i: function(i, *args, **kwargs))
         elif delimiter:
@@ -159,7 +171,7 @@ class ConvertMixin(sm.AbstractStream, ABC):
             stream_type=sm.StreamType.RowStream,
         )
 
-    def to_key_value(self, key=fs.value_by_key(0), value=fs.value_by_key(1)):
+    def to_key_value_stream(self, key=fs.value_by_key(0), value=fs.value_by_key(1)) -> KeyValueStream:
         if isinstance(key, (list, tuple)):
             key = fs.composite_key(key)
         if isinstance(value, (list, tuple)):
@@ -169,24 +181,16 @@ class ConvertMixin(sm.AbstractStream, ABC):
             stream_type=sm.StreamType.KeyValueStream,
         )
 
-    def to_pairs(self, *args, **kwargs):
+    @deprecated_with_alternative('ConvertMixin.to_key_value_stream()')
+    def to_pairs(self, *args, **kwargs) -> KeyValueStream:
         if sm.StreamType.LineStream:
-            return self.to_rows(*args, **kwargs).to_key_value()
+            return self.to_row_stream(*args, **kwargs).to_key_value_stream()
         else:
-            return self.to_key_value(*args, **kwargs)
+            return self.to_key_value_stream(*args, **kwargs)
 
-    def get_rows(self, columns: Union[tuple, arg.DefaultArgument] = arg.DEFAULT):
-        if columns == arg.DEFAULT:
-            if sm.StreamType.RecordStream.isinstance(self):
-                for r in self.get_items():
-                    yield [r.get(c) for c in columns]
-            else:
-                return sm.RowStream.get_validated(self.get_items())
-        else:
-            return self.get_mapped_items(fs.composite_key(columns))
-
-    def get_records(self, columns: Union[tuple, arg.DefaultArgument] = arg.DEFAULT):
-        if columns == arg.DEFAULT:
-            return self.get_mapped_items(lambda i: dict(item=i))
-        else:
-            return self.get_mapped_items(lambda i: dict(zip(columns, fs.composite_key(columns)(i))))
+    def to_stream(self, stream_type=arg.DEFAULT, *args, **kwargs) -> Stream:
+        stream_type = arg.undefault(stream_type, self.get_stream_type())
+        method_suffix = sm.StreamType.of(stream_type).get_method_suffix()
+        method_name = 'to_{}'.format(method_suffix)
+        stream_method = self.__getattribute__(method_name)
+        return stream_method(stream_type, *args, **kwargs)

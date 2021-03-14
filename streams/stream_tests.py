@@ -173,8 +173,8 @@ def test_records_select():
     ]
     received_1 = sm.AnyStream(
         EXAMPLE_CSV_ROWS,
-    ).to_lines(
-    ).to_rows(
+    ).to_line_stream(
+    ).to_row_stream(
         delimiter=',',
     ).map_to_records(
         lambda p: {p[0]: p[1]},
@@ -194,8 +194,8 @@ def test_records_select():
     ]
     received_2 = sm.AnyStream(
         EXAMPLE_CSV_ROWS,
-    ).to_lines(
-    ).to_rows(
+    ).to_line_stream(
+    ).to_row_stream(
         delimiter=',',
     ).select(
         0,
@@ -220,7 +220,7 @@ def test_save_and_read():
     expected = [str(i) for i in EXAMPLE_INT_SEQUENCE]
     received_0 = sm.AnyStream(
         EXAMPLE_INT_SEQUENCE,
-    ).to_lines(
+    ).to_line_stream(
     ).lazy_save(
         EXAMPLE_FILENAME,
     ).get_list()
@@ -231,7 +231,7 @@ def test_save_and_read():
     assert received_1 == expected, 'test case 1: secondary fileholder'
     sm.AnyStream(
         EXAMPLE_INT_SEQUENCE,
-    ).to_lines(
+    ).to_line_stream(
     ).to_text_file(
         EXAMPLE_FILENAME,
     )
@@ -241,7 +241,7 @@ def test_save_and_read():
     assert received_2 == expected, 'test case 2: to_text_file()'
     sm.AnyStream(
         EXAMPLE_INT_SEQUENCE,
-    ).to_rows(
+    ).to_row_stream(
         function=lambda i: [i],
     ).to_column_file(
         EXAMPLE_FILENAME,
@@ -299,14 +299,14 @@ def test_add_records():
     ).map_to_records(
         lambda i: dict(item=i),
     ).add(
-        sm.AnyStream(addition).to_records(),
+        sm.AnyStream(addition).to_record_stream(),
     ).get_list()
     assert received_1 == expected_1, 'test case 1i'
     received_2 = sm.AnyStream(
         EXAMPLE_INT_SEQUENCE,
-    ).to_records(
+    ).to_record_stream(
     ).add(
-        sm.AnyStream(addition).to_records(),
+        sm.AnyStream(addition).to_record_stream(),
         before=True,
     ).get_list()
     assert received_2 == expected_2, 'test case 2i'
@@ -473,7 +473,7 @@ def test_group_by():
         [21],
         [31, 32, 33],
     ]
-    received_0 = sm.AnyStream(example).to_rows().to_records(
+    received_0 = sm.AnyStream(example).to_row_stream().to_record_stream(
         columns=('x', 'y'),
     ).group_by(
         'x',
@@ -484,7 +484,7 @@ def test_group_by():
     ).get_list()
     assert received_0 == expected, 'test case 0'
 
-    received_1 = sm.AnyStream(example).to_rows().to_records(
+    received_1 = sm.AnyStream(example).to_row_stream().to_record_stream(
         columns=('x', 'y'),
     ).group_by(
         'x',
@@ -622,8 +622,8 @@ def test_to_rows():
     expected = [['a', '1'], ['b', '2,22'], ['c', '3']]
     received = sm.AnyStream(
         EXAMPLE_CSV_ROWS,
-    ).to_lines(
-    ).to_rows(
+    ).to_line_stream(
+    ).to_row_stream(
         ',',
     ).get_list()
     assert received == expected
@@ -634,7 +634,7 @@ def test_parse_json():
     expected = [{'a': 'b'}, {'err': 'err'}, {'d': 'e'}]
     received = sm.AnyStream(
         example,
-    ).to_lines(
+    ).to_line_stream(
     ).parse_json(
         default_value={'err': 'err'},
     ).get_list()

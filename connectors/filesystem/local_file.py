@@ -287,7 +287,7 @@ class TextFile(AbstractFile):
     def write_stream(self, stream, verbose=AUTO):
         assert sm.is_stream(stream)
         return self.write_lines(
-            stream.to_lines().data,
+            stream.to_line_stream().data,
             verbose=verbose,
         )
 

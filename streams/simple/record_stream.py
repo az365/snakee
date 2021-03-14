@@ -207,9 +207,9 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
             dataframe = dataframe[columns]
         return dataframe
 
-    def to_lines(self, columns, add_title_row=False, delimiter='\t'):
+    def to_line_stream(self, columns, add_title_row=False, delimiter='\t'):
         return sm.LineStream(
-            self.to_rows(columns, add_title_row=add_title_row),
+            self.to_row_stream(columns, add_title_row=add_title_row),
             count=self.count,
             less_than=self.less_than,
         ).map(
@@ -223,11 +223,11 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
         for r in self.get_items():
             yield [r.get(c) for c in columns]
 
-    def to_rows(self, *columns, **kwargs):
+    def to_row_stream(self, *columns, **kwargs):
         add_title_row = kwargs.pop('add_title_row', None)
         columns = arg.update(columns, kwargs.pop('columns', None))
         if kwargs:
-            raise ValueError('to_rows(): {} arguments are not supported'.format(kwargs.keys()))
+            raise ValueError('to_row_stream(): {} arguments are not supported'.format(kwargs.keys()))
 
         if self.count is None:
             count = None
@@ -240,7 +240,7 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
         )
 
     def schematize(self, schema, skip_bad_rows=False, skip_bad_values=False, verbose=True):
-        return self.to_rows(
+        return self.to_row_stream(
             columns=schema.get_columns(),
         ).schematize(
             schema=schema,
@@ -249,7 +249,7 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
             verbose=verbose,
         )
 
-    def to_key_value(self, key='key', value=None, skip_errors=False):
+    def to_key_value_stream(self, key='key', value=None, skip_errors=False):
         kws = dict(logger=self.get_logger(), skip_errors=skip_errors)
 
         def get_pairs():
@@ -293,10 +293,10 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
         meta = self.get_meta()
         if not gzip:
             meta.pop('count')
-        sm_csv_file = self.to_rows(
+        sm_csv_file = self.to_row_stream(
             columns=columns,
             add_title_row=add_title_row,
-        ).to_lines(
+        ).to_line_stream(
             delimiter=delimiter,
         ).to_text_file(
             filename,
@@ -309,9 +309,9 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
         if return_stream:
             return sm_csv_file.skip(
                 1 if add_title_row else 0,
-            ).to_rows(
+            ).to_row_stream(
                 delimiter=delimiter,
-            ).to_records(
+            ).to_record_stream(
                 columns=columns,
             ).update_meta(
                 **meta
@@ -339,9 +339,9 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
             check=check,
             expected_count=expected_count,
             verbose=verbose,
-        ).to_rows(
+        ).to_row_stream(
             delimiter=delimiter,
-        ).to_records(
+        ).to_record_stream(
             columns=columns,
         )
 
@@ -370,7 +370,7 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
         return parsed_stream
 
     def get_dict(self, key, value=None, of_lists=False, skip_errors=False):
-        return self.to_key_value(
+        return self.to_key_value_stream(
             key, value,
             skip_errors=skip_errors,
         ).get_dict(
