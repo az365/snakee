@@ -1,6 +1,7 @@
-from enum import Enum
 from functools import wraps
 import logging
+
+from loggers.extended_logger_interface import LoggingLevel
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
@@ -21,20 +22,6 @@ DEFAULT_LOGGING_LEVEL = logging.WARNING
 DEFAULT_FORMATTER = '%(asctime)s - %(levelname)s - %(message)s'
 DEFAULT_LINE_LEN = 127
 LONG_LINE_LEN = 600
-
-
-class OperationStatus(Enum):
-    New = 'new'
-    InProgress = 'in_progress'
-    Done = 'done'
-
-
-class LoggingLevel(Enum):
-    Debug = logging.DEBUG
-    Info = logging.INFO
-    Warning = logging.WARNING
-    Error = logging.ERROR
-    Critical = logging.CRITICAL
 
 
 def get_method_name(level=LoggingLevel.Info):

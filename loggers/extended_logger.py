@@ -1,3 +1,5 @@
+import loggers.extended_logger_interface
+
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from loggers import logger_classes as log
@@ -34,7 +36,7 @@ class ExtendedLogger(BaseLogger):
         self.max_line_len = arg.undefault(max_line_len, log.DEFAULT_LINE_LEN)
         self.progress_trackers = list()
         self.context = context
-        self.LoggingLevel = log.LoggingLevel
+        self.LoggingLevel = loggers.extended_logger_interface.LoggingLevel
 
     def get_context(self):
         return self.context
@@ -68,12 +70,12 @@ class ExtendedLogger(BaseLogger):
         log.get_selection_logger(**kwargs)
 
     def log(self, msg, level=arg.DEFAULT, logger=arg.DEFAULT, end=arg.DEFAULT, verbose=True):
-        level = arg.undefault(level, log.LoggingLevel.Info if verbose else log.LoggingLevel.Debug)
+        level = arg.undefault(level, loggers.extended_logger_interface.LoggingLevel.Info if verbose else loggers.extended_logger_interface.LoggingLevel.Debug)
         logger = arg.undefault(logger, self.base_logger)
         if isinstance(msg, (list, tuple)):
             msg = self.format_message(*msg)
-        if not isinstance(level, log.LoggingLevel):
-            level = log.LoggingLevel(level)
+        if not isinstance(level, loggers.extended_logger_interface.LoggingLevel):
+            level = loggers.extended_logger_interface.LoggingLevel(level)
         if logger:
             if level.value >= self.level:
                 logging_method = getattr(logger, log.get_method_name(level))
@@ -82,19 +84,19 @@ class ExtendedLogger(BaseLogger):
             self.show(msg, end=end)
 
     def debug(self, msg):
-        self.log(msg=msg, level=log.LoggingLevel.Debug)
+        self.log(msg=msg, level=loggers.extended_logger_interface.LoggingLevel.Debug)
 
     def info(self, msg):
-        self.log(msg=msg, level=log.LoggingLevel.Info)
+        self.log(msg=msg, level=loggers.extended_logger_interface.LoggingLevel.Info)
 
     def warning(self, msg):
-        self.log(msg=msg, level=log.LoggingLevel.Warning)
+        self.log(msg=msg, level=loggers.extended_logger_interface.LoggingLevel.Warning)
 
     def error(self, msg):
-        self.log(msg=msg, level=log.LoggingLevel.Error)
+        self.log(msg=msg, level=loggers.extended_logger_interface.LoggingLevel.Error)
 
     def critical(self, msg):
-        self.log(msg=msg, level=log.LoggingLevel.Critical)
+        self.log(msg=msg, level=loggers.extended_logger_interface.LoggingLevel.Critical)
 
     def format_message(self, *messages, max_len=arg.DEFAULT):
         messages = arg.update(messages)

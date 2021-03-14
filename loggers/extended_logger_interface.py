@@ -1,14 +1,48 @@
 from abc import ABC, abstractmethod
+from enum import Enum
+import logging
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
+    from base.contextual import ContextualInterface
     from loggers.logger_interface import LoggerInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
+    from ..base.contextual import ContextualInterface
     from .logger_interface import LoggerInterface
 
 
-class ExtendedLoggerInterface(LoggerInterface, ABC):
+class LoggingLevel(Enum):
+    Debug = logging.DEBUG
+    Info = logging.INFO
+    Warning = logging.WARNING
+    Error = logging.ERROR
+    Critical = logging.CRITICAL
+
+    def get_value(self):
+        return self.value
+
+    def get_name(self):
+        if self == LoggingLevel.Debug:
+            return 'debug'
+        elif self == LoggingLevel.Info:
+            return 'info'
+        elif self == LoggingLevel.Warning:
+            return 'warning'
+        elif self == LoggingLevel.Error:
+            return 'error'
+        elif self == LoggingLevel.Critical:
+            return 'critical'
+
+    def get_method_name(self):
+        return self.get_name()
+
+    @classmethod
+    def get_default(cls):
+        return cls.Warning
+
+
+class ExtendedLoggerInterface(ContextualInterface, LoggerInterface, ABC):
     @staticmethod
     def is_common_logger() -> bool:
         pass

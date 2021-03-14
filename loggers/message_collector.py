@@ -1,3 +1,5 @@
+import loggers.extended_logger_interface
+
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from loggers import logger_classes as log
@@ -61,7 +63,7 @@ class MessageCollector(log.ExtendedLogger):
             self.get_examples(key).append(details)
 
     def log(self, msg, level=arg.DEFAULT, logger=None, end=arg.DEFAULT, verbose=False):
-        level = arg.undefault(level, log.LoggingLevel.Debug)
+        level = arg.undefault(level, loggers.extended_logger_interface.LoggingLevel.Debug)
         if isinstance(msg, str):
             msg = log.DetailedMessage(message=msg)
         self.add_message(msg)

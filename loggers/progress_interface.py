@@ -1,17 +1,29 @@
 from abc import ABC, abstractmethod
+from enum import Enum
 from typing import Union, Iterable
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
+    from base.tree_item import TreeInterface
     from loggers.extended_logger_interface import ExtendedLoggerInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
+    from ..base.tree_item import TreeInterface
     from .extended_logger_interface import ExtendedLoggerInterface
 
 Logger = Union[ExtendedLoggerInterface, arg.DefaultArgument]
 
 
-class ProgressInterface(ABC):
+class OperationStatus(Enum):
+    New = 'new'
+    InProgress = 'in_progress'
+    Done = 'done'
+
+    def get_name(self):
+        return self.value
+
+
+class ProgressInterface(TreeInterface, ABC):
     @abstractmethod
     def get_logger(self) -> Logger:
         pass

@@ -1,5 +1,8 @@
 from datetime import timedelta, datetime
 
+import loggers.extended_logger_interface
+import loggers.progress_interface
+
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from loggers import logger_classes as log
@@ -21,7 +24,7 @@ class Progress:
         self.name = name
         self.expected_count = count
         self.verbose = verbose
-        self.state = log.OperationStatus.New
+        self.state = loggers.progress_interface.OperationStatus.New
         self.position = 0
         self.timing = timing
         self.start_time = None
@@ -139,7 +142,7 @@ class Progress:
 
     def update_now(self, cur):
         self.position = cur or self.position or 0
-        if self.state != log.OperationStatus.InProgress:
+        if self.state != loggers.progress_interface.OperationStatus.InProgress:
             self.start(cur)
         if self.expected_count:
             line = '{name}: {percent} ({pos}/{count}) processed'.format(
@@ -154,7 +157,7 @@ class Progress:
             line = '{}, {} errors'.format(line, self.get_selection_logger().get_err_count())
         if self.timing:
             line = '{} {} ({} it/sec)'.format(self.get_timing_str(), line, self.evaluate_speed())
-        self.log(line, level=log.LoggingLevel.Debug, end='\r')
+        self.log(line, level=loggers.extended_logger_interface.LoggingLevel.Debug, end='\r')
 
     def update_with_step(self, position, step=arg.DEFAULT):
         step = arg.undefault(step, log.DEFAULT_STEP)
@@ -175,7 +178,7 @@ class Progress:
             self.update_with_step(position, step)
 
     def start(self, position=0):
-        self.state = log.OperationStatus.InProgress
+        self.state = loggers.progress_interface.OperationStatus.InProgress
         self.start_time = datetime.now()
         self.position = position or self.position or 0
         if self.position != position:
