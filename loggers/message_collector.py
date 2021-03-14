@@ -1,18 +1,19 @@
-import loggers.extended_logger_interface
-
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
-    from loggers import logger_classes as log
+    from loggers.detailed_message import DetailedMessage, SelectionError
+    from loggers.extended_logger_interface import LoggingLevel
+    from loggers.extended_logger import ExtendedLogger
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
-    from . import logger_classes as log
-
+    from .detailed_message import DetailedMessage, SelectionError
+    from .extended_logger_interface import LoggingLevel
+    from .extended_logger import ExtendedLogger
 
 DEFAULT_MESSAGE_COLLECTOR_NAME = 'MessageCollector'
 SELECTION_MESSAGE_COLLECTOR_NAME = 'SelectorMessageCollector'
 
 
-class MessageCollector(log.ExtendedLogger):
+class MessageCollector(ExtendedLogger):
     def __init__(
             self,
             name=DEFAULT_MESSAGE_COLLECTOR_NAME,
@@ -26,11 +27,9 @@ class MessageCollector(log.ExtendedLogger):
         self.max_keys = max_keys
         self.max_items = max_items
 
-    def get_name(self):
-        return self.name
-
-    def set_name(self, name):
-        self.name = name
+    @staticmethod
+    def is_common_logger() -> bool:
+        return False
 
     def get_keys(self):
         return self.counts.keys()
@@ -50,7 +49,7 @@ class MessageCollector(log.ExtendedLogger):
     def get_example_count(self, key):
         return len(self.get_examples(key))
 
-    def add_message(self, message: log.DetailedMessage, key_as_str=True):
+    def add_message(self, message: DetailedMessage, key_as_str=True):
         if key_as_str:
             key = message.get_key_str()
         else:
@@ -62,16 +61,18 @@ class MessageCollector(log.ExtendedLogger):
             details = message.get_detail_values()
             self.get_examples(key).append(details)
 
-    def log(self, msg, level=arg.DEFAULT, logger=None, end=arg.DEFAULT, verbose=False):
-        level = arg.undefault(level, loggers.extended_logger_interface.LoggingLevel.Debug)
+    def log(self, msg, level=arg.DEFAULT, logger=None, end=arg.DEFAULT, verbose=False, truncate=False):
+        level = arg.undefault(level, LoggingLevel.Debug)
         if isinstance(msg, str):
-            msg = log.DetailedMessage(message=msg)
+            msg = DetailedMessage(message=msg)
         self.add_message(msg)
         if logger or verbose:
-            super().log(msg, level, logger, end, verbose)
+            super().log(msg, level, logger, end, verbose, truncate)
 
     def get_str(self):
-        return '{}: {}'.format(self.name, ', '.join(['{}: {}'.format(k, v) for k, v in self.get_counts().items()]))
+        return '{}: {}'.format(
+            self.get_name(), ', '.join(['{}: {}'.format(k, v) for k, v in self.get_counts().items()]),
+        )
 
 
 class SelectionMessageCollector(MessageCollector):
@@ -89,9 +90,6 @@ class SelectionMessageCollector(MessageCollector):
         )
         self.ok_key = ok_key
         self.counts[ok_key] = 0
-
-    def set_options(self, **kwargs):
-        self.__dict__.update(kwargs)
 
     def get_ok_key(self):
         return self.ok_key
@@ -111,7 +109,7 @@ class SelectionMessageCollector(MessageCollector):
         else:
             return self.get_unordered_keys()
 
-    def is_new_key(self, message: log.SelectionError, key_as_str=True):
+    def is_new_key(self, message: SelectionError, key_as_str=True):
         if key_as_str:
             key = message.get_key_str()
         else:
@@ -127,13 +125,13 @@ class SelectionMessageCollector(MessageCollector):
                 yield key, self.get_count(key)
 
     def log_selection_error(self, func, in_fields, in_values, in_record, message):
-        msg = log.SelectionError(func, in_fields, in_values, in_record, message)
+        msg = SelectionError(func, in_fields, in_values, in_record, message)
         is_new_key = self.is_new_key(msg)
         self.add_message(msg)
         if is_new_key:
             self.show_error(msg)
 
-    def show_error(self, message: log.SelectionError):
+    def show_error(self, message: SelectionError):
         msg = '{} selection errors with {} keys: {}'.format(
             self.get_err_count(), self.get_key_count(), message.get_str(),
         )
