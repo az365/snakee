@@ -1,11 +1,10 @@
 from datetime import datetime
 from random import randint
-from typing import Union, Generator, Iterator, Iterable, Callable
-
+from typing import Union, Generator, Iterator, Iterable, Callable, Optional
 
 NOT_USED = None
 DEFAULT_VALUE = 'DefaultArgument'
-DEFAULT_RANDOM_LEN = 3
+DEFAULT_RANDOM_LEN = 4
 
 
 class DefaultArgument:
@@ -15,7 +14,10 @@ class DefaultArgument:
 
     def __eq__(self, other):
         if hasattr(other, 'get_value'):
-            other = other.get_value()
+            try:
+                other = other.get_value()
+            except TypeError:
+                pass
         elif hasattr(other, 'get_name'):
             try:
                 other = other.get_name()
@@ -43,6 +45,17 @@ def update(args, addition=None):
     return args
 
 
+def apply(func: Callable, *args, **kwargs):
+    return func(*args, **kwargs)
+
+
+def delayed_undefault(current, func, *args, **kwargs):
+    if current == DEFAULT:
+        return apply(func, *args, **kwargs)
+    else:
+        return current
+
+
 def simple_undefault(current, default):
     if current == DEFAULT:
         return default
@@ -51,17 +64,10 @@ def simple_undefault(current, default):
 
 
 def undefault(current, default, *args, delayed=False, **kwargs):
-    if current == DEFAULT:
-        if delayed or args or kwargs:
-            return apply(default, *args, **kwargs)
-        else:
-            return default
+    if delayed or args or kwargs:
+        return delayed_undefault(current, func=default, *args, **kwargs)
     else:
-        return current
-
-
-def apply(func: Callable, *args, **kwargs):
-    return func(*args, **kwargs)
+        return simple_undefault(current, default)
 
 
 def get_list(arg: Iterable) -> list:
@@ -95,18 +101,28 @@ def is_in_memory(obj) -> bool:
     return not is_generator(obj)
 
 
+def get_optional_len(obj: Iterable, default=None) -> Optional[int]:
+    if isinstance(obj, (tuple, list, set)):
+        return len(obj)
+    else:
+        return default
+
+
 def is_absolute_path(path: str) -> bool:
     return path.startswith('/') or path.startswith('\\') or ':' in path
 
 
 def is_defined(obj) -> bool:
     if obj is None:
-        return False
+        result = False
     elif obj in (DEFAULT, DEFAULT.get_value(), str(DEFAULT)):
-        return False
+        result = False
     elif hasattr(obj, 'get_value'):
-        return is_defined(obj.get_value())
+        result = is_defined(obj.get_value())
     elif hasattr(obj, 'get_name'):
-        return is_defined(obj.get_name())
+        result = is_defined(obj.get_name())
     elif hasattr(obj, 'value'):
-        return is_defined(obj.value)
+        result = is_defined(obj.value)
+    else:
+        result = bool(obj)
+    return result
