@@ -1,41 +1,24 @@
-from abc import ABC, abstractmethod
-from typing import Optional, Union, NoReturn
+from abc import ABC
+from typing import Optional, Union
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
-    from base.named import AbstractNamed
-    from base.sourced import Sourced
-    from base.context_interface import ContextInterface
+    from base.interfaces.context_interface import ContextInterface
+    from base.interfaces.contextual_interface import ContextualInterface
+    from base.abstract.named import AbstractNamed
+    from base.abstract.sourced import Sourced
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..utils import arguments as arg
+    from utils import arguments as arg
+    from ..interfaces.context_interface import ContextInterface
+    from ..interfaces.contextual_interface import ContextualInterface
     from .named import AbstractNamed
     from .sourced import Sourced
-    from .context_interface import ContextInterface
-
 
 Context = Optional[ContextInterface]
 Source = Union[Context, Sourced]
 
 
-class ContextualInterface(Sourced, ABC):
-    @abstractmethod
-    def get_source(self) -> Source:
-        pass
-
-    @abstractmethod
-    def get_context(self) -> Context:
-        pass
-
-    @abstractmethod
-    def set_context(self, context: Context) -> NoReturn:
-        pass
-
-    @abstractmethod
-    def put_into_context(self) -> NoReturn:
-        pass
-
-
-class Contextual(ContextualInterface):
+class Contextual(Sourced, ContextualInterface, ABC):
     def __init__(
             self, name: str = arg.DEFAULT,
             source: Source = None,
@@ -43,8 +26,8 @@ class Contextual(ContextualInterface):
             check: bool = True,
     ):
         name = arg.undefault(name, arg.get_generated_name(self._get_default_name_prefix()))
-        if context:
-            if source:
+        if arg.is_defined(context):
+            if arg.is_defined(source):
                 source.set_context(context)
             else:
                 source = context
@@ -54,8 +37,6 @@ class Contextual(ContextualInterface):
 
     def get_source(self) -> Union[Source, ContextualInterface]:
         source = self._source
-        if source:
-            assert isinstance(source, (ContextInterface, ContextualInterface))
         return source
 
     def _has_context_as_source(self):
@@ -86,10 +67,13 @@ class Contextual(ContextualInterface):
 
     def put_into_context(self, check=True):
         context = self.get_context()
-        assert context, 'for put_into_context context must be defined'
-        known_child = context.get_child(self.get_name())
-        if known_child:
-            if check:
-                assert known_child == self, '{} != {}'.format(known_child, self)
-        else:
-            context.add_child(self)
+        if context:
+            known_child = context.get_child(self.get_name())
+            if known_child:
+                if check:
+                    assert known_child == self, '{} != {}'.format(known_child, self)
+            else:
+                context.add_child(self)
+        elif check:
+            msg = 'for put_into_context context must be defined (got object {} with source {}'
+            raise ValueError(msg.format(self, self.get_source()))

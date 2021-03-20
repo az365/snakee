@@ -1,20 +1,21 @@
 from abc import ABC
-from typing import Union, Optional, Iterable
+from typing import Union, Optional, Iterable, Any
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
-    from base.data_interface import DataInterface
-    from base.abstract_base import AbstractSnakeeBaseObject
-    from base.contextual import ContextualInterface, Contextual
-    from base.context_interface import ContextInterface
+    from base.interfaces.data_interface import DataInterface
+    from base.abstract.abstract_base import AbstractBaseObject
+    from base.abstract.contextual import Contextual
+    from base.interfaces.contextual_interface import ContextualInterface
+    from base.interfaces.context_interface import ContextInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..utils import arguments as arg
-    from .data_interface import DataInterface
-    from .abstract_base import AbstractSnakeeBaseObject
+    from utils import arguments as arg
+    from base.interfaces.data_interface import DataInterface
+    from .abstract_base import AbstractBaseObject
     from .contextual import ContextualInterface, Contextual
-    from .context_interface import ContextInterface
+    from base.interfaces.context_interface import ContextInterface
 
-
+Data = Union[Iterable, Any]
 OptionalFields = Optional[Union[str, Iterable]]
 Source = Optional[ContextualInterface]
 Context = Optional[ContextInterface]
@@ -37,10 +38,10 @@ class DataWrapper(Contextual, DataInterface, ABC):
     def _get_data_member_names(cls):
         return DATA_MEMBER_NAMES
 
-    def get_data(self):
+    def get_data(self) -> Data:
         return self._data
 
-    def set_data(self, data, inplace: bool):
+    def set_data(self, data: Data, inplace: bool):
         if inplace:
             self._data = data
             self.set_meta(**self.get_static_meta())

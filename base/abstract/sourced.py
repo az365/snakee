@@ -3,14 +3,14 @@ from typing import Optional, NoReturn
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
-    from base.named import AbstractNamed
-    from base.context_interface import ContextInterface
+    from base.abstract.named import AbstractNamed
+    from base.interfaces.context_interface import ContextInterface
     from loggers.logger_interface import LoggerInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..utils import arguments as arg
+    from utils import arguments as arg
     from .named import AbstractNamed
-    from .context_interface import ContextInterface
-    from ..loggers.logger_interface import LoggerInterface
+    from base.interfaces.context_interface import ContextInterface
+    from loggers.logger_interface import LoggerInterface
 
 
 Source = Optional[AbstractNamed]

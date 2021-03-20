@@ -2,20 +2,20 @@ from typing import Union, Optional, Iterable
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
-    from base.abstract_base import AbstractSnakeeBaseObject
-    from base.named import AbstractNamed
-    from base.contextual import Contextual
-    from base.data import DataWrapper
-    from base.tree_interface import TreeInterface
-    from base.context_interface import ContextInterface
+    from base.abstract.abstract_base import AbstractSnakeeBaseObject
+    from base.abstract.named import AbstractNamed
+    from base.abstract.contextual import Contextual
+    from base.abstract.data import DataWrapper
+    from base.interfaces.tree_interface import TreeInterface
+    from base.interfaces.context_interface import ContextInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..utils import arguments as arg
+    from utils import arguments as arg
     from .abstract_base import AbstractSnakeeBaseObject
     from .named import AbstractNamed
     from .contextual import Contextual
     from .data import DataWrapper
-    from .tree_interface import TreeInterface
-    from .context_interface import ContextInterface
+    from base.interfaces.tree_interface import TreeInterface
+    from base.interfaces.context_interface import ContextInterface
 
 Context = Optional[ContextInterface]
 Parent = Union[Context, TreeInterface]

@@ -3,14 +3,15 @@ from typing import Union, Optional, Iterable
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
+    from base.interfaces.base_interface import BaseInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..utils import arguments as arg
-
+    from utils import arguments as arg
+    from ..interfaces.base_interface import BaseInterface
 
 OptionalFields = Optional[Union[str, Iterable]]
 
 
-class AbstractSnakeeBaseObject(ABC):
+class AbstractBaseObject(BaseInterface, ABC):
     def set_inplace(self, **kwargs):
         for k, v in kwargs.items():
             try:
@@ -142,10 +143,10 @@ class AbstractSnakeeBaseObject(ABC):
             **new_meta
         )
 
-    def get_compatible_meta(self, other=arg.DEFAULT, **kwargs) -> dict:
+    def get_compatible_meta(self, other=arg.DEFAULT, ex=None, **kwargs) -> dict:
         other_meta = self._get_other_meta_fields_list(other)
         compatible_meta = dict()
-        for k, v in list(self.get_meta().items()) + list(kwargs.items()):
+        for k, v in list(self.get_meta(ex=ex).items()) + list(kwargs.items()):
             if k in other_meta:
                 compatible_meta[k] = v
         return compatible_meta

@@ -3,14 +3,16 @@ from typing import Optional
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
-    from base.named import AbstractNamed
-    from base.tree_interface import TreeInterface
+    from base.interfaces.base_interface import BaseInterface
+    from base.interfaces.tree_interface import TreeInterface
     from loggers.logger_interface import LoggerInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..utils import arguments as arg
-    from .named import AbstractNamed
+    from ...utils import arguments as arg
+    from .base_interface import BaseInterface
     from .tree_interface import TreeInterface
-    from ..loggers.logger_interface import LoggerInterface
+    from ...loggers.logger_interface import LoggerInterface
+
+Named = Optional[BaseInterface]
 
 
 class ContextInterface(TreeInterface, ABC):
@@ -38,19 +40,19 @@ class ContextInterface(TreeInterface, ABC):
         pass
 
     @abstractmethod
-    def get_stream(self, name: str) -> Optional[AbstractNamed]:
+    def get_stream(self, name: str) -> Named:
         pass
 
     @abstractmethod
-    def get_connection(self, name: str) -> Optional[AbstractNamed]:
+    def get_connection(self, name: str) -> Named:
         pass
 
     @abstractmethod
-    def conn(self, conn, name: str, check: bool, redefine: bool, **kwargs) -> AbstractNamed:
+    def conn(self, conn, name: str, check: bool, redefine: bool, **kwargs) -> Named:
         pass
 
     @abstractmethod
-    def stream(self, stream_type, name: str, check: bool, **kwargs) -> AbstractNamed:
+    def stream(self, stream_type, name: str, check: bool, **kwargs) -> Named:
         pass
 
     @abstractmethod
@@ -58,15 +60,15 @@ class ContextInterface(TreeInterface, ABC):
         pass
 
     @abstractmethod
-    def get_local_storage(self, name: str) -> AbstractNamed:
+    def get_local_storage(self, name: str) -> Named:
         pass
 
     @abstractmethod
-    def get_job_folder(self) -> AbstractNamed:
+    def get_job_folder(self) -> Named:
         pass
 
     @abstractmethod
-    def get_tmp_folder(self) -> AbstractNamed:
+    def get_tmp_folder(self) -> Named:
         pass
 
     @abstractmethod

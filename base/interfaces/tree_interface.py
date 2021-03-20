@@ -3,10 +3,10 @@ from typing import Union, Optional, Iterable, Any
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
-    from base.named import AbstractNamed
+    from base.abstract.named import AbstractNamed
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..utils import arguments as arg
-    from .named import AbstractNamed
+    from utils import arguments as arg
+    from base.abstract.named import AbstractNamed
 
 Parent = Optional[Union[AbstractNamed, Any]]
 OptionalFields = Optional[Union[str, Iterable]]
