@@ -3,11 +3,13 @@ from typing import Union, Optional, Iterable
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
+    from base.data_interface import DataInterface
     from base.abstract_base import AbstractSnakeeBaseObject
     from base.contextual import ContextualInterface, Contextual
     from base.context_interface import ContextInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
+    from .data_interface import DataInterface
     from .abstract_base import AbstractSnakeeBaseObject
     from .contextual import ContextualInterface, Contextual
     from .context_interface import ContextInterface
@@ -18,10 +20,10 @@ Source = Optional[ContextualInterface]
 Context = Optional[ContextInterface]
 
 DATA_MEMBER_NAMES = ('_data', )
-DYNAMIC_MEMBER_NAMES = tuple()
+DYNAMIC_META_FIELDS = tuple()
 
 
-class DataWrapper(Contextual, ABC):
+class DataWrapper(Contextual, DataInterface, ABC):
     def __init__(
             self, data, name: str,
             source: Source = None,
@@ -38,6 +40,13 @@ class DataWrapper(Contextual, ABC):
     def get_data(self):
         return self._data
 
+    def set_data(self, data, inplace: bool):
+        if inplace:
+            self._data = data
+            self.set_meta(**self.get_static_meta())
+        else:
+            return DataWrapper(data, **self.get_static_meta())
+
     def apply_to_data(self, function, *args, dynamic=False, **kwargs):
         return self.__class__(
             data=function(self.get_data(), *args, **kwargs),
@@ -46,7 +55,7 @@ class DataWrapper(Contextual, ABC):
 
     @staticmethod
     def _get_dynamic_meta_fields() -> tuple:
-        return DYNAMIC_MEMBER_NAMES
+        return DYNAMIC_META_FIELDS
 
     def get_static_meta(self, ex: OptionalFields = None) -> dict:
         meta = self.get_meta(ex=ex)

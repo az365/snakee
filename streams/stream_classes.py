@@ -9,6 +9,8 @@ TMP_FILES_TEMPLATE = 'stream_{}.tmp'
 TMP_FILES_ENCODING = 'utf8'
 
 try:  # Assume we're a sub-module in a package.
+    from utils import arguments as arg
+    from streams.interfaces.abstract_stream_interface import StreamInterface
     from streams.abstract.abstract_stream import AbstractStream
     from streams.abstract.iterable_stream import IterableStream
     from streams.abstract.local_stream import LocalStream
@@ -22,9 +24,11 @@ try:  # Assume we're a sub-module in a package.
     from streams.typed.schema_stream import SchemaStream
     from streams.simple.record_stream import RecordStream
     from streams.typed.pandas_stream import PandasStream
-    from utils import arguments as arg
     from schema import schema_classes as sh
+    from loggers.logger_classes import deprecated_with_alternative
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
+    from ..utils import arguments as arg
+    from .interfaces.abstract_stream_interface import StreamInterface
     from .abstract.abstract_stream import AbstractStream
     from .abstract.iterable_stream import IterableStream
     from .abstract.local_stream import LocalStream
@@ -38,8 +42,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .typed.schema_stream import SchemaStream
     from .simple.record_stream import RecordStream
     from .typed.pandas_stream import PandasStream
-    from ..utils import arguments as arg
     from ..schema import schema_classes as sh
+    from ..loggers.logger_classes import deprecated_with_alternative
 
 STREAM_CLASSES = (
     AbstractStream, IterableStream,
@@ -47,6 +51,24 @@ STREAM_CLASSES = (
     LineStream, RowStream, RecordStream,
     KeyValueStream,
     PandasStream, SchemaStream,
+)
+DICT_STREAM_CLASSES = dict(
+    AnyStream=AnyStream,
+    LineStream=LineStream,
+    RowStream=RowStream,
+    KeyValueStream=KeyValueStream,
+    SchemaStream=SchemaStream,
+    RecordStream=RecordStream,
+    PandasStream=PandasStream,
+)
+DICT_METHOD_SUFFIX = dict(
+    AnyStream='any_stream',
+    LineStream='line_stream',
+    RowStream='row_stream',
+    KeyValueStream='key_value_stream',
+    SchemaStream='schema_stream',
+    RecordStream='record_stream',
+    PandasStream='pandas_stream',
 )
 context = None  # global
 
@@ -60,23 +82,23 @@ class StreamType(Enum):
     RecordStream = 'RecordStream'
     PandasStream = 'PandasStream'
 
-    def get_class(self):
-        classes = dict(
-            AnyStream=AnyStream,
-            LineStream=LineStream,
-            RowStream=RowStream,
-            KeyValueStream=KeyValueStream,
-            SchemaStream=SchemaStream,
-            RecordStream=RecordStream,
-            PandasStream=PandasStream,
-        )
-        return classes.get(self.value)
+    def get_name(self):
+        return self.value
+
+    def get_class(self, default=STREAM_CLASSES[0]):
+        global DICT_STREAM_CLASSES
+        return DICT_STREAM_CLASSES.get(self.get_name(), default)
+
+    def get_method_suffix(self):
+        global DICT_METHOD_SUFFIX
+        return DICT_METHOD_SUFFIX.get(self.get_name())
 
     def stream(self, *args, provide_context=True, **kwargs):
         stream_class = self.get_class()
         if provide_context:
             global context
-            kwargs['context'] = context
+            if context and not kwargs.get('context'):
+                kwargs['context'] = context
         return stream_class(*args, **kwargs)
 
     @staticmethod
@@ -144,21 +166,21 @@ def is_stream(obj):
 
 
 def is_row(item):
-    return RowStream.is_valid_item(item)
+    return RowStream.is_valid_item_type(item)
 
 
 def is_record(item):
-    return RecordStream.is_valid_item(item)
+    return RecordStream.is_valid_item_type(item)
 
 
 def is_schema_row(item):
     return isinstance(item, sh.SchemaRow)
 
 
+@deprecated_with_alternative('AbstractStream.generate_name()')
 def generate_name():
     cur_time = datetime.now().strftime('%y%m%d_%H%M%S')
     random = randint(0, 1000)
-    # cur_name = cur_name.replace(':', '_').replace('-', '_')
     cur_name = '{}_{:03}'.format(cur_time, random)
     return cur_name
 

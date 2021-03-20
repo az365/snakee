@@ -1,3 +1,5 @@
+from typing import Type
+
 try:  # Assume we're a sub-module in a package.
     from streams import stream_classes as sm
     from utils import (
@@ -18,6 +20,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     )
     from ...selection import selection_classes as sn
     from ...loggers.logger_classes import deprecated_with_alternative
+
+Stream = Type[sm.StreamInterface]
 
 
 class RowStream(sm.AnyStream, sm.ColumnarMixin):
@@ -50,7 +54,7 @@ class RowStream(sm.AnyStream, sm.ColumnarMixin):
         if self.is_in_memory() and (get_max or get_min):
             example_stream = self.take(take)
         else:
-            example_stream = self.get_tee_stream().take(take)
+            example_stream = self.tee_stream().take(take)
         count = 0
         for row in example_stream.get_items():
             row_len = len(row)
@@ -66,7 +70,7 @@ class RowStream(sm.AnyStream, sm.ColumnarMixin):
         count = self.get_column_count(**kwargs)
         return list(range(count))
 
-    def get_one_column(self, column):
+    def get_one_column_values(self, column):
         return self.select([column])
 
     def select(self, *columns, use_extended_method=True):
@@ -83,10 +87,6 @@ class RowStream(sm.AnyStream, sm.ColumnarMixin):
             select_function,
         )
 
-    def group_by(self, *keys):
-        items = self.select(keys, lambda r: r).get_items()
-        return sm.KeyValueStream(items, **self.get_meta())
-
     def get_dataframe(self, columns=None):
         if columns:
             return nm.pd.DataFrame(self.get_data(), columns=columns)
@@ -96,7 +96,7 @@ class RowStream(sm.AnyStream, sm.ColumnarMixin):
     def to_line_stream(self, delimiter='\t'):
         return sm.LineStream(
             map(lambda r: '\t'.join([str(c) for c in r]), self.get_items()),
-            count=self.count,
+            count=self.get_count(),
         )
 
     def get_records(self, columns=arg.DEFAULT):
@@ -108,19 +108,20 @@ class RowStream(sm.AnyStream, sm.ColumnarMixin):
     def get_rows(self, **kwargs):
         return self.get_data()
 
-    def schematize(self, schema, skip_bad_rows=False, skip_bad_values=False, verbose=True):
-        return sm.SchemaStream(
+    def schematize(self, schema, skip_bad_rows=False, skip_bad_values=False, verbose=True) -> Stream:
+        result = sm.SchemaStream(
             self.get_items(),
-            **self.get_meta(),
+            **self.get_compatible_meta(sm.StreamType.SchemaStream),
         ).schematize(
             schema=schema,
             skip_bad_rows=skip_bad_rows,
             skip_bad_values=skip_bad_values,
             verbose=verbose,
         )
+        return result
 
     @classmethod
-    @deprecated_with_alternative('connectors.ColumnFile()')
+    # @deprecated_with_alternative('connectors.ColumnFile()')
     def from_column_file(
             cls,
             filename,

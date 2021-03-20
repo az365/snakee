@@ -1,22 +1,25 @@
 from abc import ABC
+from typing import Optional, Union, Iterable, Any
 import sys
 import json
 import csv
-from typing import Type, Union, Iterable, Any
+import pandas as pd
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
-    from streams import stream_classes as sm
     from functions import item_functions as fs
-    from loggers.logger_classes import deprecated_with_alternative
+    from streams.interfaces.abstract_stream_interface import StreamInterface
+    from streams.abstract.iterable_stream import IterableStream
+    from streams import stream_classes as sm
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
-    from .. import stream_classes as sm
     from ...functions import item_functions as fs
-    from ...loggers.logger_classes import deprecated_with_alternative
+    from ..interfaces.abstract_stream_interface import StreamInterface
+    from ..abstract.iterable_stream import IterableStream
+    from .. import stream_classes as sm
 
-
-Stream = Union[sm.IterableStream, Type[sm.IterableStream], Any]
+OptionalArguments = Optional[Union[str, Iterable]]
+Stream = Union[StreamInterface, Any]
 AnyStream = Stream
 LineStream = Stream
 RecordStream = Stream
@@ -33,7 +36,7 @@ while True:  # To prevent _csv.Error: field larger than field limit (131072)
         max_int = int(max_int / 10)
 
 
-class ConvertMixin(sm.IterableStream, ABC):
+class ConvertMixin(IterableStream, ABC):
     def get_rows(self, columns: Union[tuple, arg.DefaultArgument] = arg.DEFAULT) -> Iterable:
         if columns == arg.DEFAULT:
             if sm.StreamType.RecordStream.isinstance(self):
@@ -50,15 +53,31 @@ class ConvertMixin(sm.IterableStream, ABC):
         else:
             return self.get_mapped_items(lambda i: dict(zip(columns, fs.composite_key(columns)(i))))
 
-    def stream(self, data, stream_type=arg.DEFAULT, save_name=True, save_count=True, **kwargs) -> Stream:
+    def get_dataframe(self) -> pd.DataFrame:
+        return pd.DataFrame(self.get_data())
+
+    def stream(
+            self,
+            data: Iterable,
+            stream_type=arg.DEFAULT,  # tmp
+            ex: OptionalArguments = None,
+            save_name: bool = True, save_count: bool = True, **kwargs
+    ) -> Stream:
         stream_type = arg.undefault(stream_type, self.get_stream_type())
-        meta = self.get_compatible_meta(stream_type)
+        if isinstance(stream_type, str):
+            stream_class = sm.StreamType(stream_type).get_class()
+        else:
+            stream_class = stream_type.get_class()
+        meta = self.get_compatible_meta(stream_class, ex=ex)
         if not save_name:
             meta.pop('name')
         if not save_count:
             meta.pop('count')
         meta.update(kwargs)
-        return sm.StreamType.of(stream_type).stream(data, **meta)
+        if 'context' not in meta:
+            meta['context'] = self.get_context()
+        stream = sm.StreamType.of(stream_type).stream(data, **meta)
+        return stream
 
     def map_to_type(self, function, stream_type=arg.DEFAULT) -> Stream:
         stream_type = arg.undefault(stream_type, self.get_stream_type())
@@ -71,14 +90,14 @@ class ConvertMixin(sm.IterableStream, ABC):
                 return result.to_memory()
         return result
 
-    @deprecated_with_alternative('map_to_type()')
+    # @deprecated_with_alternative('map_to_type()')
     def map_to_records(self, function) -> RecordStream:
         return self.map_to_type(
             function,
             stream_type=sm.StreamType.RecordStream,
         )
 
-    @deprecated_with_alternative('map_to_type()')
+    # @deprecated_with_alternative('map_to_type()')
     def map_to_any(self, function) -> AnyStream:
         return self.map_to_type(
             function,
@@ -91,14 +110,25 @@ class ConvertMixin(sm.IterableStream, ABC):
             stream_type=sm.StreamType.AnyStream,
         )
 
-    def to_line_stream(self, delimiter: Union[str, arg.DefaultArgument] = arg.DEFAULT) -> LineStream:
+    def to_line_stream(
+            self,
+            delimiter: Union[str, arg.DefaultArgument] = arg.DEFAULT,
+            columns: Optional[Iterable] = arg.DEFAULT,
+            add_title_row: Union[bool, arg.DefaultArgument] = arg.DEFAULT,
+    ) -> LineStream:
         delimiter = arg.undefault(delimiter, '\t' if sm.StreamType.RowStream.isinstance(self) else None)
+        stream = self
+        if stream.get_stream_type() == sm.StreamType.RecordStream:
+            assert isinstance(stream, sm.RecordStream)
+            columns = arg.undefault(columns, stream.get_columns, delayed=True)
+            add_title_row = arg.undefault(add_title_row, True)
+            stream = stream.to_row_stream(columns=columns, add_title_row=add_title_row),
         if delimiter:
             func = delimiter.join
         else:
             func = str
         return self.stream(
-            self.get_mapped_items(func),
+            stream.get_mapped_items(func),
             stream_type=sm.StreamType.LineStream,
         )
 
@@ -181,7 +211,7 @@ class ConvertMixin(sm.IterableStream, ABC):
             stream_type=sm.StreamType.KeyValueStream,
         )
 
-    @deprecated_with_alternative('ConvertMixin.to_key_value_stream()')
+    # @deprecated_with_alternative('ConvertMixin.to_key_value_stream()')
     def to_pairs(self, *args, **kwargs) -> KeyValueStream:
         if sm.StreamType.LineStream:
             return self.to_row_stream(*args, **kwargs).to_key_value_stream()
