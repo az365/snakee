@@ -4,11 +4,11 @@ import logging
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
-    from base.contextual import ContextualInterface
+    from base.interfaces.contextual_interface import ContextualInterface
     from loggers.logger_interface import LoggerInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
-    from ..base.contextual import ContextualInterface
+    from ..base.interfaces.contextual_interface import ContextualInterface
     from .logger_interface import LoggerInterface
 
 

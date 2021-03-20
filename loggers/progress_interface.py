@@ -4,11 +4,11 @@ from typing import Union, Iterable
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
-    from base.tree_item import TreeInterface
+    from base.abstract.tree_item import TreeInterface
     from loggers.extended_logger_interface import ExtendedLoggerInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
-    from ..base.tree_item import TreeInterface
+    from ..base.abstract.tree_item import TreeInterface
     from .extended_logger_interface import ExtendedLoggerInterface
 
 Logger = Union[ExtendedLoggerInterface, arg.DefaultArgument]

@@ -1,43 +1,26 @@
-from abc import ABC, abstractmethod
+from abc import ABC
 from typing import Optional, NoReturn
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from base.abstract.named import AbstractNamed
     from base.interfaces.context_interface import ContextInterface
+    from base.interfaces.sourced_interface import SourcedInterface
     from loggers.logger_interface import LoggerInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from utils import arguments as arg
+    from ...utils import arguments as arg
     from .named import AbstractNamed
-    from base.interfaces.context_interface import ContextInterface
-    from loggers.logger_interface import LoggerInterface
-
+    from ..interfaces.context_interface import ContextInterface
+    from ..interfaces.sourced_interface import SourcedInterface
+    from ...loggers.logger_interface import LoggerInterface
 
 Source = Optional[AbstractNamed]
 Logger = Optional[LoggerInterface]
 
-SPECIFIC_MEMBERS = ('_source',)
+SPECIFIC_MEMBERS = ('_source', )
 
 
-class SourcedInterface(AbstractNamed, ABC):
-    @abstractmethod
-    def get_source(self) -> Source:
-        pass
-
-    @abstractmethod
-    def set_source(self, source: Source, reset: bool = True):
-        pass
-
-    @abstractmethod
-    def register(self, check: bool = True) -> NoReturn:
-        pass
-
-    @abstractmethod
-    def get_logger(self) -> Logger:
-        pass
-
-
-class Sourced(SourcedInterface):
+class Sourced(AbstractNamed, SourcedInterface, ABC):
     def __init__(self, name: str = arg.DEFAULT, source: Optional[SourcedInterface] = None, check: bool = True):
         name = arg.undefault(name, arg.get_generated_name(self._get_default_name_prefix()))
         super().__init__(name)

@@ -1,11 +1,10 @@
-from typing import Union
+from typing import Optional, Union, Any
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
-    from base.context_interface import ContextInterface
-    from base.contextual import ContextualInterface, Contextual
-    from base.named import AbstractNamed
-    from base.tree_interface import Parent
+    from base.interfaces.context_interface import ContextInterface
+    from base.interfaces.contextual_interface import ContextualInterface
+    from base.abstract.named import AbstractNamed
     from loggers.logger_interface import LoggerInterface
     from loggers.extended_logger import SingletonLogger
     from loggers.message_collector import SelectionMessageCollector
@@ -13,20 +12,21 @@ try:  # Assume we're a sub-module in a package.
     from connectors.filesystem.local_folder import LocalFolder
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
-    from ..base.context_interface import ContextInterface
-    from ..base.contextual import ContextualInterface, Contextual
-    from ..base.named import AbstractNamed
-    from ..base.tree_interface import Parent
+    from ..base.interfaces.context_interface import ContextInterface
+    from ..base.interfaces.contextual_interface import ContextualInterface
+    from ..base.abstract.named import AbstractNamed
     from .logger_interface import LoggerInterface
     from .extended_logger import SingletonLogger
     from .message_collector import SelectionMessageCollector
     from ..connectors.filesystem.local_storage import LocalStorage
     from ..connectors.filesystem.local_folder import LocalFolder
 
+Contextual = Optional[Union[ContextualInterface, Any]]
+
 NAME = 'logging_context_stub'
 
 
-class LoggingContextStub(ContextInterface):
+class LoggingContextStub(AbstractNamed, ContextInterface):
     def __new__(cls, *args, **kwargs):
         if not hasattr(cls, 'instance'):
             cls.instance = super(LoggingContextStub, cls).__new__(cls)
@@ -38,7 +38,7 @@ class LoggingContextStub(ContextInterface):
             logger=arg.DEFAULT,
             skip_not_implemented: bool = True
     ):
-        self._name = arg.undefault(name, NAME)
+        super().__init__(name=arg.undefault(name, NAME))
         self._logger = logger
         self._local_storage = None
         self._skip_not_implemented = skip_not_implemented
@@ -86,7 +86,7 @@ class LoggingContextStub(ContextInterface):
             )
 
     def add_child(self, instance: Contextual):
-        if self.is_logger(instance):
+        if self._is_logger(instance):
             if hasattr(instance, 'is_common_logger'):
                 if instance.is_common_logger():
                     self.set_logger(instance)
@@ -111,7 +111,7 @@ class LoggingContextStub(ContextInterface):
         return LocalFolder(tmp_files_template, parent=self.get_local_storage())
 
     @staticmethod
-    def is_logger(obj):
+    def _is_logger(obj):
         return isinstance(obj, LoggerInterface)
 
     @staticmethod
@@ -173,25 +173,10 @@ class LoggingContextStub(ContextInterface):
     def forget_all_children(self):
         self.method_stub()
 
-    def get_name(self):
-        self.method_stub()
-
     def get_parent(self):
-        self.method_stub()
+        pass
 
-    def set_parent(self, parent: Parent, reset: bool = False, inplace: bool = True):
-        self.method_stub()
-
-    def get_items(self):
-        self.method_stub()
-
-    def get_children(self):
-        self.method_stub()
-
-    def get_child(self, name: str):
-        self.method_stub()
-
-    def forget_child(self, child_or_name: Union[AbstractNamed, str], skip_errors=False):
+    def set_parent(self, parent: Contextual, reset: bool = False, inplace: bool = True):
         self.method_stub()
 
     def is_leaf(self):

@@ -8,7 +8,7 @@ try:  # Assume we're a sub-module in a package.
     from base.abstract.named import AbstractNamed
     from base.abstract.sourced import Sourced
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from utils import arguments as arg
+    from ...utils import arguments as arg
     from ..interfaces.context_interface import ContextInterface
     from ..interfaces.contextual_interface import ContextualInterface
     from .named import AbstractNamed

@@ -3,10 +3,10 @@ from typing import Optional, Union, Iterable, Callable, Any
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
-    from base.data_interface import DataInterface
+    from base.interfaces.data_interface import DataInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
-    from ...base.data_interface import DataInterface
+    from base.interfaces.data_interface import DataInterface
 
 Context = Any
 Stream = Any

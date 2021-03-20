@@ -19,7 +19,7 @@ try:  # Assume we're a sub-module in a package.
     from connectors.databases.clickhouse_database import ClickhouseDatabase
     from connectors.databases.table import Table
     from connectors.sync.twin_sync import TwinSync
-    from base.context_interface import ContextInterface
+    from base.interfaces.context_interface import ContextInterface
     from loggers.logging_context_stub import LoggingContextStub
     from loggers.logger_classes import deprecated, deprecated_with_alternative
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -40,7 +40,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .databases.clickhouse_database import ClickhouseDatabase
     from .databases.table import Table
     from .sync.twin_sync import TwinSync
-    from ..base.context_interface import ContextInterface
+    from base.interfaces.context_interface import ContextInterface
     from ..loggers.logging_context_stub import LoggingContextStub
     from ..loggers.logger_classes import deprecated_with_alternative
 

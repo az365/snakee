@@ -3,14 +3,14 @@ from datetime import timedelta, datetime
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
-    from base.context_interface import ContextInterface
-    from base.tree_item import TreeItem
+    from base.interfaces.context_interface import ContextInterface
+    from base.abstract.tree_item import TreeItem
     from loggers.extended_logger_interface import ExtendedLoggerInterface, LoggingLevel
     from loggers.progress_interface import ProgressInterface, OperationStatus
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
-    from ..base.context_interface import ContextInterface
-    from ..base.tree_item import TreeItem
+    from ..base.interfaces.context_interface import ContextInterface
+    from ..base.abstract.tree_item import TreeItem
     from .extended_logger_interface import ExtendedLoggerInterface, LoggingLevel
     from .progress_interface import ProgressInterface, OperationStatus
 

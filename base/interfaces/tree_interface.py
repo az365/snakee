@@ -3,22 +3,19 @@ from typing import Union, Optional, Iterable, Any
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
-    from base.abstract.named import AbstractNamed
+    from base.interfaces.data_interface import DataInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from utils import arguments as arg
-    from base.abstract.named import AbstractNamed
+    from ...utils import arguments as arg
+    from ..interfaces.data_interface import DataInterface
 
-Parent = Optional[Union[AbstractNamed, Any]]
+Parent = Optional[Union[DataInterface, Any]]
+Child = Optional[DataInterface]
 OptionalFields = Optional[Union[str, Iterable]]
 
 META_MEMBER_MAPPING = dict(_data='children', _source='parent')
 
 
-class TreeInterface(ABC):
-    @abstractmethod
-    def get_name(self):
-        pass
-
+class TreeInterface(DataInterface, ABC):
     @abstractmethod
     def get_parent(self) -> Parent:
         pass
@@ -36,15 +33,15 @@ class TreeInterface(ABC):
         pass
 
     @abstractmethod
-    def get_child(self, name: str) -> Optional[AbstractNamed]:
+    def get_child(self, name: str) -> Child:
         pass
 
     @abstractmethod
-    def add_child(self, child: AbstractNamed):
+    def add_child(self, child: DataInterface):
         pass
 
     @abstractmethod
-    def forget_child(self, child_or_name: Union[AbstractNamed, str], skip_errors=False):
+    def forget_child(self, child_or_name: Union[DataInterface, str], skip_errors=False):
         pass
 
     @staticmethod

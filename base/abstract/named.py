@@ -2,15 +2,15 @@ from abc import ABC
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
-    from base.abstract.abstract_base import AbstractSnakeeBaseObject
+    from base.abstract.abstract_base import AbstractBaseObject
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from utils import arguments as arg
-    from .abstract_base import AbstractSnakeeBaseObject
+    from ...utils import arguments as arg
+    from .abstract_base import AbstractBaseObject
 
 SPECIFIC_MEMBERS = ('_name', )
 
 
-class AbstractNamed(AbstractSnakeeBaseObject, ABC):
+class AbstractNamed(AbstractBaseObject, ABC):
     def __init__(self, name: str):
         super().__init__()
         self._name = name
