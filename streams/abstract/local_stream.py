@@ -23,24 +23,21 @@ class LocalStream(sm.IterableStream, ABC):
     def __init__(
             self,
             data: Iterable,
-            name=arg.DEFAULT, check=False,
-            count=None, less_than=None,
+            name: DefaultStr = arg.DEFAULT, check: bool = False,
+            count: Optional[int] = None, less_than: Optional[int] = None,
             source=None, context=None,
             max_items_in_memory=arg.DEFAULT,
             tmp_files_template=arg.DEFAULT,
             tmp_files_encoding=arg.DEFAULT,
     ):
+        count = arg.get_optional_len(data, count)
+        less_than = less_than or count
         super().__init__(
-            data=data,
-            name=name, check=check,
+            data=data, name=name, check=check,
             source=source, context=context,
+            count=count, less_than=less_than,
             max_items_in_memory=max_items_in_memory,
         )
-        if isinstance(data, (list, tuple)):
-            self.count = len(data)
-        else:
-            self.count = count
-        self.less_than = less_than or self.count
         self.tmp_files_template = arg.undefault(tmp_files_template, sm.TMP_FILES_TEMPLATE)
         self.tmp_files_encoding = arg.undefault(tmp_files_encoding, sm.TMP_FILES_ENCODING)
 
