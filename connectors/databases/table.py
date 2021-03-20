@@ -2,13 +2,13 @@ try:  # Assume we're a sub-module in a package.
     from streams import stream_classes as sm
     from connectors import connector_classes as ct
     from utils import arguments as arg
-    from loggers import logger_classes
+    from loggers import logger_classes as log
     from schema import schema_classes as sh
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...streams import stream_classes as sm
     from ...connectors import connector_classes as ct
     from ...utils import arguments as arg
-    from ...loggers import logger_classes
+    from ...loggers import logger_classes as log
     from ...schema import schema_classes as sh
 
 
@@ -28,7 +28,7 @@ class Table(ct.LeafConnector):
         self.schema = schema
         if not isinstance(schema, sh.SchemaDescription):
             message = 'Schema as {} is deprecated. Use schema.SchemaDescription instead.'.format(type(schema))
-            self.log(msg=message, level=logger_classes.LoggingLevel.Warning)
+            self.log(msg=message, level=log.LoggingLevel.Warning)
         self.meta = kwargs
         if reconnect:
             if hasattr(self.get_database(), 'connect'):
@@ -36,10 +36,10 @@ class Table(ct.LeafConnector):
         self.links = list()
 
     def get_database(self):
-        return self.parent
+        return self.get_parent()
 
     def get_count(self, verbose=arg.DEFAULT):
-        return self.get_database().select_count(self.name, verbose=verbose)
+        return self.get_database().select_count(self.get_name(), verbose=verbose)
 
     def get_schema(self):
         if not self.schema:
@@ -50,7 +50,7 @@ class Table(ct.LeafConnector):
         return self.get_schema().get_columns()
 
     def get_data(self, verbose=arg.DEFAULT):
-        return self.get_database().select_all(self.name, verbose=verbose)
+        return self.get_database().select_all(self.get_name(), verbose=verbose)
 
     def get_stream(self):
         count = self.get_count()
@@ -109,7 +109,7 @@ class Table(ct.LeafConnector):
 
     def create(self, drop_if_exists, verbose=arg.DEFAULT):
         return self.get_database().create_table(
-            self.name,
+            self.get_name(),
             schema=self.schema,
             drop_if_exists=drop_if_exists,
             verbose=verbose,
@@ -122,7 +122,7 @@ class Table(ct.LeafConnector):
             verbose=arg.DEFAULT
     ):
         return self.get_database().safe_upload_table(
-            self.name,
+            self.get_name(),
             data=data,
             schema=self.schema,
             skip_lines=skip_lines,

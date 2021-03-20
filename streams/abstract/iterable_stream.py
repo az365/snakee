@@ -78,7 +78,7 @@ class IterableStream(sm.AbstractStream, ABC):
             self.pass_items()
             closed_streams = 1
         except BaseException as e:
-            self.log(['Error while trying to close stream:', e], level=log.LoggingLevel.Warning)
+            self.log(['Error while trying to close stream:', e], level=loggers.extended_logger_interface.LoggingLevel.Warning)
             closed_streams = 0
         closed_links = 0
         if recursively:

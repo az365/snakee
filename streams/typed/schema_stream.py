@@ -1,3 +1,5 @@
+import loggers.extended_logger_interface
+
 try:  # Assume we're a sub-module in a package.
     from streams import stream_classes as sm
     from loggers import logger_classes as log
@@ -81,16 +83,16 @@ def apply_schema_to_row(row, schema, skip_bad_values=False, logger=None):
                         field_name, c,
                         value, field_type,
                     )
-                    logger.log(msg=message, level=log.LoggingLevel.Error.value)
+                    logger.log(msg=message, level=loggers.extended_logger_interface.LoggingLevel.Error.value)
                 if skip_bad_values:
                     if logger:
                         message = 'Skipping bad value in row:'.format(list(zip(row, schema)))
-                        logger.log(msg=message, level=log.LoggingLevel.Debug.value)
+                        logger.log(msg=message, level=loggers.extended_logger_interface.LoggingLevel.Debug.value)
                     new_value = None
                 else:
                     message = 'Error in row: {}...'.format(str(list(zip(row, schema)))[:80])
                     if logger:
-                        logger.log(msg=message, level=log.LoggingLevel.Warning.value)
+                        logger.log(msg=message, level=loggers.extended_logger_interface.LoggingLevel.Warning.value)
                     else:
                         log.get_logger().show(message)
                     raise e

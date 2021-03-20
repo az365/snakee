@@ -189,18 +189,22 @@ class AbstractStream(ABC):
         if return_stream:
             return connector.to_stream(verbose=verbose).update_meta(**self.get_meta())
 
-    def get_logger(self):
+    def get_logger(self, skip_missing=True) -> log.ExtendedLoggerInterface:
         if self.get_context():
-            return self.get_context().get_logger()
+            logger = self.get_context().get_logger(create_if_not_yet=skip_missing)
         else:
-            return log.get_logger()
+            logger = None
+        if not logger:
+            logger = log.get_logger()
+        return logger
 
-    def log(self, msg, level=arg.DEFAULT, end=arg.DEFAULT, verbose=True, force=False):
+    def log(self, msg, level=arg.DEFAULT, end=arg.DEFAULT, verbose=True, truncate=True, force=True):
         logger = self.get_logger()
         if logger:
             logger.log(
                 msg=msg, level=level,
                 end=end, verbose=verbose,
+                truncate=truncate,
             )
         elif force:
             print(msg)

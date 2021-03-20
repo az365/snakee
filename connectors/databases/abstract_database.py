@@ -1,4 +1,5 @@
-from abc import abstractmethod
+from abc import ABC, abstractmethod
+from typing import Union, Iterable
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
@@ -21,7 +22,7 @@ DEFAULT_STEP = 1000
 DEFAULT_ERRORS_THRESHOLD = 0.05
 
 
-class AbstractDatabase(ct.AbstractStorage):
+class AbstractDatabase(ct.AbstractStorage, ABC):
     def __init__(self, name, host, port, db, user, password, verbose=arg.DEFAULT, context=arg.DEFAULT, **kwargs):
         super().__init__(
             name=name,
@@ -112,16 +113,18 @@ class AbstractDatabase(ct.AbstractStorage):
 
     def create_table(self, name, schema, drop_if_exists=False, verbose=arg.DEFAULT):
         verbose = arg.undefault(verbose, self.verbose)
-        if isinstance(schema, sh.SchemaDescription):
-            schema_str = schema.get_schema_str(dialect=self.get_dialect_name())
-        elif isinstance(schema, str):
+        if isinstance(schema, str):
             schema_str = schema
             message = 'String Schemas is deprecated. Use schema.SchemaDescription instead.'
             self.log(msg=message, level=log.LoggingLevel.Warning)
-        else:
+        elif isinstance(schema, (list, tuple)):
             schema_str = ', '.join(['{} {}'.format(c[0], c[1]) for c in schema])
             message = 'Tuple Schemas is deprecated. Use schema.SchemaDescription instead.'
             self.log(msg=message, level=log.LoggingLevel.Warning)
+        elif hasattr(schema, 'get_schema_str'):
+            schema_str = schema.get_schema_str(dialect=self.get_dialect_name())
+        else:
+            raise TypeError('schema must be an instance of SchemaDescription or list[tuple]')
         if drop_if_exists:
             self.drop_table(name, verbose=verbose)
         message = 'Creating table:'
@@ -210,7 +213,7 @@ class AbstractDatabase(ct.AbstractStorage):
 
     def insert_schematized_stream(self, table, stream, skip_errors=False, step=DEFAULT_STEP, verbose=arg.DEFAULT):
         columns = stream.get_columns()
-        expected_count = stream.count
+        expected_count = stream.get_count()
         final_count = stream.calc(
             lambda a: self.insert_rows(
                 table, rows=a, columns=columns,
@@ -222,42 +225,46 @@ class AbstractDatabase(ct.AbstractStorage):
         return final_count
 
     def insert_data(
-            self, table, data, schema=tuple(),
+            self,
+            table,
+            data: Union[sm.AbstractStream, sm.ConvertMixin, ct.AbstractFile, str, Iterable],
+            schema: Union[sh.SchemaDescription, tuple] = tuple(),
             encoding=None, skip_first_line=False,
             skip_lines=0, skip_errors=False, step=DEFAULT_STEP,
             verbose=arg.DEFAULT,
     ):
-        if not isinstance(schema, sh.SchemaDescription):
+        is_schema_description = isinstance(schema, sh.SchemaDescription) or hasattr(schema, 'get_schema_str')
+        if not is_schema_description:
             message = 'Schema as {} is deprecated, use sh.SchemaDescription instead'.format(type(schema))
             self.log(msg=message, level=log.LoggingLevel.Warning)
             schema = sh.SchemaDescription(schema)
         if sm.is_stream(data):
-            fx_input = data
+            sm_input = data
         elif ct.is_file(data):
-            fx_input = data.to_schema_stream()
-            assert fx_input.get_columns() == schema.get_columns()
+            sm_input = data.to_schema_stream()
+            assert sm_input.get_columns() == schema.get_columns()
         elif isinstance(data, str):
-            fx_input = sm.RowStream.from_column_file(
+            sm_input = sm.RowStream.from_column_file(
                 filename=data,
                 encoding=encoding,
                 skip_first_line=skip_first_line,
                 verbose=verbose,
             )
         else:
-            fx_input = sm.AnyStream(data)
+            sm_input = sm.AnyStream(data)
         if skip_lines:
-            fx_input = fx_input.skip(skip_lines)
-        if fx_input.get_stream_type() != sm.StreamType.SchemaStream:
-            fx_input = fx_input.schematize(
+            sm_input = sm_input.skip(skip_lines)
+        if sm_input.get_stream_type() != sm.StreamType.SchemaStream:
+            sm_input = sm_input.schematize(
                 schema,
                 skip_bad_rows=True,
                 verbose=True,
             ).update_meta(
-                count=fx_input.count,
+                count=sm_input.get_count(),
             )
-        initial_count = fx_input.count + skip_lines
+        initial_count = sm_input.get_estimated_count() + skip_lines
         final_count = self.insert_schematized_stream(
-            table, fx_input,
+            table, sm_input,
             skip_errors=skip_errors, step=step,
             verbose=verbose,
         )
