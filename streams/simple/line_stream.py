@@ -3,20 +3,22 @@ import gzip as gz
 
 try:
     from streams import stream_classes as sm
-    from connectors import connector_classes as cs
+    from connectors import connector_classes as ct
     from functions import all_functions as fs
     from utils import (
         arguments as arg,
         items as it,
     )
+    from loggers.logger_classes import deprecated_with_alternative
 except ImportError:
     from .. import stream_classes as sm
-    from ...connectors import connector_classes as cs
+    from ...connectors import connector_classes as ct
     from ...functions import all_functions as fs
     from ...utils import (
         arguments as arg,
         items as it,
     )
+    from ...loggers.logger_classes import deprecated_with_alternative
 
 
 class LineStream(sm.AnyStream):
@@ -45,7 +47,7 @@ class LineStream(sm.AnyStream):
         return it.ItemType.Line
 
     @classmethod
-    def is_valid_item(cls, item):
+    def is_valid_item_type(cls, item):
         return cls.get_item_type().isinstance(item)
 
     def parse_json(self, default_value=None, to='RecordStream'):
@@ -63,11 +65,10 @@ class LineStream(sm.AnyStream):
         return self.map(
             json_loads,
             to=to,
-        ).set_meta(
-            count=self.count,
         )
 
     @classmethod
+    # @deprecated_with_alternative('*Stream.from_file')
     def from_text_file(
             cls,
             filename,
@@ -78,11 +79,12 @@ class LineStream(sm.AnyStream):
             verbose=False,
             step=arg.DEFAULT,
     ):
-        sm_lines = cs.TextFile(
+        sm_lines = ct.TextFile(
             filename,
             encoding=encoding,
             gzip=gzip,
             expected_count=expected_count,
+            folder=ct.get_default_job_folder(),
             verbose=verbose,
         ).to_lines_stream(
             check=check,
@@ -97,6 +99,7 @@ class LineStream(sm.AnyStream):
             sm_lines = sm_lines.take(max_count)
         return sm_lines
 
+    @deprecated_with_alternative('*Stream.write_to')
     def lazy_save(
             self,
             filename,
@@ -132,6 +135,7 @@ class LineStream(sm.AnyStream):
                 **self.get_meta()
             )
 
+    @deprecated_with_alternative('*Stream.write_to()')
     def to_text_file(
             self,
             filename,
@@ -149,9 +153,9 @@ class LineStream(sm.AnyStream):
         )
         if verbose:
             message = ('Compressing gzip ito {}' if gzip else 'Writing {}').format(filename)
-            saved_stream = saved_stream.progress(expected_count=self.count, message=message)
+            saved_stream = saved_stream.progress(expected_count=self.get_count(), message=message)
         saved_stream.pass_items()
-        meta = self.get_meta_except_count()
+        meta = self.get_static_meta()
         if return_stream:
             return self.from_text_file(
                 filename,

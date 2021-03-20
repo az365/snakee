@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import Optional
 
 try:  # Assume we're a sub-module in a package.
     from connectors.abstract.abstract_connector import AbstractConnector
@@ -73,7 +74,9 @@ DICT_EXT_TO_CLASS = {
 DICT_DB_TO_DIALECT = {PostgresDatabase.__name__: 'pg', ClickhouseDatabase.__name__: 'ch'}
 DB_CLASS_NAMES = DICT_DB_TO_DIALECT.keys()
 
-context = None
+context: Optional[ContextInterface] = None
+local_storage: Optional[LocalStorage] = None
+PostgresDatabase.cx = context
 
 
 class ConnType(Enum):
@@ -110,43 +113,43 @@ def get_class(conn_type):
     return conn_type.get_class()
 
 
-def get_context():
+def get_context() -> ContextInterface:
     global context
     return context
 
 
-def set_context(cx):
+def set_context(cx: ContextInterface):
     global context
     context = cx
 
 
-def is_conn(obj):
+def is_conn(obj) -> bool:
     return isinstance(obj, CONN_CLASSES)
 
 
-def is_file(obj):
+def is_file(obj) -> bool:
     if isinstance(obj, AbstractFile) or obj.__class__.__name__ in FILE_CLASS_NAMES:
         return True
     elif hasattr(obj, 'is_file'):
         return obj.is_file()
 
 
-def is_folder(obj):
+def is_folder(obj) -> bool:
     if isinstance(obj, AbstractFolder) or obj.__class__.__name__ in FOLDER_CLASS_NAMES:
         return True
     elif hasattr(obj, 'is_folder'):
         return obj.is_folder()
 
 
-def is_database(obj):
+def is_database(obj) -> bool:
     return isinstance(obj, AbstractDatabase) or obj.__class__.__name__ in DB_CLASS_NAMES
 
 
-def get_dialect_type(database_type):
+def get_dialect_type(database_type) -> Optional[str]:
     return DICT_DB_TO_DIALECT.get(ConnType(database_type).value)
 
 
-def get_type_by_ext(ext, default=ConnType.TextFile):
+def get_type_by_ext(ext, default=ConnType.TextFile) -> ConnType:
     conn_class = DICT_EXT_TO_CLASS.get(ext)
     if conn_class:
         return ConnType(conn_class.__name__)
@@ -156,3 +159,23 @@ def get_type_by_ext(ext, default=ConnType.TextFile):
 
 def get_logging_context_stub():
     return LoggingContextStub()
+
+
+def get_local_storage(name='filesystem') -> LocalStorage:
+    global local_storage
+    if not local_storage:
+        cx = get_context()
+        if not cx:
+            cx = get_logging_context_stub()
+        if cx:
+            local_storage = cx.get_local_storage(name)
+        else:
+            local_storage = LocalStorage(name, context=get_logging_context_stub())
+    assert isinstance(local_storage, LocalStorage), 'LocalStorage expected, got {} as {}'.format(
+        local_storage, local_storage.__class__.__name__,
+    )
+    return local_storage
+
+
+def get_default_job_folder(name='') -> LocalFolder:
+    return get_local_storage().folder(name)
