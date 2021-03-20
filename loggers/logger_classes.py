@@ -10,6 +10,7 @@ try:  # Assume we're a sub-module in a package.
     from loggers.progress import Progress
     from loggers.detailed_message import DetailedMessage, SelectionError
     from loggers.message_collector import MessageCollector, SelectionMessageCollector, CommonMessageCollector
+    from loggers.logging_context_stub import LoggingContextStub
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
     from .logger_interface import LoggerInterface
@@ -19,6 +20,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .progress import Progress
     from .detailed_message import DetailedMessage, SelectionError
     from .message_collector import MessageCollector, SelectionMessageCollector, CommonMessageCollector
+    from .logging_context_stub import LoggingContextStub
 
 DEFAULT_LOGGING_LEVEL = LoggingLevel.get_default()
 

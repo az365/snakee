@@ -117,7 +117,10 @@ class ExtendedLogger(BaseLoggerWrapper, ExtendedLoggerInterface):
         context = self.get_context()
         if context:
             if check:
-                assert not context.get_logger(create_if_not_yet=False), 'Context already has logger registered'
+                registered_logger = context.get_logger(create_if_not_yet=False)
+                if registered_logger:
+                    if hasattr(registered_logger, 'get_key_member_values'):
+                        assert registered_logger.get_key_member_values() == self.get_key_member_values()  # , 'Context already has logger registered'
             context.set_logger(self)
 
     def get_new_progress(self, name, count=None, context=arg.DEFAULT) -> ProgressInterface:
