@@ -11,7 +11,7 @@ try:  # Assume we're a sub-module in a package.
     from utils import (
         arguments as arg,
         mappers as ms,
-        selection,
+        selection as sf,
     )
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from .. import stream_classes as sm
@@ -23,17 +23,19 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils import (
         arguments as arg,
         mappers as ms,
-        selection,
+        selection as sf,
     )
+
+Stream = Union[sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin]
 
 
 def get_key_function(descriptions, take_hash=False):
     if len(descriptions) == 0:
         raise ValueError('key must be defined')
     elif len(descriptions) == 1:
-        key_function = fs.partial(selection.value_from_record, descriptions[0])
+        key_function = fs.partial(sf.value_from_record, descriptions[0])
     else:
-        key_function = fs.partial(selection.tuple_from_record, descriptions)
+        key_function = fs.partial(sf.tuple_from_record, descriptions)
     if take_hash:
         return lambda r: hash(key_function(r))
     else:
@@ -106,8 +108,8 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
                 secondary=self.get_stream_type(),
             )
 
-    def select(self, *fields, use_extended_method=False, **expressions):
-        return self.native_map(
+    def select(self, *fields, use_extended_method=False, **expressions) -> Stream:
+        return self.map(
             sn.select(
                 *fields, **expressions,
                 target_item_type=it.ItemType.Record, input_item_type=it.ItemType.Record,
@@ -116,36 +118,26 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
             )
         )
 
-    def filter(self, *fields, **expressions):
-        expressions_list = [
-            (k, fs.equal(v) if isinstance(v, (str, int, float, bool)) else v)
-            for k, v in expressions.items()
-        ]
-        extended_filters_list = list(fields) + expressions_list
-
-        def filter_function(r):
-            for f in extended_filters_list:
-                if not selection.value_from_record(r, f):
-                    return False
-            return True
-        props = self.get_meta()
-        props.pop('count')
-        filtered_items = filter(filter_function, self.get_items())
+    def filter(self, *fields, **expressions) -> Stream:
+        filter_function = sf.filter_items(*fields, **expressions, item_type=it.ItemType.Record, skip_errors=True)
+        filtered_items = self.get_filtered_items(filter_function)
         if self.is_in_memory():
             filtered_items = list(filtered_items)
-            props['count'] = len(filtered_items)
-        return self.__class__(
-            filtered_items,
-            **props
-        )
+            count = len(filtered_items)
+            stream = self.stream(
+                filtered_items,
+                count=count,
+                less_than=count,
+            )
+        else:
+            stream = self.stream(
+                filtered_items,
+                count=None,
+                less_than=self.get_estimated_count(),
+            )
+        return stream
 
-    def sort(
-            self,
-            *keys,
-            reverse=False,
-            step=arg.DEFAULT,
-            verbose=True,
-    ):
+    def sort(self, *keys, reverse=False, step=arg.DEFAULT, verbose=True) -> Stream:
         key_function = get_key_function(keys)
         step = arg.undefault(step, self.max_items_in_memory)
         if self.can_be_in_memory(step=step):
@@ -229,17 +221,21 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
         columns = arg.update(columns, kwargs.pop('columns', None))
         if kwargs:
             raise ValueError('to_row_stream(): {} arguments are not supported'.format(kwargs.keys()))
-        if self.get_count() is None:
-            count = None
-        else:
-            count = self.count + (1 if add_title_row else 0)
-        return sm.RowStream(
-            self.get_rows(list(columns)),
+        count = self.get_count()
+        less_than = self.get_estimated_count()
+        if add_title_row:
+            if count:
+                count += 1
+            if less_than:
+                less_than += 1
+        return self.stream(
+            self.get_rows(columns=tuple(columns)),
+            stream_type=sm.StreamType.RowStream,
             count=count,
             less_than=self.less_than,
         )
 
-    def schematize(self, schema, skip_bad_rows=False, skip_bad_values=False, verbose=True):
+    def schematize(self, schema, skip_bad_rows=False, skip_bad_values=False, verbose=True) -> Stream:
         return self.to_row_stream(
             columns=schema.get_columns(),
         ).schematize(
@@ -278,17 +274,12 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
         return self.to_file(*args, **kwargs)
 
     def to_column_file(
-            self,
-            filename,
-            columns,
-            delimiter='\t',
-            add_title_row=True,
-            encoding=arg.DEFAULT,
-            gzip=False,
-            check=True,
-            verbose=True,
+            self, filename, columns,
+            add_title_row=True, gzip=False,
+            delimiter='\t', encoding=arg.DEFAULT,
+            check=True, verbose=True,
             return_stream=True,
-    ):
+    ) -> Optional[Stream]:
         encoding = arg.undefault(encoding, self.tmp_files_encoding)
         meta = self.get_meta()
         if not gzip:

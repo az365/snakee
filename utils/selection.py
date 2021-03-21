@@ -152,7 +152,7 @@ def get_composite_key(item, keys_descriptions, item_type=it.ItemType.Auto, logge
         if callable(d):
             value = d(item)
         else:
-            value = value_from_item(item, d, item_type, logger=logger, skip_errors=skip_errors)
+            value = value_from_item(item, d, item_type=item_type, logger=logger, skip_errors=skip_errors)
         result.append(value)
     return tuple(result)
 
@@ -260,3 +260,25 @@ def select(
         return lambda i: record_from_any(i, *descriptions, logger=logger)
     else:
         return lambda i: auto_to_auto(i, *descriptions, logger=logger)
+
+
+def filter_items(*fields, item_type=it.ItemType.Auto, skip_errors=False, logger=None, **expressions):
+    expressions_list = [
+        (k, (lambda i, v=v: i == v) if isinstance(v, (str, int, float, bool)) else v)
+        for k, v in expressions.items()
+    ]
+    extended_filters_list = list(fields) + expressions_list
+    return lambda i: apply_filter_list_to_item(
+        item=i, filter_list=extended_filters_list,
+        item_type=item_type, skip_errors=skip_errors, logger=logger,
+    )
+
+
+def apply_filter_list_to_item(
+        item, filter_list, item_type=it.ItemType.Auto,
+        skip_errors=False, logger=None,
+):
+    for filter_desc in filter_list:
+        if not value_from_item(item, filter_desc, item_type=item_type, logger=logger, skip_errors=skip_errors):
+            return False
+    return True
