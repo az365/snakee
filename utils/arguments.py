@@ -51,6 +51,7 @@ def apply(func: Callable, *args, **kwargs):
 
 def delayed_undefault(current, func, *args, **kwargs):
     if current == DEFAULT:
+        assert isinstance(func, Callable)
         return apply(func, *args, **kwargs)
     else:
         return current
@@ -82,10 +83,9 @@ def get_list(arg: Iterable) -> list:
 def get_generated_name(prefix='snakee', include_random: Union[bool, int] = DEFAULT_RANDOM_LEN, include_datetime=True):
     name_parts = [prefix]
     if include_random:
-        if not isinstance(include_random, int):
-            include_random = DEFAULT_RANDOM_LEN
-        random = randint(0, 10 ** include_random)
-        template = '{:0' + str(include_random) + '}'
+        random_len = DEFAULT_RANDOM_LEN if isinstance(include_random, bool) else int(include_random)
+        random = randint(0, 10 ** random_len)
+        template = '{:0' + str(random_len) + '}'
         name_parts.append(template.format(random))
     if include_datetime:
         cur_time = datetime.now().strftime('%y%m%d_%H%M%S')

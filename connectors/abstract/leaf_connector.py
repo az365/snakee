@@ -7,7 +7,7 @@ try:  # Assume we're a sub-module in a package.
     from streams.interfaces.abstract_stream_interface import StreamInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..abstract.abstract_connector import AbstractConnector
-    from base.interfaces.context_interface import ContextInterface
+    from ...base.interfaces.context_interface import ContextInterface
     from ...streams.interfaces.abstract_stream_interface import StreamInterface
 
 Context = Optional[ContextInterface]

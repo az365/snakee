@@ -316,21 +316,13 @@ class TextFile(AbstractFile):
             verbose=verbose,
         )
 
-    def lines_stream_kwargs(self, verbose=AUTO, step=AUTO, **kwargs) -> dict:
-        verbose = arg.undefault(verbose, self.verbose)
-        result = dict(
-            count=self.get_count(),
-            data=self.get_lines(verbose=verbose, step=step),
-            source=self,
-            context=self.get_context(),
-        )
-        result.update(kwargs)
-        return result
+    def _get_generated_stream_name(self):
+        return arg.get_generated_name('{}:stream'.format(self.get_name()), include_random=True, include_datetime=False)
 
-    def stream_kwargs(self, data=AUTO, name=AUTO, verbose=AUTO, step=AUTO, **kwargs) -> dict:
+    def get_stream_kwargs(self, data=AUTO, name=AUTO, verbose=AUTO, step=AUTO, **kwargs) -> dict:
         verbose = arg.undefault(verbose, self.verbose)
         data = arg.delayed_undefault(data, self.get_items, verbose=verbose, step=step)
-        name = arg.delayed_undefault(name, arg.get_generated_name(self.get_name, include_datetime=False))
+        name = arg.delayed_undefault(name, self._get_generated_stream_name)
         if data == arg.DEFAULT:
             data = self.get_items(verbose=verbose, step=step)
         result = dict(
@@ -345,17 +337,18 @@ class TextFile(AbstractFile):
 
     def to_stream_class(self, stream_class, **kwargs) -> Stream:
         return stream_class(
-            **self.stream_kwargs(**kwargs)
+            **self.get_stream_kwargs(**kwargs)
         )
 
-    def to_lines_stream(self, **kwargs) -> Stream:
+    def to_lines_stream(self, step=AUTO, verbose=AUTO, **kwargs) -> Stream:
+        data = self.get_lines(step=step, verbose=verbose)
         return sm.LineStream(
-            **self.lines_stream_kwargs(**kwargs),
+            **self.get_stream_kwargs(data=data, step=step, verbose=verbose, **kwargs)
         )
 
     def to_any_stream(self, **kwargs) -> Stream:
         return sm.AnyStream(
-            **self.stream_kwargs(**kwargs)
+            **self.get_stream_kwargs(**kwargs)
         )
 
     def write_lines(self, lines, verbose=AUTO) -> NoReturn:
