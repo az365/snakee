@@ -1,16 +1,14 @@
-from typing import Union
+from enum import Enum
+from typing import Union, Callable
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from schema.schema_row import SchemaRow
-    from items import base_item_type as base
+    from items import base_item_type as bt
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from . import arguments as arg
+    from ..utils import arguments as arg
     from ..schema.schema_row import SchemaRow
-    from . import base_item_type as base
-
-
-STAR = '*'
+    from . import base_item_type as bt
 
 Array = Union[list, tuple]
 Row = Array
@@ -22,23 +20,46 @@ FieldName = str
 FieldNo = int
 FieldID = Union[FieldNo, FieldName]
 
+STAR = '*'
+DICT_CLASSES = {
+    bt.ItemType.Line: [str],
+    bt.ItemType.Row: [list, tuple],
+    bt.ItemType.Record: [dict],
+    bt.ItemType.SchemaRow: [SchemaRow],
+}
 
-class ItemType(base.ItemType):
+
+class ItemType(Enum):
+    Line = 'line'
+    Row = 'row'
+    Record = 'record'
+    SchemaRow = 'schema_row'
+    Any = 'any'
+    Auto = arg.DEFAULT
+
+    def get_value(self):
+        return self.value
+
+    def get_name(self):
+        return self.get_value()
+
+    @staticmethod
+    def get_selectable_types():
+        return ItemType.Record, ItemType.Row, ItemType.SchemaRow
+
+    def is_selectable(self):
+        return self in self.get_selectable_types()
+
     @staticmethod
     def get_dict_subclasses():
-        return {
-            ItemType.Line: [str],
-            ItemType.Row: [list, tuple],
-            ItemType.Record: [dict],
-            ItemType.SchemaRow: [SchemaRow],
-        }
+        return DICT_CLASSES
 
     def get_subclasses(self):
         return tuple(
-            self.get_dict_subclasses().get(self, [None])
+            self.get_dict_subclasses().get(bt.ItemType(self.get_name()), [None])
         )
 
-    def get_builder(self):
+    def get_builder(self) -> Callable:
         return self.get_subclasses()[0]
 
     def build(self) -> ConcreteItem:
@@ -54,7 +75,7 @@ class ItemType(base.ItemType):
     def detect(item):
         for item_type in ItemType.get_dict_subclasses():
             if item_type.isinstance(item):
-                return item_type
+                return ItemType(item_type.get_name())
         else:
             return ItemType.Any
 

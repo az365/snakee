@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Union
+from typing import Union, Callable
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
@@ -7,9 +7,6 @@ try:  # Assume we're a sub-module in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from . import arguments as arg
     from ..schema.schema_row import SchemaRow
-
-
-STAR = '*'
 
 Array = Union[list, tuple]
 Row = Array
@@ -20,6 +17,8 @@ ConcreteItem = Union[Line, SelectableItem]
 FieldName = str
 FieldNo = int
 FieldID = Union[FieldNo, FieldName]
+
+STAR = '*'
 
 
 class ItemType(Enum):
@@ -39,12 +38,18 @@ class ItemType(Enum):
             ItemType.SchemaRow: [SchemaRow],
         }
 
+    def get_value(self) -> str:
+        return self.value
+
+    def get_name(self) -> str:
+        return self.get_value()
+
     def get_subclasses(self):
         return tuple(
             self.get_dict_subclasses().get(self, [None])
         )
 
-    def get_builder(self):
+    def get_builder(self) -> Callable:
         return self.get_subclasses()[0]
 
     def build(self) -> ConcreteItem:
@@ -65,25 +70,25 @@ class ItemType(Enum):
             return ItemType.Any
 
     @staticmethod
-    def get_selectable_types():
+    def get_selectable_types() -> tuple:
         return ItemType.Record, ItemType.Row, ItemType.SchemaRow
 
-    def is_selectable(self):
+    def is_selectable(self) -> bool:
         return self in self.get_selectable_types()
 
-    def get_value_from_item(self, item: SelectableItem, field: FieldID, default=None, skip_errors=False):
+    def get_value_from_item(self, item: SelectableItem, field: FieldID, default=None, skip_unsupported_types=False):
         if self == ItemType.Auto:
-            return self.detect(item).get_value_from_item(item, field, default, skip_errors)
+            return self.detect(item).get_value_from_item(item, field, default)
         elif self == ItemType.Row:
-            return get_field_value_from_row(column=field, row=item, default=default, skip_missing=skip_errors)
+            return get_field_value_from_row(column=field, row=item, default=default, skip_missing=False)
         elif self == ItemType.Record:
-            return get_field_value_from_record(field=field, record=item, default=default, skip_missing=skip_errors)
+            return get_field_value_from_record(field=field, record=item, default=default, skip_missing=True)
         elif self == ItemType.SchemaRow:
-            return get_field_value_from_schema_row(key=field, row=item, default=default, skip_missing=skip_errors)
-        elif skip_errors:
+            return get_field_value_from_schema_row(key=field, row=item, default=default, skip_missing=False)
+        elif skip_unsupported_types:
             return default
         else:
-            return TypeError('type {} not supported'.format(self.value))
+            raise TypeError('type {} not supported'.format(self.get_name()))
 
 
 def set_to_item_inplace(field, value, item: SelectableItem, item_type=ItemType.Auto):
@@ -134,10 +139,16 @@ def get_field_value_from_record(field: FieldID, record: Record, default=None, sk
 def get_field_value_from_item(field, item, item_type=ItemType.Auto, skip_errors=False, logger=None, default=None):
     if field == STAR:
         return item
-    if not item_type:
-        item_type = arg.undefault(item_type, ItemType.detect(item))
+    if item_type == ItemType.Auto or not arg.is_defined(item_type):
+        item_type = ItemType.detect(item)
+    if isinstance(item_type, str):
+        item_type = ItemType(item_type)
+    else:
+        item_type = ItemType(item_type.value)
     try:
-        return ItemType(item_type).get_value_from_item(item=item, field=field, default=default)
+        return item_type.get_value_from_item(
+            item=item, field=field, default=default, skip_unsupported_types=skip_errors,
+        )
     except IndexError or TypeError:
         msg = 'Field {} does no exists in current item'.format(field)
         if skip_errors:

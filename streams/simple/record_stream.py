@@ -1,3 +1,4 @@
+from typing import Type, Union, Optional, Iterable
 import pandas as pd
 
 try:  # Assume we're a sub-module in a package.
@@ -6,9 +7,9 @@ try:  # Assume we're a sub-module in a package.
     from functions import all_functions as fs
     from loggers.logger_classes import deprecated_with_alternative
     from selection import selection_classes as sn
+    from items import base_item_type as it
     from utils import (
         arguments as arg,
-        items as it,
         mappers as ms,
         selection,
     )
@@ -18,9 +19,9 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...functions import all_functions as fs
     from ...loggers.logger_classes import deprecated_with_alternative
     from ...selection import selection_classes as sn
+    from ...items import base_item_type as it
     from ...utils import (
         arguments as arg,
-        items as it,
         mappers as ms,
         selection,
     )
@@ -62,7 +63,7 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
         self.check = check
 
     @staticmethod
-    def get_item_type():
+    def get_item_type() -> it.ItemType:
         return it.ItemType.Record
 
     def get_one_column(self, column, as_list=False):

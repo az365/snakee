@@ -14,8 +14,11 @@ class ItemType(Enum):
     Any = 'any'
     Auto = arg.DEFAULT
 
-    def get_name(self):
+    def get_value(self):
         return self.value
+
+    def get_name(self):
+        return self.get_name()
 
     @staticmethod
     def get_selectable_types():
