@@ -2,6 +2,7 @@ from enum import Enum
 from typing import Optional
 
 try:  # Assume we're a sub-module in a package.
+    from connectors.abstract.connector_interface import ConnectorInterface
     from connectors.abstract.abstract_connector import AbstractConnector
     from connectors.abstract.leaf_connector import LeafConnector
     from connectors.abstract.hierarchic_connector import HierarchicConnector
@@ -23,6 +24,7 @@ try:  # Assume we're a sub-module in a package.
     from loggers.logging_context_stub import LoggingContextStub
     from loggers.logger_classes import deprecated, deprecated_with_alternative
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
+    from .abstract.connector_interface import ConnectorInterface
     from .abstract.abstract_connector import AbstractConnector
     from .abstract.leaf_connector import LeafConnector
     from .abstract.hierarchic_connector import HierarchicConnector

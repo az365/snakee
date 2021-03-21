@@ -86,7 +86,7 @@ class ClickhouseDatabase(ad.AbstractDatabase):
             values='{}',
         )
         message = verbose if isinstance(verbose, str) else 'Inserting into {table}'.format(table=table)
-        progress = self.new_progress(message, count=count, verbose=verbose)
+        progress = self.get_new_progress(message, count=count, verbose=verbose)
         progress.start()
         n = 0
         for n, row in enumerate(rows):

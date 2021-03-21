@@ -1,32 +1,33 @@
-from abc import abstractmethod
+from abc import ABC, abstractmethod
+from typing import Iterable
 
 try:  # Assume we're a sub-module in a package.
-    from connectors import connector_classes as ct
+    from connectors.abstract import abstract_connector as ac
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from .. import connector_classes as ct
+    from ..abstract import abstract_connector as ac
 
 
-class HierarchicConnector(ct.AbstractConnector):
+class HierarchicConnector(ac.AbstractConnector, ABC):
     def __init__(
             self,
             name,
             parent=None,
+            children=None,
     ):
         super().__init__(
             name=name,
             parent=parent,
+            children=children,
         )
-        self.children = dict()
 
     @staticmethod
-    def has_hierarchy():
+    def has_hierarchy() -> bool:
         return True
 
-    @staticmethod
-    def is_leaf():
+    def is_leaf(self) -> bool:
         return False
 
-    def get_leafs(self):
+    def get_leafs(self) -> Iterable:
         for child in self.get_children():
             if hasattr(child, 'is_leaf'):
                 if child.is_leaf():
@@ -34,29 +35,20 @@ class HierarchicConnector(ct.AbstractConnector):
             if hasattr(child, 'get_leafs'):
                 yield from self.get_leafs()
 
+    @staticmethod
     @abstractmethod
-    def get_default_child_class(self):
+    def get_default_child_class():
         pass
 
     def get_child_class_by_name(self, name):
         return self.get_default_child_class()
 
     def child(self, name, **kwargs):
-        cur_child = self.children.get(name)
+        cur_child = self.get_child(name)
         if not cur_child:
             child_class = self.get_child_class_by_name(name)
+            if 'parent' not in kwargs:
+                kwargs['parent'] = self
             cur_child = child_class(name, **kwargs)
-            self.children[name] = cur_child
+            self.add_child(cur_child)
         return cur_child
-
-    def get_children(self) -> dict:
-        return self.children
-
-    def get_items(self):
-        for name, child in self.get_children().items():
-            yield child
-
-    def get_meta(self, ex=None):
-        meta = super().get_meta(ex=ex)
-        meta.pop('children')
-        return meta

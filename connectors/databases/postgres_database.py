@@ -17,6 +17,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 
 
 class PostgresDatabase(ad.AbstractDatabase):
+    cx = None
+
     def __init__(self, name, host, port, db, user, password, context=arg.DEFAULT, **kwargs):
         super().__init__(
             name=name,
@@ -25,7 +27,7 @@ class PostgresDatabase(ad.AbstractDatabase):
             db=db,
             user=user,
             password=password,
-            context=context,
+            context=arg.undefault(context, PostgresDatabase.cx),
             **kwargs
         )
 
@@ -95,7 +97,8 @@ class PostgresDatabase(ad.AbstractDatabase):
             return result
 
     def execute_batch(self, query, batch, step=ad.DEFAULT_STEP, cursor=arg.DEFAULT):
-        cursor = arg.undefault(cursor, self.connect().cursor())
+        if cursor == arg.DEFAULT:
+            cursor = self.connect().cursor()
         psycopg2.extras.execute_batch(cursor, query, batch, page_size=step)
 
     def grant_permission(self, name, permission='SELECT', group=ad.DEFAULT_GROUP, verbose=arg.DEFAULT):
@@ -155,8 +158,8 @@ class PostgresDatabase(ad.AbstractDatabase):
             query_args['columns'] = ', '.join(columns)
         query_args['values'] = ', '.join(placeholders)
         query = query_template.format(**query_args)
-        message = verbose if isinstance(verbose, str) else 'Committing {}-rows batches into {}'.format(step, table)
-        progress = self.new_progress(message, count=count, verbose=verbose)
+        message = verbose if isinstance(verbose, str) else 'Commit {}b to {}'.format(step, table)
+        progress = self.get_new_progress(message, count=count, verbose=verbose)
         progress.start()
         records_batch = list()
         n = 0

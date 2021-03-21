@@ -1,4 +1,5 @@
-from abc import abstractmethod
+from abc import ABC, abstractmethod
+from typing import Union
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
@@ -8,21 +9,22 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .hierarchic_connector import HierarchicConnector
 
 
-class AbstractFolder(HierarchicConnector):
+class AbstractFolder(HierarchicConnector, ABC):
     def __init__(
             self,
-            name,
-            parent,
-            verbose=arg.DEFAULT,
+            name: str,
+            parent: HierarchicConnector,
+            verbose: Union[bool, arg.DefaultArgument] = arg.DEFAULT,
     ):
         super().__init__(
             name=name,
             parent=parent,
         )
-        self.verbose = verbose if verbose is not None and verbose != arg.DEFAULT else parent.verbose
+        if hasattr(parent, 'verbose') and not arg.is_defined(verbose):
+            verbose = parent.verbose
+        self.verbose = verbose
 
-    @staticmethod
-    def is_root():
+    def is_root(self):
         return False
 
     @staticmethod
@@ -32,10 +34,6 @@ class AbstractFolder(HierarchicConnector):
     @staticmethod
     def is_folder():
         return True
-
-    @abstractmethod
-    def get_default_child_class(self):
-        pass
 
 
 class FlatFolder(AbstractFolder):
@@ -59,15 +57,17 @@ class FlatFolder(AbstractFolder):
 class HierarchicFolder(AbstractFolder, HierarchicConnector):
     def __init__(
             self,
-            name,
-            parent,
-            verbose=arg.DEFAULT,
+            name: str,
+            parent: HierarchicConnector,
+            verbose: Union[bool, arg.DefaultArgument] = arg.DEFAULT,
     ):
         super().__init__(
             name=name,
             parent=parent,
         )
-        self.verbose = verbose if verbose is not None and verbose != arg.DEFAULT else parent.verbose
+        if hasattr(parent, 'verbose') and not arg.is_defined(verbose):
+            verbose = parent.verbose
+        self.verbose = verbose
 
     def get_default_child_class(self):
         return self.__class__
@@ -77,3 +77,6 @@ class HierarchicFolder(AbstractFolder, HierarchicConnector):
             if hasattr(obj, 'is_folder'):
                 if obj.is_folder():  # isinstance(obj, (AbstractFolder, ct.AbstractFolder, ct.AbstractFile)):
                     yield obj
+
+    def folder(self, name, **kwargs):
+        return self.child(name, parent=self, **kwargs)
