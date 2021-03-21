@@ -21,9 +21,9 @@ try:  # Assume we're a sub-module in a package.
     from streams.simple.line_stream import LineStream
     from streams.simple.row_stream import RowStream
     from streams.pairs.key_value_stream import KeyValueStream
-    from streams.typed.schema_stream import SchemaStream
+    from streams.wrappers.schema_stream import SchemaStream
     from streams.simple.record_stream import RecordStream
-    from streams.typed.pandas_stream import PandasStream
+    from streams.wrappers.pandas_stream import PandasStream
     from schema import schema_classes as sh
     from loggers.logger_classes import deprecated_with_alternative
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -39,9 +39,9 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .simple.line_stream import LineStream
     from .simple.row_stream import RowStream
     from .pairs.key_value_stream import KeyValueStream
-    from .typed.schema_stream import SchemaStream
+    from .wrappers.schema_stream import SchemaStream
     from .simple.record_stream import RecordStream
-    from .typed.pandas_stream import PandasStream
+    from .wrappers.pandas_stream import PandasStream
     from ..schema import schema_classes as sh
     from ..loggers.logger_classes import deprecated_with_alternative
 

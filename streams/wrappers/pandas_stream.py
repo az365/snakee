@@ -1,3 +1,4 @@
+from typing import Optional
 import pandas as pd
 
 try:  # Assume we're a sub-module in a package.
@@ -47,6 +48,9 @@ class PandasStream(sm.WrapperStream, sm.ColumnarMixin, sm.ConvertMixin):
         else:
             return self.get_data()
 
+    def get_count(self) -> Optional[int]:
+        return self.get_dat().shape[0]
+
     def get_items(self):
         yield from self.get_dataframe().iterrows()
 
@@ -67,7 +71,7 @@ class PandasStream(sm.WrapperStream, sm.ColumnarMixin, sm.ConvertMixin):
             self.get_dataframe().head(count),
         )
 
-    def get_one_column(self, column):
+    def get_one_column_values(self, column):
         return self.get_dataframe()[column]
 
     def add_dataframe(self, dataframe, before=False) -> sm.ColumnarMixin:
@@ -106,14 +110,14 @@ class PandasStream(sm.WrapperStream, sm.ColumnarMixin, sm.ConvertMixin):
         assert not filters, 'custom filters are not implemented yet'
         pandas_filter = None
         for k, v in expressions.items():
-            one_filter = self.get_one_column(k) == v
+            one_filter = self.get_one_column_values(k) == v
             if pandas_filter:
                 pandas_filter = pandas_filter & one_filter
             else:
                 pandas_filter = one_filter
         if pandas_filter:
             return PandasStream(
-                self.data[pandas_filter],
+                self.get_data()[pandas_filter],
                 **self.get_meta()
             )
         else:
