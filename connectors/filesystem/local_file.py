@@ -1,72 +1,92 @@
-from abc import abstractmethod
+from abc import ABC, abstractmethod
+from typing import Optional, Union, Any, Iterable, Callable, NoReturn
+from inspect import isclass
 import os
 import gzip as gz
-import csv
 
 try:  # Assume we're a sub-module in a package.
-    from connectors import connector_classes as cs
-    from streams import stream_classes as sm
     from utils import arguments as arg
-    from schema import schema_classes as sh
+    from items import base_item_type as it
+    from base.interfaces.context_interface import ContextInterface
+    from connectors.abstract.connector_interface import ConnectorInterface
+    from connectors.abstract.leaf_connector import LeafConnector
+    from streams.mixin.stream_builder_mixin import StreamBuilderMixin
+    from streams import stream_classes as sm
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from .. import connector_classes as cs
-    from ...streams import stream_classes as sm
     from ...utils import arguments as arg
-    from ...schema import schema_classes as sh
+    from ...items import base_item_type as it
+    from ...base.interfaces.context_interface import ContextInterface
+    from ..abstract.connector_interface import ConnectorInterface
+    from ..abstract.leaf_connector import LeafConnector
+    from ...streams.mixin.stream_builder_mixin import StreamBuilderMixin
+    from ...streams import stream_classes as sm
 
+OptionalFields = Optional[Union[str, Iterable]]
+Context = Optional[ContextInterface]
+Folder = ConnectorInterface
+
+Stream = Any
 
 AUTO = arg.DEFAULT
 CHUNK_SIZE = 8192
 
 
-class AbstractFile(cs.LeafConnector):
+class AbstractFile(LeafConnector, StreamBuilderMixin, ABC):
     def __init__(
             self,
-            filename,
-            folder=None,
-            verbose=AUTO,
+            name: str,
+            folder: Optional[Folder] = None,
+            context: Union[Context, arg.DefaultArgument] = arg.DEFAULT,
+            verbose: Union[bool, arg.DefaultArgument] = AUTO,
     ):
         if folder:
             message = 'only LocalFolder supported for *File instances (got {})'.format(type(folder))
-            assert cs.is_folder(folder), message
-        super().__init__(
-            name=filename,
-            parent=folder,
-        )
-        self.fileholder = None
+            assert isinstance(folder, Folder), message
+            assert folder.is_folder(), message
+        super().__init__(name=name, parent=folder)
+        self._fileholder = None
         self.verbose = arg.undefault(verbose, self.get_folder().verbose if self.get_folder() else True)
-        self.links = list()
 
     def get_folder(self):
-        return self.parent
+        return self.get_parent()
 
     def get_links(self):
-        return self.links
+        return self._data
 
-    def add_to_folder(self, folder, name=arg.DEFAULT):
-        assert isinstance(folder, cs.LocalFolder), 'Folder must be a LocalFolder (got {})'.format(type(folder))
-        name = arg.undefault(name, self.get_name())
-        folder.add_file(self, name)
+    def get_fileholder(self):
+        return self._fileholder
+
+    def set_fileholder(self, fileholder):
+        self._fileholder = fileholder
+
+    def add_to_folder(self, folder: Folder):
+        assert isinstance(folder, Folder), 'folder must be a LocalFolder (got {})'.format(type(folder))
+        assert folder.is_folder(), 'folder must be a LocalFolder (got {})'.format(type(folder))
+        folder.add_child(self)
 
     @staticmethod
-    def get_default_file_extension():
+    def get_default_file_extension() -> str:
         pass
 
     @staticmethod
-    def get_stream_type():
+    def get_default_item_type() -> it.ItemType:
+        return it.ItemType.Any
+
+    @classmethod
+    def get_stream_type(cls):
         return sm.StreamType.AnyStream
 
     @classmethod
     def get_stream_class(cls):
         return sm.get_class(cls.get_stream_type())
 
-    def is_directly_in_parent_folder(self):
+    def is_directly_in_parent_folder(self) -> bool:
         return self.get_path_delimiter() in self.get_name()
 
-    def has_path_from_root(self):
+    def has_path_from_root(self) -> bool:
         return self.get_name().startswith(self.get_path_delimiter()) or ':' in self.get_name()
 
-    def get_path(self):
+    def get_path(self) -> str:
         if self.has_path_from_root() or not self.get_folder():
             return self.get_name()
         else:
@@ -80,26 +100,34 @@ class AbstractFile(cs.LeafConnector):
             else:
                 return self.get_name()
 
-    def get_list_path(self):
+    def get_list_path(self) -> Iterable:
         return self.get_path().split(self.get_path_delimiter())
 
-    def get_folder_path(self):
+    def get_folder_path(self) -> str:
         return self.get_path_delimiter().join(self.get_list_path()[:-1])
 
-    def is_inside_folder(self, folder=AUTO):
+    def is_inside_folder(self, folder: Union[str, Folder, arg.DefaultArgument] = AUTO) -> bool:
         folder_obj = arg.undefault(folder, self.get_folder())
-        folder_path = folder_obj.get_path() if isinstance(folder_obj, cs.LocalFolder) else folder_obj
+        if isinstance(folder_obj, str):
+            folder_path = folder_obj
+        else:  # elif isinstance(folder_obj, LocalFolder)
+            folder_path = folder_obj.get_path()
         return self.get_folder_path() in folder_path
 
-    def is_opened(self):
-        if self.fileholder is None:
+    def is_opened(self) -> bool:
+        if self.get_fileholder() is None:
             return False
         else:
-            return not self.fileholder.closed
+            return not self.is_closed()
 
-    def close(self):
+    def is_closed(self):
+        fileholder = self.get_fileholder()
+        if hasattr(fileholder, 'closed'):
+            return fileholder.closed
+
+    def close(self) -> int:
         if self.is_opened():
-            self.fileholder.close()
+            self.get_fileholder().close()
             return 1
 
     def open(self, mode='r', reopen=False):
@@ -109,7 +137,8 @@ class AbstractFile(cs.LeafConnector):
             else:
                 raise AttributeError('File {} is already opened'.format(self.get_name()))
         else:
-            self.fileholder = open(self.get_path(), 'r')
+            fileholder = open(self.get_path(), 'r')
+            self.set_fileholder(fileholder)
 
     def remove(self, log=True):
         file_path = self.get_path()
@@ -119,30 +148,68 @@ class AbstractFile(cs.LeafConnector):
         if log:
             self.get_logger().log('Successfully removed {}.'.format(file_path))
 
-    def get_meta(self, ex=None):
-        meta = super().get_meta(ex=ex)
-        meta.pop('fileholder')
-        return meta
-
-    def is_existing(self):
+    def is_existing(self) -> bool:
         return os.path.exists(self.get_path())
 
     @abstractmethod
     def from_stream(self, stream):
         pass
 
+    def to_stream(
+            self,
+            data: Union[Iterable, arg.DefaultArgument] = arg.DEFAULT,
+            stream_type=arg.DEFAULT,
+            ex: OptionalFields = None,
+            **kwargs
+    ) -> Stream:
+        stream_type = arg.undefault(stream_type, self.get_stream_type())
+        if not arg.is_defined(data):
+            data = self.get_data()
+        if isinstance(stream_type, str):
+            stream_class = sm.StreamType(stream_type).get_class()
+        elif isclass(stream_type):
+            stream_class = stream_type
+        else:
+            stream_class = stream_type.get_class()
+        meta = self.get_compatible_meta(stream_class, ex=ex, **kwargs)
+        if 'count' not in meta:
+            meta['count'] = self.get_count()
+        if 'source' not in meta:
+            meta['source'] = self
+        return stream_class(data, **meta)
+
+    def collect(self, **kwargs) -> Stream:
+        return self.to_stream(**kwargs).collect()
+
     @abstractmethod
-    def to_stream(self, **kwargs):
+    def get_count(self):
         pass
 
-    def collect(self, **kwargs):
-        return self.to_stream(**kwargs).collect()
+    def stream(
+            self,
+            data: Union[Iterable, arg.DefaultArgument] = arg.DEFAULT,
+            stream_type=arg.DEFAULT,
+            ex: OptionalFields = None,
+            **kwargs
+    ) -> Stream:
+        return self.to_stream(data, stream_type, ex, **kwargs)
+
+    def map(self, function: Callable) -> Stream:
+        return self.stream(
+            map(function, self.get_items()),
+        )
+
+    def filter(self, function: Callable) -> Stream:
+        return self.stream(
+            filter(function, self.get_items()),
+            count=None,
+        )
 
 
 class TextFile(AbstractFile):
     def __init__(
             self,
-            filename,
+            name,
             gzip=False,
             encoding='utf8',
             end='\n',
@@ -150,48 +217,65 @@ class TextFile(AbstractFile):
             folder=None,
             verbose=AUTO,
     ):
-        super().__init__(
-            filename=filename,
-            folder=folder,
-            verbose=verbose,
-        )
         self.gzip = gzip
         self.encoding = encoding
         self.end = end
         self.count = expected_count
+        super().__init__(
+            name=name,
+            folder=folder,
+            verbose=verbose,
+        )
 
-    def open(self, mode='r', reopen=False):
+    @staticmethod
+    def get_default_file_extension() -> str:
+        return 'txt'
+
+    @staticmethod
+    def get_default_item_type() -> it.ItemType:
+        return it.ItemType.Line
+
+    @classmethod
+    def get_stream_type(cls):
+        return sm.StreamType.LineStream
+
+    def get_data(self, verbose=arg.DEFAULT) -> Iterable:
+        return self.get_items(verbose=verbose)
+
+    def open(self, mode='r', reopen=False) -> NoReturn:
         if self.is_opened():
             if reopen:
                 self.close()
             else:
                 raise AttributeError('File {} is already opened'.format(self.get_name()))
         if self.gzip:
-            self.fileholder = gz.open(self.get_path(), mode)
+            fileholder = gz.open(self.get_path(), mode)
+            self.set_fileholder(fileholder)
         else:
             params = dict()
             if self.encoding:
                 params['encoding'] = self.encoding
-            self.fileholder = open(self.get_path(), mode, **params) if self.encoding else open(self.get_path(), 'r')
+            fileholder = open(self.get_path(), mode, **params) if self.encoding else open(self.get_path(), 'r')
+            self.set_fileholder(fileholder)
 
-    def count_lines(self, reopen=False, chunk_size=CHUNK_SIZE, verbose=AUTO):
+    def count_lines(self, reopen=False, chunk_size=CHUNK_SIZE, verbose=AUTO) -> int:
         verbose = arg.undefault(verbose, self.verbose)
         self.log('Counting lines in {}...'.format(self.get_name()), end='\r', verbose=verbose)
         self.open(reopen=reopen)
-        count_n = sum(chunk.count('\n') for chunk in iter(lambda: self.fileholder.read(chunk_size), ''))
+        count_n = sum(chunk.count('\n') for chunk in iter(lambda: self.get_fileholder().read(chunk_size), ''))
         self.count = count_n + 1
         self.close()
         self.log('Detected {} lines in {}.'.format(self.count, self.get_name()), end='\r', verbose=verbose)
         return self.count
 
-    def get_count(self, reopen=True):
+    def get_count(self, reopen=True) -> Optional[int]:
         if (self.count is None or self.count == AUTO) and not self.gzip:
             self.count = self.count_lines(reopen=reopen)
         return self.count
 
-    def get_next_lines(self, count=None, skip_first=False, close=False):
+    def get_next_lines(self, count=None, skip_first=False, close=False) -> Iterable:
         assert self.is_opened()
-        for n, row in enumerate(self.fileholder):
+        for n, row in enumerate(self.get_fileholder()):
             if skip_first and n == 0:
                 continue
             if isinstance(row, bytes):
@@ -204,31 +288,28 @@ class TextFile(AbstractFile):
         if close:
             self.close()
 
-    def get_lines(self, count=None, skip_first=False, check=True, verbose=AUTO, step=AUTO):
+    def get_lines(self, count=None, skip_first=False, check=True, verbose=AUTO, step=AUTO) -> Iterable:
         if check and not self.gzip:
             assert self.get_count(reopen=True) > 0
         self.open(reopen=True)
         lines = self.get_next_lines(count=count, skip_first=skip_first, close=True)
-        if arg.undefault(verbose, self.verbose):
-            message = 'Reading {}'.format(self.get_name())
+        verbose = arg.undefault(verbose, self.verbose)
+        if verbose:
+            message = verbose if isinstance(verbose, str) else 'Reading {}'.format(self.get_name())
+            logger = self.get_logger()
+            assert hasattr(logger, 'progress'), '{} has no progress in {}'.format(self, logger)
             lines = self.get_logger().progress(lines, name=message, count=self.count, step=step)
         return lines
 
-    def get_items(self, verbose=AUTO, step=AUTO):
+    def get_items(self, verbose=AUTO, step=AUTO) -> Iterable:
         verbose = arg.undefault(verbose, self.verbose)
-        if (self.get_count() or 0) > 0:
+        if isinstance(verbose, str):
+            self.log(verbose, verbose=verbose)
+        elif (self.get_count() or 0) > 0:
             self.log('Expecting {} lines in file {}...'.format(self.get_count(), self.get_name()), verbose=verbose)
         return self.get_lines(verbose=verbose, step=step)
 
-    @staticmethod
-    def get_default_file_extension():
-        return 'txt'
-
-    @staticmethod
-    def get_stream_type():
-        return sm.StreamType.LineStream
-
-    def get_stream(self, to=AUTO, verbose=AUTO):
+    def get_stream(self, to=AUTO, verbose=AUTO) -> Stream:
         to = arg.undefault(to, self.get_stream_type())
         return self.to_stream_class(
             stream_class=sm.get_class(to),
@@ -262,52 +343,51 @@ class TextFile(AbstractFile):
         result.update(kwargs)
         return result
 
-    def to_stream_class(self, stream_class, **kwargs):
+    def to_stream_class(self, stream_class, **kwargs) -> Stream:
         return stream_class(
             **self.stream_kwargs(**kwargs)
         )
 
-    def to_lines_stream(self, **kwargs):
+    def to_lines_stream(self, **kwargs) -> Stream:
         return sm.LineStream(
-            **self.lines_stream_kwargs(**kwargs)
+            **self.lines_stream_kwargs(**kwargs),
         )
 
-    def to_any_stream(self, **kwargs):
+    def to_any_stream(self, **kwargs) -> Stream:
         return sm.AnyStream(
             **self.stream_kwargs(**kwargs)
         )
 
-    def write_lines(self, lines, verbose=AUTO):
+    def write_lines(self, lines, verbose=AUTO) -> NoReturn:
         verbose = arg.undefault(verbose, self.verbose)
         self.open('w', reopen=True)
         n = 0
         for n, i in enumerate(lines):
             if n > 0:
-                self.fileholder.write(self.end.encode(self.encoding) if self.gzip else self.end)
-            self.fileholder.write(str(i).encode(self.encoding) if self.gzip else str(i))
-        self.fileholder.close()
+                self.get_fileholder().write(self.end.encode(self.encoding) if self.gzip else self.end)
+            self.get_fileholder().write(str(i).encode(self.encoding) if self.gzip else str(i))
         self.close()
         self.log('Done. {} rows has written into {}'.format(n + 1, self.get_name()), verbose=verbose)
 
     def write_stream(self, stream, verbose=AUTO):
         assert sm.is_stream(stream)
         return self.write_lines(
-            stream.to_line_stream().data,
+            stream.to_line_stream().get_data(),
             verbose=verbose,
         )
 
     def from_stream(self, stream):
         assert isinstance(stream, sm.LineStream)
-        self.write_lines(stream.get_iter())
+        return self.write_lines(stream.get_iter())
 
-    def to_stream(self, stream_type=arg.DEFAULT, verbose=arg.DEFAULT):
-        return self.get_stream(to=stream_type, verbose=verbose)
+    def take(self, count: int):
+        return self.to_lines_stream().take(count)
 
 
 class JsonFile(TextFile):
     def __init__(
             self,
-            filename,
+            name,
             encoding='utf8',
             gzip=False,
             expected_count=AUTO,
@@ -317,7 +397,7 @@ class JsonFile(TextFile):
             verbose=AUTO,
     ):
         super().__init__(
-            filename=filename,
+            name=name,
             encoding=encoding,
             gzip=gzip,
             expected_count=expected_count,
@@ -328,329 +408,36 @@ class JsonFile(TextFile):
         self.default_value = default_value
 
     @staticmethod
-    def get_default_file_extension():
+    def get_default_file_extension() -> str:
         return 'json'
 
     @staticmethod
-    def get_stream_type():
+    def get_default_item_type() -> it.ItemType:
+        return it.ItemType.Any
+
+    @classmethod
+    def get_stream_type(cls):
         return sm.StreamType.AnyStream
 
-    def get_items(self, verbose=AUTO, step=AUTO):
+    def get_items(self, verbose=AUTO, step=AUTO) -> Iterable:
         return self.to_lines_stream(
             verbose=verbose,
         ).parse_json(
             default_value=self.default_value,
         ).get_items()
 
-    def to_records_stream(self, verbose=AUTO):
+    def to_record_stream(self, verbose=AUTO, **kwargs) -> Stream:
         return sm.RecordStream(
             self.get_items(verbose=verbose),
-            count=self.count,
+            count=self.get_count(),
             source=self,
             context=self.get_context(),
+            **kwargs
         )
 
     def write_stream(self, stream, verbose=AUTO):
         assert sm.is_stream(stream)
         return self.write_lines(
-            stream.to_json().data,
+            stream.to_json().get_data(),
             verbose=verbose,
         )
-
-
-class ColumnFile(TextFile):
-    def __init__(
-            self,
-            filename,
-            gzip=False,
-            encoding='utf8',
-            end='\n',
-            delimiter='\t',
-            first_line_is_title=True,
-            expected_count=AUTO,
-            schema=AUTO,
-            folder=None,
-            verbose=AUTO
-    ):
-        super().__init__(
-            filename=filename,
-            gzip=gzip,
-            encoding=encoding,
-            end=end,
-            expected_count=expected_count,
-            folder=folder,
-            verbose=verbose,
-        )
-        self.delimiter = delimiter
-        self.first_line_is_title = first_line_is_title
-        self.schema = None
-        self.set_schema(schema)
-
-    def get_schema(self):
-        return self.schema
-
-    def get_schema_str(self, dialect='pg'):
-        return self.get_schema().get_schema_str(dialect=dialect)
-
-    def set_schema(self, schema, return_file=True):
-        if schema is None:
-            self.schema = None
-        elif isinstance(schema, sh.SchemaDescription):
-            self.schema = schema
-        elif isinstance(schema, (list, tuple)):
-            has_types_descriptions = [isinstance(f, (list, tuple)) for f in schema]
-            if max(has_types_descriptions):
-                self.schema = sh.SchemaDescription(schema)
-            else:
-                self.schema = sh.detect_schema_by_title_row(schema)
-        elif schema == AUTO:
-            if self.first_line_is_title:
-                self.schema = self.detect_schema_by_title_row()
-            else:
-                self.schema = None
-        else:
-            message = 'schema must be SchemaDescription of tuple with fields_description (got {})'.format(type(schema))
-            raise TypeError(message)
-        if return_file:
-            return self
-
-    def detect_schema_by_title_row(self, set_schema=False, verbose=AUTO):
-        assert self.first_line_is_title, 'Can detect schema by title row only if first line is a title row'
-        verbose = arg.undefault(verbose, self.verbose)
-        lines = self.get_lines(skip_first=False, check=False, verbose=False)
-        rows = csv.reader(lines, delimiter=self.delimiter) if self.delimiter else csv.reader(lines)
-        title_row = next(rows)
-        self.close()
-        schema = sh.detect_schema_by_title_row(title_row)
-        message = 'Schema for {} detected by title row: {}'.format(self.get_name(), schema.get_schema_str(None))
-        self.log(message, end='\n', verbose=verbose)
-        if set_schema:
-            self.schema = schema
-        return schema
-
-    def check(self, must_exists=False, check_types=False, check_order=False):
-        file_exists = self.is_existing()
-        if must_exists:
-            assert file_exists, 'file {} must exists'.format(self.get_name())
-        expected_schema = self.get_schema()
-        if file_exists:
-            received_schema = self.detect_schema_by_title_row()
-            if check_types:
-                if check_order:
-                    assert received_schema == expected_schema
-                else:
-                    assert sorted(received_schema) == sorted(expected_schema)
-            else:
-                cols_expected = expected_schema.get_columns()
-                cols_received = received_schema.get_columns()
-                if check_order:
-                    assert cols_received == cols_expected
-                else:
-                    assert set(cols_received) == set(cols_expected)
-        else:
-            assert expected_schema, 'schema for {} must be defined'.format(self.get_name())
-
-    def add_fields(self, *fields, default_type=None, return_file=True):
-        self.schema.add_fields(*fields, default_type=default_type, return_schema=False)
-        if return_file:
-            return self
-
-    def get_columns(self):
-        return self.get_schema().get_columns()
-
-    def get_types(self):
-        return self.get_schema().get_types()
-
-    def set_types(self, dict_field_types=None, return_file=True, **kwargs):
-        self.get_schema().set_types(dict_field_types=dict_field_types, return_schema=False, **kwargs)
-        if return_file:
-            return self
-
-    def get_rows(self, convert_types=True, verbose=AUTO, step=AUTO):
-        lines = self.get_lines(
-            skip_first=self.first_line_is_title,
-            verbose=verbose, step=step,
-        )
-        rows = csv.reader(lines, delimiter=self.delimiter) if self.delimiter else csv.reader(lines)
-        if self.schema is None or not convert_types:
-            yield from rows
-        else:
-            converters = self.get_schema().get_converters('str', 'py')
-            for row in rows:
-                converted_row = list()
-                for value, converter in zip(row, converters):
-                    converted_value = converter(value)
-                    converted_row.append(converted_value)
-                yield converted_row
-
-    def get_items(self, kind='rows', *args, **kwargs):
-        method_name = 'get_{}'.format(kind)
-        method_callable = self.__getattribute__(method_name)
-        return method_callable(*args, **kwargs)
-
-    def get_schema_rows(self, verbose=AUTO, step=AUTO):
-        assert self.schema is not None, 'For getting schematized rows schema must be defined.'
-        for row in self.get_rows(verbose=verbose, step=step):
-            yield sh.SchemaRow(row, schema=self.schema)
-
-    def get_records(self, convert_types=True):
-        for item in self.get_rows(convert_types=convert_types, verbose=AUTO, step=AUTO):
-            yield {k: v for k, v in zip(self.get_schema().get_columns(), item)}
-
-    def get_dict(self, key, value, skip_errors=False):
-        return self.to_record_stream().get_dict(key, value, skip_errors=skip_errors)
-
-    def to_row_stream(self, name=None, **kwargs):
-        data = self.get_rows()
-        stream = sm.RowStream(
-            **self.stream_kwargs(data=data, **kwargs)
-        )
-        if name:
-            stream.set_name(name)
-        return stream
-
-    def to_schema_stream(self, name=None, **kwargs):
-        data = self.get_rows()
-        stream = sm.SchemaStream(
-            schema=self.schema,
-            **self.stream_kwargs(data=data, **kwargs)
-        )
-        if name:
-            stream.set_name(name)
-        return stream
-
-    def to_record_stream(self, name=None, **kwargs):
-        data = self.get_records()
-        stream = sm.RecordStream(**self.stream_kwargs(data=data, **kwargs))
-        if name:
-            stream.set_name(name)
-        return stream
-
-    def select(self, *args, **kwargs):
-        return self.to_record_stream().select(*args, **kwargs)
-
-    def filter(self, *args, **kwargs):
-        return self.to_record_stream().filter(*args, **kwargs)
-
-    def take(self, count):
-        return self.to_record_stream().take(count)
-
-    def to_memory(self):
-        return self.to_record_stream().to_memory()
-
-    def show(self, count=10, filters=[], recount=False):
-        if recount:
-            self.count_lines(True)
-        return self.to_record_stream().show(count, filters)
-
-    def write_rows(self, rows, verbose=AUTO):
-        def get_rows_with_title():
-            if self.first_line_is_title:
-                yield self.get_columns()
-            for r in rows:
-                assert len(r) == len(self.get_columns())
-                yield map(str, r)
-        lines = map(self.delimiter.join, get_rows_with_title())
-        self.write_lines(lines, verbose=verbose)
-
-    def write_records(self, records, verbose=AUTO):
-        rows = map(
-            lambda r: [r.get(f, '') for f in self.get_columns()],
-            records,
-        )
-        self.write_rows(rows, verbose=verbose)
-
-    def write_stream(self, stream, verbose=AUTO):
-        assert sm.is_stream(stream)
-        methods_for_classes = dict(
-            RecordStream=self.write_records, RowStream=self.write_rows, LineStream=self.write_lines,
-        )
-        method = methods_for_classes.get(stream.get_class_name())
-        if method:
-            return method(stream.data, verbose=verbose)
-        else:
-            message = '{}.write_stream() supports RecordStream, RowStream, LineStream only (got {})'
-            raise TypeError(message.format(self.__class__.__name__, stream.__class__.__name__))
-
-    @staticmethod
-    def get_default_file_extension():
-        return 'tsv'
-
-    @staticmethod
-    def get_stream_type():
-        return sm.StreamType.RowStream
-
-
-# @deprecated_with_alternative('ConnType.get_class()')
-class CsvFile(ColumnFile):
-    def __init__(
-            self,
-            filename,
-            gzip=False,
-            encoding='utf8',
-            end='\n',
-            delimiter=',',
-            first_line_is_title=True,
-            expected_count=AUTO,
-            schema=AUTO,
-            folder=None,
-            verbose=AUTO
-    ):
-        super().__init__(
-            filename=filename,
-            gzip=gzip,
-            encoding=encoding,
-            end=end,
-            expected_count=expected_count,
-            folder=folder,
-            verbose=verbose,
-        )
-        self.delimiter = delimiter
-        self.first_line_is_title = first_line_is_title
-        self.schema = None
-        self.set_schema(schema)
-
-    @staticmethod
-    def get_default_file_extension():
-        return 'csv'
-
-    @staticmethod
-    def get_stream_type():
-        return sm.StreamType.RecordStream
-
-
-# @deprecated_with_alternative('ConnType.get_class()')
-class TsvFile(ColumnFile):
-    def __init__(
-            self,
-            filename,
-            gzip=False,
-            encoding='utf8',
-            end='\n',
-            delimiter='\t',
-            first_line_is_title=True,
-            expected_count=AUTO,
-            schema=AUTO,
-            folder=None,
-            verbose=AUTO
-    ):
-        super().__init__(
-            filename=filename,
-            gzip=gzip,
-            encoding=encoding,
-            end=end,
-            delimiter=delimiter,
-            first_line_is_title=first_line_is_title,
-            expected_count=expected_count,
-            schema=schema,
-            folder=folder,
-            verbose=verbose,
-        )
-
-    @staticmethod
-    def get_default_file_extension():
-        return 'tsv'
-
-    @staticmethod
-    def get_stream_type():
-        return sm.StreamType.RecordStream

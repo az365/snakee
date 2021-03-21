@@ -1,56 +1,99 @@
 from enum import Enum
 import os
 import fnmatch
+from typing import Union, Iterable
 
 try:  # Assume we're a sub-module in a package.
-    from connectors import connector_classes as ct
     from utils import arguments as arg
+    from base.interfaces.context_interface import ContextInterface
+    from connectors.abstract.hierarchic_connector import HierarchicConnector
+    from connectors.abstract.abstract_folder import HierarchicFolder
+    from connectors.filesystem.local_file import TextFile
+    from connectors.filesystem.file_type import FileType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from .. import connector_classes as ct
     from ...utils import arguments as arg
+    from ...base.interfaces.context_interface import ContextInterface
+    from ..abstract.hierarchic_connector import HierarchicConnector
+    from ..abstract.abstract_folder import HierarchicFolder
+    from .local_file import TextFile
+    from .file_type import FileType
 
 
-class FileType(Enum):
-    TextFile = 'TextFile'
-    JsonFile = 'JsonFile'
-    ColumnFile = 'ColumnFile'
-    CsvFile = 'CsvFile'
-    TsvFile = 'TsvFile'
-    TskvFile = 'TskvFile'
+class FolderType(Enum):
+    LocalStorage = 'LocalStorage'
+    LocalFolder = 'LocalFolder'
+    FileMask = 'FileMask'
+
+    def get_name(self):
+        return self.value
+
+    def get_value(self):
+        return self.value
+
+    @staticmethod
+    def _get_dict_classes():
+        return {FolderType.LocalFolder: LocalFolder, FolderType.FileMask: FileMask}
+
+    def get_class(self, skip_missing=False):
+        found_class = self._get_dict_classes().get(self)
+        if found_class:
+            return found_class
+        elif not skip_missing:
+            raise ValueError('class for {} not supported'.format(self))
+
+    @staticmethod
+    def detect_by_name(name: str):
+        if '*' in name:
+            return FolderType.FileMask
+        else:
+            return FolderType.LocalFolder
 
 
-class LocalFolder(ct.HierarchicFolder):
+class LocalFolder(HierarchicFolder):
     def __init__(
             self,
-            path,
-            path_is_relative=True,
-            parent=arg.DEFAULT,
-            context=arg.DEFAULT,
-            verbose=arg.DEFAULT,
+            path: str,
+            path_is_relative: Union[bool, arg.DefaultArgument] = arg.DEFAULT,
+            parent: Union[HierarchicConnector, arg.DefaultArgument] = arg.DEFAULT,
+            context=None,
+            verbose: Union[bool, arg.DefaultArgument] = arg.DEFAULT,
     ):
-        parent = arg.undefault(parent, ct.LocalStorage(context=context))
-        assert isinstance(parent, (LocalFolder, ct.LocalFolder, ct.LocalStorage))
+        if not arg.is_defined(parent):
+            parent = self.get_default_parent()
+        if parent:
+            assert isinstance(parent, (HierarchicConnector, ContextInterface)), 'got {} as {}'.format(parent, type(parent))
+        elif context:
+            parent = context
         super().__init__(
             name=path,
             parent=parent,
             verbose=verbose,
         )
-        self.path_is_relative = path_is_relative
-
-    def get_default_child_class(self):
-        return ct.TextFile
+        path_is_relative = arg.undefault(path_is_relative, not arg.is_absolute_path(path))
+        self._path_is_relative = path_is_relative
 
     @staticmethod
-    def get_child_class_by_type(filetype):
-        return ct.ConnType(filetype).get_class()
+    def get_default_parent(context=arg.DEFAULT):
+        if arg.is_defined(context):
+            return context.get_local_storage()
+
+    def get_default_child_class(self):
+        return TextFile
+
+    @staticmethod
+    def get_child_class_by_type(type_name: Union[FolderType, FileType, str]):
+        try:
+            conn_type = FolderType(type_name)
+        except ValueError:
+            conn_type = FileType(type_name)
+        return conn_type.get_class()
 
     @staticmethod
     def get_type_by_name(name):
         if '*' in name:
-            return ct.FileMask
+            return FolderType.FileMask
         else:
-            file_ext = name.split('.')[-1]
-            return ct.get_type_by_ext(file_ext)
+            return FileType.detect_by_name(name)
 
     def get_child_class_by_name(self, name):
         supposed_type = self.get_type_by_name(name)
@@ -58,8 +101,7 @@ class LocalFolder(ct.HierarchicFolder):
 
     def get_child_class_by_name_and_type(self, name, filetype=arg.DEFAULT):
         supposed_type = self.get_type_by_name(name)
-        filetype = arg.undefault(filetype, supposed_type)
-        return self.get_child_class_by_type(filetype)
+        return supposed_type.get_class()
 
     def get_files(self):
         for item in self.get_items():
@@ -77,25 +119,23 @@ class LocalFolder(ct.HierarchicFolder):
         return file
 
     def folder(self, name, folder_type=arg.DEFAULT, **kwargs):
-        supposed_type = ct.ConnType.FileMask if '*' in name else ct.ConnType.LocalFolder
-        subfolder_type = arg.undefault(folder_type, supposed_type)
-        subfolder_class = ct.ConnType(subfolder_type).get_class()
-        subfolder_obj = subfolder_class(name, parent=self, **kwargs)
-        self.add_folder(name, subfolder_obj)
-        return subfolder_obj
+        supposed_type = FolderType.detect_by_name(name)
+        folder_type = arg.undefault(folder_type, supposed_type)
+        folder_class = FolderType(folder_type).get_class()
+        folder_obj = folder_class(name, parent=self, **kwargs)
+        self.add_folder(folder_obj)
+        return folder_obj
 
-    def mask(self, mask):
-        return self.folder(mask, ct.ConnType.FileMask)
+    def mask(self, mask: str):
+        return self.folder(mask, FolderType.FileMask)
 
-    def add_file(self, name, file):
+    def add_file(self, file):
         assert file.is_leaf(), 'file must be an instance of *File (got {})'.format(type(file))
-        assert name not in self.get_children(), 'file with name {} is already registered'.format(name)
-        self.get_children()[name] = file
+        super().add_child(file)
 
-    def add_folder(self, name, folder):
+    def add_folder(self, folder):
         assert folder.is_folder()
-        assert name not in self.get_children()
-        self.get_children()[name] = folder
+        super().add_child(folder)
 
     def get_links(self):
         for item in self.get_files():
@@ -112,44 +152,49 @@ class LocalFolder(ct.HierarchicFolder):
                 closed_count += file.close() or 0
         return closed_count
 
-    def has_parent_folder(self):
-        return self.get_parent().is_folder()
+    def has_parent_folder(self) -> bool:
+        parent = self.get_parent()
+        if hasattr(parent, 'is_folder'):
+            return parent.is_folder()
 
-    def has_path_relative(self):
+    def is_relative_path(self) -> bool:  # just path this object
+        return self._path_is_relative
+
+    def has_relative_path(self) -> bool:  # path including parent folder
         if self.has_parent_folder():
             return self.get_parent().has_path_relative()
         else:
-            return self.path_is_relative
+            return self.is_relative_path()
 
-    def get_path(self):
-        if self.has_path_relative() and not self.has_parent_folder():
+    def get_path(self) -> str:
+        if self.is_relative_path() and not self.has_parent_folder():
             return self.get_name()
         else:
             return super().get_path()
 
-    def get_folder_path(self):
+    def get_folder_path(self) -> str:
         return self.get_path()
 
-    def get_file_path(self, name):
+    def get_file_path(self, name) -> str:
         if self.get_folder_path():
             return self.get_folder_path() + self.get_path_delimiter() + name
         else:
             return name
 
-    def list_existing_names(self):
+    def list_existing_names(self) -> list:
         if self.get_name() in ['', '.']:
             return os.listdir()
         else:
             return os.listdir(self.get_path())
 
-    def yield_existing_file_names(self):
+    def get_existing_file_names(self) -> Iterable:
         for name in self.list_existing_names():
             path = self.get_file_path(name)
             if os.path.isfile(path):
                 yield name
 
-    def list_existing_file_names(self):
-        return list(self.yield_existing_file_names())
+    def list_existing_file_names(self) -> Iterable:
+        return list(self.get_existing_file_names())
 
     def all_existing_files(self, **kwargs):
         for name in self.list_existing_file_names():
@@ -159,18 +204,16 @@ class LocalFolder(ct.HierarchicFolder):
 class FileMask(LocalFolder):
     def __init__(
             self,
-            mask,
-            parent,
+            mask: str,
+            parent: HierarchicConnector,
             context=None,
-            verbose=arg.DEFAULT,
+            verbose: Union[bool, arg.DefaultArgument] = arg.DEFAULT,
     ):
-        parent = arg.undefault(parent, ct.LocalStorage(context=context))
-        assert isinstance(parent, (LocalFolder, ct.LocalFolder, ct.LocalStorage))
-        super().__init__(
-            path=mask,
-            parent=parent,
-            verbose=verbose,
-        )
+        if not arg.is_defined(parent):
+            if arg.is_defined(context):
+                parent = context.get_local_storage()
+        assert parent.is_folder() or parent.is_storage()
+        super().__init__(path=mask, parent=parent, context=context, verbose=verbose)
 
     def get_mask(self):
         return self.get_name()
