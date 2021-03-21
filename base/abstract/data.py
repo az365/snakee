@@ -62,5 +62,11 @@ class DataWrapper(Contextual, DataInterface, ABC):
     def get_static_meta(self, ex: OptionalFields = None) -> dict:
         meta = self.get_meta(ex=ex)
         for f in self._get_dynamic_meta_fields():
-            meta.pop(f)
+            meta.pop(f, None)
+        return meta
+
+    def get_compatible_static_meta(self, other=arg.DEFAULT, ex=None, **kwargs) -> dict:
+        meta = self.get_compatible_meta(other=other, ex=ex, **kwargs)
+        for f in self._get_dynamic_meta_fields():
+            meta.pop(f, None)
         return meta

@@ -27,6 +27,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 
 Stream = Union[StreamInterface, Any]
 OptionalFields = Optional[Union[Iterable, str]]
+Key = Union[str, list, tuple]
 
 
 class ColumnarInterface(StreamInterface, ABC):
@@ -104,8 +105,7 @@ class ColumnarMixin(DataWrapper, ColumnarInterface, ABC):
     def get_column_count(self) -> int:
         return len(list(self.get_columns()))
 
-    def map_side_join(self, right, key, how='left', right_is_uniq=True) -> Native:
-        assert isinstance(right, ColumnarInterface)
+    def map_side_join(self, right: Native, key: Key, how='left', right_is_uniq=True) -> Native:
         assert how in algo.JOIN_TYPES, 'only {} join types are supported ({} given)'.format(algo.JOIN_TYPES, how)
         keys = arg.update([key])
         joined_items = algo.map_side_join(
@@ -115,17 +115,16 @@ class ColumnarMixin(DataWrapper, ColumnarInterface, ABC):
             how=how,
             uniq_right=right_is_uniq,
         )
-        stream = self.stream(
-            list(joined_items) if self.is_in_memory() else joined_items,
-        ).set_meta(
-            **self.get_static_meta()
-        )
+        if self.is_in_memory():
+            joined_items = list(joined_items)
+        stream = self.stream(joined_items)
+        meta = self.get_compatible_static_meta()
+        stream = stream.set_meta(**meta)
         return self._assume_native(stream)
 
     def sorted_group_by(self, *keys) -> Native:
         return self.stream(
             self.select(keys, lambda r: r).get_items(),
-            # to=StreamType.KeyValueStream,
             to='KeyValueStream',
         )
 
