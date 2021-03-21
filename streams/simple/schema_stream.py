@@ -1,26 +1,24 @@
-import loggers.extended_logger_interface
-
 try:  # Assume we're a sub-module in a package.
+    from utils import (
+        arguments as arg,
+        selection as sf,
+    )
     from streams import stream_classes as sm
     from loggers import logger_classes as log
     from schema import schema_classes as sh
     from functions import all_functions as fs
     from selection import selection_classes as sn
-    from utils import (
+    from loggers.logger_classes import deprecated_with_alternative
+except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
+    from ...utils import (
         arguments as arg,
         selection as sf,
     )
-    from loggers.logger_classes import deprecated_with_alternative
-except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from .. import stream_classes as sm
     from ...loggers import logger_classes as log
     from ...schema import schema_classes as sh
     from ...functions import all_functions as fs
     from ...selection import selection_classes as sn
-    from ...utils import (
-        arguments as arg,
-        selection as sf,
-    )
     from ...loggers.logger_classes import deprecated_with_alternative
 
 
@@ -65,9 +63,9 @@ def check_rows(rows, schema, skip_errors=False):
         yield r
 
 
-@deprecated_with_alternative('schema.SchemaRow()')
+# @deprecated_with_alternative('schema.SchemaRow()')
 def apply_schema_to_row(row, schema, skip_bad_values=False, logger=None):
-    if isinstance(schema, sh.SchemaDescription):
+    if isinstance(schema, sh.SchemaDescription) or hasattr(schema, 'get_converters'):
         converters = schema.get_converters('str', 'py')
         return [converter(value) for value, converter in zip(row, converters)]
     elif isinstance(schema, (list, tuple)):
@@ -83,16 +81,16 @@ def apply_schema_to_row(row, schema, skip_bad_values=False, logger=None):
                         field_name, c,
                         value, field_type,
                     )
-                    logger.log(msg=message, level=loggers.extended_logger_interface.LoggingLevel.Error.value)
+                    logger.log(msg=message, level=log.LoggingLevel.Error.value)
                 if skip_bad_values:
                     if logger:
                         message = 'Skipping bad value in row:'.format(list(zip(row, schema)))
-                        logger.log(msg=message, level=loggers.extended_logger_interface.LoggingLevel.Debug.value)
+                        logger.log(msg=message, level=log.LoggingLevel.Debug.value)
                     new_value = None
                 else:
                     message = 'Error in row: {}...'.format(str(list(zip(row, schema)))[:80])
                     if logger:
-                        logger.log(msg=message, level=loggers.extended_logger_interface.LoggingLevel.Warning.value)
+                        logger.log(msg=message, level=log.LoggingLevel.Warning.value)
                     else:
                         log.get_logger().show(message)
                     raise e
@@ -113,9 +111,10 @@ class SchemaStream(sm.RowStream):
             tmp_files_template=sm.TMP_FILES_TEMPLATE,
             tmp_files_encoding=sm.TMP_FILES_ENCODING,
     ):
+        self.schema = schema or list()
         super().__init__(
-            data,
-            name=name, check=check,
+            data=self.get_validated_items(data, schema=schema),
+            name=name, check=False,
             count=count, less_than=less_than,
             source=source, context=context,
             max_items_in_memory=max_items_in_memory,
@@ -132,18 +131,20 @@ class SchemaStream(sm.RowStream):
     def get_item_type():
         return sh.SchemaRow
 
+    @classmethod
+    def is_valid_item_type(cls, item):
+        return super().is_valid_item_type(item)
+
     def is_valid_item(self, item):
         return is_valid(
             item,
             schema=self.schema,
         )
 
-    def get_validated(self, items, skip_errors=False):
-        return check_rows(
-            items,
-            self.schema,
-            skip_errors,
-        )
+    def get_validated_items(self, items, schema=arg.DEFAULT, skip_errors=False, context=arg.NOT_USED):
+        if schema == arg.DEFAULT:
+            schema = self.get_schema()
+        return check_rows(items, schema, skip_errors)
 
     @staticmethod
     def get_item_type():
@@ -153,38 +154,37 @@ class SchemaStream(sm.RowStream):
         return self.schema
 
     def set_schema(self, schema, check=True):
-        return SchemaStream(
-            check_rows(self.data, schema=schema) if check else self.data,
-            count=self.count,
-            less_than=self.less_than,
+        return self.stream(
+            check_rows(self.get_data(), schema=schema) if check else self.get_data(),
             schema=schema,
         )
 
+    def get_schematized_rows(self, rows, schema=arg.DEFAULT, skip_bad_rows=False, skip_bad_values=False, verbose=True):
+        schema = arg.undefault(schema, self.get_schema())
+        if isinstance(schema, sh.SchemaDescription):  # actual approach
+            converters = schema.get_converters('str', 'py')
+            for r in rows:
+                converted_row = list()
+                for value, converter in zip(r, converters):
+                    converted_value = converter(value)
+                    converted_row.append(converted_value)
+                yield converted_row.copy()
+        else:  # deprecated approach
+            for r in rows:
+                if skip_bad_rows:
+                    try:
+                        yield apply_schema_to_row(r, schema, False, logger=self if verbose else None)
+                    except ValueError:
+                        self.log(['Skip bad row:', r], verbose=verbose)
+                else:
+                    yield apply_schema_to_row(r, schema, skip_bad_values, logger=self if verbose else None)
+
     def schematize(self, schema, skip_bad_rows=False, skip_bad_values=False, verbose=True):
-        def apply_schema_to_rows(rows):
-            if isinstance(schema, sh.SchemaDescription):  # actual approach
-                converters = schema.get_converters('str', 'py')
-                for r in rows:
-                    converted_row = list()
-                    for value, converter in zip(r, converters):
-                        converted_value = converter(value)
-                        converted_row.append(converted_value)
-                    yield converted_row.copy()
-            else:  # deprecated approach
-                for r in rows:
-                    if skip_bad_rows:
-                        try:
-                            yield apply_schema_to_row(r, schema, False, logger=self if verbose else None)
-                        except ValueError:
-                            self.log(['Skip bad row:', r], verbose=verbose)
-                    else:
-                        yield apply_schema_to_row(r, schema, skip_bad_values, logger=self if verbose else None)
-        return SchemaStream(
-            apply_schema_to_rows(self.data),
-            count=None if skip_bad_rows else self.count,
-            less_than=self.less_than,
-            check=False,
+        return self.stream(
+            self.get_schematized_rows(self.get_items()),
             schema=schema,
+            count=None if skip_bad_rows else self.get_count(),
+            check=False,
         )
 
     def get_columns(self):
@@ -200,8 +200,8 @@ class SchemaStream(sm.RowStream):
     def schematized_map(self, function, schema):
         return self.__class__(
             map(function, self.get_items()),
-            count=self.count,
-            less_than=self.count or self.less_than,
+            count=self.get_count(),
+            less_than=self.get_count() or self.get_estimated_count(),
             schema=schema,
         )
 

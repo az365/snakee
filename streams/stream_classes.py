@@ -21,7 +21,7 @@ try:  # Assume we're a sub-module in a package.
     from streams.simple.line_stream import LineStream
     from streams.simple.row_stream import RowStream
     from streams.pairs.key_value_stream import KeyValueStream
-    from streams.wrappers.schema_stream import SchemaStream
+    from streams.simple.schema_stream import SchemaStream
     from streams.simple.record_stream import RecordStream
     from streams.wrappers.pandas_stream import PandasStream
     from schema import schema_classes as sh
@@ -39,7 +39,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .simple.line_stream import LineStream
     from .simple.row_stream import RowStream
     from .pairs.key_value_stream import KeyValueStream
-    from .wrappers.schema_stream import SchemaStream
+    from .simple.schema_stream import SchemaStream
     from .simple.record_stream import RecordStream
     from .wrappers.pandas_stream import PandasStream
     from ..schema import schema_classes as sh
