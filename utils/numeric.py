@@ -34,7 +34,7 @@ def is_defined(value):
 
 
 def is_nonzero(value):
-    if is_defined():
+    if is_defined(value):
         return value != 0
 
 
@@ -82,11 +82,25 @@ def is_local_extremum(x_left, x_center, x_right, local_max=True, local_min=True)
     return result
 
 
+def _raise_import_error(lib=None):
+    if lib:
+        raise ImportError('{} not installed'.format(lib))
+    else:
+        raise ImportError
+
+
+def median(a, ignore_import_error=False):
+    if np:
+        return np.median(a)
+    elif not ignore_import_error:
+        _raise_import_error('numpy')
+
+
 def corr(a, b, ignore_import_error=False):
     if np:
         return np.corrcoef(a, b)[0, 1]
     elif not ignore_import_error:
-        raise ImportError('numpy not installed')
+        _raise_import_error('numpy')
 
 
 def spline_interpolate(x, y, ignore_import_error=False):
@@ -97,23 +111,22 @@ def spline_interpolate(x, y, ignore_import_error=False):
         except ValueError:
             return interpolate.interp1d(x, y, kind='linear')
     elif not ignore_import_error:
-        raise ImportError('scipy not installed')
+        _raise_import_error('scipy')
 
 
 def get_dataframe(*args, ignore_import_error=False, **kwargs):
     if pd:
         return pd.DataFrame(*args, **kwargs)
     elif not ignore_import_error:
-        raise ImportError('pandas not installed')
+        _raise_import_error('pandas')
 
 
 def plot(*args, ignore_import_error=False, **kwargs):
     if plt:
-        assert plt, ImportError('mathplotlib not installed')
         kwargs.pop('fmt')
         plt.plot(*args, **kwargs)
     elif not ignore_import_error:
-        raise ImportError('matplotlib not installed')
+        _raise_import_error('matplotlib')
 
 
 def plot_dates(*args, ignore_import_error=False, **kwargs):
@@ -121,4 +134,4 @@ def plot_dates(*args, ignore_import_error=False, **kwargs):
         kwargs.pop('fmt')
         plt.plot_date(*args, **kwargs)
     elif not ignore_import_error:
-        raise ImportError('matplotlib not installed')
+        _raise_import_error('matplotlib')
