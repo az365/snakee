@@ -1,6 +1,5 @@
-from abc import ABC
-from itertools import tee
-from typing import Iterable
+from abc import ABC, abstractmethod
+from typing import Optional, Union, Iterable, Callable
 import json
 
 try:  # Assume we're a sub-module in a package.
@@ -8,6 +7,7 @@ try:  # Assume we're a sub-module in a package.
         arguments as arg,
         algo,
     )
+    from streams.abstract.iterable_stream import IterableStream, IterableStreamInterface
     from streams import stream_classes as sm
     from functions import item_functions as fs
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -15,8 +15,18 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         arguments as arg,
         algo,
     )
+    from .iterable_stream import IterableStream, IterableStreamInterface
     from .. import stream_classes as sm
     from ...functions import item_functions as fs
+
+
+OptionalFields = Optional[Union[Iterable, str]]
+DefaultStr = Union[str, arg.DefaultArgument]
+Array = Union[list, tuple]
+Key = Union[str, Array, Callable]
+Step = Union[int, arg.DefaultArgument]
+Verbose = Union[bool, arg.DefaultArgument]
+Native = IterableStreamInterface
 
 
 class LocalStream(sm.IterableStream, ABC):
@@ -59,58 +69,54 @@ class LocalStream(sm.IterableStream, ABC):
         else:
             return self.get_estimated_count() is not None and self.get_estimated_count() <= step
 
-    def to_memory(self):
+    def to_memory(self) -> Native:
         items_as_list_in_memory = self.get_list()
-        props = self.get_meta()
-        props['count'] = len(items_as_list_in_memory)
-        if 'check' in props:
-            props['check'] = False
-        return self.__class__(
+        return self.stream(
             items_as_list_in_memory,
-            **props
+            count=len(items_as_list_in_memory),
+            check=False,
         )
 
-    def collect(self):
+    def collect(self) -> Native:
         return self.to_memory()
 
-    def copy(self):
+    def copy(self) -> Native:
         if self.is_in_memory():
-            copy_data = self.get_list().copy()
-        else:
-            self.data, copy_data = tee(self.get_iter(), 2)
-        return self.__class__(
-            copy_data,
-            **self.get_meta()
-        )
+            return self.stream(
+                self.get_list().copy(),
+            )
+        else:  # is iterable generator
+            return super().copy()
 
-    def map(self, function, to=arg.DEFAULT):
-        to = arg.undefault(to, self.get_stream_type())
-        result = self.stream(
+    def get_tee_items(self, mem_copy: bool = False) -> Iterable:
+        if self.is_in_memory():
+            return self.copy().get_items() if mem_copy else self.get_items()
+        else:
+            return super().get_tee_items()
+
+    def map(self, function, to=arg.DEFAULT) -> Native:
+        to = arg.undefault(to, self.get_stream_type, delayed=True)
+        stream = self.stream(
             map(function, self.get_iter()),
             stream_type=to,
         )
         if self.is_in_memory():
-            return result.to_memory()
-        else:
-            return result
+            stream = stream.to_memory()
+        return self._assume_native(stream)
 
-    def filter(self, *functions):
-        def filter_function(item):
-            for f in functions:
-                if not f(item):
-                    return False
-            return True
-        props = self.get_meta_except_count()
-        filtered_items = filter(filter_function, self.get_iter())
+    def filter(self, function) -> Native:
+        filtered_items = self.get_filtered_items(function)
         if self.is_in_memory():
             filtered_items = list(filtered_items)
-            props['count'] = len(filtered_items)
+            count = len(filtered_items)
+            return self.stream(
+                filtered_items,
+                count=count,
+                less_than=count,
+            )
         else:
-            props['less_than'] = self.count or self.less_than
-        return self.__class__(
-            filtered_items,
-            **props
-        )
+            stream = super().filter(function)
+            return self._assume_native(stream)
 
     def memory_sort(self, key=fs.same(), reverse=False, verbose=False):
         key_function = fs.composite_key(key)
@@ -124,12 +130,9 @@ class LocalStream(sm.IterableStream, ABC):
         )
         self.log('Sorting has been finished.', end='\r', verbose=verbose)
         self._count = len(sorted_items)
-        return self.__class__(
-            sorted_items,
-            **self.get_meta()
-        )
+        return self.stream(sorted_items)
 
-    def disk_sort(self, key=fs.same(), reverse=False, step=arg.DEFAULT, verbose=False):
+    def disk_sort(self, key: Key = fs.same(), reverse=False, step=arg.DEFAULT, verbose=False) -> Native:
         step = arg.undefault(step, self.max_items_in_memory)
         key_function = fs.composite_key(key)
         stream_parts = self.split_to_disk_by_step(
@@ -146,7 +149,7 @@ class LocalStream(sm.IterableStream, ABC):
             count=sum(counts),
         )
 
-    def sort(self, *keys, reverse=False, step=arg.DEFAULT, verbose=True):
+    def sort(self, *keys, reverse=False, step=arg.DEFAULT, verbose=True) -> Native:
         keys = arg.update(keys)
         step = arg.undefault(step, self.max_items_in_memory)
         if len(keys) == 0:
@@ -154,9 +157,10 @@ class LocalStream(sm.IterableStream, ABC):
         else:
             key_function = fs.composite_key(keys)
         if self.can_be_in_memory():
-            return self.memory_sort(key_function, reverse=reverse, verbose=verbose)
+            stream = self.memory_sort(key_function, reverse=reverse, verbose=verbose)
         else:
-            return self.disk_sort(key_function, reverse=reverse, step=step, verbose=verbose)
+            stream = self.disk_sort(key_function, reverse=reverse, step=step, verbose=verbose)
+        return self._assume_native(stream)
 
     def sorted_join(self, right, key, how='left', sorting_is_reversed=False):
         assert sm.is_stream(right)
@@ -169,13 +173,20 @@ class LocalStream(sm.IterableStream, ABC):
             how=how,
             sorting_is_reversed=sorting_is_reversed,
         )
-        return self.__class__(
+        return self.stream(
             list(joined_items) if self.is_in_memory() else joined_items,
-            **self.get_meta_except_count()
+            **self.get_static_meta()
         )
 
-    def join(self, right, key, how='left', reverse=False, verbose=arg.DEFAULT):
-        return self.sort(
+    def join(
+            self,
+            right: Native,
+            key: Key,
+            how='left',
+            reverse: bool = False,
+            verbose: Verbose = arg.DEFAULT,
+    ) -> Native:
+        stream = self.sort(
             key,
             reverse=reverse,
             verbose=verbose,
@@ -188,6 +199,7 @@ class LocalStream(sm.IterableStream, ABC):
             key=key, how=how,
             sorting_is_reversed=reverse,
         )
+        return self._assume_native(stream)
 
     def split_to_disk_by_step(
             self,
@@ -218,6 +230,14 @@ class LocalStream(sm.IterableStream, ABC):
             )
             result_parts.append(sm_part)
         return result_parts
+
+    def stream(self, data: Iterable, ex: OptionalFields = None, **kwargs) -> Native:
+        stream = super().stream(data=data, ex=ex, **kwargs)
+        return self._assume_native(stream)
+
+    @staticmethod
+    def _assume_native(stream) -> Native:
+        return stream
 
     def get_count(self, in_memory=arg.DEFAULT, final=False) -> Optional[int]:
         in_memory = arg.undefault(in_memory, self.is_in_memory())

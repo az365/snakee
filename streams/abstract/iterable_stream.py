@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from itertools import chain, tee
-from typing import Iterable
+from typing import Optional, Union, Callable, Iterable, Generator, Type
 from datetime import datetime
 
 try:  # Assume we're a sub-module in a package.
@@ -8,6 +8,8 @@ try:  # Assume we're a sub-module in a package.
         arguments as arg,
         algo,
     )
+    from streams.interfaces.abstract_stream_interface import StreamInterface
+    from streams.abstract.abstract_stream import AbstractStream
     from streams import stream_classes as sm
     from loggers import logger_classes as log
     from functions import item_functions as fs
@@ -16,9 +18,17 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         arguments as arg,
         algo,
     )
+    from ..interfaces.abstract_stream_interface import StreamInterface
+    from ..abstract.abstract_stream import AbstractStream
     from .. import stream_classes as sm
     from ...loggers import logger_classes as log
     from ...functions import item_functions as fs
+
+OptionalFields = Optional[Union[Iterable, str]]
+Native = Type[StreamInterface]
+SelectionLogger = Type[log.SelectionMessageCollector]
+
+DYNAMIC_META_FIELDS = ('count', 'less_than')
 
 
 class IterableStream(sm.AbstractStream, ABC):
@@ -225,7 +235,14 @@ class IterableStream(sm.AbstractStream, ABC):
             check=False,
         )
 
-    def add(self, stream_or_items, before=False, **kwargs):
+    def stream(self, data, ex: OptionalFields = None, **kwargs) -> Native:
+        stream = super().stream(data, ex=ex, **kwargs)
+        return self._assume_native(stream)
+
+    def copy(self) -> Native:
+        return self.tee_stream()
+
+    def add(self, stream_or_items, before=False, **kwargs) -> Native:
         if sm.is_stream(stream_or_items):
             return self.add_stream(
                 stream_or_items,
@@ -260,21 +277,22 @@ class IterableStream(sm.AbstractStream, ABC):
             less_than=less_than,
         )
 
-    def add_stream(self, stream: IterableStreamInterface, before=False) -> Native:
+    def add_stream(self, stream: Native, before=False) -> Native:
         old_count = self.get_count()
         new_count = stream.get_count()
         if old_count is not None and new_count is not None:
             total_count = new_count + old_count
         else:
             total_count = None
-        return self.add_items(
+        stream = self.add_items(
             stream.get_items(),
             before=before,
         ).update_meta(
             count=total_count,
         )
+        return self._assume_native(stream)
 
-    def count_to_items(self) -> IterableStreamInterface:
+    def count_to_items(self) -> Native:
         return self.add_items(
             [self.get_count()],
             before=True,
@@ -376,30 +394,28 @@ class IterableStream(sm.AbstractStream, ABC):
                     break
             return output_items
         items = take_items()
-        props = self.get_meta()
         while items:
-            props['count'] = len(items)
-            yield self.__class__(
-                items,
-                **props
-            )
+            yield self.stream(items, count=len(items))
             items = take_items()
 
-    def flat_map(self, function, to=arg.DEFAULT):
-        def get_items():
+    def get_mapped_items(self, function, flat=False) -> Iterable:
+        if flat:
             for i in self.get_iter():
                 yield from function(i)
-        to = arg.undefault(to, self.get_stream_type())
-        stream_class = sm.get_class(to)
-        new_props_keys = stream_class([]).get_meta().keys()
-        props = {k: v for k, v in self.get_meta().items() if k in new_props_keys}
-        props.pop('count')
-        return stream_class(
-            get_items(),
-            **props
+        else:
+            yield from map(function, self.get_items())
+
+    def map(self, function: Callable) -> Native:
+        return self.stream(
+            self.get_mapped_items(function, flat=False),
         )
 
-    def map_side_join(self, right, key, how='left', right_is_uniq=True):
+    def flat_map(self, function) -> Native:
+        return self.stream(
+            self.get_mapped_items(function, flat=True),
+        )
+
+    def map_side_join(self, right, key, how='left', right_is_uniq=True) -> Native:
         assert sm.is_stream(right)
         assert how in algo.JOIN_TYPES, 'only {} join types are supported ({} given)'.format(algo.JOIN_TYPES, how)
         keys = arg.update([key])
@@ -410,10 +426,12 @@ class IterableStream(sm.AbstractStream, ABC):
             how=how,
             uniq_right=right_is_uniq,
         )
-        return self.__class__(
+        stream = self.stream(
             list(joined_items) if self.is_in_memory() else joined_items,
-            **self.get_meta_except_count()
+        ).set_meta(
+            **self.get_static_meta()
         )
+        return self._assume_native(stream)
 
     def calc(self, function):
         return function(self.get_data())
@@ -421,16 +439,11 @@ class IterableStream(sm.AbstractStream, ABC):
     def lazy_calc(self, function):
         yield from function(self.get_data())
 
-    def apply_to_data(self, function, to=arg.DEFAULT, save_count=False, lazy=True):
-        stream_type = arg.undefault(to, self.get_stream_type())
-        target_class = sm.get_class(stream_type)
-        if to == arg.DEFAULT:
-            props = self.get_meta() if save_count else self.get_meta_except_count()
-        else:
-            props = dict(count=self.count) if save_count else dict()
-        return target_class(
-            self.lazy_calc(function) if lazy else self.calc(function),
-            **props
+    def apply_to_data(self, function, save_count=False, lazy=True, *args, **kwargs) -> Native:
+        upd_meta = dict(count=self.get_count()) if save_count else dict()
+        return self.stream(
+            self.lazy_calc(function, *args, **kwargs) if lazy else self.calc(function, *args, **kwargs),
+            **upd_meta
         )
 
     def progress(self, expected_count=arg.DEFAULT, step=arg.DEFAULT, message='Progress') -> Native:
@@ -477,9 +490,16 @@ class IterableStream(sm.AbstractStream, ABC):
             raise TypeError('external_object must be callable, list or dict')
         return self
 
-    def get_selection_logger(self):
+    @staticmethod
+    def _assume_native(stream) -> Native:
+        return stream
+
+    def set_meta(self, **meta) -> Native:
+        stream = super().set_meta(**meta)
+        return self._assume_native(stream)
+
+    def get_selection_logger(self) -> SelectionLogger:
         if self.get_context():
             return self.get_context().get_selection_logger()
         else:
             return log.get_selection_logger()
-
