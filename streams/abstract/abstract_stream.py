@@ -1,114 +1,76 @@
-import inspect
 from abc import ABC, abstractmethod
+import inspect
+from typing import Optional, Union, Iterable, Type
 
 try:  # Assume we're a sub-module in a package.
-    from streams import stream_classes as sm
     from utils import arguments as arg
+    from base.abstract.data import DataWrapper
+    from streams.interfaces.abstract_stream_interface import StreamInterface
+    from streams import stream_classes as sm
     from loggers import logger_classes as log
     from loggers.logger_classes import deprecated_with_alternative
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from .. import stream_classes as sm
     from ...utils import arguments as arg
+    from ...base.abstract.data import DataWrapper
+    from ..interfaces.abstract_stream_interface import StreamInterface
+    from .. import stream_classes as sm
     from ...loggers import logger_classes as log
     from ...loggers.logger_classes import deprecated_with_alternative
 
+Stream = Type[StreamInterface]
+OptionalFields = Optional[Union[Iterable, str]]
 
-DATA_MEMBERS = ['data']
+DATA_MEMBERS = ('_data', )
 
 
-class AbstractStream(ABC):
+class AbstractStream(DataWrapper, StreamInterface, ABC):
     def __init__(
             self,
             data,
-            name=arg.DEFAULT,
+            name: Union[str, arg.DefaultArgument] = arg.DEFAULT,
             source=None,
             context=None,
+            check=False,
     ):
-        self.data = data
-        self.source = source
         if source:
             name = arg.undefault(name, source.get_name())
         else:
-            name = arg.undefault(name, sm.generate_name())
-        self.name = name
+            name = arg.undefault(name, arg.get_generated_name())
         if not context:
             context = sm.get_context()
-        self.context = context
-        if context is not None:
-            self.put_into_context()
+        super().__init__(name=name, data=data, source=source, context=context, check=check)
 
-    def get_data(self):
-        return self.data
+    def set_name(self, name: str, register=True) -> Stream:
+        if register:
+            old_name = self.get_name()
+            self.get_context().rename_stream(old_name, name)
+        return self.stream(self.get_data(), name=name)
 
-    @staticmethod
-    def get_data_members():
+    @classmethod
+    def _get_data_member_names(cls) -> tuple:
         return DATA_MEMBERS
 
     @abstractmethod
-    def get_items(self):
+    def get_count(self):
+        raise NotImplemented
+
+    @abstractmethod
+    def get_items(self) -> Iterable:
         pass
 
-    def get_name(self):
-        return self.name
+    def get_links(self) -> Iterable:
+        source = self.get_source()
+        if source:
+            yield source
 
-    def set_name(self, name, register=True):
-        if register:
-            old_name = self.get_name()
-            self.context.rename_stream(old_name, name)
-        self.name = name
-        return self
+    def set_meta(self, **meta) -> Stream:
+        return super().set_meta(**meta)
 
-    def get_context(self):
-        return self.context
+    def update_meta(self, **meta) -> Stream:
+        return super().update_meta(**meta)
 
-    def put_into_context(self, name=arg.DEFAULT):
-        assert self.context, 'for put_into_context context must be defined'
-        name = arg.undefault(name, self.name)
-        if name not in self.context.stream_instances:
-            self.context.stream_instances[name] = self
-
-    def get_links(self):
-        if self.source is not None:
-            yield self.source
-
-    def get_meta(self, ex=None):
-        meta = self.__dict__.copy()
-        for m in self.get_data_members():
-            meta.pop(m)
-        if isinstance(ex, str):
-            meta.pop(ex)
-        elif isinstance(ex, (list, tuple)):
-            for m in ex:
-                meta.pop(m)
-        return meta
-
-    def set_meta(self, **meta):
-        return self.__class__(
-            self.data,
-            **meta
-        )
-
-    def update_meta(self, **meta):
-        return self.stream(
-            self.get_data(),
-            **meta
-        )
-
-    def fill_meta(self, check=True, **meta):
-        props = self.get_meta()
-        if check:
-            unsupported = [k for k in meta if k not in props]
-            assert not unsupported, 'class {} does not support these properties: {}'.format(
-                self.get_stream_type(),
-                unsupported,
-            )
-        for key, value in props.items():
-            if value is None or value == arg.DEFAULT:
-                props[key] = meta.get(key)
-        return self.__class__(
-            self.data,
-            **props
-        )
+    def fill_meta(self, check=True, **meta) -> Stream:
+        return super().fill_meta(check=check, **meta)
 
     def get_property(self, name, *args, **kwargs):
         if callable(name):
@@ -126,27 +88,7 @@ class AbstractStream(ABC):
             raise TypeError('property name must be function, meta-field or attribute name')
         return value
 
-    def get_mapped_items(self, function):
-        return map(function, self.get_items())
-
-    def map(self, function):
-        return self.stream(
-            self.get_mapped_items(function),
-        )
-
-    def get_filtered_items(self, function):
-        return filter(function, self.get_items())
-
-    def filter(self, function):
-        return self
-
-    def apply_to_data(self, function, *args):
-        return self.__class__(
-            data=function(self.get_data()),
-            **self.get_meta()
-        )
-
-    def apply_to_stream(self, function, *args, **kwargs):
+    def apply_to_stream(self, function, *args, **kwargs) -> Stream:
         return function(self, *args, **kwargs)
 
     def apply(self, function, *args, to_stream=False, **kwargs):
@@ -174,13 +116,10 @@ class AbstractStream(ABC):
         else:
             raise TypeError('"other" parameter must be class or StreamType (got {})'.format(type(other)))
 
-    def stream(self, data, **kwargs):
-        meta = self.get_meta()
+    def stream(self, data, ex: OptionalFields = None, **kwargs) -> Type[StreamInterface]:
+        meta = self.get_meta(ex=ex)
         meta.update(kwargs)
-        return self.__class__(
-            data,
-            **meta
-        )
+        return self.__class__(data, **meta)
 
     def write_to(self, connector, verbose=True, return_stream=True):
         msg = 'connector-argument must be an instance of LeafConnector or have write_stream() method'
@@ -209,11 +148,14 @@ class AbstractStream(ABC):
         elif force:
             print(msg)
 
-    def get_description(self):
+    def get_description(self) -> str:
         return 'with meta {}'.format(self.get_meta())
 
+    def __repr__(self):
+        return "{cls}('{name}')".format(cls=self.__class__.__name__, name=self.get_name())
+
     def __str__(self):
-        title = '{cls}({name})'.format(cls=self.__class__.__name__, name=self.get_name())
+        title = self.__repr__()
         description = self.get_description()
         if description:
             return '<{title} {desc}>'.format(title=title, desc=description)
@@ -221,11 +163,11 @@ class AbstractStream(ABC):
             return '<{}>'.format(title)
 
     @abstractmethod
-    def get_demo_example(self, **kwargs):
+    def get_demo_example(self, *args, **kwargs):
         pass
 
-    def show(self, **kwargs):
-        self.log(str(self), end='\n', verbose=True, force=True)
-        demo_example = self.get_demo_example(**kwargs)
+    def show(self, *args, **kwargs):
+        self.log(str(self), end='\n', verbose=True, truncate=False)
+        demo_example = self.get_demo_example(*args, **kwargs)
         self.log(demo_example, verbose=False)
         return demo_example
