@@ -14,6 +14,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..utils import arguments as arg
     from ..base.interfaces.context_interface import ContextInterface
     from ..base.interfaces.contextual_interface import ContextualInterface
+    from ..base.abstract.tree_item import TreeItem
     from .logger_interface import LoggerInterface
     from .extended_logger import SingletonLogger
     from .message_collector import SelectionMessageCollector

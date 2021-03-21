@@ -11,6 +11,7 @@ try:  # Assume we're a sub-module in a package.
     from items.base_item_type import ItemType
     from streams.stream_type import StreamType
     from streams.interfaces.abstract_stream_interface import StreamInterface
+    from base.abstract.data import DataWrapper
     from functions import item_functions as fs
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import (
@@ -21,6 +22,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...items.base_item_type import ItemType
     from ..stream_type import StreamType
     from ..interfaces.abstract_stream_interface import StreamInterface
+    from ...base.abstract.data import DataWrapper
     from ...functions import item_functions as fs
 
 Stream = Union[StreamInterface, Any]
@@ -61,7 +63,7 @@ class ColumnarInterface(StreamInterface, ABC):
 Native = ColumnarInterface
 
 
-class ColumnarMixin(ColumnarInterface, ABC):
+class ColumnarMixin(DataWrapper, ColumnarInterface, ABC):
     @classmethod
     def is_valid_item(cls, item) -> bool:
         return cls.get_item_type().isinstance(item)

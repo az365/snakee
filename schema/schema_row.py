@@ -5,7 +5,7 @@ try:  # Assume we're a sub-module in a package.
     from schema.schema_description import SchemaDescription
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..connectors.databases import dialect as di
-    from .schema_classes import SchemaDescription
+    from .schema_description import SchemaDescription
 
 
 Row = Union[list, tuple]
