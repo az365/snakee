@@ -3,17 +3,18 @@ from typing import Union, Optional, Iterable, Any
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
+    from base.interfaces.context_interface import ContextInterface
+    from base.interfaces.contextual_interface import ContextualInterface
     from base.interfaces.data_interface import DataInterface
     from base.abstract.abstract_base import AbstractBaseObject
     from base.abstract.contextual import Contextual
-    from base.interfaces.contextual_interface import ContextualInterface
-    from base.interfaces.context_interface import ContextInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from utils import arguments as arg
-    from base.interfaces.data_interface import DataInterface
+    from ...utils import arguments as arg
+    from ..interfaces.context_interface import ContextInterface
+    from ..interfaces.contextual_interface import ContextualInterface
+    from ..interfaces.data_interface import DataInterface
     from .abstract_base import AbstractBaseObject
-    from .contextual import ContextualInterface, Contextual
-    from base.interfaces.context_interface import ContextInterface
+    from .contextual import Contextual
 
 Data = Union[Iterable, Any]
 OptionalFields = Optional[Union[str, Iterable]]

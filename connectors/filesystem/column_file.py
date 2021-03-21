@@ -193,14 +193,14 @@ class ColumnFile(TextFile, ColumnarMixin):
         stream = self.to_record_stream(check=False)
         return stream.get_dict(key, value, skip_errors=skip_errors)
 
-    def stream(self, data=arg.DEFAULT, stream_type=arg.DEFAULT, ex: OptionalFields = None, **kwargs) -> Stream:
+    def stream(self, data=AUTO, stream_type=AUTO, ex: OptionalFields = None, **kwargs) -> Stream:
         stream = self.to_stream(data, stream_type=stream_type, ex=ex, source=self, count=self.get_count())
         return stream
 
     def to_row_stream(self, name=AUTO, **kwargs) -> Stream:
         data = self.get_rows()
         stream = sm.RowStream(
-            **self.stream_kwargs(data=data, name=name, **kwargs)
+            **self.get_stream_kwargs(data=data, name=name, **kwargs)
         )
         return stream
 
@@ -208,13 +208,13 @@ class ColumnFile(TextFile, ColumnarMixin):
         data = self.get_rows()
         stream = sm.SchemaStream(
             schema=self.schema,
-            **self.stream_kwargs(data=data, name=name, **kwargs)
+            **self.get_stream_kwargs(data=data, name=name, **kwargs)
         )
         return stream
 
     def to_record_stream(self, name=arg.DEFAULT, **kwargs) -> Stream:
         data = self.get_records_from_file(verbose=name)
-        kwargs = self.stream_kwargs(data=data, name=name, **kwargs)
+        kwargs = self.get_stream_kwargs(data=data, name=name, **kwargs)
         kwargs['stream_type'] = sm.RecordStream
         return self.stream(**kwargs)
 

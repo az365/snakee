@@ -1,10 +1,10 @@
-from typing import Optional, Union, Any
+from typing import Union
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from base.interfaces.context_interface import ContextInterface
     from base.interfaces.contextual_interface import ContextualInterface
-    from base.abstract.named import AbstractNamed
+    from base.abstract.tree_item import TreeItem
     from loggers.logger_interface import LoggerInterface
     from loggers.extended_logger import SingletonLogger
     from loggers.message_collector import SelectionMessageCollector
@@ -14,19 +14,16 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..utils import arguments as arg
     from ..base.interfaces.context_interface import ContextInterface
     from ..base.interfaces.contextual_interface import ContextualInterface
-    from ..base.abstract.named import AbstractNamed
     from .logger_interface import LoggerInterface
     from .extended_logger import SingletonLogger
     from .message_collector import SelectionMessageCollector
     from ..connectors.filesystem.local_storage import LocalStorage
     from ..connectors.filesystem.local_folder import LocalFolder
 
-Contextual = Optional[Union[ContextualInterface, Any]]
-
 NAME = 'logging_context_stub'
 
 
-class LoggingContextStub(AbstractNamed, ContextInterface):
+class LoggingContextStub(TreeItem, ContextInterface):
     def __new__(cls, *args, **kwargs):
         if not hasattr(cls, 'instance'):
             cls.instance = super(LoggingContextStub, cls).__new__(cls)
@@ -85,8 +82,8 @@ class LoggingContextStub(AbstractNamed, ContextInterface):
                 end=end, verbose=verbose,
             )
 
-    def add_child(self, instance: Contextual):
-        if self._is_logger(instance):
+    def add_child(self, instance: ContextualInterface):
+        if self.is_logger(instance):
             if hasattr(instance, 'is_common_logger'):
                 if instance.is_common_logger():
                     self.set_logger(instance)
@@ -111,7 +108,7 @@ class LoggingContextStub(AbstractNamed, ContextInterface):
         return LocalFolder(tmp_files_template, parent=self.get_local_storage())
 
     @staticmethod
-    def _is_logger(obj):
+    def is_logger(obj):
         return isinstance(obj, LoggerInterface)
 
     @staticmethod
@@ -173,10 +170,25 @@ class LoggingContextStub(AbstractNamed, ContextInterface):
     def forget_all_children(self):
         self.method_stub()
 
-    def get_parent(self):
-        pass
+    def get_name(self):
+        self.method_stub()
 
-    def set_parent(self, parent: Contextual, reset: bool = False, inplace: bool = True):
+    def get_parent(self):
+        self.method_stub()
+
+    def set_parent(self, parent, reset: bool = False, inplace: bool = True):
+        self.method_stub()
+
+    def get_items(self):
+        self.method_stub()
+
+    def get_children(self):
+        self.method_stub()
+
+    def get_child(self, name: str):
+        self.method_stub()
+
+    def forget_child(self, child_or_name: Union[ContextualInterface, str], skip_errors=False):
         self.method_stub()
 
     def is_leaf(self):
@@ -185,5 +197,5 @@ class LoggingContextStub(AbstractNamed, ContextInterface):
     def is_root(self):
         self.method_stub()
 
-    def set_context(self, context, reset=False):
+    def set_context(self, context: ContextInterface, reset=True, inplace=True):
         pass

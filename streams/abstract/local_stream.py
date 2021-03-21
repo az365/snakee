@@ -29,7 +29,82 @@ Verbose = Union[bool, arg.DefaultArgument]
 Native = IterableStreamInterface
 
 
-class LocalStream(sm.IterableStream, ABC):
+class LocalStreamInterface(IterableStreamInterface, ABC):
+    @abstractmethod
+    def get_list(self) -> list:
+        pass
+
+    @abstractmethod
+    def to_iter(self) -> Native:
+        pass
+
+    @abstractmethod
+    def can_be_in_memory(self, step: Step = arg.DEFAULT) -> bool:
+        pass
+
+    @abstractmethod
+    def to_memory(self) -> Native:
+        pass
+
+    @abstractmethod
+    def collect(self) -> Native:
+        pass
+
+    def memory_sort(self, key: Key = fs.same(), reverse: bool = False, verbose: bool = False) -> Native:
+        pass
+
+    @abstractmethod
+    def disk_sort(
+            self,
+            key: Key = fs.same(),
+            reverse: bool = False,
+            step: Step = arg.DEFAULT,
+            verbose: bool = False,
+    ) -> IterableStream:
+        pass
+
+    @abstractmethod
+    def sort(self, *keys, reverse: bool = False, step: Step = arg.DEFAULT, verbose: bool = True) -> Native:
+        pass
+
+    @abstractmethod
+    def sorted_join(
+            self,
+            right: Native,
+            key: Key,
+            how: str = 'left',
+            sorting_is_reversed: bool = False,
+    ) -> Native:
+        pass
+
+    @abstractmethod
+    def join(
+            self,
+            right: Native,
+            key: Key,
+            how: str = 'left',
+            reverse: bool = False,
+            verbose: Verbose = arg.DEFAULT,
+    ) -> Native:
+        pass
+
+    @abstractmethod
+    def split_to_disk_by_step(
+            self,
+            step: Step = arg.DEFAULT,
+            file_template: DefaultStr = arg.DEFAULT,
+            encoding: DefaultStr = arg.DEFAULT,
+            sort_each_by: Optional[str] = None,
+            reverse: bool = False,
+            verbose: bool = True,
+    ) -> Iterable:
+        pass
+
+
+Native = LocalStreamInterface
+
+
+class LocalStream(IterableStream, LocalStreamInterface):
     def __init__(
             self,
             data: Iterable,
@@ -51,18 +126,18 @@ class LocalStream(sm.IterableStream, ABC):
         self.tmp_files_template = arg.undefault(tmp_files_template, sm.TMP_FILES_TEMPLATE)
         self.tmp_files_encoding = arg.undefault(tmp_files_encoding, sm.TMP_FILES_ENCODING)
 
-    def get_list(self):
+    def get_list(self) -> list:
         return list(self.get_items())
 
     def is_in_memory(self) -> bool:
         return arg.is_in_memory(self.get_data())
 
-    def to_iter(self):
+    def to_iter(self) -> Native:
         return self.stream(
             self.get_iter(),
         )
 
-    def can_be_in_memory(self, step=arg.DEFAULT):
+    def can_be_in_memory(self, step=arg.DEFAULT) -> bool:
         step = arg.undefault(step, self.max_items_in_memory)
         if self.is_in_memory() or step is None:
             return True
@@ -118,7 +193,13 @@ class LocalStream(sm.IterableStream, ABC):
             stream = super().filter(function)
             return self._assume_native(stream)
 
-    def memory_sort(self, key=fs.same(), reverse=False, verbose=False):
+    def split(self, by, count=None) -> Iterable:
+        for stream in super().split(by=by, count=count):
+            if self.is_in_memory():
+                stream = stream.to_memory()
+            yield stream
+
+    def memory_sort(self, key: Key = fs.same(), reverse: bool = False, verbose: bool = False) -> Native:
         key_function = fs.composite_key(key)
         list_to_sort = self.get_list()
         count = len(list_to_sort)
@@ -162,7 +243,13 @@ class LocalStream(sm.IterableStream, ABC):
             stream = self.disk_sort(key_function, reverse=reverse, step=step, verbose=verbose)
         return self._assume_native(stream)
 
-    def sorted_join(self, right, key, how='left', sorting_is_reversed=False):
+    def sorted_join(
+            self,
+            right: Native,
+            key: Key,
+            how: str = 'left',
+            sorting_is_reversed: bool = False,
+    ) -> Native:
         assert sm.is_stream(right)
         assert how in algo.JOIN_TYPES, 'only {} join types are supported ({} given)'.format(algo.JOIN_TYPES, how)
         keys = arg.update([key])
@@ -203,11 +290,13 @@ class LocalStream(sm.IterableStream, ABC):
 
     def split_to_disk_by_step(
             self,
-            step=arg.DEFAULT,
-            file_template=arg.DEFAULT, encoding=arg.DEFAULT,
-            sort_each_by=None, reverse=False,
-            verbose=True,
-    ):
+            step: Step = arg.DEFAULT,
+            file_template: Union[str, arg.DefaultArgument] = arg.DEFAULT,
+            encoding: Union[str, arg.DefaultArgument] = arg.DEFAULT,
+            sort_each_by: Key = None,
+            reverse: bool = False,
+            verbose: bool = True,
+    ) -> list:
         file_template = arg.undefault(file_template, self.tmp_files_template)
         encoding = arg.undefault(encoding, self.tmp_files_encoding)
         result_parts = list()
@@ -258,7 +347,7 @@ class LocalStream(sm.IterableStream, ABC):
         else:
             return super().get_str_count()  # IterableStream.get_str_count()
 
-    def get_description(self):
+    def get_description(self) -> str:
         return '{} items with meta {}'.format(self.get_str_count(), self.get_meta())
 
     def get_demo_example(self, count: int = 3) -> object:

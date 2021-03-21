@@ -4,11 +4,11 @@ import logging
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
-    from base.interfaces.contextual_interface import ContextualInterface
+    from base.interfaces.sourced_interface import SourcedInterface
     from loggers.logger_interface import LoggerInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
-    from ..base.interfaces.contextual_interface import ContextualInterface
+    from ..base.interfaces.sourced_interface import SourcedInterface
     from .logger_interface import LoggerInterface
 
 
@@ -42,7 +42,7 @@ class LoggingLevel(Enum):
         return cls.Warning
 
 
-class ExtendedLoggerInterface(ContextualInterface, LoggerInterface, ABC):
+class ExtendedLoggerInterface(SourcedInterface, LoggerInterface, ABC):
     @staticmethod
     def is_common_logger() -> bool:
         pass
@@ -60,5 +60,5 @@ class ExtendedLoggerInterface(ContextualInterface, LoggerInterface, ABC):
         pass
 
     @abstractmethod
-    def set_selection_logger(self, **kwargs):
+    def set_selection_logger(self, selection_logger, skip_errors=True):
         pass

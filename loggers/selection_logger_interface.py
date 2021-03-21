@@ -11,6 +11,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .extended_logger_interface import ExtendedLoggerInterface
     from .detailed_message import DetailedMessage, SelectionError
 
+SELECTION_LOGGER_NAME = 'SelectorMessageCollector'
+
 
 class SelectionLoggerInterface(ExtendedLoggerInterface, ABC):
     @abstractmethod

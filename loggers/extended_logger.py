@@ -6,6 +6,7 @@ try:  # Assume we're a sub-module in a package.
     from base import base_classes as bs
     from loggers.logger_interface import LoggerInterface
     from loggers.extended_logger_interface import ExtendedLoggerInterface, LoggingLevel
+    from loggers.selection_logger_interface import SelectionLoggerInterface, SELECTION_LOGGER_NAME
     from loggers.progress_interface import ProgressInterface
     from loggers.progress import Progress
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -13,6 +14,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..base import base_classes as bs
     from .logger_interface import LoggerInterface
     from .extended_logger_interface import ExtendedLoggerInterface, LoggingLevel
+    from .selection_logger_interface import SelectionLoggerInterface, SELECTION_LOGGER_NAME
     from .progress_interface import ProgressInterface
     from .progress import Progress
 
@@ -20,9 +22,7 @@ Level = Union[LoggingLevel, arg.DefaultArgument]
 Context = Optional[bs.ContextInterface]
 BaseLogger = Union[LoggerInterface, Any]
 SubLoggers = Optional[Union[list, dict]]
-SelectionLogger = Union[bs.AbstractNamed, bs.DataWrapper, Any]
 
-SELECTION_LOGGER_NAME = 'SelectorMessageCollector'
 DEFAULT_LOGGER_NAME = 'default'
 DEFAULT_FORMATTER = '%(asctime)s - %(levelname)s - %(message)s'
 DEFAULT_LOGGING_LEVEL = LoggingLevel.get_default()
@@ -136,7 +136,7 @@ class ExtendedLogger(BaseLoggerWrapper, ExtendedLoggerInterface):
     def progress(self, items: Iterable, name='Progress', count=None, step=arg.DEFAULT, context=arg.DEFAULT) -> Iterable:
         return self.get_new_progress(name, count=count, context=context).iterate(items, step=step)
 
-    def get_selection_logger(self, name=arg.DEFAULT, **kwargs):
+    def get_selection_logger(self, name=arg.DEFAULT, **kwargs) -> SelectionLoggerInterface:
         name = arg.undefault(name, SELECTION_LOGGER_NAME)
         selection_logger = self.get_child(name)
         if selection_logger:
@@ -146,7 +146,7 @@ class ExtendedLogger(BaseLoggerWrapper, ExtendedLoggerInterface):
             self.reset_selection_logger(name, **kwargs)
         return selection_logger
 
-    def set_selection_logger(self, selection_logger: SelectionLogger, skip_errors=True):
+    def set_selection_logger(self, selection_logger: SelectionLoggerInterface, skip_errors=True):
         try:
             self.add_child(selection_logger)
         except ValueError as e:

@@ -27,7 +27,6 @@ class TemporaryLocation(ct.LocalFolder):
             path=path,
             path_is_relative=path_is_relative,
             parent=parent,
-            context=context,
             verbose=verbose,
         )
         assert TemporaryFilesMask.check_mask(mask)

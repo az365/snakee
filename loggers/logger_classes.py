@@ -3,8 +3,8 @@ from functools import wraps
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from loggers.logger_interface import LoggerInterface
-    from loggers.extended_logger_interface import ExtendedLoggerInterface
     from loggers.extended_logger_interface import ExtendedLoggerInterface, LoggingLevel
+    from loggers.selection_logger_interface import SelectionLoggerInterface
     from loggers.extended_logger import ExtendedLogger, SingletonLogger, DEFAULT_LOGGER_NAME, DEFAULT_FORMATTER
     from loggers.progress_interface import ProgressInterface, OperationStatus
     from loggers.progress import Progress
@@ -15,6 +15,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..utils import arguments as arg
     from .logger_interface import LoggerInterface
     from .extended_logger_interface import ExtendedLoggerInterface, LoggingLevel
+    from .selection_logger_interface import SelectionLoggerInterface
     from .extended_logger import ExtendedLogger, SingletonLogger, DEFAULT_LOGGER_NAME, DEFAULT_FORMATTER
     from .progress_interface import ProgressInterface, OperationStatus
     from .progress import Progress

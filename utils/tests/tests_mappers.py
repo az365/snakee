@@ -37,7 +37,7 @@ def test_calc_histogram():
         z=('z', int),
     ).apply_to_data(
         lambda a: ms.get_histograms(a, fields=['x', 'y']),
-        to=sm.AnyStream,
+        # to=sm.AnyStream,
     ).get_list()
     assert received == expected
 

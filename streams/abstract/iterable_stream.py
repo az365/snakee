@@ -25,13 +25,146 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...functions import item_functions as fs
 
 OptionalFields = Optional[Union[Iterable, str]]
-Native = Type[StreamInterface]
+Stream = Type[StreamInterface]
 SelectionLogger = Type[log.SelectionMessageCollector]
 
 DYNAMIC_META_FIELDS = ('count', 'less_than')
 
 
-class IterableStream(sm.AbstractStream, ABC):
+class IterableStreamInterface(StreamInterface, ABC):
+    @abstractmethod
+    def __iter__(self) -> Iterable:
+        pass
+
+    @abstractmethod
+    def get_iter(self) -> Generator:
+        pass
+
+    @abstractmethod
+    def get_count(self) -> Optional[int]:
+        pass
+
+    @classmethod
+    def is_valid_item_type(cls, item) -> bool:
+        pass
+
+    @abstractmethod
+    def is_valid_item(self, item) -> bool:
+        pass
+
+    @classmethod
+    @abstractmethod
+    def get_typing_validated_items(cls, items, skip_errors=False, context=None) -> Iterable:
+        pass
+
+    @abstractmethod
+    def get_validated_items(self, items, skip_errors=False, context=None) -> Iterable:
+        pass
+
+    @abstractmethod
+    def is_in_memory(self) -> bool:
+        pass
+
+    @abstractmethod
+    def close(self, recursively=False) -> tuple:
+        pass
+
+    @abstractmethod
+    def get_expected_count(self) -> Optional[int]:
+        raise NotImplemented
+
+    @abstractmethod
+    def one(self):
+        pass
+
+    def get_estimated_count(self) -> Optional[int]:
+        pass
+
+    @abstractmethod
+    def get_str_count(self) -> str:
+        pass
+
+    @abstractmethod
+    def enumerate(self, native=False) -> Stream:
+        pass
+
+    @abstractmethod
+    def take(self, max_count=1) -> Stream:
+        pass
+
+    @abstractmethod
+    def skip(self, count=1) -> Stream:
+        pass
+
+    @abstractmethod
+    def pass_items(self) -> Stream:
+        pass
+
+    @abstractmethod
+    def tee_stream(self) -> Stream:
+        pass
+
+    @abstractmethod
+    def stream(self, data, ex: OptionalFields = None, **kwargs) -> Stream:
+        pass
+
+    @abstractmethod
+    def copy(self) -> Stream:
+        return self.tee_stream()
+
+    @abstractmethod
+    def add(self, stream_or_items, before=False, **kwargs) -> Stream:
+        pass
+
+    @abstractmethod
+    def split(self, by: Union[int, list, tuple, Callable], count=None) -> Iterable:
+        pass
+
+    def flat_map(self, function) -> Stream:
+        pass
+
+    @abstractmethod
+    def map_side_join(self, right, key, how='left', right_is_uniq=True) -> Stream:
+        pass
+
+    @abstractmethod
+    def apply_to_data(self, function, to=arg.DEFAULT, save_count=False, lazy=True) -> Stream:
+        pass
+
+    @abstractmethod
+    def progress(self, expected_count=arg.DEFAULT, step=arg.DEFAULT, message='Progress') -> Stream:
+        pass
+
+    @abstractmethod
+    def print(self, stream_function='_count', *args, **kwargs) -> Stream:
+        pass
+
+    @abstractmethod
+    def submit(
+            self,
+            external_object: Union[list, dict, Callable] = print,
+            stream_function: Union[Callable, str] = 'count',
+            key: Optional[str] = None, show=False,
+    ) -> Stream:
+        pass
+
+    @abstractmethod
+    def set_meta(self, **meta) -> Stream:
+        pass
+
+    @abstractmethod
+    def update_meta(self, **meta) -> Stream:
+        pass
+
+    @abstractmethod
+    def get_selection_logger(self) -> log.SelectionMessageCollector:
+        pass
+
+
+Native = IterableStreamInterface
+
+
+class IterableStream(AbstractStream, IterableStreamInterface):
     def __init__(
             self,
             data: Iterable,
@@ -103,7 +236,10 @@ class IterableStream(sm.AbstractStream, ABC):
                 else:
                     raise TypeError(message)
 
-    def close(self, recursively=False):
+    def is_in_memory(self) -> bool:
+        return False
+
+    def close(self, recursively=False) -> tuple:
         try:
             self.pass_items()
             closed_streams = 1
@@ -158,7 +294,7 @@ class IterableStream(sm.AbstractStream, ABC):
         else:
             return '(unknown count)'
 
-    def get_description(self):
+    def get_description(self) -> str:
         return '{} items'.format(self.get_str_count())
 
     def get_first_items(self, count=1) -> Iterable:
@@ -398,6 +534,16 @@ class IterableStream(sm.AbstractStream, ABC):
             yield self.stream(items, count=len(items))
             items = take_items()
 
+    def get_filtered_items(self, function) -> Iterable:
+        return filter(function, self.get_items())
+
+    def filter(self, function) -> Native:
+        return self.stream(
+            filter(function, self.get_iter()),
+            count=None,
+            less_than=self.get_estimated_count(),
+        )
+
     def get_mapped_items(self, function, flat=False) -> Iterable:
         if flat:
             for i in self.get_iter():
@@ -433,11 +579,11 @@ class IterableStream(sm.AbstractStream, ABC):
         )
         return self._assume_native(stream)
 
-    def calc(self, function):
-        return function(self.get_data())
+    def calc(self, function, *args, **kwargs):
+        return function(self.get_data(), *args, **kwargs)
 
-    def lazy_calc(self, function):
-        yield from function(self.get_data())
+    def lazy_calc(self, function, *args, **kwargs):
+        yield from function(self.get_data(), *args, **kwargs)
 
     def apply_to_data(self, function, save_count=False, lazy=True, *args, **kwargs) -> Native:
         upd_meta = dict(count=self.get_count()) if save_count else dict()
@@ -470,7 +616,12 @@ class IterableStream(sm.AbstractStream, ABC):
         self.log(value, end='\n', verbose=True)
         return self
 
-    def submit(self, external_object=print, stream_function='count', key=None, show=False):
+    def submit(
+            self,
+            external_object: Union[list, dict, Callable] = print,
+            stream_function: Union[Callable, str] = 'count',
+            key: Optional[str] = None, show=False,
+    ) -> Native:
         value = self.get_property(stream_function)
         if key is not None:
             value = {key: value}
