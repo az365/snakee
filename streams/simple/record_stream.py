@@ -89,8 +89,8 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
         else:
             return self.select(*columns)
 
-    def get_enumerated_records(self, field='#', first=1):
-        for n, r in enumerate(self.data):
+    def get_enumerated_records(self, field='#', first=1) -> Iterable:
+        for n, r in enumerate(self.get_data()):
             r[field] = n + first
             yield r
 
@@ -180,7 +180,7 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
         if self.is_in_memory():
             return sm_groups.to_memory()
         else:
-            sm_groups.less_than = self.count or self.less_than
+            sm_groups.set_estimated_count(self.get_count() or self.get_estimated_count())
             return sm_groups
 
     def group_by(self, *keys, values=None, step=arg.DEFAULT, as_pairs=False, take_hash=True, verbose=True):
@@ -202,8 +202,8 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
         )
         return grouped_stream
 
-    def get_dataframe(self, columns=None):
-        dataframe = pd.DataFrame(self.data)
+    def get_dataframe(self, columns=None) -> Type[pd.DataFrame]:
+        dataframe = pd.DataFrame(self.get_data())
         if columns:
             dataframe = dataframe[columns]
         return dataframe
@@ -229,8 +229,7 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
         columns = arg.update(columns, kwargs.pop('columns', None))
         if kwargs:
             raise ValueError('to_row_stream(): {} arguments are not supported'.format(kwargs.keys()))
-
-        if self.count is None:
+        if self.get_count() is None:
             count = None
         else:
             count = self.count + (1 if add_title_row else 0)

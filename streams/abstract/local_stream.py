@@ -44,8 +44,8 @@ class LocalStream(sm.IterableStream, ABC):
     def get_list(self):
         return list(self.get_items())
 
-    def is_in_memory(self):
-        return isinstance(self.data, (list, tuple))
+    def is_in_memory(self) -> bool:
+        return arg.is_in_memory(self.get_data())
 
     def to_iter(self):
         return self.stream(
@@ -123,7 +123,7 @@ class LocalStream(sm.IterableStream, ABC):
             reverse=reverse,
         )
         self.log('Sorting has been finished.', end='\r', verbose=verbose)
-        self.count = len(sorted_items)
+        self._count = len(sorted_items)
         return self.__class__(
             sorted_items,
             **self.get_meta()
@@ -139,13 +139,11 @@ class LocalStream(sm.IterableStream, ABC):
         )
         assert stream_parts, 'streams must be non-empty'
         iterables = [f.get_iter() for f in stream_parts]
-        counts = [f.count for f in stream_parts]
-        props = self.get_meta()
-        props['count'] = sum(counts)
+        counts = [f.get_count() or 0 for f in stream_parts]
         self.log('Merging {} parts... '.format(len(iterables)), verbose=verbose)
-        return self.__class__(
+        return self.stream(
             algo.merge_iter(iterables, key_function=key_function, reverse=reverse),
-            **props
+            count=sum(counts),
         )
 
     def sort(self, *keys, reverse=False, step=arg.DEFAULT, verbose=True):
@@ -221,7 +219,20 @@ class LocalStream(sm.IterableStream, ABC):
             result_parts.append(sm_part)
         return result_parts
 
-    def get_str_count(self):
+    def get_count(self, in_memory=arg.DEFAULT, final=False) -> Optional[int]:
+        in_memory = arg.undefault(in_memory, self.is_in_memory())
+        if in_memory:
+            data = self.get_list()
+            self._count = len(data)
+            self._data = data
+            return self._count
+        else:
+            if final:
+                return self.final_count()
+            else:
+                return self.get_expected_count()
+
+    def get_str_count(self) -> str:
         if self.is_in_memory():
             return 'in memory {}'.format(self.get_count())
         else:
@@ -230,9 +241,9 @@ class LocalStream(sm.IterableStream, ABC):
     def get_description(self):
         return '{} items with meta {}'.format(self.get_str_count(), self.get_meta())
 
-    def get_demo_example(self, count=3):
+    def get_demo_example(self, count: int = 3) -> object:
         if self.is_in_memory():
             for i in self.get_items()[:count]:
                 yield i
         else:
-            yield self.one()
+            yield from super().get_demo_example(count=count)

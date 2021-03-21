@@ -23,7 +23,7 @@ class S3Object(ct.LeafConnector):
         self.verbose = arg.undefault(verbose, folder.verbose)
 
     def get_folder(self):
-        return self.parent
+        return self.get_parent()
 
     def get_bucket(self):
         return self.get_folder().get_bucket()
@@ -86,7 +86,7 @@ class S3Object(ct.LeafConnector):
         assert sm.is_stream(stream)
         return self.put_object(data=stream.iterable(), storage_class=storage_class)
 
-    def to_stream(self, stream_type, **kwargs):
+    def to_stream(self, stream_type=arg.DEFAULT, **kwargs):
         stream_class = sm.get_class(stream_type)
         return stream_class(
             self.get_data(),

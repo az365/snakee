@@ -111,7 +111,7 @@ class KeyValueStream(sm.RowStream):
         def get_groups():
             accumulated = list()
             prev_k = None
-            for k, v in self.data:
+            for k, v in self.get_data():
                 if (k != prev_k) and accumulated:
                     yield prev_k, accumulated
                     accumulated = list()

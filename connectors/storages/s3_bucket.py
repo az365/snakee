@@ -37,7 +37,7 @@ class S3Bucket(ct.HierarchicFolder):
         return self.child(name, bucket=self, **kwargs)
 
     def get_bucket_name(self):
-        return self.name
+        return self.get_name()
 
     def get_session(self, props=None):
         if not self.session:
@@ -138,7 +138,7 @@ class S3Folder(ct.FlatFolder):
         return ct.S3Object
 
     def get_bucket(self):
-        return self.parent
+        return self.get_parent()
 
     def object(self, name):
         return self.child(name, folder=self)

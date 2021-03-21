@@ -80,7 +80,7 @@ class S3Storage(AbstractObjectStorage):
         return ct.S3Bucket
 
     def get_buckets(self):
-        return self.children
+        return self.get_children()
 
     def bucket(self, name, access_key=AUTO, secret_key=AUTO):
         bucket = self.get_buckets().get(name)

@@ -31,42 +31,62 @@ class IterableStream(sm.AbstractStream, ABC):
             check=False,
             max_items_in_memory=arg.DEFAULT,
     ):
+        self._count = count
+        self._less_than = less_than or count
+        self.check = check
+        self.max_items_in_memory = arg.undefault(max_items_in_memory, sm.MAX_ITEMS_IN_MEMORY)
         super().__init__(
-            data=self.get_validated(data, context=context) if check else data,
+            data=self.get_typing_validated_items(data, context=context) if check else data,
             name=name,
             source=source,
             context=context,
+            check=check,
         )
-        if isinstance(data, (list, tuple)):
-            self.count = len(data)
-        else:
-            self.count = count
-        self.less_than = less_than or self.count
-        self.check = check
-        self.max_items_in_memory = arg.undefault(max_items_in_memory, sm.MAX_ITEMS_IN_MEMORY)
 
-    def get_items(self):
+    def get_data(self) -> Iterable:
+        data = super().get_data()
+        assert isinstance(data, Iterable)
+        return data
+
+    def get_items(self) -> Iterable:  # list or generator (need for inherited subclasses)
         return self.get_data()
 
-    def get_meta_except_count(self):
-        return self.get_meta(
-            ex=['count', 'less_than'],
-        )
+    def get_iter(self) -> Generator:
+        yield from self.get_items()
 
-    def get_expected_count(self):
-        return self.count
+    def __iter__(self):
+        return self.get_iter()
 
     @staticmethod
-    def is_valid_item(item):
-        return True
+    def _get_dynamic_meta_fields() -> tuple:
+        return DYNAMIC_META_FIELDS
 
     @classmethod
-    def get_validated(cls, items, skip_errors=False, context=None):
+    def is_valid_item_type(cls, item) -> bool:
+        return True
+
+    def is_valid_item(self, item) -> bool:
+        return self.is_valid_item_type(item)
+
+    @classmethod
+    def get_typing_validated_items(cls, items, skip_errors=False, context=None) -> Iterable:
         for i in items:
-            if cls.is_valid_item(i):
+            if cls.is_valid_item_type(i):
                 yield i
             else:
-                message = 'get_validated() found invalid item {} for {}'.format(i, cls.get_stream_type())
+                message = 'get_typing_validated_items() found invalid item {} for {}'.format(i, cls.get_stream_type())
+                if skip_errors:
+                    if context:
+                        context.get_logger().log(message)
+                else:
+                    raise TypeError(message)
+
+    def get_validated_items(self, items, skip_errors=False, context=None) -> Iterable:
+        for i in items:
+            if self.is_valid_item(i):
+                yield i
+            else:
+                message = 'get_validated_items() found invalid item {} for {}'.format(i, self.get_stream_type())
                 if skip_errors:
                     if context:
                         context.get_logger().log(message)
@@ -78,7 +98,7 @@ class IterableStream(sm.AbstractStream, ABC):
             self.pass_items()
             closed_streams = 1
         except BaseException as e:
-            self.log(['Error while trying to close stream:', e], level=loggers.extended_logger_interface.LoggingLevel.Warning)
+            self.log(['Error while trying to close stream:', e], level=log.LoggingLevel.Warning)
             closed_streams = 0
         closed_links = 0
         if recursively:
@@ -87,47 +107,55 @@ class IterableStream(sm.AbstractStream, ABC):
                     closed_links += link.close() or 0
         return closed_streams, closed_links
 
-    def get_iter(self):
-        yield from self.get_items()
+    def get_expected_count(self) -> Optional[int]:
+        return self._count
+
+    def set_expected_count(self, count: int):
+        self._count = count
+
+    def one(self):
+        for i in self.get_tee_items():
+            return i
 
     def next(self):
         return next(
             self.get_iter(),
         )
 
-    def one(self):
-        for i in self.get_tee_items():
-            return i
-
-    def final_count(self):
+    def final_count(self) -> int:
         result = 0
         for _ in self.get_items():
             result += 1
         return result
 
-    def get_count(self, in_memory=False, final=False):
-        if in_memory:
-            self.data = self.get_list()
-            self.count = len(self.data)
-            return self.count
-        elif final:
+    def get_count(self, final=False) -> Optional[int]:
+        if final:
             return self.final_count()
         else:
             return self.get_expected_count()
 
-    def get_estimated_count(self):
-        return self.count or self.less_than
+    def get_estimated_count(self) -> Optional[int]:
+        return self.get_count() or self._less_than
 
-    def get_str_count(self):
-        if self.count:
-            return '{}'.format(self.count)
-        elif self.less_than:
-            return '<={}'.format(self.less_than)
+    def set_estimated_count(self, count: int):
+        self._less_than = count
+
+    def get_str_count(self) -> str:
+        if self.get_count():
+            return '{}'.format(self.get_count())
+        elif self.get_estimated_count():
+            return '<={}'.format(self.get_estimated_count())
         else:
             return '(unknown count)'
 
     def get_description(self):
         return '{} items'.format(self.get_str_count())
+
+    def get_first_items(self, count=1) -> Iterable:
+        for n, i in self.get_enumerated_items():
+            yield i
+            if n + 1 >= count:
+                break
 
     def enumerated_items(self):
         for n, i in enumerate(self.get_items()):
@@ -145,37 +173,31 @@ class IterableStream(sm.AbstractStream, ABC):
             **props
         )
 
-    def take(self, max_count=1):
-        def take_items(m):
-            for n, i in self.enumerated_items():
-                yield i
-                if n + 1 >= m:
-                    break
-        props = self.get_meta()
-        props['count'] = min(self.count, max_count) if self.count else None
-        return self.__class__(
-            take_items(max_count),
-            **props
+    def take(self, max_count=1) -> Native:
+        stream = self.stream(
+            self.get_first_items(max_count),
+            count=min(self.get_count(), max_count) if self.get_count() else None,
+            less_than=min(self.get_estimated_count(), max_count) if self.get_estimated_count() else max_count,
         )
+        return stream
 
-    def skip(self, count=1):
+    def skip(self, count=1) -> Native:
         def skip_items(c):
             for n, i in self.enumerated_items():
                 if n >= c:
                     yield i
-        if self.count and count >= self.count:
+        if self.get_count() and count >= self.get_count():
             next_items = []
         else:
             next_items = self.get_items()[count:] if self.is_in_memory() else skip_items(count)
-        props = self.get_meta()
-        if self.count:
-            props['count'] = self.count - count
-        elif self.less_than:
-            props['less_than'] = self.less_than - count
-        return self.__class__(
-            next_items,
-            **props
-        )
+        less_than = None
+        new_count = None
+        old_count = self.get_count()
+        if old_count:
+            new_count = old_count - count
+        elif self.get_estimated_count():
+            less_than = self.get_estimated_count() - count
+        return self.stream(next_items, count=new_count, less_than=less_than)
 
     def pass_items(self):
         for _ in self.get_items():
@@ -214,7 +236,7 @@ class IterableStream(sm.AbstractStream, ABC):
                 before=before,
             )
 
-    def add_items(self, items, before=False):
+    def add_items(self, items, before=False) -> Native:
         old_items = self.get_items()
         new_items = items
         if before:
@@ -222,10 +244,10 @@ class IterableStream(sm.AbstractStream, ABC):
         else:
             chain_records = chain(old_items, new_items)
         if isinstance(items, (list, tuple)):
-            count = self.count
+            count = self.get_count()
             if count:
                 count += len(items)
-            less_than = self.less_than
+            less_than = self.get_estimated_count()
             if less_than:
                 less_than += len(items)
         else:
@@ -237,9 +259,9 @@ class IterableStream(sm.AbstractStream, ABC):
             less_than=less_than,
         )
 
-    def add_stream(self, stream, before=False):
-        old_count = self.count
-        new_count = stream.count
+    def add_stream(self, stream: IterableStreamInterface, before=False) -> Native:
+        old_count = self.get_count()
+        new_count = stream.get_count()
         if old_count is not None and new_count is not None:
             total_count = new_count + old_count
         else:
@@ -251,27 +273,31 @@ class IterableStream(sm.AbstractStream, ABC):
             count=total_count,
         )
 
-    def count_to_items(self):
+    def count_to_items(self) -> IterableStreamInterface:
         return self.add_items(
-            [self.count],
+            [self.get_count()],
             before=True,
         )
 
-    def separate_count(self):
+    def separate_count(self) -> tuple:
         return (
-            self.count,
+            self.get_count(),
             self,
         )
 
-    def separate_first(self):
+    def separate_first(self) -> tuple:
         items = self.get_iter()
-        props = self.get_meta()
-        if props.get('count'):
-            props['count'] -= 1
+        count = self.get_count()
+        if count:
+            count -= 1
+        less_than = self.get_estimated_count()
+        if less_than:
+            less_than -= 1
         title_item = next(items)
-        data_stream = self.__class__(
+        data_stream = self.stream(
             items,
-            **props
+            count=count,
+            less_than=less_than,
         )
         return (
             title_item,
@@ -405,13 +431,10 @@ class IterableStream(sm.AbstractStream, ABC):
             **props
         )
 
-    def progress(self, expected_count=arg.DEFAULT, step=arg.DEFAULT, message='Progress'):
-        count = arg.undefault(expected_count, self.count) or self.less_than
-        items_with_logger = self.get_logger().progress(self.data, name=message, count=count, step=step)
-        return self.__class__(
-            items_with_logger,
-            **self.get_meta()
-        )
+    def progress(self, expected_count=arg.DEFAULT, step=arg.DEFAULT, message='Progress') -> Native:
+        count = arg.undefault(expected_count, self.get_count()) or self.get_estimated_count()
+        items_with_logger = self.get_logger().progress(self.get_data(), name=message, count=count, step=step)
+        return self.stream(items_with_logger)
 
     def get_demo_example(self, count=3):
         yield from self.get_tee_stream().take(count).get_items()
@@ -423,7 +446,7 @@ class IterableStream(sm.AbstractStream, ABC):
             self.log(('example:', example_item), verbose=False)
         return '\n'.join(demo_example)
 
-    def print(self, stream_function='count', *args, **kwargs):
+    def print(self, stream_function='get_count', *args, **kwargs) -> Native:
         value = self.get_property(stream_function, *args, **kwargs)
         self.log(value, end='\n', verbose=True)
         return self
