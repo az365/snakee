@@ -33,8 +33,8 @@ class KeyValueStream(sm.RowStream):
             assert value_stream_type in sm.StreamType
             self.value_stream_type = value_stream_type or sm.StreamType.AnyStream
 
-    @staticmethod
-    def is_valid_item(item):
+    @classmethod
+    def is_valid_item_type(cls, item):
         if isinstance(item, (list, tuple)):
             return len(item) == 2
 
@@ -80,7 +80,7 @@ class KeyValueStream(sm.RowStream):
         return my_keys
 
     def extract_keys_in_memory(self):
-        stream_for_keys, stream_for_items = self.get_tee(2)
+        stream_for_keys, stream_for_items = self.tee_streams(2)
         return (
             stream_for_keys.keys(),
             stream_for_items,
@@ -124,6 +124,12 @@ class KeyValueStream(sm.RowStream):
         if self.is_in_memory():
             sm_groups = sm_groups.to_memory()
         return sm_groups
+
+    def extract_keys(self):
+        if self.is_in_memory():
+            return self.extract_keys_in_memory()
+        else:
+            return self.extract_keys_on_disk()
 
     def get_dict(self, of_lists=False):
         result = dict()

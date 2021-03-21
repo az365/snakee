@@ -68,24 +68,24 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
     def get_item_type() -> it.ItemType:
         return it.ItemType.Record
 
-    def get_one_column(self, column, as_list=False):
+    def get_one_column_values(self, column, as_list=False) -> Iterable:
         if as_list:
-            return list(self.get_one_column(as_list=False))
+            return list(self.get_one_column_values(column, as_list=False))
         else:
             for r in self.get_records():
-                yield r
+                yield r.get(column)
 
-    def get_columns(self, by_rows_count=100):
+    def get_columns(self, by_rows_count=100) -> Iterable:
         if self.is_in_memory():
             examples = self.take(by_rows_count)
         else:
-            examples = self.get_tee_stream().take(by_rows_count)
+            examples = self.tee_stream().take(by_rows_count)
         columns = set()
         for r in examples.get_items():
             columns.update(r.keys())
         return columns
 
-    def get_records(self, columns=arg.DEFAULT):
+    def get_records(self, columns=arg.DEFAULT) -> Iterable:
         if columns == arg.DEFAULT:
             return self.get_items()
         else:
@@ -96,14 +96,14 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
             r[field] = n + first
             yield r
 
-    def enumerate(self, native=False):
+    def enumerate(self, native=False) -> Stream:
         if native:
             return self.stream(
                 self.get_enumerated_records(),
             )
         else:
             return self.stream(
-                self.enumerated_items(),
+                self.get_enumerated_items(),
                 stream_type=sm.StreamType.KeyValueStream,
                 secondary=self.get_stream_type(),
             )
@@ -145,7 +145,7 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
         else:
             return self.disk_sort(key_function, reverse, step=step, verbose=verbose)
 
-    def sorted_group_by(self, *keys, values=None, as_pairs=False):
+    def sorted_group_by(self, *keys, values=None, as_pairs=False) -> Stream:
         keys = arg.update(keys)
 
         def get_groups():
@@ -175,7 +175,7 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
             sm_groups.set_estimated_count(self.get_count() or self.get_estimated_count())
             return sm_groups
 
-    def group_by(self, *keys, values=None, step=arg.DEFAULT, as_pairs=False, take_hash=True, verbose=True):
+    def group_by(self, *keys, values=None, step=arg.DEFAULT, as_pairs=False, take_hash=True, verbose=True) -> Stream:
         keys = arg.update(keys)
         step = arg.undefault(step, self.max_items_in_memory)
         if as_pairs:
@@ -200,16 +200,11 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
             dataframe = dataframe[columns]
         return dataframe
 
-    def to_line_stream(self, columns, add_title_row=False, delimiter='\t'):
-        return sm.LineStream(
-            self.to_row_stream(columns, add_title_row=add_title_row),
-            count=self.count,
-            less_than=self.less_than,
-        ).map(
-            delimiter.join,
-        )
+    def get_demo_example(self, count=10, filters=[], columns=None) -> Type[pd.DataFrame]:
+        sm_sample = self.filter(*filters) if filters else self
+        return sm_sample.take(count).get_dataframe(columns)
 
-    def get_rows(self, columns=arg.DEFAULT, add_title_row=False):
+    def get_rows(self, columns=arg.DEFAULT, add_title_row=False) -> Iterable:
         columns = arg.undefault(columns, self.get_columns())
         if add_title_row:
             yield columns
@@ -245,22 +240,23 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
             verbose=verbose,
         )
 
-    def to_key_value_stream(self, key='key', value=None, skip_errors=False):
-        kws = dict(logger=self.get_logger(), skip_errors=skip_errors)
+    def get_key_value_pairs(self, key, value, **kwargs):
+        for i in self.get_records():
+            k = sf.value_from_record(i, key, **kwargs)
+            v = i if value is None else sf.value_from_record(i, value, **kwargs)
+            yield k, v
 
-        def get_pairs():
-            for i in self.get_items():
-                k = selection.value_from_record(i, key, **kws)
-                v = i if value is None else selection.value_from_record(i, value, **kws)
-                yield k, v
+    def to_key_value_stream(self, key='key', value=None, skip_errors=False) -> Stream:
+        kwargs = dict(logger=self.get_logger(), skip_errors=skip_errors)
+        pairs = self.get_key_value_pairs(key, value, **kwargs)
         return self.stream(
-            list(get_pairs()) if self.is_in_memory() else get_pairs(),
+            list(pairs) if self.is_in_memory() else pairs,
             stream_type=sm.StreamType.KeyValueStream,
             value_stream_type=sm.StreamType.RecordStream if value is None else sm.StreamType.AnyStream,
             check=False,
         )
 
-    def to_file(self, file, verbose=True, return_stream=True):
+    def to_file(self, file, verbose=True, return_stream=True) -> Stream:
         assert cs.is_file(file), TypeError('Expected TsvFile, got {} as {}'.format(file, type(file)))
         meta = self.get_meta()
         if not file.gzip:
@@ -270,7 +266,7 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
             return file.to_record_stream(verbose=verbose).update_meta(**meta)
 
     @deprecated_with_alternative('RecordStream.to_file()')
-    def to_tsv_file(self, *args, **kwargs):
+    def to_tsv_file(self, *args, **kwargs) -> Stream:
         return self.to_file(*args, **kwargs)
 
     def to_column_file(
@@ -320,7 +316,7 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
             check=arg.DEFAULT,
             expected_count=arg.DEFAULT,
             verbose=True,
-    ):
+    ) -> Stream:
         encoding = arg.undefault(encoding, sm.TMP_FILES_ENCODING)
         return sm.LineStream.from_text_file(
             filename,
@@ -346,7 +342,7 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
             max_count=None,
             check=True,
             verbose=False,
-    ):
+    ) -> Stream:
         parsed_stream = sm.LineStream.from_text_file(
             filename,
             encoding=encoding,
@@ -360,17 +356,26 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
         )
         return parsed_stream
 
-    def get_dict(self, key, value=None, of_lists=False, skip_errors=False):
-        return self.to_key_value_stream(
+    def get_dict(self, key, value=None, of_lists=False, skip_errors=False) -> dict:
+        key_value_stream = self.to_key_value_stream(
             key, value,
             skip_errors=skip_errors,
-        ).get_dict(
-            of_lists,
+        )
+        return key_value_stream.get_dict(
+            of_lists=of_lists,
         )
 
-    def get_description(self):
+    def get_description(self) -> str:
         return '{} rows, {} columns: {}'.format(
             self.get_str_count(),
             self.get_column_count(),
             ', '.join(self.get_columns()),
         )
+
+    def __str__(self):
+        title = self.__repr__()
+        description = self.get_description()
+        if description:
+            return '<{title} {desc}>'.format(title=title, desc=description)
+        else:
+            return '<{}>'.format(title)

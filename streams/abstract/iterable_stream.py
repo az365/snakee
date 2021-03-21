@@ -157,11 +157,11 @@ class IterableStream(sm.AbstractStream, ABC):
             if n + 1 >= count:
                 break
 
-    def enumerated_items(self):
+    def get_enumerated_items(self) -> Iterable:
         for n, i in enumerate(self.get_items()):
             yield n, i
 
-    def enumerate(self, native=False):
+    def enumerate(self, native=False) -> Native:
         props = self.get_meta()
         if native:
             target_class = self.__class__
@@ -169,7 +169,7 @@ class IterableStream(sm.AbstractStream, ABC):
             target_class = sm.KeyValueStream
             props['value_stream_type'] = sm.StreamType(self.get_class_name())
         return target_class(
-            self.enumerated_items(),
+            self.get_enumerated_items(),
             **props
         )
 
@@ -183,7 +183,7 @@ class IterableStream(sm.AbstractStream, ABC):
 
     def skip(self, count=1) -> Native:
         def skip_items(c):
-            for n, i in self.enumerated_items():
+            for n, i in self.get_enumerated_items():
                 if n >= c:
                     yield i
         if self.get_count() and count >= self.get_count():
@@ -199,29 +199,30 @@ class IterableStream(sm.AbstractStream, ABC):
             less_than = self.get_estimated_count() - count
         return self.stream(next_items, count=new_count, less_than=less_than)
 
-    def pass_items(self):
-        for _ in self.get_items():
+    def pass_items(self) -> Native:
+        for _ in self.get_iter():
             pass
+        return self
 
-    def get_tee(self, n=2):
+    def tee_streams(self, n=2) -> list:
         return [
-            self.__class__(
-                i,
-                **self.get_meta()
-            ) for i in tee(
+            self.stream(
+                tee_stream,
+            ) for tee_stream in tee(
                 self.get_items(),
                 n,
             )
         ]
 
-    def get_tee_items(self):
+    def get_tee_items(self) -> Iterable:
         two_iterators = tee(self.get_items(), 2)
-        self.data, tee_items = two_iterators
+        self._data, tee_items = two_iterators
         return tee_items
 
-    def get_tee_stream(self):
+    def tee_stream(self) -> Native:
         return self.stream(
             self.get_tee_items(),
+            check=False,
         )
 
     def add(self, stream_or_items, before=False, **kwargs):
@@ -304,28 +305,29 @@ class IterableStream(sm.AbstractStream, ABC):
             data_stream,
         )
 
-    def split_by_pos(self, pos):
-        first_stream, second_stream = self.get_tee(2)
+    def split_by_pos(self, pos: int) -> tuple:
+        first_stream, second_stream = self.tee_streams(2)
         return (
             first_stream.take(pos),
             second_stream.skip(pos),
         )
 
-    def split_by_list_pos(self, list_pos):
+    def split_by_list_pos(self, list_pos: Union[list, tuple]) -> list:
         count_limits = len(list_pos)
-        cloned_streams = self.get_tee(count_limits + 1)
+        cloned_streams = self.tee_streams(count_limits + 1)
         filtered_streams = list()
         prev_pos = 0
         for n, cur_pos in enumerate(list_pos):
             count_items = cur_pos - prev_pos
+            cur_stream = cloned_streams[n].skip(
+                prev_pos,
+            ).take(
+                count_items,
+            ).update_meta(
+                count=count_items,
+            )
             filtered_streams.append(
-                cloned_streams[n].skip(
-                    prev_pos,
-                ).take(
-                    count_items,
-                ).update_meta(
-                    count=count_items,
-                )
+                cur_stream
             )
             prev_pos = cur_pos
         filtered_streams.append(
@@ -335,22 +337,22 @@ class IterableStream(sm.AbstractStream, ABC):
         )
         return filtered_streams
 
-    def split_by_numeric(self, func, count):
+    def split_by_numeric(self, func: Callable, count: int) -> list:
         return [
             f.filter(
                 lambda i, n=n: func(i) == n,
             ) for n, f in enumerate(
-                self.get_tee(count),
+                self.tee_streams(count),
             )
         ]
 
-    def split_by_boolean(self, func):
+    def split_by_boolean(self, func) -> list:
         return self.split_by_numeric(
             func=lambda f: int(bool(func(f))),
             count=2,
         )
 
-    def split(self, by, count=None):
+    def split(self, by: Union[int, list, tuple, Callable], count=None) -> Iterable:
         if isinstance(by, int):
             return self.split_by_pos(by)
         elif isinstance(by, (list, tuple)):
@@ -363,7 +365,7 @@ class IterableStream(sm.AbstractStream, ABC):
         else:
             raise TypeError('split(by): by-argument must be int, list, tuple or function, {} received'.format(type(by)))
 
-    def split_to_iter_by_step(self, step):
+    def split_to_iter_by_step(self, step) -> Iterable:
         iterable = self.get_iter()
 
         def take_items():
@@ -436,15 +438,19 @@ class IterableStream(sm.AbstractStream, ABC):
         items_with_logger = self.get_logger().progress(self.get_data(), name=message, count=count, step=step)
         return self.stream(items_with_logger)
 
-    def get_demo_example(self, count=3):
-        yield from self.get_tee_stream().take(count).get_items()
+    def get_demo_example(self, count=3) -> Iterable:
+        yield from self.tee_stream().take(count).get_items()
 
-    def show(self, **kwargs):
-        self.log(str(self), end='\n', verbose=True, force=True)
-        demo_example = [str(i) for i in self.get_demo_example(**kwargs)]
-        for example_item in self.get_demo_example(**kwargs):
-            self.log(('example:', example_item), verbose=False)
-        return '\n'.join(demo_example)
+    def show(self, *args, **kwargs):
+        self.log(str(self), end='\n', verbose=True, truncate=False, force=True)
+        demo_example = self.get_demo_example(*args, **kwargs)
+        if isinstance(demo_example, Iterable):
+            demo_example = [str(i) for i in demo_example]
+            for example_item in demo_example:
+                self.log(('example:', example_item), verbose=False)
+            return '\n'.join(demo_example)
+        else:
+            return demo_example
 
     def print(self, stream_function='get_count', *args, **kwargs) -> Native:
         value = self.get_property(stream_function, *args, **kwargs)
