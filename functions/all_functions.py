@@ -9,7 +9,8 @@ try:  # Assume we're a sub-module in a package.
     from functions.array_functions import (
         is_in, not_in,
         elem_no, first, second, last,
-        is_ordered, uniq, compare_lists, list_minus, values_not_none,
+        is_ordered, uniq, compare_lists, list_minus,
+        values_not_none, defined_values, nonzero_values, numeric_values, shift_right,
         unfold_lists, top, mean,
     )
     from functions.aggregate_functions import avg, median, min, max
@@ -27,7 +28,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .array_functions import (
         is_in, not_in,
         elem_no, first, second, last,
-        is_ordered, uniq, compare_lists, list_minus, values_not_none,
+        is_ordered, uniq, compare_lists, list_minus,
+        values_not_none, defined_values, nonzero_values, numeric_values, shift_right,
         unfold_lists, top, mean,
     )
     from .aggregate_functions import avg, median, min, max

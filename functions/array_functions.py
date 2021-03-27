@@ -1,5 +1,4 @@
-from typing import Callable, Union
-from collections.abc import Iterable
+from typing import Union, Callable, Iterable, Any
 
 try:  # Assume we're a sub-module in a package.
     from utils import (
@@ -45,7 +44,7 @@ def is_ordered(reverse=False, including=True) -> Callable:
 
 
 def elem_no(position, default=None) -> Callable:
-    def func(array):
+    def func(array: Union[list, tuple]):
         count = len(array)
         if isinstance(array, (list, tuple)) and -count <= position < count:
             return array[position]
@@ -67,7 +66,7 @@ def last() -> Callable:
 
 
 def uniq() -> Callable:
-    def func(array) -> list:
+    def func(array: Iterable) -> list:
         if isinstance(array, Iterable):
             result = list()
             for i in array:
@@ -78,13 +77,13 @@ def uniq() -> Callable:
 
 
 def unfold_lists(fields, number_field='n', default_value=0) -> Callable:
-    def func(record) -> Iterable:
+    def func(record: dict) -> Iterable:
         yield from ms.unfold_lists(record, fields=fields, number_field=number_field, default_value=default_value)
     return func
 
 
 def compare_lists(a_field='a_only', b_field='b_only', ab_field='common', as_dict=True) -> Callable:
-    def func(list_a, list_b) -> Union[list, dict]:
+    def func(list_a: Iterable, list_b: Iterable) -> Union[list, dict]:
         items_common, items_a_only, items_b_only = list(), list(), list()
         for item in list_a:
             if item in list_b:
@@ -103,20 +102,63 @@ def compare_lists(a_field='a_only', b_field='b_only', ab_field='common', as_dict
 
 
 def list_minus() -> Callable:
-    def func(list_a, list_b) -> list:
+    def func(list_a: Iterable, list_b: Iterable) -> list:
         return [i for i in list_a if i not in list_b]
     return func
 
 
 def values_not_none() -> Callable:
-    def func(a) -> list:
+    def func(a: Iterable) -> list:
         return [v for v in a if bf.not_none()(v)]
+    return func
+
+
+def defined_values() -> Callable:
+    def func(a: Iterable) -> list:
+        return [v for v in a if nm.is_defined(v)]
+    return func
+
+
+def nonzero_values() -> Callable:
+    def func(a: Iterable) -> list:
+        return [v for v in a if nm.is_nonzero(v)]
+    return func
+
+
+def numeric_values() -> Callable:
+    def func(a: Iterable) -> list:
+        return [v for v in a if nm.is_numeric(v)]
+    return func
+
+
+def shift_right(shift: int, default: Any = 0, save_count=True) -> Callable:
+    def func(a: Iterable) -> list:
+        list_a = list(a)
+        if shift == 0:
+            return list_a
+        count = len(a)
+        if abs(shift) > count and save_count:
+            addition = [default] * count
+        else:
+            addition = [default] * abs(shift)
+        if shift > 0:
+            result = addition + list_a
+            if save_count:
+                result = result[:count]
+        else:  # shift < 0
+            if count > shift:
+                result = a[-shift:]
+            else:
+                result = []
+            if save_count:
+                result += addition
+        return result
     return func
 
 
 def mean() -> Callable:
     def func(a) -> float:
-        return nm.mean(values_not_none()(a))
+        return nm.mean(numeric_values()(a))
     return func
 
 
