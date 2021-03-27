@@ -1,4 +1,5 @@
 import math
+from typing import Optional, Union, Iterable
 
 try:
     import numpy as np
@@ -17,8 +18,16 @@ try:
 except ImportError:
     plt = None
 
+if np:
+    OptFloat = Optional[Union[float, np.ndarray]]
+else:
+    OptFloat = Optional[float]
 
-def is_none(value):
+_min = min
+_max = max
+
+
+def is_none(value) -> bool:
     if value is None:
         return True
     elif math.isnan(value):
@@ -29,23 +38,40 @@ def is_none(value):
         return False
 
 
-def is_defined(value):
+def is_defined(value) -> bool:
     return not is_none(value)
 
 
-def is_nonzero(value):
+def is_nonzero(value) -> bool:
     if is_defined(value):
         return value != 0
 
 
-def div(x, y, default=None):
+def is_numeric(value) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def filter_numeric(a: Iterable) -> list:
+    return [i for i in a if is_defined(i)]
+
+
+def div(x: float, y: float, default=None) -> Optional[float]:
     if y:
         return (x or 0) / y
     else:
         return default
 
 
-def mean(a, default=None):
+def median(a: Iterable, ignore_import_error=False) -> OptFloat:
+    a = filter_numeric(a)
+    if np:
+        return np.median(a)
+    elif not ignore_import_error:
+        _raise_import_error('numpy')
+
+
+def mean(a: Iterable, default=None) -> OptFloat:
+    a = filter_numeric(a)
     if a:
         if np:
             return np.mean(a)
@@ -55,7 +81,23 @@ def mean(a, default=None):
         return default
 
 
-def sqrt(value, default=None):
+def min(a: Iterable, default=None):
+    a = filter_numeric(a)
+    if a:
+        return _min(a)
+    else:
+        return default
+
+
+def max(a: Iterable, default=None):
+    a = filter_numeric(a)
+    if a:
+        return _max(a)
+    else:
+        return default
+
+
+def sqrt(value: float, default=None) -> Optional[float]:
     if value:
         if np:
             return np.sqrt(value)
@@ -87,13 +129,6 @@ def _raise_import_error(lib=None):
         raise ImportError('{} not installed'.format(lib))
     else:
         raise ImportError
-
-
-def median(a, ignore_import_error=False):
-    if np:
-        return np.median(a)
-    elif not ignore_import_error:
-        _raise_import_error('numpy')
 
 
 def corr(a, b, ignore_import_error=False):
