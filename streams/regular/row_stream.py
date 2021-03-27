@@ -1,4 +1,4 @@
-from typing import Type
+from typing import Optional, Iterable
 
 try:  # Assume we're a sub-module in a package.
     from streams import stream_classes as sm
@@ -21,7 +21,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...selection import selection_classes as sn
     from ...loggers.logger_classes import deprecated_with_alternative
 
-Stream = Type[sm.StreamInterface]
+Stream = sm.StreamInterface
+Native = sm.RegularStreamInterface
 
 
 class RowStream(sm.AnyStream, sm.ColumnarMixin):
@@ -50,7 +51,7 @@ class RowStream(sm.AnyStream, sm.ColumnarMixin):
     def get_item_type():
         return it.ItemType.Row
 
-    def get_column_count(self, take=10, get_max=True, get_min=False):
+    def get_column_count(self, take=10, get_max=True, get_min=False) -> int:
         if self.is_in_memory() and (get_max or get_min):
             example_stream = self.take(take)
         else:
@@ -66,12 +67,12 @@ class RowStream(sm.AnyStream, sm.ColumnarMixin):
                     count = row_len
         return count
 
-    def get_columns(self, **kwargs):
+    def get_columns(self, **kwargs) -> list:
         count = self.get_column_count(**kwargs)
         return list(range(count))
 
-    def get_one_column_values(self, column):
-        return self.select([column])
+    def get_one_column_values(self, column) -> Iterable:
+        return self.select([column]).get_items()
 
     def select(self, *columns, use_extended_method=True):
         if use_extended_method:
@@ -93,7 +94,7 @@ class RowStream(sm.AnyStream, sm.ColumnarMixin):
         else:
             return nm.pd.DataFrame(self.get_data())
 
-    def to_line_stream(self, delimiter='\t'):
+    def to_line_stream(self, delimiter='\t') -> Stream:
         return sm.LineStream(
             map(lambda r: '\t'.join([str(c) for c in r]), self.get_items()),
             count=self.get_count(),

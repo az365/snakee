@@ -11,6 +11,7 @@ TMP_FILES_ENCODING = 'utf8'
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from streams.interfaces.abstract_stream_interface import StreamInterface
+    from streams.interfaces.regular_stream_interface import RegularStreamInterface
     from streams.interfaces.pair_stream_interface import PairStreamInterface
     from streams.abstract.abstract_stream import AbstractStream
     from streams.abstract.iterable_stream import IterableStream
@@ -18,18 +19,19 @@ try:  # Assume we're a sub-module in a package.
     from streams.abstract.wrapper_stream import WrapperStream
     from streams.mixin.columnar_mixin import ColumnarMixin
     from streams.mixin.convert_mixin import ConvertMixin
-    from streams.simple.any_stream import AnyStream
-    from streams.simple.line_stream import LineStream
-    from streams.simple.row_stream import RowStream
+    from streams.regular.any_stream import AnyStream
+    from streams.regular.line_stream import LineStream
+    from streams.regular.row_stream import RowStream
     from streams.pairs.key_value_stream import KeyValueStream
-    from streams.simple.schema_stream import SchemaStream
-    from streams.simple.record_stream import RecordStream
+    from streams.regular.schema_stream import SchemaStream
+    from streams.regular.record_stream import RecordStream
     from streams.wrappers.pandas_stream import PandasStream
     from schema import schema_classes as sh
     from loggers.logger_classes import deprecated_with_alternative
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
     from .interfaces.abstract_stream_interface import StreamInterface
+    from .interfaces.regular_stream_interface import RegularStreamInterface
     from .interfaces.pair_stream_interface import PairStreamInterface
     from .abstract.abstract_stream import AbstractStream
     from .abstract.iterable_stream import IterableStream
@@ -37,12 +39,12 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .abstract.wrapper_stream import WrapperStream
     from .mixin.columnar_mixin import ColumnarMixin
     from .mixin.convert_mixin import ConvertMixin
-    from .simple.any_stream import AnyStream
-    from .simple.line_stream import LineStream
-    from .simple.row_stream import RowStream
+    from .regular.any_stream import AnyStream
+    from .regular.line_stream import LineStream
+    from .regular.row_stream import RowStream
     from .pairs.key_value_stream import KeyValueStream
-    from .simple.schema_stream import SchemaStream
-    from .simple.record_stream import RecordStream
+    from .regular.schema_stream import SchemaStream
+    from .regular.record_stream import RecordStream
     from .wrappers.pandas_stream import PandasStream
     from ..schema import schema_classes as sh
     from ..loggers.logger_classes import deprecated_with_alternative

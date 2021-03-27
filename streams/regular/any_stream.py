@@ -7,6 +7,8 @@ try:  # Assume we're a sub-module in a package.
         items as it,
         selection as sf,
     )
+    from items.base_item_type import ItemType
+    from streams import stream_classes as sm
     from selection import selection_classes as sn
     from utils.decorators import deprecated_with_alternative
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -15,14 +17,17 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         items as it,
         selection as sf,
     )
+    from ...items.base_item_type import ItemType
+    from .. import stream_classes as sm
     from ...selection import selection_classes as sn
     from ...utils.decorators import deprecated_with_alternative
 
 OptionalFields = Optional[Union[str, Iterable]]
-Stream = Union[sm.LocalStream, sm.ColumnarMixin, sm.ConvertMixin]
+Stream = sm.StreamInterface
+Native = sm.RegularStreamInterface
 
 
-class AnyStream(sm.LocalStream, sm.ConvertMixin):
+class AnyStream(sm.LocalStream, sm.ConvertMixin, sm.RegularStreamInterface):
     def __init__(
             self,
             data,
@@ -48,7 +53,7 @@ class AnyStream(sm.LocalStream, sm.ConvertMixin):
     def get_item_type() -> it.ItemType:
         return it.ItemType.Any
 
-    def filter(self, *functions) -> Stream:
+    def filter(self, *functions) -> Native:
         def filter_function(item):
             for f in functions:
                 if not f(item):
@@ -84,8 +89,16 @@ class AnyStream(sm.LocalStream, sm.ConvertMixin):
             to=target_stream_type,
         )
 
-    def map(self, function, to=arg.DEFAULT) -> Stream:
-        stream = super().map(function, to=to)
+    def map_to(self, function, stream_type=arg.DEFAULT) -> Native:
+        stream = super().map_to(function=function, stream_type=stream_type)
+        return self._assume_native(stream)
+
+    def map(self, function, to=arg.DEFAULT) -> Native:
+        if arg.is_defined(to):
+            self.get_logger().warning('to-argument for map() is deprecated, use map_to() instead')
+            stream = super().map_to(function, stream_type=to)
+        else:
+            stream = super().map(function)
         return self._assume_native(stream)
 
     def flat_map(self, function, to=arg.DEFAULT) -> Stream:
@@ -108,7 +121,7 @@ class AnyStream(sm.LocalStream, sm.ConvertMixin):
             map(function, self.get_items()),
         )
 
-    def apply_to_data(self, function, save_count=False, lazy=True, stream_type=arg.DEFAULT, *args, **kwargs) -> Stream:
+    def apply_to_data(self, function, *args, save_count=False, lazy=True, stream_type=arg.DEFAULT, **kwargs) -> Stream:
         upd_meta = dict(count=self.get_count()) if save_count else dict()
         return self.stream(
             self.lazy_calc(function, *args, **kwargs) if lazy else self.calc(function, *args, **kwargs),
@@ -116,11 +129,21 @@ class AnyStream(sm.LocalStream, sm.ConvertMixin):
             **upd_meta
         )
 
+    def sorted_group_by(self, *keys, values: Optional[Iterable] = None, as_pairs: bool = False) -> Stream:
+        raise NotImplemented
+
+    def group_by(self, *keys, values: Optional[Iterable] = None, as_pairs: bool = False) -> Stream:
+        raise NotImplemented
+
     @staticmethod
-    def _assume_native(stream) -> Stream:
+    def _assume_stream(stream) -> Stream:
         return stream
 
-    def stream(self, data: Iterable, ex: OptionalFields = None, **kwargs) -> Stream:
+    @staticmethod
+    def _assume_native(stream) -> Native:
+        return stream
+
+    def stream(self, data: Iterable, ex: OptionalFields = None, **kwargs) -> Native:
         stream = self.to_stream(data, ex=ex, **kwargs)
         return self._assume_native(stream)
 
@@ -147,7 +170,7 @@ class AnyStream(sm.LocalStream, sm.ConvertMixin):
         if 'source' not in meta:
             meta['source'] = self.get_source()
         stream = stream_class(data, **meta)
-        return self._assume_native(stream)
+        return self._assume_stream(stream)
 
     @classmethod
     @deprecated_with_alternative('connectors.filesystem.local_file.JsonFile.to_stream()')

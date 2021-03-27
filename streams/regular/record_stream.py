@@ -26,7 +26,9 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         selection as sf,
     )
 
-Stream = Union[sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin]
+Stream = sm.StreamInterface
+Native = sm.RegularStreamInterface
+Pairs = sm.PairStreamInterface
 
 
 def get_key_function(descriptions, take_hash=False):
@@ -89,7 +91,7 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
         if columns == arg.DEFAULT:
             return self.get_items()
         else:
-            return self.select(*columns)
+            return self.select(*columns).get_items()
 
     def get_enumerated_records(self, field='#', first=1) -> Iterable:
         for n, r in enumerate(self.get_data()):
@@ -108,8 +110,8 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
                 secondary=self.get_stream_type(),
             )
 
-    def select(self, *fields, use_extended_method=False, **expressions) -> Stream:
-        return self.map(
+    def select(self, *fields, use_extended_method=False, **expressions) -> Native:
+        stream = self.map(
             sn.select(
                 *fields, **expressions,
                 target_item_type=it.ItemType.Record, input_item_type=it.ItemType.Record,
@@ -117,8 +119,13 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
                 use_extended_method=use_extended_method,
             )
         )
+        return self._assume_native(stream)
 
-    def filter(self, *fields, **expressions) -> Stream:
+    def filter(self, *fields, **expressions) -> Native:
+        expressions_list = [
+            (k, fs.equal(v) if isinstance(v, (str, int, float, bool)) else v)
+            for k, v in expressions.items()
+        ]
         filter_function = sf.filter_items(*fields, **expressions, item_type=it.ItemType.Record, skip_errors=True)
         filtered_items = self.get_filtered_items(filter_function)
         if self.is_in_memory():
@@ -137,13 +144,14 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
             )
         return stream
 
-    def sort(self, *keys, reverse=False, step=arg.DEFAULT, verbose=True) -> Stream:
+    def sort(self, *keys, reverse=False, step=arg.DEFAULT, verbose=True) -> Native:
         key_function = get_key_function(keys)
         step = arg.undefault(step, self.max_items_in_memory)
         if self.can_be_in_memory(step=step):
-            return self.memory_sort(key_function, reverse, verbose=verbose)
+            stream = self.memory_sort(key_function, reverse, verbose=verbose)
         else:
-            return self.disk_sort(key_function, reverse, step=step, verbose=verbose)
+            stream = self.disk_sort(key_function, reverse, step=step, verbose=verbose)
+        return self._assume_native(stream)
 
     def sorted_group_by(self, *keys, values=None, as_pairs=False) -> Stream:
         keys = arg.update(keys)
@@ -194,13 +202,17 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
         )
         return grouped_stream
 
+    def group_to_pairs(self, *keys, values=None, step=arg.DEFAULT, verbose=True) -> Pairs:
+        grouped_stream = self.group_by(*keys, values=values, step=step, as_pairs=True, take_hash=False, verbose=verbose)
+        return self._assume_pairs(grouped_stream)
+
     def get_dataframe(self, columns=None) -> Type[pd.DataFrame]:
         dataframe = pd.DataFrame(self.get_data())
         if columns:
             dataframe = dataframe[columns]
         return dataframe
 
-    def get_demo_example(self, count=10, filters=[], columns=None) -> Type[pd.DataFrame]:
+    def get_demo_example(self, count=10, filters: Optional[Iterable] = None, columns=None) -> Type[pd.DataFrame]:
         sm_sample = self.filter(*filters) if filters else self
         return sm_sample.take(count).get_dataframe(columns)
 
@@ -211,7 +223,7 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
         for r in self.get_items():
             yield [r.get(c) for c in columns]
 
-    def to_row_stream(self, *columns, **kwargs):
+    def to_row_stream(self, *columns, **kwargs) -> Stream:
         add_title_row = kwargs.pop('add_title_row', None)
         columns = arg.update(columns, kwargs.pop('columns', None))
         if kwargs:
@@ -227,7 +239,7 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
             self.get_rows(columns=tuple(columns)),
             stream_type=sm.StreamType.RowStream,
             count=count,
-            less_than=self.less_than,
+            less_than=less_than,
         )
 
     def schematize(self, schema, skip_bad_rows=False, skip_bad_values=False, verbose=True) -> Stream:
@@ -240,21 +252,22 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
             verbose=verbose,
         )
 
-    def get_key_value_pairs(self, key, value, **kwargs):
+    def get_key_value_pairs(self, key, value, **kwargs) -> Iterable:
         for i in self.get_records():
             k = sf.value_from_record(i, key, **kwargs)
             v = i if value is None else sf.value_from_record(i, value, **kwargs)
             yield k, v
 
-    def to_key_value_stream(self, key='key', value=None, skip_errors=False) -> Stream:
+    def to_key_value_stream(self, key='key', value=None, skip_errors=False) -> Pairs:
         kwargs = dict(logger=self.get_logger(), skip_errors=skip_errors)
         pairs = self.get_key_value_pairs(key, value, **kwargs)
-        return self.stream(
+        stream = self.stream(
             list(pairs) if self.is_in_memory() else pairs,
             stream_type=sm.StreamType.KeyValueStream,
             value_stream_type=sm.StreamType.RecordStream if value is None else sm.StreamType.AnyStream,
             check=False,
         )
+        return self._assume_pairs(stream)
 
     def to_file(self, file, verbose=True, return_stream=True) -> Stream:
         assert cs.is_file(file), TypeError('Expected TsvFile, got {} as {}'.format(file, type(file)))
@@ -355,6 +368,14 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
             to=sm.StreamType.RecordStream,
         )
         return parsed_stream
+
+    @staticmethod
+    def _assume_native(stream) -> Native:
+        return stream
+
+    @staticmethod
+    def _assume_pairs(stream) -> Pairs:
+        return stream
 
     def get_dict(self, key, value=None, of_lists=False, skip_errors=False) -> dict:
         key_value_stream = self.to_key_value_stream(
