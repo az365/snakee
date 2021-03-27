@@ -11,6 +11,7 @@ try:  # Assume we're a sub-module in a package.
     from loggers.detailed_message import DetailedMessage, SelectionError
     from loggers.message_collector import MessageCollector, SelectionMessageCollector, CommonMessageCollector
     from loggers.logging_context_stub import LoggingContextStub
+    from loggers.fallback_logger import FallbackLogger
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
     from .logger_interface import LoggerInterface
@@ -22,6 +23,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .detailed_message import DetailedMessage, SelectionError
     from .message_collector import MessageCollector, SelectionMessageCollector, CommonMessageCollector
     from .logging_context_stub import LoggingContextStub
+    from .fallback_logger import FallbackLogger
 
 DEFAULT_LOGGING_LEVEL = LoggingLevel.get_default()
 
