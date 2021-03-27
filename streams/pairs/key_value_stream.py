@@ -5,13 +5,13 @@ try:  # Assume we're a sub-module in a package.
     from streams.interfaces.regular_stream_interface import RegularStreamInterface
     from streams.interfaces.pair_stream_interface import PairStreamInterface
     from streams.stream_type import StreamType
-    from streams.regular.row_stream import RowStream
+    from streams.simple.row_stream import RowStream
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ..interfaces.regular_stream_interface import RegularStreamInterface
     from ..interfaces.pair_stream_interface import PairStreamInterface
     from ..stream_type import StreamType
-    from ..regular.row_stream import RowStream
+    from ..simple.row_stream import RowStream
 
 Native = PairStreamInterface
 Stream = RegularStreamInterface

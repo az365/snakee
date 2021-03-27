@@ -9,6 +9,7 @@ try:  # Assume we're a sub-module in a package.
     from streams.mixin.columnar_mixin import ColumnarMixin
     from streams import stream_classes as sm
     from schema import schema_classes as sh
+    from utils.decorators import deprecated_with_alternative
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...items import base_item_type as it
@@ -17,6 +18,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...streams.mixin.columnar_mixin import ColumnarMixin
     from ...streams import stream_classes as sm
     from ...schema import schema_classes as sh
+    from ...utils.decorators import deprecated_with_alternative
 
 OptionalFields = Optional[Union[str, Iterable]]
 Stream = Union[ColumnarMixin, Any]
@@ -61,6 +63,9 @@ class ColumnFile(TextFile, ColumnarMixin):
     def is_in_memory(self) -> bool:
         return False
 
+    def get_data(self, verbose=arg.DEFAULT, *args, **kwargs) -> Iterable:  # ?
+        return self.get_items(verbose=verbose, *args, **kwargs)
+
     def sort(self, *keys, reverse=False):
         raise NotImplemented
 
@@ -76,6 +81,7 @@ class ColumnFile(TextFile, ColumnarMixin):
         elif isinstance(schema, sh.SchemaDescription):
             self.schema = schema
         elif isinstance(schema, (list, tuple)):
+            self.log('Schema as list is deprecated, use SchemaDescription class instead', level=30)
             has_types_descriptions = [isinstance(f, (list, tuple)) for f in schema]
             if max(has_types_descriptions):
                 self.schema = sh.SchemaDescription(schema)
@@ -131,8 +137,8 @@ class ColumnFile(TextFile, ColumnarMixin):
             if not check_order:
                 received = sorted(received)
                 expected = sorted(expected)
-            assert received == expected, 'LocalFile.check(): received {} != expected {}'.format(
-                received_schema, expected_schema,
+            assert received == expected, 'LocalFile({}).check(): received {} != expected {}'.format(
+                self.get_name(), received_schema, expected_schema,
             )
         else:
             assert expected_schema, 'schema for {} must be defined'.format(self.get_name())
@@ -183,8 +189,11 @@ class ColumnFile(TextFile, ColumnarMixin):
             yield sh.SchemaRow(row, schema=self.schema)
 
     def get_records_from_file(self, convert_types=True, verbose=arg.DEFAULT, **kwargs) -> Iterable:
+        schema = self.get_schema()
+        assert schema, 'Schema must be defined for {}'.format(self)
+        columns = schema.get_columns()
         for item in self.get_rows(convert_types=convert_types, verbose=verbose, **kwargs):
-            yield {k: v for k, v in zip(self.get_schema().get_columns(), item)}
+            yield {k: v for k, v in zip(columns, item)}
 
     def get_records(self, convert_types=True, verbose=arg.DEFAULT, **kwargs) -> Iterable:
         return self.get_records_from_file(convert_types=convert_types, verbose=verbose, **kwargs)
@@ -275,16 +284,8 @@ class ColumnFile(TextFile, ColumnarMixin):
     def get_stream_type(cls):
         return sm.StreamType.RowStream
 
-    def get_static_meta(self, ex: OptionalFields = None) -> dict:
-        connector_meta = self.get_meta(ex=ex)
-        stream_meta = dict()
-        for k, v in connector_meta.items():
-            if k in STREAM_META_FIELDS:
-                stream_meta[k] = v
-        return stream_meta
 
-
-# @deprecated_with_alternative('ConnType.get_class()')
+@deprecated_with_alternative('ConnType.get_class()')
 class CsvFile(ColumnFile):
     def __init__(
             self,
@@ -326,7 +327,7 @@ class CsvFile(ColumnFile):
         return sm.StreamType.RecordStream
 
 
-# @deprecated_with_alternative('ConnType.get_class()')
+@deprecated_with_alternative('ConnType.get_class()')
 class TsvFile(ColumnFile):
     def __init__(
             self,

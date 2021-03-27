@@ -9,7 +9,7 @@ try:
         arguments as arg,
         items as it,
     )
-    from loggers.logger_classes import deprecated_with_alternative
+    from utils.decorators import deprecated_with_alternative
 except ImportError:
     from .. import stream_classes as sm
     from ...connectors import connector_classes as ct
@@ -18,7 +18,7 @@ except ImportError:
         arguments as arg,
         items as it,
     )
-    from ...loggers.logger_classes import deprecated_with_alternative
+    from ...utils.decorators import deprecated_with_alternative
 
 
 class LineStream(sm.AnyStream):
@@ -68,7 +68,7 @@ class LineStream(sm.AnyStream):
         )
 
     @classmethod
-    # @deprecated_with_alternative('*Stream.from_file')
+    @deprecated_with_alternative('*Stream.from_file')
     def from_text_file(
             cls,
             filename,
@@ -86,13 +86,13 @@ class LineStream(sm.AnyStream):
             expected_count=expected_count,
             folder=ct.get_default_job_folder(),
             verbose=verbose,
-        ).to_lines_stream(
+        ).to_line_stream(
             check=check,
             step=step,
         )
         is_inherited = sm_lines.get_stream_type() != cls.__name__
         if is_inherited:
-            sm_lines = sm_lines.map(function=fs.same(), to=cls.__name__)
+            sm_lines = sm_lines.map_to(function=fs.same(), stream_type=cls.__name__)
         if skip_first_line:
             sm_lines = sm_lines.skip(1)
         if max_count:

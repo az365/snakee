@@ -2,23 +2,21 @@ from typing import Union, Iterable, Optional
 from inspect import isclass
 
 try:  # Assume we're a sub-module in a package.
-    from streams import stream_classes as sm
     from utils import (
         arguments as arg,
         items as it,
         selection as sf,
     )
     from selection import selection_classes as sn
-    # from loggers.logger_classes import deprecated_with_alternative
+    from utils.decorators import deprecated_with_alternative
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from .. import stream_classes as sm
     from ...utils import (
         arguments as arg,
         items as it,
         selection as sf,
     )
     from ...selection import selection_classes as sn
-    # from ...loggers.logger_classes import deprecated_with_alternative
+    from ...utils.decorators import deprecated_with_alternative
 
 OptionalFields = Optional[Union[str, Iterable]]
 Stream = Union[sm.LocalStream, sm.ColumnarMixin, sm.ConvertMixin]
@@ -104,8 +102,8 @@ class AnyStream(sm.LocalStream, sm.ConvertMixin):
             **props
         )
 
-    # @deprecated_with_alternative('map()')
-    def native_map(self, function) -> Stream:
+    @deprecated_with_alternative('map()')
+    def native_map(self, function) -> Native:
         return self.stream(
             map(function, self.get_items()),
         )
@@ -152,7 +150,7 @@ class AnyStream(sm.LocalStream, sm.ConvertMixin):
         return self._assume_native(stream)
 
     @classmethod
-    # @deprecated_with_alternative('connectors.filesystem.local_file.JsonFile.to_stream()')
+    @deprecated_with_alternative('connectors.filesystem.local_file.JsonFile.to_stream()')
     def from_json_file(
             cls,
             filename,
