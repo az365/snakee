@@ -6,14 +6,14 @@ try:  # Assume we're a sub-module in a package.
     from base.interfaces.context_interface import ContextInterface
     from base.abstract.abstract_base import AbstractBaseObject
     from base.abstract.contextual import Contextual
-    from base.abstract.data import DataWrapper
+    from base.abstract.contextual_data import DataWrapper
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ..interfaces.tree_interface import TreeInterface
     from ..interfaces.context_interface import ContextInterface
     from .abstract_base import AbstractBaseObject
     from .contextual import Contextual
-    from .data import DataWrapper
+    from .contextual_data import DataWrapper
 
 Context = Optional[ContextInterface]
 Parent = Union[Context, TreeInterface]

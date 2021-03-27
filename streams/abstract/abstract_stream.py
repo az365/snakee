@@ -4,14 +4,14 @@ from typing import Optional, Union, Iterable, Type
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
-    from base.abstract.data import DataWrapper
+    from base.abstract.contextual_data import DataWrapper
     from streams.interfaces.abstract_stream_interface import StreamInterface
     from streams import stream_classes as sm
     from loggers import logger_classes as log
     from loggers.logger_classes import deprecated_with_alternative
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
-    from ...base.abstract.data import DataWrapper
+    from ...base.abstract.contextual_data import DataWrapper
     from ..interfaces.abstract_stream_interface import StreamInterface
     from .. import stream_classes as sm
     from ...loggers import logger_classes as log

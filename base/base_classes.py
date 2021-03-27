@@ -10,7 +10,7 @@ try:  # Assume we're a sub-module in a package.
     from base.abstract.named import AbstractNamed
     from base.abstract.sourced import Sourced
     from base.abstract.contextual import Contextual
-    from base.abstract.data import DataWrapper
+    from base.abstract.contextual_data import DataWrapper
     from base.abstract.tree_item import TreeItem
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
@@ -23,5 +23,5 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .abstract.named import AbstractNamed
     from .abstract.sourced import Sourced
     from .abstract.contextual import Contextual
-    from .abstract.data import DataWrapper
+    from .abstract.contextual_data import DataWrapper
     from .abstract.tree_item import TreeItem

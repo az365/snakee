@@ -5,15 +5,15 @@ try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from base.interfaces.context_interface import ContextInterface
     from base.interfaces.contextual_interface import ContextualInterface
-    from base.interfaces.data_interface import DataInterface
-    from base.abstract.abstract_base import AbstractBaseObject
+    from base.interfaces.data_interface import SimpleDataInterface
+    from base.abstract.named import AbstractNamed
     from base.abstract.contextual import Contextual
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ..interfaces.context_interface import ContextInterface
     from ..interfaces.contextual_interface import ContextualInterface
-    from ..interfaces.data_interface import DataInterface
-    from .abstract_base import AbstractBaseObject
+    from ..interfaces.data_interface import SimpleDataInterface
+    from .named import AbstractNamed
     from .contextual import Contextual
 
 Data = Union[Iterable, Any]
@@ -25,15 +25,12 @@ DATA_MEMBER_NAMES = ('_data', )
 DYNAMIC_META_FIELDS = tuple()
 
 
-class DataWrapper(Contextual, DataInterface, ABC):
+class SimpleDataWrapper(AbstractNamed, SimpleDataInterface, ABC):
     def __init__(
             self, data, name: str,
-            source: Source = None,
-            context: Context = None,
-            check: bool = True,
     ):
         self._data = data
-        super().__init__(name=name, source=source, context=context, check=check)
+        super().__init__(name=name)
 
     @classmethod
     def _get_data_member_names(cls):
@@ -47,7 +44,7 @@ class DataWrapper(Contextual, DataInterface, ABC):
             self._data = data
             self.set_meta(**self.get_static_meta())
         else:
-            return DataWrapper(data, **self.get_static_meta())
+            return self.__class__(data, **self.get_static_meta())
 
     def apply_to_data(self, function, *args, dynamic=False, **kwargs):
         return self.__class__(
