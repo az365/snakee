@@ -42,7 +42,7 @@ def not_none() -> Callable:
 
 def nonzero(zero_values=ZERO_VALUES) -> Callable:
     def func(value) -> bool:
-        if nm.is_defined():
+        if nm.is_defined(value):
             return value not in zero_values
     return func
 
@@ -56,6 +56,15 @@ def equal(other) -> Callable:
 def not_equal(other) -> Callable:
     def func(value) -> bool:
         return value != other
+    return func
+
+
+def less_than(other, including=False) -> Callable:
+    def func(value) -> bool:
+        if including:
+            return value <= other
+        else:
+            return value < other
     return func
 
 
