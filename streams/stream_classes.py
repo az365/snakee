@@ -11,6 +11,7 @@ TMP_FILES_ENCODING = 'utf8'
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from streams.interfaces.abstract_stream_interface import StreamInterface
+    from streams.interfaces.pair_stream_interface import PairStreamInterface
     from streams.abstract.abstract_stream import AbstractStream
     from streams.abstract.iterable_stream import IterableStream
     from streams.abstract.local_stream import LocalStream
@@ -29,6 +30,7 @@ try:  # Assume we're a sub-module in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
     from .interfaces.abstract_stream_interface import StreamInterface
+    from .interfaces.pair_stream_interface import PairStreamInterface
     from .abstract.abstract_stream import AbstractStream
     from .abstract.iterable_stream import IterableStream
     from .abstract.local_stream import LocalStream
