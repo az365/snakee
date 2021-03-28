@@ -1,6 +1,5 @@
 from enum import Enum
 import inspect
-import gc
 from datetime import datetime
 from random import randint
 
@@ -10,6 +9,7 @@ TMP_FILES_ENCODING = 'utf8'
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
+    from items.base_item_type import ItemType
     from streams.interfaces.abstract_stream_interface import StreamInterface
     from streams.interfaces.regular_stream_interface import RegularStreamInterface
     from streams.interfaces.pair_stream_interface import PairStreamInterface
@@ -26,10 +26,12 @@ try:  # Assume we're a sub-module in a package.
     from streams.regular.schema_stream import SchemaStream
     from streams.regular.record_stream import RecordStream
     from streams.wrappers.pandas_stream import PandasStream
+    from streams.stream_builder import StreamBuilder
     from schema import schema_classes as sh
     from loggers.logger_classes import deprecated_with_alternative
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
+    from ..items.base_item_type import ItemType
     from .interfaces.abstract_stream_interface import StreamInterface
     from .interfaces.regular_stream_interface import RegularStreamInterface
     from .interfaces.pair_stream_interface import PairStreamInterface
@@ -46,6 +48,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .regular.schema_stream import SchemaStream
     from .regular.record_stream import RecordStream
     from .wrappers.pandas_stream import PandasStream
+    from .stream_builder import StreamBuilder
     from ..schema import schema_classes as sh
     from ..loggers.logger_classes import deprecated_with_alternative
 
@@ -74,7 +77,8 @@ DICT_METHOD_SUFFIX = dict(
     RecordStream='record_stream',
     PandasStream='pandas_stream',
 )
-context = None  # global
+
+_context = None  # global
 
 
 class StreamType(Enum):
@@ -100,9 +104,9 @@ class StreamType(Enum):
     def stream(self, *args, provide_context=True, **kwargs):
         stream_class = self.get_class()
         if provide_context:
-            global context
-            if context and not kwargs.get('context'):
-                kwargs['context'] = context
+            global _context
+            if _context and not kwargs.get('context'):
+                kwargs['context'] = _context
         return stream_class(*args, **kwargs)
 
     @staticmethod
@@ -141,14 +145,25 @@ def get_class(stream_type):
     return stream_type.get_class()
 
 
+DICT_ITEM_TO_STREAM_TYPE = {
+    ItemType.Any: StreamType.AnyStream,
+    ItemType.Line: StreamType.LineStream,
+    ItemType.Record: StreamType.RecordStream,
+    ItemType.Row: StreamType.RowStream,
+    ItemType.SchemaRow: StreamType.SchemaStream,
+}
+StreamBuilder._dict_classes = DICT_ITEM_TO_STREAM_TYPE
+StreamBuilder._stream_type = StreamType
+
+
 def get_context():
-    global context
-    return context
+    global _context
+    return _context
 
 
 def set_context(cx):
-    global context
-    context = cx
+    global _context
+    _context = cx
 
 
 def stream(stream_type, *args, **kwargs):
@@ -189,13 +204,13 @@ def generate_name():
     return cur_name
 
 
-def concat(*iter_streams):
-    iter_streams = arg.update(iter_streams)
-    result = None
-    for cur_stream in iter_streams:
-        if result is None:
-            result = cur_stream
-        else:
-            result = result.add_stream(cur_stream)
-        gc.collect()
-    return result
+def concat(*iter_streams, context=arg.DEFAULT):
+    global _context
+    context = arg.undefault(context, _context)
+    StreamBuilder.concat(*iter_streams, context=context)
+
+
+def join(*iter_streams, key, how='left', step=arg.DEFAULT, name=arg.DEFAULT, context=None):
+    global _context
+    context = arg.undefault(context, _context)
+    StreamBuilder.join(*iter_streams, key=key, how=how, step=step, name=name, context=context)
