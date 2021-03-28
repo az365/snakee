@@ -167,6 +167,11 @@ class AbstractBaseObject(BaseInterface, ABC):
             ]
         )
 
+    def make_new(self, *args, ex: OptionalFields = None, **kwargs):
+        meta = self.get_meta(ex=ex)
+        meta.update(kwargs)
+        return self.__class__(*args, **meta)
+
     def __eq__(self, other):
         if hasattr(other, 'get_key_member_values'):
             return self.get_key_member_values() == other.get_key_member_values()
