@@ -6,35 +6,40 @@ try:  # Assume we're a sub-module in a package.
     from base.interfaces.context_interface import ContextInterface
     from base.abstract.abstract_base import AbstractBaseObject
     from base.abstract.contextual import Contextual
-    from base.abstract.contextual_data import DataWrapper
+    from base.abstract.contextual_data import ContextualDataWrapper
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ..interfaces.tree_interface import TreeInterface
     from ..interfaces.context_interface import ContextInterface
     from .abstract_base import AbstractBaseObject
     from .contextual import Contextual
-    from .contextual_data import DataWrapper
+    from .contextual_data import ContextualDataWrapper
 
 Context = Optional[ContextInterface]
 Parent = Union[Context, TreeInterface]
-Child = Optional[DataWrapper]
-NameOrChild = Union[str, DataWrapper]
+Child = Optional[ContextualDataWrapper]
+NameOrChild = Union[str, ContextualDataWrapper]
 OptionalFields = Optional[Union[str, Iterable]]
 
 META_MEMBER_MAPPING = dict(_data='children', _source='parent')
 
 
-class TreeItem(DataWrapper, TreeInterface):
+class TreeItem(ContextualDataWrapper, TreeInterface):
     def __init__(
             self,
             name: str,
             parent: Parent = None,
             children: Optional[dict] = None,
             context: Context = None,
+            check: bool = True,
     ):
         if not children:
             children = dict()
-        super().__init__(name=name, data=children, source=parent, context=context)
+        super().__init__(name=name, data=children, source=parent, context=context, check=check)
+
+    @classmethod
+    def _is_tree_item(cls, item):
+        return hasattr(item, 'get_name') and hasattr(item, 'get_parent') and hasattr(item, 'get_children')
 
     @classmethod
     def _get_meta_member_mapping(cls) -> dict:
@@ -46,7 +51,7 @@ class TreeItem(DataWrapper, TreeInterface):
         return super().get_source()
 
     def set_parent(self, parent: Parent, reset=False, inplace=True) -> Optional[TreeInterface]:
-        assert isinstance(parent, TreeInterface)
+        assert self._is_tree_item(parent), 'Expected TreeInterface, got {}'.format(type(parent))
         return self.set_source(parent, reset=reset, inplace=inplace)
 
     def get_children(self) -> dict:
@@ -61,17 +66,15 @@ class TreeItem(DataWrapper, TreeInterface):
             child = self.get_context().get_child(name)
         else:
             child = name_or_child
-            assert isinstance(child, DataWrapper), 'DataWrapper expected (got {} as {})'.format(
-                child, type.__class__.__name__,
-            )
+            assert hasattr(child, 'get_name'), 'DataWrapper expected (got {})'.format(type(child))
             name = child.get_name()
         return name, child
 
-    def add_child(self, name_or_child: NameOrChild):
+    def add_child(self, name_or_child: NameOrChild, check: bool = True):
         children = self.get_children()
         name, child = self._get_name_and_child(name_or_child)
         if name in children:
-            if self.get_child(name) != child:
+            if check and self.get_child(name) != child:
                 raise ValueError('child with name {} already registered in {}'.format(name, self.__repr__()))
         children[name] = name_or_child
         if hasattr(child, 'set_parent'):
