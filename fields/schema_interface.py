@@ -2,18 +2,14 @@ from abc import ABC, abstractmethod
 from typing import Union, Optional
 
 try:  # Assume we're a sub-module in a package.
-    from connectors.databases import dialect as di
-    from fields import field_type as ft
-    from fields.abstract_field import AbstractField
+    from fields.field_interface import FieldInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..connectors.databases import dialect as di
-    from ..fields import field_type as ft
-    from ..fields.abstract_field import AbstractField
+    from .field_interface import FieldInterface
 
 FieldName = str
 FieldNo = int
 FieldID = Union[FieldNo, FieldName]
-Field = Union[FieldID, AbstractField]
+Field = Union[FieldID, FieldInterface]
 Array = Union[list, tuple]
 ARRAY_SUBTYPES = list, tuple
 

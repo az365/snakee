@@ -16,6 +16,9 @@ class FieldType(Enum):
     Tuple = 'tuple'
     Dict = 'dict'
 
+    def get_name(self):
+        return self.value
+
 
 def any_to_bool(value):
     if isinstance(value, str):
