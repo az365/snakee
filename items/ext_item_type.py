@@ -2,13 +2,17 @@ from enum import Enum
 from typing import Union, Callable
 
 try:  # Assume we're a sub-module in a package.
-    from utils import arguments as arg
+    from utils import (
+        arguments as arg,
+        enum as en,
+    )
     from schema.schema_row import SchemaRow
-    from items import base_item_type as bt
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..utils import arguments as arg
+    from ..utils import (
+        arguments as arg,
+        enum as en,
+    )
     from ..schema.schema_row import SchemaRow
-    from . import base_item_type as bt
 
 Array = Union[list, tuple]
 Row = Array
@@ -19,14 +23,10 @@ ConcreteItem = Union[Line, SelectableItem]
 FieldName = str
 FieldNo = int
 FieldID = Union[FieldNo, FieldName]
+Field = Union[int, str, Callable]
+SimpleItem = Union[dict, list, tuple]
 
 STAR = '*'
-DICT_CLASSES = {
-    bt.ItemType.Line: [str],
-    bt.ItemType.Row: [list, tuple],
-    bt.ItemType.Record: [dict],
-    bt.ItemType.SchemaRow: [SchemaRow],
-}
 
 
 class ItemType(Enum):
@@ -50,13 +50,61 @@ class ItemType(Enum):
     def is_selectable(self):
         return self in self.get_selectable_types()
 
+    def get_field_value_from_item(self, field: Field, item: SimpleItem, skip_errors: bool = True):
+        if isinstance(field, Callable):
+            return field(item)
+        if skip_errors:
+            if self == ItemType.Row or isinstance(field, int) or isinstance(item, (list, tuple)):
+                if field < len(item):
+                    return item[field]
+            elif self == ItemType.Record or isinstance(field, str) or isinstance(item, dict):
+                return item.get(field)
+        else:
+            assert (
+                self == ItemType.Row and isinstance(field, int) and isinstance(item, (list, tuple))
+            ) or (
+                self == ItemType.Record and isinstance(field, str) and isinstance(item, dict)
+            )
+            return item[field]
+
     @staticmethod
     def get_dict_subclasses():
-        return DICT_CLASSES
+        return {
+            ItemType.Line: [str],
+            ItemType.Row: [list, tuple],
+            ItemType.Record: [dict],
+            ItemType.SchemaRow: [SchemaRow],
+        }
+
+
+class ExtItemType(en.EnumWrapper):
+    for m in ['_member_map_', '_member_names_', '_value2member_map_']:
+        __dict__[m] = super().__dict__[m]
+    for name, obj in super().__dict__:
+        if isinstance(obj, (Enum, en.EnumMixin, en.EnumWrapper)):
+            __dict__[name] = obj
+
+    def __init__(self, name, value):
+        super().__init__(ItemType)
+        self.classes = ItemType.get_dict_subclasses()
+        self.name = name
+        self.value = value
+
+    @classmethod
+    def set_enum(cls, enum_class):
+        for m in ['_member_map_', '_member_names_', '_value2member_map_']:
+            cls.__dict__[m] = enum_class.__dict__[m]
+        for name, obj in enum_class.__dict__:
+            if isinstance(obj, (Enum, en.EnumWrapper)):
+                cls.__dict__[name] = obj
+
+    @staticmethod
+    def get_dict_subclasses():
+        return ItemType.get_dict_subclasses()
 
     def get_subclasses(self):
         return tuple(
-            self.get_dict_subclasses().get(bt.ItemType(self.get_name()), [None])
+            self.get_dict_subclasses().get(self, [None])
         )
 
     def get_builder(self) -> Callable:
@@ -75,7 +123,7 @@ class ItemType(Enum):
     def detect(item):
         for item_type in ItemType.get_dict_subclasses():
             if item_type.isinstance(item):
-                return ItemType(item_type.get_name())
+                return item_type
         else:
             return ItemType.Any
 
@@ -177,11 +225,11 @@ def simple_select_fields(fields: Array, item: SelectableItem, item_type=ItemType
         return item.simple_select_fields(fields)
 
 
-def get_values_by_keys_from_item(item, keys, default=None):
+def get_values_by_keys_from_item(item, keys, default=None):  # equivalent get_fields_values_from_item() ?
     return [get_value_by_key_from_item(item, k, default) for k in keys]
 
 
-def get_value_by_key_from_item(item, key, default=None):
+def get_value_by_key_from_item(item, key, default=None):  # equivalent get_field_value_from_item() ?
     if ItemType.Record.isinstance(item):
         return item.get(key, default)
     elif ItemType.Row.isinstance(item):
