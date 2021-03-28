@@ -2,7 +2,7 @@ try:  # Assume we're a sub-module in a package.
     from schema.field_description import FieldDescription
     from schema.schema_description import SchemaDescription
     from schema.schema_row import SchemaRow
-    from schema.field_types import (
+    from fields.field_type import (
         FieldType,
         FIELD_TYPES, DIALECTS, AGGR_HINTS, HEURISTIC_SUFFIX_TO_TYPE,
         any_to_bool, safe_converter, get_canonic_type, detect_field_type_by_name,
@@ -11,7 +11,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .field_description import FieldDescription
     from .schema_description import SchemaDescription
     from .schema_row import SchemaRow
-    from .field_types import (
+    from ..fields.field_type import (
         FieldType,
         FIELD_TYPES, DIALECTS, AGGR_HINTS, HEURISTIC_SUFFIX_TO_TYPE,
         any_to_bool, safe_converter, get_canonic_type, detect_field_type_by_name,

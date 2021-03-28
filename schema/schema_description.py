@@ -2,19 +2,18 @@ from typing import Union, Optional
 
 try:  # Assume we're a sub-module in a package.
     from connectors.databases import dialect as di
-    from schema import field_types as ft
+    from fields import field_type as ft
     from schema.field_description import FieldDescription
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..connectors.databases import dialect as di
-    from . import field_types as ft
+    from ..fields import field_type as ft
     from .field_description import FieldDescription
 
-
-ARRAY_SUBTYPES = list, tuple
-Array = Union[list, tuple]
 FieldName = str
 FieldNo = int
 FieldID = Union[FieldNo, FieldName]
+Array = Union[list, tuple]
+ARRAY_SUBTYPES = list, tuple
 
 
 class SchemaDescription:
