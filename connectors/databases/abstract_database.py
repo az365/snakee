@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Union, Iterable
+from typing import Union, Optional, Iterable, NoReturn
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
@@ -7,13 +7,21 @@ try:  # Assume we're a sub-module in a package.
     from connectors import connector_classes as ct
     from streams import stream_classes as sm
     from schema import schema_classes as sh
+    from fields.schema_interface import SchemaInterface
+    from base.interfaces.data_interface import SimpleDataInterface
+    from streams.interfaces.regular_stream_interface import RegularStreamInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...loggers import logger_classes as log
     from .. import connector_classes as ct
     from ...streams import stream_classes as sm
     from ...schema import schema_classes as sh
+    from fields.schema_interface import SchemaInterface
+    from ...base.interfaces.data_interface import SimpleDataInterface
+    from ...streams.interfaces.regular_stream_interface import RegularStreamInterface
 
+Stream = RegularStreamInterface
+Data = Union[Stream, sm.ConvertMixin, ct.AbstractFile, str, Iterable]
 
 AUTO = arg.DEFAULT
 TEST_QUERY = 'SELECT now()'
@@ -42,7 +50,7 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
     def get_default_child_class():
         return ct.Table
 
-    def get_tables(self):
+    def get_tables(self) -> dict:
         return self.get_children()
 
     def table(self, name, schema=None, **kwargs):
@@ -55,7 +63,7 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
             self.get_tables()[name] = table
         return table
 
-    def close(self):
+    def close(self) -> int:
         if hasattr(self, 'disconnect'):
             return self.disconnect()
 
@@ -64,18 +72,18 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
             yield from item.get_links()
 
     @classmethod
-    def need_connection(cls):
+    def need_connection(cls) -> bool:
         return hasattr(cls, 'connection')
 
     def get_dialect_name(self):
         return ct.get_dialect_type(self.__class__.__name__)
 
     @abstractmethod
-    def exists_table(self, name, verbose=arg.DEFAULT):
+    def exists_table(self, name, verbose=arg.DEFAULT) -> bool:
         pass
 
     @abstractmethod
-    def describe_table(self, name, verbose=arg.DEFAULT):
+    def describe_table(self, name, verbose=arg.DEFAULT) -> bool:
         pass
 
     @abstractmethod
@@ -111,7 +119,7 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
                 if message_if_no:
                     self.log(message_if_no, verbose=verbose)
 
-    def create_table(self, name, schema, drop_if_exists=False, verbose=arg.DEFAULT):
+    def create_table(self, name, schema, drop_if_exists=False, verbose=arg.DEFAULT) -> NoReturn:
         verbose = arg.undefault(verbose, self.verbose)
         if isinstance(schema, str):
             schema_str = schema
@@ -142,7 +150,7 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
     def post_create_action(self, name, **kwargs):
         pass
 
-    def drop_table(self, name, if_exists=True, verbose=arg.DEFAULT):
+    def drop_table(self, name, if_exists=True, verbose=arg.DEFAULT) -> NoReturn:
         self.execute_if_exists(
             query='DROP TABLE IF EXISTS {};',
             table=name,
@@ -152,10 +160,10 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
             verbose=verbose,
         )
 
-    def copy_table(self, old, new, if_exists=False, verbose=arg.DEFAULT):
+    def copy_table(self, old, new, if_exists=False, verbose=arg.DEFAULT) -> NoReturn:
         cat_old, name_old = old.split('.')
-        cat_new, name_new = new.split('.') if '.' in new else cat_old, new
-        assert cat_new == cat_old, 'Can copy within same scheme (folder) only'
+        cat_new, name_new = new.split('.') if '.' in new else (cat_old, new)
+        assert cat_new == cat_old, 'Can copy within same scheme (folder) only (got {} != {})'.format(cat_old, cat_new)
         new = name_new
         self.execute_if_exists(
             query='CREATE TABLE {new} AS TABLE {old};'.format(new=new, old=old),
@@ -166,7 +174,7 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
             verbose=verbose,
         )
 
-    def rename_table(self, old, new, if_exists=False, verbose=arg.DEFAULT):
+    def rename_table(self, old, new, if_exists=False, verbose=arg.DEFAULT) -> NoReturn:
         cat_old, name_old = old.split('.')
         cat_new, name_new = new.split('.') if '.' in new else (cat_old, new)
         assert cat_new == cat_old, 'Can copy within same scheme (folder) only (got {} and {})'.format(cat_new, cat_old)
@@ -196,11 +204,25 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
             )
         return self.execute(query, get_data=True, commit=False, verbose=verbose)
 
-    def select_count(self, table, verbose=arg.DEFAULT):
+    def select_count(self, table, verbose=arg.DEFAULT) -> int:
         return self.select(table, fields='COUNT(*)', verbose=verbose)[0][0]
 
     def select_all(self, table, verbose=arg.DEFAULT):
         return self.select(table, fields='*', verbose=verbose)
+
+    @staticmethod
+    def _get_schema_stream_from_data(data: Data, schema: Optional[SchemaInterface] = None, **file_kwargs) -> Stream:
+        if sm.is_stream(data):
+            stream = data
+        elif ct.is_file(data):
+            stream = data.to_schema_stream()
+            if schema:
+                assert stream.get_columns() == schema.get_columns()
+        elif isinstance(data, str):
+            stream = sm.RowStream.from_column_file(filename=data, **file_kwargs)
+        else:
+            stream = sm.AnyStream(data)
+        return stream
 
     @abstractmethod
     def insert_rows(
@@ -211,8 +233,13 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
     ):
         pass
 
-    def insert_schematized_stream(self, table, stream, skip_errors=False, step=DEFAULT_STEP, verbose=arg.DEFAULT):
+    def insert_schematized_stream(
+            self, table: str, stream: Stream,
+            skip_errors: bool = False, step: int = DEFAULT_STEP,
+            verbose: Union[bool, arg.DefaultArgument] = arg.DEFAULT,
+    ) -> Optional[int]:
         columns = stream.get_columns()
+        assert columns, 'columns must be defined (got {})'.format(stream)
         expected_count = stream.get_count()
         final_count = stream.calc(
             lambda a: self.insert_rows(
@@ -226,45 +253,37 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
 
     def insert_data(
             self,
-            table,
-            data: Union[sm.AbstractStream, sm.ConvertMixin, ct.AbstractFile, str, Iterable],
-            schema: Union[sh.SchemaDescription, tuple] = tuple(),
-            encoding=None, skip_first_line=False,
-            skip_lines=0, skip_errors=False, step=DEFAULT_STEP,
-            verbose=arg.DEFAULT,
-    ):
+            table: str, data: Data,
+            schema: Union[SchemaInterface, tuple] = tuple(),
+            encoding: Optional[str] = None, skip_errors: bool = False,
+            skip_lines: Optional[int] = 0, skip_first_line: bool = False,
+            step: Union[int, arg.DefaultArgument] = DEFAULT_STEP,
+            verbose: Union[bool, arg.DefaultArgument] = arg.DEFAULT,
+    ) -> tuple:
+        if not arg.is_defined(skip_lines):
+            skip_lines = 0
         is_schema_description = isinstance(schema, sh.SchemaDescription) or hasattr(schema, 'get_schema_str')
         if not is_schema_description:
             message = 'Schema as {} is deprecated, use sh.SchemaDescription instead'.format(type(schema))
             self.log(msg=message, level=log.LoggingLevel.Warning)
             schema = sh.SchemaDescription(schema)
-        if sm.is_stream(data):
-            sm_input = data
-        elif ct.is_file(data):
-            sm_input = data.to_schema_stream()
-            assert sm_input.get_columns() == schema.get_columns()
-        elif isinstance(data, str):
-            sm_input = sm.RowStream.from_column_file(
-                filename=data,
-                encoding=encoding,
-                skip_first_line=skip_first_line,
-                verbose=verbose,
-            )
-        else:
-            sm_input = sm.AnyStream(data)
+        input_stream = self._get_schema_stream_from_data(
+            data, schema=schema,
+            encoding=encoding, skip_first_line=skip_first_line, verbose=verbose,
+        )
         if skip_lines:
-            sm_input = sm_input.skip(skip_lines)
-        if sm_input.get_stream_type() != sm.StreamType.SchemaStream:
-            sm_input = sm_input.schematize(
+            input_stream = input_stream.skip(skip_lines)
+        if input_stream.get_stream_type() != sm.StreamType.SchemaStream:
+            input_stream = input_stream.schematize(
                 schema,
                 skip_bad_rows=True,
                 verbose=True,
             ).update_meta(
-                count=sm_input.get_count(),
+                count=input_stream.get_count(),
             )
-        initial_count = sm_input.get_estimated_count() + skip_lines
+        initial_count = input_stream.get_estimated_count() + skip_lines
         final_count = self.insert_schematized_stream(
-            table, sm_input,
+            table, input_stream,
             skip_errors=skip_errors, step=step,
             verbose=verbose,
         )
@@ -272,12 +291,12 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
 
     def force_upload_table(
             self,
-            table, schema, data,
+            table: str, schema: SchemaInterface, data: Data,
             encoding=None,
             step=DEFAULT_STEP,
             skip_lines=0, skip_first_line=False, max_error_rate=0.0,
             verbose=arg.DEFAULT,
-    ):
+    ) -> NoReturn:
         verbose = arg.undefault(verbose, self.verbose)
         if not skip_lines:
             self.create_table(table, schema=schema, drop_if_exists=True, verbose=verbose)
@@ -290,8 +309,12 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
         )
         write_count += skip_lines
         result_count = self.select_count(table)
-        error_rate = (write_count - result_count) / write_count
-        message = 'Check counts: {} initial, {} uploaded, {} written, {} error_rate'
+        if write_count:
+            error_rate = (write_count - result_count) / write_count
+            message = 'Check counts: {} initial, {} uploaded, {} written, {} error_rate'
+        else:
+            error_rate = 1.0
+            message = 'ERR: Data {} and/or able {} is empty.'.format(data, table)
         self.log(message.format(initial_count, write_count, result_count, error_rate), verbose=verbose)
         if max_error_rate is not None:
             message = 'Too many errors or skipped lines ({} > {})'.format(error_rate, max_error_rate)
