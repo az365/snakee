@@ -26,6 +26,7 @@ Array = Union[list, tuple]
 Key = Union[str, Array, Callable]
 Step = Union[int, arg.DefaultArgument]
 Verbose = Union[bool, arg.DefaultArgument]
+Stream = sm.StreamInterface
 Native = IterableStreamInterface
 
 
@@ -129,8 +130,24 @@ class LocalStream(IterableStream, LocalStreamInterface):
     def get_list(self) -> list:
         return list(self.get_items())
 
+    def is_file(self):
+        if hasattr(self, 'is_leaf'):
+            return self.is_leaf()
+        else:
+            return False
+
+    def apply_to_data(self, function, *args, dynamic=False, **kwargs):
+        return self.stream(  # can be file
+            function(self.get_data(), *args, **kwargs),
+        ).set_meta(
+            **self.get_static_meta() if dynamic else self.get_meta()
+        )
+
     def is_in_memory(self) -> bool:
-        return arg.is_in_memory(self.get_data())
+        if self.is_file():
+            return False
+        else:
+            return arg.is_in_memory(self.get_data())
 
     def to_iter(self) -> Native:
         return self.stream(
@@ -169,12 +186,22 @@ class LocalStream(IterableStream, LocalStreamInterface):
         else:
             return super().get_tee_items()
 
-    def map(self, function, to=arg.DEFAULT) -> Native:
-        to = arg.undefault(to, self.get_stream_type, delayed=True)
+    def map_to(self, function, stream_type=arg.DEFAULT) -> Stream:
+        stream_type = arg.undefault(stream_type, self.get_stream_type, delayed=True)
         stream = self.stream(
             map(function, self.get_iter()),
-            stream_type=to,
+            stream_type=stream_type,
         )
+        if self.is_in_memory():
+            stream = stream.to_memory()
+        return self._assume_native(stream)
+
+    def map(self, function, to=arg.DEFAULT) -> Native:
+        if arg.is_defined(to):
+            self.get_logger().warning('to-argument for map() is deprecated, use map_to() instead')
+            stream = self.map_to(function, stream_type=to)
+        else:
+            stream = super().map(function)
         if self.is_in_memory():
             stream = stream.to_memory()
         return self._assume_native(stream)
@@ -327,6 +354,15 @@ class LocalStream(IterableStream, LocalStreamInterface):
     @staticmethod
     def _assume_native(stream) -> Native:
         return stream
+
+    def is_empty(self) -> Optional[bool]:
+        count = self.get_count()
+        if count:
+            return False
+        elif count == 0:
+            return True
+        else:
+            return None
 
     def get_count(self, in_memory=arg.DEFAULT, final=False) -> Optional[int]:
         in_memory = arg.undefault(in_memory, self.is_in_memory())

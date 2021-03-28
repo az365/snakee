@@ -11,7 +11,7 @@ try:  # Assume we're a sub-module in a package.
     from items.base_item_type import ItemType
     from streams.stream_type import StreamType
     from streams.interfaces.abstract_stream_interface import StreamInterface
-    from base.abstract.contextual_data import DataWrapper
+    from base.abstract.contextual_data import ContextualDataWrapper
     from functions import item_functions as fs
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import (
@@ -22,7 +22,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...items.base_item_type import ItemType
     from ..stream_type import StreamType
     from ..interfaces.abstract_stream_interface import StreamInterface
-    from ...base.abstract.contextual_data import DataWrapper
+    from ...base.abstract.contextual_data import ContextualDataWrapper
     from ...functions import item_functions as fs
 
 Stream = Union[StreamInterface, Any]
@@ -64,7 +64,7 @@ class ColumnarInterface(StreamInterface, ABC):
 Native = ColumnarInterface
 
 
-class ColumnarMixin(DataWrapper, ColumnarInterface, ABC):
+class ColumnarMixin(ContextualDataWrapper, ColumnarInterface, ABC):
     @classmethod
     def is_valid_item(cls, item) -> bool:
         return cls.get_item_type().isinstance(item)
@@ -148,3 +148,6 @@ class ColumnarMixin(DataWrapper, ColumnarInterface, ABC):
     def show(self, count=10, filters=[], columns=None):
         self.log(self.get_description(), truncate=False, force=True)
         return self.get_demo_example(count=count, filters=filters, columns=columns)
+
+    def apply_to_stream(self, function, *args, **kwargs) -> Stream:
+        return function(self, *args, **kwargs)

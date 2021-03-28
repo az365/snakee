@@ -1,17 +1,17 @@
 from abc import ABC, abstractmethod
 import inspect
-from typing import Optional, Union, Iterable, Type
+from typing import Optional, Union, Iterable, Callable, Type
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
-    from base.abstract.contextual_data import DataWrapper
+    from base.abstract.contextual_data import ContextualDataWrapper
     from streams.interfaces.abstract_stream_interface import StreamInterface
     from streams import stream_classes as sm
     from loggers import logger_classes as log
     from loggers.logger_classes import deprecated_with_alternative
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
-    from ...base.abstract.contextual_data import DataWrapper
+    from ...base.abstract.contextual_data import ContextualDataWrapper
     from ..interfaces.abstract_stream_interface import StreamInterface
     from .. import stream_classes as sm
     from ...loggers import logger_classes as log
@@ -23,7 +23,7 @@ OptionalFields = Optional[Union[Iterable, str]]
 DATA_MEMBERS = ('_data', )
 
 
-class AbstractStream(DataWrapper, StreamInterface, ABC):
+class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
     def __init__(
             self,
             data,
@@ -88,10 +88,17 @@ class AbstractStream(DataWrapper, StreamInterface, ABC):
             raise TypeError('property name must be function, meta-field or attribute name')
         return value
 
-    def apply_to_stream(self, function, *args, **kwargs) -> Stream:
+    def apply_to_data(self, function: Callable, *args, dynamic=False, **kwargs):
+        return self.stream(  # can be file
+            function(self.get_data(), *args, **kwargs),
+        ).set_meta(
+            **self.get_static_meta() if dynamic else self.get_meta()
+        )
+
+    def apply_to_stream(self, function: Callable, *args, **kwargs) -> Stream:
         return function(self, *args, **kwargs)
 
-    def apply(self, function, *args, to_stream=False, **kwargs):
+    def apply(self, function: Callable, *args, to_stream: bool = False, **kwargs):
         if to_stream:
             return self.apply_to_stream(function, *args, **kwargs)
         else:
