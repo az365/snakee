@@ -16,7 +16,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .. import connector_classes as ct
     from ...streams import stream_classes as sm
     from ...schema import schema_classes as sh
-    from fields.schema_interface import SchemaInterface
+    from ...fields.schema_interface import SchemaInterface
     from ...base.interfaces.data_interface import SimpleDataInterface
     from ...streams.interfaces.regular_stream_interface import RegularStreamInterface
 
@@ -239,7 +239,7 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
             verbose: Union[bool, arg.DefaultArgument] = arg.DEFAULT,
     ) -> Optional[int]:
         columns = stream.get_columns()
-        assert columns, 'columns must be defined (got {})'.format(stream)
+        assert columns, 'columns in StructStream must be defined (got {})'.format(stream)
         expected_count = stream.get_count()
         final_count = stream.calc(
             lambda a: self.insert_rows(

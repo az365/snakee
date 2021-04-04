@@ -2,25 +2,21 @@ from typing import Optional, Union, Iterable, Callable, Any
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
-    # from fields.field_type import FieldType, EnumFieldType
     from items.base_item_type import ItemType
     from fields.field_type import FieldType
     from fields.schema_interface import SchemaInterface
     from fields.abstract_field import AbstractField
     from fields import field_classes as fc
-    from schema.schema_description import SchemaDescription
     from selection.abstract_expression import AbstractDescription
     from selection import concrete_expression as ce
     from loggers.selection_logger_interface import SelectionLoggerInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
-    # from .field_type import FieldType, EnumFieldType
     from ..items.base_item_type import ItemType
     from .field_type import FieldType
     from .schema_interface import SchemaInterface
     from .abstract_field import AbstractField
     from . import field_classes as fc
-    from ..schema.schema_description import SchemaDescription
     from ..selection.abstract_expression import AbstractDescription
     from ..selection import concrete_expression as ce
     from ..loggers.selection_logger_interface import SelectionLoggerInterface
@@ -36,7 +32,6 @@ class AdvancedField(AbstractField):
     ):
         self._caption = caption
         self._default = default
-        # self._extractors = extractors or list()
         self._transform = transform
         self._target_item_type = target_item_type
         self._skip_errors = skip_errors
@@ -56,8 +51,11 @@ class AdvancedField(AbstractField):
         self._caption = caption
         return self
 
+    def get_extractors(self):
+        return self.get_data()
+
     def extract(self, extractor: AbstractDescription):
-        self._extractors.append(extractor)
+        self.get_extractors().append(extractor)
 
     def transform(self, func: Callable):
         self._transform = func

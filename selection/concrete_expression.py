@@ -1,26 +1,32 @@
-from typing import Callable
+from typing import Union, Callable
 
 try:  # Assume we're a sub-module in a package.
     from utils import (
         arguments as arg,
-        items as it,
         selection as sf,
     )
+    from items.base_item_type import ItemType
     from selection import abstract_expression as ae
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import (
         arguments as arg,
-        items as it,
         selection as sf,
     )
+    from ..items.base_item_type import ItemType
     from . import abstract_expression as ae
+
+FieldID = Union[int, str]
+Array = Union[list, tuple]
+
+STAR = '*'
+AUTO = ItemType.Auto
 
 
 class TrivialDescription(ae.SingleFieldDescription):
     def __init__(
             self,
-            field: ae.FieldID,
-            target_item_type: it.ItemType, input_item_type=ae.AUTO,
+            field: FieldID,
+            target_item_type: ItemType, input_item_type=AUTO,
             skip_errors=False, logger=None, default=None,
     ):
         super().__init__(
@@ -33,9 +39,8 @@ class TrivialDescription(ae.SingleFieldDescription):
         return [self.get_target_field_name()]
 
     def get_value_from_item(self, item):
-        return it.get_field_value_from_item(
-            field=self.get_target_field_name(),
-            item=item, item_type=self.get_input_item_type(),
+        return self.get_input_item_type().get_field_value_from_item(
+            field=self.get_target_field_name(), item=item,
             skip_errors=self.skip_errors, logger=self.logger, default=self.default,
         )
 
@@ -47,8 +52,8 @@ class TrivialDescription(ae.SingleFieldDescription):
 class AliasDescription(ae.SingleFieldDescription):
     def __init__(
             self,
-            alias: ae.FieldID, source: ae.FieldID,
-            target_item_type: it.ItemType, input_item_type=ae.AUTO,
+            alias: FieldID, source: FieldID,
+            target_item_type: ItemType, input_item_type=AUTO,
             skip_errors=False, logger=None, default=None,
     ):
         super().__init__(
@@ -68,9 +73,8 @@ class AliasDescription(ae.SingleFieldDescription):
         yield self.get_source_name()
 
     def get_value_from_item(self, item):
-        return it.get_field_value_from_item(
-            field=self.get_source_name(),
-            item=item, item_type=self.get_input_item_type(),
+        return self.get_input_item_type().get_field_value_from_item(
+            field=self.get_source_name(), item=item,
             skip_errors=self.skip_errors, logger=self.logger, default=self.default,
         )
 
@@ -81,8 +85,8 @@ class AliasDescription(ae.SingleFieldDescription):
 class RegularDescription(ae.SingleFieldDescription):
     def __init__(
             self,
-            target: ae.FieldID, function: Callable, inputs: ae.Array,
-            target_item_type: it.ItemType, input_item_type=ae.AUTO,
+            target: FieldID, function: Callable, inputs: Array,
+            target_item_type: ItemType, input_item_type=AUTO,
             skip_errors=False, logger=None, default=None,
     ):
         super().__init__(
@@ -130,9 +134,9 @@ class RegularDescription(ae.SingleFieldDescription):
 class FunctionDescription(ae.SingleFieldDescription):
     def __init__(
             self,
-            target: ae.FieldID, function: Callable,
+            target: FieldID, function: Callable,
             give_same_field_to_input=ae.GIVE_SAME_FIELD_FOR_FUNCTION_DESCRIPTION,
-            target_item_type=it.ItemType, input_item_type=ae.AUTO,
+            target_item_type=ItemType, input_item_type=AUTO,
             skip_errors=False, logger=None, default=None,
     ):
         super().__init__(
@@ -159,7 +163,7 @@ class FunctionDescription(ae.SingleFieldDescription):
         if self.give_same_field_to_input:
             return [self.get_target_field_name()]
         else:
-            return [it.STAR]
+            return [STAR]
 
     def get_input_field_types(self):
         field_types = self.get_function().__annotations__
@@ -180,7 +184,7 @@ class FunctionDescription(ae.SingleFieldDescription):
 class StarDescription(ae.TrivialMultipleDescription):
     def __init__(
             self,
-            target_item_type: it.ItemType, input_item_type=ae.AUTO,
+            target_item_type: ItemType, input_item_type=AUTO,
             skip_errors=False, logger=None,
     ):
         super().__init__(
@@ -189,18 +193,18 @@ class StarDescription(ae.TrivialMultipleDescription):
         )
 
     def get_output_field_names(self, item, item_type=arg.DEFAULT):
-        return it.get_fields_names_from_item(item, item_type=item_type)
+        return item_type.get_fields_names_from_item(item)
 
     def get_values_from_row(self, item):
-        if self.get_target_item_type() == it.ItemType.Row:
+        if self.get_target_item_type() == ItemType.Row:
             return item
 
 
 class DropDescription(ae.TrivialMultipleDescription):
     def __init__(
             self,
-            drop_fields: ae.Array,
-            target_item_type: it.ItemType, input_item_type=ae.AUTO,
+            drop_fields: Array,
+            target_item_type: ItemType, input_item_type=AUTO,
             skip_errors=False, logger=None,
     ):
         super().__init__(
@@ -214,6 +218,6 @@ class DropDescription(ae.TrivialMultipleDescription):
 
     def get_output_field_names(self, item):
         return [
-            f for f in it.get_fields_names_from_item(item, item_type=self.get_input_item_type())
+            f for f in self.get_input_item_type().get_fields_names_from_item(item)
             if f not in self.get_drop_fields()
         ]

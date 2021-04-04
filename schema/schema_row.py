@@ -10,7 +10,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..base.abstract.simple_data import SimpleDataWrapper
     from ..connectors.databases import dialect as di
     from ..items.struct_row_interface import StructRowInterface
-    from fields.schema_interface import SchemaInterface
+    from ..fields.schema_interface import SchemaInterface
     from .schema_description import SchemaDescription
 
 SimpleRow = Union[list, tuple]

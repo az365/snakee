@@ -1,3 +1,5 @@
+from typing import Optional, Union, Iterable
+
 try:  # Assume we're a sub-module in a package.
     from utils import (
         arguments as arg,
@@ -5,10 +7,11 @@ try:  # Assume we're a sub-module in a package.
     )
     from streams import stream_classes as sm
     from loggers import logger_classes as log
-    from schema import schema_classes as sh
     from functions import all_functions as fs
     from selection import selection_classes as sn
-    from loggers.logger_classes import deprecated_with_alternative
+    from schema import schema_classes as sh
+    from fields.schema_interface import SchemaInterface
+    from utils.decorators import deprecated_with_alternative
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import (
         arguments as arg,
@@ -16,25 +19,28 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     )
     from .. import stream_classes as sm
     from ...loggers import logger_classes as log
-    from ...schema import schema_classes as sh
     from ...functions import all_functions as fs
     from ...selection import selection_classes as sn
-    from ...loggers.logger_classes import deprecated_with_alternative
+    from ...schema import schema_classes as sh
+    from ...fields.schema_interface import SchemaInterface
+    from ...utils.decorators import deprecated_with_alternative
+
+Schema = SchemaInterface
+OptSchema = Optional[Union[Schema, Iterable]]
+
+DYNAMIC_META_FIELDS = ('count', 'schema')
+NAME_POS, TYPE_POS, HINT_POS = 0, 1, 2  # old style schema fields
 
 
-DATA_MEMBERS = ['data', 'schema']
-NAME_POS, TYPE_POS, HINT_POS = 0, 1, 2  # schema fields
-
-
-def is_row(row):
+def is_row(row) -> bool:
     return isinstance(row, (list, tuple))
 
 
-def is_valid(row, schema):
+def is_valid(row, schema: OptSchema) -> bool:
     if is_row(row):
-        if isinstance(schema, sh.SchemaDescription):
+        if isinstance(schema, Schema):
             return schema.is_valid_row(row)
-        elif isinstance(schema, (list, tuple)):
+        elif isinstance(schema, Iterable):
             types = list()
             default_type = str
             for description in schema:
@@ -51,7 +57,7 @@ def is_valid(row, schema):
             return True
 
 
-def check_rows(rows, schema, skip_errors=False):
+def check_rows(rows, schema: OptSchema, skip_errors: bool = False) -> Iterable:
     for r in rows:
         if is_valid(r, schema=schema):
             pass
@@ -63,12 +69,12 @@ def check_rows(rows, schema, skip_errors=False):
         yield r
 
 
-# @deprecated_with_alternative('schema.SchemaRow()')
-def apply_schema_to_row(row, schema, skip_bad_values=False, logger=None):
-    if isinstance(schema, sh.SchemaDescription) or hasattr(schema, 'get_converters'):
+@deprecated_with_alternative('schema.SchemaRow()')
+def apply_schema_to_row(row, schema: OptSchema, skip_bad_values=False, logger=None):
+    if isinstance(schema, Schema) or hasattr(schema, 'get_converters'):
         converters = schema.get_converters('str', 'py')
         return [converter(value) for value, converter in zip(row, converters)]
-    elif isinstance(schema, (list, tuple)):
+    elif isinstance(schema, Iterable):
         for c, (value, description) in enumerate(zip(row, schema)):
             field_type = description[TYPE_POS]
             try:
@@ -103,7 +109,7 @@ def apply_schema_to_row(row, schema, skip_bad_values=False, logger=None):
 class SchemaStream(sm.RowStream):
     def __init__(
             self,
-            data, schema=None,
+            data, schema: OptSchema = None,
             name=arg.DEFAULT, check=True,
             count=None, less_than=None,
             source=None, context=None,
@@ -111,7 +117,7 @@ class SchemaStream(sm.RowStream):
             tmp_files_template=sm.TMP_FILES_TEMPLATE,
             tmp_files_encoding=sm.TMP_FILES_ENCODING,
     ):
-        self.schema = schema or list()
+        self._schema = schema or list()
         super().__init__(
             data=self.get_validated_items(data, schema=schema),
             name=name, check=False,
@@ -121,43 +127,38 @@ class SchemaStream(sm.RowStream):
             tmp_files_template=tmp_files_template,
             tmp_files_encoding=tmp_files_encoding,
         )
-        self.schema = schema or list()
 
     @staticmethod
-    def get_data_members():
-        return DATA_MEMBERS
+    def _get_dynamic_meta_fields() -> tuple:
+        return DYNAMIC_META_FIELDS
 
     @staticmethod
     def get_item_type():
-        return sh.SchemaRow
+        return sn.it.ItemType.SchemaRow
 
     @classmethod
     def is_valid_item_type(cls, item):
         return super().is_valid_item_type(item)
 
-    def is_valid_item(self, item):
-        return is_valid(
-            item,
-            schema=self.schema,
-        )
+    def is_valid_item(self, item) -> bool:
+        return is_valid(item, schema=self.get_schema())
 
     def get_validated_items(self, items, schema=arg.DEFAULT, skip_errors=False, context=arg.NOT_USED):
         if schema == arg.DEFAULT:
             schema = self.get_schema()
         return check_rows(items, schema, skip_errors)
 
-    @staticmethod
-    def get_item_type():
-        return sn.it.ItemType.SchemaRow
+    def get_schema(self) -> Schema:
+        return self._schema
 
-    def get_schema(self):
-        return self.schema
-
-    def set_schema(self, schema, check=True):
-        return self.stream(
-            check_rows(self.get_data(), schema=schema) if check else self.get_data(),
-            schema=schema,
-        )
+    def set_schema(self, schema: Schema, check: bool = True, inplace: bool = False):
+        if inplace:
+            self._schema = schema
+        else:
+            return self.stream(
+                check_rows(self.get_data(), schema=schema) if check else self.get_data(),
+                schema=schema,
+            )
 
     def get_schematized_rows(self, rows, schema=arg.DEFAULT, skip_bad_rows=False, skip_bad_values=False, verbose=True):
         schema = arg.undefault(schema, self.get_schema())
@@ -179,7 +180,7 @@ class SchemaStream(sm.RowStream):
                 else:
                     yield apply_schema_to_row(r, schema, skip_bad_values, logger=self if verbose else None)
 
-    def schematize(self, schema, skip_bad_rows=False, skip_bad_values=False, verbose=True):
+    def schematize(self, schema: Schema, skip_bad_rows: bool = False, skip_bad_values: bool = False, verbose=True):
         return self.stream(
             self.get_schematized_rows(self.get_items()),
             schema=schema,
@@ -187,13 +188,14 @@ class SchemaStream(sm.RowStream):
             check=False,
         )
 
-    def get_columns(self):
-        if isinstance(self.schema, sh.SchemaDescription):
-            return self.schema.get_columns()
-        elif isinstance(self.schema, (list, tuple)):
-            return [c[0] for c in self.schema]
+    def get_columns(self) -> list:
+        schema = self.get_schema()
+        if isinstance(schema, SchemaInterface):
+            return schema.get_columns()
+        elif isinstance(schema, Iterable):
+            return [c[0] for c in schema]
 
-    def get_schema_rows(self):
+    def get_schema_rows(self) -> Iterable:
         for r in self.get_items():
             yield sh.SchemaRow(r, self.get_schema(), check=False)
 
@@ -222,7 +224,6 @@ class SchemaStream(sm.RowStream):
         primitives = (str, int, float, bool)
         expressions_list = [(k, fs.equal(v) if isinstance(v, primitives) else v) for k, v in expressions.items()]
         expressions_list = list(fields) + expressions_list
-        # selection_method = sf.value_from_schema_row if use_extended_method else sn.value_from_schema_row
         selection_method = sf.value_from_schema_row
 
         def filter_function(r):

@@ -13,7 +13,7 @@ try:  # Assume we're a sub-module in a package.
     )
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..items.struct_row_interface import StructRowInterface
-    from fields.schema_interface import SchemaInterface
+    from ..fields.schema_interface import SchemaInterface
     from .field_description import FieldDescription
     from .schema_description import SchemaDescription
     from .schema_row import SchemaRow
