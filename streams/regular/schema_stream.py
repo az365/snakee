@@ -207,6 +207,9 @@ class SchemaStream(sm.RowStream):
             schema=schema,
         )
 
+    def skip(self, count: int = 1):
+        return super().skip(count).update_meta(schema=self.get_schema())
+
     def select(self, *args, **kwargs):
         selection_description = sn.SelectionDescription.with_expressions(
             *args, **kwargs,

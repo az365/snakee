@@ -19,6 +19,10 @@ class StreamInterface(SourcedInterface, ABC):
         pass
 
     @abstractmethod
+    def get_count(self):
+        pass
+
+    @abstractmethod
     def get_items(self) -> Iterable:
         pass
 
@@ -32,6 +36,10 @@ class StreamInterface(SourcedInterface, ABC):
 
     @abstractmethod
     def take(self, count: int) -> Data:
+        pass
+
+    @abstractmethod
+    def skip(self, count: int) -> Data:
         pass
 
     @abstractmethod
@@ -60,4 +68,8 @@ class StreamInterface(SourcedInterface, ABC):
 
     @abstractmethod
     def get_static_meta(self, ex: OptionalFields = None) -> dict:
+        pass
+
+    @abstractmethod
+    def stream(self, data, **kwargs) -> Data:
         pass
