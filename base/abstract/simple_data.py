@@ -39,12 +39,17 @@ class SimpleDataWrapper(AbstractNamed, SimpleDataInterface, ABC):
     def get_data(self) -> Data:
         return self._data
 
-    def set_data(self, data: Data, inplace: bool):
+    def set_data(self, data: Data, inplace: bool, reset_dynamic_meta: bool = True):
         if inplace:
             self._data = data
-            self.set_meta(**self.get_static_meta())
+            if reset_dynamic_meta:
+                self.set_meta(**self.get_static_meta())
         else:
-            return self.__class__(data, **self.get_static_meta())
+            if reset_dynamic_meta:
+                meta = self.get_static_meta()
+            else:
+                meta = self.get_meta()
+            return self.__class__(data, **meta)
 
     def apply_to_data(self, function, *args, dynamic=False, **kwargs):
         return self.__class__(

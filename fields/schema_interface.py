@@ -16,7 +16,7 @@ ARRAY_SUBTYPES = list, tuple
 
 class SchemaInterface(ABC):
     @abstractmethod
-    def append_field(self, field: Field, default_type=None, before=False):
+    def append_field(self, field: Field, default_type=None, before=False, inplace=True):
         pass
 
     @abstractmethod
@@ -40,7 +40,7 @@ class SchemaInterface(ABC):
         pass
 
     @abstractmethod
-    def set_types(self, dict_field_types=None, return_schema=True, **kwargs):
+    def set_types(self, dict_field_types=None, inplace=False, **kwargs):
         pass
 
     @abstractmethod
@@ -73,4 +73,12 @@ class SchemaInterface(ABC):
 
     @abstractmethod
     def simple_select_fields(self, fields: Array):
+        pass
+
+    @abstractmethod
+    def __iter__(self):
+        pass
+
+    @abstractmethod
+    def __add__(self, other):
         pass

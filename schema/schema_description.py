@@ -3,14 +3,12 @@ from typing import Optional, Union, Iterable
 try:  # Assume we're a sub-module in a package.
     from fields.field_interface import FieldInterface
     from fields.schema_interface import SchemaInterface
-    from fields import field_type as ft
-    from schema import schema_classes as sh
+    from fields.field_type import get_canonic_type, HEURISTIC_SUFFIX_TO_TYPE
     from connectors.databases import dialect as di
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..fields.field_interface import FieldInterface
     from ..fields.schema_interface import SchemaInterface
-    from ..fields import field_type as ft
-    from . import schema_classes as sh
+    from ..fields.field_type import get_canonic_type, HEURISTIC_SUFFIX_TO_TYPE
     from ..connectors.databases import dialect as di
 
 FieldName = str
@@ -21,32 +19,82 @@ ARRAY_SUBTYPES = list, tuple
 
 
 class SchemaDescription(SchemaInterface):
+    FieldDescription = None
+
     def __init__(self, fields_descriptions: Iterable):
+        self._import_workaround()
         self.fields_descriptions = list()
         for field in fields_descriptions:
             self.append_field(field)
 
-    def append_field(self, field, default_type=None, before=False):
+    def _import_workaround(self):
+        # Temporary workaround for cyclic import dependencies
+        try:  # Assume we're a sub-module in a package.
+            from schema.field_description import FieldDescription
+        except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
+            from .field_description import FieldDescription
+        self.FieldDescription = FieldDescription
+
+    def append_field(self, field, default_type=None, before=False, inplace=True):
+        FieldDescription = self.FieldDescription
         if isinstance(field, FieldInterface):
             field_desc = field
         elif isinstance(field, str):
-            field_desc = sh.FieldDescription(field, default_type)
+            field_desc = FieldDescription(field, default_type)
         elif isinstance(field, ARRAY_SUBTYPES):
-            field_desc = sh.FieldDescription(*field)
+            field_desc = FieldDescription(*field)
         elif isinstance(field, dict):
-            field_desc = sh.FieldDescription(**field)
+            field_desc = FieldDescription(**field)
         else:
             raise TypeError('Expected Field or str, got {} as {}'.format(field, type(field)))
         if before:
-            self.fields_descriptions = [field_desc] + self.fields_descriptions
+            fields = [field_desc] + self.fields_descriptions
         else:
-            self.fields_descriptions.append(field_desc)
+            fields = self.fields_descriptions + [field_desc]
+        if inplace:
+            self.fields_descriptions = fields
+        else:
+            return SchemaDescription(fields)
 
-    def add_fields(self, *fields, default_type=None, return_schema=True):
-        for f in fields:
-            self.append_field(f, default_type=default_type)
-        if return_schema:
-            return self
+    def append(self, field_or_group, default_type=None, inplace=None):
+        if isinstance(field_or_group, SchemaInterface):
+            return self.add_fields(field_or_group.get_fields_descriptions(), default_type=default_type, inplace=inplace)
+        elif isinstance(field_or_group, Iterable):
+            return self.add_fields(field_or_group, default_type=default_type, inplace=inplace)
+        else:
+            return self.append_field(field_or_group, default_type=default_type, inplace=inplace)
+
+    def add_fields(self, *fields, default_type=None, inplace=False):
+        if inplace:
+            for f in fields:
+                self.append_field(f, default_type=default_type, inplace=True)
+        else:
+            return SchemaDescription(self.get_fields_descriptions() + list(fields))
+
+    def get_fields(self):
+        return self.fields_descriptions
+
+    @staticmethod
+    def _detect_field_type_by_name(field_name):
+        name_parts = field_name.split('_')
+        default_type = HEURISTIC_SUFFIX_TO_TYPE[None]
+        field_type = default_type
+        for suffix in HEURISTIC_SUFFIX_TO_TYPE:
+            if suffix in name_parts:
+                field_type = HEURISTIC_SUFFIX_TO_TYPE[suffix]
+                break
+        return field_type
+
+    @classmethod
+    def detect_schema_by_title_row(cls, title_row: Iterable) -> SchemaInterface:
+        FieldDescription = cls.FieldDescription
+        schema = SchemaDescription([])
+        for name in title_row:
+            field_type = cls._detect_field_type_by_name(name)
+            schema.append_field(
+                FieldDescription(name, field_type)
+            )
+        return schema
 
     def get_fields_count(self):
         return len(self.fields_descriptions)
@@ -54,10 +102,8 @@ class SchemaDescription(SchemaInterface):
     def get_schema_str(self, dialect='py'):
         if dialect is not None and dialect not in di.DIALECTS:
             dialect = di.get_dialect_for_connector(dialect)
-        field_strings = [
-            '{} {}'.format(c.get_name(), c.get_type_in(dialect))
-            for c in self.fields_descriptions
-        ]
+        template = '{}: {}' if dialect in ('str', 'py') else '{} {}'
+        field_strings = [template.format(c.get_name(), c.get_type_in(dialect)) for c in self.get_fields()]
         return ', '.join(field_strings)
 
     def __repr__(self):
@@ -72,12 +118,12 @@ class SchemaDescription(SchemaInterface):
     def get_types(self, dialect):
         return [c.get_type_in(dialect) for c in self.fields_descriptions]
 
-    def set_types(self, dict_field_types=None, return_schema=True, **kwargs):
+    def set_types(self, dict_field_types=None, inplace=False, **kwargs):
         for field_name, field_type in list((dict_field_types or {}).items()) + list(kwargs.items()):
             field_description = self.get_field_description(field_name)
             assert isinstance(field_description, FieldInterface)
-            field_description.set_type(ft.get_canonic_type(field_type), inplace=True)
-        if return_schema:
+            field_description.set_type(get_canonic_type(field_type), inplace=True)
+        if not inplace:
             return self
 
     def get_field_position(self, field: FieldID) -> Optional[FieldNo]:
@@ -121,3 +167,14 @@ class SchemaDescription(SchemaInterface):
         return SchemaDescription(
             [self.get_field_description(f) for f in fields]
         )
+
+    def __iter__(self):
+        yield from self.get_fields_descriptions()
+
+    def __add__(self, other: Union[FieldInterface, SchemaInterface, str]) -> SchemaInterface:
+        if isinstance(other, (str, int, FieldInterface)):
+            return self.append_field(other, inplace=False)
+        elif isinstance(other, (SchemaInterface, Iterable)):
+            return self.append(other, inplace=False).set_name(None, inplace=False)
+        else:
+            raise TypeError('Expected other as field or schema, got {} as {}'.format(other, type(other)))
