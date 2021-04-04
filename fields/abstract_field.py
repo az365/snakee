@@ -1,5 +1,7 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Any
+from typing import Optional, Callable
+from enum import Enum
+from inspect import isclass
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
@@ -8,7 +10,6 @@ try:  # Assume we're a sub-module in a package.
     from base.abstract.simple_data import SimpleDataWrapper
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
-    # from .field_type import FieldType, EnumFieldType
     from .field_type import FieldType, FIELD_TYPES, DIALECTS, get_canonic_type
     from .field_interface import FieldInterface
     from ..base.abstract.simple_data import SimpleDataWrapper
@@ -16,6 +17,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 
 class AbstractField(SimpleDataWrapper, FieldInterface, ABC):
     def __init__(self, name: str, field_type: FieldType = FieldType.Any, properties=None):
+        field_type = arg.undefault(field_type, FieldType.detect_by_name, field_name=name)
         self._type = get_canonic_type(field_type)
         super().__init__(name=name, data=properties)
 
@@ -36,15 +38,21 @@ class AbstractField(SimpleDataWrapper, FieldInterface, ABC):
             return field_type.get_name()
         elif hasattr(field_type, 'value'):
             return str(field_type.value)
+        elif isclass(field_type) and not isinstance(field_type, Enum):
+            return field_type.__name__
         else:
             return str(field_type)
 
     def get_type_in(self, dialect):
-        if dialect is None:
+        if dialect is None or dialect == 'str':
             return self.get_type_name()
         else:
             assert dialect in DIALECTS
             return FIELD_TYPES.get(self.get_type_name(), {}).get(dialect)
+
+    def get_converter(self, source, target) -> Callable:
+        converter_name = '{}_to_{}'.format(source, target)
+        return FIELD_TYPES.get(self.get_type_name(), {}).get(converter_name, str)
 
     def __repr__(self):
         return '{}: {}'.format(self.get_name(), self.get_type_name())

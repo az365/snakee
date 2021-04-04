@@ -1,4 +1,5 @@
 from enum import Enum
+from inspect import isclass
 import json
 
 
@@ -18,6 +19,56 @@ class FieldType(Enum):
 
     def get_name(self):
         return self.value
+
+    @staticmethod
+    def get_heuristic_suffix_to_type():
+        return {
+            'hist': FieldType.Dict,
+            'names': FieldType.Tuple,
+            'ids': FieldType.Tuple,
+            'id': FieldType.Int,
+            'hits': FieldType.Int,
+            'count': FieldType.Int,
+            'sum': FieldType.Float,
+            'avg': FieldType.Float,
+            'mean': FieldType.Float,
+            'share': FieldType.Float,
+            'norm': FieldType.Float,
+            'weight': FieldType.Float,
+            'value': FieldType.Float,
+            'score': FieldType.Float,
+            'rate': FieldType.Float,
+            'coef': FieldType.Float,
+            'abs': FieldType.Float,
+            'rel': FieldType.Float,
+            'is': FieldType.Bool,
+            'has': FieldType.Bool,
+            None: FieldType.Str,
+        }
+
+    @classmethod
+    def detect_by_name(cls, field_name: str):
+        name_parts = field_name.split('_')
+        heuristic_suffix_to_type = cls.get_heuristic_suffix_to_type()
+        default_type = heuristic_suffix_to_type[None]
+        field_type = default_type
+        for suffix in heuristic_suffix_to_type:
+            if suffix in name_parts:
+                field_type = heuristic_suffix_to_type[suffix]
+                break
+        return field_type
+
+    @staticmethod
+    def detect_by_type(field_type):
+        if isclass(field_type):
+            field_type = field_type.__name__
+        return FieldType(str(field_type))
+
+    @staticmethod
+    def detect_by_value(value):
+        field_type = type(value)
+        field_type_name = str(field_type)
+        return FieldType(field_type_name)
 
 
 def any_to_bool(value):
@@ -55,28 +106,7 @@ FIELD_TYPES = {
     FieldType.Dict.value: dict(py=dict, pg='text', str_to_py=safe_converter(eval, dict())),
 }
 AGGR_HINTS = (None, 'id', 'cat', 'measure')
-HEURISTIC_SUFFIX_TO_TYPE = {
-    'hist': FieldType.Dict,
-    'names': FieldType.Tuple,
-    'ids': FieldType.Tuple,
-    'id': FieldType.Int,
-    'hits': FieldType.Int,
-    'count': FieldType.Int,
-    'sum': FieldType.Float,
-    'avg': FieldType.Float,
-    'mean': FieldType.Float,
-    'share': FieldType.Float,
-    'norm': FieldType.Float,
-    'weight': FieldType.Float,
-    'value': FieldType.Float,
-    'score': FieldType.Float,
-    'coef': FieldType.Float,
-    'abs': FieldType.Float,
-    'rel': FieldType.Float,
-    'is': FieldType.Bool,
-    'has': FieldType.Bool,
-    None: FieldType.Str,
-}
+HEURISTIC_SUFFIX_TO_TYPE = FieldType.get_heuristic_suffix_to_type()
 
 
 def get_canonic_type(field_type, ignore_absent=False):

@@ -51,7 +51,7 @@ class AdvancedField(AbstractField):
         self._caption = caption
         return self
 
-    def get_extractors(self):
+    def get_extractors(self) -> Optional[Iterable]:
         return self.get_data()
 
     def extract(self, extractor: AbstractDescription):
@@ -80,8 +80,7 @@ class AdvancedField(AbstractField):
     def as_type(self, field_type: FieldType) -> ce.RegularDescription:
         return ce.RegularDescription(
             target=self.get_name(), target_item_type=self._target_item_type,
-            inputs=[self],
-            input_item_type=ItemType.Auto,
+            inputs=[self], input_item_type=ItemType.Auto,
             function=field_type.convert_value, default=self._default,
             skip_errors=self._skip_errors, logger=self._logger,
         )
@@ -95,6 +94,6 @@ class AdvancedField(AbstractField):
         elif isinstance(other, AbstractField):
             return fc.FieldGroup([self, other])
         elif isinstance(other, SchemaInterface):
-            return other.append_field(self, before=True)
+            return other.append_field(self, before=True, inplace=False)
         else:
             raise TypeError('Expected other as field or schema, got {} as {}'.format(other, type(other)))

@@ -4,8 +4,8 @@ import csv
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from items import base_item_type as it
+    from fields import field_classes as fc
     from connectors.filesystem.local_file import TextFile
-    # from streams.mixin.stream_builder_mixin import StreamBuilderMixin
     from streams.mixin.columnar_mixin import ColumnarMixin
     from streams import stream_classes as sm
     from schema import schema_classes as sh
@@ -13,8 +13,8 @@ try:  # Assume we're a sub-module in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...items import base_item_type as it
+    from ...fields import field_classes as fc
     from .local_file import TextFile
-    # from ...streams.mixin.stream_builder_mixin import StreamBuilderMixin
     from ...streams.mixin.columnar_mixin import ColumnarMixin
     from ...streams import stream_classes as sm
     from ...schema import schema_classes as sh
@@ -69,7 +69,7 @@ class ColumnFile(TextFile, ColumnarMixin):
     def sort(self, *keys, reverse=False):
         raise NotImplemented
 
-    def get_schema(self) -> sh.SchemaDescription:
+    def get_schema(self) -> sh.SchemaInterface:
         return self.schema
 
     def get_schema_str(self, dialect='pg') -> str:
@@ -78,13 +78,13 @@ class ColumnFile(TextFile, ColumnarMixin):
     def set_schema(self, schema, return_file=True) -> TextFile:
         if schema is None:
             self.schema = None
-        elif isinstance(schema, sh.SchemaDescription):
+        elif isinstance(schema, sh.SchemaInterface):
             self.schema = schema
         elif isinstance(schema, (list, tuple)):
-            self.log('Schema as list is deprecated, use SchemaDescription class instead', level=30)
+            self.log('Schema as list is deprecated, use FieldGroup(SchemaInterface) class instead', level=30)
             has_types_descriptions = [isinstance(f, (list, tuple)) for f in schema]
             if max(has_types_descriptions):
-                self.schema = sh.SchemaDescription(schema)
+                self.schema = fc.FieldGroup(schema)
             else:
                 self.schema = sh.detect_schema_by_title_row(schema)
         elif schema == AUTO:
@@ -93,18 +93,23 @@ class ColumnFile(TextFile, ColumnarMixin):
             else:
                 self.schema = None
         else:
-            message = 'schema must be SchemaDescription of tuple with fields_description (got {})'.format(type(schema))
+            message = 'schema must be FieldGroup(SchemaInterface), got {}'.format(type(schema))
             raise TypeError(message)
         if return_file:
             return self
 
-    def detect_schema_by_title_row(self, set_schema=False, verbose=AUTO) -> sh.SchemaDescription:
-        assert self.first_line_is_title, 'Can detect schema by title row only if first line is a title row'
-        verbose = arg.undefault(verbose, self.verbose)
+    def get_title_row(self, close=True):
         lines = self.get_lines(skip_first=False, check=False, verbose=False)
         rows = csv.reader(lines, delimiter=self.delimiter) if self.delimiter else csv.reader(lines)
         title_row = next(rows)
-        self.close()
+        if close:
+            self.close()
+        return title_row
+
+    def detect_schema_by_title_row(self, set_schema=False, verbose=AUTO) -> sh.SchemaInterface:
+        assert self.first_line_is_title, 'Can detect schema by title row only if first line is a title row'
+        verbose = arg.undefault(verbose, self.verbose)
+        title_row = self.get_title_row(close=True)
         schema = sh.detect_schema_by_title_row(title_row)
         message = 'Schema for {} detected by title row: {}'.format(self.get_name(), schema.get_schema_str(None))
         self.log(message, end='\n', verbose=verbose)
@@ -144,7 +149,7 @@ class ColumnFile(TextFile, ColumnarMixin):
             assert expected_schema, 'schema for {} must be defined'.format(self.get_name())
 
     def add_fields(self, *fields, default_type=None, return_file=True) -> TextFile:
-        self.schema.add_fields(*fields, default_type=default_type, return_schema=False)
+        self.schema.add_fields(*fields, default_type=default_type, inplace=True)
         if return_file:
             return self
 
@@ -155,7 +160,7 @@ class ColumnFile(TextFile, ColumnarMixin):
         return self.get_schema().get_types(dialect)
 
     def set_types(self, dict_field_types: Optional[dict] = None, inplace: bool = False, **kwargs):
-        self.get_schema().set_types(dict_field_types=dict_field_types, return_schema=False, **kwargs)
+        self.get_schema().set_types(dict_field_types=dict_field_types, inplace=True, **kwargs)
         if not inplace:
             return self
 

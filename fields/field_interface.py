@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from typing import Callable
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
@@ -25,4 +26,12 @@ class FieldInterface(SimpleDataInterface, ABC):
 
     @abstractmethod
     def get_type_name(self) -> str:
+        pass
+
+    @abstractmethod
+    def get_converter(self, source, target) -> Callable:
+        pass
+
+    @abstractmethod
+    def __add__(self, other):
         pass
