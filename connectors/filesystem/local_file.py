@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Union, Any, Iterable, Callable, NoReturn
+from typing import Optional, Union, Iterable, Callable, NoReturn
 from inspect import isclass
 import os
 import gzip as gz
@@ -10,6 +10,7 @@ try:  # Assume we're a sub-module in a package.
     from base.interfaces.context_interface import ContextInterface
     from connectors.abstract.connector_interface import ConnectorInterface
     from connectors.abstract.leaf_connector import LeafConnector
+    from streams.interfaces.regular_stream_interface import RegularStreamInterface
     from streams.mixin.stream_builder_mixin import StreamBuilderMixin
     from streams import stream_classes as sm
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -18,14 +19,14 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.interfaces.context_interface import ContextInterface
     from ..abstract.connector_interface import ConnectorInterface
     from ..abstract.leaf_connector import LeafConnector
+    from ...streams.interfaces.regular_stream_interface import RegularStreamInterface
     from ...streams.mixin.stream_builder_mixin import StreamBuilderMixin
     from ...streams import stream_classes as sm
 
 OptionalFields = Optional[Union[str, Iterable]]
 Context = Optional[ContextInterface]
 Folder = ConnectorInterface
-
-Stream = Any
+Stream = RegularStreamInterface
 
 AUTO = arg.DEFAULT
 CHUNK_SIZE = 8192
@@ -151,6 +152,9 @@ class AbstractFile(LeafConnector, StreamBuilderMixin, ABC):
     def is_existing(self) -> bool:
         return os.path.exists(self.get_path())
 
+    def _get_generated_stream_name(self):
+        return arg.get_generated_name('{}:stream'.format(self.get_name()), include_random=True, include_datetime=False)
+
     @abstractmethod
     def from_stream(self, stream):
         pass
@@ -158,11 +162,13 @@ class AbstractFile(LeafConnector, StreamBuilderMixin, ABC):
     def to_stream(
             self,
             data: Union[Iterable, arg.DefaultArgument] = arg.DEFAULT,
+            name: Union[str, arg.DefaultArgument] = arg.DEFAULT,
             stream_type=arg.DEFAULT,
             ex: OptionalFields = None,
             **kwargs
     ) -> Stream:
-        stream_type = arg.undefault(stream_type, self.get_stream_type())
+        stream_type = arg.delayed_undefault(stream_type, self.get_stream_type)
+        name = arg.delayed_undefault(name, self._get_generated_stream_name)
         if not arg.is_defined(data):
             data = self.get_data()
         if isinstance(stream_type, str):
@@ -171,7 +177,7 @@ class AbstractFile(LeafConnector, StreamBuilderMixin, ABC):
             stream_class = stream_type
         else:
             stream_class = stream_type.get_class()
-        meta = self.get_compatible_meta(stream_class, ex=ex, **kwargs)
+        meta = self.get_compatible_meta(stream_class, name=name, ex=ex, **kwargs)
         if 'count' not in meta:
             meta['count'] = self.get_count()
         if 'source' not in meta:
@@ -204,6 +210,13 @@ class AbstractFile(LeafConnector, StreamBuilderMixin, ABC):
             filter(function, self.get_items()),
             count=None,
         )
+
+    def is_in_memory(self) -> bool:
+        return False
+
+    @staticmethod
+    def is_file() -> bool:
+        return True
 
 
 class TextFile(AbstractFile):
@@ -239,8 +252,8 @@ class TextFile(AbstractFile):
     def get_stream_type(cls):
         return sm.StreamType.LineStream
 
-    def get_data(self, verbose=arg.DEFAULT) -> Iterable:
-        return self.get_items(verbose=verbose)
+    def get_data(self, verbose=arg.DEFAULT, *args, **kwargs) -> Iterable:
+        return self.get_items(verbose=verbose, *args, **kwargs)
 
     def open(self, mode='r', reopen=False) -> NoReturn:
         if self.is_opened():
@@ -316,15 +329,10 @@ class TextFile(AbstractFile):
             verbose=verbose,
         )
 
-    def _get_generated_stream_name(self):
-        return arg.get_generated_name('{}:stream'.format(self.get_name()), include_random=True, include_datetime=False)
-
     def get_stream_kwargs(self, data=AUTO, name=AUTO, verbose=AUTO, step=AUTO, **kwargs) -> dict:
         verbose = arg.undefault(verbose, self.verbose)
         data = arg.delayed_undefault(data, self.get_items, verbose=verbose, step=step)
         name = arg.delayed_undefault(name, self._get_generated_stream_name)
-        if data == arg.DEFAULT:
-            data = self.get_items(verbose=verbose, step=step)
         result = dict(
             data=data,
             name=name,
@@ -340,11 +348,10 @@ class TextFile(AbstractFile):
             **self.get_stream_kwargs(**kwargs)
         )
 
-    def to_lines_stream(self, step=AUTO, verbose=AUTO, **kwargs) -> Stream:
+    def to_line_stream(self, step=AUTO, verbose=AUTO, **kwargs) -> Stream:
         data = self.get_lines(step=step, verbose=verbose)
-        return sm.LineStream(
-            **self.get_stream_kwargs(data=data, step=step, verbose=verbose, **kwargs)
-        )
+        stream_kwargs = self.get_stream_kwargs(data=data, step=step, verbose=verbose, **kwargs)
+        return sm.LineStream(**stream_kwargs)
 
     def to_any_stream(self, **kwargs) -> Stream:
         return sm.AnyStream(
@@ -362,19 +369,29 @@ class TextFile(AbstractFile):
         self.close()
         self.log('Done. {} rows has written into {}'.format(n + 1, self.get_name()), verbose=verbose)
 
-    def write_stream(self, stream, verbose=AUTO):
+    def write_stream(self, stream: RegularStreamInterface, verbose=AUTO):
         assert sm.is_stream(stream)
         return self.write_lines(
             stream.to_line_stream().get_data(),
             verbose=verbose,
         )
 
-    def from_stream(self, stream):
+    def from_stream(self, stream: RegularStreamInterface):
         assert isinstance(stream, sm.LineStream)
         return self.write_lines(stream.get_iter())
 
-    def take(self, count: int):
-        return self.to_lines_stream().take(count)
+    def skip(self, count: int) -> RegularStreamInterface:
+        return self.to_line_stream().skip(count)
+
+    def take(self, count: int) -> RegularStreamInterface:
+        return self.to_line_stream().take(count)
+
+    def apply_to_data(self, function, *args, dynamic=False, **kwargs):  # ?
+        return self.stream(  # can be file
+            function(self.get_data(), *args, **kwargs),
+        ).set_meta(
+            **self.get_static_meta() if dynamic else self.get_meta()
+        )
 
 
 class JsonFile(TextFile):
@@ -413,7 +430,7 @@ class JsonFile(TextFile):
         return sm.StreamType.AnyStream
 
     def get_items(self, verbose=AUTO, step=AUTO) -> Iterable:
-        return self.to_lines_stream(
+        return self.to_line_stream(
             verbose=verbose,
         ).parse_json(
             default_value=self.default_value,

@@ -2,17 +2,17 @@ try:  # Assume we're a sub-module in a package.
     from utils import (
         algo,
         arguments as arg,
+        items as it,
     )
-    from items.base_item_type import ItemType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from . import (
         algo,
         arguments as arg,
+        items as it,
     )
-    from items.base_item_type import ItemType
 
+AUTO = arg.DEFAULT
 IGNORE_CYCLIC_DEPENDENCIES = False
-STAR = '*'
 
 
 def process_description(d):
@@ -119,23 +119,23 @@ def value_from_any(item, description, logger=None, skip_errors=True):
         return description(item)
     elif isinstance(description, (list, tuple)):
         function, fields = process_description(description)
-        values = ItemType.Auto.get_fields_values_from_item(fields, item)
+        values = it.get_fields_values_from_item(fields, item)
         return safe_apply_function(function, fields, values, item=item, logger=logger, skip_errors=skip_errors)
     else:
-        return ItemType.Auto.get_field_value_from_item(description, item)
+        return it.get_field_value_from_item(description, item)
 
 
-def value_from_item(item, description, item_type=ItemType.Auto, logger=None, skip_errors=True, default=None):
+def value_from_item(item, description, item_type=AUTO, logger=None, skip_errors=True, default=None):
     if callable(description):
         return description(item)
     elif isinstance(description, (int, str)):
-        return item_type.get_field_value_from_item(
+        return it.get_field_value_from_item(
             description, item, item_type=item_type,
             skip_errors=skip_errors, logger=logger, default=default,
         )
     elif isinstance(description, (list, tuple)):
         function, fields = process_description(description)
-        values = item_type.get_fields_values_from_item(
+        values = it.get_fields_values_from_item(
             fields, item, item_type=item_type,
             skip_errors=skip_errors, logger=logger, default=default,
         )
@@ -145,7 +145,7 @@ def value_from_item(item, description, item_type=ItemType.Auto, logger=None, ski
         raise TypeError(message.format(description, type(description)))
 
 
-def get_composite_key(item, keys_descriptions, item_type=ItemType.Auto, logger=None, skip_errors=True):
+def get_composite_key(item, keys_descriptions, item_type=AUTO, logger=None, skip_errors=True):
     keys_descriptions = arg.update(keys_descriptions)
     result = list()
     for d in keys_descriptions:
@@ -165,7 +165,7 @@ def row_from_row(row_in, *descriptions):
     row_out = [None] * len(descriptions)
     c = 0
     for d in descriptions:
-        if d == STAR:
+        if d == it.STAR:
             row_out = row_out[:c] + list(row_in) + row_out[c + 1:]
             c += len(row_in)
         else:
@@ -178,8 +178,8 @@ def row_from_any(item_in, *descriptions):
     row_out = [None] * len(descriptions)
     c = 0
     for desc in descriptions:
-        if desc == STAR:
-            if ItemType.Row.isinstance(item_in):
+        if desc == it.STAR:
+            if it.ItemType.Row.isinstance(item_in):
                 row_out = row_out[:c] + list(item_in) + row_out[c + 1:]
                 c += len(item_in)
             else:
@@ -212,7 +212,7 @@ def record_from_record(rec_in, *descriptions, logger=None):
     record = rec_in.copy()
     fields_out = list()
     for desc in descriptions:
-        if desc == STAR:
+        if desc == it.STAR:
             fields_out += list(rec_in.keys())
         elif isinstance(desc, (list, tuple)):
             if len(desc) > 1:
@@ -230,10 +230,10 @@ def record_from_record(rec_in, *descriptions, logger=None):
 
 
 def auto_to_auto(item, *descriptions, logger=None):
-    item_type = ItemType.detect(item)
-    if item_type == ItemType.Record:
+    item_type = it.ItemType.detect(item)
+    if item_type == it.ItemType.Record:
         return record_from_record(item, *descriptions, logger=logger)
-    elif item_type == ItemType.Row:
+    elif item_type == it.ItemType.Row:
         return row_from_row(item, *descriptions)
     else:
         return get_composite_key(item, descriptions)
@@ -241,8 +241,8 @@ def auto_to_auto(item, *descriptions, logger=None):
 
 def select(
         *fields,
-        target_item_type=ItemType.Auto, input_item_type=ItemType.Auto,
-        logger=None, selection_logger=arg.DEFAULT,
+        target_item_type=AUTO, input_item_type=AUTO,
+        logger=None, selection_logger=AUTO,
         **expressions
 ):
     descriptions = flatten_descriptions(
@@ -250,19 +250,19 @@ def select(
         logger=logger,
         **expressions
     )
-    if target_item_type == ItemType.Record and input_item_type == ItemType.Record:
+    if target_item_type == it.ItemType.Record and input_item_type == it.ItemType.Record:
         return lambda r: record_from_record(r, *descriptions, logger=selection_logger)
-    elif target_item_type == ItemType.Row and input_item_type == ItemType.Row:
+    elif target_item_type == it.ItemType.Row and input_item_type == it.ItemType.Row:
         return lambda r: row_from_row(r, *descriptions)
-    elif target_item_type == ItemType.Row and input_item_type == ItemType.Any:
+    elif target_item_type == it.ItemType.Row and input_item_type == it.ItemType.Any:
         return lambda i: row_from_any(i, *descriptions)
-    elif target_item_type == ItemType.Record and input_item_type == ItemType.Any:
+    elif target_item_type == it.ItemType.Record and input_item_type == it.ItemType.Any:
         return lambda i: record_from_any(i, *descriptions, logger=logger)
     else:
         return lambda i: auto_to_auto(i, *descriptions, logger=logger)
 
 
-def filter_items(*fields, item_type=ItemType.Auto, skip_errors=False, logger=None, **expressions):
+def filter_items(*fields, item_type=AUTO, skip_errors=False, logger=None, **expressions):
     expressions_list = [
         (k, (lambda i, v=v: i == v) if isinstance(v, (str, int, float, bool)) else v)
         for k, v in expressions.items()
@@ -275,7 +275,7 @@ def filter_items(*fields, item_type=ItemType.Auto, skip_errors=False, logger=Non
 
 
 def apply_filter_list_to_item(
-        item, filter_list, item_type=ItemType.Auto,
+        item, filter_list, item_type=AUTO,
         skip_errors=False, logger=None,
 ):
     for filter_desc in filter_list:
