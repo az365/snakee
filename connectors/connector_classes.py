@@ -74,7 +74,7 @@ FOLDER_CLASS_NAMES = tuple([c.__name__ for c in FOLDER_CLASSES])
 FILE_CLASSES = tuple([c for c in CONN_CLASSES if c.__name__.endswith('File')])
 FILE_CLASS_NAMES = tuple([c.__name__ for c in FILE_CLASSES])
 DICT_EXT_TO_CLASS = {
-    c.get_default_file_extension(): c for c in CONN_CLASSES
+    c.get_default_file_extension.__get__(c): c for c in CONN_CLASSES
     if c in FILE_CLASSES and not c.__name__.startswith('Abstract')
 }
 DICT_DB_TO_DIALECT = {PostgresDatabase.__name__: 'pg', ClickhouseDatabase.__name__: 'ch'}
@@ -130,7 +130,8 @@ def set_context(cx: ContextInterface):
 
 
 def is_conn(obj) -> bool:
-    return isinstance(obj, CONN_CLASSES)
+    if hasattr(obj, 'is_connector'):
+        return obj.is_connector()
 
 
 def is_file(obj) -> bool:

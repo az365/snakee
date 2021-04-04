@@ -24,6 +24,10 @@ CHUNK_SIZE = 8192
 
 class ConnectorInterface(SourcedInterface, ABC):
     @staticmethod
+    def is_connector() -> bool:
+        return True
+
+    @staticmethod
     @abstractmethod
     def is_storage() -> bool:
         pass
