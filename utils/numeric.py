@@ -98,7 +98,7 @@ def max(a: Iterable, default=None):
 
 
 def sqrt(value: float, default=None) -> Optional[float]:
-    if value:
+    if value is not None:
         if np:
             return np.sqrt(value)
         else:

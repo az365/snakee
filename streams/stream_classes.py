@@ -207,10 +207,10 @@ def generate_name():
 def concat(*iter_streams, context=arg.DEFAULT):
     global _context
     context = arg.undefault(context, _context)
-    StreamBuilder.concat(*iter_streams, context=context)
+    return StreamBuilder.concat(*iter_streams, context=context)
 
 
 def join(*iter_streams, key, how='left', step=arg.DEFAULT, name=arg.DEFAULT, context=None):
     global _context
     context = arg.undefault(context, _context)
-    StreamBuilder.join(*iter_streams, key=key, how=how, step=step, name=name, context=context)
+    return StreamBuilder.join(*iter_streams, key=key, how=how, step=step, name=name, context=context)

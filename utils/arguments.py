@@ -72,7 +72,9 @@ def undefault(current, default, *args, delayed=False, **kwargs):
 
 
 def get_list(arg: Iterable) -> list:
-    if isinstance(arg, Iterable):
+    if isinstance(arg, str):
+        return [arg]
+    elif isinstance(arg, Iterable):
         return list(arg)
     elif arg:
         return [arg]
@@ -120,7 +122,10 @@ def is_defined(obj) -> bool:
     elif hasattr(obj, 'get_value'):
         result = is_defined(obj.get_value())
     elif hasattr(obj, 'get_name'):
-        result = is_defined(obj.get_name())
+        try:
+            result = is_defined(obj.get_name())
+        except TypeError:
+            result = True
     elif hasattr(obj, 'value'):
         result = is_defined(obj.value)
     else:

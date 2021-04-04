@@ -184,7 +184,6 @@ class SelectionDescription:
 
     def apply_inplace(self, item):
         for d in self.get_descriptions():
-            assert isinstance(d, sn.AbstractDescription)
             d.apply_inplace(item)
 
     def apply_outplace(self, item, target_item_type: it.ItemType):
