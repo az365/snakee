@@ -1,4 +1,4 @@
-from typing import Optional, Union, Iterable
+from typing import Optional, Union, Iterable, NoReturn
 from datetime import timedelta, datetime
 
 try:  # Assume we're a sub-module in a package.
@@ -45,13 +45,21 @@ class Progress(TreeItem, ProgressInterface):
             logger = logger
         if logger and not context:
             self.context = logger.get_context()
-        super().__init__(name=name, parent=logger, context=context)
+        super().__init__(name=name, parent=logger, context=context, check=False)
 
     @staticmethod
-    def is_progress():
+    def is_progress() -> bool:
         return True
 
-    def _get_selection_logger_name(self):
+    def get_position(self) -> int:
+        return self.position
+
+    def set_position(self, position: int, inplace: bool = True) -> Optional[ProgressInterface]:
+        self.position = position
+        if not inplace:
+            return self
+
+    def _get_selection_logger_name(self) -> str:
         return self.get_name() + ':_selection'
 
     def get_selection_logger(self, name=arg.DEFAULT):
@@ -73,14 +81,16 @@ class Progress(TreeItem, ProgressInterface):
             self.add_child(selection_logger)
         return selection_logger
 
-    def reset_selection_logger(self, name=arg.DEFAULT, **kwargs):
+    def reset_selection_logger(self, name=arg.DEFAULT, **kwargs) -> NoReturn:
         logger = self.get_logger()
         logger.reset_selection_logger(name, **kwargs)
 
-    def get_logger(self):
-        return self.get_parent()
+    def get_logger(self) -> ExtendedLoggerInterface:
+        logger = self.get_parent()
+        assert isinstance(logger, ExtendedLoggerInterface)
+        return logger
 
-    def log(self, msg, level=arg.DEFAULT, end=arg.DEFAULT, verbose=arg.DEFAULT):
+    def log(self, msg, level=arg.DEFAULT, end=arg.DEFAULT, verbose=arg.DEFAULT) -> NoReturn:
         logger = self.get_logger()
         if logger is not None:
             logger.log(
@@ -89,7 +99,7 @@ class Progress(TreeItem, ProgressInterface):
                 verbose=arg.undefault(verbose, self.verbose),
             )
 
-    def log_selection_batch(self, level=arg.DEFAULT, reset_after=True):
+    def log_selection_batch(self, level=arg.DEFAULT, reset_after=True) -> NoReturn:
         selection_logger = self.get_selection_logger()
         if selection_logger:
             if selection_logger.has_errors():
@@ -162,7 +172,7 @@ class Progress(TreeItem, ProgressInterface):
         if self.state != OperationStatus.InProgress:
             self.start(cur)
         if self.expected_count:
-            line = '{name}: {percent} ({pos}/{count}) processed'.format(
+            line = '{name}: {percent} ({pos}/{count})'.format(
                 name=self.get_name(),
                 percent=self.get_percent(),
                 pos=self.position + 1,
@@ -172,7 +182,7 @@ class Progress(TreeItem, ProgressInterface):
             line = '{}: {} items processed'.format(self.get_name(), self.position + 1)
         selection_logger = self.get_selection_logger()
         if selection_logger:
-            line = '{}, {} errors'.format(line, selection_logger.get_err_count())
+            line = '{}, {} err'.format(line, selection_logger.get_err_count())
         if self.timing:
             line = '{} {} ({} it/sec)'.format(self.get_timing_str(), line, self.evaluate_speed())
         self.log(line, level=LoggingLevel.Debug, end='\r')

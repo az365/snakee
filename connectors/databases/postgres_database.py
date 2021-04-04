@@ -1,3 +1,4 @@
+from typing import Optional, Union, Iterable, NoReturn
 import gc
 import psycopg2
 import psycopg2.extras
@@ -31,7 +32,7 @@ class PostgresDatabase(ad.AbstractDatabase):
             **kwargs
         )
 
-    def is_connected(self):
+    def is_connected(self) -> bool:
         return (self.connection is not None) and not self.connection.closed
 
     def get_connection(self, connect=False):
@@ -53,7 +54,7 @@ class PostgresDatabase(ad.AbstractDatabase):
             )
         return self.connection
 
-    def disconnect(self, skip_errors=False, verbose=arg.DEFAULT):
+    def disconnect(self, skip_errors=False, verbose=arg.DEFAULT) -> Optional[int]:
         verbose = arg.undefault(verbose, self.verbose)
         if self.is_connected():
             if skip_errors:
@@ -96,12 +97,12 @@ class PostgresDatabase(ad.AbstractDatabase):
         if get_data:
             return result
 
-    def execute_batch(self, query, batch, step=ad.DEFAULT_STEP, cursor=arg.DEFAULT):
+    def execute_batch(self, query, batch, step=ad.DEFAULT_STEP, cursor=arg.DEFAULT) -> NoReturn:
         if cursor == arg.DEFAULT:
             cursor = self.connect().cursor()
         psycopg2.extras.execute_batch(cursor, query, batch, page_size=step)
 
-    def grant_permission(self, name, permission='SELECT', group=ad.DEFAULT_GROUP, verbose=arg.DEFAULT):
+    def grant_permission(self, name, permission='SELECT', group=ad.DEFAULT_GROUP, verbose=arg.DEFAULT) -> NoReturn:
         verbose = arg.undefault(verbose, self.verbose)
         message = 'Grant access:'
         query = 'GRANT {permission} ON {name} TO {group};'.format(
@@ -114,10 +115,10 @@ class PostgresDatabase(ad.AbstractDatabase):
             verbose=message if verbose is True else verbose,
         )
 
-    def post_create_action(self, name, verbose=arg.DEFAULT):
+    def post_create_action(self, name, verbose=arg.DEFAULT) -> NoReturn:
         self.grant_permission(name, verbose=verbose)
 
-    def exists_table(self, name, verbose=arg.DEFAULT):
+    def exists_table(self, name, verbose=arg.DEFAULT) -> bool:
         schema, table = name.split('.')
         query = """
             SELECT 1
@@ -138,11 +139,12 @@ class PostgresDatabase(ad.AbstractDatabase):
 
     def insert_rows(
             self,
-            table, rows, columns,
-            step=ad.DEFAULT_STEP, skip_errors=False,
-            expected_count=None, return_count=True,
-            verbose=arg.DEFAULT,
-    ):
+            table: str, rows: Iterable, columns: Iterable,
+            step: int = ad.DEFAULT_STEP, skip_errors: bool = False,
+            expected_count: Optional[int] = None, return_count: bool = True,
+            verbose: Union[bool, arg.DefaultArgument] = arg.DEFAULT,
+    ) -> Optional[int]:
+        assert columns, 'columns must be defined'
         verbose = arg.undefault(verbose, self.verbose)
         count = len(rows) if isinstance(rows, (list, tuple)) else expected_count
         conn = self.connect(reconnect=True)
@@ -159,7 +161,7 @@ class PostgresDatabase(ad.AbstractDatabase):
         query_args['values'] = ', '.join(placeholders)
         query = query_template.format(**query_args)
         message = verbose if isinstance(verbose, str) else 'Commit {}b to {}'.format(step, table)
-        progress = self.get_new_progress(message, count=count, verbose=verbose)
+        progress = self.get_new_progress(message, count=count)
         progress.start()
         records_batch = list()
         n = 0
@@ -177,7 +179,7 @@ class PostgresDatabase(ad.AbstractDatabase):
                 if use_fast_batch_method:
                     self.execute_batch(query, records_batch, step, cursor=cur)
                     records_batch = list()
-                if not progress.position:
+                if not progress.get_position():
                     progress.update(0)
                 conn.commit()
                 progress.update(n)

@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Union, Iterable
+from typing import Optional, Union, Iterable, NoReturn
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
@@ -29,15 +29,28 @@ class ProgressInterface(TreeInterface, ABC):
         pass
 
     @abstractmethod
+    def get_position(self) -> int:
+        pass
+
+    @abstractmethod
+    def set_position(self, position: int, inplace: bool) -> Optional[TreeInterface]:
+        pass
+
+    @abstractmethod
     def get_selection_logger(self, name=arg.DEFAULT) -> Logger:
         pass
 
     @abstractmethod
-    def log(self, msg, level=arg.DEFAULT, end=arg.DEFAULT, verbose=arg.DEFAULT):
+    def log(
+            self, msg: str,
+            level: Union[int, arg.DefaultArgument] = arg.DEFAULT,
+            end: Union[str, arg.DefaultArgument] = arg.DEFAULT,
+            verbose: Union[bool, arg.DefaultArgument] = arg.DEFAULT,
+    ) -> NoReturn:
         pass
 
     @abstractmethod
-    def log_selection_batch(self, level=arg.DEFAULT, reset_after=True):
+    def log_selection_batch(self, level=arg.DEFAULT, reset_after: bool = True) -> NoReturn:
         pass
 
     @abstractmethod
@@ -49,7 +62,7 @@ class ProgressInterface(TreeInterface, ABC):
         pass
 
     @abstractmethod
-    def get_percent(self, round_digits=1, default_value='UNK') -> str:
+    def get_percent(self, round_digits: int = 1, default_value: str = 'UNK') -> str:
         pass
 
     @abstractmethod
@@ -65,17 +78,24 @@ class ProgressInterface(TreeInterface, ABC):
         pass
 
     @abstractmethod
-    def update(self, position, step=None, message=None):
+    def update(self, position: int, step: Optional[int] = None, message: Optional[str] = None) -> NoReturn:
         pass
 
     @abstractmethod
-    def start(self, position=0):
+    def start(self, position: int = 0) -> NoReturn:
         pass
 
     @abstractmethod
-    def finish(self, position=None, log_selection_batch=True):
+    def finish(self, position: Optional[int] = None, log_selection_batch: bool = True) -> NoReturn:
         pass
 
     @abstractmethod
-    def iterate(self, items, name=None, expected_count=None, step=arg.DEFAULT, log_selection_batch=True) -> Iterable:
+    def iterate(
+            self,
+            items: Iterable,
+            name: Optional[str] = None,
+            expected_count: Optional[int] = None,
+            step: Union[int, arg.DefaultArgument] = arg.DEFAULT,
+            log_selection_batch: bool = True
+    ) -> Iterable:
         pass
