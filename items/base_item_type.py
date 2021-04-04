@@ -22,7 +22,7 @@ class ItemType(Enum):
         return self.value
 
     def get_name(self):
-        return self.get_name()
+        return self.get_value()
 
     @staticmethod
     def get_selectable_types():
@@ -48,3 +48,15 @@ class ItemType(Enum):
             )
             return item[field]
 
+    def set_to_item_inplace(self, field, value, item):
+        if self == ItemType.Record:
+            item[field] = value
+        elif self == ItemType.Row:
+            cols_count = len(item)
+            if field >= cols_count:
+                item += [None] * (field - cols_count + 1)
+            item[field] = value
+        elif self == ItemType.SchemaRow:
+            item.set_value(field, value)
+        else:  # item_type == 'any' or not item_type:
+            raise TypeError('type {} not supported'.format(self))

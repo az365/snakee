@@ -77,6 +77,9 @@ class ItemType(Enum):
         }
 
 
+DICT_CLASSES = ItemType.get_dict_subclasses()
+
+
 class ExtItemType(en.EnumWrapper):
     for m in ['_member_map_', '_member_names_', '_value2member_map_']:
         __dict__[m] = super().__dict__[m]
@@ -140,6 +143,19 @@ class ExtItemType(en.EnumWrapper):
             return default
         else:
             raise TypeError('type {} not supported'.format(self.get_type_name()))
+
+    def set_to_item_inplace(self, field, value, item):
+        if self == ItemType.Record:
+            item[field] = value
+        elif self == ItemType.Row:
+            cols_count = len(item)
+            if field >= cols_count:
+                item += [None] * (field - cols_count + 1)
+            item[field] = value
+        elif self == ItemType.SchemaRow:
+            item.set_value(field, value)
+        else:  # item_type == 'any' or not item_type:
+            raise TypeError('type {} not supported'.format(self))
 
 
 def set_to_item_inplace(field, value, item: SelectableItem, item_type=ItemType.Auto):
