@@ -6,6 +6,7 @@ from typing import Union, Iterable
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from base.interfaces.context_interface import ContextInterface
+    from connectors.abstract.connector_interface import ConnectorInterface
     from connectors.abstract.hierarchic_connector import HierarchicConnector
     from connectors.abstract.abstract_folder import HierarchicFolder
     from connectors.filesystem.local_file import TextFile
@@ -13,10 +14,13 @@ try:  # Assume we're a sub-module in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...base.interfaces.context_interface import ContextInterface
+    from ..abstract.connector_interface import ConnectorInterface
     from ..abstract.hierarchic_connector import HierarchicConnector
     from ..abstract.abstract_folder import HierarchicFolder
     from .local_file import TextFile
     from .file_type import FileType
+
+PARENT_TYPES = HierarchicConnector, ConnectorInterface, ContextInterface
 
 
 class FolderType(Enum):
@@ -54,14 +58,14 @@ class LocalFolder(HierarchicFolder):
             self,
             path: str,
             path_is_relative: Union[bool, arg.DefaultArgument] = arg.DEFAULT,
-            parent: Union[HierarchicConnector, arg.DefaultArgument] = arg.DEFAULT,
+            parent: Union[HierarchicConnector, ConnectorInterface, arg.DefaultArgument] = arg.DEFAULT,
             context=None,
             verbose: Union[bool, arg.DefaultArgument] = arg.DEFAULT,
     ):
         if not arg.is_defined(parent):
             parent = self.get_default_parent()
         if parent:
-            assert isinstance(parent, (HierarchicConnector, ContextInterface)), 'got {} as {}'.format(parent, type(parent))
+            assert isinstance(parent, PARENT_TYPES), 'got {} as {}'.format(parent, type(parent))
         elif context:
             parent = context
         super().__init__(
@@ -89,7 +93,7 @@ class LocalFolder(HierarchicFolder):
         return conn_type.get_class()
 
     @staticmethod
-    def get_type_by_name(name):
+    def get_type_by_name(name) -> Union[FileType, FolderType]:
         if '*' in name:
             return FolderType.FileMask
         else:
@@ -99,9 +103,13 @@ class LocalFolder(HierarchicFolder):
         supposed_type = self.get_type_by_name(name)
         return self.get_child_class_by_type(supposed_type)
 
-    def get_child_class_by_name_and_type(self, name, filetype=arg.DEFAULT):
-        supposed_type = self.get_type_by_name(name)
-        return supposed_type.get_class()
+    def get_child_class_by_name_and_type(self, name: str, filetype: Union[FileType, arg.DefaultArgument] = arg.DEFAULT):
+        if arg.is_defined(filetype):
+            return FileType(filetype).get_class()
+        else:
+            supposed_type = self.get_type_by_name(name)
+            if supposed_type:
+                return supposed_type.get_class()
 
     def get_files(self):
         for item in self.get_items():
@@ -114,6 +122,7 @@ class LocalFolder(HierarchicFolder):
         if kwargs or not file:
             filename = kwargs.pop('filename', name)
             file_class = self.get_child_class_by_name_and_type(name, filetype)
+            assert file_class, "filetype isn't detected"
             file = file_class(filename, folder=self, **kwargs)
             self.get_children()[name] = file
         return file
