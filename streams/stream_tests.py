@@ -366,8 +366,6 @@ def test_split_by_step():
     ]
     split_0 = sm.AnyStream(
         EXAMPLE_INT_SEQUENCE
-    ).set_meta(
-        tmp_files_template='test_split_by_step_{}.tmp',
     ).split_to_disk_by_step(
         step=4,
     )
@@ -397,8 +395,6 @@ def test_disk_sort_by_key():
     expected = [[k, str(k) * k] for k in range(1, 10)]
     received = sm.AnyStream(
         [(k, str(k) * k) for k in EXAMPLE_INT_SEQUENCE],
-    ).set_meta(
-        tmp_files_template='test_disk_sort_by_key_{}.tmp',
     ).to_pairs(
     ).disk_sort_by_key(
         step=5,
@@ -411,7 +407,6 @@ def test_sort():
     received_0 = sm.AnyStream(
         EXAMPLE_INT_SEQUENCE,
     ).set_meta(
-        tmp_files_template='test_disk_sort_by_key_{}.tmp',
         max_items_in_memory=4,
     ).sort(
         reverse=True,
@@ -420,8 +415,6 @@ def test_sort():
     expected_1 = list(reversed(range(1, 10)))
     received_1 = sm.AnyStream(
         EXAMPLE_INT_SEQUENCE,
-    ).set_meta(
-        tmp_files_template='test_disk_sort_by_key_{}.tmp',
     ).sort(
         lambda i: -i,
         reverse=False,
@@ -431,8 +424,6 @@ def test_sort():
     expected_2 = list(reversed(range(1, 10)))
     received_2 = sm.AnyStream(
         EXAMPLE_INT_SEQUENCE,
-    ).set_meta(
-        tmp_files_template='test_disk_sort_by_key_{}.tmp',
     ).sort(
         lambda i: 100,
         lambda i: -i,
@@ -641,6 +632,26 @@ def test_parse_json():
     assert received == expected
 
 
+def smoke_test_show():
+    stream0 = sm.AnyStream(
+        EXAMPLE_CSV_ROWS,
+    ).to_line_stream(
+    ).to_row_stream(
+        delimiter=',',
+    ).map_to_records(
+        lambda p: {p[0]: p[1]},
+    ).select(
+        'a',
+        h='g',
+        g='e',
+        d='b',
+        e=lambda r: r.get('c'),
+        f=('a', lambda v: str(v)*2),
+    )
+    stream0.show()
+    stream0.collect().show()
+
+
 def main():
     test_map()
     test_flat_map()
@@ -668,6 +679,7 @@ def main():
     test_records_join()
     test_to_rows()
     test_parse_json()
+    smoke_test_show()
 
 
 if __name__ == '__main__':
