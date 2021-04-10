@@ -17,7 +17,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .schema import schema_classes as sh
 
 Logger = Union[lg.LoggerInterface, lg.ExtendedLoggerInterface]
-Connector = Optional[bs.TreeInterface]
+Connector = Optional[ct.ConnectorInterface]
 Stream = Optional[sm.StreamInterface]
 Child = Union[Logger, Connector, Stream]
 
@@ -187,6 +187,16 @@ class SnakeeContext(bs.AbstractNamed, bs.ContextInterface):
                     if hasattr(c, 'get_children'):
                         return c.get_children().get(name)
 
+    def _get_name_and_child(self, name_or_child: Union[str, Child]) -> tuple:
+        if isinstance(name_or_child, str):
+            name = name_or_child
+            child = self.get_child(name)
+        else:
+            child = name_or_child
+            assert hasattr(child, 'get_name'), 'DataWrapper expected, got {}'.format(type(child))
+            name = child.get_name()
+        return name, child
+
     def rename_stream(self, old_name, new_name):
         assert old_name in self.stream_instances, 'Stream must be defined (name {} is not registered)'.format(old_name)
         if new_name != old_name:
@@ -208,7 +218,7 @@ class SnakeeContext(bs.AbstractNamed, bs.ContextInterface):
             return job_folder_obj
         else:
             job_folder_path = self.stream_config.get('job_folder', '')
-            job_folder_obj = ct.LocalFolder(job_folder_path, parent=self)
+            job_folder_obj = ct.LocalFolder(job_folder_path, parent=self.get_local_storage())
             self.conn_instances['job'] = job_folder_obj
             return job_folder_obj
 
@@ -219,7 +229,7 @@ class SnakeeContext(bs.AbstractNamed, bs.ContextInterface):
         else:
             tmp_files_template = self.stream_config.get('tmp_files_template')
             if tmp_files_template:
-                tmp_folder = ct.LocalFolder(tmp_files_template, parent=self)
+                tmp_folder = ct.LocalFolder(tmp_files_template, parent=self.get_local_storage())
                 self.conn_instances['tmp'] = tmp_folder
                 return tmp_folder
 
@@ -294,7 +304,7 @@ class SnakeeContext(bs.AbstractNamed, bs.ContextInterface):
             recursively=True,
             skip_errors=False,
     ) -> int:
-        name, child = self.get_name_and_child(name_or_child)
+        name, child = self._get_name_and_child(name_or_child)
         if name in self.get_children() or skip_errors:
             child = self.get_children().pop(name)
             if child:
