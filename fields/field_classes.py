@@ -1,4 +1,4 @@
-from typing import Optional, Any
+from typing import Optional, Union, Any
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
