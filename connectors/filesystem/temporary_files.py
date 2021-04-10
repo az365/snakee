@@ -1,8 +1,16 @@
+from typing import Iterable, Callable
+
 try:  # Assume we're a sub-module in a package.
-    from utils import arguments as arg
+    from utils import (
+        arguments as arg,
+        algo,
+    )
     from connectors import connector_classes as ct
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
+    from ...utils import (
+        arguments as arg,
+        algo,
+    )
     from .. import connector_classes as ct
 
 DEFAULT_FOLDER = 'tmp'
@@ -77,12 +85,32 @@ class TemporaryFilesMask(ct.FileMask):
     def get_encoding(self):
         return self.encoding
 
-    def erase_all(self, log=True):
+    def remove_all(self, log=True) -> int:
+        count = 0
         for file in self.get_files():
             assert isinstance(file, ct.AbstractFile)
             if file.is_existing():
-                file.remove(log=log)
+                count += file.remove(log=log)
+        return count
 
     def get_items(self, how='records', *args, **kwargs):
         for file in self.get_files():
             yield from file.get_items(how=how, *args, **kwargs)
+
+    def get_sorted_items(
+            self, key_function: Callable, reverse: bool = False,
+            return_count=False, remove_after=False, verbose=True,
+    ) -> Iterable:
+        parts = self.get_children().values()
+        assert parts, 'streams must be non_empty'
+        iterables = [f.get_items() for f in parts]
+        counts = [f.get_count() or 0 for f in parts]
+        self.log('Merging {} parts...'.format(len(iterables)), verbose=verbose)
+        merged_items = algo.merge_iter(iterables, key_function=key_function, reverse=reverse)
+        if return_count:
+            yield sum(counts)
+            yield merged_items
+        else:
+            yield from merged_items
+            if remove_after:
+                self.remove_all()
