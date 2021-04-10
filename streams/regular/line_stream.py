@@ -29,8 +29,7 @@ class LineStream(sm.AnyStream):
             count=None, less_than=None,
             source=None, context=None,
             max_items_in_memory=arg.DEFAULT,
-            tmp_files_template=arg.DEFAULT,
-            tmp_files_encoding=arg.DEFAULT,
+            tmp_files=arg.DEFAULT,
     ):
         super().__init__(
             data,
@@ -38,8 +37,7 @@ class LineStream(sm.AnyStream):
             count=count, less_than=less_than,
             source=source, context=context,
             max_items_in_memory=max_items_in_memory,
-            tmp_files_template=tmp_files_template,
-            tmp_files_encoding=tmp_files_encoding,
+            tmp_files=tmp_files,
         )
 
     @staticmethod
@@ -62,9 +60,9 @@ class LineStream(sm.AnyStream):
                     return default_value
                 else:
                     raise json.JSONDecodeError(err.msg, err.doc, err.pos)
-        return self.map(
+        return self.map_to_type(
             json_loads,
-            to=to,
+            stream_type=to,
         )
 
     @classmethod

@@ -33,8 +33,7 @@ class RowStream(sm.AnyStream, sm.ColumnarMixin):
             count=None, less_than=None,
             source=None, context=None,
             max_items_in_memory=sm.MAX_ITEMS_IN_MEMORY,
-            tmp_files_template=sm.TMP_FILES_TEMPLATE,
-            tmp_files_encoding=sm.TMP_FILES_ENCODING,
+            tmp_files=arg.DEFAULT,
     ):
         super().__init__(
             data,
@@ -42,8 +41,7 @@ class RowStream(sm.AnyStream, sm.ColumnarMixin):
             count=count, less_than=less_than,
             source=source, context=context,
             max_items_in_memory=max_items_in_memory,
-            tmp_files_template=tmp_files_template,
-            tmp_files_encoding=tmp_files_encoding,
+            tmp_files=tmp_files,
         )
         self.check = check
 
@@ -88,6 +86,12 @@ class RowStream(sm.AnyStream, sm.ColumnarMixin):
             select_function,
         )
 
+    def sorted_group_by(self, *keys, values: Optional[Iterable] = None, as_pairs: bool = False) -> Stream:
+        raise NotImplemented
+
+    def group_by(self, *keys, values: Optional[Iterable] = None, as_pairs: bool = False) -> Stream:
+        return self.sort(*keys).sorted_group_by(*keys, values=values, as_pairs=as_pairs)
+
     def get_dataframe(self, columns=None):
         if columns:
             return nm.pd.DataFrame(self.get_data(), columns=columns)
@@ -122,7 +126,7 @@ class RowStream(sm.AnyStream, sm.ColumnarMixin):
         return result
 
     @classmethod
-    # @deprecated_with_alternative('connectors.ColumnFile()')
+    @deprecated_with_alternative('connectors.ColumnFile()')
     def from_column_file(
             cls,
             filename,
@@ -154,7 +158,7 @@ class RowStream(sm.AnyStream, sm.ColumnarMixin):
             verbose=True,
             return_stream=True,
     ):
-        encoding = arg.undefault(encoding, self.tmp_files_encoding)
+        encoding = arg.undefault(encoding, self.get_encoding())
         meta = self.get_meta()
         if not gzip:
             meta.pop('count')

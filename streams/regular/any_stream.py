@@ -36,8 +36,7 @@ class AnyStream(sm.LocalStream, sm.ConvertMixin, sm.RegularStreamInterface):
             source=None, context=None,
             check=False,
             max_items_in_memory=arg.DEFAULT,
-            tmp_files_template=arg.DEFAULT,
-            tmp_files_encoding=arg.DEFAULT,
+            tmp_files=arg.DEFAULT,
     ):
         super().__init__(
             data,
@@ -45,8 +44,7 @@ class AnyStream(sm.LocalStream, sm.ConvertMixin, sm.RegularStreamInterface):
             count=count, less_than=less_than,
             source=source, context=context,
             max_items_in_memory=max_items_in_memory,
-            tmp_files_template=tmp_files_template,
-            tmp_files_encoding=tmp_files_encoding,
+            tmp_files=tmp_files,
         )
 
     @staticmethod
@@ -84,12 +82,12 @@ class AnyStream(sm.LocalStream, sm.ConvertMixin, sm.RegularStreamInterface):
             target_item_type=target_item_type, input_item_type=input_item_type,
             logger=self.get_logger(), selection_logger=self.get_selection_logger(),
         )
-        return self.map(
+        return self.map_to_type(
             function=select_function,
-            to=target_stream_type,
+            stream_type=target_stream_type,
         )
 
-    def map_to(self, function, stream_type=arg.DEFAULT) -> Native:
+    def map_to_type(self, function, stream_type=arg.DEFAULT) -> Native:
         stream = super().map_to(function=function, stream_type=stream_type)
         return self._assume_native(stream)
 

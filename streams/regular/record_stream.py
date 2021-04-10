@@ -52,8 +52,7 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
             count=None, less_than=None,
             source=None, context=None,
             max_items_in_memory=sm.MAX_ITEMS_IN_MEMORY,
-            tmp_files_template=sm.TMP_FILES_TEMPLATE,
-            tmp_files_encoding=sm.TMP_FILES_ENCODING,
+            tmp_files=arg.DEFAULT,
     ):
         super().__init__(
             data=data,
@@ -61,8 +60,7 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
             count=count, less_than=less_than,
             source=source, context=context,
             max_items_in_memory=max_items_in_memory,
-            tmp_files_template=tmp_files_template,
-            tmp_files_encoding=tmp_files_encoding,
+            tmp_files=tmp_files,
         )
         self.check = check
 

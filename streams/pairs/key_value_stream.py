@@ -26,8 +26,7 @@ class KeyValueStream(RowStream, PairStreamInterface):
             value_stream_type: Union[StreamType, str] = None,
             source=None, context=None,
             max_items_in_memory=arg.DEFAULT,
-            tmp_files_template=arg.DEFAULT,
-            tmp_files_encoding=arg.DEFAULT,
+            tmp_files=arg.DEFAULT,
     ):
         super().__init__(
             data,
@@ -35,8 +34,7 @@ class KeyValueStream(RowStream, PairStreamInterface):
             count=count, less_than=less_than,
             source=source, context=context,
             max_items_in_memory=max_items_in_memory,
-            tmp_files_template=tmp_files_template,
-            tmp_files_encoding=tmp_files_encoding,
+            tmp_files=tmp_files,
         )
         if value_stream_type is None:
             self.value_stream_type = StreamType.AnyStream
@@ -70,7 +68,11 @@ class KeyValueStream(RowStream, PairStreamInterface):
         return list(values) if self.is_in_memory() else values
 
     def map(self, function: Callable, to: Union[StreamType, arg.DefaultArgument] = arg.DEFAULT) -> Native:
-        stream = super().map(function, to=to)
+        if arg.is_defined(to):
+            self.log('to-argument for map() is deprecated, use map_to_type() method instead', level=30)
+            stream = super().map_to_type(function, stream_type=to)
+        else:
+            stream = super().map(function)
         return self._assume_native(stream)
 
     def map_keys(self, func: Callable) -> Native:

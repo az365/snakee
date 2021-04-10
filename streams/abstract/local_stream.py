@@ -113,8 +113,7 @@ class LocalStream(IterableStream, LocalStreamInterface):
             count: Optional[int] = None, less_than: Optional[int] = None,
             source=None, context=None,
             max_items_in_memory=arg.DEFAULT,
-            tmp_files_template=arg.DEFAULT,
-            tmp_files_encoding=arg.DEFAULT,
+            tmp_files=arg.DEFAULT,
     ):
         count = arg.get_optional_len(data, count)
         less_than = less_than or count
@@ -124,8 +123,7 @@ class LocalStream(IterableStream, LocalStreamInterface):
             count=count, less_than=less_than,
             max_items_in_memory=max_items_in_memory,
         )
-        self.tmp_files_template = arg.undefault(tmp_files_template, sm.TMP_FILES_TEMPLATE)
-        self.tmp_files_encoding = arg.undefault(tmp_files_encoding, sm.TMP_FILES_ENCODING)
+        self._tmp_files = arg.delayed_undefault(tmp_files, sm.get_tmp_mask, self.get_name())
 
     def get_list(self) -> list:
         return list(self.get_items())
@@ -318,17 +316,18 @@ class LocalStream(IterableStream, LocalStreamInterface):
     def split_to_disk_by_step(
             self,
             step: Step = arg.DEFAULT,
-            file_template: Union[str, arg.DefaultArgument] = arg.DEFAULT,
-            encoding: Union[str, arg.DefaultArgument] = arg.DEFAULT,
             sort_each_by: Key = None,
             reverse: bool = False,
             verbose: bool = True,
     ) -> list:
-        file_template = arg.undefault(file_template, self.tmp_files_template)
-        encoding = arg.undefault(encoding, self.tmp_files_encoding)
         result_parts = list()
         for part_no, sm_part in enumerate(self.to_iter().split_to_iter_by_step(step)):
-            part_fn = file_template.format(part_no)
+            file_part = self.get_tmp_files().file(
+                part_no,
+                filetype='JsonFile',
+                encoding=self.get_encoding(),
+            )
+            part_fn = file_part.get_path()
             self.log('Sorting part {} and saving into {} ... '.format(part_no, part_fn), verbose=verbose)
             if sort_each_by:
                 sm_part = sm_part.memory_sort(
@@ -337,9 +336,8 @@ class LocalStream(IterableStream, LocalStreamInterface):
                     verbose=verbose,
                 )
             self.log('Writing {} ...'.format(part_fn), end='\r', verbose=verbose)
-            sm_part = sm_part.to_json().to_text_file(
-                part_fn,
-                encoding=encoding,
+            sm_part = sm_part.to_json().write_to(
+                file_part,
             ).map_to_type(
                 json.loads,
                 stream_type=sm.StreamType.AnyStream,
@@ -392,3 +390,15 @@ class LocalStream(IterableStream, LocalStreamInterface):
                 yield i
         else:
             yield from super().get_demo_example(count=count)
+
+    def get_tmp_files(self):
+        return self._tmp_files
+
+    def remove_tmp_files(self) -> int:
+        return self.get_tmp_files().remove_all()
+
+    def get_encoding(self) -> str:
+        return self.get_tmp_files().get_encoding()
+
+    def get_mask(self) -> str:
+        return self.get_tmp_files().get_mask()
