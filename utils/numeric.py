@@ -25,6 +25,7 @@ else:
 
 _min = min
 _max = max
+_sum = sum
 
 
 def is_none(value) -> bool:
@@ -93,6 +94,14 @@ def max(a: Iterable, default=None):
     a = filter_numeric(a)
     if a:
         return _max(a)
+    else:
+        return default
+
+
+def sum(a: Iterable, default=None) -> Optional[float]:
+    a = filter_numeric(a)
+    if a:
+        return _sum(a)
     else:
         return default
 

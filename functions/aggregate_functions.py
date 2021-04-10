@@ -18,6 +18,12 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from . import array_functions as af
 
 
+def sum() -> Callable:
+    def func(array: Iterable) -> Optional[float]:
+        return nm.sum(array)
+    return func
+
+
 def avg() -> Callable:
     def func(array: Iterable) -> Optional[float]:
         return nm.mean(array)
