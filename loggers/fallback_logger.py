@@ -25,8 +25,10 @@ class FallbackLogger(LoggerInterface):
     def __init__(
             self,
             name: Union[str, arg.DefaultArgument] = arg.DEFAULT,
+            ignore_warnings: bool = False,
     ):
         self._name = arg.undefault(name, DEFAULT_LOGGER_NAME)
+        self._ignore_warnings = ignore_warnings
 
     def log(self, msg, level: Union[LoggingLevel, int] = DEFAULT_LOGGING_LEVEL, *args, **kwargs):
         if not level:
@@ -49,7 +51,8 @@ class FallbackLogger(LoggerInterface):
         print('INFO {}'.format(msg))
 
     def warning(self, msg):
-        warnings.warn(msg)
+        if not self._ignore_warnings:
+            warnings.warn(msg)
 
     def error(self, msg):
         warnings.warn('ERROR {}'.format(msg))
