@@ -3,13 +3,15 @@ try:  # Assume we're a sub-module in a package.
     from connectors import connector_classes as ct
     from utils import arguments as arg
     from loggers import logger_classes as log
-    from schema import schema_classes as sh
+    from fields.schema_interface import SchemaInterface
+    from schema.schema_description import SchemaDescription
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...streams import stream_classes as sm
     from ...connectors import connector_classes as ct
     from ...utils import arguments as arg
     from ...loggers import logger_classes as log
-    from ...schema import schema_classes as sh
+    from ...fields.schema_interface import SchemaInterface
+    from ...schema.schema_description import SchemaDescription
 
 
 class Table(ct.LeafConnector):
@@ -26,7 +28,7 @@ class Table(ct.LeafConnector):
             parent=database,
         )
         self.schema = schema
-        if not isinstance(schema, sh.SchemaDescription):
+        if not isinstance(schema, SchemaInterface):
             message = 'Schema as {} is deprecated. Use schema.SchemaDescription instead.'.format(type(schema))
             self.log(msg=message, level=log.LoggingLevel.Warning)
         self.meta = kwargs
@@ -82,13 +84,13 @@ class Table(ct.LeafConnector):
     def set_schema(self, schema):
         if schema is None:
             self.schema = None
-        elif isinstance(schema, sh.SchemaDescription):
+        elif isinstance(schema, SchemaInterface):
             self.schema = schema
         elif isinstance(schema, (list, tuple)):
             if max([isinstance(f, (list, tuple)) for f in schema]):
-                self.schema = sh.SchemaDescription(schema)
+                self.schema = SchemaDescription(schema)
             else:
-                self.schema = sh.detect_schema_by_title_row(schema)
+                self.schema = SchemaDescription.detect_schema_by_title_row(schema)
         elif schema == arg.DEFAULT:
             self.schema = self.get_schema_from_database()
         else:
@@ -102,7 +104,7 @@ class Table(ct.LeafConnector):
         return self.get_database().describe_table(self.get_path())
 
     def get_schema_from_database(self, set_schema=False):
-        schema = sh.SchemaDescription(self.describe())
+        schema = SchemaDescription(self.describe())
         if set_schema:
             self.schema = schema
         return schema
