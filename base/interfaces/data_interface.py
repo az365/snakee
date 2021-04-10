@@ -16,6 +16,10 @@ OptionalFields = Optional[Union[Iterable, str]]
 
 class SimpleDataInterface(BaseInterface, ABC):
     @abstractmethod
+    def get_name(self) -> Optional[str]:
+        pass
+
+    @abstractmethod
     def get_data(self) -> Data:
         pass
 

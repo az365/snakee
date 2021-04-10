@@ -25,6 +25,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..selection import concrete_expression as ce
     from ..loggers.selection_logger_interface import SelectionLoggerInterface
 
+Type = Union[FieldType, type, arg.DefaultArgument]
+
 _logger = None
 
 
@@ -39,7 +41,7 @@ def set_logger(logger: SelectionLoggerInterface):
 
 
 def field(
-        name: str, field_type: FieldType = FieldType.Any, default: Optional[Any] = None,
+        name: str, field_type: Type = arg.DEFAULT, default: Optional[Any] = None,
         caption: Optional[str] = None,
 ) -> AdvancedField:
     return AdvancedField(name, field_type=field_type, caption=caption, default=default, logger=_logger)

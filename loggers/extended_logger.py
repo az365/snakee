@@ -130,7 +130,7 @@ class ExtendedLogger(BaseLoggerWrapper, ExtendedLoggerInterface):
             logger=self,
             context=arg.undefault(context, self.get_context, delayed=True),
         )
-        self.add_child(progress)
+        self.add_child(progress, check=False)
         return progress
 
     def progress(self, items: Iterable, name='Progress', count=None, step=arg.DEFAULT, context=arg.DEFAULT) -> Iterable:

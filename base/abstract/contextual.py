@@ -32,7 +32,7 @@ class Contextual(Sourced, ContextualInterface, ABC):
             else:
                 source = context
         super().__init__(name=name, source=source, check=check)
-        if context:
+        if arg.is_defined(context):
             self.put_into_context(check=check)
 
     def get_source(self) -> Union[Source, ContextualInterface]:
