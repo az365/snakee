@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import Optional
 import inspect
 from datetime import datetime
 from random import randint
@@ -27,6 +28,8 @@ try:  # Assume we're a sub-module in a package.
     from streams.regular.record_stream import RecordStream
     from streams.wrappers.pandas_stream import PandasStream
     from streams.stream_builder import StreamBuilder
+    from connectors.filesystem.temporary_files import TemporaryLocation
+    from base.interfaces.context_interface import ContextInterface
     from schema import schema_classes as sh
     from loggers.logger_classes import deprecated_with_alternative
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -49,6 +52,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .regular.record_stream import RecordStream
     from .wrappers.pandas_stream import PandasStream
     from .stream_builder import StreamBuilder
+    from ..connectors.filesystem.temporary_files import TemporaryLocation
+    from ..base.interfaces.context_interface import ContextInterface
     from ..schema import schema_classes as sh
     from ..loggers.logger_classes import deprecated_with_alternative
 
@@ -156,12 +161,12 @@ StreamBuilder._dict_classes = DICT_ITEM_TO_STREAM_TYPE
 StreamBuilder._stream_type = StreamType
 
 
-def get_context():
+def get_context() -> Optional[ContextInterface]:
     global _context
     return _context
 
 
-def set_context(cx):
+def set_context(cx: ContextInterface):
     global _context
     _context = cx
 
@@ -202,6 +207,15 @@ def generate_name():
     random = randint(0, 1000)
     cur_name = '{}_{:03}'.format(cur_time, random)
     return cur_name
+
+
+def get_tmp_mask(name: str):
+    context = get_context()
+    if context:
+        location = context.get_tmp_folder()
+    else:
+        location = TemporaryLocation()
+    return location.stream_mask(name)
 
 
 def concat(*iter_streams, context=arg.DEFAULT):
