@@ -22,7 +22,7 @@ class LocalStorage(AbstractStorage):
             verbose=True,
             path_delimiter=PATH_DELIMITER,
     ):
-        if context:
+        if arg.is_defined(context):
             registered_local_storage = context.get_local_storage(create_if_not_yet=False)
             if registered_local_storage:
                 assert name != registered_local_storage.get_name(), 'Default local storage already registered'

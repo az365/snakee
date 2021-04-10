@@ -138,10 +138,10 @@ class TreeItem(ContextualDataWrapper, TreeInterface):
 
     def get_context(self) -> Parent:
         parent = self.get_parent()
-        if parent:
+        if arg.is_defined(parent):
             if parent.is_context():
                 return parent
-            else:
+            elif hasattr(parent, 'get_context'):
                 return parent.get_context()
 
     def get_breadcrumbs(self):

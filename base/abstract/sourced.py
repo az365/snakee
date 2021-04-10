@@ -25,7 +25,7 @@ class Sourced(AbstractNamed, SourcedInterface, ABC):
         name = arg.undefault(name, arg.get_generated_name(self._get_default_name_prefix()))
         super().__init__(name)
         self._source = source
-        if source:
+        if arg.is_defined(source):
             self.register(check=check)
 
     @classmethod
