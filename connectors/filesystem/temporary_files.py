@@ -5,7 +5,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils import arguments as arg
     from .. import connector_classes as ct
 
-
 DEFAULT_FOLDER = 'tmp'
 DEFAULT_MASK = 'stream_{}_part{}.tmp'
 PART_PLACEHOLDER = '{:03}'
@@ -29,15 +28,9 @@ class TemporaryLocation(ct.LocalFolder):
             parent=parent,
             verbose=verbose,
         )
-        assert TemporaryFilesMask.check_mask(mask)
+        mask = mask.replace('*', '{}')
+        assert arg.is_formatter(mask, 2)
         self.mask = mask
-
-    @staticmethod
-    def check_mask(mask):
-        try:  # assume
-            return bool(mask.format('abc', 123))
-        except TypeError or ValueError:
-            return False
 
     def get_str_mask_template(self):
         return self.mask
@@ -46,7 +39,7 @@ class TemporaryLocation(ct.LocalFolder):
         if isinstance(stream_or_name, str):
             name = stream_or_name
             context = self.get_context()
-            stream = context.stream_instances.get(name) if context else None
+            stream = context.get_stream(name) if context else None
         else:  # is_stream
             name = stream_or_name.get_name()
             stream = stream_or_name
@@ -70,8 +63,8 @@ class TemporaryFilesMask(ct.FileMask):
         parent = arg.undefault(parent, TemporaryLocation(context=context))
         assert isinstance(parent, TemporaryLocation)
         location_mask = parent.get_str_mask_template()
-        assert TemporaryLocation.check_mask(location_mask)
-        stream_mask = location_mask.format(name)
+        assert arg.is_formatter(location_mask, 2)
+        stream_mask = location_mask.format(name, PART_PLACEHOLDER)
         super().__init__(
             mask=stream_mask,
             parent=parent,

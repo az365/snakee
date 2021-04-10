@@ -85,14 +85,18 @@ class AbstractFile(LeafConnector, StreamBuilderMixin, ABC):
         return self.get_path_delimiter() in self.get_name()
 
     def has_path_from_root(self) -> bool:
-        return self.get_name().startswith(self.get_path_delimiter()) or ':' in self.get_name()
+        name = self.get_name()
+        if isinstance(name, str):
+            return name.startswith(self.get_path_delimiter()) or ':' in name
 
     def get_path(self) -> str:
         if self.has_path_from_root() or not self.get_folder():
             return self.get_name()
         else:
             folder_path = self.get_folder().get_path()
-            if '{}' in folder_path:
+            if '*' in folder_path:
+                folder_path = folder_path.replace('*', '{}')
+            if arg.is_formatter(folder_path):
                 return folder_path.format(self.get_name())
             elif folder_path.endswith(self.get_path_delimiter()):
                 return folder_path + self.get_name()
@@ -141,13 +145,14 @@ class AbstractFile(LeafConnector, StreamBuilderMixin, ABC):
             fileholder = open(self.get_path(), 'r')
             self.set_fileholder(fileholder)
 
-    def remove(self, log=True):
+    def remove(self, log=True) -> int:
         file_path = self.get_path()
         if log:
-            self.get_logger().log('Trying remove {}...'.format(file_path))
+            self.get_logger().log('Trying remove {}...'.format(file_path), level=20)
         os.remove(file_path)
         if log:
-            self.get_logger().log('Successfully removed {}.'.format(file_path))
+            self.get_logger().log('Successfully removed {}.'.format(file_path), level=20)
+        return 1
 
     def is_existing(self) -> bool:
         return os.path.exists(self.get_path())

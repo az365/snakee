@@ -131,3 +131,21 @@ def is_defined(obj) -> bool:
     else:
         result = bool(obj)
     return result
+
+
+def is_mask(string: str, count=None, placeholder: str = '*') -> bool:
+    if isinstance(string, str):
+        if count:
+            return len(string.split(placeholder)) == count + 1
+        else:
+            return len(string.split(placeholder)) > 1
+
+
+def is_formatter(string: str, count=None) -> bool:
+    if isinstance(string, str):
+        if count:
+            # return min([len(string.split(s)) == count + 1 for s in '{}'])
+            return min([is_mask(string, count, placeholder=s) for s in '{}'])
+        else:
+            # return min([len(string.split(s)) > 1 for s in '{}'])
+            return min([is_mask(string, count, placeholder=s) for s in '{}'])
