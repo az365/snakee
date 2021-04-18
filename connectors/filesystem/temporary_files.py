@@ -38,10 +38,13 @@ class TemporaryLocation(ct.LocalFolder):
         )
         mask = mask.replace('*', '{}')
         assert arg.is_formatter(mask, 2)
-        self.mask = mask
+        self._mask = mask
 
     def get_str_mask_template(self):
-        return self.mask
+        return self._mask
+
+    def mask(self, mask: str):
+        return self.stream_mask(mask)
 
     def stream_mask(self, stream_or_name, *args, **kwargs):
         if isinstance(stream_or_name, str):
@@ -102,7 +105,7 @@ class TemporaryFilesMask(ct.FileMask):
             return_count=False, remove_after=False, verbose=True,
     ) -> Iterable:
         parts = self.get_children().values()
-        assert parts, 'streams must be non_empty'
+        assert parts, 'streams must be non-empty'
         iterables = [f.get_items() for f in parts]
         counts = [f.get_count() or 0 for f in parts]
         self.log('Merging {} parts...'.format(len(iterables)), verbose=verbose)
