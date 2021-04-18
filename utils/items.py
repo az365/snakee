@@ -3,16 +3,18 @@ from typing import Union, Callable
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
-    from schema.schema_row import SchemaRow
+    from items.struct_row_interface import StructRowInterface
+    from schema import schema_classes as sc
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from . import arguments as arg
-    from ..schema.schema_row import SchemaRow
+    from ..items.struct_row_interface import StructRowInterface
+    from ..schema import schema_classes as sc
 
 Array = Union[list, tuple]
 Row = Array
 Record = dict
 Line = str
-SelectableItem = Union[Row, Record, SchemaRow]
+SelectableItem = Union[Row, Record, StructRowInterface]
 ConcreteItem = Union[Line, SelectableItem]
 FieldName = str
 FieldNo = int
@@ -30,12 +32,12 @@ class ItemType(Enum):
     Auto = arg.DEFAULT
 
     @staticmethod
-    def get_dict_subclasses():
+    def get_dict_subclasses() -> dict:
         return {
             ItemType.Line: [str],
             ItemType.Row: [list, tuple],
             ItemType.Record: [dict],
-            ItemType.SchemaRow: [SchemaRow],
+            ItemType.SchemaRow: [sc.SchemaRow],
         }
 
     def get_value(self) -> str:
@@ -44,7 +46,7 @@ class ItemType(Enum):
     def get_name(self) -> str:
         return self.get_value()
 
-    def get_subclasses(self):
+    def get_subclasses(self) -> tuple:
         return tuple(
             self.get_dict_subclasses().get(self, [None])
         )
@@ -57,7 +59,7 @@ class ItemType(Enum):
         if builder:
             return builder()
 
-    def isinstance(self, item):
+    def isinstance(self, item) -> bool:
         subclasses = self.get_subclasses()
         return isinstance(item, tuple(subclasses))
 
@@ -92,7 +94,12 @@ class ItemType(Enum):
 
 
 def set_to_item_inplace(field, value, item: SelectableItem, item_type=ItemType.Auto):
-    item_type = ItemType(arg.undefault(item_type, ItemType.detect(item)))
+    item_type = arg.delayed_undefault(item_type, ItemType.detect, item)
+    if not isinstance(item_type, ItemType):
+        if hasattr(item_type, 'value'):
+            item_type = ItemType(item_type.value)
+        else:
+            item_type = ItemType(item_type)
     if item_type == ItemType.Record:
         item[field] = value
     elif item_type == ItemType.Row:
@@ -118,7 +125,7 @@ def get_fields_names_from_item(item: SelectableItem, item_type=ItemType.Auto) ->
         raise TypeError('type {} not supported'.format(item_type))
 
 
-def get_field_value_from_schema_row(key: FieldID, row: SchemaRow, default=None, skip_missing=True):
+def get_field_value_from_schema_row(key: FieldID, row: StructRowInterface, default=None, skip_missing=True):
     return row.get_value(key, default=default, skip_missing=skip_missing)
 
 
