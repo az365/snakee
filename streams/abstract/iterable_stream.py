@@ -120,6 +120,11 @@ class IterableStreamInterface(StreamInterface, ABC):
     def split(self, by: Union[int, list, tuple, Callable], count=None) -> Iterable:
         pass
 
+    @abstractmethod
+    def split_to_iter_by_step(self, step: int) -> Iterable:
+        pass
+
+    @abstractmethod
     def flat_map(self, function) -> Stream:
         pass
 
@@ -188,7 +193,7 @@ class IterableStream(AbstractStream, IterableStreamInterface):
 
     def get_data(self) -> Iterable:
         data = super().get_data()
-        assert isinstance(data, Iterable)
+        assert isinstance(data, Iterable), 'Expected Iterable, got {} as {}'.format(data, data.__class__.__name__)
         return data
 
     def get_items(self) -> Iterable:  # list or generator (need for inherited subclasses)
@@ -519,20 +524,21 @@ class IterableStream(AbstractStream, IterableStreamInterface):
         else:
             raise TypeError('split(by): by-argument must be int, list, tuple or function, {} received'.format(type(by)))
 
-    def split_to_iter_by_step(self, step) -> Iterable:
-        iterable = self.get_iter()
+    @staticmethod
+    def _get_split_items(items: Iterable, step: int):
+        output_items = list()
+        for n, i in enumerate(items):
+            output_items.append(i)
+            if n + 1 >= step:
+                break
+        return output_items
 
-        def take_items():
-            output_items = list()
-            for n, i in enumerate(iterable):
-                output_items.append(i)
-                if n + 1 >= step:
-                    break
-            return output_items
-        items = take_items()
+    def split_to_iter_by_step(self, step: int) -> Iterable:
+        iterable = self.get_iter()
+        items = self._get_split_items(iterable, step=step)
         while items:
             yield self.stream(items, count=len(items))
-            items = take_items()
+            items = self._get_split_items(iterable, step=step)
 
     def get_filtered_items(self, function) -> Iterable:
         return filter(function, self.get_items())
