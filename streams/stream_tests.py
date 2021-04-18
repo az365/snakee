@@ -30,9 +30,9 @@ def test_map():
     expected_1 = [str(-i) for i in EXAMPLE_INT_SEQUENCE]
     received_1 = sm.AnyStream(
         EXAMPLE_INT_SEQUENCE,
-    ).map(
+    ).map_to_type(
         lambda i: str(-i),
-        to=sm.LineStream,
+        stream_type=sm.LineStream,
     ).submit(
         received_types,
         lambda f: f.get_class_name(),
@@ -41,9 +41,9 @@ def test_map():
     expected_2 = [str(-i) for i in EXAMPLE_INT_SEQUENCE]
     received_2 = sm.AnyStream(
         EXAMPLE_INT_SEQUENCE,
-    ).map(
+    ).map_to_type(
         lambda i: str(-i),
-        to=sm.StreamType.LineStream,
+        stream_type=sm.StreamType.LineStream,
     ).submit(
         received_types,
         lambda f: f.get_class_name(),
@@ -52,9 +52,9 @@ def test_map():
     expected_3 = [str(-i) for i in EXAMPLE_INT_SEQUENCE]
     received_3 = sm.AnyStream(
         EXAMPLE_INT_SEQUENCE,
-    ).map(
+    ).map_to_type(
         lambda i: str(-i),
-        to='LineStream',
+        stream_type='LineStream',
     ).submit(
         received_types,
         lambda f: f.get_class_name(),
@@ -125,7 +125,7 @@ def test_map_filter_take():
     expected = [-1, -3, -5]
     received = sm.AnyStream(
         EXAMPLE_INT_SEQUENCE,
-    ).native_map(
+    ).map(
         lambda i: -i,
     ).filter(
         lambda i: i % 2,
@@ -469,9 +469,9 @@ def test_group_by():
     ).group_by(
         'x',
         as_pairs=True,
-    ).map(
+    ).map_to_type(
         lambda a: [i.get('y') for i in a[1]],
-        to=sm.StreamType.RowStream,
+        stream_type=sm.StreamType.RowStream,
     ).get_list()
     assert received_0 == expected, 'test case 0'
 
@@ -480,9 +480,9 @@ def test_group_by():
     ).group_by(
         'x',
         as_pairs=False,
-    ).map(
+    ).map_to_type(
         lambda a: [i.get('y') for i in a],
-        to=sm.StreamType.RowStream,
+        stream_type=sm.StreamType.RowStream,
     ).get_list()
     assert received_1 == expected, 'test case 1'
 
