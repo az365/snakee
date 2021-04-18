@@ -147,6 +147,7 @@ def value_from_item(item, description, item_type=AUTO, logger=None, skip_errors=
 
 def get_composite_key(item, keys_descriptions, item_type=AUTO, logger=None, skip_errors=True):
     keys_descriptions = arg.update(keys_descriptions)
+    keys_descriptions = [d.get_field_names() if hasattr(d, 'get_field_names') else d for d in keys_descriptions]
     result = list()
     for d in keys_descriptions:
         if callable(d):

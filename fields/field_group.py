@@ -46,11 +46,14 @@ class FieldGroup(SimpleDataWrapper, SchemaInterface):
             else:
                 self.append_field(field, default_type=default_type, inplace=True)
 
+    def set_fields(self, fields: Iterable, inplace: bool) -> Optional[SchemaInterface]:
+        return self.set_data(data=fields, inplace=inplace, reset_dynamic_meta=False)
+
     def get_fields(self) -> list:
         return list(self.get_data())
 
-    def set_fields(self, fields: Iterable, inplace: bool) -> Optional[SchemaInterface]:
-        return self.set_data(data=fields, inplace=inplace, reset_dynamic_meta=False)
+    def get_field_names(self) -> list:
+        return [f.get_name() for f in self.get_fields()]
 
     def fields(self, fields: Iterable) -> SchemaInterface:
         self._data = list(fields)

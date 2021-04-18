@@ -183,6 +183,10 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
 
     def group_by(self, *keys, values=None, step=arg.DEFAULT, as_pairs=False, take_hash=True, verbose=True) -> Stream:
         keys = arg.update(keys)
+        if hasattr(keys[0], 'get_field_names'):  # if isinstance(keys[0], FieldGroup)
+            keys = keys[0].get_field_names()
+        else:
+            keys = [f.get_name() if hasattr(f, 'get_name') else f for f in keys]
         step = arg.undefault(step, self.max_items_in_memory)
         if as_pairs:
             key_for_sort = keys
@@ -214,8 +218,8 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
         sm_sample = self.filter(*filters) if filters else self
         return sm_sample.take(count).get_dataframe(columns)
 
-    def get_rows(self, columns=arg.DEFAULT, add_title_row=False) -> Iterable:
-        columns = arg.undefault(columns, self.get_columns())
+    def get_rows(self, columns: Union[Iterable, arg.DefaultArgument] = arg.DEFAULT, add_title_row=False) -> Iterable:
+        columns = list(arg.delayed_undefault(columns, self.get_columns))
         if add_title_row:
             yield columns
         for r in self.get_items():
@@ -234,7 +238,7 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
             if less_than:
                 less_than += 1
         return self.stream(
-            self.get_rows(columns=tuple(columns)),
+            self.get_rows(columns=tuple(columns), add_title_row=add_title_row),
             stream_type=sm.StreamType.RowStream,
             count=count,
             less_than=less_than,
@@ -281,7 +285,7 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
         return self.to_file(*args, **kwargs)
 
     def to_column_file(
-            self, filename, columns,
+            self, filename: str, columns: Union[Iterable, arg.DefaultArgument] = arg.DEFAULT,
             add_title_row=True, gzip=False,
             delimiter='\t', encoding=arg.DEFAULT,
             check=True, verbose=True,
