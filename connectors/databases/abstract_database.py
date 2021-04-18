@@ -21,7 +21,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...streams.interfaces.regular_stream_interface import RegularStreamInterface
 
 Stream = RegularStreamInterface
-Data = Union[Stream, sm.ConvertMixin, ct.AbstractFile, str, Iterable]
+Data = Union[Stream, ct.AbstractFile, str, Iterable]
 
 AUTO = arg.DEFAULT
 TEST_QUERY = 'SELECT now()'
