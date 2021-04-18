@@ -8,18 +8,18 @@ import pandas as pd
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from functions import item_functions as fs
-    from streams.interfaces.abstract_stream_interface import StreamInterface
+    from streams.interfaces.regular_stream_interface import RegularStreamInterface
     from streams.abstract.iterable_stream import IterableStream
     from streams import stream_classes as sm
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...functions import item_functions as fs
-    from ..interfaces.abstract_stream_interface import StreamInterface
+    from ..interfaces.regular_stream_interface import RegularStreamInterface
     from ..abstract.iterable_stream import IterableStream
     from .. import stream_classes as sm
 
 OptionalArguments = Optional[Union[str, Iterable]]
-Stream = Union[StreamInterface, Any]
+Stream = Union[RegularStreamInterface, Any]
 AnyStream = Stream
 LineStream = Stream
 RecordStream = Stream
