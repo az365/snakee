@@ -1,3 +1,5 @@
+from typing import Iterable
+
 try:  # Assume we're a sub-module in a package.
     from utils import (
         arguments as arg,
@@ -30,6 +32,36 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .selection_description import SelectionDescription
 
 
+def _prepare_field_list(field_list: Iterable) -> tuple:
+    prepared_field_list = list()
+    for f in field_list:
+        if hasattr(f, 'get_name'):
+            name = f.get_name()
+        else:
+            name = f
+        prepared_field_list.append(name)
+    return tuple(prepared_field_list)
+
+
+def _prepare_expressions(expressions: dict) -> dict:
+    prepared_expressions = dict()
+    for k, v in expressions.items():
+        if hasattr(k, 'get_name'):
+            name = k.get_name()
+        else:
+            name = k
+        if hasattr(v, 'get_name'):
+            value = v.get_name()
+        elif isinstance(v, str):
+            value = v
+        elif isinstance(v, Iterable):
+            value = _prepare_field_list(v)
+        else:
+            value = v
+        prepared_expressions[name] = value
+    return prepared_expressions
+
+
 def select(
         *fields,
         target_item_type=it.ItemType.Auto, input_item_type=it.ItemType.Auto,
@@ -49,6 +81,8 @@ def select(
             logger=selection_logger,
         )
     else:
+        fields = _prepare_field_list(fields)
+        expressions = _prepare_expressions(expressions)
         return sf.select(
             *fields,
             target_item_type=target_item_type,

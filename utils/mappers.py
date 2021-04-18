@@ -165,12 +165,16 @@ def items_to_dict(items, key_function, value_function=None, of_lists=False):
 def fold_lists(list_records, key_fields, list_fields, skip_missing=False):
     rec_out = dict()
     for f in key_fields:
+        if hasattr(f, 'get_name'):
+            f = f.get_name()
         if list_records:
             first_item = list_records[0]
             rec_out[f] = first_item.get(f)
         elif not skip_missing:
             raise ValueError('fold_lists(): list_records is empty')
     for f in list_fields:
+        if hasattr(f, 'get_name'):
+            f = f.get_name()
         rec_out[f] = [r.get(f) for r in list_records]
     return rec_out
 

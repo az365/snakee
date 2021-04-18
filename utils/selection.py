@@ -110,6 +110,8 @@ def value_from_record(record, description, logger=None, skip_errors=True):
         function, fields = process_description(description)
         values = [record.get(f) for f in fields]
         return safe_apply_function(function, fields, values, item=record, logger=logger, skip_errors=skip_errors)
+    elif hasattr(description, 'get_name'):
+        return record.get(description.get_name())
     else:
         return record.get(description)
 
@@ -126,6 +128,8 @@ def value_from_any(item, description, logger=None, skip_errors=True):
 
 
 def value_from_item(item, description, item_type=AUTO, logger=None, skip_errors=True, default=None):
+    if hasattr(description, 'get_name'):
+        description = description.get_name()
     if callable(description):
         return description(item)
     elif isinstance(description, (int, str)):
@@ -224,6 +228,8 @@ def record_from_record(rec_in, *descriptions, logger=None):
             else:
                 raise ValueError('incorrect field description: {}'.format(desc))
         else:  # desc is field name
+            if hasattr(desc, 'get_name'):  # isinstance(desc, FieldInterface)
+                desc = desc.get_name()
             if desc not in record:
                 record[desc] = None
             fields_out.append(desc)

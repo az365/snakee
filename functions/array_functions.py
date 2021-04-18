@@ -77,6 +77,8 @@ def uniq() -> Callable:
 
 
 def unfold_lists(fields, number_field='n', default_value=0) -> Callable:
+    fields = [f.get_name() if hasattr(f, 'get_name') else f for f in fields]
+
     def func(record: dict) -> Iterable:
         yield from ms.unfold_lists(record, fields=fields, number_field=number_field, default_value=default_value)
     return func
