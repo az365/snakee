@@ -176,7 +176,7 @@ class LocalStream(IterableStream, LocalStreamInterface):
                 self.get_list().copy(),
             )
         else:  # is iterable generator
-            return super().copy()
+            return self._assume_native(super().copy())
 
     def get_tee_items(self, mem_copy: bool = False) -> Iterable:
         if self.is_in_memory():
@@ -397,8 +397,12 @@ class LocalStream(IterableStream, LocalStreamInterface):
     def remove_tmp_files(self) -> int:
         return self.get_tmp_files().remove_all()
 
-    def get_encoding(self) -> str:
-        return self.get_tmp_files().get_encoding()
+    def get_encoding(self, default='utf8') -> str:
+        tmp_files = self.get_tmp_files()
+        if hasattr(tmp_files, 'get_encoding'):
+            return tmp_files.get_encoding()
+        else:
+            return default
 
     def get_mask(self) -> str:
         return self.get_tmp_files().get_mask()
