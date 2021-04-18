@@ -15,7 +15,6 @@ class S3Object(ct.LeafConnector):
             folder,
             verbose=arg.DEFAULT,
     ):
-        assert isinstance(folder, ct.S3Folder)
         super().__init__(
             name=name,
             parent=folder,

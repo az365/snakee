@@ -23,7 +23,6 @@ class S3Bucket(ct.HierarchicFolder):
             parent=storage,
             verbose=verbose,
         )
-        self.storage = storage
         self.access_key = arg.undefault(access_key, self.get_storage().access_key)
         self.secret_key = arg.undefault(secret_key, self.get_storage().secret_key)
         self.session = None
@@ -33,8 +32,14 @@ class S3Bucket(ct.HierarchicFolder):
     def get_default_child_class(self):
         return S3Folder
 
-    def folder(self, name, **kwargs):
-        return self.child(name, bucket=self, **kwargs)
+    def child(self, name: str, **kwargs):
+        return super().child(name, parent_field='bucket', **kwargs)
+
+    def folder(self, name: str, **kwargs):
+        return self.child(name, **kwargs)
+
+    def object(self, name: str, folder_name='', folder_kwargs=None, **kwargs):
+        return self.folder(folder_name, **(folder_kwargs or {})).object(name, **kwargs)
 
     def get_bucket_name(self):
         return self.get_name()
@@ -140,8 +145,11 @@ class S3Folder(ct.FlatFolder):
     def get_bucket(self):
         return self.get_parent()
 
-    def object(self, name):
-        return self.child(name, folder=self)
+    def child(self, name, **kwargs):
+        return super().child(name, parent_field='folder', **kwargs)
+
+    def object(self, name: str, **kwargs):
+        return self.child(name, **kwargs)
 
     def get_buffer(self, object_path_in_bucket):
         return self.get_bucket().get_buffer(object_path_in_bucket)

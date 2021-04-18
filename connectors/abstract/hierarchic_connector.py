@@ -43,12 +43,12 @@ class HierarchicConnector(ac.AbstractConnector, ABC):
     def get_child_class_by_name(self, name):
         return self.get_default_child_class()
 
-    def child(self, name, **kwargs):
+    def child(self, name, parent_field='parent', **kwargs):
         cur_child = self.get_child(name)
         if not cur_child:
             child_class = self.get_child_class_by_name(name)
-            if 'parent' not in kwargs:
-                kwargs['parent'] = self
+            if parent_field not in kwargs:
+                kwargs[parent_field] = self
             cur_child = child_class(name, **kwargs)
             self.add_child(cur_child)
         return cur_child
