@@ -5,6 +5,7 @@ try:  # Assume we're a sub-module in a package.
     from base import base_classes as bs
     from streams import stream_classes as sm
     from connectors import connector_classes as ct
+    from connectors.filesystem.temporary_files import TemporaryLocation
     from utils import arguments as arg
     from loggers import logger_classes as lg
     from schema import schema_classes as sh
@@ -12,6 +13,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .base import base_classes as bs
     from .streams import stream_classes as sm
     from .connectors import connector_classes as ct
+    from .connectors.filesystem.temporary_files import TemporaryLocation
     from .utils import arguments as arg
     from .loggers import logger_classes as lg
     from .schema import schema_classes as sh
@@ -212,26 +214,23 @@ class SnakeeContext(bs.AbstractNamed, bs.ContextInterface):
             self.conn_instances[name] = local_storage
         return local_storage
 
-    def get_job_folder(self) -> Connector:
-        job_folder_obj = self.conn_instances.get('job')
+    def get_job_folder(self, instance_name='job', config_field_name='job_folder') -> Connector:
+        job_folder_obj = self.conn_instances.get(instance_name)
         if job_folder_obj:
             return job_folder_obj
         else:
-            job_folder_path = self.stream_config.get('job_folder', '')
+            job_folder_path = self.stream_config.get(config_field_name, '')
             job_folder_obj = ct.LocalFolder(job_folder_path, parent=self.get_local_storage())
-            self.conn_instances['job'] = job_folder_obj
+            self.conn_instances[instance_name] = job_folder_obj
             return job_folder_obj
 
-    def get_tmp_folder(self) -> Connector:
-        tmp_folder = self.conn_instances.get('tmp')
+    def get_tmp_folder(self, instance_name='tmp', config_instance_name='tmp_files_template') -> Connector:
+        tmp_folder = self.conn_instances.get(instance_name)
         if tmp_folder:
             return tmp_folder
         else:
-            tmp_files_template = self.stream_config.get('tmp_files_template')
-            if tmp_files_template:
-                tmp_folder = ct.LocalFolder(tmp_files_template, parent=self.get_local_storage())
-                self.conn_instances['tmp'] = tmp_folder
-                return tmp_folder
+            tmp_folder = TemporaryLocation(parent=self.get_local_storage())
+            return tmp_folder
 
     def close_conn(self, name, recursively=False, verbose=True) -> int:
         closed_count = 0
@@ -239,7 +238,8 @@ class SnakeeContext(bs.AbstractNamed, bs.ContextInterface):
         closed_count += this_conn.close() or 0
         if recursively and hasattr(this_conn, 'get_links'):
             for link in this_conn.get_links():
-                closed_count += link.close() or 0
+                if hasattr(link, 'close'):
+                    closed_count += link.close() or 0
         if verbose:
             self.log('{} connection(s) closed.'.format(closed_count))
         else:
@@ -255,22 +255,6 @@ class SnakeeContext(bs.AbstractNamed, bs.ContextInterface):
             self.log('{} stream(es) and {} link(s) closed.'.format(closed_stream, closed_links))
         else:
             return closed_stream, closed_links
-
-    def forget_conn(self, name, recursively=True, verbose=True) -> int:
-        if name in self.conn_instances:
-            self.close_conn(name, recursively=recursively, verbose=verbose)
-            self.conn_instances.pop(name)
-            gc.collect()
-            if not verbose:
-                return 1
-
-    def forget_stream(self, name, recursively=True, verbose=True) -> int:
-        if name in self.stream_instances:
-            self.close_stream(name, recursively=recursively, verbose=verbose)
-            self.stream_instances.pop(name)
-            gc.collect()
-            if not verbose:
-                return 1
 
     def close_all_conns(self, recursively=False, verbose=True) -> int:
         closed_count = 0
@@ -298,44 +282,61 @@ class SnakeeContext(bs.AbstractNamed, bs.ContextInterface):
         else:
             return closed_conns, closed_streams, closed_links
 
-    def forget_child(
-            self,
-            name_or_child: Union[bs.Contextual, str],
-            recursively=True,
-            skip_errors=False,
-    ) -> int:
-        name, child = self._get_name_and_child(name_or_child)
-        if name in self.get_children() or skip_errors:
-            child = self.get_children().pop(name)
-            if child:
-                child.close()
-                count = 1
-                if recursively:
-                    for c in child.get_children():
-                        count += c.forget_all_children()
-                return count
-        else:
-            raise TypeError('child {} with name {} not registered'.format(name, child))
+    def forget_conn(self, conn: Union[str, Connector], recursively=True, skip_errors=False, verbose=True) -> int:
+        name, conn = self._get_name_and_child(conn)
+        if name in self.conn_instances:
+            self.close_conn(name, recursively=recursively, verbose=verbose)
+            conn = self.conn_instances.pop(name)
+            count = 1
+            if recursively and hasattr(conn, 'forget_all_children'):
+                count += conn.forget_all_children()
+            gc.collect()
+            return count
+        elif not skip_errors:
+            raise TypeError('connection {} with name {} not registered'.format(conn, name))
 
-    def forget_all_conns(self, recursively=False):
+    def forget_stream(self, stream: Union[str, Stream], recursively=True, skip_errors=False, verbose=True) -> int:
+        name, stream = self._get_name_and_child(stream)
+        if name in self.stream_instances:
+            self.close_stream(name, recursively=recursively, verbose=verbose)
+            self.stream_instances.pop(name)
+            gc.collect()
+            return 1
+        elif not skip_errors:
+            raise TypeError('stream {} with name {} not registered'.format(stream, name))
+
+    def forget_child(self, name_or_child: Union[Child, str], recursively=True, skip_errors=False) -> int:
+        name, child = self._get_name_and_child(name_or_child)
+        count = 0
+        if name in self.conn_instances:
+            count += self.forget_conn(name, recursively=recursively, skip_errors=skip_errors) or 0
+        if name in self.stream_instances:
+            count += self.forget_stream(name, recursively=recursively, skip_errors=skip_errors) or 0
+        return count
+
+    def forget_all_conns(self, recursively=False, verbose=True):
         closed_count = self.close_all_conns(verbose=False)
         left_count = 0
         for name in self.conn_instances.copy():
             left_count += self.forget_conn(name, recursively=recursively, verbose=False)
-        self.log('{} connection(s) closed, {} connection(s) left.'.format(closed_count, left_count))
+        self.log('{} connection(s) closed, {} connection(s) left.'.format(closed_count, left_count), verbose=verbose)
+        return left_count
 
-    def forget_all_streams(self, recursively=False):
+    def forget_all_streams(self, recursively=False, verbose=True):
         closed_streams, closed_links = self.close_all_streams(verbose=False)
         left_count = 0
         for name in self.stream_instances.copy():
             left_count += self.forget_stream(name, recursively=recursively, verbose=False)
-        message = '{} stream(es) and {} link(s) closed, {} stream(es) left'
-        self.log(message.format(closed_streams, closed_links, left_count))
+        message = '{} stream(s) and {} link(s) closed, {} stream(es) left'
+        self.log(message.format(closed_streams, closed_links, left_count), verbose=verbose)
+        return left_count
 
-    def forget_all_children(self):
+    def forget_all_children(self, verbose=True) -> int:
+        count = 0
         self.close(verbose=True)
-        self.forget_all_conns(recursively=True)
-        self.forget_all_streams(recursively=True)
+        count += self.forget_all_conns(recursively=True, verbose=verbose) or 0
+        count += self.forget_all_streams(recursively=True, verbose=verbose) or 0
+        return count
 
     def __repr__(self):
         return NAME

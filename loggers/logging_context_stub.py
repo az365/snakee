@@ -10,6 +10,7 @@ try:  # Assume we're a sub-module in a package.
     from loggers.message_collector import SelectionMessageCollector
     from connectors.filesystem.local_storage import LocalStorage
     from connectors.filesystem.local_folder import LocalFolder
+    from connectors import connector_classes as ct
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
     from ..base.interfaces.context_interface import ContextInterface
@@ -20,6 +21,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .message_collector import SelectionMessageCollector
     from ..connectors.filesystem.local_storage import LocalStorage
     from ..connectors.filesystem.local_folder import LocalFolder
+    from ..connectors import connector_classes as ct
 
 NAME = 'logging_context_stub'
 
@@ -40,6 +42,7 @@ class LoggingContextStub(TreeItem, ContextInterface):
         self._logger = logger
         self._local_storage = None
         self._skip_not_implemented = skip_not_implemented
+        self._tmp_folder = None
 
     def set_logger(self, logger: LoggerInterface):
         self._logger = logger
@@ -105,8 +108,9 @@ class LoggingContextStub(TreeItem, ContextInterface):
         return LocalFolder(path, parent=self.get_local_storage())
 
     def get_tmp_folder(self, path='tmp'):
-        tmp_files_template = '{}/{}.tmp'.format(path, '{}')
-        return LocalFolder(tmp_files_template, parent=self.get_local_storage())
+        if not self._tmp_folder:
+            self._tmp_folder = ct.TemporaryLocation(path)
+        return self._tmp_folder
 
     @staticmethod
     def is_logger(obj):
