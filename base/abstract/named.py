@@ -24,7 +24,7 @@ class AbstractNamed(AbstractBaseObject, ABC):
         else:
             return self.__class__(
                 name=name,
-                **self.get_meta(ex='name')
+                **self.get_props(ex='name')
             )
 
     @classmethod

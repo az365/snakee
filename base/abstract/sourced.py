@@ -23,7 +23,7 @@ SPECIFIC_MEMBERS = ('_source', )
 class Sourced(AbstractNamed, SourcedInterface, ABC):
     def __init__(self, name: str = arg.DEFAULT, source: Optional[SourcedInterface] = None, check: bool = True):
         name = arg.undefault(name, arg.get_generated_name(self._get_default_name_prefix()))
-        super().__init__(name)
+        super().__init__(name=name)
         self._source = source
         if arg.is_defined(source):
             self.register(check=check)
@@ -55,7 +55,7 @@ class Sourced(AbstractNamed, SourcedInterface, ABC):
 
     def register(self, check=True):
         source = self.get_source()
-        assert source, 'source for register must be defined'
+        assert arg.is_defined(source), 'source for register must be defined'
         known_child = source.get_child(self.get_name())
         if known_child:
             if check:

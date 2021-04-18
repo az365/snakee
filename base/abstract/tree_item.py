@@ -76,7 +76,7 @@ class TreeItem(ContextualDataWrapper, TreeInterface):
         if name in children:
             if check and self.get_child(name) != child:
                 raise ValueError('child with name {} already registered in {}'.format(name, self.__repr__()))
-        children[name] = name_or_child
+        children[name] = child
         if hasattr(child, 'set_parent'):
             child.set_parent(self)
 

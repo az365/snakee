@@ -23,8 +23,7 @@ try:  # Assume we're a sub-module in a package.
     from connectors.databases.table import Table
     from connectors.sync.twin_sync import TwinSync
     from base.interfaces.context_interface import ContextInterface
-    from loggers.logging_context_stub import LoggingContextStub
-    from loggers.logger_classes import deprecated, deprecated_with_alternative
+    from loggers import logger_classes as log
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from .abstract.connector_interface import ConnectorInterface
     from .abstract.abstract_connector import AbstractConnector
@@ -47,8 +46,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .databases.table import Table
     from .sync.twin_sync import TwinSync
     from ..base.interfaces.context_interface import ContextInterface
-    from ..loggers.logging_context_stub import LoggingContextStub
-    from ..loggers.logger_classes import deprecated_with_alternative
+    from ..loggers import logger_classes as log
 
 CONN_CLASSES = (
     AbstractConnector,
@@ -108,7 +106,7 @@ class ConnType(Enum):
         return DICT_CONN_CLASSES[self.value]
 
 
-@deprecated_with_alternative('ConnType.get_class()')
+# @deprecated_with_alternative('ConnType.get_class()')
 def get_class(conn_type):
     if conn_type in CONN_CLASSES:
         return conn_type
@@ -165,7 +163,7 @@ def get_type_by_ext(ext, default=ConnType.TextFile) -> ConnType:
 
 
 def get_logging_context_stub():
-    return LoggingContextStub()
+    return log.LoggingContextStub()
 
 
 def get_local_storage(name='filesystem') -> LocalStorage:

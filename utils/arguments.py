@@ -39,8 +39,8 @@ DEFAULT = DefaultArgument()
 
 def update(args, addition=None):
     if addition:
-        args = list(args) + (addition if isinstance(addition, (list, tuple)) else [addition])
-    if len(args) == 1 and isinstance(args[0], (list, tuple)):
+        args = list(args) + (list(addition) if isinstance(addition, Iterable) else [addition])
+    if len(args) == 1 and isinstance(args[0], (list, tuple, set)):
         args = args[0]
     return args
 
@@ -123,7 +123,8 @@ def is_defined(obj) -> bool:
         result = is_defined(obj.get_value())
     elif hasattr(obj, 'get_name'):
         try:
-            result = is_defined(obj.get_name())
+            name = obj.get_name()
+            result = not (name is None or name in (DEFAULT, DEFAULT_VALUE))
         except TypeError:
             result = True
     elif hasattr(obj, 'value'):
