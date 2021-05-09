@@ -1,3 +1,6 @@
+from abc import abstractmethod
+from typing import Iterable, Callable, Optional, Union
+
 try:  # Assume we're a sub-module in a package.
     from series import series_classes as sc
     from utils import dates as dt
@@ -5,32 +8,178 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .. import series_classes as sc
     from ...utils import dates as dt
 
+NativeInterface = sc.SortedSeries
+DateNumericInterface = NativeInterface
+SortedNumeric = sc.SortedNumericSeries
+Series = sc.AnySeries
 
 DEFAULT_NUMERIC = False
 DEFAULT_SORTED = True
 
 
-class DateSeries(sc.SortedSeries):
+class DateSeriesInterface(NativeInterface):
+    @staticmethod
+    @abstractmethod
+    def get_distance_func() -> Callable:
+        return dt.get_days_between
+
+    @abstractmethod
+    def is_dates(self, check: bool = False) -> bool:
+        pass
+
+    @abstractmethod
+    def get_dates(self, as_date_type: bool = False) -> list:
+        pass
+
+    @abstractmethod
+    def set_dates(self, dates: Iterable) -> NativeInterface:
+        pass
+
+    @abstractmethod
+    def to_days(self) -> SortedNumeric:
+        pass
+
+    @abstractmethod
+    def to_weeks(self) -> SortedNumeric:
+        pass
+
+    @abstractmethod
+    def to_years(self) -> SortedNumeric:
+        pass
+
+    @abstractmethod
+    def date_series(self) -> NativeInterface:
+        pass
+
+    @abstractmethod
+    def get_first_date(self) -> dt.Date:
+        pass
+
+    @abstractmethod
+    def get_last_date(self) -> dt.Date:
+        pass
+
+    @abstractmethod
+    def get_border_dates(self) -> list:
+        pass
+
+    @abstractmethod
+    def get_mutual_border_dates(self, other: NativeInterface) -> list:
+        pass
+
+    @abstractmethod
+    def border_dates(self, other: Optional[NativeInterface] = None) -> NativeInterface:
+        pass
+
+    @abstractmethod
+    def get_range_len(self) -> int:
+        pass
+
+    @abstractmethod
+    def has_date_in_range(self, date: dt.Date) -> bool:
+        pass
+
+    @abstractmethod
+    def map_dates(self, function: Callable) -> NativeInterface:
+        pass
+
+    @abstractmethod
+    def filter_dates(self, function: Callable) -> NativeInterface:
+        pass
+
+    @abstractmethod
+    def exclude(self, first_date: dt.Date, last_date: dt.Date) -> NativeInterface:
+        pass
+
+    @abstractmethod
+    def period(self, first_date: dt.Date, last_date: dt.Date) -> NativeInterface:
+        pass
+
+    @abstractmethod
+    def first_year(self) -> NativeInterface:
+        pass
+
+    @abstractmethod
+    def last_year(self) -> NativeInterface:
+        pass
+
+    @abstractmethod
+    def shift_dates(self, distance: int) -> NativeInterface:
+        pass
+
+    @abstractmethod
+    def yearly_shift(self) -> NativeInterface:
+        pass
+
+    @abstractmethod
+    def round_to_weeks(self) -> NativeInterface:
+        pass
+
+    @abstractmethod
+    def round_to_months(self) -> NativeInterface:
+        pass
+
+    @abstractmethod
+    def distance(self, d: dt.Date, take_abs: bool = True) -> DateNumericInterface:
+        pass
+
+    @abstractmethod
+    def distance_for_date(self, date: dt.Date, take_abs: bool = True) -> DateNumericInterface:
+        pass
+
+    @abstractmethod
+    def get_distance_for_nearest_date(self, date: dt.Date, take_abs: bool = True) -> int:
+        pass
+
+    @abstractmethod
+    def get_nearest_date(self, date: dt.Date, distance_func: Optional[Callable] = None) -> dt.Date:
+        pass
+
+    @abstractmethod
+    def get_two_nearest_dates(self, date: dt.Date) -> Optional[tuple]:
+        pass
+
+    @abstractmethod
+    def get_segment(self, date: dt.Date) -> NativeInterface:
+        pass
+
+    @abstractmethod
+    def interpolate_to_weeks(self) -> NativeInterface:
+        pass
+
+    @abstractmethod
+    def find_base_date(
+            self, date: dt.Date,
+            max_distance: int = dt.MAX_DAYS_IN_MONTH, return_increment: bool = False,
+    ) -> Union[dt.Date, tuple]:
+        pass
+
+
+Native = DateSeriesInterface
+DateNumeric = Native
+
+
+class DateSeries(DateSeriesInterface, sc.SortedSeries):
     def __init__(
             self,
-            values=[],
-            validate=True,
-            sort_items=False,
+            values: Optional[list] = None,
+            validate: bool = True,
+            sort_items: bool = False,
     ):
         super().__init__(
-            values=values,
+            values=values or list(),
             validate=validate,
             sort_items=sort_items,
         )
 
-    def get_errors(self):
+    def get_errors(self) -> Iterable:
         yield from super().get_errors()
-        if not self.has_valid_dates():
+        if not self._has_valid_dates():
             yield 'Values of {} must be python-dates or iso-dates'.format(self.get_class_name())
 
-    def has_valid_dates(self):
+    def _has_valid_dates(self) -> bool:
         for d in self.get_dates():
-            if not self.is_valid_date(d):
+            if not self._is_valid_date(d):
                 return False
         return True
 
@@ -39,132 +188,136 @@ class DateSeries(sc.SortedSeries):
         return dt.is_date(date, also_gost_format=False)
 
     @staticmethod
-    def get_distance_func():
+    def _is_native(series) -> bool:
+        return isinstance(series, (DateSeries, sc.DateSeries))
+
+    @staticmethod
+    def get_distance_func() -> Callable:
         return dt.get_days_between
 
     @staticmethod
-    def is_numeric(*_):
+    def is_numeric(*_) -> bool:
         return DEFAULT_NUMERIC
 
-    def is_dates(self, check=False):
+    def is_dates(self, check: bool = False) -> bool:
         if check:
-            return self.has_valid_dates()
+            return self._has_valid_dates()
         else:
             return True
 
-    def get_dates(self, as_date_type=False):
+    def get_dates(self, as_date_type: bool = False) -> list:
         if as_date_type:
             return self.map_values(dt.to_date).get_values()
         else:
             return self.get_values()
 
-    def set_dates(self, dates):
+    def set_dates(self, dates: Iterable) -> Native:
         new = self.new(save_meta=True)
-        new.values = dates
+        new.values = list(dates)
         return new
 
-    def to_dates(self, as_iso_date=False):
+    def to_dates(self, as_iso_date: bool = False) -> Native:
         return self.map_dates(
             lambda i: dt.to_date(i, as_iso_date=as_iso_date),
         )
 
-    def to_days(self):
+    def to_days(self) -> SortedNumeric:
         return self.map_dates(dt.get_day_abs_from_date).assume_numeric()
 
-    def to_weeks(self):
+    def to_weeks(self) -> SortedNumeric:
         return self.map_dates(dt.get_week_abs_from_date).assume_numeric()
 
-    def to_years(self):
+    def to_years(self) -> SortedNumeric:
         return self.map_dates(lambda d: dt.get_year_from_date(d, decimal=True)).assume_numeric()
 
-    def date_series(self):
+    def date_series(self) -> Native:
         return DateSeries(
             self.get_dates(),
             sort_items=False,
             validate=False,
         )
 
-    def get_first_date(self):
+    def get_first_date(self) -> dt.Date:
         if self.has_items():
             return self.get_dates()[0]
 
-    def get_last_date(self):
+    def get_last_date(self) -> dt.Date:
         if self.has_items():
             return self.get_dates()[-1]
 
-    def get_border_dates(self):
+    def get_border_dates(self) -> list:
         return [self.get_first_date(), self.get_last_date()]
 
-    def get_mutual_border_dates(self, other):
+    def get_mutual_border_dates(self, other: Native) -> list:
         assert isinstance(other, (sc.DateSeries, sc.DateNumericSeries))
         first_date = max(self.get_first_date(), other.get_first_date())
         last_date = min(self.get_last_date(), other.get_last_date())
         if first_date < last_date:
             return [first_date, last_date]
 
-    def border_dates(self, other=None):
+    def border_dates(self, other: Optional[Native] = None) -> Native:
         if other:
             return DateSeries(self.get_mutual_border_dates(other))
         else:
             return DateSeries(self.get_border_dates())
 
-    def get_range_len(self):
+    def get_range_len(self) -> int:
         return self.get_distance_func()(
             *self.get_border_dates()
         )
 
-    def has_date_in_range(self, date):
+    def has_date_in_range(self, date: dt.Date) -> bool:
         return self.get_first_date() <= date <= self.get_last_date()
 
-    def map_dates(self, function):
+    def map_dates(self, function: Callable) -> Native:
         return self.set_dates(
             map(function, self.get_dates()),
         )
 
-    def filter_dates(self, function):
+    def filter_dates(self, function: Callable) -> Native:
         return self.filter(function)
 
-    def exclude(self, first_date, last_date):
+    def exclude(self, first_date: dt.Date, last_date: dt.Date) -> Native:
         return self.filter_dates(lambda d: d < first_date or d > last_date)
 
-    def period(self, first_date, last_date):
+    def period(self, first_date: dt.Date, last_date: dt.Date) -> Native:
         return self.filter_dates(lambda d: first_date <= d <= last_date)
 
-    def crop(self, left_days, right_days):
+    def crop(self, left_days: int, right_days: int) -> Native:
         return self.period(
             dt.get_shifted_date(self.get_first_date(), days=abs(left_days)),
             dt.get_shifted_date(self.get_last_date(), days=-abs(right_days)),
         )
 
-    def first_year(self):
+    def first_year(self) -> Native:
         date_a = self.get_first_date()
         date_b = dt.get_next_year_date(date_a)
         return self.period(date_a, date_b)
 
-    def last_year(self):
+    def last_year(self) -> Native:
         date_b = self.get_last_date()
         date_a = dt.get_next_year_date(date_b, step=-1)
         return self.period(date_a, date_b)
 
-    def shift(self, distance):
+    def shift(self, distance: int) -> Native:
         return self.shift_dates(distance)
 
-    def shift_dates(self, distance):
+    def shift_dates(self, distance: int) -> Native:
         return self.map_dates(lambda d: dt.get_shifted_date(d, days=distance))
 
-    def yearly_shift(self):
+    def yearly_shift(self) -> Native:
         return self.map_dates(dt.get_next_year_date)
 
-    def round_to_weeks(self):
+    def round_to_weeks(self) -> Native:
         return self.map_dates(dt.get_monday_date).uniq()
 
-    def round_to_months(self):
+    def round_to_months(self) -> Native:
         return self.map_dates(dt.get_month_first_date).uniq()
 
-    def distance(self, d, take_abs=True):
-        if isinstance(d, (str, dt.date)):
+    def distance(self, d: [Native, dt.Date], take_abs: bool = True) -> DateNumeric:
+        if dt.is_date(d):
             distance_series = self.distance_for_date(d, take_abs=take_abs)
-        elif isinstance(d, (DateSeries, sc.DateSeries)):
+        elif self._is_native(d):
             date_series = self.new(d, validate=False, sort_items=False)
             distance_series = sc.DateNumericSeries(
                 self.get_dates(),
@@ -175,24 +328,24 @@ class DateSeries(sc.SortedSeries):
             raise TypeError('d-argument for distance-method must be date or DateSeries (got {}: {})'.format(type(d), d))
         return distance_series
 
-    def distance_for_date(self, date, take_abs=True):
+    def distance_for_date(self, date: dt.Date, take_abs: bool = True) -> DateNumeric:
         return sc.DateNumericSeries(
             self.get_dates(),
             self.date_series().map(lambda d: self.get_distance_func()(date, d, take_abs)),
             sort_items=False, validate=False,
         )
 
-    def get_distance_for_nearest_date(self, date, take_abs=True):
+    def get_distance_for_nearest_date(self, date: dt.Date, take_abs: bool = True) -> int:
         nearest_date = self.get_nearest_date(date)
         return self.get_distance_func()(date, nearest_date, take_abs)
 
-    def get_nearest_date(self, date, distance_func=None):
+    def get_nearest_date(self, date: dt.Date, distance_func: Optional[Callable] = None) -> dt.Date:
         return self.date_series().get_nearest_value(
             date,
             distance_func=distance_func or self.get_distance_func(),
         )
 
-    def get_two_nearest_dates(self, date):
+    def get_two_nearest_dates(self, date: dt.Date) -> Optional[tuple]:
         if self.get_count() < 2:
             return None
         else:
@@ -201,15 +354,18 @@ class DateSeries(sc.SortedSeries):
             date_b = distance_series.filter_values(lambda v: v >= 0).get_arg_min()
             return date_a, date_b
 
-    def get_segment(self, date):
+    def get_segment(self, date: dt.Date) -> Native:
         nearest_dates = [i for i in self.get_two_nearest_dates(date) if i]
         return self.new(nearest_dates)
 
-    def interpolate_to_weeks(self):
+    def interpolate_to_weeks(self) -> Native:
         monday_dates = dt.get_weeks_range(self.get_first_date(), self.get_last_date())
         return self.new(monday_dates)
 
-    def find_base_date(self, date, max_distance=dt.MAX_DAYS_IN_MONTH, return_increment=False):
+    def find_base_date(
+            self, date: dt.Date,
+            max_distance: int = dt.MAX_DAYS_IN_MONTH, return_increment: bool = False,
+    ) -> Union[dt.Date, Optional[tuple]]:
         candidates = sc.DateSeries(
             dt.get_yearly_dates(date, self.get_first_date(), self.get_last_date()),
         )
