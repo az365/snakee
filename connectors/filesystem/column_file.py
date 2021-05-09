@@ -153,7 +153,7 @@ class ColumnFile(TextFile, ColumnarMixin):
         if return_file:
             return self
 
-    def get_columns(self) -> Iterable:
+    def get_columns(self) -> list:
         return self.get_schema().get_columns()
 
     def get_types(self, dialect=arg.DEFAULT) -> Iterable:
@@ -244,10 +244,10 @@ class ColumnFile(TextFile, ColumnarMixin):
     def to_memory(self) -> Stream:
         return self.to_record_stream().to_memory()
 
-    def show(self, count=10, filters=[], recount=False):
+    def show(self, count: int = 10, filters: Optional[list] = None, recount=False):
         if recount:
             self.count_lines(True)
-        return self.to_record_stream().show(count=count, filters=filters)
+        return self.to_record_stream().show(count=count, filters=filters or list())
 
     def write_rows(self, rows, verbose=AUTO) -> NoReturn:
         def get_rows_with_title():
@@ -268,9 +268,9 @@ class ColumnFile(TextFile, ColumnarMixin):
 
     def write_stream(self, stream: Stream, verbose=AUTO) -> NoReturn:
         assert sm.is_stream(stream)
-        item_type_name = stream.get_item_type().get_name()
-        if item_type_name in ('row', 'record', 'row'):
-            method_name = 'write_{}s'.format(item_type_name)
+        item_type_str = stream.get_item_type().get_value()
+        if item_type_str in ('row', 'record', 'row'):
+            method_name = 'write_{}s'.format(item_type_str)
             method = self.__getattribute__(method_name)
             return method(stream.get_data(), verbose=verbose)
         else:
@@ -290,7 +290,7 @@ class ColumnFile(TextFile, ColumnarMixin):
         return sm.StreamType.RowStream
 
 
-@deprecated_with_alternative('ConnType.get_class()')
+# @deprecated_with_alternative('ConnType.get_class()')
 class CsvFile(ColumnFile):
     def __init__(
             self,
@@ -332,7 +332,7 @@ class CsvFile(ColumnFile):
         return sm.StreamType.RecordStream
 
 
-@deprecated_with_alternative('ConnType.get_class()')
+# @deprecated_with_alternative('ConnType.get_class()')
 class TsvFile(ColumnFile):
     def __init__(
             self,
@@ -368,6 +368,6 @@ class TsvFile(ColumnFile):
     def get_default_item_type() -> it.ItemType:
         return it.ItemType.Record
 
-    @staticmethod
-    def get_stream_type():
+    @classmethod
+    def get_stream_type(cls):
         return sm.StreamType.RecordStream

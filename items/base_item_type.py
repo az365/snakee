@@ -1,16 +1,17 @@
-from enum import Enum
 from typing import Union, Callable
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
+    from utils.enum import DynamicEnum
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
+    from ..utils.enum import DynamicEnum
 
 Field = Union[int, str, Callable]
 SimpleItem = Union[dict, list, tuple]
 
 
-class ItemType(Enum):
+class ItemType(DynamicEnum):
     Line = 'line'
     Row = 'row'
     Record = 'record'
@@ -18,18 +19,12 @@ class ItemType(Enum):
     Any = 'any'
     Auto = arg.DEFAULT
 
-    def get_value(self):
-        return self.value
-
-    def get_name(self):
-        return self.get_value()
-
     @staticmethod
-    def get_selectable_types():
+    def _get_selectable_types():
         return ItemType.Record, ItemType.Row, ItemType.SchemaRow
 
     def is_selectable(self):
-        return self in self.get_selectable_types()
+        return self in self._get_selectable_types()
 
     def get_field_value_from_item(self, field: Field, item: SimpleItem, skip_errors: bool = True):
         if isinstance(field, Callable):
@@ -60,3 +55,6 @@ class ItemType(Enum):
             item.set_value(field, value)
         else:  # item_type == 'any' or not item_type:
             raise TypeError('type {} not supported'.format(self))
+
+
+ItemType.prepare()
