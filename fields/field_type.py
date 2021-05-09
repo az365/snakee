@@ -1,9 +1,13 @@
-from enum import Enum
 from inspect import isclass
 import json
 
+try:  # Assume we're a sub-module in a package.
+    from utils.enum import DynamicEnum
+except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
+    from ..utils.enum import DynamicEnum
 
-class FieldType(Enum):
+
+class FieldType(DynamicEnum):
     Any = 'any'
     Json = 'json'
     Str = 'str'
@@ -17,34 +21,11 @@ class FieldType(Enum):
     Tuple = 'tuple'
     Dict = 'dict'
 
-    def get_name(self):
-        return self.value
+    _dict_heuristic_suffix_to_type = dict()
 
-    @staticmethod
-    def get_heuristic_suffix_to_type():
-        return {
-            'hist': FieldType.Dict,
-            'names': FieldType.Tuple,
-            'ids': FieldType.Tuple,
-            'id': FieldType.Int,
-            'hits': FieldType.Int,
-            'count': FieldType.Int,
-            'sum': FieldType.Float,
-            'avg': FieldType.Float,
-            'mean': FieldType.Float,
-            'share': FieldType.Float,
-            'norm': FieldType.Float,
-            'weight': FieldType.Float,
-            'value': FieldType.Float,
-            'score': FieldType.Float,
-            'rate': FieldType.Float,
-            'coef': FieldType.Float,
-            'abs': FieldType.Float,
-            'rel': FieldType.Float,
-            'is': FieldType.Bool,
-            'has': FieldType.Bool,
-            None: FieldType.Str,
-        }
+    @classmethod
+    def get_heuristic_suffix_to_type(cls):
+        return cls._dict_heuristic_suffix_to_type
 
     @classmethod
     def detect_by_name(cls, field_name: str):
@@ -69,6 +50,32 @@ class FieldType(Enum):
         field_type = type(value)
         field_type_name = str(field_type)
         return FieldType(field_type_name)
+
+
+FieldType.prepare()
+FieldType._dict_heuristic_suffix_to_type = {
+    'hist': FieldType.Dict,
+    'names': FieldType.Tuple,
+    'ids': FieldType.Tuple,
+    'id': FieldType.Int,
+    'hits': FieldType.Int,
+    'count': FieldType.Int,
+    'sum': FieldType.Float,
+    'avg': FieldType.Float,
+    'mean': FieldType.Float,
+    'share': FieldType.Float,
+    'norm': FieldType.Float,
+    'weight': FieldType.Float,
+    'value': FieldType.Float,
+    'score': FieldType.Float,
+    'rate': FieldType.Float,
+    'coef': FieldType.Float,
+    'abs': FieldType.Float,
+    'rel': FieldType.Float,
+    'is': FieldType.Bool,
+    'has': FieldType.Bool,
+    None: FieldType.Str,
+}
 
 
 def any_to_bool(value):

@@ -34,8 +34,8 @@ class AbstractField(SimpleDataWrapper, FieldInterface, ABC):
         field_type = self.get_type()
         if isinstance(field_type, str):
             return field_type
-        elif hasattr(field_type, 'get_name'):
-            return field_type.get_name()
+        elif hasattr(field_type, 'get_value'):
+            return field_type.get_value()
         elif hasattr(field_type, 'value'):
             return str(field_type.value)
         elif isclass(field_type) and not isinstance(field_type, Enum):
