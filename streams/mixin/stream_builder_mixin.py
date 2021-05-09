@@ -68,6 +68,9 @@ class StreamBuilderMixin(StreamBuilderInterface, ABC):
         meta.update(kwargs)
         return sm.StreamType.of(stream_type).stream(data, **meta)
 
+    def get_calc(self, function: Callable, *args, **kwargs) -> Any:
+        return function(self.get_data(), *args, **kwargs)
+
     def map(self, function: Callable) -> Stream:
         return self.stream(
             map(function, self.get_items()),

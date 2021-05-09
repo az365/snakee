@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 import inspect
-from typing import Optional, Union, Iterable, Callable, Type
+from typing import Optional, Union, Iterable, Callable, Any
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
@@ -17,7 +17,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...loggers import logger_classes as log
     from ...loggers.logger_classes import deprecated_with_alternative
 
-Stream = Type[StreamInterface]
+Stream = StreamInterface
 OptionalFields = Optional[Union[Iterable, str]]
 
 DATA_MEMBERS = ('_data', )
@@ -36,6 +36,8 @@ class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
             name = arg.undefault(name, source.get_name())
         else:
             name = arg.undefault(name, arg.get_generated_name())
+        if source and not context:
+            context = source.get_context()
         if not context:
             context = sm.get_context()
         super().__init__(name=name, data=data, source=source, context=context, check=check)
@@ -88,11 +90,13 @@ class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
             raise TypeError('property name must be function, meta-field or attribute name')
         return value
 
-    def apply_to_data(self, function: Callable, *args, dynamic=False, **kwargs):
+    def get_calc(self, function: Callable, *args, **kwargs) -> Any:
+        return function(self.get_data(), *args, **kwargs)
+
+    def apply_to_data(self, function: Callable, dynamic=False, *args, **kwargs):
         return self.stream(  # can be file
-            function(self.get_data(), *args, **kwargs),
-        ).set_meta(
-            **self.get_static_meta() if dynamic else self.get_meta()
+            self.get_calc(function, *args, **kwargs),
+            ex=self._get_dynamic_meta_fields() if dynamic else None,
         )
 
     def apply_to_stream(self, function: Callable, *args, **kwargs) -> Stream:
@@ -123,12 +127,14 @@ class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
         else:
             raise TypeError('"other" parameter must be class or StreamType (got {})'.format(type(other)))
 
-    def stream(self, data, ex: OptionalFields = None, **kwargs) -> Type[StreamInterface]:
+    def stream(self, data, ex: OptionalFields = None, **kwargs) -> Stream:
         meta = self.get_meta(ex=ex)
         meta.update(kwargs)
-        return self.__class__(data, **meta)
+        stream = self.__class__(data, **meta)
+        assert isinstance(stream, Stream)
+        return stream
 
-    def write_to(self, connector, verbose=True, return_stream=True):
+    def write_to(self, connector, verbose=True, return_stream=True) -> Optional[Stream]:
         msg = 'connector-argument must be an instance of LeafConnector or have write_stream() method'
         assert hasattr(connector, 'write_stream'), msg
         connector.write_stream(self, verbose=verbose)

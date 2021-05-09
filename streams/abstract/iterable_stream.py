@@ -585,19 +585,6 @@ class IterableStream(AbstractStream, IterableStreamInterface):
         )
         return self._assume_native(stream)
 
-    def calc(self, function, *args, **kwargs):
-        return function(self.get_data(), *args, **kwargs)
-
-    def lazy_calc(self, function, *args, **kwargs):
-        yield from function(self.get_data(), *args, **kwargs)
-
-    def apply_to_data(self, function, save_count=False, lazy=True, *args, **kwargs) -> Native:
-        upd_meta = dict(count=self.get_count()) if save_count else dict()
-        return self.stream(
-            self.lazy_calc(function, *args, **kwargs) if lazy else self.calc(function, *args, **kwargs),
-            **upd_meta
-        )
-
     def progress(self, expected_count=arg.DEFAULT, step=arg.DEFAULT, message='Progress') -> Native:
         count = arg.undefault(expected_count, self.get_count()) or self.get_estimated_count()
         items_with_logger = self.get_logger().progress(self.get_data(), name=message, count=count, step=step)

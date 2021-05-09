@@ -1,4 +1,4 @@
-from typing import Union, Iterable, Optional
+from typing import Union, Iterable, Callable, Optional
 from inspect import isclass
 
 try:  # Assume we're a sub-module in a package.
@@ -50,6 +50,9 @@ class AnyStream(sm.LocalStream, sm.ConvertMixin, sm.RegularStreamInterface):
     @staticmethod
     def get_item_type() -> it.ItemType:
         return it.ItemType.Any
+
+    def get_columns(self) -> Optional[Iterable]:
+        return None
 
     def filter(self, *functions) -> Native:
         def filter_function(item):
@@ -119,12 +122,11 @@ class AnyStream(sm.LocalStream, sm.ConvertMixin, sm.RegularStreamInterface):
             map(function, self.get_items()),
         )
 
-    def apply_to_data(self, function, *args, save_count=False, lazy=True, stream_type=arg.DEFAULT, **kwargs) -> Stream:
-        upd_meta = dict(count=self.get_count()) if save_count else dict()
+    def apply_to_data(self, function: Callable, *args, dynamic=True, stream_type=arg.DEFAULT, **kwargs) -> Stream:
         return self.stream(
-            self.lazy_calc(function, *args, **kwargs) if lazy else self.calc(function, *args, **kwargs),
+            self.get_calc(function, *args, **kwargs),
             stream_type=stream_type,
-            **upd_meta
+            ex=self._get_dynamic_meta_fields() if dynamic else None,
         )
 
     def sorted_group_by(self, *keys, values: Optional[Iterable] = None, as_pairs: bool = False) -> Stream:

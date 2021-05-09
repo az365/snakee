@@ -8,7 +8,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils import arguments as arg
     from ...base.interfaces.sourced_interface import SourcedInterface
 
-Data = Union[SourcedInterface, Any]
+Stream = SourcedInterface
+Data = Union[Stream, Any]
 OptionalFields = Optional[Union[Iterable, str]]
 
 
@@ -19,7 +20,7 @@ class StreamInterface(SourcedInterface, ABC):
         pass
 
     @abstractmethod
-    def get_count(self):
+    def get_count(self) -> Optional[int]:
         pass
 
     @abstractmethod
@@ -27,27 +28,27 @@ class StreamInterface(SourcedInterface, ABC):
         pass
 
     @abstractmethod
-    def map(self, function: Callable) -> Data:
+    def map(self, function: Callable) -> Stream:
         pass
 
     @abstractmethod
-    def filter(self, function: Callable) -> Data:
+    def filter(self, function: Callable) -> Stream:
         pass
 
     @abstractmethod
-    def take(self, count: int) -> Data:
+    def take(self, count: int) -> Stream:
         pass
 
     @abstractmethod
-    def skip(self, count: int) -> Data:
+    def skip(self, count: int) -> Stream:
         pass
 
     @abstractmethod
-    def get_source(self):
+    def get_source(self) -> SourcedInterface:
         pass
 
     @abstractmethod
-    def get_logger(self):
+    def get_logger(self) -> SourcedInterface:
         pass
 
     @abstractmethod
@@ -59,11 +60,15 @@ class StreamInterface(SourcedInterface, ABC):
         pass
 
     @abstractmethod
-    def set_data(self, data: Data, inplace: bool):
+    def set_data(self, data: Data, inplace: bool) -> Optional[Stream]:
         pass
 
     @abstractmethod
-    def apply_to_data(self, function: Callable, *args, dynamic=False, **kwargs):
+    def apply_to_data(self, function: Callable, dynamic: bool = False, *args, **kwargs) -> Stream:
+        pass
+
+    @abstractmethod
+    def get_calc(self, function: Callable, *args, **kwargs) -> Any:
         pass
 
     @abstractmethod
@@ -71,5 +76,5 @@ class StreamInterface(SourcedInterface, ABC):
         pass
 
     @abstractmethod
-    def stream(self, data, **kwargs) -> Data:
+    def stream(self, data, **kwargs) -> Stream:
         pass
