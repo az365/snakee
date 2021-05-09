@@ -35,8 +35,8 @@ class DateSeries(sc.SortedSeries):
         return True
 
     @staticmethod
-    def is_valid_date(date):
-        return isinstance(date, dt.date) or dt.check_iso_date(date)
+    def _is_valid_date(date) -> bool:
+        return dt.is_date(date, also_gost_format=False)
 
     @staticmethod
     def get_distance_func():
@@ -143,7 +143,7 @@ class DateSeries(sc.SortedSeries):
 
     def last_year(self):
         date_b = self.get_last_date()
-        date_a = dt.get_next_year_date(date_b, increment=-1)
+        date_a = dt.get_next_year_date(date_b, step=-1)
         return self.period(date_a, date_b)
 
     def shift(self, distance):
