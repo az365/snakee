@@ -70,3 +70,7 @@ class RegularStreamInterface(StreamInterface, ABC):
             **kwargs
     ) -> Stream:
         pass
+
+    @abstractmethod
+    def get_columns(self) -> Optional[Iterable]:
+        pass
