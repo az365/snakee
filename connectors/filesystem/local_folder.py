@@ -1,10 +1,10 @@
-from enum import Enum
 import os
 import fnmatch
 from typing import Union, Iterable, Optional
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
+    from utils.enum import ClassType
     from base.interfaces.context_interface import ContextInterface
     from connectors.abstract.connector_interface import ConnectorInterface
     from connectors.abstract.hierarchic_connector import HierarchicConnector
@@ -13,6 +13,7 @@ try:  # Assume we're a sub-module in a package.
     from connectors.filesystem.file_type import FileType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
+    from ...utils.enum import ClassType
     from ...base.interfaces.context_interface import ContextInterface
     from ..abstract.connector_interface import ConnectorInterface
     from ..abstract.hierarchic_connector import HierarchicConnector
@@ -23,27 +24,10 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 PARENT_TYPES = HierarchicConnector, ConnectorInterface, ContextInterface
 
 
-class FolderType(Enum):
+class FolderType(ClassType):
     LocalStorage = 'LocalStorage'
     LocalFolder = 'LocalFolder'
     FileMask = 'FileMask'
-
-    def get_name(self):
-        return self.value
-
-    def get_value(self):
-        return self.value
-
-    @staticmethod
-    def _get_dict_classes():
-        return {FolderType.LocalFolder: LocalFolder, FolderType.FileMask: FileMask}
-
-    def get_class(self, skip_missing=False):
-        found_class = self._get_dict_classes().get(self)
-        if found_class:
-            return found_class
-        elif not skip_missing:
-            raise ValueError('class for {} not supported'.format(self))
 
     @staticmethod
     def detect_by_name(name: str):
@@ -51,6 +35,11 @@ class FolderType(Enum):
             return FolderType.FileMask
         else:
             return FolderType.LocalFolder
+
+    @classmethod
+    def prepare(cls):
+        super().prepare()
+        cls.set_dict_classes({FolderType.LocalFolder: LocalFolder, FolderType.FileMask: FileMask})
 
 
 class LocalFolder(HierarchicFolder):
@@ -262,3 +251,6 @@ class FileMask(LocalFolder):
 
     def list_existing_names(self):
         return list(self.yield_existing_names())
+
+
+FolderType.prepare()

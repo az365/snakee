@@ -23,6 +23,8 @@ try:  # Assume we're a sub-module in a package.
     from connectors.databases.table import Table
     from connectors.sync.twin_sync import TwinSync
     from base.interfaces.context_interface import ContextInterface
+    from utils.enum import ClassType
+    from utils.decorators import deprecated_with_alternative
     from loggers import logger_classes as log
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from .abstract.connector_interface import ConnectorInterface
@@ -46,6 +48,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .databases.table import Table
     from .sync.twin_sync import TwinSync
     from ..base.interfaces.context_interface import ContextInterface
+    from ..utils.enum import ClassType
+    from ..utils.decorators import deprecated_with_alternative
     from ..loggers import logger_classes as log
 
 CONN_CLASSES = (
@@ -78,12 +82,12 @@ DICT_EXT_TO_CLASS = {
 DICT_DB_TO_DIALECT = {PostgresDatabase.__name__: 'pg', ClickhouseDatabase.__name__: 'ch'}
 DB_CLASS_NAMES = DICT_DB_TO_DIALECT.keys()
 
-context: Optional[ContextInterface] = None
-local_storage: Optional[LocalStorage] = None
-PostgresDatabase.cx = context
+_context: Optional[ContextInterface] = None
+_local_storage: Optional[LocalStorage] = None
+PostgresDatabase.cx = _context
 
 
-class ConnType(Enum):
+class ConnType(ClassType):
     # Only concrete classes, not abstract ones
     LocalStorage = 'LocalStorage'
     LocalFolder = 'LocalFolder'
@@ -102,11 +106,12 @@ class ConnType(Enum):
     S3Object = 'S3Object'
     TwinSync = 'TwinSync'
 
-    def get_class(self):
-        return DICT_CONN_CLASSES[self.value]
+
+ConnType.prepare()
+ConnType.set_dict_classes(DICT_CONN_CLASSES, skip_missing=True)
 
 
-# @deprecated_with_alternative('ConnType.get_class()')
+@deprecated_with_alternative('ConnType.get_class()')
 def get_class(conn_type):
     if conn_type in CONN_CLASSES:
         return conn_type
@@ -118,13 +123,13 @@ def get_class(conn_type):
 
 
 def get_context() -> ContextInterface:
-    global context
-    return context
+    global _context
+    return _context
 
 
 def set_context(cx: ContextInterface):
-    global context
-    context = cx
+    global _context
+    _context = cx
 
 
 def is_conn(obj) -> bool:
@@ -154,7 +159,7 @@ def get_dialect_type(database_type) -> Optional[str]:
     return DICT_DB_TO_DIALECT.get(ConnType(database_type).value)
 
 
-def get_type_by_ext(ext, default=ConnType.TextFile) -> ConnType:
+def get_type_by_ext(ext, default: ConnType = ConnType.TextFile) -> ConnType:
     conn_class = DICT_EXT_TO_CLASS.get(ext)
     if conn_class:
         return ConnType(conn_class.__name__)
@@ -167,19 +172,19 @@ def get_logging_context_stub():
 
 
 def get_local_storage(name='filesystem') -> LocalStorage:
-    global local_storage
-    if not local_storage:
+    global _local_storage
+    if not _local_storage:
         cx = get_context()
         if not cx:
             cx = get_logging_context_stub()
         if cx:
-            local_storage = cx.get_local_storage(name)
+            _local_storage = cx.get_local_storage(name)
         else:
-            local_storage = LocalStorage(name, context=get_logging_context_stub())
-    assert isinstance(local_storage, LocalStorage), 'LocalStorage expected, got {} as {}'.format(
-        local_storage, local_storage.__class__.__name__,
+            _local_storage = LocalStorage(name, context=get_logging_context_stub())
+    assert isinstance(_local_storage, LocalStorage), 'LocalStorage expected, got {} as {}'.format(
+        _local_storage, _local_storage.__class__.__name__,
     )
-    return local_storage
+    return _local_storage
 
 
 def get_default_job_folder(name='') -> LocalFolder:
