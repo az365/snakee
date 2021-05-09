@@ -93,8 +93,6 @@ class LocalStreamInterface(IterableStreamInterface, ABC):
     def split_to_disk_by_step(
             self,
             step: Step = arg.DEFAULT,
-            file_template: DefaultStr = arg.DEFAULT,
-            encoding: DefaultStr = arg.DEFAULT,
             sort_each_by: Optional[str] = None,
             reverse: bool = False,
             verbose: bool = True,
@@ -134,11 +132,10 @@ class LocalStream(IterableStream, LocalStreamInterface):
         else:
             return False
 
-    def apply_to_data(self, function, *args, dynamic=False, **kwargs):
+    def apply_to_data(self, function: Callable, dynamic=False, *args, **kwargs):
         return self.stream(  # can be file
-            function(self.get_data(), *args, **kwargs),
-        ).set_meta(
-            **self.get_static_meta() if dynamic else self.get_meta()
+            self.get_calc(function, *args, **kwargs),
+            ex=self._get_dynamic_meta_fields() if dynamic else None,
         )
 
     def is_in_memory(self) -> bool:
@@ -146,6 +143,15 @@ class LocalStream(IterableStream, LocalStreamInterface):
             return False
         else:
             return arg.is_in_memory(self.get_data())
+
+    def close(
+            self,
+            recursively: bool = False, return_closed_links: bool = False, remove_tmp_files: bool = True,
+    ) -> Union[int, tuple]:
+        result = super().close(recursively=recursively, return_closed_links=return_closed_links)
+        if remove_tmp_files:
+            self.remove_tmp_files()
+        return result
 
     def to_iter(self) -> Native:
         return self.stream(

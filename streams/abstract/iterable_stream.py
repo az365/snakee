@@ -66,7 +66,7 @@ class IterableStreamInterface(StreamInterface, ABC):
         pass
 
     @abstractmethod
-    def close(self, recursively=False) -> tuple:
+    def close(self, recursively: bool = False, return_closed_links: bool = False) -> Union[int, tuple]:
         pass
 
     @abstractmethod
@@ -244,7 +244,7 @@ class IterableStream(AbstractStream, IterableStreamInterface):
     def is_in_memory(self) -> bool:
         return False
 
-    def close(self, recursively=False) -> tuple:
+    def close(self, recursively: bool = False, return_closed_links: bool = False) -> Union[int, tuple]:
         try:
             self.pass_items()
             closed_streams = 1
@@ -256,7 +256,10 @@ class IterableStream(AbstractStream, IterableStreamInterface):
             for link in self.get_links():
                 if hasattr(link, 'close'):
                     closed_links += link.close() or 0
-        return closed_streams, closed_links
+        if return_closed_links:
+            return closed_streams, closed_links
+        else:
+            return closed_streams
 
     def get_expected_count(self) -> Optional[int]:
         return self._count
