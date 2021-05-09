@@ -45,3 +45,13 @@ def deprecated_with_alternative(alternative):
             return func(*args, **kwargs)
         return new_func
     return _deprecated
+
+
+def singleton(cls):
+    @wraps(cls)
+    def wrapper(*args, **kwargs):
+        if not wrapper.instance:
+            wrapper.instance = cls(*args, **kwargs)
+        return wrapper.instance
+    wrapper.instance = None
+    return wrapper

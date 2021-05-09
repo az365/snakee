@@ -3,6 +3,7 @@ import logging
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
+    from utils.decorators import singleton
     from base import base_classes as bs
     from loggers.logger_interface import LoggerInterface
     from loggers.extended_logger_interface import ExtendedLoggerInterface, LoggingLevel
@@ -11,6 +12,7 @@ try:  # Assume we're a sub-module in a package.
     from loggers.progress import Progress
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
+    from ..utils.decorators import singleton
     from ..base import base_classes as bs
     from .logger_interface import LoggerInterface
     from .extended_logger_interface import ExtendedLoggerInterface, LoggingLevel
@@ -211,22 +213,8 @@ class ExtendedLogger(BaseLoggerWrapper, ExtendedLoggerInterface):
         print(message, end=end)
 
 
+@singleton
 class SingletonLogger(ExtendedLogger):
-    def __new__(cls, *args, **kwargs):
-        if not hasattr(cls, 'instance'):
-            cls.instance = super(SingletonLogger, cls).__new__(cls)
-        return cls.instance
-
-    def __init__(
-            self,
-            name=arg.DEFAULT,
-            level=arg.DEFAULT,
-            formatter=arg.DEFAULT,
-            max_line_len=arg.DEFAULT,
-            context=None,
-    ):
-        super().__init__(name, level, formatter, max_line_len, context)
-
     @staticmethod
     def is_common_logger() -> bool:
         return True

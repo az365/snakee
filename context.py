@@ -6,6 +6,7 @@ try:  # Assume we're a sub-module in a package.
     from streams import stream_classes as sm
     from connectors import connector_classes as ct
     from connectors.filesystem.temporary_files import TemporaryLocation
+    from utils.decorators import singleton
     from utils import arguments as arg
     from loggers import logger_classes as lg
     from schema import schema_classes as sh
@@ -14,6 +15,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .streams import stream_classes as sm
     from .connectors import connector_classes as ct
     from .connectors.filesystem.temporary_files import TemporaryLocation
+    from .utils.decorators import singleton
     from .utils import arguments as arg
     from .loggers import logger_classes as lg
     from .schema import schema_classes as sh
@@ -35,12 +37,8 @@ DEFAULT_STREAM_CONFIG = dict(
 )
 
 
+@singleton
 class SnakeeContext(bs.AbstractNamed, bs.ContextInterface):
-    def __new__(cls, *args, **kwargs):
-        if not hasattr(cls, 'instance'):
-            cls.instance = super(SnakeeContext, cls).__new__(cls)
-        return cls.instance
-
     def __init__(
             self,
             name=arg.DEFAULT,
