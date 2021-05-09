@@ -1,7 +1,7 @@
 from enum import Enum
 import os
 import fnmatch
-from typing import Union, Iterable
+from typing import Union, Iterable, Optional
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
@@ -59,7 +59,7 @@ class LocalFolder(HierarchicFolder):
             path: str,
             path_is_relative: Union[bool, arg.DefaultArgument] = arg.DEFAULT,
             parent: Union[HierarchicConnector, ConnectorInterface, arg.DefaultArgument] = arg.DEFAULT,
-            context=None,
+            context: Optional[ContextInterface] = None,
             verbose: Union[bool, arg.DefaultArgument] = arg.DEFAULT,
     ):
         if not arg.is_defined(parent):
@@ -67,7 +67,7 @@ class LocalFolder(HierarchicFolder):
         if parent:
             assert isinstance(parent, PARENT_TYPES), 'got {} as {}'.format(parent, type(parent))
         elif context:
-            parent = context
+            parent = context.get_local_storage()
         super().__init__(
             name=path,
             parent=parent,
@@ -157,7 +157,7 @@ class LocalFolder(HierarchicFolder):
             if file:
                 closed_count += file.close() or 0
         else:
-            for file in self.get_items():
+            for file in self.get_files():
                 closed_count += file.close() or 0
         return closed_count
 
@@ -181,6 +181,16 @@ class LocalFolder(HierarchicFolder):
         else:
             return super().get_path()
 
+    def get_full_path(self) -> str:
+        if self.has_relative_path():
+            current_path = self.get_storage().get_full_path()
+            name = self.get_name()
+            if name:
+                current_path += self.get_path_delimiter() + name
+            return current_path
+        else:
+            return self.get_path()
+
     def get_folder_path(self) -> str:
         return self.get_path()
 
@@ -189,6 +199,9 @@ class LocalFolder(HierarchicFolder):
             return self.get_folder_path() + self.get_path_delimiter() + name
         else:
             return name
+
+    def is_existing(self) -> bool:
+        return os.path.exists(self.get_path())
 
     def list_existing_names(self) -> list:
         if self.get_name() in ['', '.']:

@@ -1,4 +1,5 @@
 from typing import Iterable
+import os
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
@@ -18,7 +19,7 @@ class LocalStorage(AbstractStorage):
     def __init__(
             self,
             name='filesystem',
-            context=arg.DEFAULT,
+            context=None,
             verbose=True,
             path_delimiter=PATH_DELIMITER,
     ):
@@ -26,7 +27,7 @@ class LocalStorage(AbstractStorage):
             registered_local_storage = context.get_local_storage(create_if_not_yet=False)
             if registered_local_storage:
                 assert name != registered_local_storage.get_name(), 'Default local storage already registered'
-        self.path_delimiter = path_delimiter
+        self._path_delimiter = path_delimiter
         super().__init__(name=name, context=context, verbose=verbose)
 
     def get_logger(self, skip_missing=False, create_if_not_yet=True):
@@ -47,5 +48,9 @@ class LocalStorage(AbstractStorage):
     def folder(self, name, **kwargs):
         return self.child(name, parent=self, **kwargs)
 
-    def get_path_delimiter(self):
-        return self.path_delimiter
+    def get_path_delimiter(self) -> str:
+        return self._path_delimiter
+
+    @staticmethod
+    def get_full_path() -> str:
+        return os.getcwd()
