@@ -44,6 +44,8 @@ class AbstractFile(LeafConnector, StreamBuilderMixin, ABC):
             message = 'only LocalFolder supported for *File instances (got {})'.format(type(folder))
             assert isinstance(folder, Folder), message
             assert folder.is_folder(), message
+        else:
+            folder = context.get_job_folder()
         super().__init__(name=name, parent=folder)
         self._fileholder = None
         self.verbose = arg.undefault(verbose, self.get_folder().verbose if self.get_folder() else True)
@@ -134,6 +136,8 @@ class AbstractFile(LeafConnector, StreamBuilderMixin, ABC):
         if self.is_opened():
             self.get_fileholder().close()
             return 1
+        else:
+            return 0
 
     def open(self, mode='r', reopen=False):
         if self.is_opened():
@@ -273,7 +277,8 @@ class TextFile(AbstractFile):
             params = dict()
             if self.encoding:
                 params['encoding'] = self.encoding
-            fileholder = open(self.get_path(), mode, **params) if self.encoding else open(self.get_path(), 'r')
+            path = self.get_path()
+            fileholder = open(path, mode, **params) if self.encoding else open(path, 'r')
             self.set_fileholder(fileholder)
 
     def count_lines(self, reopen=False, chunk_size=CHUNK_SIZE, verbose=AUTO) -> int:

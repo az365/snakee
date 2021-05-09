@@ -106,7 +106,8 @@ class TreeItem(ContextualDataWrapper, TreeInterface):
 
     def forget_all_children(self) -> int:
         count = 0
-        for name in self.get_children():
+        children = self.get_children().copy()
+        for name in children:
             count += self.forget_child(name)
         return count
 

@@ -215,7 +215,8 @@ def get_tmp_mask(name: str):
         location = context.get_tmp_folder()
     else:
         location = TemporaryLocation()
-    return location.stream_mask(name)
+    assert isinstance(location, TemporaryLocation), 'got {}'.format(type(location))
+    return location.mask(name)
 
 
 def concat(*iter_streams, context=arg.DEFAULT):

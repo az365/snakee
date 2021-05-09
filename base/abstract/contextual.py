@@ -59,7 +59,7 @@ class Contextual(Sourced, ContextualInterface, ABC):
                     assert isinstance(context, ContextInterface)
                     assert isinstance(context, AbstractNamed)
                     self.set_source(context)
-            elif self.get_source():
+            elif arg.is_defined(self.get_source()):
                 self.get_source().set_context(context, reset=reset)
             self.put_into_context()
         else:

@@ -67,7 +67,7 @@ def hist(data: Data, *fields, in_memory=arg.DEFAULT, step=1000000, logger=arg.DE
         ).sort('value')
     if not total_count:
         stream = stream.to_memory()
-        total_count = sum(stream.filter(field=fields[0]).get_one_column_values('count').get_list())
+        total_count = sum(stream.filter(field=fields[0]).get_one_column_values('count'))
     stream = stream.select(
         '*',
         total_count=fs.const(total_count),

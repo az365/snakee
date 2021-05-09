@@ -18,7 +18,7 @@ def test_local_file():
     data = [{'a': 1}, {'a': 2}]
     cx = SnakeeContext()
     test_folder = cx.conn(cx.ct.ConnType.LocalFolder, name='test_tmp', path='test_tmp')
-    test_file = test_folder.file(file_name, schema=['a'])
+    test_file = test_folder.file(file_name, schema=['a']).set_types(a=int)
     stream = cx.sm.RecordStream(data).to_file(test_file)
     assert stream.get_list() == data, 'test case 0'
     cx.forget_child(test_file)
