@@ -54,11 +54,12 @@ class TemporaryLocation(ct.LocalFolder):
         else:  # is_stream
             name = stream_or_name.get_name()
             stream = stream_or_name
+        name = name.replace(':', '_')
         mask = self.get_children().get(name)
         if not mask:
-            mask = TemporaryFilesMask(name, *args, stream=stream, **kwargs)
+            mask = TemporaryFilesMask(name, *args, stream=stream, parent=self, **kwargs)
         self.get_children()[name] = mask
-        return TemporaryFilesMask(name, *args, )
+        return mask
 
 
 class TemporaryFilesMask(ct.FileMask):
@@ -72,7 +73,7 @@ class TemporaryFilesMask(ct.FileMask):
             verbose=arg.DEFAULT,
     ):
         parent = arg.undefault(parent, TemporaryLocation(context=context))
-        assert isinstance(parent, TemporaryLocation)
+        assert hasattr(parent, 'get_str_mask_template'), 'got {}'.format(parent)
         location_mask = parent.get_str_mask_template()
         assert arg.is_formatter(location_mask, 2)
         stream_mask = location_mask.format(name, PART_PLACEHOLDER)
@@ -88,7 +89,7 @@ class TemporaryFilesMask(ct.FileMask):
     def get_encoding(self):
         return self.encoding
 
-    def remove_all(self, log=True) -> int:
+    def remove_all(self, log: bool = True) -> int:
         count = 0
         for file in self.get_files():
             assert isinstance(file, ct.AbstractFile)
@@ -96,9 +97,27 @@ class TemporaryFilesMask(ct.FileMask):
                 count += file.remove(log=log)
         return count
 
-    def get_items(self, how='records', *args, **kwargs):
+    def get_files(self) -> Iterable:
+        return self.get_children().values()
+
+    def get_items(self, how: str = 'records', *args, **kwargs) -> Iterable:
         for file in self.get_files():
             yield from file.get_items(how=how, *args, **kwargs)
+
+    def get_items_count(self) -> int:
+        count = 0
+        for file in self.get_files():
+            count += file.get_count()
+        return count
+
+    def get_files_count(self) -> int:
+        return len(self.get_children())
+
+    def get_count(self, count_items: bool = True) -> int:
+        if count_items:
+            return self.get_items_count()
+        else:
+            return self.get_files_count()
 
     def get_sorted_items(
             self, key_function: Callable, reverse: bool = False,
