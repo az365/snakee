@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Union, NoReturn
+from typing import Optional, Iterable, Union, Any, NoReturn
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
@@ -16,18 +16,23 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...loggers.extended_logger_interface import ExtendedLoggerInterface
     from ...loggers.selection_logger_interface import SelectionLoggerInterface
 
+Native = BaseInterface
+LoggingLevel = Union[int, arg.DefaultArgument]
 Logger = Union[LoggerInterface, ExtendedLoggerInterface]
 Connector = Optional[BaseInterface]
 Stream = Optional[StreamInterface]
 Child = Union[Logger, Connector, Stream]
+ChildType = Union[Child, str, Any]
+Name = Union[str, int]
 
 
 class ContextInterface(BaseInterface, ABC):
-    def get_context(self) -> BaseInterface:
+    def get_context(self) -> Native:
         return self
 
-    def set_context(self, context, reset=False):
+    def set_context(self, context: Native, reset: bool = False) -> Native:
         assert not reset, 'Context cannot be replaced'
+        return self
 
     @staticmethod
     def is_context() -> bool:
@@ -43,11 +48,11 @@ class ContextInterface(BaseInterface, ABC):
         return False
 
     @abstractmethod
-    def get_logger(self, create_if_not_yet=True) -> LoggerInterface:
+    def get_logger(self, create_if_not_yet: bool = True) -> LoggerInterface:
         pass
 
     @abstractmethod
-    def set_logger(self, logger):
+    def set_logger(self, logger: Logger, inplace: bool = False) -> Optional[Native]:
         pass
 
     @abstractmethod
@@ -55,38 +60,71 @@ class ContextInterface(BaseInterface, ABC):
         pass
 
     @abstractmethod
-    def get_new_selection_logger(self, name, **kwargs) -> SelectionLoggerInterface:
+    def get_new_selection_logger(self, name: Name, **kwargs) -> SelectionLoggerInterface:
         pass
 
     @abstractmethod
-    def log(self, msg: str, level: int, end: str, verbose: bool):
-        pass
-
-    def set_parent(self, parent, reset=False, inplace=False):
-        pass
-
-    @abstractmethod
-    def get_stream(self, name: str) -> Stream:
+    def log(
+            self,
+            msg: str, level: LoggingLevel = arg.DEFAULT,
+            end: Union[str, arg.DefaultArgument] = arg.DEFAULT, verbose: bool = True,
+    ) -> NoReturn:
         pass
 
     @abstractmethod
-    def get_connection(self, name: str) -> Connector:
+    def get_child(self, name: Name, class_or_type: ChildType = arg.DEFAULT, deep: bool = True) -> Child:
         pass
 
     @abstractmethod
-    def conn(self, conn, name: str, check: bool, redefine: bool, **kwargs) -> Connector:
+    def add_child(self, instance: Child, inplace: bool = False) -> Optional[Native]:
         pass
 
     @abstractmethod
-    def stream(self, stream_type, name: str, check: bool, **kwargs) -> Stream:
+    def set_parent(self, parent: Any, reset: bool = False, inplace: bool = False) -> Optional[Native]:
         pass
 
     @abstractmethod
-    def rename_stream(self, old_name: str, new_name: str):
+    def get_items(self) -> Iterable:
         pass
 
     @abstractmethod
-    def get_local_storage(self, name: str) -> Connector:
+    def get_children(self) -> dict:
+        pass
+
+    @abstractmethod
+    def get_stream(self, name: Name, skip_missing: bool = True) -> Optional[Stream]:
+        pass
+
+    @abstractmethod
+    def get_connection(self, name: Name, skip_missing: bool = True) -> Optional[Connector]:
+        pass
+
+    @abstractmethod
+    def conn(
+            self,
+            conn: Union[Connector, ChildType],
+            name: Union[Name, arg.DefaultArgument] = arg.DEFAULT,
+            check: bool = True, redefine: bool = True,
+            **kwargs
+    ) -> Connector:
+        pass
+
+    @abstractmethod
+    def stream(
+            self,
+            stream_type: Union[Stream, ChildType],
+            name: Union[Name, arg.DefaultArgument] = arg.DEFAULT,
+            check: bool = True,
+            **kwargs
+    ) -> Stream:
+        pass
+
+    @abstractmethod
+    def rename_stream(self, old_name: Name, new_name: Name) -> Stream:
+        pass
+
+    @abstractmethod
+    def get_local_storage(self, name: Name = 'filesystem', create_if_not_yet: bool = True) -> Connector:
         pass
 
     @abstractmethod
@@ -98,41 +136,45 @@ class ContextInterface(BaseInterface, ABC):
         pass
 
     @abstractmethod
-    def close_conn(self, name: str, recursively: bool, verbose: bool) -> int:
+    def close_conn(self, name: Name, recursively: bool = False, verbose: bool = True) -> int:
         pass
 
     @abstractmethod
-    def close_stream(self, name, recursively=False, verbose=True) -> tuple:
+    def close_stream(self, name: Name, recursively: bool = False, verbose: bool = True) -> tuple:
         pass
 
     @abstractmethod
-    def forget_conn(self, name, recursively=True, verbose=True) -> int:
+    def forget_conn(self, conn: Union[Name, Connector], recursively=True, skip_errors=False, verbose=True) -> int:
         pass
 
     @abstractmethod
-    def forget_stream(self, name, recursively=True, verbose=True) -> int:
+    def forget_stream(self, stream: Union[Name, Stream], recursively=True, skip_errors=False, verbose=True) -> int:
         pass
 
     @abstractmethod
-    def close_all_conns(self, recursively=False, verbose=True) -> int:
+    def forget_child(self, name_or_child: Union[Name, Child], recursively=True, skip_errors=False) -> int:
         pass
 
     @abstractmethod
-    def close_all_streams(self, recursively=False, verbose=True) -> tuple:
+    def close_all_conns(self, recursively: bool = False, verbose: bool = True) -> int:
         pass
 
     @abstractmethod
-    def close(self, verbose=True) -> int:
+    def close_all_streams(self, recursively: bool = False, verbose: bool = True) -> tuple:
         pass
 
     @abstractmethod
-    def forget_all_conns(self, recursively=False) -> NoReturn:
+    def close(self, verbose: bool = True) -> tuple:
         pass
 
     @abstractmethod
-    def forget_all_streams(self, recursively=False) -> NoReturn:
+    def forget_all_conns(self, recursively: bool = False, verbose: bool = True) -> int:
         pass
 
     @abstractmethod
-    def forget_all_children(self) -> NoReturn:
+    def forget_all_streams(self, recursively: bool = False, verbose: bool = True) -> int:
+        pass
+
+    @abstractmethod
+    def forget_all_children(self, verbose: bool = True) -> int:
         pass

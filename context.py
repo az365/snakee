@@ -1,5 +1,5 @@
 import gc
-from typing import Optional, Union, Iterable
+from typing import Optional, Union, Iterable, Any, NoReturn
 
 try:  # Assume we're a sub-module in a package.
     from base import base_classes as bs
@@ -18,10 +18,14 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .loggers import logger_classes as lg
     from .schema import schema_classes as sh
 
+Native = bs.ContextInterface
+LoggingLevel = Union[lg.LoggingLevel, int, arg.DefaultArgument]
 Logger = Union[lg.LoggerInterface, lg.ExtendedLoggerInterface]
 Connector = Optional[ct.ConnectorInterface]
 Stream = Optional[sm.StreamInterface]
 Child = Union[Logger, Connector, Stream]
+ChildType = Union[Child, str, Any, arg.DefaultArgument]
+Name = Union[str, int]
 
 NAME = 'cx'
 DEFAULT_STREAM_CONFIG = dict(
@@ -59,14 +63,16 @@ class SnakeeContext(bs.AbstractNamed, bs.ContextInterface):
         self.ct.set_context(self)
         self.sh = sh
 
-    def set_logger(self, logger: Logger):
+    def set_logger(self, logger: Logger, inplace: bool = False) -> Optional[Native]:
         self.logger = logger
         if hasattr(logger, 'get_context'):
             if not logger.get_context():
                 if hasattr(logger, 'set_context'):
                     logger.set_context(self)
+        if not inplace:
+            return self
 
-    def get_logger(self, create_if_not_yet=True) -> Logger:
+    def get_logger(self, create_if_not_yet: bool = True) -> Logger:
         if arg.is_defined(self.logger):
             if not self.logger.get_context():
                 self.logger.set_context(self)
@@ -75,10 +81,14 @@ class SnakeeContext(bs.AbstractNamed, bs.ContextInterface):
             return lg.get_logger(context=self)
 
     @staticmethod
-    def get_new_selection_logger(name, **kwargs) -> lg.SelectionLoggerInterface:
+    def get_new_selection_logger(name: Name, **kwargs) -> lg.SelectionLoggerInterface:
         return lg.SelectionMessageCollector(name, **kwargs)
 
-    def get_selection_logger(self, name=arg.DEFAULT, **kwargs) -> lg.SelectionLoggerInterface:
+    def get_selection_logger(
+            self,
+            name: Union[Name, arg.DefaultArgument] = arg.DEFAULT,
+            **kwargs,
+    ) -> lg.SelectionLoggerInterface:
         logger = self.get_logger()
         if hasattr(logger, 'get_selection_logger'):
             selection_logger = logger.get_selection_logger(name, **kwargs)
@@ -90,7 +100,11 @@ class SnakeeContext(bs.AbstractNamed, bs.ContextInterface):
                 logger.set_selection_logger(selection_logger)
         return selection_logger
 
-    def log(self, msg, level=arg.DEFAULT, end=arg.DEFAULT, verbose=True):
+    def log(
+            self,
+            msg: str, level: LoggingLevel = arg.DEFAULT,
+            end: Union[str, arg.DefaultArgument] = arg.DEFAULT, verbose: bool = True,
+    ) -> NoReturn:
         logger = self.get_logger()
         if logger is not None:
             logger.log(
@@ -98,9 +112,9 @@ class SnakeeContext(bs.AbstractNamed, bs.ContextInterface):
                 end=end, verbose=verbose,
             )
 
-    def set_parent(self, parent, reset=False, inplace=False):
+    def set_parent(self, parent: Any, reset: bool = False, inplace: bool = False) -> Optional[Native]:
         assert not reset, 'SnakeeContext is a root object'
-        if inplace:
+        if not inplace:
             return self
 
     def get_items(self) -> Iterable:
@@ -110,7 +124,7 @@ class SnakeeContext(bs.AbstractNamed, bs.ContextInterface):
     def get_children(self) -> dict:
         return dict(self.get_items())
 
-    def add_child(self, instance: bs.Contextual):
+    def add_child(self, instance: Child, inplace: bool = False) -> Optional[Native]:
         name = instance.get_name()
         err_msg = 'instance with name {} already registered (got {})'
         if ct.is_conn(instance):
@@ -130,8 +144,16 @@ class SnakeeContext(bs.AbstractNamed, bs.ContextInterface):
             raise TypeError("class {} isn't supported by context".format(instance.__class__.__name__))
         if not instance.get_context():
             instance.set_context(self)
+        if not inplace:
+            return self
 
-    def conn(self, conn, name=arg.DEFAULT, check=True, redefine=True, **kwargs) -> Connector:
+    def conn(
+            self,
+            conn: Union[Connector, ChildType],
+            name: Union[Name, arg.DefaultArgument] = arg.DEFAULT,
+            check: bool = True, redefine: bool = True,
+            **kwargs
+    ) -> Connector:
         name = arg.undefault(name, arg.get_generated_name('Connection'))
         conn_object = self.conn_instances.get(name)
         if conn_object:
@@ -149,7 +171,13 @@ class SnakeeContext(bs.AbstractNamed, bs.ContextInterface):
             conn_object.check()
         return conn_object
 
-    def stream(self, stream_type, name=arg.DEFAULT, check=True, **kwargs) -> Stream:
+    def stream(
+            self,
+            stream_type: Union[Stream, ChildType],
+            name: Union[Name, arg.DefaultArgument] = arg.DEFAULT,
+            check: bool = True,
+            **kwargs
+    ) -> Stream:
         name = arg.undefault(name, arg.get_generated_name('Stream'))
         if sm.is_stream(stream_type):
             stream_object = stream_type
@@ -166,13 +194,19 @@ class SnakeeContext(bs.AbstractNamed, bs.ContextInterface):
         self.stream_instances[name] = stream_object
         return stream_object
 
-    def get_stream(self, name: str) -> Stream:
-        return self.stream_instances.get(name)
+    def get_stream(self, name: Name, skip_missing: bool = True) -> Optional[Stream]:
+        if skip_missing:
+            return self.stream_instances.get(name)
+        else:
+            return self.stream_instances[name]
 
-    def get_connection(self, name: str) -> Connector:
-        return self.stream_instances.get(name)
+    def get_connection(self, name: Name, skip_missing: bool = True) -> Optional[Connector]:
+        if skip_missing:
+            return self.conn_instances.get(name)
+        else:
+            return self.conn_instances[name]
 
-    def get_child(self, name, class_or_type=arg.DEFAULT, deep=True) -> Child:
+    def get_child(self, name: Name, class_or_type: ChildType = arg.DEFAULT, deep: bool = True) -> Child:
         if 'Stream' in str(class_or_type):
             return self.get_stream(name)
         elif 'Conn' in str(class_or_type):
@@ -189,8 +223,8 @@ class SnakeeContext(bs.AbstractNamed, bs.ContextInterface):
                     if hasattr(c, 'get_children'):
                         return c.get_children().get(name)
 
-    def _get_name_and_child(self, name_or_child: Union[str, Child]) -> tuple:
-        if isinstance(name_or_child, str):
+    def _get_name_and_child(self, name_or_child: Union[Name, Child]) -> tuple:
+        if isinstance(name_or_child, (str, int)):
             name = name_or_child
             child = self.get_child(name)
         else:
@@ -199,12 +233,13 @@ class SnakeeContext(bs.AbstractNamed, bs.ContextInterface):
             name = child.get_name()
         return name, child
 
-    def rename_stream(self, old_name, new_name):
+    def rename_stream(self, old_name: Name, new_name: Name) -> Stream:
         assert old_name in self.stream_instances, 'Stream must be defined (name {} is not registered)'.format(old_name)
-        if new_name != old_name:
-            self.stream_instances[new_name] = self.stream_instances.pop(old_name)
+        stream = self.stream_instances.pop(old_name)
+        self.stream_instances[new_name] = stream
+        return stream
 
-    def get_local_storage(self, name='filesystem', create_if_not_yet=True) -> Connector:
+    def get_local_storage(self, name: Name = 'filesystem', create_if_not_yet: bool = True) -> Connector:
         local_storage = self.conn_instances.get(name)
         if local_storage:
             assert isinstance(local_storage, ct.LocalStorage)
@@ -214,7 +249,7 @@ class SnakeeContext(bs.AbstractNamed, bs.ContextInterface):
             self.conn_instances[name] = local_storage
         return local_storage
 
-    def get_job_folder(self, instance_name='job', config_field_name='job_folder') -> Connector:
+    def get_job_folder(self, instance_name: Name = 'job', config_field_name: str = 'job_folder') -> Connector:
         job_folder_obj = self.conn_instances.get(instance_name)
         if job_folder_obj:
             return job_folder_obj
@@ -224,7 +259,7 @@ class SnakeeContext(bs.AbstractNamed, bs.ContextInterface):
             self.conn_instances[instance_name] = job_folder_obj
             return job_folder_obj
 
-    def get_tmp_folder(self, instance_name='tmp', config_instance_name='tmp_files_template') -> Connector:
+    def get_tmp_folder(self, instance_name: Name = 'tmp', config_field_name: str = 'tmp_files_template') -> Connector:
         tmp_folder = self.conn_instances.get(instance_name)
         if tmp_folder:
             return tmp_folder
@@ -232,7 +267,7 @@ class SnakeeContext(bs.AbstractNamed, bs.ContextInterface):
             tmp_folder = TemporaryLocation(parent=self.get_local_storage())
             return tmp_folder
 
-    def close_conn(self, name, recursively=False, verbose=True) -> int:
+    def close_conn(self, name: Name, recursively: bool = False, verbose: bool = True) -> int:
         closed_count = 0
         this_conn = self.conn_instances[name]
         closed_count += this_conn.close() or 0
@@ -245,8 +280,8 @@ class SnakeeContext(bs.AbstractNamed, bs.ContextInterface):
         else:
             return closed_count
 
-    def close_stream(self, name, recursively=False, verbose=True) -> tuple:
-        this_stream = self.stream_instances[name]
+    def close_stream(self, name: Name, recursively: bool = False, verbose: bool = True) -> tuple:
+        this_stream = self.get_stream(name, skip_missing=False)
         closed_stream, closed_links = this_stream.close() or 0
         if recursively and hasattr(this_stream, 'get_links'):
             for link in this_stream.get_links():
@@ -256,7 +291,7 @@ class SnakeeContext(bs.AbstractNamed, bs.ContextInterface):
         else:
             return closed_stream, closed_links
 
-    def close_all_conns(self, recursively=False, verbose=True) -> int:
+    def close_all_conns(self, recursively: bool = False, verbose: bool = True) -> int:
         closed_count = 0
         for name in self.conn_instances:
             closed_count += self.close_conn(name, recursively=recursively, verbose=False)
@@ -265,7 +300,7 @@ class SnakeeContext(bs.AbstractNamed, bs.ContextInterface):
         else:
             return closed_count
 
-    def close_all_streams(self, recursively=False, verbose=True) -> tuple:
+    def close_all_streams(self, recursively: bool = False, verbose: bool = True) -> tuple:
         closed_streams, closed_links = 0, 0
         for name in self.stream_instances:
             closed_streams, closed_links = self.close_stream(name, recursively=recursively)
@@ -274,7 +309,7 @@ class SnakeeContext(bs.AbstractNamed, bs.ContextInterface):
         else:
             return closed_streams, closed_links
 
-    def close(self, verbose=True) -> tuple:
+    def close(self, verbose: bool = True) -> tuple:
         closed_conns = self.close_all_conns(recursively=True, verbose=False)
         closed_streams, closed_links = self.close_all_streams(recursively=True, verbose=False)
         if verbose:
@@ -282,7 +317,7 @@ class SnakeeContext(bs.AbstractNamed, bs.ContextInterface):
         else:
             return closed_conns, closed_streams, closed_links
 
-    def forget_conn(self, conn: Union[str, Connector], recursively=True, skip_errors=False, verbose=True) -> int:
+    def forget_conn(self, conn: Union[Name, Connector], recursively=True, skip_errors=False, verbose=True) -> int:
         name, conn = self._get_name_and_child(conn)
         if name in self.conn_instances:
             self.close_conn(name, recursively=recursively, verbose=verbose)
@@ -295,7 +330,7 @@ class SnakeeContext(bs.AbstractNamed, bs.ContextInterface):
         elif not skip_errors:
             raise TypeError('connection {} with name {} not registered'.format(conn, name))
 
-    def forget_stream(self, stream: Union[str, Stream], recursively=True, skip_errors=False, verbose=True) -> int:
+    def forget_stream(self, stream: Union[Name, Stream], recursively=True, skip_errors=False, verbose=True) -> int:
         name, stream = self._get_name_and_child(stream)
         if name in self.stream_instances:
             self.close_stream(name, recursively=recursively, verbose=verbose)
@@ -305,7 +340,7 @@ class SnakeeContext(bs.AbstractNamed, bs.ContextInterface):
         elif not skip_errors:
             raise TypeError('stream {} with name {} not registered'.format(stream, name))
 
-    def forget_child(self, name_or_child: Union[Child, str], recursively=True, skip_errors=False) -> int:
+    def forget_child(self, name_or_child: Union[Name, Child], recursively=True, skip_errors=False) -> int:
         name, child = self._get_name_and_child(name_or_child)
         count = 0
         if name in self.conn_instances:
@@ -314,7 +349,7 @@ class SnakeeContext(bs.AbstractNamed, bs.ContextInterface):
             count += self.forget_stream(name, recursively=recursively, skip_errors=skip_errors) or 0
         return count
 
-    def forget_all_conns(self, recursively=False, verbose=True):
+    def forget_all_conns(self, recursively: bool = False, verbose: bool = True) -> int:
         closed_count = self.close_all_conns(verbose=False)
         left_count = 0
         for name in self.conn_instances.copy():
@@ -322,7 +357,7 @@ class SnakeeContext(bs.AbstractNamed, bs.ContextInterface):
         self.log('{} connection(s) closed, {} connection(s) left.'.format(closed_count, left_count), verbose=verbose)
         return left_count
 
-    def forget_all_streams(self, recursively=False, verbose=True):
+    def forget_all_streams(self, recursively: bool = False, verbose: bool = True) -> int:
         closed_streams, closed_links = self.close_all_streams(verbose=False)
         left_count = 0
         for name in self.stream_instances.copy():
@@ -331,7 +366,7 @@ class SnakeeContext(bs.AbstractNamed, bs.ContextInterface):
         self.log(message.format(closed_streams, closed_links, left_count), verbose=verbose)
         return left_count
 
-    def forget_all_children(self, verbose=True) -> int:
+    def forget_all_children(self, verbose: bool = True) -> int:
         count = 0
         self.close(verbose=True)
         count += self.forget_all_conns(recursively=True, verbose=verbose) or 0
