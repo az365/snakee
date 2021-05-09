@@ -120,10 +120,6 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
         return self._assume_native(stream)
 
     def filter(self, *fields, **expressions) -> Native:
-        expressions_list = [
-            (k, fs.equal(v) if isinstance(v, (str, int, float, bool)) else v)
-            for k, v in expressions.items()
-        ]
         filter_function = sf.filter_items(*fields, **expressions, item_type=it.ItemType.Record, skip_errors=True)
         filtered_items = self.get_filtered_items(filter_function)
         if self.is_in_memory():
@@ -153,6 +149,8 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
 
     def sorted_group_by(self, *keys, values=None, as_pairs=False) -> Stream:
         keys = arg.update(keys)
+        keys = arg.get_names(keys)
+        values = arg.get_names(values)
 
         def get_groups():
             key_function = get_key_function(keys)
@@ -183,10 +181,10 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
 
     def group_by(self, *keys, values=None, step=arg.DEFAULT, as_pairs=False, take_hash=True, verbose=True) -> Stream:
         keys = arg.update(keys)
+        keys = arg.get_names(keys)
+        values = arg.get_names(values)
         if hasattr(keys[0], 'get_field_names'):  # if isinstance(keys[0], FieldGroup)
             keys = keys[0].get_field_names()
-        else:
-            keys = [f.get_name() if hasattr(f, 'get_name') else f for f in keys]
         step = arg.undefault(step, self.max_items_in_memory)
         if as_pairs:
             key_for_sort = keys
@@ -238,7 +236,7 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
             if less_than:
                 less_than += 1
         return self.stream(
-            self.get_rows(columns=tuple(columns), add_title_row=add_title_row),
+            self.get_rows(columns=columns, add_title_row=add_title_row),
             stream_type=sm.StreamType.RowStream,
             count=count,
             less_than=less_than,
@@ -291,7 +289,7 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
             check=True, verbose=True,
             return_stream=True,
     ) -> Optional[Stream]:
-        encoding = arg.undefault(encoding, self.tmp_files_encoding)
+        encoding = arg.delayed_undefault(encoding, self.get_encoding)
         meta = self.get_meta()
         if not gzip:
             meta.pop('count')

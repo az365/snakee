@@ -82,6 +82,10 @@ def get_list(arg: Iterable) -> list:
         return []
 
 
+def get_names(iterable: Optional[Iterable]) -> list:
+    return [i.get_name() if hasattr(i, 'get_name') else i for i in (iterable or [])]
+
+
 def get_generated_name(prefix='snakee', include_random: Union[bool, int] = DEFAULT_RANDOM_LEN, include_datetime=True):
     name_parts = [prefix]
     if include_random:
