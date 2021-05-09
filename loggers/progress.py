@@ -163,8 +163,9 @@ class Progress(TreeItem, ProgressInterface):
                     finish_time.hour, finish_time.minute,
                 )
         else:
-            return "{:02}:{:02}+{:02}".format(
-                self.start_time.hour, self.start_time.minute, int(round(self.past_time.total_seconds() % 60, 0)),
+            return "{:02}:{:02}+{:02}'{:02}".format(
+                self.start_time.hour, self.start_time.minute,
+                int(self.past_time.total_seconds() / 60), int(round(self.past_time.total_seconds() % 60, 0)),
             )
 
     def update_now(self, cur):
