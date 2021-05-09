@@ -206,6 +206,27 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
         grouped_stream = self.group_by(*keys, values=values, step=step, as_pairs=True, take_hash=False, verbose=verbose)
         return self._assume_pairs(grouped_stream)
 
+    def _get_uniq_records(self, *keys) -> Iterable:
+        keys = arg.update(keys)
+        key_fields = arg.get_names(keys)
+        key_function = get_key_function(key_fields)
+        prev_value = arg.DEFAULT
+        for r in self.get_records():
+            value = key_function(r)
+            if value != prev_value:
+                yield r
+            prev_value = value
+
+    def uniq(self, *keys, sort=False) -> Native:
+        if sort:
+            stream = self.sort(*keys)
+        else:
+            stream = self
+        return self.stream(
+            stream._get_uniq_records(*keys),
+            count=None,
+        )
+
     def get_dataframe(self, columns=None) -> Type[pd.DataFrame]:
         dataframe = pd.DataFrame(self.get_data())
         if columns:
