@@ -207,3 +207,51 @@ class ClassType(DynamicEnum):
             if hasattr(default, 'get_class'):
                 return default.get_class(skip_missing=skip_missing)
         raise ValueError('class for {} not supported'.format(self))
+
+    def build(self, *args, **kwargs):
+        builder = self.get_class()
+        if builder:
+            return builder(*args, **kwargs)
+
+    def isinstance(self, obj) -> bool:
+        return isinstance(obj, self.get_class())
+
+    @classmethod
+    def detect(cls, obj, default: Union[Optional[DynamicEnum], Name] = None) -> EnumItem:
+        for item in cls.get_enum_items():
+            assert isinstance(item, ClassType), '{} expected, got {} as {}'.format(cls.__name__, item, type(item))
+            if item.isinstance(obj):
+                return item
+        if default:
+            return default
+        else:
+            return cls.get_default()
+
+
+class SubclassesType(ClassType):
+    @classmethod
+    def set_dict_subclasses(cls, dict_subclasses: dict, skip_missing: bool = False) -> NoReturn:
+        super().set_dict_classes(dict_classes=dict_subclasses, skip_missing=skip_missing, check=False)
+
+    @classmethod
+    def set_dict_classes(cls, dict_classes: dict, skip_missing: bool = False, check: bool = True) -> NoReturn:
+        dict_subclasses = dict()
+        for k, v in dict_classes.items():
+            if not isinstance(v, (list, tuple)):
+                v = [v]
+            dict_subclasses[k] = v
+        cls.set_dict_subclasses(dict_subclasses)
+
+    def get_subclasses(self, default: Union[Optional[Class], Name] = None, skip_missing: bool = False) -> Iterable:
+        subclasses = super().get_class(default=default, skip_missing=skip_missing)
+        assert isinstance(subclasses, Iterable)
+        return subclasses
+
+    def get_class(self, default: Union[Optional[Class], Name] = None, skip_missing: bool = False) -> Class:
+        subclasses = self.get_subclasses()
+        if isinstance(subclasses, (list, tuple)):
+            return subclasses[0]
+        elif default:
+            return default
+        elif not skip_missing:
+            raise ValueError('class for {} not found'.format(self))
