@@ -7,16 +7,19 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from . import arguments as arg
 
 Name = str
-Value = str
+Value = Union[str, int, arg.DefaultArgument]
 Class = Callable
 
 AUX_NAMES = ('name', 'value', 'is_prepared')
 
 
 class EnumItem:
+    _auto_value = True
+
     def __init__(self, name: Name, value: Union[Value, arg.DefaultArgument] = arg.DEFAULT, update: bool = False):
         if update or not self._is_initialized():
-            value = arg.undefault(value, name)
+            if self._auto_value:
+                value = arg.undefault(value, name)
             self.name = name
             self.value = value
 
@@ -63,26 +66,38 @@ class EnumItem:
 
 
 class DynamicEnum(EnumItem):
-    _is_prepared = False
-    _items = list()
-    _default_item = None
+    _enum_prepared = dict()
+    _enum_items = dict()
+    _enum_default_item = dict()
+
+    @classmethod
+    def get_enum_name(cls) -> str:
+        return cls.__name__
 
     @classmethod
     def get_default(cls) -> EnumItem:
-        return cls._default_item
+        return cls._enum_default_item.get(cls.get_enum_name())
 
     @classmethod
     def set_default(cls, item: Union[EnumItem, Name]):
-        cls._default_item = cls.convert(item)
+        if not isinstance(item, cls):
+            item = cls.convert(item)
+        cls._enum_default_item[cls.get_enum_name()] = item
 
     @classmethod
-    def get_enum_items(cls) -> list:
-        assert cls.is_prepared()
-        return cls._items
+    def get_enum_items(cls, check: bool = True) -> list:
+        if check:
+            msg = 'For {method} DynamicEnum {enum} must be prepared, run "{enum}.prepare()" before use other methods'
+            assert cls.is_prepared(), msg.format(method='get_enum_items()', enum=cls.get_enum_name())
+        enum_name = cls.get_enum_name()
+        items = cls._enum_items.get(enum_name, list())
+        if not items:
+            cls._enum_items[enum_name] = items
+        return items
 
     @classmethod
     def add_enum_item(cls, item: EnumItem) -> NoReturn:
-        cls._items.append(item)
+        cls.get_enum_items(check=False).append(item)
 
     @classmethod
     def convert(cls, obj: Union[EnumItem, Name], default: Optional[EnumItem] = None, skip_missing: bool = False):
@@ -98,7 +113,7 @@ class DynamicEnum(EnumItem):
         if default:
             return cls.convert(default)
         elif not skip_missing:
-            raise ValueError('item {} is not an instance of DynamicEnum {}'.format(obj, cls.__name__))
+            raise ValueError('item {} is not an instance of DynamicEnum {}'.format(obj, cls.get_enum_name()))
 
     @classmethod
     def find_instance(cls, instance) -> Optional[EnumItem]:
@@ -120,19 +135,22 @@ class DynamicEnum(EnumItem):
 
     @classmethod
     def is_prepared(cls) -> bool:
-        return cls._is_prepared
+        return cls._enum_prepared.get(cls.get_enum_name(), False)
 
     @classmethod
     def set_prepared(cls, value: bool = True) -> NoReturn:
-        cls._is_prepared = value
+        cls._enum_prepared[cls.get_enum_name()] = value
 
     @classmethod
-    def prepare(cls):
-        for name, value in cls.__dict__.items():
-            if isinstance(value, str) and not cls._is_aux_name(name):
+    def prepare(cls) -> EnumItem:
+        dict_copy = cls.__dict__.copy()
+        for name, value in dict_copy.items():
+            if isinstance(value, (str, int, arg.DefaultArgument)) and not cls._is_aux_name(name):
                 item = cls(name, value)
                 cls.add_enum_item(item)
                 setattr(cls, name, item)
+                if value == arg.DEFAULT:
+                    cls.set_default(item)
         cls.set_prepared(True)
         return cls
 
@@ -158,16 +176,17 @@ class ClassType(DynamicEnum):
         return cls._dict_classes
 
     @classmethod
-    def set_dict_classes(cls, dict_classes: dict, skip_missing: bool = False) -> NoReturn:
+    def set_dict_classes(cls, dict_classes: dict, skip_missing: bool = False, check: bool = True) -> NoReturn:
         if not cls.is_prepared():
             cls.prepare()
         cls._dict_classes = dict()
-        cls.add_dict_classes(dict_classes, skip_missing=skip_missing)
+        cls.add_dict_classes(dict_classes, skip_missing=skip_missing, check=check)
 
     @classmethod
-    def add_dict_classes(cls, dict_classes: dict, skip_missing: bool = False) -> NoReturn:
+    def add_dict_classes(cls, dict_classes: dict, skip_missing: bool = False, check: bool = True) -> NoReturn:
         for name, class_obj in dict_classes.items():
-            assert isclass(class_obj), 'class expected, got {} as {}'.format(class_obj, type(class_obj))
+            if check:
+                assert isclass(class_obj), 'class expected, got {} as {}'.format(class_obj, type(class_obj))
             item = cls.convert(name, skip_missing=skip_missing)
             if item:
                 cls._dict_classes[item] = class_obj
