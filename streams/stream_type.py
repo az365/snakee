@@ -1,4 +1,3 @@
-from enum import Enum
 import inspect
 
 MAX_ITEMS_IN_MEMORY = 5000000
@@ -7,8 +6,10 @@ TMP_FILES_ENCODING = 'utf8'
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
+    from utils.enum import ClassType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
+    from ..utils.enum import ClassType
 
 DICT_METHOD_SUFFIX = dict(
     AnyStream='any_stream',
@@ -21,7 +22,7 @@ DICT_METHOD_SUFFIX = dict(
 )
 
 
-class StreamType(Enum):
+class StreamType(ClassType):
     AnyStream = 'AnyStream'
     LineStream = 'LineStream'
     RowStream = 'RowStream'
@@ -29,12 +30,6 @@ class StreamType(Enum):
     SchemaStream = 'SchemaStream'
     RecordStream = 'RecordStream'
     PandasStream = 'PandasStream'
-
-    def get_value(self):
-        return self.value
-
-    def get_name(self):
-        return self.get_value()
 
     def get_method_suffix(self):
         global DICT_METHOD_SUFFIX
@@ -73,3 +68,6 @@ class StreamType(Enum):
     def isinstance(self, stream):
         if hasattr(stream, 'get_stream_type'):
             return stream.get_stream_type() == self
+
+
+StreamType.prepare()

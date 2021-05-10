@@ -1,4 +1,4 @@
-from typing import Union, Iterable, Any, Optional
+from typing import Union, Iterable, Optional
 import gc
 
 try:  # Assume we're a sub-module in a package.
@@ -8,6 +8,7 @@ try:  # Assume we're a sub-module in a package.
         algo,
     )
     from items.base_item_type import ItemType
+    from streams.stream_type import StreamType
     from streams import stream_classes as sm
     from streams.interfaces.abstract_stream_interface import StreamInterface
     from functions import item_functions as fs
@@ -18,18 +19,19 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         algo,
     )
     from ..items.base_item_type import ItemType
+    from .stream_type import StreamType
     from . import stream_classes as sm
     from .interfaces.abstract_stream_interface import StreamInterface
     from ..functions import item_functions as fs
 
-Stream = Union[StreamInterface, Any]
-OptionalStreamType = Union[Any, arg.DefaultArgument]
+Stream = StreamInterface
+OptionalStreamType = Union[StreamType, arg.DefaultArgument]
 OptionalFields = Optional[Union[Iterable, str]]
 
 
 class StreamBuilder:
     _dict_classes = dict()
-    _stream_types = None
+    _stream_types = StreamType
 
     @classmethod
     def stream(
