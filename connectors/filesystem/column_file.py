@@ -125,7 +125,7 @@ class ColumnFile(TextFile, ColumnarMixin):
         else:
             raise ValueError
         for item in self.get_items(item_type=item_type):
-            yield item_type.get_field_value_from_item(column, item, skip_errors=True)
+            yield item_type.get_value_from_item(item=item, field=column, skip_unsupported_types=True)
 
     def check(self, must_exists=False, check_types=False, check_order=False) -> NoReturn:
         file_exists = self.is_existing()
