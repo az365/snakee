@@ -115,6 +115,11 @@ class SnakeeContext(bs.AbstractNamed, bs.ContextInterface):
         if not inplace:
             return self
 
+    def set_context(self, context: Native, reset: bool = False, inplace: bool = True) -> Optional[Native]:
+        assert not reset, 'SnakeeContext is a root object'
+        if not inplace:
+            return self
+
     def get_items(self) -> Iterable:
         yield from self.conn_instances.items()
         yield from self.stream_instances.items()
@@ -231,11 +236,18 @@ class SnakeeContext(bs.AbstractNamed, bs.ContextInterface):
             name = child.get_name()
         return name, child
 
-    def rename_stream(self, old_name: Name, new_name: Name) -> Stream:
+    def rename_stream(self, old_name: Name, new_name: Name, inplace: bool = True) -> Union[Stream, Native]:
         assert old_name in self.stream_instances, 'Stream must be defined (name {} is not registered)'.format(old_name)
-        stream = self.stream_instances.pop(old_name)
-        self.stream_instances[new_name] = stream
-        return stream
+        if new_name != old_name:
+            assert new_name not in self.stream_instances, 'Stream name "{}" already exists'.format(new_name)
+            stream = self.stream_instances.pop(old_name)
+            self.stream_instances[new_name] = stream
+        else:
+            stream = self.stream_instances[new_name]
+        if inplace:
+            return self
+        else:
+            return stream
 
     def get_local_storage(self, name: Name = 'filesystem', create_if_not_yet: bool = True) -> Connector:
         local_storage = self.conn_instances.get(name)

@@ -30,9 +30,9 @@ class ContextInterface(BaseInterface, ABC):
     def get_context(self) -> Native:
         return self
 
-    def set_context(self, context: Native, reset: bool = False) -> Native:
-        assert not reset, 'Context cannot be replaced'
-        return self
+    @abstractmethod
+    def set_context(self, context: Native, reset: bool = False, inplace: bool = True) -> Optional[Native]:
+        pass
 
     @staticmethod
     def is_context() -> bool:
@@ -65,9 +65,10 @@ class ContextInterface(BaseInterface, ABC):
 
     @abstractmethod
     def log(
-            self,
-            msg: str, level: LoggingLevel = arg.DEFAULT,
-            end: Union[str, arg.DefaultArgument] = arg.DEFAULT, verbose: bool = True,
+            self, msg: str,
+            level: LoggingLevel = arg.DEFAULT,
+            end: Union[str, arg.DefaultArgument] = arg.DEFAULT,
+            verbose: bool = True,
     ) -> NoReturn:
         pass
 
