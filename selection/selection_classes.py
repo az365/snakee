@@ -1,4 +1,4 @@
-from typing import Iterable
+from typing import Iterable, Callable, Union
 
 try:  # Assume we're a sub-module in a package.
     from utils import (
@@ -32,32 +32,39 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .selection_description import SelectionDescription
 
 
-def _prepare_field_list(field_list: Iterable) -> tuple:
-    prepared_field_list = list()
-    for f in field_list:
-        if hasattr(f, 'get_name'):
-            name = f.get_name()
-        else:
-            name = f
-        prepared_field_list.append(name)
-    return tuple(prepared_field_list)
+def is_expression_description(obj) -> bool:
+    if isinstance(obj, AbstractDescription):
+        return True
+    else:
+        return hasattr(obj, 'get_selection_tuple')
 
 
-def _prepare_expressions(expressions: dict) -> dict:
+def get_name_or_function(field) -> Union[int, str, Callable]:
+    if isinstance(field, Callable):
+        return field
+    else:
+        return arg.get_name(field)
+
+
+def get_selection_tuple(description: Union[AbstractDescription, Iterable]) -> tuple:
+    if isinstance(description, AbstractDescription):
+        return description.get_selection_tuple()
+    elif isinstance(description, Iterable):
+        return tuple([get_name_or_function(f) for f in description])
+    else:
+        raise TypeError
+
+
+def get_compatible_expression_tuples(expressions: dict) -> dict:
     prepared_expressions = dict()
     for k, v in expressions.items():
-        if hasattr(k, 'get_name'):
-            name = k.get_name()
+        name = arg.get_name(k)
+        if isinstance(v, Iterable):
+            value = get_selection_tuple(v)
+        elif is_expression_description(v):
+            value = v.get_selection_tuple()
         else:
-            name = k
-        if hasattr(v, 'get_name'):
-            value = v.get_name()
-        elif isinstance(v, str):
-            value = v
-        elif isinstance(v, Iterable):
-            value = _prepare_field_list(v)
-        else:
-            value = v
+            value = get_name_or_function(v)
         prepared_expressions[name] = value
     return prepared_expressions
 
@@ -81,8 +88,8 @@ def select(
             logger=selection_logger,
         )
     else:
-        fields = _prepare_field_list(fields)
-        expressions = _prepare_expressions(expressions)
+        fields = get_selection_tuple(fields)
+        expressions = get_compatible_expression_tuples(expressions)
         return sf.select(
             *fields,
             target_item_type=target_item_type,
@@ -95,7 +102,3 @@ def select(
 
 def drop(*fields, **kwargs):
     return DropDescription(fields, **kwargs)
-
-
-def is_expression_description(obj):
-    return isinstance(obj, AbstractDescription)

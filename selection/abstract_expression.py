@@ -8,6 +8,7 @@ try:  # Assume we're a sub-module in a package.
         selection as sf,
     )
     from items.base_item_type import ItemType
+    from items.struct_row_interface import StructRowInterface
     from fields.abstract_field import AbstractField
     from fields.schema_interface import SchemaInterface
     from loggers.logger_interface import LoggerInterface
@@ -18,18 +19,23 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         selection as sf,
     )
     from ..items.base_item_type import ItemType
+    from ..items.struct_row_interface import StructRowInterface
     from ..fields.abstract_field import AbstractField
     from ..fields.schema_interface import SchemaInterface
     from ..loggers.logger_interface import LoggerInterface
 
+Row = Union[list, tuple]
+Record = dict
+Item = Union[StructRowInterface, Row, Record]
+Name = Union[int, str]
+FieldID = Union[Name, AbstractField]
+Value = Any
+Array = Union[list, tuple]
+FieldList = Union[Array, SchemaInterface]
 Logger = Optional[LoggerInterface]
 
 AUTO = arg.DEFAULT
 GIVE_SAME_FIELD_FOR_FUNCTION_DESCRIPTION = False
-
-FieldID = Union[int, str, AbstractField]
-Array = Union[list, tuple]
-FieldList = Union[Array, SchemaInterface]
 
 
 class AbstractDescription(ABC):
@@ -38,19 +44,22 @@ class AbstractDescription(ABC):
             target_item_type: ItemType, input_item_type: ItemType = ItemType.Auto,
             skip_errors: bool = False, logger: Logger = None,
     ):
-        self.target_type = target_item_type
-        self.input_type = input_item_type
-        self.skip_errors = skip_errors
-        self.logger = logger
+        self._target_type = target_item_type
+        self._input_type = input_item_type
+        self._skip_errors = skip_errors
+        self._logger = logger
 
     def get_target_item_type(self) -> ItemType:
-        return self.target_type
+        return self._target_type
 
     def get_input_item_type(self) -> ItemType:
-        return self.input_type
+        return self._input_type
+
+    def must_skip_errors(self) -> bool:
+        return self._skip_errors
 
     def get_logger(self) -> LoggerInterface:
-        return self.logger
+        return self._logger
 
     @abstractmethod
     def get_function(self) -> Callable:
@@ -61,7 +70,7 @@ class AbstractDescription(ABC):
         pass
 
     @abstractmethod
-    def get_input_field_names(self) -> Iterable:
+    def get_input_field_names(self, *args) -> Iterable:
         pass
 
     @abstractmethod
@@ -73,10 +82,13 @@ class AbstractDescription(ABC):
         pass
 
     def get_dict_output_field_types(self, schema: SchemaInterface) -> dict:
-        return dict(zip(self.get_output_field_names(), self.get_output_field_types()))
+        return dict(zip(self.get_output_field_names(), self.get_output_field_types(schema)))
+
+    def get_selection_tuple(self) -> tuple:
+        return (self.get_function(), *self.get_input_field_names())
 
     @abstractmethod
-    def apply_inplace(self, item):
+    def apply_inplace(self, item: Item) -> NoReturn:
         pass
 
 
@@ -92,23 +104,26 @@ class SingleFieldDescription(AbstractDescription, ABC):
             skip_errors=skip_errors, logger=logger,
         )
         assert isinstance(field, (int, str)), 'got {} as {}'.format(field, type(field))
-        self.target = field
-        self.default = default
+        self._target = field
+        self._default = default
 
     def must_finish(self) -> bool:
         return False
 
-    def get_target_field_name(self) -> FieldID:
-        return self.target
+    def get_default_value(self) -> Value:
+        return self._default
+
+    def get_target_field_name(self) -> Name:
+        return arg.get_name(self._target)
 
     def get_input_field_names(self) -> list:
-        return []
+        return list()
 
-    def get_input_values(self, item):
+    def get_input_values(self, item: Item) -> list:
         return it.get_fields_values_from_item(
             fields=self.get_input_field_names(),
             item=item, item_type=self.get_input_item_type(),
-            skip_errors=self.skip_errors, logger=self.logger, default=self.default,
+            skip_errors=self.must_skip_errors(), logger=self.get_logger(), default=self.get_default_value(),
         )
 
     def get_output_field_names(self, *args) -> list:
@@ -118,13 +133,13 @@ class SingleFieldDescription(AbstractDescription, ABC):
         return lambda i: i
 
     @abstractmethod
-    def get_value_from_item(self, item):
+    def get_value_from_item(self, item) -> Value:
         pass
 
     def apply_inplace(self, item) -> NoReturn:
         item_type = self.get_input_item_type()
         if item_type == arg.DEFAULT:
-            item_type = it.ItemType.detect(item)
+            item_type = it.ItemType.detect(item, default=ItemType.Any)
         it.set_to_item_inplace(
             field=self.get_target_field_name(),
             value=self.get_value_from_item(item),
@@ -166,11 +181,11 @@ class TrivialMultipleDescription(MultipleFieldDescription, ABC):
     def get_function(self) -> Callable:
         return lambda i: i
 
-    def get_input_field_names(self, item) -> Iterable:
-        return self.get_output_field_names(item)
+    def get_input_field_names(self, schema: FieldList) -> Iterable:
+        return self.get_output_field_names(schema)
 
-    def get_output_field_types(self, schema):
-        return [schema.get_field_description(f).get_field_type() for f in self.get_output_field_names()]
+    def get_output_field_types(self, schema: FieldList) -> list:
+        return [schema.get_field_description(f).get_type() for f in self.get_output_field_names()]
 
     def apply_inplace(self, item):
         pass
