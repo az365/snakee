@@ -45,6 +45,22 @@ class ColumnarInterface(StreamInterface, ABC):
         pass
 
     @abstractmethod
+    def get_records(self) -> Iterable:
+        pass
+
+    @abstractmethod
+    def filter(self, function: Callable) -> Stream:
+        pass
+
+    @abstractmethod
+    def map(self, function: Callable) -> Stream:
+        pass
+
+    @abstractmethod
+    def map_side_join(self, right: Stream, key: Key, how='left', right_is_uniq=True) -> Stream:
+        pass
+
+    @abstractmethod
     def select(self, *fields, **expressions) -> Stream:
         pass
 
@@ -53,11 +69,27 @@ class ColumnarInterface(StreamInterface, ABC):
         pass
 
     @abstractmethod
+    def sorted_group_by(self, *keys, values: Optional[Iterable] = None, as_pairs: bool = False) -> Stream:
+        pass
+
+    @abstractmethod
+    def group_by(self, *keys, values: Optional[Iterable] = None, as_pairs: bool = False) -> Stream:
+        pass
+
+    @abstractmethod
     def is_in_memory(self) -> bool:
         pass
 
     @abstractmethod
-    def get_records(self) -> Iterable:
+    def get_dataframe(self) -> pd.DataFrame:
+        pass
+
+    @abstractmethod
+    def show(self, count: int = 10, filters: Optional[list] = None, columns=None):
+        pass
+
+    @abstractmethod
+    def apply_to_stream(self, function, *args, **kwargs) -> Stream:
         pass
 
 
@@ -83,9 +115,10 @@ class ColumnarMixin(ContextualDataWrapper, ColumnarInterface, ABC):
                     raise TypeError(message)
 
     def validated(self, skip_errors=False) -> ColumnarInterface:
-        return self.stream(
+        stream = self.stream(
             self.get_validated(self.get_items(), skip_errors=skip_errors),
         )
+        return self._assume_native(stream)
 
     def get_shape(self) -> tuple:
         return self.get_count(), self.get_column_count()
@@ -97,13 +130,20 @@ class ColumnarMixin(ContextualDataWrapper, ColumnarInterface, ABC):
             ', '.join(self.get_columns()),
         )
 
-    def map(self, function: Callable) -> Native:
-        return self.stream(
-            map(function, self.get_items()),
-        )
-
     def get_column_count(self) -> int:
         return len(list(self.get_columns()))
+
+    def filter(self, function: Callable) -> Stream:
+        stream = self.stream(
+            filter(function, self.get_items()),
+        )
+        return self._assume_native(stream)
+
+    def map(self, function: Callable) -> Native:
+        stream = self.stream(
+            map(function, self.get_items()),
+        )
+        return self._assume_native(stream)
 
     def map_side_join(self, right: Native, key: Key, how='left', right_is_uniq=True) -> Native:
         assert how in algo.JOIN_TYPES, 'only {} join types are supported ({} given)'.format(algo.JOIN_TYPES, how)
@@ -122,14 +162,12 @@ class ColumnarMixin(ContextualDataWrapper, ColumnarInterface, ABC):
         stream = stream.set_meta(**meta)
         return self._assume_native(stream)
 
-    def sorted_group_by(self, *keys) -> Native:
-        return self.stream(
-            self.select(keys, lambda r: r).get_items(),
-            to='KeyValueStream',
-        )
+    def sorted_group_by(self, *keys, **kwargs) -> Stream:
+        stream = self.to_stream()
+        return self._assume_native(stream).sorted_group_by(*keys, **kwargs)
 
-    def group_by(self, *keys) -> Stream:
-        return self.sort(*keys).sorted_group_by(*keys)
+    def group_by(self, *keys, values: Optional[Iterable] = None, as_pairs: bool = False) -> Stream:
+        return self.sort(*keys).sorted_group_by(*keys, values=values, as_pairs=as_pairs)
 
     @staticmethod
     def _assume_native(stream) -> Native:
@@ -141,11 +179,13 @@ class ColumnarMixin(ContextualDataWrapper, ColumnarInterface, ABC):
     def get_dataframe(self) -> pd.DataFrame:
         return pd.DataFrame(self.get_data())
 
-    def get_demo_example(self, count=10, filters=[], columns=None):
-        sm_sample = self.filter(*filters) if filters else self
-        return sm_sample.take(count).get_dataframe(columns)
+    def get_demo_example(self, count: int = 10, filters: Optional[list] = None, columns=None):
+        sm_sample = self.filter(*filters or []) if filters else self
+        sm_sample = sm_sample.take(count)
+        if hasattr(sm_sample, 'get_dataframe'):
+            return sm_sample.get_dataframe(columns)
 
-    def show(self, count=10, filters=[], columns=None):
+    def show(self, count: int = 10, filters: Optional[list] = None, columns=None):
         self.log(self.get_description(), truncate=False, force=True)
         return self.get_demo_example(count=count, filters=filters, columns=columns)
 
