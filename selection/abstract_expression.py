@@ -28,7 +28,7 @@ Row = Union[list, tuple]
 Record = dict
 Item = Union[StructRowInterface, Row, Record]
 Name = Union[int, str]
-FieldID = Union[Name, AbstractField]
+Field = Union[Name, AbstractField]
 Value = Any
 Array = Union[list, tuple]
 FieldList = Union[Array, SchemaInterface]
@@ -95,7 +95,7 @@ class AbstractDescription(ABC):
 class SingleFieldDescription(AbstractDescription, ABC):
     def __init__(
             self,
-            field: FieldID,
+            field: Field,
             target_item_type: ItemType, input_item_type: ItemType = ItemType.Auto,
             skip_errors: bool = False, logger: Logger = None, default: Any = None,
     ):
@@ -131,6 +131,13 @@ class SingleFieldDescription(AbstractDescription, ABC):
 
     def get_function(self) -> Callable:
         return lambda i: i
+
+    def get_annotations(self) -> dict:
+        function = self.get_function()
+        if hasattr(function, '__annotations__'):
+            return function.__annotations__
+        else:
+            return dict()
 
     @abstractmethod
     def get_value_from_item(self, item) -> Value:
