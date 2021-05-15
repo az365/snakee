@@ -82,8 +82,22 @@ def get_list(arg: Iterable) -> list:
         return []
 
 
+def get_name(obj) -> Union[str, int]:
+    if hasattr(obj, 'get_name'):
+        return obj.get_name()
+    elif hasattr(obj, '__name__'):
+        return obj.__name__
+    elif isinstance(obj, int):
+        return obj
+    else:
+        return str(obj)
+
+
 def get_names(iterable: Optional[Iterable]) -> list:
-    return [i.get_name() if hasattr(i, 'get_name') else i for i in (iterable or [])]
+    if iterable:
+        return [get_name(i) for i in iterable]
+    else:
+        return list()
 
 
 def get_generated_name(prefix='snakee', include_random: Union[bool, int] = DEFAULT_RANDOM_LEN, include_datetime=True):
