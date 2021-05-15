@@ -42,11 +42,11 @@ class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
             context = sm.get_context()
         super().__init__(name=name, data=data, source=source, context=context, check=check)
 
-    def set_name(self, name: str, register=True) -> Stream:
+    def set_name(self, name: str, register: bool = True, inplace: bool = False) -> Optional[Stream]:
         if register:
             old_name = self.get_name()
             self.get_context().rename_stream(old_name, name)
-        return self.stream(self.get_data(), name=name)
+        return super().set_name(name, inplace=inplace)
 
     @classmethod
     def _get_data_member_names(cls) -> tuple:
@@ -133,6 +133,9 @@ class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
         stream = self.__class__(data, **meta)
         assert isinstance(stream, Stream)
         return stream
+
+    def to_stream(self) -> Stream:
+        return self
 
     def write_to(self, connector, verbose=True, return_stream=True) -> Optional[Stream]:
         msg = 'connector-argument must be an instance of LeafConnector or have write_stream() method'

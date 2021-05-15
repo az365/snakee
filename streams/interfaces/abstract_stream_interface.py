@@ -78,3 +78,7 @@ class StreamInterface(SourcedInterface, ABC):
     @abstractmethod
     def stream(self, data, **kwargs) -> Stream:
         pass
+
+    @abstractmethod
+    def to_stream(self) -> Stream:
+        pass
