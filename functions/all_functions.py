@@ -6,7 +6,7 @@ try:  # Assume we're a sub-module in a package.
     )
     from functions.cast_functions import (
         cast, DICT_CAST_TYPES,
-        percent,
+        date, number, percent,
     )
     from functions.array_functions import (
         is_in, not_in,
@@ -28,7 +28,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     )
     from functions.cast_functions import (
         cast, DICT_CAST_TYPES,
-        percent,
+        date, number, percent,
     )
     from .array_functions import (
         is_in, not_in,
