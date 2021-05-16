@@ -3,13 +3,16 @@ try:  # Assume we're a sub-module in a package.
         partial, const, defined, is_none, not_none, nonzero, equal, not_equal,
         at_least, more_than, safe_more_than, less_than, between, not_between,
         apply_dict,
-        percent,
+    )
+    from functions.cast_functions import (
         cast, DICT_CAST_TYPES,
+        percent,
     )
     from functions.array_functions import (
         is_in, not_in,
         elem_no, first, second, last,
-        is_ordered, uniq, compare_lists, list_minus,
+        uniq,
+        is_ordered, compare_lists, list_minus,
         values_not_none, defined_values, nonzero_values, numeric_values, shift_right,
         unfold_lists, top, mean,
     )
@@ -22,13 +25,16 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         partial, const, defined, is_none, not_none, nonzero, equal, not_equal,
         at_least, more_than, safe_more_than, less_than, between, not_between,
         apply_dict,
-        percent,
+    )
+    from functions.cast_functions import (
         cast, DICT_CAST_TYPES,
+        percent,
     )
     from .array_functions import (
         is_in, not_in,
         elem_no, first, second, last,
-        is_ordered, uniq, compare_lists, list_minus,
+        uniq,
+        is_ordered, compare_lists, list_minus,
         values_not_none, defined_values, nonzero_values, numeric_values, shift_right,
         unfold_lists, top, mean,
     )

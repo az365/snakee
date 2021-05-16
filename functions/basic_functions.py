@@ -1,12 +1,10 @@
-from typing import Callable, Union
+from typing import Callable
 
 try:  # Assume we're a sub-module in a package.
     from utils import numeric as nm
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import numeric as nm
 
-
-DICT_CAST_TYPES = dict(bool=bool, int=int, float=float, str=str, text=str, date=str)
 ZERO_VALUES = (None, 'None', '', '-', 0)
 
 
@@ -115,27 +113,4 @@ def not_between(min_value, max_value, including=False) -> Callable:
 def apply_dict(dictionary, default=None) -> Callable:
     def func(key):
         return dictionary.get(key, default)
-    return func
-
-
-def cast(field_type, default_int=0) -> Callable:
-    def func(value):
-        cast_function = DICT_CAST_TYPES.get(field_type, field_type)
-        if value in (None, 'None', '') and field_type in ('int', int, float):
-            value = default_int
-        return cast_function(value)
-    return func
-
-
-def percent(field_type=float, round_digits=1, default_value=None) -> Callable:
-    def func(value) -> Union[int, float, str]:
-        if value is None:
-            return default_value
-        else:
-            cast_function = DICT_CAST_TYPES.get(field_type, field_type)
-            value = round(100 * value, round_digits)
-            value = cast_function(value)
-            if cast_function == str:
-                value += '%'
-            return value
     return func
