@@ -32,7 +32,7 @@ def not_in(*list_values) -> Callable:
     return func
 
 
-def is_ordered(reverse=False, including=True) -> Callable:
+def is_ordered(reverse: bool = False, including: bool = True) -> Callable:
     def func(previous, current) -> bool:
         if current == previous:
             return including
@@ -43,7 +43,7 @@ def is_ordered(reverse=False, including=True) -> Callable:
     return func
 
 
-def elem_no(position, default=None) -> Callable:
+def elem_no(position: int, default=None) -> Callable:
     def func(array: Union[list, tuple]):
         count = len(array)
         if isinstance(array, (list, tuple)) and -count <= position < count:
@@ -76,8 +76,20 @@ def uniq() -> Callable:
     return func
 
 
+def count_uniq() -> Callable:
+    def func(array: Iterable) -> int:
+        a = uniq()(array)
+        if isinstance(a, list):
+            return len(a)
+    return func
+
+
+def distinct() -> Callable:
+    return uniq()
+
+
 def unfold_lists(fields, number_field='n', default_value=0) -> Callable:
-    fields = [f.get_name() if hasattr(f, 'get_name') else f for f in fields]
+    fields = arg.get_names(fields)
 
     def func(record: dict) -> Iterable:
         yield from ms.unfold_lists(record, fields=fields, number_field=number_field, default_value=default_value)
@@ -85,7 +97,7 @@ def unfold_lists(fields, number_field='n', default_value=0) -> Callable:
 
 
 def compare_lists(a_field='a_only', b_field='b_only', ab_field='common', as_dict=True) -> Callable:
-    def func(list_a: Iterable, list_b: Iterable) -> Union[list, dict]:
+    def func(list_a: Iterable, list_b: Iterable) -> Union[dict, list, tuple]:
         items_common, items_a_only, items_b_only = list(), list(), list()
         for item in list_a:
             if item in list_b:
@@ -138,7 +150,7 @@ def shift_right(shift: int, default: Any = 0, save_count=True) -> Callable:
         list_a = list(a)
         if shift == 0:
             return list_a
-        count = len(a)
+        count = len(list_a)
         if abs(shift) > count and save_count:
             addition = [default] * count
         else:
@@ -149,9 +161,9 @@ def shift_right(shift: int, default: Any = 0, save_count=True) -> Callable:
                 result = result[:count]
         else:  # shift < 0
             if count > shift:
-                result = a[-shift:]
+                result = list_a[-shift:]
             else:
-                result = []
+                result = list()
             if save_count:
                 result += addition
         return result
