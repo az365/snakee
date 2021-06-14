@@ -1,4 +1,4 @@
-from typing import Union, Callable, Iterable, Any
+from typing import Optional, Union, Callable, Iterable, Any
 
 try:  # Assume we're a sub-module in a package.
     from utils import (
@@ -170,9 +170,12 @@ def shift_right(shift: int, default: Any = 0, save_count=True) -> Callable:
     return func
 
 
-def mean() -> Callable:
+def mean(round_digits: Optional[int] = None) -> Callable:
     def func(a) -> float:
-        return nm.mean(numeric_values()(a))
+        value = nm.mean(numeric_values()(a))
+        if round_digits is not None:
+            value = round(value, round_digits)
+        return value
     return func
 
 
@@ -190,4 +193,22 @@ def top(count=10, output_values=False) -> Callable:
             return top_n
         else:
             return [i[0] for i in top_n]
+    return func
+
+
+def hist(as_list=True, sort_by_count=False, sort_by_name=False):
+    def func(array: Iterable):
+        dict_hist = dict()
+        for i in array:
+            dict_hist[i] = dict_hist.get(i, 0) + 1
+        if as_list:
+            list_hist = [(k, v) for k, v in dict_hist.items()]
+            if sort_by_count:
+                return sorted(list_hist, key=lambda p: p[1])
+            elif sort_by_name:
+                return sorted(list_hist, key=lambda p: p[0])
+            else:
+                return list_hist
+        else:
+            return dict_hist
     return func

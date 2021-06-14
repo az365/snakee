@@ -12,7 +12,7 @@ try:  # Assume we're a sub-module in a package.
         distinct, uniq, count_uniq,
         is_ordered, compare_lists, list_minus,
         values_not_none, defined_values, nonzero_values, numeric_values, shift_right,
-        unfold_lists, top, mean,
+        unfold_lists, top, hist, mean,
     )
     from functions.aggregate_functions import avg, median, min, max, sum
     from functions.pair_functions import shifted_func, pair_filter, pair_stat, corr
@@ -32,7 +32,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         distinct, uniq, count_uniq,
         is_ordered, compare_lists, list_minus,
         values_not_none, defined_values, nonzero_values, numeric_values, shift_right,
-        unfold_lists, top, mean,
+        unfold_lists, top, hist, mean,
     )
     from .aggregate_functions import avg, median, min, max, sum
     from .pair_functions import shifted_func, pair_filter, pair_stat, corr
