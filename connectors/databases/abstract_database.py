@@ -201,8 +201,8 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
     ) -> NoReturn:
         name_old = self._get_table_name(old)
         name_new = self._get_table_name(new)
-        cat_old, name_old = old.split('.')
-        cat_new, name_new = new.split('.') if '.' in new else (cat_old, new)
+        cat_old, name_old = name_old.split('.')
+        cat_new, name_new = name_new.split('.') if '.' in name_new else (cat_old, name_new)
         assert cat_new == cat_old, 'Can copy within same scheme (folder) only (got {} and {})'.format(cat_new, cat_old)
         new = name_new
         self.execute_if_exists(
@@ -248,7 +248,9 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
         elif ct.is_file(data):
             stream = data.to_schema_stream()
             if schema:
-                assert stream.get_columns() == schema.get_columns()
+                stream_cols = stream.get_columns()
+                schema_cols = schema.get_columns()
+                assert stream_cols == schema_cols, '{} != {}'.format(stream_cols, schema_cols)
         elif isinstance(data, str):
             stream = sm.RowStream.from_column_file(filename=data, **file_kwargs)
         else:
