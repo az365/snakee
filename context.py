@@ -28,6 +28,8 @@ Stream = Optional[sm.StreamInterface]
 Child = Union[Logger, Connector, Stream]
 ChildType = Union[Child, str, Any, arg.DefaultArgument]
 Name = Union[str, int]
+Array = Union[list, tuple]
+ARRAY_TYPES = list, tuple
 
 NAME = 'cx'
 DEFAULT_STREAM_CONFIG = dict(
@@ -89,11 +91,11 @@ class SnakeeContext(bs.AbstractNamed, bs.ContextInterface):
     ) -> lg.SelectionLoggerInterface:
         logger = self.get_logger()
         if hasattr(logger, 'get_selection_logger'):
-            selection_logger = logger.get_selection_logger(name, **kwargs)
+            selection_logger = logger.get_selection_logger(name=name, **kwargs)
         else:
             selection_logger = None
         if not selection_logger:
-            selection_logger = self.get_new_selection_logger(name, **kwargs)
+            selection_logger = self.get_new_selection_logger(name=name, **kwargs)
             if hasattr(logger, 'set_selection_logger'):
                 logger.set_selection_logger(selection_logger)
         return selection_logger
@@ -292,7 +294,11 @@ class SnakeeContext(bs.AbstractNamed, bs.ContextInterface):
 
     def close_stream(self, name: Name, recursively: bool = False, verbose: bool = True) -> tuple:
         this_stream = self.get_stream(name, skip_missing=False)
-        closed_stream, closed_links = this_stream.close() or 0
+        closed = this_stream.close() or 0
+        if isinstance(closed, ARRAY_TYPES):
+            closed_stream, closed_links = closed[:2]
+        else:  # isinstance(closed, int):
+            closed_stream, closed_links = closed, 0
         if recursively and hasattr(this_stream, 'get_links'):
             for link in this_stream.get_links():
                 closed_links += link.close() or 0
@@ -307,25 +313,27 @@ class SnakeeContext(bs.AbstractNamed, bs.ContextInterface):
             closed_count += self.close_conn(name, recursively=recursively, verbose=False)
         if verbose:
             self.log('{} connection(s) closed.'.format(closed_count))
-        else:
-            return closed_count
+        return closed_count
 
     def close_all_streams(self, recursively: bool = False, verbose: bool = True) -> tuple:
         closed_streams, closed_links = 0, 0
         for name in self.stream_instances:
-            closed_streams, closed_links = self.close_stream(name, recursively=recursively)
+            closed = self.close_stream(name, recursively=recursively)
+            if isinstance(closed, ARRAY_TYPES):
+                closed_streams += closed[0]
+                closed_links += closed[1]
+            else:  # isinstance(closed, int):
+                closed_streams += closed
         if verbose:
             self.log('{} stream(es) and {} link(s) closed.'.format(closed_streams, closed_links))
-        else:
-            return closed_streams, closed_links
+        return closed_streams, closed_links
 
     def close(self, verbose: bool = True) -> tuple:
         closed_conns = self.close_all_conns(recursively=True, verbose=False)
         closed_streams, closed_links = self.close_all_streams(recursively=True, verbose=False)
         if verbose:
             self.log('{} conn(s), {} stream(es), {} link(s) closed.'.format(closed_conns, closed_streams, closed_links))
-        else:
-            return closed_conns, closed_streams, closed_links
+        return closed_conns, closed_streams, closed_links
 
     def forget_conn(self, conn: Union[Name, Connector], recursively=True, skip_errors=False, verbose=True) -> int:
         name, conn = self._get_name_and_child(conn)
