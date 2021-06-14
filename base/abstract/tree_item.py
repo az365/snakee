@@ -70,7 +70,7 @@ class TreeItem(ContextualDataWrapper, TreeInterface):
             name = child.get_name()
         return name, child
 
-    def add_child(self, name_or_child: NameOrChild, check: bool = True):
+    def add_child(self, name_or_child: NameOrChild, check: bool = True, inplace: bool = True) -> Optional[Child]:
         children = self.get_children()
         name, child = self._get_name_and_child(name_or_child)
         if name in children:
@@ -79,6 +79,8 @@ class TreeItem(ContextualDataWrapper, TreeInterface):
         children[name] = child
         if hasattr(child, 'set_parent'):
             child.set_parent(self)
+        if not inplace:
+            return self
 
     def get_items(self) -> Iterable:
         yield from self.get_children().values()
@@ -100,7 +102,9 @@ class TreeItem(ContextualDataWrapper, TreeInterface):
                 if recursively:
                     for c in child.get_children():
                         count += c.forget_all_children()
-                return count
+            else:
+                count = 0
+            return count
         else:
             raise TypeError('child {} with name {} not registered'.format(name, child))
 
