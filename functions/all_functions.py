@@ -4,10 +4,8 @@ try:  # Assume we're a sub-module in a package.
         at_least, more_than, safe_more_than, less_than, between, not_between,
         apply_dict,
     )
-    from functions.cast_functions import (
-        cast, DICT_CAST_TYPES,
-        date, number, percent,
-    )
+    from functions.cast_functions import DICT_CAST_TYPES, cast, date, number, percent
+    from functions.numeric_functions import sign, div, diff, sqrt
     from functions.array_functions import (
         is_in, not_in,
         elem_no, first, second, last,
@@ -26,10 +24,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         at_least, more_than, safe_more_than, less_than, between, not_between,
         apply_dict,
     )
-    from functions.cast_functions import (
-        cast, DICT_CAST_TYPES,
-        date, number, percent,
-    )
+    from .cast_functions import DICT_CAST_TYPES, cast, date, number, percent
+    from .numeric_functions import sign, div, diff, sqrt
     from .array_functions import (
         is_in, not_in,
         elem_no, first, second, last,
