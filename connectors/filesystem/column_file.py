@@ -63,11 +63,15 @@ class ColumnFile(TextFile, ColumnarMixin):
     def is_in_memory(self) -> bool:
         return False
 
-    def get_data(self, verbose=arg.DEFAULT, *args, **kwargs) -> Iterable:  # ?
+    def get_data(self, verbose: Union[bool, arg.DefaultArgument] = arg.DEFAULT, *args, **kwargs) -> Iterable:
         return self.get_items(verbose=verbose, *args, **kwargs)
 
-    def sort(self, *keys, reverse=False):
-        raise NotImplemented
+    def sort(self, *keys, reverse: bool = False) -> Stream:
+        stream = self.to_stream()
+        if hasattr(stream, 'sort'):
+            return stream.sort(*keys, reverse=reverse)
+        else:
+            raise AttributeError('Stream {} has no attribute sort()'.format(stream))
 
     def get_schema(self) -> sh.SchemaInterface:
         return self.schema
@@ -184,7 +188,7 @@ class ColumnFile(TextFile, ColumnarMixin):
     def get_items(self, item_type=it.ItemType.Auto, *args, **kwargs) -> Iterable:
         item_type = arg.undefault(item_type, self.get_default_item_type())
         item_type = it.ItemType(item_type)
-        method_name = 'get_{}s'.format(item_type.get_name())
+        method_name = 'get_{}s'.format(item_type.get_name().lower())
         method_callable = self.__getattribute__(method_name)
         return method_callable(*args, **kwargs)
 
