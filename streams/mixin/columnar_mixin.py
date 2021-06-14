@@ -179,11 +179,15 @@ class ColumnarMixin(ContextualDataWrapper, ColumnarInterface, ABC):
     def get_dataframe(self) -> pd.DataFrame:
         return pd.DataFrame(self.get_data())
 
-    def get_demo_example(self, count: int = 10, filters: Optional[list] = None, columns=None):
+    def get_demo_example(self, count: int = 10, filters: Optional[list] = None, columns: Optional[list] = None):
         sm_sample = self.filter(*filters or []) if filters else self
         sm_sample = sm_sample.take(count)
         if hasattr(sm_sample, 'get_dataframe'):
             return sm_sample.get_dataframe(columns)
+        elif hasattr(sm_sample, 'select') and columns:
+            return sm_sample.select(*columns).get_items()
+        elif hasattr(sm_sample, 'get_items'):
+            return sm_sample.get_items()
 
     def show(self, count: int = 10, filters: Optional[list] = None, columns=None):
         self.log(self.get_description(), truncate=False, force=True)
