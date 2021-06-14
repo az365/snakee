@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from itertools import chain, tee
-from typing import Optional, Union, Callable, Iterable, Generator, Type
+from typing import Optional, Union, Callable, Iterable
 from datetime import datetime
 
 try:  # Assume we're a sub-module in a package.
@@ -25,8 +25,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...functions import item_functions as fs
 
 OptionalFields = Optional[Union[Iterable, str]]
-Stream = Type[StreamInterface]
-SelectionLogger = Type[log.SelectionMessageCollector]
+Stream = StreamInterface
+SelectionLogger = log.SelectionLoggerInterface
 
 DYNAMIC_META_FIELDS = ('count', 'less_than')
 
@@ -37,7 +37,7 @@ class IterableStreamInterface(StreamInterface, ABC):
         pass
 
     @abstractmethod
-    def get_iter(self) -> Generator:
+    def get_iter(self) -> Iterable:
         pass
 
     @abstractmethod
@@ -90,6 +90,14 @@ class IterableStreamInterface(StreamInterface, ABC):
 
     @abstractmethod
     def take(self, max_count=1) -> Stream:
+        pass
+
+    @abstractmethod
+    def head(self, count: int = 10) -> Stream:  # alias for take()
+        pass
+
+    @abstractmethod
+    def tail(self, count: int = 10) -> Stream:
         pass
 
     @abstractmethod
@@ -199,7 +207,7 @@ class IterableStream(AbstractStream, IterableStreamInterface):
     def get_items(self) -> Iterable:  # list or generator (need for inherited subclasses)
         return self.get_data()
 
-    def get_iter(self) -> Generator:
+    def get_iter(self) -> Iterable:
         yield from self.get_items()
 
     def __iter__(self):
@@ -217,7 +225,7 @@ class IterableStream(AbstractStream, IterableStreamInterface):
         return self.is_valid_item_type(item)
 
     @classmethod
-    def get_typing_validated_items(cls, items, skip_errors=False, context=None) -> Iterable:
+    def get_typing_validated_items(cls, items: Iterable, skip_errors=False, context=None) -> Iterable:
         for i in items:
             if cls.is_valid_item_type(i):
                 yield i
@@ -229,7 +237,7 @@ class IterableStream(AbstractStream, IterableStreamInterface):
                 else:
                     raise TypeError(message)
 
-    def get_validated_items(self, items, skip_errors=False, context=None) -> Iterable:
+    def get_validated_items(self, items: Iterable, skip_errors=False, context=None) -> Iterable:
         for i in items:
             if self.is_valid_item(i):
                 yield i
@@ -282,7 +290,7 @@ class IterableStream(AbstractStream, IterableStreamInterface):
             result += 1
         return result
 
-    def get_count(self, final=False) -> Optional[int]:
+    def get_count(self, final: bool = False) -> Optional[int]:
         if final:
             return self.final_count()
         else:
@@ -305,7 +313,7 @@ class IterableStream(AbstractStream, IterableStreamInterface):
     def get_description(self) -> str:
         return '{} items'.format(self.get_str_count())
 
-    def get_first_items(self, count=1) -> Iterable:
+    def get_first_items(self, count: int = 1) -> Iterable:
         for n, i in self.get_enumerated_items():
             yield i
             if n + 1 >= count:
@@ -315,7 +323,7 @@ class IterableStream(AbstractStream, IterableStreamInterface):
         for n, i in enumerate(self.get_items()):
             yield n, i
 
-    def enumerate(self, native=False) -> Native:
+    def enumerate(self, native: bool = False) -> Union[Native, Stream]:
         props = self.get_meta()
         if native:
             target_class = self.__class__
@@ -327,21 +335,23 @@ class IterableStream(AbstractStream, IterableStreamInterface):
             **props
         )
 
-    def take(self, max_count=1) -> Native:
-        stream = self.stream(
-            self.get_first_items(max_count),
-            count=min(self.get_count(), max_count) if self.get_count() else None,
-            less_than=min(self.get_estimated_count(), max_count) if self.get_estimated_count() else max_count,
-        )
-        return stream
+    def take(self, max_count: int = 1) -> Native:
+        if max_count > 0:
+            return self.stream(
+                self.get_first_items(max_count),
+                count=min(self.get_count(), max_count) if self.get_count() else None,
+                less_than=min(self.get_estimated_count(), max_count) if self.get_estimated_count() else max_count,
+            )
+        else:
+            return self.tail(count=max_count)
 
-    def skip(self, count=1) -> Native:
+    def skip(self, count: int = 1) -> Native:
         def skip_items(c):
             for n, i in self.get_enumerated_items():
                 if n >= c:
                     yield i
         if self.get_count() and count >= self.get_count():
-            next_items = []
+            next_items = list()
         else:
             next_items = self.get_items()[count:] if self.is_in_memory() else skip_items(count)
         less_than = None
@@ -353,12 +363,28 @@ class IterableStream(AbstractStream, IterableStreamInterface):
             less_than = self.get_estimated_count() - count
         return self.stream(next_items, count=new_count, less_than=less_than)
 
+    def head(self, count: int = 10) -> Native:
+        return self.take(count)  # alias
+
+    def tail(self, count: int = 10) -> Native:
+        return self.stream(
+            self._get_last_items(count),
+        )
+
+    def _get_last_items(self, count: int = 10) -> list:
+        items = list()
+        for i in self.get_items():
+            if len(items) >= count:
+                items.pop(0)
+            items.append(i)
+        return items
+
     def pass_items(self) -> Native:
         for _ in self.get_iter():
             pass
         return self
 
-    def tee_streams(self, n=2) -> list:
+    def tee_streams(self, n: int = 2) -> list:
         return [
             self.stream(
                 tee_stream,
@@ -379,17 +405,17 @@ class IterableStream(AbstractStream, IterableStreamInterface):
             check=False,
         )
 
-    def stream(self, data, ex: OptionalFields = None, **kwargs) -> Native:
+    def stream(self, data: Iterable, ex: OptionalFields = None, **kwargs) -> Native:
         stream = super().stream(data, ex=ex, **kwargs)
         return self._assume_native(stream)
 
     def copy(self) -> Native:
         return self.tee_stream()
 
-    def add(self, stream_or_items, before=False, **kwargs) -> Native:
+    def add(self, stream_or_items: Union[Stream, Iterable], before: bool = False, **kwargs) -> Native:
         if sm.is_stream(stream_or_items):
             return self.add_stream(
-                stream_or_items,
+                self._assume_native(stream_or_items),
                 before=before,
             )
         else:
@@ -398,7 +424,7 @@ class IterableStream(AbstractStream, IterableStreamInterface):
                 before=before,
             )
 
-    def add_items(self, items, before=False) -> Native:
+    def add_items(self, items: Iterable, before: bool = False) -> Native:
         old_items = self.get_items()
         new_items = items
         if before:
@@ -421,7 +447,7 @@ class IterableStream(AbstractStream, IterableStreamInterface):
             less_than=less_than,
         )
 
-    def add_stream(self, stream: Native, before=False) -> Native:
+    def add_stream(self, stream: Native, before: bool = False) -> Native:
         old_count = self.get_count()
         new_count = stream.get_count()
         if old_count is not None and new_count is not None:
@@ -508,13 +534,13 @@ class IterableStream(AbstractStream, IterableStreamInterface):
             )
         ]
 
-    def split_by_boolean(self, func) -> list:
+    def split_by_boolean(self, func: Callable) -> list:
         return self.split_by_numeric(
             func=lambda f: int(bool(func(f))),
             count=2,
         )
 
-    def split(self, by: Union[int, list, tuple, Callable], count=None) -> Iterable:
+    def split(self, by: Union[int, list, tuple, Callable], count: Optional[int] = None) -> Iterable:
         if isinstance(by, int):
             return self.split_by_pos(by)
         elif isinstance(by, (list, tuple)):
@@ -543,7 +569,7 @@ class IterableStream(AbstractStream, IterableStreamInterface):
             yield self.stream(items, count=len(items))
             items = self._get_split_items(iterable, step=step)
 
-    def get_filtered_items(self, function) -> Iterable:
+    def get_filtered_items(self, function: Callable) -> Iterable:
         return filter(function, self.get_items())
 
     def filter(self, function) -> Native:
@@ -553,7 +579,7 @@ class IterableStream(AbstractStream, IterableStreamInterface):
             less_than=self.get_estimated_count(),
         )
 
-    def get_mapped_items(self, function, flat=False) -> Iterable:
+    def get_mapped_items(self, function: Callable, flat: bool = False) -> Iterable:
         if flat:
             for i in self.get_iter():
                 yield from function(i)
@@ -565,12 +591,12 @@ class IterableStream(AbstractStream, IterableStreamInterface):
             self.get_mapped_items(function, flat=False),
         )
 
-    def flat_map(self, function) -> Native:
+    def flat_map(self, function: Callable) -> Native:
         return self.stream(
             self.get_mapped_items(function, flat=True),
         )
 
-    def map_side_join(self, right, key, how='left', right_is_uniq=True) -> Native:
+    def map_side_join(self, right: Native, key, how='left', right_is_uniq: bool = True) -> Native:
         assert sm.is_stream(right)
         assert how in algo.JOIN_TYPES, 'only {} join types are supported ({} given)'.format(algo.JOIN_TYPES, how)
         keys = arg.update([key])
@@ -593,7 +619,7 @@ class IterableStream(AbstractStream, IterableStreamInterface):
         items_with_logger = self.get_logger().progress(self.get_data(), name=message, count=count, step=step)
         return self.stream(items_with_logger)
 
-    def get_demo_example(self, count=3) -> Iterable:
+    def get_demo_example(self, count: int = 3) -> Iterable:
         yield from self.tee_stream().take(count).get_items()
 
     def show(self, *args, **kwargs):
@@ -607,7 +633,7 @@ class IterableStream(AbstractStream, IterableStreamInterface):
         else:
             return demo_example
 
-    def print(self, stream_function='get_count', *args, **kwargs) -> Native:
+    def print(self, stream_function: Union[Callable, str] = 'get_count', *args, **kwargs) -> Native:
         value = self.get_property(stream_function, *args, **kwargs)
         self.log(value, end='\n', verbose=True)
         return self
