@@ -174,3 +174,9 @@ class SortedNumericKeyValueSeries(sc.SortedKeyValueSeries, sc.SortedNumericSerie
             save_meta=True,
         )
         return result
+
+    def get_value_by_key(self, key, *args, interpolate='linear', **kwargs):
+        value = self.get_dict().get(key)
+        if value is None:
+            value = self.get_interpolated_value(key, how=interpolate, *args, **kwargs)
+        return value
