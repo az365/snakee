@@ -1,3 +1,5 @@
+from typing import Optional, Union, Callable, Iterable, Iterator, Generator, Any
+
 try:  # Assume we're a sub-module in a package.
     from utils import mappers as ms
     from functions import array_functions as fs
@@ -5,10 +7,19 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from . import mappers as ms
     from ..functions import array_functions as fs
 
+Array = Union[list, tuple]
+Logger = Optional[Any]
+Iter = Union[Iterable, Iterator, Generator]
+
 JOIN_TYPES = ('left', 'right', 'inner', 'full')
 
 
-def topologically_sorted(nodes, edges, ignore_cycles=False, logger=None):  # Kahn's algorithm
+def topologically_sorted(  # Kahn's algorithm
+        nodes: Array,
+        edges: Array,
+        ignore_cycles: bool = False,
+        logger: Logger = None,
+):
     if len(nodes) < 2:
         return nodes
     unordered_nodes = nodes.copy()
@@ -29,7 +40,7 @@ def topologically_sorted(nodes, edges, ignore_cycles=False, logger=None):  # Kah
             message += 'Probably given graph has cyclic dependencies or missing nodes. '
             message += 'Unordered nodes: {} '.format(unordered_nodes)
             if ignore_cycles:
-                if logger:
+                if hasattr(logger, 'warning'):
                     # logger.log(msg=message + 'skipped.', level=30)
                     logger.warning(message + 'skipped.')
                 break
@@ -38,7 +49,12 @@ def topologically_sorted(nodes, edges, ignore_cycles=False, logger=None):  # Kah
     return ordered_nodes
 
 
-def merge_iter(iterables, key_function, reverse=False):
+def merge_iter(
+        iterables: Array,
+        key_function: Callable,
+        reverse: bool = False,
+        post_action: Optional[Callable] = None,
+):
     iterators_count = len(iterables)
     finished = [False] * iterators_count
     take_next = [True] * iterators_count
@@ -60,9 +76,17 @@ def merge_iter(iterables, key_function, reverse=False):
                 if key_from[n] == chosen_key and not finished[n]:
                     yield item_from[n]
                     take_next[n] = True
+    if post_action:
+        post_action()
 
 
-def map_side_join(iter_left, iter_right, key_function, how='left', uniq_right=False):
+def map_side_join(
+        iter_left: Iterable,
+        iter_right: Iterable,
+        key_function: Callable,
+        how: str = 'left',
+        uniq_right: bool = False,
+):
     assert how in JOIN_TYPES
     dict_right = ms.items_to_dict(
         iter_right,
@@ -99,7 +123,13 @@ def map_side_join(iter_left, iter_right, key_function, how='left', uniq_right=Fa
                     yield from [ms.merge_two_items(None, i) for i in dict_right[k]]
 
 
-def sorted_join(iter_left, iter_right, key_function, how='left', sorting_is_reversed=False):
+def sorted_join(
+        iter_left: Iter,
+        iter_right: Iter,
+        key_function: Callable,
+        how: str = 'left',
+        sorting_is_reversed: bool = False,
+):
     assert how in JOIN_TYPES
     is_correct_order = fs.is_ordered(reverse=sorting_is_reversed, including=True)
     left_finished, right_finished = False, False
