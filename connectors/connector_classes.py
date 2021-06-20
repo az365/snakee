@@ -1,4 +1,3 @@
-from enum import Enum
 from typing import Optional
 
 try:  # Assume we're a sub-module in a package.
@@ -13,6 +12,7 @@ try:  # Assume we're a sub-module in a package.
     from connectors.filesystem.local_file import AbstractFile, TextFile, JsonFile
     from connectors.filesystem.column_file import ColumnFile, CsvFile, TsvFile
     from connectors.filesystem.file_type import FileType
+    from connectors.filesystem.temporary_interface import TemporaryLocationInterface, TemporaryFilesMaskInterface
     from connectors.filesystem.temporary_files import TemporaryLocation, TemporaryFilesMask
     from connectors.storages.s3_storage import AbstractObjectStorage, S3Storage
     from connectors.storages.s3_bucket import S3Bucket, S3Folder
@@ -38,6 +38,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .filesystem.local_file import AbstractFile, TextFile, JsonFile
     from .filesystem.column_file import ColumnFile, CsvFile, TsvFile
     from .filesystem.file_type import FileType
+    from .filesystem.temporary_interface import TemporaryLocationInterface, TemporaryFilesMaskInterface
     from .filesystem.temporary_files import TemporaryLocation, TemporaryFilesMask
     from .storages.s3_storage import AbstractObjectStorage, S3Storage
     from .storages.s3_bucket import S3Bucket, S3Folder

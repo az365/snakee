@@ -1,5 +1,4 @@
-from typing import Optional
-import inspect
+from typing import Optional, NoReturn
 from datetime import datetime
 from random import randint
 
@@ -28,6 +27,7 @@ try:  # Assume we're a sub-module in a package.
     from streams.regular.record_stream import RecordStream
     from streams.wrappers.pandas_stream import PandasStream
     from streams.stream_builder import StreamBuilder
+    from connectors.filesystem.temporary_interface import TemporaryLocationInterface, TemporaryFilesMaskInterface
     from connectors.filesystem.temporary_files import TemporaryLocation
     from base.interfaces.context_interface import ContextInterface
     from schema import schema_classes as sh
@@ -53,6 +53,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .regular.record_stream import RecordStream
     from .wrappers.pandas_stream import PandasStream
     from .stream_builder import StreamBuilder
+    from ..connectors.filesystem.temporary_interface import TemporaryLocationInterface, TemporaryFilesMaskInterface
     from ..connectors.filesystem.temporary_files import TemporaryLocation
     from ..base.interfaces.context_interface import ContextInterface
     from ..schema import schema_classes as sh
@@ -84,13 +85,7 @@ StreamType.set_dict_classes(DICT_STREAM_CLASSES)
 
 @deprecated_with_alternative('StreamType.get_class()')
 def get_class(stream_type):
-    if inspect.isclass(stream_type):
-        return stream_type
-    else:
-        stream_type = StreamType(stream_type)
-    message = 'stream_type must be an instance of StreamType (but {} as type {} received)'
-    assert isinstance(stream_type, StreamType), TypeError(message.format(stream_type, type(stream_type)))
-    return stream_type.get_class()
+    return StreamType(stream_type).get_class()
 
 
 DICT_ITEM_TO_STREAM_TYPE = {
@@ -108,12 +103,12 @@ def get_context() -> Optional[ContextInterface]:
     return _context
 
 
-def set_context(cx: ContextInterface):
+def set_context(cx: ContextInterface) -> NoReturn:
     global _context
     _context = cx
 
 
-def stream(stream_type, *args, **kwargs):
+def stream(stream_type, *args, **kwargs) -> StreamInterface:
     if is_stream_class(STREAM_CLASSES):
         stream_class = stream_type
     else:
@@ -123,35 +118,35 @@ def stream(stream_type, *args, **kwargs):
     return stream_class(*args, **kwargs)
 
 
-def is_stream_class(obj):
+def is_stream_class(obj) -> bool:
     return obj in STREAM_CLASSES
 
 
-def is_stream(obj):
+def is_stream(obj) -> bool:
     return isinstance(obj, STREAM_CLASSES)
 
 
-def is_row(item):
+def is_row(item) -> bool:
     return RowStream.is_valid_item_type(item)
 
 
-def is_record(item):
+def is_record(item) -> bool:
     return RecordStream.is_valid_item_type(item)
 
 
-def is_schema_row(item):
+def is_schema_row(item) -> bool:
     return isinstance(item, sh.SchemaRow)
 
 
 @deprecated_with_alternative('AbstractStream.generate_name()')
-def generate_name():
+def generate_name() -> str:
     cur_time = datetime.now().strftime('%y%m%d_%H%M%S')
     random = randint(0, 1000)
     cur_name = '{}_{:03}'.format(cur_time, random)
     return cur_name
 
 
-def get_tmp_mask(name: str):
+def get_tmp_mask(name: str) -> TemporaryFilesMaskInterface:
     context = get_context()
     if context:
         location = context.get_tmp_folder()
@@ -161,13 +156,13 @@ def get_tmp_mask(name: str):
     return location.mask(name)
 
 
-def concat(*iter_streams, context=arg.DEFAULT):
+def concat(*iter_streams, context=arg.DEFAULT) -> StreamInterface:
     global _context
     context = arg.undefault(context, _context)
     return StreamBuilder.concat(*iter_streams, context=context)
 
 
-def join(*iter_streams, key, how='left', step=arg.DEFAULT, name=arg.DEFAULT, context=None):
+def join(*iter_streams, key, how='left', step=arg.DEFAULT, name=arg.DEFAULT, context=None) -> StreamInterface:
     global _context
     context = arg.undefault(context, _context)
     return StreamBuilder.join(*iter_streams, key=key, how=how, step=step, name=name, context=context)
