@@ -1,17 +1,33 @@
-from typing import Iterable, Callable
+from typing import Optional, Iterable, Callable, Union
 
 try:  # Assume we're a sub-module in a package.
     from utils import (
         arguments as arg,
         algo,
     )
+    from base.interfaces.context_interface import ContextInterface
+    from streams.interfaces.abstract_stream_interface import StreamInterface
+    from connectors.abstract.connector_interface import ConnectorInterface
+    from connectors.filesystem.temporary_interface import TemporaryLocationInterface, TemporaryFilesMaskInterface
     from connectors import connector_classes as ct
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import (
         arguments as arg,
         algo,
     )
+    from ...base.interfaces.context_interface import ContextInterface
+    from ...streams.interfaces.abstract_stream_interface import StreamInterface
+    from ..abstract.connector_interface import ConnectorInterface
+    from .temporary_interface import TemporaryLocationInterface, TemporaryFilesMaskInterface
     from .. import connector_classes as ct
+
+Mask = str
+Name = str
+Stream = StreamInterface
+Connector = ConnectorInterface
+Context = Union[ContextInterface, arg.DefaultArgument]
+Parent = Union[Connector, Context]
+Verbose = Union[bool, arg.DefaultArgument]
 
 DEFAULT_FOLDER = 'tmp'
 DEFAULT_MASK = 'stream_{}_part{}.tmp'
@@ -19,14 +35,14 @@ PART_PLACEHOLDER = '{:03}'
 DEFAULT_ENCODING = 'utf8'
 
 
-class TemporaryLocation(ct.LocalFolder):
+class TemporaryLocation(ct.LocalFolder, TemporaryLocationInterface):
     def __init__(
             self,
-            path=DEFAULT_FOLDER,
-            mask=DEFAULT_MASK,
-            path_is_relative=True,
-            parent=arg.DEFAULT,
-            context=arg.DEFAULT,
+            path: Name = DEFAULT_FOLDER,
+            mask: Mask = DEFAULT_MASK,
+            path_is_relative: bool = True,
+            parent: Parent = arg.DEFAULT,
+            context: Context = arg.DEFAULT,
             verbose=arg.DEFAULT,
     ):
         parent = arg.undefault(parent, ct.LocalStorage(context=context))
@@ -40,13 +56,13 @@ class TemporaryLocation(ct.LocalFolder):
         assert arg.is_formatter(mask, 2)
         self._mask = mask
 
-    def get_str_mask_template(self):
+    def get_str_mask_template(self) -> Mask:
         return self._mask
 
-    def mask(self, mask: str):
+    def mask(self, mask: Mask) -> ConnectorInterface:
         return self.stream_mask(mask)
 
-    def stream_mask(self, stream_or_name, *args, **kwargs):
+    def stream_mask(self, stream_or_name: Union[StreamInterface, Name], *args, **kwargs) -> ConnectorInterface:
         if isinstance(stream_or_name, str):
             name = stream_or_name
             context = self.get_context()
@@ -61,16 +77,27 @@ class TemporaryLocation(ct.LocalFolder):
         self.get_children()[name] = mask
         return mask
 
+    def clear_all(self, forget: bool = True, verbose: bool = True) -> int:
+        files = list(self.all_existing_files())
+        self.log('Removing {} files from {}...'.format(len(files), self.get_path()), verbose=verbose)
+        count = 0
+        for f in files:
+            count += f.remove(verbose=False)
+            if forget:
+                self.forget_child(f)
+        self.log('Removed {} files from {}.'.format(count, self.get_path()), verbose=verbose)
+        return count
 
-class TemporaryFilesMask(ct.FileMask):
+
+class TemporaryFilesMask(ct.FileMask, TemporaryFilesMaskInterface):
     def __init__(
             self,
-            name,
-            encoding=DEFAULT_ENCODING,
-            stream=None,
-            parent=arg.DEFAULT,
-            context=arg.DEFAULT,
-            verbose=arg.DEFAULT,
+            name: Name,
+            encoding: str = DEFAULT_ENCODING,
+            stream: Optional[Stream] = None,
+            parent: Parent = arg.DEFAULT,
+            context: Context = arg.DEFAULT,
+            verbose: Verbose = arg.DEFAULT,
     ):
         parent = arg.undefault(parent, TemporaryLocation(context=context))
         assert hasattr(parent, 'get_str_mask_template'), 'got {}'.format(parent)
@@ -86,15 +113,17 @@ class TemporaryFilesMask(ct.FileMask):
         self.encoding = encoding
         self.stream = stream
 
-    def get_encoding(self):
+    def get_encoding(self) -> str:
         return self.encoding
 
-    def remove_all(self, log: bool = True) -> int:
+    def remove_all(self, log: bool = True, forget: bool = True) -> int:
         count = 0
         for file in self.get_files():
             assert isinstance(file, ct.AbstractFile)
             if file.is_existing():
                 count += file.remove(log=log)
+            if forget:
+                self.get_context().forget_child()
         return count
 
     def get_files(self) -> Iterable:
