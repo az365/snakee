@@ -59,7 +59,7 @@ def get_compatible_expression_tuples(expressions: dict) -> dict:
     prepared_expressions = dict()
     for k, v in expressions.items():
         name = arg.get_name(k)
-        if isinstance(v, Iterable):
+        if isinstance(v, (list, tuple)):
             value = get_selection_tuple(v)
         elif is_expression_description(v):
             value = v.get_selection_tuple()
