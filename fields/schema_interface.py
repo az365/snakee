@@ -24,6 +24,10 @@ class SchemaInterface(ABC):
         pass
 
     @abstractmethod
+    def remove_fields(self, *fields, inplace: bool = True):
+        pass
+
+    @abstractmethod
     def get_fields_count(self):
         pass
 
@@ -56,7 +60,7 @@ class SchemaInterface(ABC):
         pass
 
     @abstractmethod
-    def get_field_description(self, field_name):
+    def get_field_description(self, field: FieldID) -> FieldInterface:
         pass
 
     @abstractmethod

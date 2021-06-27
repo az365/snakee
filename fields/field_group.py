@@ -23,13 +23,15 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..items.struct_row_interface import StructRowInterface
     from ..loggers.selection_logger_interface import SelectionLoggerInterface
 
+Group = Union[SchemaInterface, Iterable]
+GroupName = Optional[str]
 FieldName = str
 FieldNo = int
 FieldID = Union[FieldNo, FieldName]
 FieldProps = dict
 Field = Union[FieldID, FieldProps, FieldInterface]
 Type = Union[FieldType, arg.DefaultArgument]
-Group = Union[SchemaInterface, Iterable]
+Dialect = Optional[str]
 Array = Union[list, tuple]
 ARRAY_SUBTYPES = list, tuple
 
@@ -37,7 +39,7 @@ META_MEMBER_MAPPING = dict(_data='fields')
 
 
 class FieldGroup(SimpleDataWrapper, SchemaInterface):
-    def __init__(self, fields: Iterable, name: Optional[str] = None, default_type: Type = arg.DEFAULT):
+    def __init__(self, fields: Iterable, name: GroupName = None, default_type: Type = arg.DEFAULT):
         name = arg.undefault(name, arg.get_generated_name(prefix='FieldGroup'))
         super().__init__(name=name, data=list())
         for field in fields:
@@ -72,7 +74,7 @@ class FieldGroup(SimpleDataWrapper, SchemaInterface):
     ) -> Optional[SchemaInterface]:
         if self._is_field(field):
             field_desc = field
-        elif isinstance(field, str):
+        elif isinstance(field, FieldName):
             field_desc = AdvancedField(field, default_type)
         elif isinstance(field, ARRAY_SUBTYPES):
             field_desc = AdvancedField(*field)
@@ -86,7 +88,12 @@ class FieldGroup(SimpleDataWrapper, SchemaInterface):
             fields = self.get_fields() + [field_desc]
         return self.set_fields(fields, inplace=inplace)
 
-    def append(self, field_or_group: Union[Field, Group], default_type=None, inplace=None) -> Optional[SchemaInterface]:
+    def append(
+            self,
+            field_or_group: Union[Field, Group],
+            default_type: Optional[Type] = None,
+            inplace: bool = False,
+    ) -> Optional[SchemaInterface]:
         if isinstance(field_or_group, SchemaInterface):
             return self.add_fields(field_or_group.get_fields_descriptions(), default_type=default_type, inplace=inplace)
         elif isinstance(field_or_group, Iterable):
@@ -94,7 +101,13 @@ class FieldGroup(SimpleDataWrapper, SchemaInterface):
         else:
             return self.append_field(field_or_group, default_type=default_type, inplace=inplace)
 
-    def add_fields(self, *fields, default_type=None, inplace=False, name=None) -> Optional[SchemaInterface]:
+    def add_fields(
+            self,
+            *fields,
+            default_type: Optional[Type] = None,
+            inplace: bool = False,
+            name: GroupName = None,
+    ) -> Optional[SchemaInterface]:
         fields = arg.update(fields)
         if inplace:
             for f in fields:
@@ -102,10 +115,22 @@ class FieldGroup(SimpleDataWrapper, SchemaInterface):
         else:
             return FieldGroup(self.get_fields_descriptions() + list(fields), name=name)
 
+    def remove_fields(self, *fields, inplace: bool = True, name: GroupName = None):
+        removing_fields = arg.update(fields)
+        removing_field_names = arg.get_names(removing_fields)
+        existing_fields = self.get_data()
+        if inplace:
+            for e in existing_fields:
+                if arg.get_name(e) in removing_field_names:
+                    existing_fields.remove(e)
+        else:
+            new_fields = [f for f in existing_fields if arg.get_name(f) not in removing_field_names]
+            return FieldGroup(new_fields, name=name)
+
     def get_fields_count(self) -> int:
         return len(self.get_fields())
 
-    def get_schema_str(self, dialect='py') -> str:
+    def get_schema_str(self, dialect: Dialect = 'py') -> str:
         if dialect is not None and dialect not in di.DIALECTS:
             dialect = di.get_dialect_for_connector(dialect)
         template = '{}: {}' if dialect in ('str', 'py') else '{} {}'
@@ -115,14 +140,19 @@ class FieldGroup(SimpleDataWrapper, SchemaInterface):
     def get_columns(self) -> list:
         return [c.get_name() for c in self.get_fields()]
 
-    def get_types(self, dialect) -> list:
+    def get_types(self, dialect: Dialect) -> list:
         return [c.get_type_in(dialect) for c in self.get_fields()]
 
     @classmethod
     def _get_meta_member_mapping(cls) -> dict:
         return META_MEMBER_MAPPING
 
-    def set_types(self, dict_field_types: Optional[dict] = None, inplace=True, **kwargs) -> Optional[SchemaInterface]:
+    def set_types(
+            self,
+            dict_field_types: Optional[dict] = None,
+            inplace: bool = True,
+            **kwargs
+    ) -> Optional[SchemaInterface]:
         if inplace:
             self.types(dict_field_types=dict_field_types, **kwargs)
         else:
@@ -158,13 +188,13 @@ class FieldGroup(SimpleDataWrapper, SchemaInterface):
         columns = self.get_columns()
         return [columns.index(f) for f in names]
 
-    def get_converters(self, src='str', dst='py') -> tuple:
+    def get_converters(self, src: Dialect = 'str', dst: Dialect = 'py') -> tuple:
         converters = list()
         for desc in self.get_fields():
             converters.append(desc.get_converter(src, dst))
         return tuple(converters)
 
-    def get_field_description(self, field_name) -> Union[FieldInterface, AdvancedField]:
+    def get_field_description(self, field_name: FieldID) -> Union[FieldInterface, AdvancedField]:
         field_position = self.get_field_position(field_name)
         assert field_position is not None, 'Field {} not found (existing fields: {})'.format(
             field_name, self.get_columns(),
@@ -183,7 +213,7 @@ class FieldGroup(SimpleDataWrapper, SchemaInterface):
     def copy(self):
         return FieldGroup(name=self.get_name(), fields=self.get_fields())
 
-    def simple_select_fields(self, fields: Iterable):
+    def simple_select_fields(self, fields: Iterable) -> Group:
         return FieldGroup(
             [self.get_field_description(f) for f in fields]
         )
@@ -197,7 +227,7 @@ class FieldGroup(SimpleDataWrapper, SchemaInterface):
     def __iter__(self):
         yield from self.get_fields_descriptions()
 
-    def __getitem__(self, item: Union[int, str, slice]):
+    def __getitem__(self, item: Union[FieldID, slice]):
         if isinstance(item, slice):
             return FieldGroup(self.get_fields_descriptions()[item])
         elif isinstance(item, int):
@@ -208,7 +238,7 @@ class FieldGroup(SimpleDataWrapper, SchemaInterface):
                     return f
             raise ValueError('Field with name {} not found (in group {})'.format(item, self))
 
-    def __add__(self, other: Union[FieldInterface, SchemaInterface, str]) -> SchemaInterface:
+    def __add__(self, other: Union[FieldInterface, SchemaInterface, FieldID]) -> SchemaInterface:
         if isinstance(other, (str, int, FieldInterface)):
             return self.append_field(other, inplace=False)
         elif isinstance(other, (SchemaInterface, Iterable)):

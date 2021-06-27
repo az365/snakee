@@ -22,6 +22,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 
 OptionalFields = Optional[Union[str, Iterable]]
 Stream = Union[ColumnarMixin, Any]
+Item = Union[it.Line, it.Record, it.Row, it.StructRowInterface]
 
 AUTO = arg.DEFAULT
 CHUNK_SIZE = 8192
@@ -152,9 +153,14 @@ class ColumnFile(TextFile, ColumnarMixin):
         else:
             assert expected_schema, 'schema for {} must be defined'.format(self.get_name())
 
-    def add_fields(self, *fields, default_type=None, return_file=True) -> TextFile:
-        self.schema.add_fields(*fields, default_type=default_type, inplace=True)
-        if return_file:
+    def add_fields(self, *fields, default_type=None, inplace=False) -> Optional[TextFile]:
+        self.get_schema().add_fields(*fields, default_type=default_type, inplace=True)
+        if not inplace:
+            return self
+
+    def remove_fields(self, *fields, inplace=True) -> Optional[TextFile]:
+        self.get_schema().remove_fields(*fields, inplace=True)
+        if not inplace:
             return self
 
     def get_columns(self) -> list:
@@ -236,13 +242,19 @@ class ColumnFile(TextFile, ColumnarMixin):
         kwargs['stream_type'] = sm.RecordStream
         return self.stream(**kwargs)
 
+    def one(self, item_type: Union[it.ItemType, str] = it.ItemType.Record) -> Item:
+        type_name = item_type if isinstance(item_type, str) else item_type.get_name().lower()
+        method_name = 'to_{}_stream'.format(type_name)
+        method = self.__getattribute__(method_name)
+        return method().one()
+
     def select(self, *args, **kwargs) -> Stream:
         return self.to_record_stream().select(*args, **kwargs)
 
     def filter(self, *args, **kwargs) -> Stream:
         return self.to_record_stream().filter(*args, **kwargs)
 
-    def take(self, count) -> Stream:
+    def take(self, count: int) -> Stream:
         return self.to_record_stream().take(count)
 
     def to_memory(self) -> Stream:
@@ -253,7 +265,7 @@ class ColumnFile(TextFile, ColumnarMixin):
             self.count_lines(True)
         return self.to_record_stream().show(count=count, filters=filters or list())
 
-    def write_rows(self, rows, verbose=AUTO) -> NoReturn:
+    def write_rows(self, rows: Iterable, verbose=AUTO) -> NoReturn:
         def get_rows_with_title():
             if self.first_line_is_title:
                 yield self.get_columns()
@@ -263,7 +275,7 @@ class ColumnFile(TextFile, ColumnarMixin):
         lines = map(self.delimiter.join, get_rows_with_title())
         self.write_lines(lines, verbose=verbose)
 
-    def write_records(self, records, verbose=AUTO) -> NoReturn:
+    def write_records(self, records: Iterable, verbose=AUTO) -> NoReturn:
         rows = map(
             lambda r: [r.get(f, '') for f in self.get_columns()],
             records,

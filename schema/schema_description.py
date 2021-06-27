@@ -1,11 +1,13 @@
 from typing import Optional, Union, Iterable
 
 try:  # Assume we're a sub-module in a package.
+    from utils import arguments as arg
     from fields.field_interface import FieldInterface
     from fields.schema_interface import SchemaInterface
     from fields.field_type import get_canonic_type, HEURISTIC_SUFFIX_TO_TYPE
     from connectors.databases import dialect as di
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
+    from ..utils import arguments as arg
     from ..fields.field_interface import FieldInterface
     from ..fields.schema_interface import SchemaInterface
     from ..fields.field_type import get_canonic_type, HEURISTIC_SUFFIX_TO_TYPE
@@ -63,6 +65,22 @@ class SchemaDescription(SchemaInterface):
             return self.add_fields(field_or_group, default_type=default_type, inplace=inplace)
         else:
             return self.append_field(field_or_group, default_type=default_type, inplace=inplace)
+
+    def remove_fields(self, *fields, inplace: bool = True):
+        removing_fields = arg.update(fields)
+        existing_fields = self.get_fields_descriptions()
+        if inplace:
+            for f in existing_fields.copy():
+                if isinstance(f, ARRAY_SUBTYPES):
+                    name = f[0]
+                elif hasattr(f, 'get_name'):
+                    name = f.get_name()
+                else:
+                    name = f
+                if name in removing_fields:
+                    existing_fields.remove()
+        else:
+            raise NotImplementedError
 
     def add_fields(self, *fields, default_type=None, inplace=False):
         if inplace:
@@ -126,15 +144,19 @@ class SchemaDescription(SchemaInterface):
         if not inplace:
             return self
 
-    def get_field_position(self, field: FieldID) -> Optional[FieldNo]:
+    def get_field_position(self, field: FieldID, skip_errors: bool = False) -> Optional[FieldNo]:
         if isinstance(field, FieldNo):
             if field < self.get_fields_count():
                 return field
         elif isinstance(field, FieldName):
             try:
                 return self.get_columns().index(field)
-            except ValueError or IndexError:
-                return None
+            except ValueError:
+                pass
+            except IndexError:
+                pass
+            if not skip_errors:
+                raise IndexError('There is no field {} in schema: {}'.format(field, self.get_schema_str()))
 
     def get_fields_positions(self, names: Array):
         columns = self.get_columns()
