@@ -8,6 +8,7 @@ try:  # Assume we're a sub-module in a package.
     from base.interfaces.context_interface import ContextInterface
     from connectors.abstract.connector_interface import ConnectorInterface
     from connectors.abstract.hierarchic_connector import HierarchicConnector
+    from connectors.abstract.leaf_connector import LeafConnector
     from connectors.abstract.abstract_folder import HierarchicFolder
     from connectors.filesystem.local_file import TextFile
     from connectors.filesystem.file_type import FileType
@@ -17,9 +18,13 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.interfaces.context_interface import ContextInterface
     from ..abstract.connector_interface import ConnectorInterface
     from ..abstract.hierarchic_connector import HierarchicConnector
+    from ..abstract.leaf_connector import LeafConnector
     from ..abstract.abstract_folder import HierarchicFolder
     from .local_file import TextFile
     from .file_type import FileType
+
+File = LeafConnector
+Context = Union[Optional[ContextInterface], arg.DefaultArgument]
 
 PARENT_TYPES = HierarchicConnector, ConnectorInterface, ContextInterface
 
@@ -66,23 +71,31 @@ class LocalFolder(HierarchicFolder):
         self._path_is_relative = path_is_relative
 
     @staticmethod
-    def get_default_parent(context=arg.DEFAULT):
+    def get_default_parent(context: Context = arg.DEFAULT) -> Optional[HierarchicConnector]:
         if arg.is_defined(context):
             return context.get_local_storage()
 
-    def get_default_child_class(self):
-        return TextFile
+    @staticmethod
+    def get_default_child_type() -> FileType:
+        return FileType.TextFile
+
+    def get_default_child_class(self) -> File:
+        child_class = self.get_default_child_type().get_class()
+        assert isinstance(child_class, File)
+        return child_class
 
     @staticmethod
-    def get_child_class_by_type(type_name: Union[FolderType, FileType, str]):
+    def get_child_class_by_type(type_name: Union[FolderType, FileType, str]) -> ConnectorInterface:
         try:
             conn_type = FolderType(type_name)
         except ValueError:
             conn_type = FileType(type_name)
-        return conn_type.get_class()
+        child_class = conn_type.get_class()
+        assert isinstance(child_class, ConnectorInterface)
+        return child_class
 
     @staticmethod
-    def get_type_by_name(name) -> Union[FileType, FolderType]:
+    def get_type_by_name(name) -> Union[FileType, FolderType, str]:
         if '*' in name:
             return FolderType.FileMask
         else:
@@ -100,7 +113,7 @@ class LocalFolder(HierarchicFolder):
             if supposed_type:
                 return supposed_type.get_class()
 
-    def get_files(self):
+    def get_files(self) -> Iterable:
         for item in self.get_items():
             if hasattr(item, 'is_leaf'):
                 if item.is_leaf():
@@ -113,7 +126,7 @@ class LocalFolder(HierarchicFolder):
             file_class = self.get_child_class_by_name_and_type(name, filetype)
             assert file_class, "filetype isn't detected"
             file = file_class(filename, folder=self, **kwargs)
-            self.get_children()[name] = file
+            self.add_child(file)
         return file
 
     def folder(self, name, folder_type=arg.DEFAULT, **kwargs):
@@ -183,7 +196,7 @@ class LocalFolder(HierarchicFolder):
     def get_folder_path(self) -> str:
         return self.get_path()
 
-    def get_file_path(self, name) -> str:
+    def get_file_path(self, name: str) -> str:
         if self.get_folder_path():
             return self.get_folder_path() + self.get_path_delimiter() + name
         else:
@@ -207,9 +220,18 @@ class LocalFolder(HierarchicFolder):
     def list_existing_file_names(self) -> Iterable:
         return list(self.get_existing_file_names())
 
-    def all_existing_files(self, **kwargs):
+    def all_existing_files(self, **kwargs) -> Iterable:
         for name in self.list_existing_file_names():
-            yield self.file(name, **kwargs)
+            if name not in self.get_children():
+                kwargs['filetype'] = self.get_default_child_type()
+            return self.file(name, **kwargs)
+
+    def connect_all(self, inplace=True, **kwargs) -> Union[list, HierarchicFolder]:
+        files = list(self.all_existing_files(**kwargs))
+        if inplace:
+            return files
+        else:
+            return self
 
 
 class FileMask(LocalFolder):
