@@ -5,6 +5,7 @@ try:  # Assume we're a sub-module in a package.
     from base import base_classes as bs
     from streams import stream_classes as sm
     from connectors import connector_classes as ct
+    from connectors.filesystem.temporary_interface import TemporaryLocationInterface
     from connectors.filesystem.temporary_files import TemporaryLocation
     from utils.decorators import singleton
     from utils import arguments as arg
@@ -14,6 +15,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .base import base_classes as bs
     from .streams import stream_classes as sm
     from .connectors import connector_classes as ct
+    from .connectors.filesystem.temporary_interface import TemporaryLocationInterface
     from .connectors.filesystem.temporary_files import TemporaryLocation
     from .utils.decorators import singleton
     from .utils import arguments as arg
@@ -43,10 +45,11 @@ DEFAULT_STREAM_CONFIG = dict(
 class SnakeeContext(bs.AbstractNamed, bs.ContextInterface):
     def __init__(
             self,
-            name=arg.DEFAULT,
-            stream_config=arg.DEFAULT,
-            conn_config=arg.DEFAULT,
-            logger=arg.DEFAULT
+            name: Union[Name, arg.DefaultArgument] = arg.DEFAULT,
+            stream_config: Union[dict, arg.DefaultArgument] = arg.DEFAULT,
+            conn_config: Union[dict, arg.DefaultArgument] = arg.DEFAULT,
+            logger: Union[Optional[Logger], arg.DefaultArgument] = arg.DEFAULT,
+            clear_tmp: bool = False,
     ):
         self.logger = logger
         self.stream_config = arg.undefault(stream_config, DEFAULT_STREAM_CONFIG)
@@ -63,6 +66,9 @@ class SnakeeContext(bs.AbstractNamed, bs.ContextInterface):
         self.ct.set_context(self)
         self.sh = sh
 
+        if clear_tmp:
+            self.clear_tmp_files()
+
     def set_logger(self, logger: Logger, inplace: bool = False) -> Optional[Native]:
         self.logger = logger
         if hasattr(logger, 'get_context'):
@@ -72,13 +78,14 @@ class SnakeeContext(bs.AbstractNamed, bs.ContextInterface):
         if not inplace:
             return self
 
-    def get_logger(self, create_if_not_yet: bool = True) -> Logger:
+    def get_logger(self, create_if_not_yet: bool = True) -> Optional[Logger]:
         if arg.is_defined(self.logger):
             if not self.logger.get_context():
                 self.logger.set_context(self)
             return self.logger
         elif create_if_not_yet:
-            return lg.get_logger(context=self)
+            logger = lg.get_logger(context=self)
+            return self.set_logger(logger, inplace=False)
 
     @staticmethod
     def get_new_selection_logger(name: Name, **kwargs) -> lg.SelectionLoggerInterface:
@@ -271,13 +278,20 @@ class SnakeeContext(bs.AbstractNamed, bs.ContextInterface):
             self.conn_instances[instance_name] = job_folder_obj
             return job_folder_obj
 
-    def get_tmp_folder(self, instance_name: Name = 'tmp', config_field_name: str = 'tmp_files_template') -> Connector:
+    def get_tmp_folder(
+            self,
+            instance_name: Name = 'tmp',
+            config_field_name: str = 'tmp_files_template',
+    ) -> TemporaryLocationInterface:
         tmp_folder = self.conn_instances.get(instance_name)
         if tmp_folder:
             return tmp_folder
         else:
             tmp_folder = TemporaryLocation(parent=self.get_local_storage())
             return tmp_folder
+
+    def clear_tmp_files(self, verbose: bool = True) -> int:
+        return self.get_tmp_folder().clear_all(forget=True, verbose=verbose)
 
     def close_conn(self, name: Name, recursively: bool = False, verbose: bool = True) -> int:
         closed_count = 0

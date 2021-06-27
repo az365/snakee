@@ -10,6 +10,7 @@ try:  # Assume we're a sub-module in a package.
     from streams.stream_type import StreamType
     from streams.abstract.iterable_stream import IterableStream, IterableStreamInterface
     from streams import stream_classes as sm
+    from connectors.filesystem.temporary_interface import TemporaryFilesMaskInterface
     from functions import item_functions as fs
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import (
@@ -19,6 +20,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..stream_type import StreamType
     from .iterable_stream import IterableStream, IterableStreamInterface
     from .. import stream_classes as sm
+    from ...connectors.filesystem.temporary_interface import TemporaryFilesMaskInterface
     from ...functions import item_functions as fs
 
 
@@ -274,7 +276,12 @@ class LocalStream(IterableStream, LocalStreamInterface):
         counts = [f.get_count() or 0 for f in stream_parts]
         self.log('Merging {} parts... '.format(len(iterables)), verbose=verbose)
         return self.stream(
-            algo.merge_iter(iterables, key_function=key_function, reverse=reverse),
+            algo.merge_iter(
+                iterables,
+                key_function=key_function,
+                reverse=reverse,
+                post_action=self.get_tmp_files().remove_all,
+            ),
             count=sum(counts),
         )
 
@@ -418,7 +425,7 @@ class LocalStream(IterableStream, LocalStreamInterface):
         else:
             yield from super().get_demo_example(count=count)
 
-    def get_tmp_files(self):
+    def get_tmp_files(self) -> TemporaryFilesMaskInterface:
         return self._tmp_files
 
     def remove_tmp_files(self) -> int:
