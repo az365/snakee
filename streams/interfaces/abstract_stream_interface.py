@@ -20,6 +20,10 @@ class StreamInterface(SourcedInterface, ABC):
         pass
 
     @abstractmethod
+    def set_name(self, name: str, register: bool = True, inplace: bool = False) -> Optional[Stream]:
+        pass
+
+    @abstractmethod
     def get_count(self) -> Optional[int]:
         pass
 
