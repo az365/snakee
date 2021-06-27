@@ -92,16 +92,26 @@ class TreeItem(ContextualDataWrapper, TreeInterface):
                 count += child.close()
         return count
 
-    def forget_child(self, name_or_child: NameOrChild, recursively=False, skip_errors=False) -> int:
+    def forget_child(
+            self,
+            name_or_child: NameOrChild,
+            recursively: bool = False,
+            also_from_context: bool = True,
+            skip_errors: bool = False,
+    ) -> int:
         name, child = self._get_name_and_child(name_or_child)
         if name in self.get_children() or skip_errors:
             child = self.get_children().pop(name)
             if child:
                 child.close()
                 count = 1
-                if recursively:
+                if recursively and hasattr(child, 'get_children'):
                     for c in child.get_children():
                         count += c.forget_all_children()
+                if also_from_context:
+                    context = self.get_context()
+                    if context:
+                        context.forget_child(child, recursively=recursively, skip_errors=skip_errors)
             else:
                 count = 0
             return count

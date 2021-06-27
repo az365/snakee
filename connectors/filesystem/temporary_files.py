@@ -84,7 +84,7 @@ class TemporaryLocation(ct.LocalFolder, TemporaryLocationInterface):
         for f in files:
             count += f.remove(verbose=False)
             if forget:
-                self.forget_child(f)
+                self.forget_child(f, also_from_context=True, skip_errors=True)
         self.log('Removed {} files from {}.'.format(count, self.get_path()), verbose=verbose)
         return count
 
@@ -118,12 +118,13 @@ class TemporaryFilesMask(ct.FileMask, TemporaryFilesMaskInterface):
 
     def remove_all(self, log: bool = True, forget: bool = True) -> int:
         count = 0
-        for file in self.get_files():
+        files = list(self.get_files())
+        for file in files:
             assert isinstance(file, ct.AbstractFile)
             if file.is_existing():
                 count += file.remove(log=log)
             if forget:
-                self.get_context().forget_child()
+                self.forget_child(file, also_from_context=True)
         return count
 
     def get_files(self) -> Iterable:
