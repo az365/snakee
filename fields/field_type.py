@@ -94,6 +94,8 @@ def safe_converter(converter, default_value=0):
                 return converter(value)
             except ValueError:
                 return default_value
+            except NameError:
+                return default_value
     return func
 
 
