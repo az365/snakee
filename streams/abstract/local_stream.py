@@ -4,25 +4,26 @@ import json
 
 try:  # Assume we're a sub-module in a package.
     from utils import (
-        arguments as arg,
         algo,
+        arguments as arg,
+        mappers as ms,
     )
     from streams.stream_type import StreamType
     from streams.abstract.iterable_stream import IterableStream, IterableStreamInterface
     from streams import stream_classes as sm
     from connectors.filesystem.temporary_interface import TemporaryFilesMaskInterface
-    from functions import item_functions as fs
+    from functions import all_functions as fs
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import (
-        arguments as arg,
         algo,
+        arguments as arg,
+        mappers as ms,
     )
     from ..stream_type import StreamType
     from .iterable_stream import IterableStream, IterableStreamInterface
     from .. import stream_classes as sm
     from ...connectors.filesystem.temporary_interface import TemporaryFilesMaskInterface
-    from ...functions import item_functions as fs
-
+    from ...functions import all_functions as fs
 
 OptionalFields = Optional[Union[Iterable, str]]
 DefaultStr = Union[str, arg.DefaultArgument]
@@ -312,8 +313,9 @@ class LocalStream(IterableStream, LocalStreamInterface):
             iter_left=self.get_iter(),
             iter_right=right.get_iter(),
             key_function=fs.composite_key(keys),
+            merge_function=ms.merge_two_items,
+            order_function=fs.is_ordered(reverse=sorting_is_reversed, including=True),
             how=how,
-            sorting_is_reversed=sorting_is_reversed,
         )
         return self.stream(
             list(joined_items) if self.is_in_memory() else joined_items,

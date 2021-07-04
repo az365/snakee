@@ -5,8 +5,9 @@ from datetime import datetime
 
 try:  # Assume we're a sub-module in a package.
     from utils import (
-        arguments as arg,
         algo,
+        arguments as arg,
+        mappers as ms,
     )
     from streams.interfaces.abstract_stream_interface import StreamInterface
     from streams.abstract.abstract_stream import AbstractStream
@@ -15,8 +16,9 @@ try:  # Assume we're a sub-module in a package.
     from functions import item_functions as fs
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import (
-        arguments as arg,
         algo,
+        arguments as arg,
+        mappers as ms,
     )
     from ..interfaces.abstract_stream_interface import StreamInterface
     from ..abstract.abstract_stream import AbstractStream
@@ -101,7 +103,7 @@ class IterableStreamInterface(StreamInterface, ABC):
         pass
 
     @abstractmethod
-    def skip(self, count=1) -> Stream:
+    def skip(self, count: int = 1) -> Stream:
         pass
 
     @abstractmethod
@@ -342,8 +344,10 @@ class IterableStream(AbstractStream, IterableStreamInterface):
                 count=min(self.get_count(), max_count) if self.get_count() else None,
                 less_than=min(self.get_estimated_count(), max_count) if self.get_estimated_count() else max_count,
             )
-        else:
+        elif max_count < 0:
             return self.tail(count=max_count)
+        else:  # max_count = 0
+            return self.stream([], count=0)
 
     def skip(self, count: int = 1) -> Native:
         def skip_items(c):
@@ -604,6 +608,8 @@ class IterableStream(AbstractStream, IterableStreamInterface):
             iter_left=self.get_items(),
             iter_right=right.get_items(),
             key_function=fs.composite_key(keys),
+            merge_function=ms.merge_two_items,
+            dict_function=ms.items_to_dict,
             how=how,
             uniq_right=right_is_uniq,
         )

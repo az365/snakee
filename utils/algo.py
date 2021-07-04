@@ -1,12 +1,5 @@
 from typing import Optional, Union, Callable, Iterable, Iterator, Generator, Any
 
-try:  # Assume we're a sub-module in a package.
-    from utils import mappers as ms
-    from functions import array_functions as fs
-except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from . import mappers as ms
-    from ..functions import array_functions as fs
-
 Array = Union[list, tuple]
 Logger = Optional[Any]
 Iter = Union[Iterable, Iterator, Generator]
@@ -84,15 +77,13 @@ def map_side_join(
         iter_left: Iterable,
         iter_right: Iterable,
         key_function: Callable,
+        merge_function: Callable,  # ms.merge_two_items
+        dict_function: Callable,  # ms.items_to_dict
         how: str = 'left',
         uniq_right: bool = False,
 ):
     assert how in JOIN_TYPES
-    dict_right = ms.items_to_dict(
-        iter_right,
-        key_function=key_function,
-        of_lists=not uniq_right
-    )
+    dict_right = dict_function(iter_right, key_function=key_function, of_lists=not uniq_right)
     keys_used = set()
     for left_part in iter_left:
         cur_key = key_function(left_part)
@@ -101,9 +92,9 @@ def map_side_join(
             keys_used.add(cur_key)
         if right_part:
             if uniq_right:
-                out_items = [ms.merge_two_items(left_part, right_part)]
+                out_items = [merge_function(left_part, right_part)]
             elif isinstance(right_part, (list, tuple)):
-                out_items = [ms.merge_two_items(left_part, i) for i in right_part]
+                out_items = [merge_function(left_part, i) for i in right_part]
             else:
                 message = 'right part must be list or tuple while using uniq_right option (got {})'
                 raise ValueError(message.format(type(right_part)))
@@ -118,20 +109,20 @@ def map_side_join(
         for k in dict_right:
             if k not in keys_used:
                 if uniq_right:
-                    yield ms.merge_two_items(None, dict_right[k])
+                    yield merge_function(None, dict_right[k])
                 else:
-                    yield from [ms.merge_two_items(None, i) for i in dict_right[k]]
+                    yield from [merge_function(None, i) for i in dict_right[k]]
 
 
 def sorted_join(
         iter_left: Iter,
         iter_right: Iter,
         key_function: Callable,
+        merge_function: Callable,  # ms.merge_two_items
+        order_function: Callable,  # fs.is_ordered(reverse=sorting_is_reversed, including=True)
         how: str = 'left',
-        sorting_is_reversed: bool = False,
 ):
     assert how in JOIN_TYPES
-    is_correct_order = fs.is_ordered(reverse=sorting_is_reversed, including=True)
     left_finished, right_finished = False, False
     take_next_left, take_next_right = True, True
     cur_left, cur_right = None, None
@@ -159,14 +150,14 @@ def sorted_join(
                 if how != 'outer':
                     for out_left in group_left:
                         for out_right in group_right:
-                            yield ms.merge_two_items(out_left, out_right)
+                            yield merge_function(out_left, out_right)
             else:
                 if how in ('left', 'full', 'outer'):
                     for out_left in group_left:
-                        yield ms.merge_two_items(out_left, None)
+                        yield merge_function(out_left, None)
                 if how in ('right', 'full', 'outer'):
                     for out_right in group_right:
-                        yield ms.merge_two_items(None, out_right)
+                        yield merge_function(None, out_right)
             group_left, group_right = list(), list()
         if left_key == right_key:
             take_next_left, take_next_right = True, True
@@ -175,15 +166,15 @@ def sorted_join(
                 group_left.append(cur_left)
             if take_next_right and not right_finished:
                 group_right.append(cur_right)
-        elif is_correct_order(left_key, right_key) or right_finished:
+        elif order_function(left_key, right_key) or right_finished:
             take_next_left, take_next_right = True, False
-            assert is_correct_order(prev_left_key, left_key) or left_finished, 'left stream must be sorted'
+            assert order_function(prev_left_key, left_key) or left_finished, 'left stream must be sorted'
             prev_left_key = left_key
             if take_next_left and not left_finished:
                 group_left.append(cur_left)
         else:  # next is right
             take_next_left, take_next_right = False, True
-            assert is_correct_order(prev_right_key, right_key) or right_finished, 'right stream must be sorted'
+            assert order_function(prev_right_key, right_key) or right_finished, 'right stream must be sorted'
             prev_right_key = right_key
             if take_next_right and not right_finished:
                 group_right.append(cur_right)

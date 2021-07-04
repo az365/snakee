@@ -4,9 +4,10 @@ import pandas as pd
 
 try:  # Assume we're a sub-module in a package.
     from utils import (
+        algo,
         arguments as arg,
         numeric as nm,
-        algo,
+        mappers as ms,
     )
     from items.base_item_type import ItemType
     from streams.stream_type import StreamType
@@ -15,9 +16,10 @@ try:  # Assume we're a sub-module in a package.
     from functions import item_functions as fs
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import (
+        algo,
         arguments as arg,
         numeric as nm,
-        algo,
+        mappers as ms,
     )
     from ...items.base_item_type import ItemType
     from ..stream_type import StreamType
@@ -152,6 +154,8 @@ class ColumnarMixin(ContextualDataWrapper, ColumnarInterface, ABC):
             iter_left=self.get_items(),
             iter_right=right.get_items(),
             key_function=fs.composite_key(keys),
+            merge_function=ms.merge_two_items,
+            dict_function=ms.items_to_dict,
             how=how,
             uniq_right=right_is_uniq,
         )
