@@ -19,7 +19,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 def is_in(*list_values) -> Callable:
     list_values = arg.update(list_values)
 
-    def func(value) -> bool:
+    def func(value: Any) -> bool:
         return value in list_values
     return func
 
@@ -27,7 +27,7 @@ def is_in(*list_values) -> Callable:
 def not_in(*list_values) -> Callable:
     list_values = arg.update(list_values)
 
-    def func(value) -> bool:
+    def func(value: Any) -> bool:
         return value not in list_values
     return func
 
@@ -145,7 +145,7 @@ def numeric_values() -> Callable:
     return func
 
 
-def shift_right(shift: int, default: Any = 0, save_count=True) -> Callable:
+def shift_right(shift: int, default: Any = 0, save_count: bool = True) -> Callable:
     def func(a: Iterable) -> list:
         list_a = list(a)
         if shift == 0:
@@ -170,16 +170,21 @@ def shift_right(shift: int, default: Any = 0, save_count=True) -> Callable:
     return func
 
 
-def mean(round_digits: Optional[int] = None) -> Callable:
+def mean(round_digits: Optional[int] = None, default: Any = None, safe: bool = True) -> Callable:
     def func(a) -> float:
-        value = nm.mean(numeric_values()(a))
-        if round_digits is not None:
-            value = round(value, round_digits)
+        if safe:
+            a = numeric_values()(a)
+        value = nm.mean(a, default=default, safe=False)
+        if value is not None:
+            if nm.is_numeric(value):
+                if round_digits is not None:
+                    value = round(value, round_digits)
+                value = float(value)
         return value
     return func
 
 
-def top(count=10, output_values=False) -> Callable:
+def top(count: int = 10, output_values: bool = False) -> Callable:
     def func(keys, values=None) -> list:
         if values:
             pairs = sorted(zip(keys, values), key=lambda i: i[1], reverse=True)
@@ -196,8 +201,8 @@ def top(count=10, output_values=False) -> Callable:
     return func
 
 
-def hist(as_list=True, sort_by_count=False, sort_by_name=False):
-    def func(array: Iterable):
+def hist(as_list: bool = True, sort_by_count: bool = False, sort_by_name: bool = False) -> Callable:
+    def func(array: Iterable) -> Union[dict, list]:
         dict_hist = dict()
         for i in array:
             dict_hist[i] = dict_hist.get(i, 0) + 1

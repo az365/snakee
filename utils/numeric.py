@@ -3,8 +3,10 @@ from typing import Optional, Union, Iterable
 
 try:
     import numpy as np
+    NUMERIC_TYPES = (int, float, np.number)
 except ImportError:
     np = None
+    NUMERIC_TYPES = (int, float)
 try:
     from scipy import interpolate
 except ImportError:
@@ -49,11 +51,11 @@ def is_nonzero(value) -> bool:
 
 
 def is_numeric(value) -> bool:
-    return isinstance(value, (int, float)) and not isinstance(value, bool)
+    return isinstance(value, NUMERIC_TYPES) and not isinstance(value, bool)
 
 
 def filter_numeric(a: Iterable) -> list:
-    return [i for i in a if is_defined(i)]
+    return [i for i in a if is_numeric(i)]
 
 
 def div(x: float, y: float, default=None) -> Optional[float]:
@@ -63,50 +65,55 @@ def div(x: float, y: float, default=None) -> Optional[float]:
         return default
 
 
-def median(a: Iterable, ignore_import_error=False) -> OptFloat:
-    a = filter_numeric(a)
+def median(a: Iterable, ignore_import_error: bool = False, safe: bool = True) -> OptFloat:
+    if safe:
+        a = filter_numeric(a)
     if np:
-        return np.median(a)
+        return float(np.median(a))
     elif not ignore_import_error:
         _raise_import_error('numpy')
 
 
-def mean(a: Iterable, default=None) -> OptFloat:
-    a = filter_numeric(a)
+def mean(a: Iterable, default=None, safe: bool = True) -> OptFloat:
+    if safe:
+        a = filter_numeric(a)
     if a:
         if np:
-            return np.mean(a)
+            return float(np.mean(a))
         else:
             return div(sum(a), len(a), default=default)
     else:
         return default
 
 
-def min(a: Iterable, default=None):
-    a = filter_numeric(a)
+def min(a: Iterable, default=None, safe: bool = True) -> OptFloat:
+    if safe:
+        a = filter_numeric(a)
     if a:
         return _min(a)
     else:
         return default
 
 
-def max(a: Iterable, default=None):
-    a = filter_numeric(a)
+def max(a: Iterable, default=None, safe: bool = True) -> OptFloat:
+    if safe:
+        a = filter_numeric(a)
     if a:
         return _max(a)
     else:
         return default
 
 
-def sum(a: Iterable, default=None) -> Optional[float]:
-    a = filter_numeric(a)
+def sum(a: Iterable, default=None, safe: bool = True) -> OptFloat:
+    if safe:
+        a = filter_numeric(a)
     if a:
         return _sum(a)
     else:
         return default
 
 
-def sqrt(value: float, default=None) -> Optional[float]:
+def sqrt(value: float, default=None) -> OptFloat:
     if value is not None:
         if np:
             return np.sqrt(value)
