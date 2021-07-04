@@ -149,7 +149,7 @@ class LoggingContextStub(TreeItem, ContextInterface):
     def get_stream(self, name, skip_missing=True):
         self._method_stub()
 
-    def get_connection(self, name, skip_missing: bool = True):
+    def get_connection(self, name, skip_missing=True):
         self._method_stub()
 
     def conn(self, conn, name=arg.DEFAULT, check=True, redefine=True, **kwargs):
@@ -158,7 +158,10 @@ class LoggingContextStub(TreeItem, ContextInterface):
     def stream(self, stream_type, name=arg.DEFAULT, check=True, **kwargs):
         self._method_stub()
 
-    def rename_stream(self, old_name: str, new_name: str):
+    def rename_stream(self, old_name, new_name):
+        self._method_stub()
+
+    def clear_tmp_files(self, verbose=True):
         self._method_stub()
 
     def close_conn(self, name, recursively=False, verbose=True):
@@ -197,7 +200,7 @@ class LoggingContextStub(TreeItem, ContextInterface):
     def get_parent(self):
         self._method_stub()
 
-    def set_parent(self, parent, reset: bool = False, inplace: bool = True):
+    def set_parent(self, parent, reset=False, inplace=True):
         self._method_stub()
 
     def get_items(self):
@@ -206,10 +209,10 @@ class LoggingContextStub(TreeItem, ContextInterface):
     def get_children(self):
         self._method_stub()
 
-    def get_child(self, name: str):
+    def get_child(self, name):
         self._method_stub()
 
-    def forget_child(self, child_or_name, recursively=False, skip_errors=False):
+    def forget_child(self, name_or_child, recursively=False, also_from_context=True, skip_errors=False):
         self._method_stub()
 
     def is_leaf(self):

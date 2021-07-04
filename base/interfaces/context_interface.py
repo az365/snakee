@@ -137,6 +137,10 @@ class ContextInterface(BaseInterface, ABC):
         pass
 
     @abstractmethod
+    def clear_tmp_files(self, verbose: bool = True) -> int:
+        pass
+
+    @abstractmethod
     def close_conn(self, name: Name, recursively: bool = False, verbose: bool = True) -> int:
         pass
 
