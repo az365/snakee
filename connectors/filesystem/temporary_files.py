@@ -116,13 +116,13 @@ class TemporaryFilesMask(ct.FileMask, TemporaryFilesMaskInterface):
     def get_encoding(self) -> str:
         return self.encoding
 
-    def remove_all(self, log: bool = True, forget: bool = True) -> int:
+    def remove_all(self, forget: bool = True, log: bool = True, verbose: bool = False) -> int:
         count = 0
         files = list(self.get_files())
         for file in files:
             assert isinstance(file, ct.AbstractFile)
             if file.is_existing():
-                count += file.remove(log=log)
+                count += file.remove(log=log, verbose=verbose)
             if forget:
                 self.forget_child(file, also_from_context=True)
         return count

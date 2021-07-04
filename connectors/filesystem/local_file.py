@@ -31,6 +31,9 @@ Stream = RegularStreamInterface
 AUTO = arg.DEFAULT
 CHUNK_SIZE = 8192
 
+LOGGING_LEVEL_INFO = 20
+LOGGING_LEVEL_WARN = 30
+
 
 class AbstractFile(LeafConnector, StreamBuilderMixin, ABC):
     def __init__(
@@ -127,7 +130,7 @@ class AbstractFile(LeafConnector, StreamBuilderMixin, ABC):
         else:
             return not self.is_closed()
 
-    def is_closed(self):
+    def is_closed(self) -> bool:
         fileholder = self.get_fileholder()
         if hasattr(fileholder, 'closed'):
             return fileholder.closed
@@ -139,29 +142,30 @@ class AbstractFile(LeafConnector, StreamBuilderMixin, ABC):
         else:
             return 0
 
-    def open(self, mode='r', reopen=False):
+    def open(self, mode: str = 'r', reopen: bool = False) -> NoReturn:
         if self.is_opened():
             if reopen:
                 self.close()
             else:
                 raise AttributeError('File {} is already opened'.format(self.get_name()))
         else:
-            fileholder = open(self.get_path(), 'r')
+            fileholder = open(self.get_path(), mode)
             self.set_fileholder(fileholder)
 
-    def remove(self, log=True) -> int:
+    def remove(self, log: bool = True, verbose: bool = True) -> int:
         file_path = self.get_path()
+        level = LOGGING_LEVEL_WARN if verbose else LOGGING_LEVEL_INFO
         if log:
-            self.get_logger().log('Trying remove {}...'.format(file_path), level=20)
+            self.get_logger().log('Trying remove {}...'.format(file_path), level=level)
         os.remove(file_path)
-        if log:
-            self.get_logger().log('Successfully removed {}.'.format(file_path), level=20)
+        if log or verbose:
+            self.get_logger().log('Successfully removed {}.'.format(file_path), level=level)
         return 1
 
     def is_existing(self) -> bool:
         return os.path.exists(self.get_path())
 
-    def _get_generated_stream_name(self):
+    def _get_generated_stream_name(self) -> str:
         return arg.get_generated_name('{}:stream'.format(self.get_name()), include_random=True, include_datetime=False)
 
     @abstractmethod

@@ -23,7 +23,7 @@ class TemporaryLocationInterface(ConnectorInterface):
         pass
 
     @abstractmethod
-    def clear_all(self) -> Count:
+    def clear_all(self, forget: bool = True, verbose: bool = True) -> Count:
         pass
 
 
@@ -33,7 +33,7 @@ class TemporaryFilesMaskInterface(ConnectorInterface):
         pass
 
     @abstractmethod
-    def remove_all(self, log: bool = True, forget: bool = True) -> Count:
+    def remove_all(self, forget: bool = True, log: bool = True, verbose: bool = False) -> Count:
         pass
 
     @abstractmethod
