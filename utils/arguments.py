@@ -82,9 +82,20 @@ def get_list(arg: Iterable) -> list:
         return []
 
 
+def get_value(obj) -> Union[str, int]:
+    if hasattr(obj, 'get_value'):
+        return obj.get_value()
+    elif hasattr(obj, 'value'):
+        return obj.value
+    else:
+        return obj
+
+
 def get_name(obj) -> Union[str, int]:
     if hasattr(obj, 'get_name'):
         return obj.get_name()
+    elif hasattr(obj, 'name'):
+        return obj.name
     elif hasattr(obj, '__name__'):
         return obj.__name__
     elif isinstance(obj, int):
