@@ -26,6 +26,7 @@ try:  # Assume we're a sub-module in a package.
     from streams.regular.schema_stream import SchemaStream
     from streams.regular.record_stream import RecordStream
     from streams.wrappers.pandas_stream import PandasStream
+    from streams.wrappers.sql_stream import SqlStream
     from streams.stream_builder import StreamBuilder
     from connectors.filesystem.temporary_interface import TemporaryLocationInterface, TemporaryFilesMaskInterface
     from connectors.filesystem.temporary_files import TemporaryLocation
@@ -52,6 +53,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .regular.schema_stream import SchemaStream
     from .regular.record_stream import RecordStream
     from .wrappers.pandas_stream import PandasStream
+    from .wrappers.sql_stream import SqlStream
     from .stream_builder import StreamBuilder
     from ..connectors.filesystem.temporary_interface import TemporaryLocationInterface, TemporaryFilesMaskInterface
     from ..connectors.filesystem.temporary_files import TemporaryLocation
@@ -63,8 +65,9 @@ STREAM_CLASSES = (
     AbstractStream, IterableStream,
     AnyStream,
     LineStream, RowStream, RecordStream,
+    SchemaStream,
     KeyValueStream,
-    PandasStream, SchemaStream,
+    PandasStream, SqlStream,
 )
 DICT_STREAM_CLASSES = dict(
     AnyStream=AnyStream,
@@ -74,6 +77,7 @@ DICT_STREAM_CLASSES = dict(
     SchemaStream=SchemaStream,
     RecordStream=RecordStream,
     PandasStream=PandasStream,
+    SqlStream=SqlStream,
 )
 
 _context = None  # global
