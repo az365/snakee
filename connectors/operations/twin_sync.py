@@ -3,7 +3,7 @@ from typing import Optional, Iterable, Callable, Union
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from connectors import connector_classes as ct
-    from connectors.sync.abstract_sync import AbstractSync, SRC_ID, DST_ID
+    from connectors.operations.abstract_sync import AbstractSync, SRC_ID, DST_ID
     from base.interfaces.context_interface import ContextInterface
     from streams.interfaces.abstract_stream_interface import StreamInterface
     from streams.stream_type import StreamType

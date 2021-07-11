@@ -4,7 +4,7 @@ try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from base.interfaces.context_interface import ContextInterface
     from connectors.abstract.hierarchic_connector import HierarchicConnector
-    from connectors.sync.operation import Operation
+    from connectors.operations.operation import Operation
     from connectors import connector_classes as ct
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg

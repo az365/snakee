@@ -2,7 +2,7 @@ from typing import Optional, Callable
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
-    from connectors.sync.abstract_sync import (
+    from connectors.operations.abstract_sync import (
         AbstractSync,
         Name, Options, OptStreamType, Stream, Connector, Context,
         SRC_ID, DST_ID,

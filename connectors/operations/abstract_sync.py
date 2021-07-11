@@ -3,7 +3,7 @@ from typing import Optional, Iterable, Callable, Union
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
-    from connectors.sync.operation import (
+    from connectors.operations.operation import (
         Operation,
         Name, Stream, Connector, Context, Options, OptStreamType, StreamType,
     )

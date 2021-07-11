@@ -21,10 +21,11 @@ try:  # Assume we're a sub-module in a package.
     from connectors.databases.postgres_database import PostgresDatabase
     from connectors.databases.clickhouse_database import ClickhouseDatabase
     from connectors.databases.table import Table
-    from connectors.sync.job import Job
-    from connectors.sync.abstract_sync import AbstractSync
-    from connectors.sync.twin_sync import TwinSync
-    from connectors.sync.multi_sync import MultiSync
+    from connectors.operations.operation import Operation
+    from connectors.operations.abstract_sync import AbstractSync
+    from connectors.operations.twin_sync import TwinSync
+    from connectors.operations.multi_sync import MultiSync
+    from connectors.operations.job import Job
     from base.interfaces.context_interface import ContextInterface
     from utils.enum import ClassType
     from utils.decorators import deprecated_with_alternative
@@ -50,10 +51,11 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .databases.postgres_database import PostgresDatabase
     from .databases.clickhouse_database import ClickhouseDatabase
     from .databases.table import Table
-    from .sync.job import Job
-    from .sync.abstract_sync import AbstractSync
-    from .sync.twin_sync import TwinSync
-    from .sync.multi_sync import MultiSync
+    from .operations.operation import Operation
+    from .operations.abstract_sync import AbstractSync
+    from .operations.twin_sync import TwinSync
+    from .operations.multi_sync import MultiSync
+    from .operations.job import Job
     from ..base.interfaces.context_interface import ContextInterface
     from ..utils.enum import ClassType
     from ..utils.decorators import deprecated_with_alternative
