@@ -1,76 +1,101 @@
+from typing import Optional, Iterable, Callable, Union
+
 try:  # Assume we're a sub-module in a package.
-    from connectors import connector_classes as ct
-    from streams import stream_classes as sm
     from utils import arguments as arg
+    from connectors import connector_classes as ct
+    from connectors.sync.abstract_sync import AbstractSync, SRC_ID, DST_ID
+    from base.interfaces.context_interface import ContextInterface
+    from streams.interfaces.abstract_stream_interface import StreamInterface
+    from streams.stream_type import StreamType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from .. import connector_classes as ct
-    from ...streams import stream_classes as sm
     from ...utils import arguments as arg
+    from .. import connector_classes as ct
+    from .abstract_sync import AbstractSync, SRC_ID, DST_ID
+    from ...base.interfaces.context_interface import ContextInterface
+    from ...streams.interfaces.abstract_stream_interface import StreamInterface
+    from ...streams.stream_type import StreamType
+
+Name = str
+Stream = StreamInterface
+OptStreamType = Union[StreamType, arg.DefaultArgument]
+Options = Union[dict, arg.DefaultArgument, None]
+Connector = ct.LeafConnector
+Context = Union[ContextInterface, arg.DefaultArgument, None]
 
 
-class TwinSync(ct.LeafConnector):
+class TwinSync(AbstractSync):
     def __init__(
             self,
-            name,
-            src,
-            dst,
-            stream_type=arg.DEFAULT,
-            procedure=None,
-            apply_to_stream=True,
-            context=arg.DEFAULT,
+            name: Name,
+            src: Connector,
+            dst: Connector,
+            procedure: Optional[Callable],
+            options: Options = None,
+            apply_to_stream: bool = True,
+            stream_type: OptStreamType = arg.DEFAULT,
+            context: Context = arg.DEFAULT,
     ):
+        if not arg.is_defined(options):
+            options = dict()
         super().__init__(
             name=name,
-            parent=context,
+            connectors={SRC_ID: src, DST_ID: dst},
+            procedure=procedure,
+            options=options,
+            apply_to_stream=apply_to_stream,
+            stream_type=stream_type,
+            context=context,
         )
-        assert isinstance(src, ct.LeafConnector)
-        self.src = src
-        assert isinstance(dst, ct.LeafConnector)
-        self.dst = dst
-        assert procedure is None or isinstance(procedure, callable)
-        self.procedure = procedure
-        stream_type = arg.undefault(stream_type, sm.StreamType.AnyStream)
-        assert isinstance(stream_type, sm.StreamType)
-        self.stream_type = stream_type
-        self.apply_to_stream = apply_to_stream
 
-    def is_existing(self):
-        if self.dst.is_existing():
-            return True
-        elif self.src.is_existing():
-            return True
-        return False
+    def get_inputs(self) -> dict:
+        return {SRC_ID: self.get_src()}
 
-    def run_now(self, return_stream=True, stream_type=arg.DEFAULT):
-        stream_type = arg.undefault(stream_type, self.stream_type)
-        stream = self.src.to_stream(stream_type)
-        if self.procedure:
-            if self.apply_to_stream:
-                stream = self.procedure(stream)
+    def get_outputs(self) -> dict:
+        return {DST_ID: self.get_dst()}
+
+    def get_intermediates(self) -> dict:
+        return dict()
+
+    def has_apply_to_stream(self) -> bool:
+        return self._apply_to_stream
+
+    def get_kwargs(self, ex: Optional[Iterable] = None, upd: Optional[dict] = None) -> dict:
+        kwargs = self.get_options().copy()
+        if ex:
+            for k in ex:
+                kwargs.pop(k)
+        if arg.is_defined(upd):
+            kwargs.update(upd)
+        return kwargs
+
+    def run_now(
+            self,
+            return_stream: bool = True,
+            stream_type: OptStreamType = arg.DEFAULT,
+            options: Options = None,
+            verbose: bool = True,
+    ) -> Stream:
+        stream_type = arg.undefault(stream_type, self.get_stream_type())
+        stream = self.get_src().to_stream(stream_type=stream_type)
+        if verbose:
+            self.log('Running operation: {}'.format(self.get_name()))
+        if self.has_procedure():
+            if self.has_apply_to_stream():
+                stream = self.get_procedure()(stream, **self.get_kwargs(upd=options))
             else:
-                stream = stream.apply(self.procedure)
-        return stream.save_to(self.dst, return_stream=return_stream)
+                stream = stream.apply_to_data(self.get_procedure(), **self.get_kwargs(upd=options))
+        return stream.write_to(self.get_dst(), return_stream=return_stream)
 
-    def run_if_not_yet(self, raise_error_if_exists=False, return_stream=True, stream_type=arg.DEFAULT):
-        stream_type = arg.undefault(stream_type, self.stream_type)
-        if not self.dst.is_existing():
-            return self.run_now(return_stream=return_stream, stream_type=stream_type)
-        elif raise_error_if_exists:
-            raise ValueError('object already exists')
-        elif return_stream:
-            return self.dst.to_stream(stream_type)
-
-    def to_stream(self, stream_type=arg.DEFAULT):
-        stream_type = arg.undefault(stream_type, self.stream_type)
-        self.stream_type = stream_type
-        return self.run_if_not_yet(raise_error_if_exists=False, return_stream=True, stream_type=stream_type)
-
-    def from_stream(self, stream, rewrite=False):
-        if rewrite or not self.src.is_existing():
-            self.src.from_stream(stream)
+    def from_stream(self, stream: Stream, rewrite: bool = False) -> Optional[Connector]:
+        if rewrite or not self.has_inputs():
+            self.get_src().from_stream(stream)
         else:
-            self.log('src-object ({}) is already exists'.format(self.src.get_path()))
-        if rewrite or not self.dst.is_existing():
-            self.dst.from_stream(stream)
+            self.log('src-object ({}) is already exists'.format(self.get_src()))
+        if rewrite or not self.has_outputs():
+            return self.get_dst().from_stream(stream)
         else:
-            self.log('dst-object ({}) is already exists'.format(self.dst.get_path()))
+            self.log('dst-object ({}) is already exists'.format(self.get_dst()))
+
+    @staticmethod
+    def _assume_connector(connector) -> Connector:
+        return connector

@@ -44,10 +44,30 @@ def test_take_credentials_from_file():
     assert received == expected
 
 
+def test_job():
+    cx = SnakeeContext()
+    src = cx.get_job_folder().file('test_file_tmp.tsv')
+    dst = cx.get_job_folder().file('test_dst_tmp.tsv', schema=src.get_schema())
+    job = cx.ct.Job('test_job')
+    op_name = 'test_operation'
+    operation = cx.ct.TwinSync(name=op_name, src=src, dst=dst, procedure=lambda s: s)
+    job.add_operation(operation)
+    assert list(job.get_operations().keys()) == [op_name]
+    assert job.get_inputs()['src'].get_name() == 'test_file_tmp.tsv'
+    assert job.get_outputs()['dst'].get_name() == 'test_dst_tmp.tsv'
+    assert job.get_operation(op_name).has_inputs()
+    job.run()
+    assert list(src.get_data()) == list(dst.get_data())
+    assert job.get_operation(op_name).is_done()
+    dst.remove()
+    assert not job.is_done()
+
+
 def main():
     test_detect_schema_by_title_row()
     test_local_file()
     test_take_credentials_from_file()
+    test_job()
 
 
 if __name__ == '__main__':
