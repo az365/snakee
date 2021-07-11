@@ -31,6 +31,7 @@ Table = ConnectorInterface
 File = ct.AbstractFile
 Data = Union[Stream, File, Table, str, Iterable]
 OptBool = Union[bool, arg.DefaultArgument]
+Native = ct.AbstractStorage
 
 AUTO = arg.DEFAULT
 TEST_QUERY = 'SELECT now()'
@@ -42,7 +43,8 @@ DEFAULT_ERRORS_THRESHOLD = 0.05
 class AbstractDatabase(ct.AbstractStorage, ABC):
     def __init__(
             self, name: str,
-            host: str, port: int, db: str, user: str, password: str,
+            host: str, port: int, db: str,
+            user: Optional[str] = None, password: Optional[str] = None,
             verbose: OptBool = arg.DEFAULT, context: Union[ContextInterface, arg.DefaultArgument] = arg.DEFAULT,
             **kwargs
     ):
@@ -146,7 +148,7 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
     def create_table(
             self, table: Union[Table, Name], schema: Schema,
             drop_if_exists: bool = False, verbose: OptBool = arg.DEFAULT,
-    ) -> NoReturn:
+    ) -> Table:
         verbose = arg.undefault(verbose, self.verbose)
         table_name, schema_str = self._get_table_name_and_schema_str(table, schema, check_schema=True)
         if drop_if_exists:
@@ -162,11 +164,12 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
         )
         self.post_create_action(table_name, verbose=verbose)
         self.log('Table {name} is created.'.format(name=table_name), verbose=verbose)
+        return self.table(table)
 
-    def post_create_action(self, name: Name, **kwargs):
+    def post_create_action(self, name: Name, **kwargs) -> NoReturn:
         pass
 
-    def drop_table(self, table: Union[Table, Name], if_exists: bool = True, verbose: OptBool = arg.DEFAULT) -> NoReturn:
+    def drop_table(self, table: Union[Table, Name], if_exists: bool = True, verbose: OptBool = arg.DEFAULT) -> Native:
         self.execute_if_exists(
             query='DROP TABLE IF EXISTS {};',
             table=table,
@@ -175,11 +178,12 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
             stop_if_no=not if_exists,
             verbose=verbose,
         )
+        return self
 
     def copy_table(
             self, old: Union[Table, Name], new: Union[Table, Name],
             if_exists: bool = False, verbose: OptBool = arg.DEFAULT,
-    ) -> NoReturn:
+    ) -> Table:
         name_old = self._get_table_name(old)
         name_new = self._get_table_name(new)
         cat_old, name_old = name_old.split('.')
@@ -194,11 +198,12 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
             stop_if_no=not if_exists,
             verbose=verbose,
         )
+        return self.table(new)
 
     def rename_table(
             self, old: Union[Table, Name], new: Union[Table, Name],
             if_exists: bool = False, verbose: OptBool = arg.DEFAULT,
-    ) -> NoReturn:
+    ) -> Table:
         name_old = self._get_table_name(old)
         name_new = self._get_table_name(new)
         cat_old, name_old = name_old.split('.')
@@ -213,6 +218,7 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
             stop_if_no=not if_exists,
             verbose=verbose,
         )
+        return self.table(new)
 
     def select(
             self, table: Union[Table, Name],
@@ -238,24 +244,8 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
     def select_count(self, table: Union[Table, Name], verbose: OptBool = arg.DEFAULT) -> int:
         return self.select(table, fields='COUNT(*)', verbose=verbose)[0][0]
 
-    def select_all(self, table: Union[Table, Name], verbose=arg.DEFAULT):
+    def select_all(self, table: Union[Table, Name], verbose=arg.DEFAULT) -> Iterable:
         return self.select(table, fields='*', verbose=verbose)
-
-    @staticmethod
-    def _get_schema_stream_from_data(data: Data, schema: Schema = None, **file_kwargs) -> Stream:
-        if sm.is_stream(data):
-            stream = data
-        elif ct.is_file(data):
-            stream = data.to_schema_stream()
-            if schema:
-                stream_cols = stream.get_columns()
-                schema_cols = schema.get_columns()
-                assert stream_cols == schema_cols, '{} != {}'.format(stream_cols, schema_cols)
-        elif isinstance(data, str):
-            stream = sm.RowStream.from_column_file(filename=data, **file_kwargs)
-        else:
-            stream = sm.AnyStream(data)
-        return stream
 
     @abstractmethod
     def insert_rows(
@@ -330,7 +320,7 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
             encoding: Optional[str] = None, step: int = DEFAULT_STEP,
             skip_lines: int = 0, skip_first_line: bool = False, max_error_rate: float = 0.0,
             verbose: OptBool = arg.DEFAULT,
-    ) -> NoReturn:
+    ) -> Table:
         verbose = arg.undefault(verbose, self.verbose)
         table_name, schema = self._get_table_name_and_schema(table, schema)
         if not skip_lines:
@@ -354,6 +344,7 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
         if max_error_rate is not None:
             message = 'Too many errors or skipped lines ({} > {})'.format(error_rate, max_error_rate)
             assert error_rate < max_error_rate, message
+        return self.table(table)
 
     def safe_upload_table(
             self,
@@ -362,7 +353,7 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
             step: int = DEFAULT_STEP,
             skip_lines: int = 0, skip_first_line: bool = False, max_error_rate: float = 0.0,
             verbose: OptBool = arg.DEFAULT,
-    ):
+    ) -> Table:
         target_name, schema = self._get_table_name_and_schema(table, schema)
         tmp_name = '{}_tmp_upload'.format(target_name)
         bak_name = '{}_bak'.format(target_name)
@@ -374,6 +365,49 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
         self.drop_table(bak_name, if_exists=True, verbose=verbose)
         self.rename_table(table, bak_name, if_exists=True, verbose=verbose)
         self.rename_table(tmp_name, target_name, if_exists=True, verbose=verbose)
+        return self.table(table)
+
+    def get_credentials(self) -> tuple:
+        return self.user, self.password
+
+    def set_credentials(self, user: str, password: str, verbose: bool = True) -> Native:
+        self.user = user
+        self.password = password
+        msg = 'Credentials for {} {} has been updated'.format(self.__class__.__name__, self.get_name())
+        self.log(msg, verbose=verbose)
+        return self
+
+    def take_credentials_from_file(self, file: Union[File, Name], by_name=False, delimiter=arg.DEFAULT) -> Native:
+        delimiter = arg.undefault(delimiter, '\t' if by_name else '\n')
+        if isinstance(file, Name):
+            file = ct.get_default_job_folder().file(name=file)
+        parsed_file = self._parse_credentials_file(file, delimiter=delimiter)
+        if by_name:
+            database_name = self.get_name()
+            credentials = tuple()
+            for name, user, password in parsed_file:
+                if name == database_name:
+                    credentials = user, password
+                    break
+        else:
+            credentials = list(parsed_file)[0]
+        if credentials:
+            self.set_credentials(*credentials)
+        return self
+
+    @staticmethod
+    def _parse_credentials_file(file: File, delimiter='\n') -> Iterable:
+        assert isinstance(file, ct.TextFile)
+        has_columns = delimiter != '\n'
+        if has_columns:
+            for item in file.to_line_stream().get_items():
+                yield item.split(delimiter)
+        else:
+            # assert isinstance(file, ct.TextFile)
+            two_lines = file.to_line_stream().take(2)
+            assert isinstance(two_lines, sm.LineStream)
+            login, password = two_lines.get_list()[:2]
+            yield login, password
 
     @staticmethod
     def _get_table_name(table: Union[Table, Name]) -> str:
@@ -402,11 +436,27 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
             assert table_schema, 'schema must be defined'
         return table_name, table_schema
 
+    @staticmethod
+    def _get_schema_stream_from_data(data: Data, schema: Schema = None, **file_kwargs) -> Stream:
+        if sm.is_stream(data):
+            stream = data
+        elif ct.is_file(data):
+            stream = data.to_schema_stream()
+            if schema:
+                stream_cols = stream.get_columns()
+                schema_cols = schema.get_columns()
+                assert stream_cols == schema_cols, '{} != {}'.format(stream_cols, schema_cols)
+        elif isinstance(data, str):
+            stream = sm.RowStream.from_column_file(filename=data, **file_kwargs)
+        else:
+            stream = sm.AnyStream(data)
+        return stream
+
     def _get_table_name_and_schema_str(
             self,
             table: Union[Table, Name], expected_schema: Schema = None,
             check_schema: bool = True,
-    ):
+    ) -> tuple:
         table_name, schema = self._get_table_name_and_schema(table, expected_schema, check_schema=check_schema)
         if isinstance(schema, str):
             schema_str = schema

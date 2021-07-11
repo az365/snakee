@@ -258,6 +258,12 @@ class SnakeeContext(bs.AbstractNamed, bs.ContextInterface):
         else:
             return stream
 
+    def take_credentials_from_file(self, file: Union[Name, Connector]) -> Native:
+        for name, conn in self.get_children().items():
+            if hasattr(conn, 'take_credentials_from_file'):
+                conn.take_credentials_from_file(file=file, by_name=True)
+        return self
+
     def get_local_storage(self, name: Name = 'filesystem', create_if_not_yet: bool = True) -> Connector:
         local_storage = self.conn_instances.get(name)
         if local_storage:

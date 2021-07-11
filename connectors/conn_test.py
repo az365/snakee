@@ -27,9 +27,27 @@ def test_local_file():
     assert stream.get_list() == data, 'test case 1'
 
 
+def test_take_credentials_from_file():
+    file_name = 'test_creds.txt'
+    data = [
+        ('ch', 'test_login_ch', 'test_pass_ch'),
+        ('pg', 'test_login_pg', 'test_pass_pg'),
+        ('s3', 'test_login_s3', 'test_pass_s3'),
+    ]
+    cx = SnakeeContext()
+    test_file = cx.get_job_folder().file(file_name)
+    test_file.write_lines(map(lambda r: '\t'.join(r), data))
+    test_db = cx.ct.PostgresDatabase('pg', 'pg_host', 5432, 'pg_db')
+    cx.take_credentials_from_file(test_file)
+    expected = data[1][1:]
+    received = test_db.get_credentials()
+    assert received == expected
+
+
 def main():
     test_detect_schema_by_title_row()
     test_local_file()
+    test_take_credentials_from_file()
 
 
 if __name__ == '__main__':
