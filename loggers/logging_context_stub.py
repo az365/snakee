@@ -2,6 +2,7 @@ from typing import Optional, Union, NoReturn
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
+    from utils.decorators import singleton
     from base.interfaces.context_interface import ContextInterface
     from base.interfaces.contextual_interface import ContextualInterface
     from base.abstract.tree_item import TreeItem
@@ -14,6 +15,7 @@ try:  # Assume we're a sub-module in a package.
     from connectors import connector_classes as ct
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
+    from ..utils.decorators import singleton
     from ..base.interfaces.context_interface import ContextInterface
     from ..base.interfaces.contextual_interface import ContextualInterface
     from ..base.abstract.tree_item import TreeItem
@@ -33,23 +35,19 @@ NameOrChild = Union[Name, Child]
 NAME = 'logging_context_stub'
 
 
+@singleton
 class LoggingContextStub(TreeItem, ContextInterface):
-    def __new__(cls, *args, **kwargs):
-        if not hasattr(cls, 'instance'):
-            cls.instance = super(LoggingContextStub, cls).__new__(cls)
-        return cls.instance
-
     def __init__(
             self,
-            name=arg.DEFAULT,
-            logger=arg.DEFAULT,
+            name: Union[Name, arg.DefaultArgument] = arg.DEFAULT,
+            logger: Union[LoggerInterface, arg.DefaultArgument] = arg.DEFAULT,
             skip_not_implemented: bool = True
     ):
-        super().__init__(name=arg.undefault(name, NAME))
         self._logger = logger
         self._local_storage = None
         self._skip_not_implemented = skip_not_implemented
         self._tmp_folder = None
+        super().__init__(name=arg.undefault(name, NAME))
 
     def set_logger(self, logger: LoggerInterface, inplace: bool = False) -> Optional[Native]:
         self._logger = logger
