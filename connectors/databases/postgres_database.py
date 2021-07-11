@@ -18,17 +18,17 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 
 
 class PostgresDatabase(ad.AbstractDatabase):
-    cx = None
-
-    def __init__(self, name, host, port, db, user, password, context=arg.DEFAULT, **kwargs):
+    def __init__(
+            self,
+            name: str, host: str, port: int, db: str,
+            user: Optional[str] = None, password: Optional[str] = None,
+            context=arg.DEFAULT,
+            **kwargs
+    ):
         super().__init__(
-            name=name,
-            host=host,
-            port=port,
-            db=db,
-            user=user,
-            password=password,
-            context=arg.undefault(context, PostgresDatabase.cx),
+            name=name, host=host, port=port, db=db,
+            user=user, password=password,
+            context=context,
             **kwargs
         )
 
@@ -132,7 +132,7 @@ class PostgresDatabase(ad.AbstractDatabase):
 
     def describe_table(self, name, verbose=arg.DEFAULT):
         return self.select(
-            table_name='information_schema.COLUMNS',
+            table='information_schema.COLUMNS',
             fields=['COLUMN_NAME', 'DATA_TYPE'],
             filters=["TABLE_NAME = '{table}'".format(table=name)],
         )
