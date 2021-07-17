@@ -8,8 +8,12 @@ try:  # Assume we're a sub-module in a package.
         selection as sf,
     )
     from items.base_item_type import ItemType
+    from streams.stream_type import StreamType
     from streams import stream_classes as sm
     from selection import selection_classes as sn
+    from connectors.abstract.connector_interface import ConnectorInterface
+    from base.interfaces.context_interface import ContextInterface
+    from connectors.filesystem.temporary_interface import TemporaryFilesMaskInterface
     from utils.decorators import deprecated_with_alternative
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import (
@@ -18,29 +22,41 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         selection as sf,
     )
     from ...items.base_item_type import ItemType
+    from ..stream_type import StreamType
     from .. import stream_classes as sm
     from ...selection import selection_classes as sn
+    from ...connectors.abstract.connector_interface import ConnectorInterface
+    from ...base.interfaces.context_interface import ContextInterface
+    from ...connectors.filesystem.temporary_interface import TemporaryFilesMaskInterface
     from ...utils.decorators import deprecated_with_alternative
 
 OptionalFields = Optional[Union[str, Iterable]]
+OptStreamType = Union[StreamType]
 Stream = sm.StreamInterface
 Native = sm.RegularStreamInterface
+Data = Union[Iterable, arg.DefaultArgument]
+Name = Union[str, arg.DefaultArgument]
+Count = Union[int, arg.DefaultArgument]
+Context = Optional[ContextInterface]
+Source = Optional[ConnectorInterface]
+TmpMask = Union[TemporaryFilesMaskInterface, arg.DefaultArgument]
 
 
 class AnyStream(sm.LocalStream, sm.ConvertMixin, sm.RegularStreamInterface):
     def __init__(
             self,
             data,
-            name=arg.DEFAULT,
-            count=None, less_than=None,
-            source=None, context=None,
-            check=False,
-            max_items_in_memory=arg.DEFAULT,
-            tmp_files=arg.DEFAULT,
+            name: Name = arg.DEFAULT,
+            count: Optional[int] = None,
+            less_than: Optional[int] = None,
+            source: Source = None,
+            context: Context = None,
+            max_items_in_memory: Count = arg.DEFAULT,
+            tmp_files: TmpMask = arg.DEFAULT,
+            check: bool = False,
     ):
         super().__init__(
-            data,
-            name=name, check=check,
+            data, name=name, check=check,
             count=count, less_than=less_than,
             source=source, context=context,
             max_items_in_memory=max_items_in_memory,
@@ -63,7 +79,7 @@ class AnyStream(sm.LocalStream, sm.ConvertMixin, sm.RegularStreamInterface):
         stream = super().filter(filter_function)
         return self._assume_native(stream)
 
-    def select(self, *columns, use_extended_method=True, **expressions) -> Stream:
+    def select(self, *columns, use_extended_method: bool = True, **expressions) -> Stream:
         if columns and not expressions:
             target_stream_type = sm.StreamType.RowStream
             target_item_type = it.ItemType.Row
@@ -90,11 +106,11 @@ class AnyStream(sm.LocalStream, sm.ConvertMixin, sm.RegularStreamInterface):
             stream_type=target_stream_type,
         )
 
-    def map_to_type(self, function, stream_type=arg.DEFAULT) -> Native:
+    def map_to_type(self, function: Callable, stream_type: OptStreamType = arg.DEFAULT) -> Native:
         stream = super().map_to(function=function, stream_type=stream_type)
         return self._assume_native(stream)
 
-    def map(self, function, to=arg.DEFAULT) -> Native:
+    def map(self, function: Callable, to: OptStreamType = arg.DEFAULT) -> Native:
         if arg.is_defined(to):
             self.get_logger().warning('to-argument for map() is deprecated, use map_to() instead')
             stream = super().map_to(function, stream_type=to)
@@ -102,12 +118,12 @@ class AnyStream(sm.LocalStream, sm.ConvertMixin, sm.RegularStreamInterface):
             stream = super().map(function)
         return self._assume_native(stream)
 
-    def flat_map(self, function, to=arg.DEFAULT) -> Stream:
+    def flat_map(self, function: Callable, to: OptStreamType = arg.DEFAULT) -> Stream:
         def get_items():
             for i in self.get_iter():
                 yield from function(i)
         to = arg.undefault(to, self.get_stream_type())
-        stream_class = sm.get_class(to)
+        stream_class = sm.StreamType(to).get_class()
         new_props_keys = stream_class([]).get_meta().keys()
         props = {k: v for k, v in self.get_meta().items() if k in new_props_keys}
         props.pop('count')
@@ -117,12 +133,19 @@ class AnyStream(sm.LocalStream, sm.ConvertMixin, sm.RegularStreamInterface):
         )
 
     @deprecated_with_alternative('map()')
-    def native_map(self, function) -> Native:
+    def native_map(self, function: Callable) -> Native:
         return self.stream(
             map(function, self.get_items()),
         )
 
-    def apply_to_data(self, function: Callable, *args, dynamic=True, stream_type=arg.DEFAULT, **kwargs) -> Stream:
+    def apply_to_data(
+            self,
+            function: Callable,
+            *args,
+            dynamic: bool = True,
+            stream_type: OptStreamType = arg.DEFAULT,
+            **kwargs
+    ) -> Stream:
         return self.stream(
             self.get_calc(function, *args, **kwargs),
             stream_type=stream_type,
@@ -149,16 +172,15 @@ class AnyStream(sm.LocalStream, sm.ConvertMixin, sm.RegularStreamInterface):
 
     def to_stream(
             self,
-            data: Union[Iterable, arg.DefaultArgument] = arg.DEFAULT,
-            stream_type=arg.DEFAULT,
+            data: Data = arg.DEFAULT,
+            stream_type: OptStreamType = arg.DEFAULT,
             ex: OptionalFields = None,
             **kwargs
     ) -> Stream:
-        stream_type = arg.undefault(stream_type, self.get_stream_type())
-        if data == arg.DEFAULT:
-            data = self.get_data()
+        stream_type = arg.delayed_undefault(stream_type, self.get_stream_type)
+        data = arg.delayed_undefault(data, self.get_data)
         if isinstance(stream_type, str):
-            stream_class = sm.StreamType(stream_type).get_class()
+            stream_class = StreamType(stream_type).get_class()
         elif isclass(stream_type):
             stream_class = stream_type
         else:
