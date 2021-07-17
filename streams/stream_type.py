@@ -19,6 +19,7 @@ DICT_METHOD_SUFFIX = dict(
     SchemaStream='schema_stream',
     RecordStream='record_stream',
     PandasStream='pandas_stream',
+    SqlStream='sql_stream',
 )
 
 
@@ -30,6 +31,7 @@ class StreamType(ClassType):
     SchemaStream = 'SchemaStream'
     RecordStream = 'RecordStream'
     PandasStream = 'PandasStream'
+    SqlStream = 'SqlStream'
 
     def get_method_suffix(self):
         global DICT_METHOD_SUFFIX
