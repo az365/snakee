@@ -51,6 +51,10 @@ class EnumItem:
             pass
         return str(item)
 
+    @classmethod
+    def get_enum_name(cls) -> str:
+        return cls.__name__
+
     def __eq__(self, other):
         other_str = self._get_str(other)
         return other_str == self.get_name() or other_str == self.get_value()
@@ -100,7 +104,12 @@ class DynamicEnum(EnumItem):
         cls.get_enum_items(check=False).append(item)
 
     @classmethod
-    def convert(cls, obj: Union[EnumItem, Name], default: Optional[EnumItem] = None, skip_missing: bool = False):
+    def convert(
+            cls,
+            obj: Union[EnumItem, Name],
+            default: Union[EnumItem, arg.DefaultArgument, None] = arg.DEFAULT,
+            skip_missing: bool = False,
+    ):
         assert cls.is_prepared(), 'DynamicEnum must be prepared before usage'
         if isinstance(obj, cls):
             return obj
@@ -108,8 +117,7 @@ class DynamicEnum(EnumItem):
             instance = cls.find_instance(string)
             if instance:
                 return instance
-        if not default:
-            default = cls.get_default()
+        default = arg.delayed_undefault(default, cls.get_default)
         if default:
             return cls.convert(default)
         elif not skip_missing:
@@ -187,7 +195,7 @@ class ClassType(DynamicEnum):
         for name, class_obj in dict_classes.items():
             if check:
                 assert isclass(class_obj), 'class expected, got {} as {}'.format(class_obj, type(class_obj))
-            item = cls.convert(name, skip_missing=skip_missing)
+            item = cls.convert(name, skip_missing=skip_missing, default=None)
             if item:
                 cls._dict_classes[item] = class_obj
 
