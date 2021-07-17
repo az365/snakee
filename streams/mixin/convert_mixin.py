@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Optional, Union, Iterable, Any
+from typing import Optional, Iterable, Callable, Union, Any
 import sys
 import json
 import csv
@@ -7,25 +7,33 @@ import pandas as pd
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
-    from functions import item_functions as fs
+    from functions import all_functions as fs
+    from streams.stream_type import StreamType
     from streams.interfaces.regular_stream_interface import RegularStreamInterface
     from streams.abstract.iterable_stream import IterableStream
     from streams import stream_classes as sm
+    from fields.schema_interface import SchemaInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
-    from ...functions import item_functions as fs
+    from ...functions import all_functions as fs
+    from ..stream_type import StreamType
     from ..interfaces.regular_stream_interface import RegularStreamInterface
     from ..abstract.iterable_stream import IterableStream
     from .. import stream_classes as sm
+    from ...fields.schema_interface import SchemaInterface
 
-OptionalArguments = Optional[Union[str, Iterable]]
 Stream = Union[RegularStreamInterface, Any]
-AnyStream = Stream
-LineStream = Stream
-RecordStream = Stream
-RowStream = Stream
-KeyValueStream = Stream
-SchemaStream = Stream
+AnyStream = Stream  # tmp
+LineStream = Stream  # tmp
+RecordStream = Stream  # tmp
+RowStream = Stream  # tmp
+KeyValueStream = Stream  # tmp
+SchemaStream = Union[Stream, SchemaInterface]
+
+Array = Union[list, tuple]
+Columns = Union[Array, arg.DefaultArgument]
+OptionalArguments = Optional[Union[str, Iterable]]
+OptStreamType = Union[StreamType, arg.DefaultArgument]
 
 max_int = sys.maxsize
 while True:  # To prevent _csv.Error: field larger than field limit (131072)
@@ -37,7 +45,7 @@ while True:  # To prevent _csv.Error: field larger than field limit (131072)
 
 
 class ConvertMixin(IterableStream, ABC):
-    def get_rows(self, columns: Union[tuple, arg.DefaultArgument] = arg.DEFAULT) -> Iterable:
+    def get_rows(self, columns: Columns = arg.DEFAULT) -> Iterable:
         if columns == arg.DEFAULT:
             if sm.StreamType.RecordStream.isinstance(self):
                 for r in self.get_items():
@@ -47,7 +55,7 @@ class ConvertMixin(IterableStream, ABC):
         else:
             return self.get_mapped_items(fs.composite_key(columns))
 
-    def get_records(self, columns: Union[tuple, arg.DefaultArgument] = arg.DEFAULT) -> Iterable:
+    def get_records(self, columns: Columns = arg.DEFAULT) -> Iterable:
         if columns == arg.DEFAULT:
             return self.get_mapped_items(lambda i: dict(item=i))
         else:
@@ -59,9 +67,11 @@ class ConvertMixin(IterableStream, ABC):
     def stream(
             self,
             data: Iterable,
-            stream_type=arg.DEFAULT,  # tmp
+            stream_type: OptStreamType = arg.DEFAULT,
             ex: OptionalArguments = None,
-            save_name: bool = True, save_count: bool = True, **kwargs
+            save_name: bool = True,
+            save_count: bool = True,
+            **kwargs
     ) -> Stream:
         stream_type = arg.undefault(stream_type, self.get_stream_type())
         if isinstance(stream_type, str):
@@ -79,7 +89,7 @@ class ConvertMixin(IterableStream, ABC):
         stream = sm.StreamType.of(stream_type).stream(data, **meta)
         return stream
 
-    def map_to_type(self, function, stream_type=arg.DEFAULT) -> Stream:
+    def map_to_type(self, function: Callable, stream_type: OptStreamType = arg.DEFAULT) -> Stream:
         stream_type = arg.undefault(stream_type, self.get_stream_type())
         result = self.stream(
             map(function, self.get_items()),
@@ -91,14 +101,14 @@ class ConvertMixin(IterableStream, ABC):
         return result
 
     # @deprecated_with_alternative('map_to_type()')
-    def map_to_records(self, function) -> RecordStream:
+    def map_to_records(self, function: Callable) -> RecordStream:
         return self.map_to_type(
             function,
             stream_type=sm.StreamType.RecordStream,
         )
 
     # @deprecated_with_alternative('map_to_type()')
-    def map_to_any(self, function) -> AnyStream:
+    def map_to_any(self, function: Callable) -> AnyStream:
         return self.map_to_type(
             function,
             stream_type=sm.StreamType.AnyStream,
@@ -113,7 +123,7 @@ class ConvertMixin(IterableStream, ABC):
     def to_line_stream(
             self,
             delimiter: Union[str, arg.DefaultArgument] = arg.DEFAULT,
-            columns: Optional[Iterable] = arg.DEFAULT,
+            columns: Columns = arg.DEFAULT,
             add_title_row: Union[bool, arg.DefaultArgument] = arg.DEFAULT,
     ) -> LineStream:
         delimiter = arg.undefault(delimiter, '\t' if sm.StreamType.RowStream.isinstance(self) else None)
@@ -122,7 +132,7 @@ class ConvertMixin(IterableStream, ABC):
             assert isinstance(stream, sm.RecordStream)
             columns = arg.undefault(columns, stream.get_columns, delayed=True)
             add_title_row = arg.undefault(add_title_row, True)
-            stream = stream.to_row_stream(columns=columns, add_title_row=add_title_row),
+            stream = stream.to_row_stream(columns=columns, add_title_row=add_title_row)
         if delimiter:
             func = delimiter.join
         else:
@@ -201,7 +211,7 @@ class ConvertMixin(IterableStream, ABC):
             stream_type=sm.StreamType.RowStream,
         )
 
-    def to_key_value_stream(self, key=fs.value_by_key(0), value=fs.value_by_key(1)) -> KeyValueStream:
+    def to_key_value_stream(self, key: Callable = fs.elem_no(0), value: Callable = fs.elem_no(1)) -> KeyValueStream:
         if isinstance(key, (list, tuple)):
             key = fs.composite_key(key)
         if isinstance(value, (list, tuple)):
@@ -218,7 +228,7 @@ class ConvertMixin(IterableStream, ABC):
         else:
             return self.to_key_value_stream(*args, **kwargs)
 
-    def to_stream(self, stream_type=arg.DEFAULT, *args, **kwargs) -> Stream:
+    def to_stream(self, stream_type: OptStreamType = arg.DEFAULT, *args, **kwargs) -> Stream:
         stream_type = arg.undefault(stream_type, self.get_stream_type())
         method_suffix = sm.StreamType.of(stream_type).get_method_suffix()
         method_name = 'to_{}'.format(method_suffix)
