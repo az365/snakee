@@ -1,8 +1,6 @@
 from enum import Enum
 from typing import Optional, Iterable, Callable, Union
 
-from streams.interfaces.abstract_stream_interface import Stream
-
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from base.interfaces.context_interface import ContextInterface
@@ -80,7 +78,7 @@ class SqlStream(WrapperStream):
             children[section] = list()
         return children[section]
 
-    def add_expression_for(self, section: SqlSection, expression: Union[str, Array]) -> Native:
+    def add_expression_for(self, section: SqlSection, expression: Union[str, int, Array]) -> Native:
         if section == SqlSection.From:
             self.set_source(expression)
         self.get_expressions_for(section).append(expression)
@@ -251,7 +249,7 @@ class SqlStream(WrapperStream):
                 self.add_expression_for(SqlSection.OrderBy, f)
             return self
 
-    def take(self, count: int) -> Stream:
+    def take(self, count: int) -> Native:
         self.add_expression_for(SqlSection.Limit, count)
         return self
 
@@ -268,10 +266,10 @@ class SqlStream(WrapperStream):
     def get_demo_example(self, *args, **kwargs):
         raise NotImplementedError
 
-    def map(self, function: Callable) -> Stream:
+    def map(self, function: Callable) -> Native:
         raise NotImplementedError
 
-    def skip(self, count: int) -> Stream:
+    def skip(self, count: int) -> Native:
         raise NotImplementedError
 
     def get_child(self, name):
