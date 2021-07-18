@@ -319,6 +319,17 @@ def get_year_and_week_from_week_abs(week_abs: int, min_year: Union[int, arg.Defa
     return year, week
 
 
+def get_year_from_week_abs(week_abs: int, min_year: Union[int, arg.DefaultArgument] = arg.DEFAULT) -> int:
+    min_year = arg.undefault(min_year, _min_year)
+    delta_year = int(week_abs / WEEKS_IN_YEAR)
+    return min_year + delta_year
+
+
+def get_week_from_week_abs(week_abs: int) -> int:
+    delta_year = int(week_abs / WEEKS_IN_YEAR)
+    return week_abs - delta_year * WEEKS_IN_YEAR
+
+
 def get_date_from_week_abs(
         week_abs: int,
         min_year: Union[int, arg.DefaultArgument] = arg.DEFAULT,
