@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
 from itertools import chain, tee
-from typing import Optional, Union, Callable, Iterable
+from typing import Optional, Union, Callable, Iterable, Iterator, NoReturn
 from datetime import datetime
+import gc
 
 try:  # Assume we're a sub-module in a package.
     from utils import (
@@ -9,6 +10,9 @@ try:  # Assume we're a sub-module in a package.
         arguments as arg,
         mappers as ms,
     )
+    from fields.schema_interface import SchemaInterface
+    from base.interfaces.context_interface import ContextInterface
+    from connectors.abstract.connector_interface import ConnectorInterface
     from streams.interfaces.abstract_stream_interface import StreamInterface
     from streams.abstract.abstract_stream import AbstractStream
     from streams import stream_classes as sm
@@ -20,15 +24,24 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         arguments as arg,
         mappers as ms,
     )
+    from fields.schema_interface import SchemaInterface
+    from ...base.interfaces.context_interface import ContextInterface
+    from ...connectors.abstract.connector_interface import ConnectorInterface
     from ..interfaces.abstract_stream_interface import StreamInterface
     from ..abstract.abstract_stream import AbstractStream
     from .. import stream_classes as sm
     from ...loggers import logger_classes as log
     from ...functions import item_functions as fs
 
-OptionalFields = Optional[Union[Iterable, str]]
 Stream = StreamInterface
+Source = Union[ConnectorInterface, arg.DefaultArgument, None]
+Context = Union[ContextInterface, arg.DefaultArgument, None]
 SelectionLogger = log.SelectionLoggerInterface
+Name = Union[str, arg.DefaultArgument]
+Count = Union[int, arg.DefaultArgument]
+Array = Union[list, tuple]
+Fields = Union[SchemaInterface, Array, Name]
+OptionalFields = Union[Iterable, str, None]
 
 DYNAMIC_META_FIELDS = ('count', 'less_than')
 
@@ -69,6 +82,10 @@ class IterableStreamInterface(StreamInterface, ABC):
 
     @abstractmethod
     def close(self, recursively: bool = False, return_closed_links: bool = False) -> Union[int, tuple]:
+        pass
+
+    @abstractmethod
+    def forget(self) -> NoReturn:
         pass
 
     @abstractmethod
@@ -183,11 +200,11 @@ class IterableStream(AbstractStream, IterableStreamInterface):
     def __init__(
             self,
             data: Iterable,
-            name=arg.DEFAULT,
-            source=None, context=None,
-            count=None, less_than=None,
-            check=False,
-            max_items_in_memory=arg.DEFAULT,
+            name: Name = arg.DEFAULT,
+            source: Source = None, context: Context = None,
+            count: Optional[int] = None, less_than: Optional[int] = None,
+            check: bool = False,
+            max_items_in_memory: Count = arg.DEFAULT,
     ):
         self._count = count
         self._less_than = less_than or count
@@ -209,7 +226,7 @@ class IterableStream(AbstractStream, IterableStreamInterface):
     def get_items(self) -> Iterable:  # list or generator (need for inherited subclasses)
         return self.get_data()
 
-    def get_iter(self) -> Iterable:
+    def get_iter(self) -> Iterator:
         yield from self.get_items()
 
     def __iter__(self):
@@ -227,7 +244,12 @@ class IterableStream(AbstractStream, IterableStreamInterface):
         return self.is_valid_item_type(item)
 
     @classmethod
-    def get_typing_validated_items(cls, items: Iterable, skip_errors=False, context=None) -> Iterable:
+    def get_typing_validated_items(
+            cls,
+            items: Iterable,
+            skip_errors: bool = False,
+            context: Context = None,
+    ) -> Iterable:
         for i in items:
             if cls.is_valid_item_type(i):
                 yield i
@@ -239,7 +261,7 @@ class IterableStream(AbstractStream, IterableStreamInterface):
                 else:
                     raise TypeError(message)
 
-    def get_validated_items(self, items: Iterable, skip_errors=False, context=None) -> Iterable:
+    def get_validated_items(self, items: Iterable, skip_errors: bool = False, context: Context = None) -> Iterable:
         for i in items:
             if self.is_valid_item(i):
                 yield i
@@ -255,17 +277,14 @@ class IterableStream(AbstractStream, IterableStreamInterface):
         return False
 
     def close(self, recursively: bool = False, return_closed_links: bool = False) -> Union[int, tuple]:
-        try:
-            self.pass_items()
-            closed_streams = 1
-        except BaseException as e:
-            self.log(['Error while trying to close stream:', e], level=log.LoggingLevel.Warning)
-            closed_streams = 0
+        self.set_data([], inplace=True)
+        closed_streams = 1
         closed_links = 0
         if recursively:
             for link in self.get_links():
                 if hasattr(link, 'close'):
                     closed_links += link.close() or 0
+        gc.collect()
         if return_closed_links:
             return closed_streams, closed_links
         else:
@@ -274,8 +293,9 @@ class IterableStream(AbstractStream, IterableStreamInterface):
     def get_expected_count(self) -> Optional[int]:
         return self._count
 
-    def set_expected_count(self, count: int):
+    def set_expected_count(self, count: int) -> Native:
         self._count = count
+        return self
 
     def one(self):
         for i in self.get_tee_items():
@@ -337,8 +357,10 @@ class IterableStream(AbstractStream, IterableStreamInterface):
             **props
         )
 
-    def take(self, max_count: int = 1) -> Native:
-        if max_count > 0:
+    def take(self, max_count: Union[int, bool] = 1) -> Native:
+        if max_count and isinstance(max_count, bool):
+            return self
+        elif max_count > 0:
             return self.stream(
                 self.get_first_items(max_count),
                 count=min(self.get_count(), max_count) if self.get_count() else None,
@@ -384,8 +406,11 @@ class IterableStream(AbstractStream, IterableStreamInterface):
         return items
 
     def pass_items(self) -> Native:
-        for _ in self.get_iter():
-            pass
+        try:
+            for _ in self.get_iter():
+                pass
+        except BaseException as e:
+            self.log(['Error while trying to close stream:', e], level=log.LoggingLevel.Warning)
         return self
 
     def tee_streams(self, n: int = 2) -> list:
@@ -600,9 +625,10 @@ class IterableStream(AbstractStream, IterableStreamInterface):
             self.get_mapped_items(function, flat=True),
         )
 
-    def map_side_join(self, right: Native, key, how='left', right_is_uniq: bool = True) -> Native:
+    def map_side_join(self, right: Native, key: Fields, how: str = 'left', right_is_uniq: bool = True) -> Native:
         assert sm.is_stream(right)
         assert how in algo.JOIN_TYPES, 'only {} join types are supported ({} given)'.format(algo.JOIN_TYPES, how)
+        key = arg.get_names(key)
         keys = arg.update([key])
         joined_items = algo.map_side_join(
             iter_left=self.get_items(),
@@ -620,7 +646,12 @@ class IterableStream(AbstractStream, IterableStreamInterface):
         )
         return self._assume_native(stream)
 
-    def progress(self, expected_count=arg.DEFAULT, step=arg.DEFAULT, message='Progress') -> Native:
+    def progress(
+            self,
+            expected_count: Count = arg.DEFAULT,
+            step: Count = arg.DEFAULT,
+            message: str = 'Progress',
+    ) -> Native:
         count = arg.undefault(expected_count, self.get_count()) or self.get_estimated_count()
         items_with_logger = self.get_logger().progress(self.get_data(), name=message, count=count, step=step)
         return self.stream(items_with_logger)

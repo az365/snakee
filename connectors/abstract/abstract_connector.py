@@ -1,14 +1,16 @@
 from abc import ABC
-from typing import Optional, Union
+from typing import Optional, Union, NoReturn
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
+    from base.interfaces.context_interface import ContextInterface
     from connectors.abstract.connector_interface import ConnectorInterface
     from base.interfaces.tree_interface import TreeInterface
     from base.abstract.tree_item import TreeItem
     from loggers import logger_classes as log
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
+    from ...base.interfaces.context_interface import ContextInterface
     from .connector_interface import ConnectorInterface
     from ...base.abstract.tree_item import TreeItem
     from ...base.interfaces.tree_interface import TreeInterface
@@ -16,6 +18,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 
 Logger = Union[log.LoggerInterface, log.ExtendedLoggerInterface]
 OptionalParent = Optional[ConnectorInterface]
+Context = Union[ContextInterface, arg.DefaultArgument, None]
 
 AUTO = arg.DEFAULT
 DEFAULT_PATH_DELIMITER = '/'
@@ -25,7 +28,7 @@ CHUNK_SIZE = 8192
 class AbstractConnector(TreeItem, ConnectorInterface, ABC):
     def __init__(
             self,
-            name,
+            name: Union[str, int],
             parent: OptionalParent = None,
             children: Optional[dict] = None,
     ):
@@ -35,18 +38,19 @@ class AbstractConnector(TreeItem, ConnectorInterface, ABC):
         parent = self.get_parent()
         if parent:
             if hasattr(parent, 'is_storage'):
-                return parent
+                if parent.is_storage():
+                    return self._assume_connector(parent)
             if hasattr(parent, 'get_storage'):
                 return parent.get_storage()
 
-    def get_logger(self, skip_missing=True, create_if_not_yet=True) -> Logger:
+    def get_logger(self, skip_missing: bool = True, create_if_not_yet: bool = True) -> Logger:
         logger = super().get_logger(skip_missing=skip_missing)
         if logger:
             return logger
         elif create_if_not_yet:
             return log.get_logger()
 
-    def log(self, msg, level=AUTO, end=AUTO, verbose=True):
+    def log(self, msg: str, level=AUTO, end: Union[str, arg.DefaultArgument] = AUTO, verbose: bool = True):
         logger = self.get_logger()
         if logger is not None:
             logger.log(
@@ -54,10 +58,14 @@ class AbstractConnector(TreeItem, ConnectorInterface, ABC):
                 end=end, verbose=verbose,
             )
 
-    def get_new_progress(self, name, count=None, context=arg.DEFAULT):
+    def get_new_progress(self, name: str, count: Optional[int] = None, context: Context = arg.DEFAULT):
         logger = self.get_logger()
         if hasattr(logger, 'get_new_progress'):
             return logger.get_new_progress(name, count=count, context=context)
+
+    @staticmethod
+    def _assume_connector(obj) -> ConnectorInterface:
+        return obj
 
     def get_path_prefix(self) -> str:
         return self.get_storage().get_path_prefix()
@@ -97,3 +105,10 @@ class AbstractConnector(TreeItem, ConnectorInterface, ABC):
                 v = None
             config[k] = v
         return config
+
+    def forget(self) -> NoReturn:
+        if hasattr(self, 'close'):
+            self.close()
+        context = self.get_context()
+        if context:
+            context.forget_conn(self)

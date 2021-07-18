@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Union, Iterable, Callable, Any
+from typing import Optional, Iterable, Callable, Union, Any, NoReturn
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
@@ -80,9 +80,17 @@ class StreamInterface(SourcedInterface, ABC):
         pass
 
     @abstractmethod
-    def stream(self, data, **kwargs) -> Stream:
+    def stream(self, data: Data, **kwargs) -> Stream:
         pass
 
     @abstractmethod
     def to_stream(self) -> Stream:
+        pass
+
+    @abstractmethod
+    def forget(self) -> NoReturn:
+        pass
+
+    @abstractmethod
+    def get_links(self) -> Iterable:
         pass

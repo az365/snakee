@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
+from typing import Optional, Union, Iterable, Callable, Any, NoReturn
 import inspect
-from typing import Optional, Union, Iterable, Callable, Any
+import gc
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
@@ -163,6 +164,14 @@ class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
             )
         elif force:
             print(msg)
+
+    def forget(self) -> NoReturn:
+        if hasattr(self, 'close'):
+            self.close()
+        context = self.get_context()
+        if context:
+            context.forget_child(self)
+        gc.collect()
 
     def get_description(self) -> str:
         return 'with meta {}'.format(self.get_meta())
