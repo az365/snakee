@@ -2,12 +2,14 @@ from typing import Optional, Union, Iterable
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
+    from utils.decorators import deprecated_with_alternative
     from fields.field_interface import FieldInterface
     from fields.schema_interface import SchemaInterface
     from fields.field_type import get_canonic_type, HEURISTIC_SUFFIX_TO_TYPE
     from connectors.databases import dialect as di
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
+    from ..utils.decorators import deprecated_with_alternative
     from ..fields.field_interface import FieldInterface
     from ..fields.schema_interface import SchemaInterface
     from ..fields.field_type import get_canonic_type, HEURISTIC_SUFFIX_TO_TYPE
@@ -23,6 +25,7 @@ ARRAY_SUBTYPES = list, tuple
 class SchemaDescription(SchemaInterface):
     FieldDescription = None
 
+    @deprecated_with_alternative('fields.FieldGroup')
     def __init__(self, fields_descriptions: Iterable):
         self._import_workaround()
         self.fields_descriptions = list()
@@ -78,7 +81,7 @@ class SchemaDescription(SchemaInterface):
                 else:
                     name = f
                 if name in removing_fields:
-                    existing_fields.remove()
+                    existing_fields.remove(f)
         else:
             raise NotImplementedError
 
