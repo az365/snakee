@@ -164,7 +164,10 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
         )
         self.post_create_action(table_name, verbose=verbose)
         self.log('Table {name} is created.'.format(name=table_name), verbose=verbose)
-        return self.table(table)
+        if schema:
+            return self.table(table, schema=schema)
+        else:
+            return self.table(table)
 
     def post_create_action(self, name: Name, **kwargs) -> NoReturn:
         pass
@@ -210,6 +213,8 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
         cat_new, name_new = name_new.split('.') if '.' in name_new else (cat_old, name_new)
         assert cat_new == cat_old, 'Can copy within same scheme (folder) only (got {} and {})'.format(cat_new, cat_old)
         new = name_new
+        table_old = self.get_child(name_old)
+        schema = table_old.get_schema() if hasattr(table_old, 'get_schema') else arg.DEFAULT
         self.execute_if_exists(
             query='ALTER TABLE {old} RENAME TO {new};'.format(old=old, new=new),
             table=old,
@@ -218,7 +223,7 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
             stop_if_no=not if_exists,
             verbose=verbose,
         )
-        return self.table(new)
+        return self.table(new, schema=schema)
 
     def select(
             self, table: Union[Table, Name],
@@ -418,13 +423,14 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
 
     @staticmethod
     def _get_table_name_and_schema(
-            table: Union[Table, Name], expected_schema: Schema = None,
+            table: Union[Table, Name],
+            expected_schema: Schema = None,
             check_schema: bool = True,
     ) -> tuple:
         if isinstance(table, Name):
             table_name = table
             table_schema = expected_schema
-        else:
+        elif isinstance(table, ct.Table):
             table_name = table.get_name()
             if hasattr(table, 'get_schema'):
                 table_schema = table.get_schema()
@@ -432,6 +438,8 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
                     assert table_schema == expected_schema
             else:
                 table_schema = expected_schema
+        else:
+            raise ValueError('Expected Table or Name, got {}'.format(table))
         if check_schema:
             assert table_schema, 'schema must be defined'
         return table_name, table_schema
