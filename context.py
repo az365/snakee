@@ -307,10 +307,9 @@ class SnakeeContext(bs.AbstractNamed, bs.ContextInterface):
             for link in this_conn.get_links():
                 if hasattr(link, 'close'):
                     closed_count += link.close() or 0
-        if verbose:
+        if verbose and closed_count:
             self.log('{} connection(s) closed.'.format(closed_count))
-        else:
-            return closed_count
+        return closed_count
 
     def close_stream(self, name: Name, recursively: bool = False, verbose: bool = True) -> tuple:
         this_stream = self.get_stream(name, skip_missing=False)
@@ -331,7 +330,7 @@ class SnakeeContext(bs.AbstractNamed, bs.ContextInterface):
         closed_count = 0
         for name in self.conn_instances:
             closed_count += self.close_conn(name, recursively=recursively, verbose=False)
-        if verbose:
+        if verbose and closed_count:
             self.log('{} connection(s) closed.'.format(closed_count))
         return closed_count
 
@@ -342,7 +341,7 @@ class SnakeeContext(bs.AbstractNamed, bs.ContextInterface):
             if isinstance(closed, ARRAY_TYPES):
                 closed_streams += closed[0]
                 closed_links += closed[1]
-            else:  # isinstance(closed, int):
+            elif isinstance(closed, int):
                 closed_streams += closed
         if verbose:
             self.log('{} stream(es) and {} link(s) closed.'.format(closed_streams, closed_links))
@@ -390,8 +389,9 @@ class SnakeeContext(bs.AbstractNamed, bs.ContextInterface):
     def forget_all_conns(self, recursively: bool = False, verbose: bool = True) -> int:
         closed_count = self.close_all_conns(verbose=False)
         left_count = 0
-        for name in self.conn_instances.copy():
+        for name in list(self.conn_instances):
             left_count += self.forget_conn(name, recursively=recursively, verbose=False)
+        self.conn_instances = dict()
         self.log('{} connection(s) closed, {} connection(s) left.'.format(closed_count, left_count), verbose=verbose)
         return left_count
 

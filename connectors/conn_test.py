@@ -21,7 +21,7 @@ def test_local_file():
     test_file = test_folder.file(file_name, schema=['a']).set_types(a=int)
     stream = cx.sm.RecordStream(data).to_file(test_file)
     assert stream.get_list() == data, 'test case 0'
-    cx.forget_child(test_file)
+    cx.forget_all_conns()
     test_file = cx.get_job_folder().file(file_name, schema=['a']).set_types(a=int)
     stream = cx.sm.RecordStream(data).to_file(test_file)
     assert stream.get_list() == data, 'test case 1'
