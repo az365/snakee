@@ -21,6 +21,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..selection import concrete_expression as ce
     from ..loggers.selection_logger_interface import SelectionLoggerInterface
 
+Native = AbstractField
+
 
 class AdvancedField(AbstractField):
     def __init__(
@@ -29,6 +31,7 @@ class AdvancedField(AbstractField):
             extractors: Optional[Iterable] = None, transform: Optional[Callable] = None,
             skip_errors: bool = False, logger: Optional[SelectionLoggerInterface] = None,
             target_item_type: ItemType = ItemType.Any,
+            group_name: Optional[str] = None, group_caption: Optional[str] = None,
     ):
         self._caption = caption
         self._default = default
@@ -36,28 +39,57 @@ class AdvancedField(AbstractField):
         self._target_item_type = target_item_type
         self._skip_errors = skip_errors
         self._logger = logger
-        super().__init__(name=name, properties=extractors or list(), field_type=field_type)
+        self._group_name = group_name or ''
+        self._group_caption = group_caption or ''
+        super().__init__(name=name, field_type=field_type, properties=extractors or list())
 
     def get_caption(self) -> str:
         return self._caption or None
 
-    def set_caption(self, caption: str, inplace: bool):
+    def set_caption(self, caption: str, inplace: bool) -> Optional[Native]:
         if inplace:
             self._caption = caption
         else:
             return self.make_new(caption=caption)
 
-    def caption(self, caption: str):
+    def caption(self, caption: str) -> Native:
         self._caption = caption
+        return self
+
+    def get_group_name(self) -> str:
+        return self._group_name
+
+    def set_group_name(self, group_name: str, inplace: bool) -> Optional[Native]:
+        if inplace:
+            self._group_name = group_name
+        else:
+            return self.make_new(group_name=group_name)
+
+    def group_name(self, group_name: str) -> Native:
+        self._group_name = group_name
+        return self
+
+    def get_group_caption(self) -> str:
+        return self._group_caption
+
+    def set_group_caption(self, group_caption: str, inplace: bool) -> Optional[Native]:
+        if inplace:
+            self._group_caption = group_caption
+        else:
+            return self.make_new(group_caption=group_caption)
+
+    def group_caption(self, group_caption: str) -> Native:
+        self._group_caption = group_caption
         return self
 
     def get_extractors(self) -> Optional[Iterable]:
         return self.get_data()
 
-    def extract(self, extractor: AbstractDescription):
+    def extract(self, extractor: AbstractDescription) -> Native:
         self.get_extractors().append(extractor)
+        return self
 
-    def transform(self, func: Callable):
+    def transform(self, func: Callable) -> Native:
         self._transform = func
         return self
 
@@ -81,7 +113,7 @@ class AdvancedField(AbstractField):
         return ce.RegularDescription(
             target=self.get_name(), target_item_type=self._target_item_type,
             inputs=[self], input_item_type=ItemType.Auto,
-            function=field_type.convert_value, default=self._default,
+            function=field_type.convert, default=self._default,
             skip_errors=self._skip_errors, logger=self._logger,
         )
 

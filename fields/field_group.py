@@ -1,4 +1,9 @@
-from typing import Optional, Union, Iterable
+from typing import Optional, Union, Iterable, NoReturn
+
+try:  # Assume Pandas installed
+    from pandas import DataFrame
+except ImportError:
+    DataFrame = None
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
@@ -23,32 +28,61 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..items.struct_row_interface import StructRowInterface
     from ..loggers.selection_logger_interface import SelectionLoggerInterface
 
-Group = Union[SchemaInterface, Iterable]
+Native = SchemaInterface
+Group = Union[Native, Iterable]
 GroupName = Optional[str]
 FieldName = str
 FieldNo = int
 FieldID = Union[FieldNo, FieldName]
 FieldProps = dict
 Field = Union[FieldID, FieldProps, FieldInterface]
-Type = Union[FieldType, arg.DefaultArgument]
+Type = Union[FieldType, type, arg.DefaultArgument]
 Dialect = Optional[str]
 Array = Union[list, tuple]
 ARRAY_SUBTYPES = list, tuple
 
 META_MEMBER_MAPPING = dict(_data='fields')
+GROUP_NO_STR = '===='
+GROUP_TYPE_STR = 'GROUP'
 
 
 class FieldGroup(SimpleDataWrapper, SchemaInterface):
-    def __init__(self, fields: Iterable, name: GroupName = None, default_type: Type = arg.DEFAULT):
+    def __init__(
+            self,
+            fields: Iterable,
+            name: GroupName = None,
+            caption: Optional[str] = None,
+            default_type: Type = arg.DEFAULT,
+    ):
         name = arg.undefault(name, arg.get_generated_name(prefix='FieldGroup'))
+        self._caption = caption or ''
         super().__init__(name=name, data=list())
-        for field in fields:
-            if isinstance(field, SchemaInterface):
-                self.add_fields(field.get_fields_descriptions(), default_type=default_type, inplace=True)
-            else:
-                self.append_field(field, default_type=default_type, inplace=True)
+        for field_or_group in fields:
+            if isinstance(field_or_group, SchemaInterface):  # FieldGroup
+                self.add_fields(field_or_group.get_fields_descriptions(), default_type=default_type, inplace=True)
+            elif isinstance(field_or_group, list):  # not tuple (tuple can be old-style FieldDescription
+                self.add_fields(*field_or_group, default_type=default_type, inplace=True)
+            elif field_or_group:
+                self.append_field(field_or_group, default_type=default_type, inplace=True)
 
-    def set_fields(self, fields: Iterable, inplace: bool) -> Optional[SchemaInterface]:
+    @classmethod
+    def _get_meta_member_mapping(cls) -> dict:
+        return META_MEMBER_MAPPING
+
+    def get_caption(self) -> str:
+        return self._caption
+
+    def set_caption(self, caption: str, inplace: bool) -> Optional[Native]:
+        if inplace:
+            self._caption = caption
+        else:
+            return self.make_new(caption=caption)
+
+    def caption(self, caption: str) -> Native:
+        self._caption = caption
+        return self
+
+    def set_fields(self, fields: Iterable, inplace: bool) -> Optional[Native]:
         return self.set_data(data=fields, inplace=inplace, reset_dynamic_meta=False)
 
     def get_fields(self) -> list:
@@ -57,7 +91,7 @@ class FieldGroup(SimpleDataWrapper, SchemaInterface):
     def get_field_names(self) -> list:
         return [f.get_name() for f in self.get_fields()]
 
-    def fields(self, fields: Iterable) -> SchemaInterface:
+    def fields(self, fields: Iterable) -> Native:
         self._data = list(fields)
         return self
 
@@ -71,6 +105,7 @@ class FieldGroup(SimpleDataWrapper, SchemaInterface):
             default_type: FieldType = FieldType.Any,
             before: bool = False,
             inplace: bool = True,
+            add_group_props: bool = True,
     ) -> Optional[SchemaInterface]:
         if self._is_field(field):
             field_desc = field
@@ -82,6 +117,11 @@ class FieldGroup(SimpleDataWrapper, SchemaInterface):
             field_desc = AdvancedField(**field)
         else:
             raise TypeError('Expected field, str or dict, got {} as {}'.format(field, type(field)))
+        if add_group_props and hasattr(field_desc, 'get_group_name'):  # isinstance(field_desc, AdvancedField)
+            if not arg.is_defined(field_desc.get_group_name()):
+                field_desc.set_group_name(self.get_name(), inplace=True)
+            if not arg.is_defined(field_desc.get_group_caption()):
+                field_desc.set_group_caption(self.get_caption(), inplace=True)
         if before:
             fields = [field_desc] + self.get_fields()
         else:
@@ -95,11 +135,11 @@ class FieldGroup(SimpleDataWrapper, SchemaInterface):
             inplace: bool = False,
     ) -> Optional[SchemaInterface]:
         if isinstance(field_or_group, SchemaInterface):
-            return self.add_fields(field_or_group.get_fields_descriptions(), default_type=default_type, inplace=inplace)
-        elif isinstance(field_or_group, Iterable):
-            return self.add_fields(field_or_group, default_type=default_type, inplace=inplace)
-        else:
-            return self.append_field(field_or_group, default_type=default_type, inplace=inplace)
+            return self.add_fields(*field_or_group.get_fields_descriptions(), default_type, inplace=inplace)
+        elif isinstance(field_or_group, Iterable) and not isinstance(field_or_group, str):
+            return self.add_fields(*field_or_group, default_type=default_type, inplace=inplace)
+        else:  # isinstance(field_or_group, Field):
+            return self.append_field(field_or_group, default_type=default_type, inplace=inplace, add_group_props=False)
 
     def add_fields(
             self,
@@ -130,6 +170,27 @@ class FieldGroup(SimpleDataWrapper, SchemaInterface):
     def get_fields_count(self) -> int:
         return len(self.get_fields())
 
+    def get_type_count(self, field_type: Type = arg.DEFAULT, by_prefix: bool = True) -> int:
+        count = 0
+        field_type = FieldType(field_type)
+        for f in self.get_fields():
+            if by_prefix:
+                is_selected_type = f.get_type_name().startswith(field_type.get_name())
+            else:
+                is_selected_type = f.get_type_name() == field_type.get_name()
+            if is_selected_type:
+                count += 1
+        return count
+
+    def get_str_fields_count(self, types: Array = (str, int, float, bool)) -> str:
+        total_count = self.get_fields_count()
+        types_count = list()
+        for t in types:
+            types_count.append(self.get_type_count(t))
+        other_count = total_count - sum(types_count)
+        str_fields_count = ' + '.join(['{} {}'.format(c, t) for c, t in zip(types, types_count)])
+        return '{} total = {} + {} other'.format(total_count, str_fields_count, other_count)
+
     def get_schema_str(self, dialect: Dialect = 'py') -> str:
         if dialect is not None and dialect not in di.DIALECTS:
             dialect = di.get_dialect_for_connector(dialect)
@@ -142,10 +203,6 @@ class FieldGroup(SimpleDataWrapper, SchemaInterface):
 
     def get_types(self, dialect: Dialect) -> list:
         return [c.get_type_in(dialect) for c in self.get_fields()]
-
-    @classmethod
-    def _get_meta_member_mapping(cls) -> dict:
-        return META_MEMBER_MAPPING
 
     def set_types(
             self,
@@ -194,13 +251,6 @@ class FieldGroup(SimpleDataWrapper, SchemaInterface):
             converters.append(desc.get_converter(src, dst))
         return tuple(converters)
 
-    def get_field_description(self, field_name: FieldID) -> Union[FieldInterface, AdvancedField]:
-        field_position = self.get_field_position(field_name)
-        assert field_position is not None, 'Field {} not found (existing fields: {})'.format(
-            field_name, self.get_columns(),
-        )
-        return self.get_fields()[field_position]
-
     def get_fields_descriptions(self) -> list:
         return self.get_fields()
 
@@ -217,6 +267,96 @@ class FieldGroup(SimpleDataWrapper, SchemaInterface):
         return FieldGroup(
             [self.get_field_description(f) for f in fields]
         )
+
+    def get_fields_tuples(self) -> Iterable[tuple]:  # name, type, caption
+        for f in self.get_fields():
+            if isinstance(f, AdvancedField):
+                field_name = f.get_name()
+                field_type_name = f.get_type_name()
+                field_caption = f.get_caption() or ''
+                group_name = f.get_group_name()
+                group_caption = f.get_group_caption()
+            elif isinstance(f, tuple) and len(f) == 2:  # old-style FieldDescription
+                field_name = f[0]
+                field_type_name = FieldType(f[1]).get_name()
+                field_caption, group_name, group_caption = '', '', ''
+            else:
+                field_name = str(f)
+                field_type_name = FieldType.get_default()
+                field_caption, group_name, group_caption = '', '', ''
+            yield field_name, field_type_name, field_caption, group_name, group_caption
+
+    def get_field_description(self, field_name: FieldID) -> Union[FieldInterface, AdvancedField]:
+        field_position = self.get_field_position(field_name)
+        assert field_position is not None, 'Field {} not found (existing fields: {})'.format(
+            field_name, self.get_columns(),
+        )
+        return self.get_fields()[field_position]
+
+    def get_struct_description(self, include_header: bool = False) -> Iterable[tuple]:
+        group_name = self.get_name()
+        group_caption = self.get_caption()
+        if include_header:
+            yield (GROUP_NO_STR, GROUP_TYPE_STR, group_name, group_caption)
+        prev_group_name = group_name
+        for n, (f_name, f_type_name, f_caption, group_name, group_caption) in enumerate(self.get_fields_tuples()):
+            is_new_group = group_name != prev_group_name
+            if is_new_group:
+                yield (GROUP_NO_STR, GROUP_TYPE_STR, group_name, group_caption)
+            yield (n, f_type_name, f_name, f_caption)
+
+    def get_group_header(self, name=arg.DEFAULT, caption=arg.DEFAULT) -> Iterable[str]:
+        is_title_row = name == arg.DEFAULT
+        name = arg.undefault(name, self.get_name())
+        caption = arg.undefault(caption, self.get_caption())
+        if name:
+            yield name
+        if caption:
+            yield caption
+        if is_title_row:
+            yield self.get_str_fields_count()
+        yield ''
+
+    @staticmethod
+    def _get_describe_template(example) -> tuple:
+        if example:
+            columns = ('N', 'TYPE', 'NAME', 'EXAMPLE', 'CAPTION')
+            template = '    {:<03} {:<8} {:<24} {:<14} {:<64}'
+        else:
+            columns = ('N', 'TYPE', 'NAME', 'CAPTION')
+            template = '    {:<3} {:<8} {:<24} {:<80}'
+        return columns, template
+
+    def describe(self, separate_by_tabs: bool = False, example: Optional[dict] = None, logger=arg.DEFAULT) -> NoReturn:
+        if arg.is_defined(logger):
+            log = logger.log
+        else:
+            log = print
+        for line in self.get_group_header():
+            log(line)
+        columns, template = self._get_describe_template(example)
+        log('\t'.join(columns) if separate_by_tabs else template.format(*columns))
+        for (n, type_name, name, caption) in self.get_struct_description(include_header=False):
+            if type_name == GROUP_TYPE_STR:
+                for line in self.get_group_header(name, caption):
+                    log(line)
+            else:
+                if example:
+                    value = example.get(name)
+                    row = (n, type_name, name, value, caption)
+                else:
+                    row = (n, type_name, name, caption)
+                log('\t'.join(row) if separate_by_tabs else template.format(*row))
+
+    def get_dataframe(self) -> DataFrame:
+        if DataFrame:
+            return DataFrame(self.get_struct_description(include_header=True))
+
+    def show(self) -> Optional[DataFrame]:
+        if DataFrame:
+            return self.get_dataframe()
+        else:
+            return self.describe()
 
     def __repr__(self):
         return self.get_schema_str(None)
