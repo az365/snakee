@@ -69,7 +69,7 @@ class ItemType(SubclassesType):
         elif self == ItemType.Record:
             return get_field_value_from_record(field=field, record=item, default=default, skip_missing=True)
         elif self == ItemType.SchemaRow:
-            return get_field_value_from_schema_row(key=field, row=item, default=default, skip_missing=False)
+            return get_field_value_from_schema_row(field=field, row=item, default=default, skip_missing=False)
         elif skip_unsupported_types:
             return default
         else:
@@ -93,8 +93,12 @@ ItemType.prepare()
 ItemType.set_default(ItemType.Auto)
 
 
-def get_field_value_from_schema_row(key: Field, row: StructRowInterface, default=None, skip_missing=True):
-    return row.get_value(key, default=default, skip_missing=skip_missing)
+def get_field_value_from_schema_row(field: Field, row: StructRowInterface, default=None, skip_missing=True):
+    if isinstance(field, Callable):
+        return field(row)
+    else:
+        field = arg.get_name(field)
+    return row.get_value(field, default=default, skip_missing=skip_missing)
 
 
 def get_field_value_from_row(column: int, row: Row, default=None, skip_missing=True):
@@ -105,6 +109,10 @@ def get_field_value_from_row(column: int, row: Row, default=None, skip_missing=T
 
 
 def get_field_value_from_record(field: Field, record: Record, default=None, skip_missing=True):
+    if isinstance(field, Callable):
+        return field(record)
+    else:
+        field = arg.get_name(field)
     if skip_missing:
         return record.get(field, default)
     else:
