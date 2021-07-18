@@ -1,3 +1,5 @@
+from typing import Optional, Callable
+
 try:  # Assume we're a sub-module in a package.
     from series import series_classes as sc
     from utils import numeric as nm
@@ -5,6 +7,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .. import series_classes as sc
     from ...utils import numeric as nm
 
+Native = sc.AnySeries
 
 DEFAULT_NUMERIC = True
 
@@ -18,10 +21,12 @@ class NumericSeries(sc.AnySeries):
             self,
             values=[],
             validate=False,
+            name=None,
     ):
         super().__init__(
             values=values,
             validate=validate,
+            name=name,
         )
 
     @staticmethod
@@ -100,10 +105,13 @@ class NumericSeries(sc.AnySeries):
             else:
                 yield self.value_series().get_items_no(sliding_window, extend=extend, default=default)
 
-    def apply_window_func(self, function, window=WINDOW_DEFAULT, extend=True, default=None, as_series=False):
-        return self.copy().set_values(
-            map(function, self.get_sliding_window(window, extend=extend, default=default, as_series=as_series))
-        )
+    def apply_window_func(
+            self, function: Callable,
+            window=WINDOW_DEFAULT, extend=True, default=None, as_series=False,
+            inplace: bool = False,
+    ) -> Optional[Native]:
+        values = map(function, self.get_sliding_window(window, extend=extend, default=default, as_series=as_series))
+        return self.set_values(values, inplace=inplace)
 
     def mark_local_extremums(self, local_min=True, local_max=True):
         return self.apply_window_func(

@@ -165,11 +165,13 @@ class DateSeries(DateSeriesInterface, sc.SortedSeries):
             values: Optional[list] = None,
             validate: bool = True,
             sort_items: bool = False,
+            name=None,
     ):
         super().__init__(
             values=values or list(),
             validate=validate,
             sort_items=sort_items,
+            name=name,
         )
 
     def get_errors(self) -> Iterable:
@@ -211,10 +213,8 @@ class DateSeries(DateSeriesInterface, sc.SortedSeries):
         else:
             return self.get_values()
 
-    def set_dates(self, dates: Iterable) -> Native:
-        new = self.new(save_meta=True)
-        new.values = list(dates)
-        return new
+    def set_dates(self, dates: Iterable, inplace: bool = False) -> Optional[Native]:
+        return self.set_values(dates, inplace=inplace)
 
     def to_dates(self, as_iso_date: bool = False) -> Native:
         return self.map_dates(

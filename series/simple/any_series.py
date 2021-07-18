@@ -1,3 +1,5 @@
+from typing import Optional, Iterable, Callable
+
 try:  # Assume we're a sub-module in a package.
     from series.abstract_series import AbstractSeries
     from series import series_classes as sc
@@ -7,6 +9,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .. import series_classes as sc
     from ...utils import numeric as nm
 
+Native = AbstractSeries
 
 DEFAULT_NUMERIC = False
 DEFAULT_SORTED = False
@@ -17,40 +20,30 @@ class AnySeries(AbstractSeries):
             self,
             values=[],
             validate=False,
+            name=None,
     ):
         super().__init__(
             values=list(values),
             validate=validate,
+            name=name,
         )
 
     @classmethod
-    def get_data_fields(cls):
-        return ['values']
-
-    @classmethod
-    def get_meta_fields(cls):
+    def _get_meta_member_names(cls):
         return []
 
     def get_errors(self):
-        if not isinstance(self.values, list):
+        if not isinstance(self.get_values(), list):
             yield 'Values must be a list'
 
     def value_series(self):
         return self
 
-    def get_values(self):
-        return self.values
-
-    def set_values(self, values):
-        new = self.copy()
-        new.values = list(values)
-        return new
-
-    def get_items(self):
+    def get_items(self) -> list:
         return self.get_values()
 
-    def set_items(self, items):
-        return self.set_values(items)
+    def set_items(self, items: Iterable, inplace: bool) -> Optional[Native]:
+        return self.set_values(items, inplace=inplace)
 
     def has_items(self):
         return bool(self.get_values())
@@ -64,7 +57,7 @@ class AnySeries(AbstractSeries):
     def set_count(self, count, default=None):
         if count > self.get_count():
             return self.add(
-                self.new().set_values([default] * count),
+                self.new().set_values([default] * count, inplace=True),
             )
         else:
             return self.slice(0, count)
@@ -90,10 +83,9 @@ class AnySeries(AbstractSeries):
     def get_items_from_to(self, n_start, n_end):
         return self.get_list()[n_start: n_end]
 
-    def slice(self, n_start, n_end):
-        return self.new(save_meta=True).set_items(
-            self.get_items_from_to(n_start, n_end),
-        )
+    def slice(self, n_start, n_end, inplace: bool = False):
+        items = self.get_items_from_to(n_start, n_end)
+        return self.set_items(items, inplace=inplace)
 
     def crop(self, left_count, right_count):
         return self.slice(
@@ -101,10 +93,9 @@ class AnySeries(AbstractSeries):
             n_end=self.get_count() - right_count,
         )
 
-    def items_no(self, numbers, extend=False, default=None):
-        return self.new().set_items(
-            self.get_items_no(numbers, extend=extend, default=default)
-        )
+    def items_no(self, numbers, extend=False, default=None, inplace: bool = False):
+        items = self.get_items_no(numbers, extend=extend, default=default)
+        return self.set_items(items, inplace=inplace)
 
     def extend(self, series, default=None):
         count = series.get_count()
@@ -137,7 +128,7 @@ class AnySeries(AbstractSeries):
 
     def append(self, value, inplace):
         if inplace:
-            self.values.append(value)
+            self.get_values().append(value)
         else:
             new = self.copy()
             new.append(value, inplace=True)
@@ -152,28 +143,26 @@ class AnySeries(AbstractSeries):
 
     def insert(self, pos, value, inplace=False):
         if inplace:
-            self.values.insert(pos, value)
+            self.get_values().insert(pos, value)
         else:
             new = self.copy()
             new.insert(pos, value, inplace=True)
             return new
 
-    def add(self, series, to_the_begin=False):
+    def add(self, series, to_the_begin: bool = False, inplace: bool = False):
         if to_the_begin:
             values = series.get_values() + self.get_values()
         else:
             values = self.get_values() + series.get_values()
-        return self.set_values(values=values)
+        return self.set_values(values=values, inplace=inplace)
 
-    def filter(self, function):
-        return self.new().set_items(
-            filter(function, self.get_items()),
-        )
+    def filter(self, function: Callable, inplace: bool = False):
+        filtered_items = filter(function, self.get_items())
+        return self.set_items(filtered_items, inplace=inplace)
 
-    def filter_values(self, function):
-        return self.new().set_values(
-            [v for v in self.get_values() if function(v)]
-        )
+    def filter_values(self, function: Callable, inplace: bool = False):
+        filtered_values = [v for v in self.get_values() if function(v)]
+        return self.set_values(filtered_values, inplace=inplace)
 
     def filter_values_defined(self):
         return self.filter_values(nm.is_defined)
@@ -186,24 +175,25 @@ class AnySeries(AbstractSeries):
             lambda v: v if function else None,
         )
 
-    def map(self, function):
-        return self.set_items(
-            map(function, self.get_items()),
-        )
+    @staticmethod
+    def _get_mapped_items(function, *values):
+        return map(function, *values)
 
-    def map_values(self, function):
-        return self.set_values(
-            map(function, self.get_values()),
-        )
+    def map(self, function: Callable, inplace: bool = False):
+        items = self._get_mapped_items(function, self.get_items())
+        return self.set_items(items, inplace=inplace)
 
-    def map_zip_values(self, function, *series):
-        return self.set_values(
-            map(
-                function,
-                self.get_values(),
-                *[s.get_values() for s in series],
-            )
+    def map_values(self, function, inplace: bool = False):
+        mapped_values = self._get_mapped_items(function, self.get_values())
+        return self.set_values(mapped_values, inplace=inplace)
+
+    def map_zip_values(self, function, *series, inplace: bool = False):
+        mapped_values = self._get_mapped_items(
+            function,
+            self.get_values(),
+            *[s.get_values() for s in series],
         )
+        return self.set_values(mapped_values, inplace=inplace)
 
     def map_extend_zip_values(self, function, *series):
         count = max([s.get_count() for s in [self] + list(series)])
@@ -221,10 +211,9 @@ class AnySeries(AbstractSeries):
     def apply(self, function):
         return self.apply_to_values(function)
 
-    def apply_to_values(self, function):
-        return self.copy().set_values(
-            values=function(self.values)
-        )
+    def apply_to_values(self, function: Callable, inplace: bool = False):
+        values = function(self.get_values())
+        return self.set_values(values, inplace=inplace)
 
     def assume_numeric(self, validate=False):
         return sc.NumericSeries(

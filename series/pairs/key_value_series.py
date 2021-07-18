@@ -1,9 +1,15 @@
+from typing import Optional, Iterable
+
 try:  # Assume we're a sub-module in a package.
     from series import series_classes as sc
     from utils import numeric as nm
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from .. import series_classes as sc
     from ...utils import numeric as nm
+
+Native = sc.AnySeries
+
+DATA_MEMBER_NAMES = ('keys', '_data')
 
 
 class KeyValueSeries(sc.AnySeries):
@@ -12,11 +18,13 @@ class KeyValueSeries(sc.AnySeries):
             keys=[],
             values=[],
             validate=True,
+            name=None,
     ):
         self.keys = list(keys)
         super().__init__(
             values=values,
             validate=validate,
+            name=name,
         )
 
     def get_errors(self):
@@ -28,11 +36,11 @@ class KeyValueSeries(sc.AnySeries):
         return len(self.get_keys()) == len(self.get_values())
 
     @classmethod
-    def get_data_fields(cls):
-        return ['keys', 'values']
+    def _get_data_member_names(cls):
+        return DATA_MEMBER_NAMES
 
     @classmethod
-    def from_items(cls, items):
+    def from_items(cls, items: Iterable):
         series = cls()
         for k, v in items:
             series.get_keys().append(k)
@@ -55,20 +63,37 @@ class KeyValueSeries(sc.AnySeries):
     def get_value_by_key(self, key, default=None):
         return self.get_dict().get(key, default)
 
-    def get_keys(self):
+    def get_keys(self) -> list:
         return self.keys
 
-    def set_keys(self, keys):
-        return self.new(
-            keys=keys,
-            values=self.get_values(),
-        )
+    def set_keys(self, keys: list, inplace: bool) -> Optional[Native]:
+        if inplace:
+            self.keys = keys
+        else:
+            return self.new(
+                keys=keys,
+                values=self.get_values(),
+            )
 
     def get_items(self):
         return zip(self.get_keys(), self.get_values())
 
-    def set_items(self, items):
-        return self.from_items(items)
+    def set_items(self, items: Iterable, inplace: bool):
+        if inplace:
+            keys, values = self._split_keys_and_values(items)
+            self.set_keys(keys, inplace=True)
+            self.set_values(values, inplace=True)
+        else:
+            return self.from_items(items)
+
+    @staticmethod
+    def _split_keys_and_values(items: Iterable) -> tuple:
+        keys = list()
+        values = list()
+        for k, v in items:
+            keys.append(k)
+            values.append(v)
+        return keys, values
 
     def get_dict(self):
         return dict(self.get_items())
@@ -149,16 +174,17 @@ class KeyValueSeries(sc.AnySeries):
     def map_keys(self, function, sorting_changed=False):
         return self.set_keys(
             self.key_series().map(function),
+            inplace=False,
         )
 
     def assume_date_numeric(self):
         return sc.DateNumericSeries(
-            **self.get_properties()
+            **self.get_props()
         )
 
     def assume_sorted(self):
         return sc.SortedKeyValueSeries(
-            **self.get_properties()
+            **self.get_props()
         )
 
     def is_sorted(self, check=True):
@@ -167,8 +193,8 @@ class KeyValueSeries(sc.AnySeries):
     def sort_by_keys(self, reverse=False, inplace=False):
         if inplace:
             items = sorted(zip(self.get_keys(), self.get_values()), reverse=reverse)
-            self.keys = [k for k, v in items]
-            self.values = [v for k, v in items]
+            self.set_keys([k for k, v in items], inplace=True)
+            self.set_values([v for k, v in items], inplace=True)
         else:
             result = self.__class__.from_items(
                 sorted(self.get_items(), reverse=reverse),

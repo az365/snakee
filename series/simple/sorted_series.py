@@ -14,12 +14,14 @@ class SortedSeries(sc.AnySeries):
             values=[],
             validate=True,
             sort_items=False,
+            name=None,
     ):
         if sort_items:
             values = sorted(values)
         super().__init__(
             values=values,
             validate=validate,
+            name=name,
         )
 
     def get_errors(self):
@@ -41,14 +43,14 @@ class SortedSeries(sc.AnySeries):
     def assume_numeric(self, validate=False):
         return sc.SortedNumericSeries(
             validate=validate,
-            **self.get_data()
+            **self._get_data_member_dict()
         )
 
     def assume_sorted(self):
         return self
 
     def assume_unsorted(self):
-        return sc.AnySeries(**self.get_data())
+        return sc.AnySeries(**self._get_data_member_dict())
 
     def uniq(self):
         series = self.new(save_meta=True)

@@ -19,11 +19,13 @@ class SortedKeyValueSeries(sc.KeyValueSeries, sc.SortedSeries):
             values=[],
             validate=False,
             sort_items=True,
+            name=None,
     ):
         super().__init__(
             keys=keys,
             values=values,
             validate=False,
+            name=name,
         )
         if sort_items:
             self.sort_by_keys(inplace=True)
@@ -36,8 +38,8 @@ class SortedKeyValueSeries(sc.KeyValueSeries, sc.SortedSeries):
             yield 'Keys of {} must be sorted'.format(self.get_class_name())
 
     @classmethod
-    def get_meta_fields(cls):
-        return list(super().get_meta_fields()) + ['cached_spline']
+    def _get_meta_member_names(cls):
+        return list(super()._get_meta_member_names()) + ['cached_spline']
 
     def key_series(self):
         return sc.SortedSeries(self.get_keys())
@@ -74,19 +76,19 @@ class SortedKeyValueSeries(sc.KeyValueSeries, sc.SortedSeries):
 
     def assume_unsorted(self):
         return sc.KeyValueSeries(
-            **self.get_data()
+            **self._get_data_member_dict()
         )
 
     def assume_dates(self, validate=False):
         return sc.DateNumericSeries(
             validate=validate,
-            **self.get_data()
+            **self._get_data_member_dict()
         )
 
     def assume_numeric(self, validate=False):
         return sc.SortedNumericKeyValueSeries(
             validate=validate,
-            **self.get_data()
+            **self._get_data_member_dict()
         )
 
     def to_numeric(self, sort_items=True):
@@ -106,6 +108,7 @@ class SortedKeyValueSeries(sc.KeyValueSeries, sc.SortedSeries):
     def map_keys(self, function, sorting_changed=True):
         result = self.set_keys(
             self.key_series().map(function),
+            inplace=False,
         )
         if sorting_changed:
             result = result.assume_unsorted()

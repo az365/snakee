@@ -20,10 +20,12 @@ class SortedNumericSeries(sc.SortedSeries, sc.NumericSeries):
             self,
             values=[],
             validate=False,
+            name=None,
     ):
         super().__init__(
             values=values,
             validate=validate,
+            name=name,
         )
 
     def get_errors(self):
@@ -35,7 +37,7 @@ class SortedNumericSeries(sc.SortedSeries, sc.NumericSeries):
     def assume_unsorted(self):
         return sc.NumericSeries(
             validate=False,
-            **self.get_data()
+            **self._get_data_member_dict()
         )
 
     def to_dates(self, as_iso_date=False, from_scale='days'):

@@ -22,12 +22,14 @@ class DateNumericSeries(sc.SortedNumericKeyValueSeries, sc.DateSeries):
             values=[],
             validate=False,
             sort_items=True,
+            name=None,
     ):
         super().__init__(
             keys=keys,
             values=values,
             sort_items=sort_items,
             validate=validate,
+            name=name,
         )
         self.cached_yoy = None
 
@@ -45,7 +47,7 @@ class DateNumericSeries(sc.SortedNumericKeyValueSeries, sc.DateSeries):
     def assume_numeric(self, validate=False):
         return sc.SortedNumericKeyValueSeries(
             validate=validate,
-            **self.get_data()
+            **self._get_data_member_dict()
         )
 
     def get_dates(self, as_date_type=None):

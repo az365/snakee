@@ -19,12 +19,14 @@ class SortedNumericKeyValueSeries(sc.SortedKeyValueSeries, sc.SortedNumericSerie
             values=[],
             validate=False,
             sort_items=True,
+            name=None,
     ):
         super().__init__(
             keys=keys,
             values=values,
             validate=validate,
             sort_items=sort_items,
+            name=name,
         )
         self.cached_spline = None
 
@@ -40,17 +42,17 @@ class SortedNumericKeyValueSeries(sc.SortedKeyValueSeries, sc.SortedNumericSerie
         return sc.NumericSeries.get_distance_func()
 
     @classmethod
-    def get_meta_fields(cls):
-        return list(super().get_meta_fields()) + ['cached_spline']
+    def _get_meta_member_names(cls):
+        return list(super()._get_meta_member_names()) + ['cached_spline']
 
-    def set_meta(self, dict_meta, inplace=False):
+    def set_meta(self, inplace=False, **dict_meta):
         if inplace:
             for k, v in dict_meta.items():
                 if hasattr(v, 'copy') and k != 'cached_spline':
                     v = v.copy()
                 self.__dict__[k] = v
         else:
-            return super().set_meta(dict_meta, inplace=inplace)
+            return super().set_meta(**dict_meta, inplace=inplace)
 
     def key_series(self):
         return sc.SortedNumericSeries(self.get_keys())
@@ -67,7 +69,7 @@ class SortedNumericKeyValueSeries(sc.SortedKeyValueSeries, sc.SortedNumericSerie
     def assume_not_numeric(self, validate=False):
         return sc.SortedKeyValueSeries(
             validate=validate,
-            **self.get_data()
+            **self._get_data_member_dict()
         )
 
     def to_dates(self, as_iso_date=False, from_scale='days'):
