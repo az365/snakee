@@ -1,6 +1,6 @@
 from datetime import datetime
 from random import randint
-from typing import Union, Generator, Iterator, Iterable, Callable, Optional
+from typing import Optional, Callable, Iterable, Iterator, Generator, Union, Any
 
 NOT_USED = None
 DEFAULT_VALUE = 'DefaultArgument'
@@ -91,11 +91,13 @@ def get_value(obj) -> Union[str, int]:
         return obj
 
 
-def get_name(obj) -> Union[str, int]:
+def get_name(obj, or_callable: bool = True) -> Union[str, int, Callable]:
     if hasattr(obj, 'get_name'):
         return obj.get_name()
     elif hasattr(obj, 'name'):
         return obj.name
+    elif isinstance(obj, Callable) and or_callable:
+        return obj
     elif hasattr(obj, '__name__'):
         return obj.__name__
     elif isinstance(obj, int):
@@ -104,11 +106,11 @@ def get_name(obj) -> Union[str, int]:
         return str(obj)
 
 
-def get_names(iterable: Optional[Iterable]) -> list:
-    if iterable:
+def get_names(iterable: Union[Iterable, Any, None]) -> Union[list, Any]:
+    if isinstance(iterable, Iterable) and not isinstance(iterable, str):
         return [get_name(i) for i in iterable]
     else:
-        return list()
+        return iterable
 
 
 def get_generated_name(prefix='snakee', include_random: Union[bool, int] = DEFAULT_RANDOM_LEN, include_datetime=True):
