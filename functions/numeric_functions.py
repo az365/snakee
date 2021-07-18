@@ -17,22 +17,34 @@ def sign() -> Callable:
     return func
 
 
+def diff(constant: Optional[float] = None, take_abs: bool = False, default: Optional[float] = None) -> Callable:
+    def func(v: float, c: Optional[float] = None) -> float:
+        if constant is not None:
+            c = constant
+        return nm.diff(c=c, v=v, take_abs=take_abs, default=default)
+    return func
+
+
 def div(denominator: Optional[float] = None, default: Optional[float] = None) -> Callable:
     def func(x: float, y: Optional[float] = None) -> Optional[float]:
         if y is None:
             y = denominator
-        if y and x is not None:
-            return x / y
-        else:
-            return default
+        elif denominator:
+            raise ValueError('only one denominator allowed (from argument or from item), but both received')
+        return nm.div(x, y, default=default)
     return func
 
 
-def diff(constant: Optional[float] = None, take_abs: bool = False) -> Callable:
-    def func(v: float, c: Optional[float] = None) -> float:
-        if constant is not None:
-            c = constant
-        return nm.diff(c=c, v=v, take_abs=take_abs)
+def mult(coefficient: Optional[float] = None, default: Optional[float] = None) -> Callable:
+    def func(x: float, y: Optional[float] = None) -> Optional[float]:
+        if y is None:
+            y = coefficient
+        elif coefficient:
+            raise ValueError('only one coefficient allowed (from argument or from item), but both received')
+        if x is None or y is None:
+            return default
+        else:
+            return x * y
     return func
 
 

@@ -58,6 +58,17 @@ def filter_numeric(a: Iterable) -> list:
     return [i for i in a if is_numeric(i)]
 
 
+def diff(c, v, take_abs=False, default=None) -> OptFloat:
+    if c is None or v is None:
+        return default
+    else:
+        result = v - c
+        if take_abs:
+            return abs(result)
+        else:
+            return result
+
+
 def div(x: float, y: float, default=None) -> Optional[float]:
     if y:
         return (x or 0) / y
@@ -123,15 +134,7 @@ def sqrt(value: float, default=None) -> OptFloat:
         return default
 
 
-def diff(c, v, take_abs=False):
-    result = v - c
-    if take_abs:
-        return abs(result)
-    else:
-        return result
-
-
-def is_local_extremum(x_left, x_center, x_right, local_max=True, local_min=True):
+def is_local_extremum(x_left, x_center, x_right, local_max=True, local_min=True) -> bool:
     result = False
     if local_max:
         result = x_center > x_left and x_center >= x_right
@@ -147,9 +150,9 @@ def _raise_import_error(lib=None):
         raise ImportError
 
 
-def corr(a, b, ignore_import_error=False):
+def corr(a, b, ignore_import_error=False) -> float:
     if np:
-        return np.corrcoef(a, b)[0, 1]
+        return float(np.corrcoef(a, b)[0, 1])
     elif not ignore_import_error:
         _raise_import_error('numpy')
 
@@ -165,7 +168,7 @@ def spline_interpolate(x, y, ignore_import_error=False):
         _raise_import_error('scipy')
 
 
-def get_dataframe(*args, ignore_import_error=False, **kwargs):
+def get_dataframe(*args, ignore_import_error=False, **kwargs) -> pd.DataFrame:
     if pd:
         return pd.DataFrame(*args, **kwargs)
     elif not ignore_import_error:

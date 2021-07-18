@@ -5,11 +5,11 @@ try:  # Assume we're a sub-module in a package.
         apply_dict,
     )
     from functions.cast_functions import DICT_CAST_TYPES, cast, date, number, percent
-    from functions.numeric_functions import sign, div, diff, sqrt
+    from functions.numeric_functions import sign, diff, div, mult, sqrt
     from functions.array_functions import (
         is_in, not_in,
         elem_no, first, second, last,
-        distinct, uniq, count_uniq,
+        distinct, uniq, count_uniq, count,
         is_ordered, compare_lists, list_minus,
         values_not_none, defined_values, nonzero_values, numeric_values, shift_right,
         unfold_lists, top, hist, mean,
@@ -25,11 +25,11 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         apply_dict,
     )
     from .cast_functions import DICT_CAST_TYPES, cast, date, number, percent
-    from .numeric_functions import sign, div, diff, sqrt
+    from .numeric_functions import sign, diff, div, mult, sqrt
     from .array_functions import (
         is_in, not_in,
         elem_no, first, second, last,
-        distinct, uniq, count_uniq,
+        distinct, uniq, count_uniq, count,
         is_ordered, compare_lists, list_minus,
         values_not_none, defined_values, nonzero_values, numeric_values, shift_right,
         unfold_lists, top, hist, mean,

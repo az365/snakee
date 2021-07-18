@@ -15,6 +15,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     )
     from . import basic_functions as bf
 
+Array = Union[list, tuple]
+
 
 def is_in(*list_values) -> Callable:
     list_values = arg.update(list_values)
@@ -43,10 +45,42 @@ def is_ordered(reverse: bool = False, including: bool = True) -> Callable:
     return func
 
 
+def uniq(save_order: bool = True) -> Callable:
+    def func(array: Iterable) -> list:
+        if isinstance(array, Iterable):
+            result = list()
+            for i in array:
+                if i not in result:
+                    result.append(i)
+            return result
+    if save_order:
+        return func
+    else:
+        return lambda a: sorted(set(a))
+
+
+def count_uniq() -> Callable:
+    def func(array: Iterable) -> int:
+        a = uniq()(array)
+        if isinstance(a, list):
+            return len(a)
+    return func
+
+
+def count() -> Callable:
+    def func(a: Array) -> int:
+        return len(a)
+    return func
+
+
+def distinct() -> Callable:
+    return uniq()
+
+
 def elem_no(position: int, default=None) -> Callable:
-    def func(array: Union[list, tuple]):
-        count = len(array)
-        if isinstance(array, (list, tuple)) and -count <= position < count:
+    def func(array: Array):
+        elem_count = len(array)
+        if isinstance(array, (list, tuple)) and -elem_count <= position < elem_count:
             return array[position]
         else:
             return default
@@ -65,29 +99,6 @@ def last() -> Callable:
     return elem_no(-1)
 
 
-def uniq() -> Callable:
-    def func(array: Iterable) -> list:
-        if isinstance(array, Iterable):
-            result = list()
-            for i in array:
-                if i not in result:
-                    result.append(i)
-            return result
-    return func
-
-
-def count_uniq() -> Callable:
-    def func(array: Iterable) -> int:
-        a = uniq()(array)
-        if isinstance(a, list):
-            return len(a)
-    return func
-
-
-def distinct() -> Callable:
-    return uniq()
-
-
 def unfold_lists(fields, number_field='n', default_value=0) -> Callable:
     fields = arg.get_names(fields)
 
@@ -97,7 +108,7 @@ def unfold_lists(fields, number_field='n', default_value=0) -> Callable:
 
 
 def compare_lists(a_field='a_only', b_field='b_only', ab_field='common', as_dict=True) -> Callable:
-    def func(list_a: Iterable, list_b: Iterable) -> Union[dict, list, tuple]:
+    def func(list_a: Array, list_b: Array) -> Union[dict, list, tuple]:
         items_common, items_a_only, items_b_only = list(), list(), list()
         for item in list_a:
             if item in list_b:
@@ -115,10 +126,13 @@ def compare_lists(a_field='a_only', b_field='b_only', ab_field='common', as_dict
     return func
 
 
-def list_minus() -> Callable:
-    def func(list_a: Iterable, list_b: Iterable) -> list:
+def list_minus(save_order: bool = True) -> Callable:
+    def func(list_a: Iterable, list_b: Array) -> list:
         return [i for i in list_a if i not in list_b]
-    return func
+    if save_order:
+        return func
+    else:
+        return lambda a, b: sorted(set(a) - set(b))
 
 
 def values_not_none() -> Callable:
