@@ -63,7 +63,8 @@ def flatten_descriptions(*fields, **expressions):
     return descriptions
 
 
-def safe_apply_function(function, fields, values, item={}, logger=None, skip_errors=True):
+def safe_apply_function(function, fields, values, item=None, logger=None, skip_errors=True):
+    item = item or dict()
     try:
         return function(*values)
     except TypeError or ValueError as e:
@@ -110,6 +111,8 @@ def value_from_record(record, description, logger=None, skip_errors=True):
         function, fields = process_description(description)
         values = [record.get(f) for f in fields]
         return safe_apply_function(function, fields, values, item=record, logger=logger, skip_errors=skip_errors)
+    elif hasattr(description, 'get_names'):
+        return [record.get(n) for n in description.get_names()]
     elif hasattr(description, 'get_name'):
         return record.get(description.get_name())
     else:
@@ -134,7 +137,7 @@ def value_from_item(item, description, item_type=AUTO, logger=None, skip_errors=
         return description(item)
     elif isinstance(description, (int, str)):
         return it.get_field_value_from_item(
-            description, item, item_type=item_type,
+            field=description, item=item, item_type=item_type,
             skip_errors=skip_errors, logger=logger, default=default,
         )
     elif isinstance(description, (list, tuple)):
@@ -237,7 +240,7 @@ def record_from_record(rec_in, *descriptions, logger=None):
 
 
 def auto_to_auto(item, *descriptions, logger=None):
-    item_type = it.ItemType.detect(item)
+    item_type = it.ItemType.detect(item, default=it.ItemType.Any)
     if item_type == it.ItemType.Record:
         return record_from_record(item, *descriptions, logger=logger)
     elif item_type == it.ItemType.Row:
