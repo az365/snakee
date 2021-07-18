@@ -43,7 +43,7 @@ class SimpleDataWrapper(AbstractNamed, SimpleDataInterface, ABC):
         if inplace:
             self._data = data
             if reset_dynamic_meta:
-                self.set_meta(**self.get_static_meta())
+                self.set_meta(**self.get_static_meta(), inplace=True)
         else:
             if reset_dynamic_meta:
                 meta = self.get_static_meta()

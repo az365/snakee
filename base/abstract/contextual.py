@@ -32,7 +32,7 @@ class Contextual(Sourced, ContextualInterface, ABC):
             else:
                 source = context
         super().__init__(name=name, source=source, check=check)
-        if arg.is_defined(context):
+        if arg.is_defined(self.get_context()):
             self.put_into_context(check=check)
 
     def get_source(self) -> Union[Source, ContextualInterface]:
@@ -52,7 +52,7 @@ class Contextual(Sourced, ContextualInterface, ABC):
         if hasattr(source, 'get_context'):
             return source.get_context()
 
-    def set_context(self, context: ContextInterface, reset=True, inplace=True):
+    def set_context(self, context: ContextInterface, reset: bool = True, inplace: bool = True):
         if inplace:
             if self._has_context_as_source():
                 if reset:
@@ -65,15 +65,18 @@ class Contextual(Sourced, ContextualInterface, ABC):
         else:
             return self.set_outplace(context=context)
 
-    def put_into_context(self, check=True):
+    def put_into_context(self, check: bool = True):
         context = self.get_context()
         if context:
             known_child = context.get_child(self.get_name())
             if known_child:
                 if check:
-                    assert known_child == self, '{} != {}'.format(known_child, self)
+                    if known_child != self:
+                        message = 'Object with name {} already registered in context ({} != {})'
+                        raise ValueError(message.format(self.get_name(), known_child, self))
             else:
                 context.add_child(self)
         elif check:
             msg = 'for put_into_context context must be defined (got object {} with source {}'
             raise ValueError(msg.format(self, self.get_source()))
+        return self
