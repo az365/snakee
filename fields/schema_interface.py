@@ -20,7 +20,7 @@ class SchemaInterface(ABC):
         pass
 
     @abstractmethod
-    def add_fields(self, *fields, default_type=None, return_schema=True):
+    def add_fields(self, *fields, default_type=None, inplace=False):
         pass
 
     @abstractmethod
