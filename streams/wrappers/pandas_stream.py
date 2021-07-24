@@ -1,12 +1,13 @@
 from typing import Optional
-import pandas as pd
 
 try:  # Assume we're a sub-module in a package.
-    from streams import stream_classes as sm
     from utils import arguments as arg
+    from utils.external import pd, DataFrame
+    from streams import stream_classes as sm
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from .. import stream_classes as sm
     from ...utils import arguments as arg
+    from utils.external import DataFrame
+    from .. import stream_classes as sm
 
 
 class PandasStream(sm.WrapperStream, sm.ColumnarMixin, sm.ConvertMixin):
@@ -17,12 +18,13 @@ class PandasStream(sm.WrapperStream, sm.ColumnarMixin, sm.ConvertMixin):
             source=None,
             context=None,
     ):
-        if isinstance(data, pd.DataFrame):
+        assert pd, 'Pandas must be installed and imported for instantiate PandasStream (got fallback {})'.format(pd)
+        if isinstance(data, DataFrame) or data.__class__.__name__ == 'DataFrame':
             dataframe = data
-        elif isinstance(data, sm.RecordStream):
+        elif hasattr(data, 'get_dataframe'):
             dataframe = data.get_dataframe()
         else:  # isinstance(data, (list, tuple)):
-            dataframe = pd.DataFrame(data=data)
+            dataframe = DataFrame(data=data)
         super().__init__(
             dataframe,
             name=name,
@@ -42,11 +44,11 @@ class PandasStream(sm.WrapperStream, sm.ColumnarMixin, sm.ConvertMixin):
     def is_in_memory():
         return True
 
-    def get_dataframe(self, columns=None) -> pd.DataFrame:
+    def get_dataframe(self, columns=None) -> DataFrame:
         if columns:
             return self.get_data()[columns]
         else:
-            return self.get_data()
+            dataframe = self.get_data()
 
     def get_count(self) -> Optional[int]:
         return self.get_dat().shape[0]

@@ -9,6 +9,7 @@ try:  # Assume we're a sub-module in a package.
         algo,
         arguments as arg,
         mappers as ms,
+        external as ex,
     )
     from fields.schema_interface import SchemaInterface
     from base.interfaces.context_interface import ContextInterface
@@ -23,6 +24,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         algo,
         arguments as arg,
         mappers as ms,
+        external as ex,
     )
     from fields.schema_interface import SchemaInterface
     from ...base.interfaces.context_interface import ContextInterface
@@ -190,6 +192,10 @@ class IterableStreamInterface(StreamInterface, ABC):
 
     @abstractmethod
     def get_selection_logger(self) -> log.SelectionMessageCollector:
+        pass
+
+    @abstractmethod
+    def get_dataframe(self, columns: Optional[Iterable] = None) -> ex.DataFrame:
         pass
 
 
@@ -713,3 +719,13 @@ class IterableStream(AbstractStream, IterableStreamInterface):
             return self.get_context().get_selection_logger()
         else:
             return log.get_selection_logger()
+
+    def get_dataframe(self, columns: Optional[Iterable] = None) -> ex.DataFrame:
+        if ex.pd and ex.get_use_objects_for_output():
+            if columns:
+                dataframe = ex.DataFrame(self.get_data(), columns=columns)
+                columns = arg.get_names(columns)
+                dataframe = dataframe[columns]
+            else:
+                dataframe = ex.DataFrame(self.get_data())
+            return dataframe

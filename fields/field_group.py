@@ -1,12 +1,8 @@
 from typing import Optional, Union, Iterable, NoReturn
 
-try:  # Assume Pandas installed
-    from pandas import DataFrame
-except ImportError:
-    DataFrame = None
-
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
+    from utils.external import pd, get_use_objects_for_output, DataFrame
     from base.abstract.simple_data import SimpleDataWrapper
     from fields.field_type import FieldType
     from fields.field_interface import FieldInterface
@@ -18,6 +14,7 @@ try:  # Assume we're a sub-module in a package.
     from loggers.selection_logger_interface import SelectionLoggerInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
+    from ..utils.external import pd, get_use_objects_for_output, DataFrame
     from ..base.abstract.simple_data import SimpleDataWrapper
     from .field_type import FieldType
     from .field_interface import FieldInterface
@@ -349,11 +346,11 @@ class FieldGroup(SimpleDataWrapper, SchemaInterface):
                 log('\t'.join(row) if separate_by_tabs else template.format(*row))
 
     def get_dataframe(self) -> DataFrame:
-        if DataFrame:
-            return DataFrame(self.get_struct_description(include_header=True))
+        return DataFrame(self.get_struct_description(include_header=True))
 
-    def show(self) -> Optional[DataFrame]:
-        if DataFrame:
+    def show(self, as_dataframe: Union[bool, arg.DefaultArgument] = arg.DEFAULT) -> Optional[DataFrame]:
+        as_dataframe = arg.undefault(as_dataframe, get_use_objects_for_output())
+        if as_dataframe:
             return self.get_dataframe()
         else:
             return self.describe()
