@@ -1,6 +1,5 @@
-from abc import ABC, abstractmethod
 from itertools import chain, tee
-from typing import Optional, Union, Callable, Iterable, Iterator, NoReturn
+from typing import Optional, Union, Callable, Iterable, Generator
 from datetime import datetime
 import gc
 
@@ -15,6 +14,7 @@ try:  # Assume we're a sub-module in a package.
     from base.interfaces.context_interface import ContextInterface
     from connectors.abstract.connector_interface import ConnectorInterface
     from streams.interfaces.abstract_stream_interface import StreamInterface
+    from streams.interfaces.iterable_stream_interface import IterableStreamInterface
     from streams.abstract.abstract_stream import AbstractStream
     from streams import stream_classes as sm
     from loggers import logger_classes as log
@@ -30,17 +30,19 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.interfaces.context_interface import ContextInterface
     from ...connectors.abstract.connector_interface import ConnectorInterface
     from ..interfaces.abstract_stream_interface import StreamInterface
+    from ..interfaces.iterable_stream_interface import IterableStreamInterface
     from ..abstract.abstract_stream import AbstractStream
     from .. import stream_classes as sm
     from ...loggers import logger_classes as log
     from ...functions import item_functions as fs
 
+Native = IterableStreamInterface
 Stream = StreamInterface
-Source = Union[ConnectorInterface, arg.DefaultArgument, None]
-Context = Union[ContextInterface, arg.DefaultArgument, None]
+Source = Union[ConnectorInterface, arg.Auto, None]
+Context = Union[ContextInterface, arg.Auto, None]
 SelectionLogger = log.SelectionLoggerInterface
-Name = Union[str, arg.DefaultArgument]
-Count = Union[int, arg.DefaultArgument]
+Name = Union[str, arg.Auto]
+Count = Union[int, arg.Auto]
 Array = Union[list, tuple]
 Fields = Union[SchemaInterface, Array, Name]
 OptionalFields = Union[Iterable, str, None]
@@ -48,174 +50,20 @@ OptionalFields = Union[Iterable, str, None]
 DYNAMIC_META_FIELDS = ('count', 'less_than')
 
 
-class IterableStreamInterface(StreamInterface, ABC):
-    @abstractmethod
-    def __iter__(self) -> Iterable:
-        pass
-
-    @abstractmethod
-    def get_iter(self) -> Iterable:
-        pass
-
-    @abstractmethod
-    def get_count(self) -> Optional[int]:
-        pass
-
-    @classmethod
-    def is_valid_item_type(cls, item) -> bool:
-        pass
-
-    @abstractmethod
-    def is_valid_item(self, item) -> bool:
-        pass
-
-    @classmethod
-    @abstractmethod
-    def get_typing_validated_items(cls, items, skip_errors=False, context=None) -> Iterable:
-        pass
-
-    @abstractmethod
-    def get_validated_items(self, items, skip_errors=False, context=None) -> Iterable:
-        pass
-
-    @abstractmethod
-    def is_in_memory(self) -> bool:
-        pass
-
-    @abstractmethod
-    def close(self, recursively: bool = False, return_closed_links: bool = False) -> Union[int, tuple]:
-        pass
-
-    @abstractmethod
-    def forget(self) -> NoReturn:
-        pass
-
-    @abstractmethod
-    def get_expected_count(self) -> Optional[int]:
-        raise NotImplemented
-
-    @abstractmethod
-    def one(self):
-        pass
-
-    def get_estimated_count(self) -> Optional[int]:
-        pass
-
-    @abstractmethod
-    def get_str_count(self) -> str:
-        pass
-
-    @abstractmethod
-    def enumerate(self, native=False) -> Stream:
-        pass
-
-    @abstractmethod
-    def take(self, max_count=1) -> Stream:
-        pass
-
-    @abstractmethod
-    def head(self, count: int = 10) -> Stream:  # alias for take()
-        pass
-
-    @abstractmethod
-    def tail(self, count: int = 10) -> Stream:
-        pass
-
-    @abstractmethod
-    def skip(self, count: int = 1) -> Stream:
-        pass
-
-    @abstractmethod
-    def pass_items(self) -> Stream:
-        pass
-
-    @abstractmethod
-    def tee_stream(self) -> Stream:
-        pass
-
-    @abstractmethod
-    def stream(self, data, ex: OptionalFields = None, **kwargs) -> Stream:
-        pass
-
-    @abstractmethod
-    def copy(self) -> Stream:
-        return self.tee_stream()
-
-    @abstractmethod
-    def add(self, stream_or_items, before=False, **kwargs) -> Stream:
-        pass
-
-    @abstractmethod
-    def split(self, by: Union[int, list, tuple, Callable], count=None) -> Iterable:
-        pass
-
-    @abstractmethod
-    def split_to_iter_by_step(self, step: int) -> Iterable:
-        pass
-
-    @abstractmethod
-    def flat_map(self, function) -> Stream:
-        pass
-
-    @abstractmethod
-    def map_side_join(self, right, key, how='left', right_is_uniq=True) -> Stream:
-        pass
-
-    @abstractmethod
-    def apply_to_data(self, function, to=arg.DEFAULT, save_count=False, lazy=True) -> Stream:
-        pass
-
-    @abstractmethod
-    def progress(self, expected_count=arg.DEFAULT, step=arg.DEFAULT, message='Progress') -> Stream:
-        pass
-
-    @abstractmethod
-    def print(self, stream_function='_count', *args, **kwargs) -> Stream:
-        pass
-
-    @abstractmethod
-    def submit(
-            self,
-            external_object: Union[list, dict, Callable] = print,
-            stream_function: Union[Callable, str] = 'count',
-            key: Optional[str] = None, show=False,
-    ) -> Stream:
-        pass
-
-    @abstractmethod
-    def set_meta(self, **meta) -> Stream:
-        pass
-
-    @abstractmethod
-    def update_meta(self, **meta) -> Stream:
-        pass
-
-    @abstractmethod
-    def get_selection_logger(self) -> log.SelectionMessageCollector:
-        pass
-
-    @abstractmethod
-    def get_dataframe(self, columns: Optional[Iterable] = None) -> ex.DataFrame:
-        pass
-
-
-Native = IterableStreamInterface
-
-
 class IterableStream(AbstractStream, IterableStreamInterface):
     def __init__(
             self,
             data: Iterable,
-            name: Name = arg.DEFAULT,
+            name: Name = arg.AUTO,
             source: Source = None, context: Context = None,
             count: Optional[int] = None, less_than: Optional[int] = None,
             check: bool = False,
-            max_items_in_memory: Count = arg.DEFAULT,
+            max_items_in_memory: Count = arg.AUTO,
     ):
         self._count = count
         self._less_than = less_than or count
         self.check = check
-        self.max_items_in_memory = arg.undefault(max_items_in_memory, sm.MAX_ITEMS_IN_MEMORY)
+        self.max_items_in_memory = arg.acquire(max_items_in_memory, sm.MAX_ITEMS_IN_MEMORY)
         super().__init__(
             data=self.get_typing_validated_items(data, context=context) if check else data,
             name=name,
@@ -232,7 +80,7 @@ class IterableStream(AbstractStream, IterableStreamInterface):
     def get_items(self) -> Iterable:  # list or generator (need for inherited subclasses)
         return self.get_data()
 
-    def get_iter(self) -> Iterator:
+    def get_iter(self) -> Generator:
         yield from self.get_items()
 
     def __iter__(self):
@@ -654,11 +502,11 @@ class IterableStream(AbstractStream, IterableStreamInterface):
 
     def progress(
             self,
-            expected_count: Count = arg.DEFAULT,
-            step: Count = arg.DEFAULT,
+            expected_count: Count = arg.AUTO,
+            step: Count = arg.AUTO,
             message: str = 'Progress',
     ) -> Native:
-        count = arg.undefault(expected_count, self.get_count()) or self.get_estimated_count()
+        count = arg.acquire(expected_count, self.get_count()) or self.get_estimated_count()
         items_with_logger = self.get_logger().progress(self.get_data(), name=message, count=count, step=step)
         return self.stream(items_with_logger)
 
