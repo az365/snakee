@@ -3,14 +3,15 @@ from random import randint
 from typing import Optional, Callable, Iterable, Iterator, Generator, Union, Any
 
 NOT_USED = None
-DEFAULT_VALUE = 'DefaultArgument'
+_AUTO_VALUE = 'Auto'
+DEFAULT_VALUE = _AUTO_VALUE
 DEFAULT_RANDOM_LEN = 4
 
 
-class DefaultArgument:
+class Auto:
     @staticmethod
     def get_value():
-        return DEFAULT_VALUE
+        return _AUTO_VALUE
 
     def __eq__(self, other):
         if hasattr(other, 'get_value'):
@@ -25,6 +26,10 @@ class DefaultArgument:
                 pass
         elif hasattr(other, 'value'):
             other = other.value
+        elif hasattr(other, '__name__'):
+            other = other.__name__
+        elif hasattr(other, '__class__'):
+            other = other.__class__.__name__
         return str(other) == str(self.get_value())
 
     def __repr__(self):
@@ -34,7 +39,10 @@ class DefaultArgument:
         return str(self.__class__.__name__)
 
 
-DEFAULT = DefaultArgument()
+DefaultArgument = Auto
+
+AUTO = Auto()
+DEFAULT = AUTO
 
 
 def update(args, addition=None):
@@ -49,26 +57,41 @@ def apply(func: Callable, *args, **kwargs):
     return func(*args, **kwargs)
 
 
-def delayed_undefault(current, func, *args, **kwargs):
-    if current == DEFAULT:
+def simple_acquire(current, default):
+    if current == AUTO:
+        return default
+    else:
+        return current
+
+
+def delayed_acquire(current, func, *args, **kwargs):
+    if current == AUTO:
         assert isinstance(func, Callable)
         return apply(func, *args, **kwargs)
     else:
         return current
 
 
-def simple_undefault(current, default):
-    if current == DEFAULT:
-        return default
-    else:
-        return current
-
-
-def undefault(current, default, *args, delayed=False, **kwargs):
+def acquire(current, default, *args, delayed=False, **kwargs):
     if delayed or args or kwargs:
-        return delayed_undefault(current, func=default, *args, **kwargs)
+        return delayed_acquire(current, func=default, *args, **kwargs)
     else:
-        return simple_undefault(current, default)
+        return simple_acquire(current, default)
+
+
+# @deprecated_with_alternative('arg.simple_acquire(*args, **kwargs)')
+def simple_undefault(*args, **kwargs):
+    return simple_acquire(*args, **kwargs)
+
+
+# @deprecated_with_alternative('arg.delayed_acquire(*args, **kwargs)')
+def delayed_undefault(*args, **kwargs):
+    return delayed_acquire(*args, **kwargs)
+
+
+# @deprecated_with_alternative('arg.acquire(*args, **kwargs)')
+def undefault(*args, **kwargs):
+    return acquire(*args, **kwargs)
 
 
 def get_list(arg: Iterable) -> list:
@@ -148,14 +171,14 @@ def is_absolute_path(path: str) -> bool:
 def is_defined(obj) -> bool:
     if obj is None:
         result = False
-    elif obj in (DEFAULT, DEFAULT.get_value(), str(DEFAULT)):
+    elif obj in (AUTO, AUTO.get_value(), str(AUTO)):
         result = False
     elif hasattr(obj, 'get_value'):
         result = is_defined(obj.get_value())
     elif hasattr(obj, 'get_name'):
         try:
             name = obj.get_name()
-            result = not (name is None or name in (DEFAULT, DEFAULT_VALUE))
+            result = not (name is None or name in (AUTO, _AUTO_VALUE))
         except TypeError:
             result = True
     elif hasattr(obj, 'value'):
