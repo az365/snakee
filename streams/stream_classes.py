@@ -143,7 +143,7 @@ def is_record(item) -> bool:
 
 
 def is_schema_row(item) -> bool:
-    return isinstance(item, sh.SchemaRow)
+    return isinstance(item, sh.StructRow)
 
 
 @deprecated_with_alternative('AbstractStream.generate_name()')

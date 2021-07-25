@@ -231,7 +231,7 @@ class ColumnFile(TextFile, ColumnarMixin):
     def get_schema_rows(self, verbose: AutoBool = AUTO, message: Message = AUTO, step: AutoCount = AUTO) -> Iterable:
         assert self.get_schema() is not None, 'For getting schematized rows schema must be defined.'
         for row in self.get_rows(verbose=verbose, message=message, step=step):
-            yield sh.SchemaRow(row, schema=self.schema)
+            yield sh.StructRow(row, struct=self.schema)
 
     def get_records_from_file(
             self,

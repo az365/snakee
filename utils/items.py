@@ -31,7 +31,7 @@ ItemType.set_dict_classes(
         ItemType.Line: [Line],
         ItemType.Row: [*ROW_SUBCLASSES],
         ItemType.Record: [Record],
-        ItemType.SchemaRow: [sc.SchemaRow, StructRowInterface],
+        ItemType.SchemaRow: [sc.StructRow, StructRowInterface],
     }
 )
 

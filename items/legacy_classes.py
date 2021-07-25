@@ -4,7 +4,7 @@ try:  # Assume we're a sub-module in a package.
     from interfaces import SchemaInterface, StructRowInterface, StructRow
     from fields.legacy_field import LegacyField
     from items.legacy_struct import LegacyStruct
-    from schema.schema_row import SchemaRow
+    from items.struct_row import StructRow
     from fields.field_type import (
         FieldType,
         FIELD_TYPES, DIALECTS, AGGR_HINTS, HEURISTIC_SUFFIX_TO_TYPE,
@@ -14,7 +14,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..interfaces import SchemaInterface, StructRowInterface, StructRow
     from ..fields.legacy_field import LegacyField
     from ..items.legacy_struct import LegacyStruct
-    from ..schema.schema_row import SchemaRow
+    from items.struct_row import StructRow
     from ..fields.field_type import (
         FieldType,
         FIELD_TYPES, DIALECTS, AGGR_HINTS, HEURISTIC_SUFFIX_TO_TYPE,

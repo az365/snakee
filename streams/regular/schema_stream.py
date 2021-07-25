@@ -1,10 +1,7 @@
 from typing import Optional, Union, Iterable
 
 try:  # Assume we're a sub-module in a package.
-    from utils import (
-        arguments as arg,
-        selection as sf,
-    )
+    from utils import arguments as arg, selection as sf
     from streams import stream_classes as sm
     from loggers import logger_classes as log
     from functions import all_functions as fs
@@ -13,10 +10,7 @@ try:  # Assume we're a sub-module in a package.
     from fields.schema_interface import SchemaInterface
     from utils.decorators import deprecated_with_alternative
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import (
-        arguments as arg,
-        selection as sf,
-    )
+    from ...utils import arguments as arg, selection as sf
     from .. import stream_classes as sm
     from ...loggers import logger_classes as log
     from ...functions import all_functions as fs
@@ -195,7 +189,7 @@ class SchemaStream(sm.RowStream):
 
     def get_schema_rows(self) -> Iterable:
         for r in self.get_items():
-            yield sh.SchemaRow(r, self.get_schema(), check=False)
+            yield sh.StructRow(r, self.get_schema(), check=False)
 
     def schematized_map(self, function, schema):
         return self.__class__(
