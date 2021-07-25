@@ -56,7 +56,6 @@ class LocalStream(IterableStream, LocalStreamInterface):
             data=data, name=name, check=check,
             source=source, context=context,
             count=count, less_than=less_than,
-            max_items_in_memory=max_items_in_memory,
         )
         self._tmp_files = arg.delayed_acquire(tmp_files, sm.get_tmp_mask, self.get_name())
 
