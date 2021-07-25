@@ -1,170 +1,49 @@
-from abc import ABC, abstractmethod
 from typing import Optional, Union, Iterable, Callable
 import json
 
 try:  # Assume we're a sub-module in a package.
-    from utils import (
-        algo,
-        arguments as arg,
-        mappers as ms,
-    )
+    from utils import algo, arguments as arg, mappers as ms
+    from streams.interfaces.local_stream_interface import LocalStreamInterface
     from base.interfaces.context_interface import ContextInterface
     from connectors.abstract.connector_interface import ConnectorInterface
     from streams.stream_type import StreamType
-    from streams.abstract.iterable_stream import IterableStream, IterableStreamInterface
+    from streams.abstract.iterable_stream import IterableStream
     from streams import stream_classes as sm
     from connectors.filesystem.temporary_interface import TemporaryFilesMaskInterface
     from functions import all_functions as fs
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import (
-        algo,
-        arguments as arg,
-        mappers as ms,
-    )
+    from ...utils import algo, arguments as arg, mappers as ms
+    from ..interfaces.local_stream_interface import LocalStreamInterface
     from ...base.interfaces.context_interface import ContextInterface
     from ...connectors.abstract.connector_interface import ConnectorInterface
     from ..stream_type import StreamType
-    from .iterable_stream import IterableStream, IterableStreamInterface
+    from .iterable_stream import IterableStream
     from .. import stream_classes as sm
     from ...connectors.filesystem.temporary_interface import TemporaryFilesMaskInterface
     from ...functions import all_functions as fs
 
+Native = LocalStreamInterface
 Auto = arg.Auto
 OptionalFields = Optional[Union[Iterable, str]]
-DefaultStr = Union[str, Auto]
+Name = Union[str, int]
+AutoName = Union[Auto, Name]
 Array = Union[list, tuple]
-Key = Union[str, Array, Callable]
+Key = Union[Name, Array, Callable]
 Count = Union[int, Auto, None]
-Step = Count
 TmpMask = Union[TemporaryFilesMaskInterface, Auto]
 Verbose = Union[bool, Auto]
 OptStreamType = Union[StreamType, Auto]
-Stream = sm.StreamInterface
-NativeInterface = IterableStreamInterface
 Context = Optional[ContextInterface]
 Source = Optional[ConnectorInterface]
 
 AUTO = arg.AUTO
 
 
-class LocalStreamInterface(IterableStreamInterface, ABC):
-    @abstractmethod
-    def get_limit_items_in_memory(self) -> int:
-        pass
-
-    @abstractmethod
-    def set_limit_items_in_memory(self, count: Count, inplace: bool) -> Optional[NativeInterface]:
-        pass
-
-    @abstractmethod
-    def limit_items_in_memory(self, count: Count) -> NativeInterface:
-        pass
-
-    @abstractmethod
-    def get_list(self) -> list:
-        pass
-
-    @abstractmethod
-    def to_iter(self) -> NativeInterface:
-        pass
-
-    @abstractmethod
-    def can_be_in_memory(self, step: Step = AUTO) -> bool:
-        pass
-
-    @abstractmethod
-    def to_memory(self) -> NativeInterface:
-        pass
-
-    @abstractmethod
-    def collect(self, inplace: bool = True) -> NativeInterface:
-        pass
-
-    def memory_sort(self, key: Key = fs.same(), reverse: bool = False, verbose: bool = False) -> NativeInterface:
-        pass
-
-    @abstractmethod
-    def disk_sort(
-            self,
-            key: Key = fs.same(),
-            reverse: bool = False,
-            step: Step = AUTO,
-            verbose: bool = False,
-    ) -> IterableStream:
-        pass
-
-    @abstractmethod
-    def sort(self, *keys, reverse: bool = False, step: Step = arg.AUTO, verbose: bool = True) -> NativeInterface:
-        pass
-
-    @abstractmethod
-    def sorted_join(
-            self,
-            right: NativeInterface,
-            key: Key,
-            how: str = 'left',
-            sorting_is_reversed: bool = False,
-    ) -> NativeInterface:
-        pass
-
-    @abstractmethod
-    def join(
-            self,
-            right: NativeInterface, key: Key, how='left',
-            reverse: bool = False,
-            is_sorted=False, right_is_uniq: bool = False,
-            allow_map_side: bool = True, force_map_side: bool = True,
-            verbose: Verbose = AUTO,
-    ) -> NativeInterface:
-        pass
-
-    @abstractmethod
-    def split_to_disk_by_step(
-            self,
-            step: Step = arg.AUTO,
-            sort_each_by: Optional[str] = None,
-            reverse: bool = False,
-            verbose: bool = True,
-    ) -> Iterable:
-        pass
-
-    @abstractmethod
-    def is_empty(self) -> Optional[bool]:
-        pass
-
-    @abstractmethod
-    def update_count(self, force: bool = False, skip_iter: bool = True) -> NativeInterface:
-        pass
-
-    @abstractmethod
-    def get_tmp_files(self) -> TemporaryFilesMaskInterface:
-        pass
-
-    @abstractmethod
-    def remove_tmp_files(self) -> int:
-        pass
-
-    @abstractmethod
-    def get_encoding(self, default: str = 'utf8') -> str:
-        pass
-
-    @abstractmethod
-    def get_mask(self) -> str:
-        pass
-
-    @abstractmethod
-    def get_str_description(self) -> str:
-        pass
-
-
-Native = LocalStreamInterface
-
-
 class LocalStream(IterableStream, LocalStreamInterface):
     def __init__(
             self,
             data: Iterable,
-            name: DefaultStr = AUTO, check: bool = False,
+            name: AutoName = AUTO, check: bool = False,
             count: Count = None, less_than: Count = None,
             source: Source = None, context: Context = None,
             max_items_in_memory: Count = AUTO,
@@ -230,7 +109,7 @@ class LocalStream(IterableStream, LocalStreamInterface):
             self.get_iter(),
         )
 
-    def can_be_in_memory(self, step: Step = AUTO) -> bool:
+    def can_be_in_memory(self, step: Count = AUTO) -> bool:
         step = arg.acquire(step, self.max_items_in_memory)
         if self.is_in_memory() or step is None:
             return True
@@ -281,7 +160,7 @@ class LocalStream(IterableStream, LocalStreamInterface):
         else:
             return super().get_tee_items()
 
-    def map_to(self, function: Callable, stream_type: OptStreamType = AUTO) -> Stream:
+    def map_to(self, function: Callable, stream_type: OptStreamType = AUTO) -> Native:
         stream_type = arg.acquire(stream_type, self.get_stream_type, delayed=True)
         stream = self.stream(
             map(function, self.get_iter()),
@@ -339,7 +218,7 @@ class LocalStream(IterableStream, LocalStreamInterface):
             self,
             key: Key = fs.same(),
             reverse: bool = False,
-            step: Step = AUTO,
+            step: Count = AUTO,
             verbose: Verbose = False,
     ) -> Native:
         step = arg.acquire(step, self.max_items_in_memory)
@@ -363,7 +242,7 @@ class LocalStream(IterableStream, LocalStreamInterface):
             count=sum(counts),
         )
 
-    def sort(self, *keys, reverse: bool = False, step: Step = AUTO, verbose: Verbose = True) -> Native:
+    def sort(self, *keys, reverse: bool = False, step: Count = AUTO, verbose: Verbose = True) -> Native:
         keys = arg.update(keys)
         step = arg.acquire(step, self.max_items_in_memory)
         if len(keys) == 0:
@@ -421,7 +300,7 @@ class LocalStream(IterableStream, LocalStreamInterface):
 
     def split_to_disk_by_step(
             self,
-            step: Step = AUTO,
+            step: Count = AUTO,
             sort_each_by: Key = None,
             reverse: bool = False,
             verbose: bool = True,
@@ -446,7 +325,7 @@ class LocalStream(IterableStream, LocalStreamInterface):
                 file_part,
             ).map_to_type(
                 json.loads,
-                stream_type=sm.StreamType.AnyStream,
+                stream_type=StreamType.AnyStream,
             )
             result_parts.append(sm_part)
         return result_parts

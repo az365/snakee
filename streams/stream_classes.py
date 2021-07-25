@@ -11,6 +11,8 @@ try:  # Assume we're a sub-module in a package.
     from items.base_item_type import ItemType
     from streams.stream_type import StreamType
     from streams.interfaces.abstract_stream_interface import StreamInterface
+    from streams.interfaces.iterable_stream_interface import IterableStreamInterface
+    from streams.interfaces.local_stream_interface import LocalStreamInterface
     from streams.interfaces.regular_stream_interface import RegularStreamInterface
     from streams.interfaces.pair_stream_interface import PairStreamInterface
     from streams.abstract.abstract_stream import AbstractStream
@@ -38,6 +40,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..items.base_item_type import ItemType
     from .stream_type import StreamType
     from .interfaces.abstract_stream_interface import StreamInterface
+    from .interfaces.iterable_stream_interface import IterableStreamInterface
+    from .interfaces.local_stream_interface import LocalStreamInterface
     from .interfaces.regular_stream_interface import RegularStreamInterface
     from .interfaces.pair_stream_interface import PairStreamInterface
     from .abstract.abstract_stream import AbstractStream
@@ -160,13 +164,13 @@ def get_tmp_mask(name: str) -> TemporaryFilesMaskInterface:
     return location.mask(name)
 
 
-def concat(*iter_streams, context=arg.DEFAULT) -> StreamInterface:
+def concat(*iter_streams, context=arg.AUTO) -> StreamInterface:
     global _context
-    context = arg.undefault(context, _context)
+    context = arg.acquire(context, _context)
     return StreamBuilder.concat(*iter_streams, context=context)
 
 
-def join(*iter_streams, key, how='left', step=arg.DEFAULT, name=arg.DEFAULT, context=None) -> StreamInterface:
+def join(*iter_streams, key, how='left', step=arg.AUTO, name=arg.AUTO, context=None) -> StreamInterface:
     global _context
-    context = arg.undefault(context, _context)
+    context = arg.acquire(context, _context)
     return StreamBuilder.join(*iter_streams, key=key, how=how, step=step, name=name, context=context)
