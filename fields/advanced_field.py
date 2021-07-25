@@ -2,26 +2,30 @@ from typing import Optional, Union, Iterable, Callable, Any
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
-    from items.item_type import ItemType
-    from fields.field_type import FieldType
-    from items.struct_interface import StructInterface
+    from interfaces import (
+        Field, FieldInterface, StructInterface, ExtLogger, SelectionLogger,
+        FieldType, ItemType,
+        AUTO, Auto, AutoBool,
+    )
     from fields.abstract_field import AbstractField
     from fields import field_classes as fc
     from selection.abstract_expression import AbstractDescription
     from selection import concrete_expression as ce
-    from loggers.selection_logger_interface import SelectionLoggerInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
-    from ..items.item_type import ItemType
-    from .field_type import FieldType
-    from ..items.struct_interface import StructInterface
+    from ..interfaces import (
+        Field, FieldInterface, StructInterface, ExtLogger, SelectionLogger,
+        FieldType, ItemType,
+        AUTO, Auto, AutoBool,
+    )
     from .abstract_field import AbstractField
     from . import field_classes as fc
     from ..selection.abstract_expression import AbstractDescription
     from ..selection import concrete_expression as ce
-    from ..loggers.selection_logger_interface import SelectionLoggerInterface
 
 Native = AbstractField
+
+META_MEMBER_MAPPING = dict(_type='field_type', _data='extractors')
 
 
 class AdvancedField(AbstractField):
@@ -29,8 +33,8 @@ class AdvancedField(AbstractField):
             self, name: str, field_type: FieldType = FieldType.Any,
             caption: Optional[str] = None, default: Any = None,
             extractors: Optional[Iterable] = None, transform: Optional[Callable] = None,
-            skip_errors: bool = False, logger: Optional[SelectionLoggerInterface] = None,
-            target_item_type: ItemType = ItemType.Any,
+            skip_errors: bool = False, logger: Optional[SelectionLogger] = None,
+            target_item_type: ItemType = ItemType.Any, is_valid: AutoBool = AUTO,
             group_name: Optional[str] = None, group_caption: Optional[str] = None,
     ):
         self._caption = caption
@@ -39,9 +43,14 @@ class AdvancedField(AbstractField):
         self._target_item_type = target_item_type
         self._skip_errors = skip_errors
         self._logger = logger
+        self._is_valid = is_valid
         self._group_name = group_name or ''
         self._group_caption = group_caption or ''
         super().__init__(name=name, field_type=field_type, properties=extractors or list())
+
+    @classmethod
+    def _get_meta_member_mapping(cls) -> dict:
+        return META_MEMBER_MAPPING
 
     def get_caption(self) -> str:
         return self._caption or None
@@ -54,6 +63,19 @@ class AdvancedField(AbstractField):
 
     def caption(self, caption: str) -> Native:
         self._caption = caption
+        return self
+
+    def is_valid(self) -> AutoBool:
+        return self._is_valid
+
+    def set_valid(self, is_valid: bool, inplace: bool) -> Optional[Native]:
+        if inplace:
+            self._is_valid = is_valid
+        else:
+            return self.make_new(is_valid=is_valid)
+
+    def valid(self, is_valid: bool) -> Native:
+        self._is_valid = is_valid
         return self
 
     def get_group_name(self) -> str:
