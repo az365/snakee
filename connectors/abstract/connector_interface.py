@@ -4,20 +4,23 @@ from typing import Optional, Iterable, Union, NoReturn
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from base.interfaces.sourced_interface import SourcedInterface
+    from streams.interfaces.abstract_stream_interface import StreamInterface
     from loggers.logger_interface import LoggerInterface
     from loggers.extended_logger_interface import ExtendedLoggerInterface
     from loggers.progress_interface import ProgressInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...base.interfaces.sourced_interface import SourcedInterface
+    from ...streams.interfaces.abstract_stream_interface import StreamInterface
     from ...loggers.logger_interface import LoggerInterface
     from ...loggers.extended_logger_interface import ExtendedLoggerInterface
     from ...loggers.progress_interface import ProgressInterface
 
 Logger = Union[LoggerInterface, ExtendedLoggerInterface]
+Stream = StreamInterface
 OptionalParent = Optional[SourcedInterface]
 
-AUTO = arg.DEFAULT
+AUTO = arg.AUTO
 DEFAULT_PATH_DELIMITER = '/'
 CHUNK_SIZE = 8192
 
@@ -55,7 +58,7 @@ class ConnectorInterface(SourcedInterface, ABC):
         pass
 
     @abstractmethod
-    def get_new_progress(self, name, count=None, context=arg.DEFAULT) -> ProgressInterface:
+    def get_new_progress(self, name, count=None, context=AUTO) -> ProgressInterface:
         pass
 
     @abstractmethod
@@ -125,4 +128,26 @@ class ConnectorInterface(SourcedInterface, ABC):
 
     @abstractmethod
     def set_context(self, context, reset=False):
+        pass
+
+
+class LeafConnectorInterface(ConnectorInterface, ABC):
+    @abstractmethod
+    def is_existing(self) -> bool:
+        pass
+
+    @abstractmethod
+    def check(self, must_exists: bool = True):
+        pass
+
+    @abstractmethod
+    def write_stream(self, stream: Stream, verbose: bool = True):
+        pass
+
+    @abstractmethod
+    def from_stream(self, stream: Stream):
+        pass
+
+    @abstractmethod
+    def to_stream(self, **kwargs) -> Stream:
         pass

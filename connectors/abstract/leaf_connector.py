@@ -2,23 +2,19 @@ from abc import ABC, abstractmethod
 from typing import Optional, Union
 
 try:  # Assume we're a sub-module in a package.
+    from interfaces import LeafConnectorInterface, Context, Stream
     from connectors.abstract.abstract_connector import AbstractConnector
-    from base.interfaces.context_interface import ContextInterface
-    from streams.interfaces.abstract_stream_interface import StreamInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
+    from ...interfaces import LeafConnectorInterface, Context, Stream
     from ..abstract.abstract_connector import AbstractConnector
-    from ...base.interfaces.context_interface import ContextInterface
-    from ...streams.interfaces.abstract_stream_interface import StreamInterface
 
-Context = Optional[ContextInterface]
 Parent = Union[Context, AbstractConnector]
-Stream = StreamInterface
 Links = Optional[dict]
 
 META_MEMBER_MAPPING = dict(_data='streams', _source='parent')
 
 
-class LeafConnector(AbstractConnector, ABC):
+class LeafConnector(AbstractConnector, LeafConnectorInterface, ABC):
     def __init__(self, name, parent: Parent = None, streams: Links = None):
         super().__init__(name=name, parent=parent, children=streams)
 
@@ -54,13 +50,13 @@ class LeafConnector(AbstractConnector, ABC):
         if must_exists:
             assert self.is_existing(), 'object {} must exists'.format(self.get_name())
 
-    def write_stream(self, stream: StreamInterface):
-        return self.from_stream(stream)
+    def write_stream(self, stream: Stream, verbose: bool = True):
+        return self.from_stream(stream, verbose=verbose)
 
     @abstractmethod
-    def from_stream(self, stream):
+    def from_stream(self, stream: Stream, verbose: bool = True):
         pass
 
     @abstractmethod
-    def to_stream(self, **kwargs) -> StreamInterface:
+    def to_stream(self, **kwargs) -> Stream:
         pass
