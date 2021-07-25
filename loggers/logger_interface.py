@@ -1,32 +1,28 @@
 from abc import ABC, abstractmethod
-
-try:  # Assume we're a sub-module in a package.
-    from utils import arguments as arg
-except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..utils import arguments as arg
+from typing import NoReturn
 
 
 class LoggerInterface(ABC):
     @abstractmethod
-    def log(self, msg, level, *args, **kwargs):
+    def log(self, msg: str, level: int, *args, **kwargs) -> NoReturn:
         pass
 
     @abstractmethod
-    def debug(self, msg):
+    def debug(self, msg: str) -> NoReturn:
         pass
 
     @abstractmethod
-    def info(self, msg):
+    def info(self, msg: str) -> NoReturn:
         pass
 
     @abstractmethod
-    def warning(self, msg):
+    def warning(self, msg: str) -> NoReturn:
         pass
 
     @abstractmethod
-    def error(self, msg):
+    def error(self, msg: str) -> NoReturn:
         pass
 
     @abstractmethod
-    def critical(self, msg):
+    def critical(self, msg: str) -> NoReturn:
         pass
