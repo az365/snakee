@@ -1,53 +1,50 @@
 from typing import Optional, Union, Iterable, NoReturn
 
 try:  # Assume we're a sub-module in a package.
+    from interfaces import (
+        SchemaInterface, StructRowInterface, FieldInterface, SelectionLoggerInterface,
+        FieldType,
+        AUTO, Auto, Name, Array, ARRAY_TYPES,
+    )
     from utils import arguments as arg
     from utils.external import pd, get_use_objects_for_output, DataFrame
     from base.abstract.simple_data import SimpleDataWrapper
-    from fields.field_type import FieldType
-    from fields.field_interface import FieldInterface
     from fields.advanced_field import AdvancedField
     from selection.abstract_expression import AbstractDescription
     from connectors.databases import dialect as di
-    from fields.schema_interface import SchemaInterface
-    from items.struct_row_interface import StructRowInterface
     from loggers.selection_logger_interface import SelectionLoggerInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
+    from ..interfaces import (
+        SchemaInterface, StructRowInterface, FieldInterface, SelectionLoggerInterface,
+        FieldType,
+        AUTO, Auto, Name, Array, ARRAY_TYPES,
+    )
     from ..utils import arguments as arg
     from ..utils.external import pd, get_use_objects_for_output, DataFrame
     from ..base.abstract.simple_data import SimpleDataWrapper
-    from .field_type import FieldType
-    from .field_interface import FieldInterface
-    from .advanced_field import AdvancedField
+    from ..fields.advanced_field import AdvancedField
     from ..selection.abstract_expression import AbstractDescription
     from ..connectors.databases import dialect as di
-    from .schema_interface import SchemaInterface
-    from ..items.struct_row_interface import StructRowInterface
-    from ..loggers.selection_logger_interface import SelectionLoggerInterface
 
 Native = SchemaInterface
 Group = Union[Native, Iterable]
-GroupName = Optional[str]
-FieldName = str
-FieldNo = int
-FieldID = Union[FieldNo, FieldName]
-FieldProps = dict
-Field = Union[FieldID, FieldProps, FieldInterface]
-Type = Union[FieldType, type, arg.DefaultArgument]
-Dialect = Optional[str]
-Array = Union[list, tuple]
-ARRAY_SUBTYPES = list, tuple
+StructName = Optional[Name]
+Dialect = Optional[Name]
+Field = Union[Name, dict, FieldInterface]
+Type = Union[FieldType, type, Auto]
+Comment = Union[StructName, Auto]
 
 META_MEMBER_MAPPING = dict(_data='fields')
 GROUP_NO_STR = '===='
 GROUP_TYPE_STR = 'GROUP'
+DICT_VALID_SIGN = {'True': '-', 'False': 'x', 'None': '-', arg.DEFAULT.get_value(): '~'}
 
 
-class FieldGroup(SimpleDataWrapper, SchemaInterface):
+class FlatStruct(SimpleDataWrapper, SchemaInterface):
     def __init__(
             self,
             fields: Iterable,
-            name: GroupName = None,
+            name: StructName = None,
             caption: Optional[str] = None,
             default_type: Type = arg.DEFAULT,
     ):
@@ -106,9 +103,9 @@ class FieldGroup(SimpleDataWrapper, SchemaInterface):
     ) -> Optional[SchemaInterface]:
         if self._is_field(field):
             field_desc = field
-        elif isinstance(field, FieldName):
+        elif isinstance(field, str):
             field_desc = AdvancedField(field, default_type)
-        elif isinstance(field, ARRAY_SUBTYPES):
+        elif isinstance(field, ARRAY_TYPES):
             field_desc = AdvancedField(*field)
         elif isinstance(field, dict):
             field_desc = AdvancedField(**field)
@@ -143,16 +140,16 @@ class FieldGroup(SimpleDataWrapper, SchemaInterface):
             *fields,
             default_type: Optional[Type] = None,
             inplace: bool = False,
-            name: GroupName = None,
+            name: StructName = None,
     ) -> Optional[SchemaInterface]:
         fields = arg.update(fields)
         if inplace:
             for f in fields:
                 self.append(f, default_type=default_type, inplace=True)
         else:
-            return FieldGroup(self.get_fields_descriptions() + list(fields), name=name)
+            return FlatStruct(self.get_fields_descriptions() + list(fields), name=name)
 
-    def remove_fields(self, *fields, inplace: bool = True, name: GroupName = None):
+    def remove_fields(self, *fields, inplace: bool = True, name: StructName = None):
         removing_fields = arg.update(fields)
         removing_field_names = arg.get_names(removing_fields)
         existing_fields = self.get_data()
@@ -162,7 +159,7 @@ class FieldGroup(SimpleDataWrapper, SchemaInterface):
                     existing_fields.remove(e)
         else:
             new_fields = [f for f in existing_fields if arg.get_name(f) not in removing_field_names]
-            return FieldGroup(new_fields, name=name)
+            return FlatStruct(new_fields, name=name)
 
     def get_fields_count(self) -> int:
         return len(self.get_fields())
@@ -226,11 +223,11 @@ class FieldGroup(SimpleDataWrapper, SchemaInterface):
             f.set_type(field_type, inplace=True)
         return self
 
-    def get_field_position(self, field: FieldID) -> Optional[FieldNo]:
-        if isinstance(field, FieldNo):
+    def get_field_position(self, field: Name) -> Optional[int]:
+        if isinstance(field, int):
             if field < self.get_fields_count():
                 return field
-        elif isinstance(field, FieldName):
+        elif isinstance(field, str):
             try:
                 return self.get_columns().index(field)
             except ValueError or IndexError:
@@ -258,10 +255,10 @@ class FieldGroup(SimpleDataWrapper, SchemaInterface):
         return True
 
     def copy(self):
-        return FieldGroup(name=self.get_name(), fields=self.get_fields())
+        return FlatStruct(name=self.get_name(), fields=self.get_fields())
 
     def simple_select_fields(self, fields: Iterable) -> Group:
-        return FieldGroup(
+        return FlatStruct(
             [self.get_field_description(f) for f in fields]
         )
 
@@ -283,7 +280,7 @@ class FieldGroup(SimpleDataWrapper, SchemaInterface):
                 field_caption, group_name, group_caption = '', '', ''
             yield field_name, field_type_name, field_caption, group_name, group_caption
 
-    def get_field_description(self, field_name: FieldID) -> Union[FieldInterface, AdvancedField]:
+    def get_field_description(self, field_name: Name) -> Union[FieldInterface, AdvancedField]:
         field_position = self.get_field_position(field_name)
         assert field_position is not None, 'Field {} not found (existing fields: {})'.format(
             field_name, self.get_columns(),
@@ -302,7 +299,7 @@ class FieldGroup(SimpleDataWrapper, SchemaInterface):
                 yield (GROUP_NO_STR, GROUP_TYPE_STR, group_name, group_caption)
             yield (n, f_type_name, f_name, f_caption)
 
-    def get_group_header(self, name=arg.DEFAULT, caption=arg.DEFAULT) -> Iterable[str]:
+    def get_group_header(self, name=AUTO, caption=AUTO) -> Iterable[str]:
         is_title_row = name == arg.DEFAULT
         name = arg.undefault(name, self.get_name())
         caption = arg.undefault(caption, self.get_caption())
@@ -348,7 +345,7 @@ class FieldGroup(SimpleDataWrapper, SchemaInterface):
     def get_dataframe(self) -> DataFrame:
         return DataFrame(self.get_struct_description(include_header=True))
 
-    def show(self, as_dataframe: Union[bool, arg.DefaultArgument] = arg.DEFAULT) -> Optional[DataFrame]:
+    def show(self, as_dataframe: Union[bool, Auto] = AUTO) -> Optional[DataFrame]:
         as_dataframe = arg.undefault(as_dataframe, get_use_objects_for_output())
         if as_dataframe:
             return self.get_dataframe()
@@ -364,9 +361,9 @@ class FieldGroup(SimpleDataWrapper, SchemaInterface):
     def __iter__(self):
         yield from self.get_fields_descriptions()
 
-    def __getitem__(self, item: Union[FieldID, slice]):
+    def __getitem__(self, item: Union[Name, slice]):
         if isinstance(item, slice):
-            return FieldGroup(self.get_fields_descriptions()[item])
+            return FlatStruct(self.get_fields_descriptions()[item])
         elif isinstance(item, int):
             return self.get_fields_descriptions()[item]
         else:  # elif isinstance(item, str):
@@ -375,7 +372,7 @@ class FieldGroup(SimpleDataWrapper, SchemaInterface):
                     return f
             raise ValueError('Field with name {} not found (in group {})'.format(item, self))
 
-    def __add__(self, other: Union[FieldInterface, SchemaInterface, FieldID]) -> SchemaInterface:
+    def __add__(self, other: Union[FieldInterface, SchemaInterface, Name]) -> SchemaInterface:
         if isinstance(other, (str, int, FieldInterface)):
             return self.append_field(other, inplace=False)
         elif isinstance(other, (SchemaInterface, Iterable)):

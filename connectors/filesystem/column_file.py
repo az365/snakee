@@ -92,10 +92,10 @@ class ColumnFile(TextFile, ColumnarMixin):
         elif isinstance(schema, SchemaInterface):
             self.schema = schema
         elif isinstance(schema, (list, tuple)):
-            self.log('Schema as list is deprecated, use FieldGroup(SchemaInterface) class instead', level=30)
+            self.log('Schema as list is deprecated, use FlatStruct(SchemaInterface) class instead', level=30)
             has_types_descriptions = [isinstance(f, (list, tuple)) for f in schema]
             if max(has_types_descriptions):
-                self.schema = fc.FieldGroup(schema)
+                self.schema = fc.FlatStruct(schema)
             else:
                 self.schema = sh.detect_schema_by_title_row(schema)
         elif schema == AUTO:
@@ -104,7 +104,7 @@ class ColumnFile(TextFile, ColumnarMixin):
             else:
                 self.schema = None
         else:
-            message = 'schema must be FieldGroup(SchemaInterface), got {}'.format(type(schema))
+            message = 'schema must be FlatStruct(SchemaInterface), got {}'.format(type(schema))
             raise TypeError(message)
         if return_file:
             return self

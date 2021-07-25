@@ -242,7 +242,7 @@ class ColumnarMixin(ContextualDataWrapper, ColumnarInterface, ABC):
             columns = self.get_detected_columns(count)
         else:
             columns = self.get_columns()
-        struct = fc.FieldGroup.get_schema_detected_by_title_row(columns)
+        struct = fc.FlatStruct.get_schema_detected_by_title_row(columns)
         if struct:
             if set_types:
                 struct.set_types(set_types)
@@ -331,7 +331,7 @@ class ColumnarMixin(ContextualDataWrapper, ColumnarInterface, ABC):
         else:
             struct = self.get_detected_struct()
             source_str = 'detected from example items'
-        struct = fc.FieldGroup.convert_to_native(struct)
+        struct = fc.FlatStruct.convert_to_native(struct)
         struct.validate_about(example.get_detected_struct(count))
         message = '{} {}'.format(source_str, struct.get_validation_message())
         struct_as_dataframe = struct_as_dataframe and get_use_objects_for_output()

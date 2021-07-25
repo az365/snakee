@@ -122,9 +122,9 @@ class AdvancedField(AbstractField):
 
     def __add__(self, other: Union[AbstractField, SchemaInterface, str]) -> SchemaInterface:
         if isinstance(other, str):
-            return fc.FieldGroup([self, AdvancedField(other)])
+            return fc.FlatStruct([self, AdvancedField(other)])
         elif isinstance(other, AbstractField):
-            return fc.FieldGroup([self, other])
+            return fc.FlatStruct([self, other])
         elif isinstance(other, SchemaInterface):
             return other.append_field(self, before=True, inplace=False)
         else:

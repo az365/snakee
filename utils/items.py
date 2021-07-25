@@ -4,12 +4,12 @@ try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from items.base_item_type import ItemType
     from items.struct_row_interface import StructRowInterface
-    from schema import schema_classes as sc
+    from items import legacy_classes as sc
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from . import arguments as arg
     from ..items.base_item_type import ItemType
     from ..items.struct_row_interface import StructRowInterface
-    from ..schema import schema_classes as sc
+    from ..items import legacy_classes as sc
 
 Array = Union[list, tuple]
 Row = Array

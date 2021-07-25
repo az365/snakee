@@ -18,9 +18,9 @@ class SimpleField(AbstractField):
 
     def __add__(self, other: Union[AbstractField, SchemaInterface, str]) -> SchemaInterface:
         if isinstance(other, str):
-            return fc.FieldGroup([self, SimpleField(other)])
+            return fc.FlatStruct([self, SimpleField(other)])
         elif isinstance(other, AbstractField):
-            return fc.FieldGroup([self, other])
+            return fc.FlatStruct([self, other])
         elif isinstance(other, SchemaInterface):
             return other.append_field(self, before=True)
         else:

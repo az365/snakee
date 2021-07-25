@@ -2,30 +2,27 @@ from typing import Optional, Union, Any
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
+    from interfaces import SchemaInterface, FieldInterface, SelectionLoggerInterface, Auto, AUTO
     from connectors.databases import dialect as di
     from fields.field_type import FieldType
-    from fields.schema_interface import SchemaInterface
-    from fields.field_interface import FieldInterface
-    from fields.field_group import FieldGroup
+    from items.flat_struct import FlatStruct
     from fields.abstract_field import AbstractField
     from fields.advanced_field import AdvancedField
     from selection.abstract_expression import AbstractDescription
     from selection import concrete_expression as ce
-    from loggers.selection_logger_interface import SelectionLoggerInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
+    from ..interfaces import SchemaInterface, FieldInterface, SelectionLoggerInterface, Auto, AUTO
     from ..connectors.databases import dialect as di
     from .field_type import FieldType
-    from .schema_interface import SchemaInterface
-    from .field_interface import FieldInterface
-    from .field_group import FieldGroup
+    from ..items.flat_struct import FlatStruct
     from .abstract_field import AbstractField
     from .advanced_field import AdvancedField
     from ..selection.abstract_expression import AbstractDescription
     from ..selection import concrete_expression as ce
-    from ..loggers.selection_logger_interface import SelectionLoggerInterface
 
-Type = Union[FieldType, type, arg.DefaultArgument]
+
+Type = Union[FieldType, type, Auto]
 
 _logger = None
 
@@ -41,12 +38,20 @@ def set_logger(logger: SelectionLoggerInterface):
 
 
 def field(
-        name: str, field_type: Type = arg.DEFAULT, default: Optional[Any] = None,
+        name: str, field_type: Type = AUTO, default: Optional[Any] = None,
         caption: Optional[str] = None,
 ) -> AdvancedField:
     return AdvancedField(name, field_type=field_type, caption=caption, default=default, logger=_logger)
 
 
-def group(*fields) -> FieldGroup:
+def struct(
+        *fields, default_type: Type = AUTO,
+        name: Optional[str], caption: Optional[str] = None,
+        **kwargs
+) -> FlatStruct:
     fields = arg.update(fields)
-    return FieldGroup(fields)
+    return FlatStruct(fields, name=name, caption=caption, default_type=default_type, **kwargs)
+
+
+def group(*args, **kwargs) -> FlatStruct:
+    return FlatStruct(*args, **kwargs)
