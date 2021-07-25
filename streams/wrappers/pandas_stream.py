@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Union
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
@@ -6,7 +6,7 @@ try:  # Assume we're a sub-module in a package.
     from streams import stream_classes as sm
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
-    from utils.external import DataFrame
+    from ...utils.external import pd, DataFrame
     from .. import stream_classes as sm
 
 
@@ -14,7 +14,7 @@ class PandasStream(sm.WrapperStream, sm.ColumnarMixin, sm.ConvertMixin):
     def __init__(
             self,
             data,
-            name=arg.DEFAULT,
+            name=arg.AUTO,
             source=None,
             context=None,
     ):
@@ -48,10 +48,10 @@ class PandasStream(sm.WrapperStream, sm.ColumnarMixin, sm.ConvertMixin):
         if columns:
             return self.get_data()[columns]
         else:
-            dataframe = self.get_data()
+            return self.get_data()
 
-    def get_count(self) -> Optional[int]:
-        return self.get_dat().shape[0]
+    def get_count(self, final: bool = False) -> Optional[int]:
+        return self.get_data().shape[0]
 
     def get_items(self):
         yield from self.get_dataframe().iterrows()
@@ -68,7 +68,7 @@ class PandasStream(sm.WrapperStream, sm.ColumnarMixin, sm.ConvertMixin):
     def get_expected_count(self) -> int:
         return self.get_dataframe().shape[0]
 
-    def take(self, count):
+    def take(self, count: Union[int, bool] = 1):
         return self.stream(
             self.get_dataframe().head(count),
         )
@@ -138,3 +138,9 @@ class PandasStream(sm.WrapperStream, sm.ColumnarMixin, sm.ConvertMixin):
             as_index=as_pairs,
         )
         return PandasStream(grouped)
+
+    def is_empty(self) -> bool:
+        return self.get_count() == 0
+
+    def collect(self):
+        return self
