@@ -1,14 +1,16 @@
 from typing import Optional, Iterable, Callable, Union
-import pandas as pd
 
 try:  # Assume we're a sub-module in a package.
-    from base.interfaces.context_interface import ContextInterface
-    from connectors.abstract.connector_interface import ConnectorInterface
+    from interfaces import (
+        Stream, RegularStream, RowStream, KeyValueStream, StructStream,
+        Context, Connector, AutoConnector, TmpFiles,
+        Count, Name, Field, Columns, Array, ARRAY_TYPES,
+        AUTO, Auto, AutoCount, AutoName, AutoBool,
+    )
     from fields.field_interface import FieldInterface
     from streams import stream_classes as sm
     from connectors import connector_classes as cs
     from functions import all_functions as fs
-    from loggers.logger_classes import deprecated_with_alternative
     from selection import selection_classes as sn
     from items import item_type as it
     from utils import (
@@ -16,14 +18,19 @@ try:  # Assume we're a sub-module in a package.
         mappers as ms,
         selection as sf,
     )
+    from utils.external import pd, DataFrame, get_use_objects_for_output
+    from utils.decorators import deprecated_with_alternative
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...base.interfaces.context_interface import ContextInterface
-    from ...connectors.abstract.connector_interface import ConnectorInterface
+    from ...interfaces import (
+        Stream, RegularStream, RowStream, KeyValueStream, StructStream,
+        Context, Connector, AutoConnector, TmpFiles,
+        Count, Name, Field, Columns, Array, ARRAY_TYPES,
+        AUTO, Auto, AutoCount, AutoName, AutoBool,
+    )
     from ...fields.field_interface import FieldInterface
     from .. import stream_classes as sm
     from ...connectors import connector_classes as cs
     from ...functions import all_functions as fs
-    from ...loggers.logger_classes import deprecated_with_alternative
     from ...selection import selection_classes as sn
     from ...items import item_type as it
     from ...utils import (
@@ -31,19 +38,10 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         mappers as ms,
         selection as sf,
     )
+    from ...utils.external import pd, DataFrame, get_use_objects_for_output
+    from utils.decorators import deprecated_with_alternative
 
-Stream = sm.StreamInterface
-Native = sm.RegularStreamInterface
-Pairs = sm.PairStreamInterface
-Context = Union[ContextInterface, arg.DefaultArgument, None]
-Connector = Union[ConnectorInterface, arg.DefaultArgument, None]
-Field = Union[FieldInterface, str]
-Columns = Optional[Iterable]
-Name = Union[str, arg.DefaultArgument]
-Count = Union[int, arg.DefaultArgument]
-Array = Union[list, tuple]
-
-ARRAY_TYPES = list, tuple
+Native = RegularStream
 
 
 def get_key_function(descriptions: Array, take_hash: bool = False) -> Callable:
@@ -63,11 +61,11 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
     def __init__(
             self,
             data: Iterable,
-            name: Name = arg.DEFAULT, check: bool = True,
-            count: Optional[int] = None, less_than: Optional[int] = None,
+            name: AutoName = AUTO, check: bool = True,
+            count: Count = None, less_than: Count = None,
             source: Connector = None, context: Context = None,
-            max_items_in_memory: int = sm.MAX_ITEMS_IN_MEMORY,
-            tmp_files: Connector = arg.DEFAULT,
+            max_items_in_memory: AutoCount = AUTO,
+            tmp_files: TmpFiles = AUTO,
     ):
         super().__init__(
             data=data, name=name,
@@ -90,18 +88,20 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
             for r in self.get_records():
                 yield r.get(column)
 
-    def get_columns(self, by_rows_count: int = 100) -> Iterable:
-        if self.is_in_memory():
-            examples = self.take(by_rows_count)
-        else:
-            examples = self.tee_stream().take(by_rows_count)
+    def get_detected_columns(self, by_items_count: int = 100, sort: bool = True) -> Iterable:
+        example = self.example(count=by_items_count)
         columns = set()
-        for r in examples.get_items():
+        for r in example.get_items():
             columns.update(r.keys())
+        if sort:
+            columns = sorted(columns)
         return columns
 
-    def get_records(self, columns: Union[Iterable, arg.DefaultArgument] = arg.DEFAULT) -> Iterable:
-        if columns == arg.DEFAULT:
+    def get_columns(self, by_items_count: int = 100) -> Iterable:
+        return self.get_detected_columns(by_items_count=by_items_count)
+
+    def get_records(self, columns: Union[Iterable, Auto] = AUTO) -> Iterable:
+        if columns == AUTO:
             return self.get_items()
         else:
             columns = arg.get_names(columns)
@@ -154,39 +154,43 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
             )
         return stream
 
-    def sort(self, *keys, reverse: bool = False, step: Count = arg.DEFAULT, verbose: bool = True) -> Native:
+    def _get_groups(self, key_function: Callable, as_pairs: bool) -> Iterable:
+        accumulated = list()
+        prev_k = None
+        for r in self.get_items():
+            k = key_function(r)
+            if (k != prev_k) and accumulated:
+                yield (prev_k, accumulated) if as_pairs else accumulated
+                accumulated = list()
+            prev_k = k
+            accumulated.append(r)
+        yield (prev_k, accumulated) if as_pairs else accumulated
+
+    def sort(self, *keys, reverse: bool = False, step: AutoCount = AUTO, verbose: bool = True) -> Native:
         key_function = get_key_function(keys)
-        step = arg.undefault(step, self.max_items_in_memory)
+        step = arg.acquire(step, self.max_items_in_memory)
         if self.can_be_in_memory(step=step):
             stream = self.memory_sort(key_function, reverse, verbose=verbose)
         else:
             stream = self.disk_sort(key_function, reverse, step=step, verbose=verbose)
         return self._assume_native(stream)
 
-    def sorted_group_by(self, *keys, values: Columns = None, as_pairs: bool = False) -> Stream:
+    def sorted_group_by(
+            self, *keys, values: Columns = None,
+            as_pairs: bool = False, skip_missing: bool = False,
+    ) -> Stream:
         keys = arg.update(keys)
         keys = arg.get_names(keys)
         values = arg.get_names(values)
-
-        def get_groups():
-            key_function = get_key_function(keys)
-            accumulated = list()
-            prev_k = None
-            for r in self.get_items():
-                k = key_function(r)
-                if (k != prev_k) and accumulated:
-                    yield (prev_k, accumulated) if as_pairs else accumulated
-                    accumulated = list()
-                prev_k = k
-                accumulated.append(r)
-            yield (prev_k, accumulated) if as_pairs else accumulated
+        key_function = get_key_function(keys)
+        groups = self._get_groups(key_function, as_pairs=as_pairs)
         if as_pairs:
-            sm_groups = sm.KeyValueStream(get_groups(), value_stream_type=sm.StreamType.RowStream)
+            sm_groups = sm.KeyValueStream(groups, value_stream_type=sm.StreamType.RowStream)
         else:
-            sm_groups = sm.RowStream(get_groups(), check=False)
+            sm_groups = sm.RowStream(groups, check=False)
         if values:
             sm_groups = sm_groups.map_to_type(
-                lambda r: ms.fold_lists(r, keys, values),
+                lambda r: ms.fold_lists(r, keys, values, skip_missing=skip_missing),
                 stream_type=sm.StreamType.RecordStream,
             )
         if self.is_in_memory():
@@ -197,7 +201,7 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
 
     def group_by(
             self, *keys, values: Columns = None,
-            step: Count = arg.DEFAULT, as_pairs: bool = False, take_hash: bool = True, verbose: bool = True,
+            step: AutoCount = AUTO, as_pairs: bool = False, take_hash: bool = True, verbose: bool = True,
     ) -> Stream:
         keys = arg.update(keys)
         keys = arg.get_names(keys)
@@ -221,7 +225,10 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
         )
         return grouped_stream
 
-    def group_to_pairs(self, *keys, values: Columns = None, step: Count = arg.DEFAULT, verbose: bool = True) -> Pairs:
+    def group_to_pairs(
+            self, *keys, values: Columns = None,
+            step: AutoCount = AUTO, verbose: bool = True,
+    ) -> KeyValueStream:
         grouped_stream = self.group_by(*keys, values=values, step=step, as_pairs=True, take_hash=False, verbose=verbose)
         return self._assume_pairs(grouped_stream)
 
@@ -229,7 +236,7 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
         keys = arg.update(keys)
         key_fields = arg.get_names(keys)
         key_function = get_key_function(key_fields)
-        prev_value = arg.DEFAULT
+        prev_value = AUTO
         for r in self.get_records():
             value = key_function(r)
             if value != prev_value:
@@ -241,31 +248,39 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
             stream = self.sort(*keys)
         else:
             stream = self
-        return self.stream(
-            stream._get_uniq_records(*keys),
-            count=None,
-        )
+        return self.stream(stream._get_uniq_records(*keys), count=None)
 
-    def get_dataframe(self, columns: Columns = None) -> pd.DataFrame:
-        dataframe = pd.DataFrame(self.get_data())
-        if columns:
-            columns = arg.get_names(columns)
-            dataframe = dataframe[columns]
-        return dataframe
+    def get_dataframe(self, columns: Columns = None) -> DataFrame:
+        if pd and get_use_objects_for_output():
+            dataframe = DataFrame(self.get_data())
+            if columns:
+                columns = arg.get_names(columns)
+                dataframe = dataframe[columns]
+            return dataframe
 
-    def get_demo_example(self, count: Count = 10, filters: Columns = None, columns: Columns = None) -> pd.DataFrame:
+    def get_demo_example(
+            self, count: Count = 10,
+            filters: Columns = None, columns: Columns = None,
+            as_dataframe: AutoBool = AUTO,
+    ) -> Union[DataFrame]:
+        as_dataframe = arg.acquire(as_dataframe, get_use_objects_for_output())
         sm_sample = self.filter(*filters) if filters else self
-        return sm_sample.take(count).get_dataframe(columns)
+        sm_sample = sm_sample.take(count)
+        assert isinstance(sm_sample, RecordStream)
+        if as_dataframe:
+            return sm_sample.get_dataframe(columns)
+        else:
+            return sm_sample.get_list()
 
-    def get_rows(self, columns: Union[Columns, arg.DefaultArgument] = arg.DEFAULT, add_title_row=False) -> Iterable:
-        columns = arg.delayed_undefault(columns, self.get_columns)
+    def get_rows(self, columns: Union[Columns, Auto] = AUTO, add_title_row=False) -> Iterable:
+        columns = arg.delayed_acquire(columns, self.get_columns)
         columns = arg.get_names(columns)
         if add_title_row:
             yield columns
         for r in self.get_items():
             yield [r.get(c) for c in columns]
 
-    def to_row_stream(self, *columns, **kwargs) -> Stream:
+    def to_row_stream(self, *columns, **kwargs) -> RowStream:
         add_title_row = kwargs.pop('add_title_row', None)
         columns = arg.update(columns, kwargs.pop('columns', None))
         if kwargs:
@@ -284,7 +299,7 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
             less_than=less_than,
         )
 
-    def schematize(self, schema, skip_bad_rows=False, skip_bad_values=False, verbose=True) -> Stream:
+    def schematize(self, schema, skip_bad_rows=False, skip_bad_values=False, verbose=True) -> StructStream:
         return self.to_row_stream(
             columns=schema.get_columns(),
         ).schematize(
@@ -300,7 +315,7 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
             v = i if value is None else sf.value_from_record(i, value, **kwargs)
             yield k, v
 
-    def to_key_value_stream(self, key: Field = 'key', value: Field = None, skip_errors: bool = False) -> Pairs:
+    def to_key_value_stream(self, key: Field = 'key', value: Field = None, skip_errors: bool = False) -> KeyValueStream:
         kwargs = dict(logger=self.get_logger(), skip_errors=skip_errors)
         pairs = self.get_key_value_pairs(key, value, **kwargs)
         stream = self.stream(
@@ -311,7 +326,7 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
         )
         return self._assume_pairs(stream)
 
-    def to_file(self, file: Connector, verbose: bool = True, return_stream: bool = True) -> Stream:
+    def to_file(self, file: Connector, verbose: bool = True, return_stream: bool = True) -> Native:
         assert cs.is_file(file), TypeError('Expected TsvFile, got {} as {}'.format(file, type(file)))
         meta = self.get_meta()
         if not file.gzip:
@@ -325,13 +340,13 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
         return self.to_file(*args, **kwargs)
 
     def to_column_file(
-            self, filename: str, columns: Union[Iterable, arg.DefaultArgument] = arg.DEFAULT,
+            self, filename: str, columns: Union[Iterable, Auto] = AUTO,
             add_title_row=True, gzip=False,
-            delimiter='\t', encoding=arg.DEFAULT,
+            delimiter='\t', encoding=AUTO,
             check=True, verbose=True,
             return_stream=True,
-    ) -> Optional[Stream]:
-        encoding = arg.delayed_undefault(encoding, self.get_encoding)
+    ) -> Optional[Native]:
+        encoding = arg.delayed_acquire(encoding, self.get_encoding)
         meta = self.get_meta()
         if not gzip:
             meta.pop('count')
@@ -366,13 +381,13 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
             columns,
             delimiter='\t',
             skip_first_line=True,
-            encoding=arg.DEFAULT,
+            encoding=AUTO,
             gzip=False,
-            check=arg.DEFAULT,
-            expected_count=arg.DEFAULT,
+            check=AUTO,
+            expected_count=AUTO,
             verbose=True,
-    ) -> Stream:
-        encoding = arg.undefault(encoding, sm.TMP_FILES_ENCODING)
+    ) -> Native:
+        encoding = arg.acquire(encoding, sm.TMP_FILES_ENCODING)
         return sm.LineStream.from_text_file(
             filename,
             skip_first_line=skip_first_line,
@@ -397,7 +412,7 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
             max_count=None,
             check=True,
             verbose=False,
-    ) -> Stream:
+    ) -> Native:
         parsed_stream = sm.LineStream.from_text_file(
             filename,
             encoding=encoding,
@@ -416,7 +431,7 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
         return stream
 
     @staticmethod
-    def _assume_pairs(stream) -> Pairs:
+    def _assume_pairs(stream) -> KeyValueStream:
         return stream
 
     def get_dict(
@@ -429,7 +444,7 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
         key_value_stream = self.to_key_value_stream(key, value, skip_errors=skip_errors)
         return key_value_stream.get_dict(of_lists=of_lists)
 
-    def get_description(self) -> str:
+    def get_str_description(self) -> str:
         return '{} rows, {} columns: {}'.format(
             self.get_str_count(),
             self.get_column_count(),

@@ -1,33 +1,22 @@
 from typing import Optional, Iterable, Callable, Union
 
 try:  # Assume we're a sub-module in a package.
-    from utils import (
-        arguments as arg,
-        algo,
+    from utils import arguments as arg, algo
+    from interfaces import (
+        ContextInterface, StreamInterface, ConnectorInterface, TemporaryLocationInterface, TemporaryFilesMaskInterface,
+        Context, Stream, Connector, TmpFiles,
+        AUTO, Auto, AutoBool, Name, Source,
     )
-    from base.interfaces.context_interface import ContextInterface
-    from streams.interfaces.abstract_stream_interface import StreamInterface
-    from connectors.abstract.connector_interface import ConnectorInterface
-    from connectors.filesystem.temporary_interface import TemporaryLocationInterface, TemporaryFilesMaskInterface
     from connectors import connector_classes as ct
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import (
-        arguments as arg,
-        algo,
+    from utils import arguments as arg, algo
+    from interfaces import (
+        ContextInterface, StreamInterface, ConnectorInterface, TemporaryLocationInterface, TemporaryFilesMaskInterface,
+        Context, Stream, Connector, TmpFiles,
+        AUTO, Auto, AutoBool, Name, Source,
     )
-    from ...base.interfaces.context_interface import ContextInterface
-    from ...streams.interfaces.abstract_stream_interface import StreamInterface
-    from ..abstract.connector_interface import ConnectorInterface
-    from .temporary_interface import TemporaryLocationInterface, TemporaryFilesMaskInterface
     from .. import connector_classes as ct
 
-Mask = str
-Name = str
-Stream = StreamInterface
-Connector = ConnectorInterface
-Context = Union[ContextInterface, arg.DefaultArgument]
-Parent = Union[Connector, Context]
-Verbose = Union[bool, arg.DefaultArgument]
 
 DEFAULT_FOLDER = 'tmp'
 DEFAULT_MASK = 'stream_{}_part{}.tmp'
@@ -39,13 +28,13 @@ class TemporaryLocation(ct.LocalFolder, TemporaryLocationInterface):
     def __init__(
             self,
             path: Name = DEFAULT_FOLDER,
-            mask: Mask = DEFAULT_MASK,
+            mask: Name = DEFAULT_MASK,
             path_is_relative: bool = True,
-            parent: Parent = arg.DEFAULT,
-            context: Context = arg.DEFAULT,
-            verbose=arg.DEFAULT,
+            parent: Source = AUTO,
+            context: Context = AUTO,
+            verbose: AutoBool = AUTO,
     ):
-        parent = arg.undefault(parent, ct.LocalStorage(context=context))
+        parent = arg.acquire(parent, ct.LocalStorage(context=context))
         super().__init__(
             path=path,
             path_is_relative=path_is_relative,
@@ -56,10 +45,10 @@ class TemporaryLocation(ct.LocalFolder, TemporaryLocationInterface):
         assert arg.is_formatter(mask, 2)
         self._mask = mask
 
-    def get_str_mask_template(self) -> Mask:
+    def get_str_mask_template(self) -> Name:
         return self._mask
 
-    def mask(self, mask: Mask) -> ConnectorInterface:
+    def mask(self, mask: Name) -> ConnectorInterface:
         return self.stream_mask(mask)
 
     def stream_mask(self, stream_or_name: Union[StreamInterface, Name], *args, **kwargs) -> ConnectorInterface:
@@ -95,11 +84,11 @@ class TemporaryFilesMask(ct.FileMask, TemporaryFilesMaskInterface):
             name: Name,
             encoding: str = DEFAULT_ENCODING,
             stream: Optional[Stream] = None,
-            parent: Parent = arg.DEFAULT,
-            context: Context = arg.DEFAULT,
-            verbose: Verbose = arg.DEFAULT,
+            parent: Source = AUTO,
+            context: Context = AUTO,
+            verbose: AutoBool = AUTO,
     ):
-        parent = arg.undefault(parent, TemporaryLocation(context=context))
+        parent = arg.acquire(parent, TemporaryLocation(context=context))
         assert hasattr(parent, 'get_str_mask_template'), 'got {}'.format(parent)
         location_mask = parent.get_str_mask_template()
         assert arg.is_formatter(location_mask, 2)

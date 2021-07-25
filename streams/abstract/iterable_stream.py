@@ -1,51 +1,38 @@
 from itertools import chain, tee
-from typing import Optional, Union, Callable, Iterable, Generator
 from datetime import datetime
+from typing import Optional, Callable, Iterable, Generator, Union
 import gc
 
 try:  # Assume we're a sub-module in a package.
-    from utils import (
-        algo,
-        arguments as arg,
-        mappers as ms,
-        external as ex,
+    from interfaces import (
+        IterableStreamInterface,
+        StreamType, LoggingLevel,
+        Stream, Source, ExtLogger, SelectionLogger, Context, Connector, LeafConnector,
+        AUTO, Auto, AutoName, AutoCount, OptionalFields, Message, Array, UniKey,
     )
-    from items.struct_interface import StructInterface
-    from base.interfaces.context_interface import ContextInterface
-    from connectors.abstract.connector_interface import ConnectorInterface
-    from streams.interfaces.abstract_stream_interface import StreamInterface
-    from streams.interfaces.iterable_stream_interface import IterableStreamInterface
     from streams.abstract.abstract_stream import AbstractStream
+    from utils import algo, arguments as arg, mappers as ms
+    from utils.external import pd, DataFrame, get_use_objects_for_output
+    from utils.decorators import deprecated_with_alternative
     from streams import stream_classes as sm
     from loggers import logger_classes as log
     from functions import item_functions as fs
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import (
-        algo,
-        arguments as arg,
-        mappers as ms,
-        external as ex,
+    from interfaces import (
+        IterableStreamInterface,
+        StreamType, LoggingLevel,
+        Stream, Source, ExtLogger, SelectionLogger, Context, Connector, LeafConnector,
+        AUTO, AutoName, AutoCount, OptionalFields, Message, Array, UniKey,
     )
-    from items.struct_interface import StructInterface
-    from ...base.interfaces.context_interface import ContextInterface
-    from ...connectors.abstract.connector_interface import ConnectorInterface
-    from ..interfaces.abstract_stream_interface import StreamInterface
-    from ..interfaces.iterable_stream_interface import IterableStreamInterface
     from ..abstract.abstract_stream import AbstractStream
+    from ...utils import algo, arguments as arg, mappers as ms
+    from ...utils.external import pd, DataFrame, get_use_objects_for_output
+    from ...utils.decorators import deprecated_with_alternative
     from .. import stream_classes as sm
     from ...loggers import logger_classes as log
     from ...functions import item_functions as fs
 
 Native = IterableStreamInterface
-Stream = StreamInterface
-Source = Union[ConnectorInterface, arg.Auto, None]
-Context = Union[ContextInterface, arg.Auto, None]
-SelectionLogger = log.SelectionLoggerInterface
-Name = Union[str, arg.Auto]
-Count = Union[int, arg.Auto]
-Array = Union[list, tuple]
-Fields = Union[StructInterface, Array, Name]
-OptionalFields = Union[Iterable, str, None]
 
 DYNAMIC_META_FIELDS = ('count', 'less_than')
 
@@ -54,11 +41,11 @@ class IterableStream(AbstractStream, IterableStreamInterface):
     def __init__(
             self,
             data: Iterable,
-            name: Name = arg.AUTO,
+            name: AutoName = AUTO,
             source: Source = None, context: Context = None,
             count: Optional[int] = None, less_than: Optional[int] = None,
             check: bool = False,
-            max_items_in_memory: Count = arg.AUTO,
+            max_items_in_memory: AutoCount = AUTO,
     ):
         self._count = count
         self._less_than = less_than or count
@@ -151,9 +138,13 @@ class IterableStream(AbstractStream, IterableStreamInterface):
         self._count = count
         return self
 
-    def one(self):
+    def get_one_item(self):
         for i in self.get_tee_items():
             return i
+
+    @deprecated_witdth_alternative('get_one_item()')
+    def one(self):
+        return get_one_count()
 
     def next(self):
         return next(
@@ -211,19 +202,20 @@ class IterableStream(AbstractStream, IterableStreamInterface):
             **props
         )
 
-    def take(self, max_count: Union[int, bool] = 1) -> Native:
-        if max_count and isinstance(max_count, bool):
+    def take(self, count: Union[int, bool] = 1) -> Native:
+        if (count and isinstance(count, bool)) or not arg.is_defined(count):  # True, None, AUTO
             return self
-        elif max_count > 0:
-            return self.stream(
-                self.get_first_items(max_count),
-                count=min(self.get_count(), max_count) if self.get_count() else None,
-                less_than=min(self.get_estimated_count(), max_count) if self.get_estimated_count() else max_count,
-            )
-        elif max_count < 0:
-            return self.tail(count=max_count)
-        else:  # max_count = 0
-            return self.stream([], count=0)
+        elif isinstance(count, int):
+            if count > 0:
+                return self.stream(
+                    self.get_first_items(count),
+                    count=min(self.get_count(), count) if self.get_count() else None,
+                    less_than=min(self.get_estimated_count(), count) if self.get_estimated_count() else count,
+                )
+            elif count < 0:
+                return self.tail(count=count)
+            else:  # count in (0, False)
+                return self.stream([], count=0)
 
     def skip(self, count: int = 1) -> Native:
         def skip_items(c):
@@ -264,7 +256,7 @@ class IterableStream(AbstractStream, IterableStreamInterface):
             for _ in self.get_iter():
                 pass
         except BaseException as e:
-            self.log(['Error while trying to close stream:', e], level=log.LoggingLevel.Warning)
+            self.log(['Error while trying to close stream:', e], level=LoggingLevel.Warning)
         return self
 
     def tee_streams(self, n: int = 2) -> list:
@@ -479,7 +471,7 @@ class IterableStream(AbstractStream, IterableStreamInterface):
             self.get_mapped_items(function, flat=True),
         )
 
-    def map_side_join(self, right: Native, key: Fields, how: str = 'left', right_is_uniq: bool = True) -> Native:
+    def map_side_join(self, right: Native, key: UniKey, how: str = 'left', right_is_uniq: bool = True) -> Native:
         assert sm.is_stream(right)
         assert how in algo.JOIN_TYPES, 'only {} join types are supported ({} given)'.format(algo.JOIN_TYPES, how)
         key = arg.get_names(key)
@@ -502,8 +494,8 @@ class IterableStream(AbstractStream, IterableStreamInterface):
 
     def progress(
             self,
-            expected_count: Count = arg.AUTO,
-            step: Count = arg.AUTO,
+            expected_count: AutoCount = AUTO,
+            step: AutoCount = AUTO,
             message: str = 'Progress',
     ) -> Native:
         count = arg.acquire(expected_count, self.get_count()) or self.get_estimated_count()
@@ -568,12 +560,12 @@ class IterableStream(AbstractStream, IterableStreamInterface):
         else:
             return log.get_selection_logger()
 
-    def get_dataframe(self, columns: Optional[Iterable] = None) -> ex.DataFrame:
-        if ex.pd and ex.get_use_objects_for_output():
+    def get_dataframe(self, columns: Optional[Iterable] = None) -> DataFrame:
+        if pd and get_use_objects_for_output():
             if columns:
-                dataframe = ex.DataFrame(self.get_data(), columns=columns)
+                dataframe = DataFrame(self.get_data(), columns=columns)
                 columns = arg.get_names(columns)
                 dataframe = dataframe[columns]
             else:
-                dataframe = ex.DataFrame(self.get_data())
+                dataframe = DataFrame(self.get_data())
             return dataframe
