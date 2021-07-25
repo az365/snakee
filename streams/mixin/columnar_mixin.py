@@ -3,7 +3,7 @@ from typing import Union, Iterable, Generator, Callable, Any, Optional
 
 try:  # Assume we're a sub-module in a package.
     from interfaces import (
-        Stream, RegularStream, RegularStreamInterface, SchemaStream, SchemaInterface,
+        Stream, RegularStream, RegularStreamInterface, StructStream, StructInterface,
         StreamType, ItemType,
         Count, UniKey, Item, Array, Columns, OptionalFields,
         AUTO, Auto, AutoBool,
@@ -16,7 +16,7 @@ try:  # Assume we're a sub-module in a package.
     from utils import selection as sf
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
-        Stream, RegularStream, RegularStreamInterface, SchemaStream, SchemaInterface,
+        Stream, RegularStream, RegularStreamInterface, StructStream, StructInterface,
         StreamType, ItemType,
         Count, UniKey, Item, Array, Columns, OptionalFields,
         AUTO, Auto, AutoBool,
@@ -29,7 +29,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils import selection as sf
 
 Native = RegularStream
-Schema = SchemaInterface
+Schema = StructInterface
 
 SAFE_COUNT_ITEMS_IN_MEMORY = 10000
 EXAMPLE_STR_LEN = 12
@@ -232,7 +232,7 @@ class ColumnarMixin(ContextualDataWrapper, ColumnarInterface, ABC):
 
     def get_source_schema(self, default=None) -> Optional[Schema]:
         source = self.get_source()
-        if hasattr(source, 'get_schema'):
+        if hasattr(source, 'get_struct'):
             return source.get_schema()
         else:
             return default
@@ -242,7 +242,7 @@ class ColumnarMixin(ContextualDataWrapper, ColumnarInterface, ABC):
             columns = self.get_detected_columns(count)
         else:
             columns = self.get_columns()
-        struct = fc.FlatStruct.get_schema_detected_by_title_row(columns)
+        struct = fc.FlatStruct.get_struct_detected_by_title_row(columns)
         if struct:
             if set_types:
                 struct.set_types(set_types)
@@ -308,7 +308,7 @@ class ColumnarMixin(ContextualDataWrapper, ColumnarInterface, ABC):
 
     def show(self, count: int = 10, filters: Columns = None, columns: Columns = None, as_dataframe: AutoBool = AUTO):
         self.log(self.get_str_description(), truncate=False, force=True)
-        return self.get_demo_example(count=count, filters=filters, columns=columns)
+        return self.get_demo_example(count=count, filters=filters, columns=columns, as_dataframe=as_dataframe)
 
     def describe(
             self, *filters,
@@ -322,7 +322,7 @@ class ColumnarMixin(ContextualDataWrapper, ColumnarInterface, ABC):
                 self.log(line)
         example = self.example(*filters, **filter_kwargs, count=count)
         assert isinstance(example, ColumnarMixin)
-        if hasattr(self, 'get_schema'):
+        if hasattr(self, 'get_struct'):
             struct = self.get_schema()
             source_str = 'native'
         elif take_struct_from_source:

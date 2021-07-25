@@ -4,12 +4,12 @@ from typing import Optional, Union, Iterable, Callable
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from utils.external import DataFrame
-    from items.base_item_type import ItemType
+    from items.item_type import ItemType
     from streams.interfaces.abstract_stream_interface import StreamInterface
     from streams.stream_type import StreamType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
-    from ...items.base_item_type import ItemType
+    from ...items.item_type import ItemType
     from .abstract_stream_interface import StreamInterface
     from ...utils.external import DataFrame
     from ..stream_type import StreamType

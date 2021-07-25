@@ -8,7 +8,7 @@ try:  # Assume we're a sub-module in a package.
         numeric as nm,
         algo,
     )
-    from items.base_item_type import ItemType
+    from items.item_type import ItemType
     from streams import stream_classes as sm
     from streams.interfaces.abstract_stream_interface import StreamInterface
     from functions import item_functions as fs
@@ -18,7 +18,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         numeric as nm,
         algo,
     )
-    from ...items.base_item_type import ItemType
+    from ...items.item_type import ItemType
     from .. import stream_classes as sm
     from ..interfaces.abstract_stream_interface import StreamInterface
     from ...functions import item_functions as fs

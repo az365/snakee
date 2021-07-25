@@ -7,8 +7,7 @@ try:  # Assume we're a sub-module in a package.
     from utils.decorators import deprecated_with_alternative
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
-    from interfaces import StructRowInterface, Line, Row, Record, Field, Array, RegularItem, Item, Auto, AUTO
-    from ..interfaces import StructRowInterface
+    from ..interfaces import StructRowInterface, Line, Row, Record, Field, Array, RegularItem, Item, Auto, AUTO
     from ..utils.enum import SubclassesType
     from ..utils.decorators import deprecated_with_alternative
 
