@@ -4,14 +4,14 @@ try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from loggers import logger_classes as log
     from items.struct_interface import StructInterface
-    from items.legacy_struct import LegacyStruct
+    from items.flat_struct import FlatStruct
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...streams import stream_classes as sm
     from ...connectors import connector_classes as ct
     from ...utils import arguments as arg
     from ...loggers import logger_classes as log
-    from items.struct_interface import StructInterface
-    from ...items.legacy_struct import LegacyStruct
+    from ...items.struct_interface import StructInterface
+    from ...items.flat_struct import FlatStruct
 
 
 class Table(ct.LeafConnector):
@@ -28,8 +28,9 @@ class Table(ct.LeafConnector):
             parent=database,
         )
         self.struct = struct
+
         if not isinstance(struct, StructInterface):
-            message = 'Struct as {} is deprecated. Use struct.FlatStruct instead.'.format(type(struct))
+            message = 'Struct as {} is deprecated. Use items.FlatStruct instead.'.format(type(struct))
             self.log(msg=message, level=log.LoggingLevel.Warning)
         self.meta = kwargs
         if reconnect:
@@ -40,18 +41,18 @@ class Table(ct.LeafConnector):
     def get_database(self):
         return self.get_parent()
 
-    def get_count(self, verbose=arg.DEFAULT):
+    def get_count(self, verbose=arg.AUTO):
         return self.get_database().select_count(self.get_name(), verbose=verbose)
 
     def get_struct(self):
         if not self.struct:
-            self.set_struct(struct=arg.DEFAULT)
+            self.set_struct(struct=arg.AUTO)
         return self.struct
 
     def get_columns(self):
         return self.get_struct().get_columns()
 
-    def get_data(self, verbose=arg.DEFAULT):
+    def get_data(self, verbose=arg.AUTO):
         return self.get_database().select_all(self.get_name(), verbose=verbose)
 
     def get_stream(self):
@@ -65,17 +66,17 @@ class Table(ct.LeafConnector):
         self.links.append(stream)
         return stream
 
-    def to_stream(self, stream_type=arg.DEFAULT, verbose=arg.DEFAULT):
-        stream_type = arg.undefault(stream_type, sm.RowStream)
+    def to_stream(self, stream_type=arg.AUTO, verbose=arg.AUTO):
+        stream_type = arg.acquire(stream_type, sm.RowStream)
         stream = self.get_stream()
         if isinstance(stream_type, sm.RowStream):
             return stream
         elif isinstance(stream_type, sm.RecordStream):
             return stream.to_record_stream(columns=self.get_columns())
-        elif isinstance(stream_type, sm.SchemaStream):
-            return stream.schematize(self.get_struct(), verbose=verbose)
+        elif isinstance(stream_type, sm.StructStream):
+            return stream.structure(self.get_struct(), verbose=verbose)
         else:
-            raise ValueError('only RowStream, RecordStream, SchemaStream is supported for Table connector')
+            raise ValueError('only RowStream, RecordStream, StructStream is supported for Table connector')
 
     def from_stream(self, stream, **kwargs):
         assert sm.is_stream(stream)
@@ -88,13 +89,13 @@ class Table(ct.LeafConnector):
             self.struct = struct
         elif isinstance(struct, (list, tuple)):
             if max([isinstance(f, (list, tuple)) for f in struct]):
-                self.struct = LegacyStruct(struct)
+                self.struct = FlatStruct(struct)
             else:
-                self.struct = LegacyStruct.detect_struct_by_title_row(struct)
-        elif struct == arg.DEFAULT:
+                self.struct = FlatStruct.get_struct_detected_by_title_row(struct)
+        elif struct == arg.AUTO:
             self.struct = self.get_struct_from_database()
         else:
-            message = 'struct must be FlatStruct or tuple with fields_description (got {})'.format(type(struct))
+            message = 'struct must be StructInterface or tuple with fields_description (got {})'.format(type(struct))
             raise TypeError(message)
 
     def is_existing(self):
@@ -104,12 +105,12 @@ class Table(ct.LeafConnector):
         return self.get_database().describe_table(self.get_path())
 
     def get_struct_from_database(self, set_struct=False):
-        struct = LegacyStruct(self.describe())
+        struct = FlatStruct(self.describe())
         if set_struct:
             self.struct = struct
         return struct
 
-    def create(self, drop_if_exists, verbose=arg.DEFAULT):
+    def create(self, drop_if_exists, verbose=arg.AUTO):
         return self.get_database().create_table(
             self.get_name(),
             struct=self.struct,
@@ -121,7 +122,7 @@ class Table(ct.LeafConnector):
             self, data,
             encoding=None, skip_first_line=False,
             skip_lines=0, max_error_rate=0.0,
-            verbose=arg.DEFAULT
+            verbose=arg.AUTO
     ):
         return self.get_database().safe_upload_table(
             self.get_name(),
