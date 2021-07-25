@@ -507,7 +507,7 @@ def test_any_join():
         key=type,
         right_is_uniq=False,
     ).get_list()
-    assert received_1 == expected_1, 'test case 1: right is not uniq'
+    assert set(received_1) == set(expected_1), 'test case 1: right is not uniq'
     expected_2 = [('a', 'c'), ('b', 'c'), (1, 2)]
     received_2 = sm.AnyStream(
         example_a,
@@ -517,7 +517,7 @@ def test_any_join():
         how='left',
         right_is_uniq=False,
     ).get_list()
-    assert received_2 == expected_2, 'test case 2: left join using composite key'
+    assert set(received_2) == set(expected_2), 'test case 2: left join using composite key'
     expected_3 = [('a', 'c'), ('b', 'c'), (1, 2), (None, 33)]
     received_3 = sm.AnyStream(
         example_a,
@@ -527,7 +527,7 @@ def test_any_join():
         how='full',
         right_is_uniq=False,
     ).get_list()
-    assert received_3 == expected_3, 'test case 3: full join using composite key'
+    assert set(received_3) == set(expected_3), 'test case 3: full join using composite key'
     expected_4 = [(1, 2), ('a', 'c'), ('b', 'c')]
     received_4 = sm.AnyStream(
         example_a,
@@ -536,7 +536,7 @@ def test_any_join():
         key=(lambda i: str(type(i)), lambda i: len(str(i))),
         how='inner',
     ).get_list()
-    assert received_4 == expected_4, 'test case 4: sorted left join'
+    assert set(received_4) == set(expected_4), 'test case 4: sorted left join'
     expected_5 = [(1, 2), (None, 33), ('a', 'c'), ('b', 'c')]
     received_5 = sm.AnyStream(
         example_a,
@@ -545,7 +545,7 @@ def test_any_join():
         key=(lambda i: str(type(i)), lambda i: len(str(i))),
         how='right',
     ).get_list()
-    assert received_5 == expected_5, 'test case 5: sorted right join'
+    assert set(received_5) == set(expected_5), 'test case 5: sorted right join'
 
 
 def test_records_join():

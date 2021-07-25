@@ -9,7 +9,7 @@ JOIN_TYPES = ('left', 'right', 'inner', 'full')
 
 def topologically_sorted(  # Kahn's algorithm
         nodes: Array,
-        edges: Array,
+        edges: dict,
         ignore_cycles: bool = False,
         logger: Logger = None,
 ):
@@ -88,7 +88,7 @@ def map_side_join(
     for left_part in iter_left:
         cur_key = key_function(left_part)
         right_part = dict_right.get(cur_key)
-        if how == 'full':
+        if how in ('right', 'full'):
             keys_used.add(cur_key)
         if right_part:
             if uniq_right:
