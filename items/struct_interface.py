@@ -4,7 +4,7 @@ from typing import Union, Optional
 try:  # Assume we're a sub-module in a package.
     from fields.field_interface import FieldInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from .field_interface import FieldInterface
+    from fields.field_interface import FieldInterface
 
 FieldName = str
 FieldNo = int
@@ -14,7 +14,7 @@ Array = Union[list, tuple]
 ARRAY_SUBTYPES = list, tuple
 
 
-class SchemaInterface(ABC):
+class StructInterface(ABC):
     @abstractmethod
     def append_field(self, field: Field, default_type=None, before=False, inplace=True):
         pass
@@ -32,7 +32,7 @@ class SchemaInterface(ABC):
         pass
 
     @abstractmethod
-    def get_schema_str(self, dialect='py'):
+    def get_struct_str(self, dialect='py'):
         pass
 
     @abstractmethod
@@ -86,3 +86,6 @@ class SchemaInterface(ABC):
     @abstractmethod
     def __add__(self, other):
         pass
+
+
+SchemaInterface = StructInterface

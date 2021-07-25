@@ -7,7 +7,7 @@ try:  # Assume we're a sub-module in a package.
     from connectors import connector_classes as ct
     from streams import stream_classes as sm
     from items import legacy_classes as sh
-    from fields.schema_interface import SchemaInterface
+    from items.struct_interface import StructInterface
     from base.interfaces.data_interface import SimpleDataInterface
     from base.interfaces.context_interface import ContextInterface
     from connectors.abstract.connector_interface import ConnectorInterface
@@ -18,7 +18,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .. import connector_classes as ct
     from ...streams import stream_classes as sm
     from ...items import legacy_classes as sh
-    from ...fields.schema_interface import SchemaInterface
+    from items.struct_interface import StructInterface
     from ...base.interfaces.data_interface import SimpleDataInterface
     from ...base.interfaces.context_interface import ContextInterface
     from ..abstract.connector_interface import ConnectorInterface
@@ -26,7 +26,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 
 Stream = RegularStreamInterface
 Name = str
-Schema = Optional[SchemaInterface]
+Struct = Optional[StructInterface]
 Table = ConnectorInterface
 File = ct.AbstractFile
 Data = Union[Stream, File, Table, str, Iterable]
@@ -69,14 +69,14 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
     def get_tables(self) -> dict:
         return self.get_children()
 
-    def table(self, table: Union[Table, Name], schema: Schema = None, **kwargs) -> Table:
-        table_name, schema = self._get_table_name_and_schema(table, schema, check_schema=False)
+    def table(self, table: Union[Table, Name], struct: Struct = None, **kwargs) -> Table:
+        table_name, struct = self._get_table_name_and_struct(table, struct, check_struct=False)
         table = self.get_tables().get(table_name)
         if table:
             assert not kwargs, 'table connection {} is already registered'.format(table_name)
         else:
-            assert schema is not None, 'for create table schema must be defined'
-            table = ct.Table(table_name, schema=schema, database=self, **kwargs)
+            assert struct is not None, 'for create table struct must be defined'
+            table = ct.Table(table_name, struct=struct, database=self, **kwargs)
             self.get_tables()[table_name] = table
         return table
 
@@ -146,17 +146,17 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
                     self.log(message_if_no, verbose=verbose)
 
     def create_table(
-            self, table: Union[Table, Name], schema: Schema,
+            self, table: Union[Table, Name], struct: Struct,
             drop_if_exists: bool = False, verbose: OptBool = arg.DEFAULT,
     ) -> Table:
         verbose = arg.undefault(verbose, self.verbose)
-        table_name, schema_str = self._get_table_name_and_schema_str(table, schema, check_schema=True)
+        table_name, struct_str = self._get_table_name_and_struct_str(table, struct, check_struct=True)
         if drop_if_exists:
             self.drop_table(table_name, verbose=verbose)
         message = 'Creating table:'
-        query = 'CREATE TABLE {name} ({schema});'.format(
+        query = 'CREATE TABLE {name} ({struct});'.format(
             name=table_name,
-            schema=schema_str,
+            struct=struct_str,
         )
         self.execute(
             query, get_data=False, commit=True,
@@ -164,8 +164,8 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
         )
         self.post_create_action(table_name, verbose=verbose)
         self.log('Table {name} is created.'.format(name=table_name), verbose=verbose)
-        if schema:
-            return self.table(table, schema=schema)
+        if struct:
+            return self.table(table, struct=struct)
         else:
             return self.table(table)
 
@@ -214,7 +214,7 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
         assert cat_new == cat_old, 'Can copy within same scheme (folder) only (got {} and {})'.format(cat_new, cat_old)
         new = name_new
         table_old = self.get_child(name_old)
-        schema = table_old.get_schema() if hasattr(table_old, 'get_schema') else arg.DEFAULT
+        struct = table_old.get_struct() if hasattr(table_old, 'get_struct') else arg.DEFAULT
         self.execute_if_exists(
             query='ALTER TABLE {old} RENAME TO {new};'.format(old=old, new=new),
             table=old,
@@ -223,7 +223,7 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
             stop_if_no=not if_exists,
             verbose=verbose,
         )
-        return self.table(new, schema=schema)
+        return self.table(new, struct=struct)
 
     def select(
             self, table: Union[Table, Name],
@@ -285,27 +285,27 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
 
     def insert_data(
             self,
-            table: Union[Table, Name], data: Data, schema: Schema = None,
+            table: Union[Table, Name], data: Data, struct: Struct = None,
             encoding: Optional[str] = None, skip_errors: bool = False,
             skip_lines: Optional[int] = 0, skip_first_line: bool = False,
             step: Union[int, arg.DefaultArgument] = DEFAULT_STEP, verbose: OptBool = arg.DEFAULT,
     ) -> tuple:
         if not arg.is_defined(skip_lines):
             skip_lines = 0
-        is_schema_description = isinstance(schema, sh.LegacyStruct) or hasattr(schema, 'get_schema_str')
-        if not is_schema_description:
-            message = 'Schema as {} is deprecated, use sh.SchemaDescription instead'.format(type(schema))
+        is_struct_description = isinstance(struct, sh.LegacyStruct) or hasattr(struct, 'get_struct_str')
+        if not is_struct_description:
+            message = 'Struct as {} is deprecated, use items.FlatStruct instead'.format(type(struct))
             self.log(msg=message, level=log.LoggingLevel.Warning)
-            schema = sh.LegacyStruct(schema or [])
-        input_stream = self._get_schema_stream_from_data(
-            data, schema=schema,
+            struct = sh.LegacyStruct(struct or [])
+        input_stream = self._get_struct_stream_from_data(
+            data, struct=struct,
             encoding=encoding, skip_first_line=skip_first_line, verbose=verbose,
         )
         if skip_lines:
             input_stream = input_stream.skip(skip_lines)
         if input_stream.get_stream_type() != sm.StreamType.SchemaStream:
             input_stream = input_stream.schematize(
-                schema,
+                struct,
                 skip_bad_rows=True,
                 verbose=True,
             ).update_meta(
@@ -321,18 +321,18 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
 
     def force_upload_table(
             self,
-            table: Union[Table, Name], schema: Schema, data: Data,
+            table: Union[Table, Name], struct: Struct, data: Data,
             encoding: Optional[str] = None, step: int = DEFAULT_STEP,
             skip_lines: int = 0, skip_first_line: bool = False, max_error_rate: float = 0.0,
             verbose: OptBool = arg.DEFAULT,
     ) -> Table:
         verbose = arg.undefault(verbose, self.verbose)
-        table_name, schema = self._get_table_name_and_schema(table, schema)
+        table_name, struct = self._get_table_name_and_struct(table, struct)
         if not skip_lines:
-            self.create_table(table_name, schema=schema, drop_if_exists=True, verbose=verbose)
+            self.create_table(table_name, struct=struct, drop_if_exists=True, verbose=verbose)
         skip_errors = (max_error_rate is None) or (max_error_rate > DEFAULT_ERRORS_THRESHOLD)
         initial_count, write_count = self.insert_data(
-            table, schema=schema, data=data,
+            table, struct=struct, data=data,
             encoding=encoding, skip_first_line=skip_first_line,
             step=step, skip_lines=skip_lines, skip_errors=skip_errors,
             verbose=verbose,
@@ -353,17 +353,17 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
 
     def safe_upload_table(
             self,
-            table: Union[Table, Name], schema: Schema, data: Data,
+            table: Union[Table, Name], struct: Struct, data: Data,
             encoding: Optional[str] = None,
             step: int = DEFAULT_STEP,
             skip_lines: int = 0, skip_first_line: bool = False, max_error_rate: float = 0.0,
             verbose: OptBool = arg.DEFAULT,
     ) -> Table:
-        target_name, schema = self._get_table_name_and_schema(table, schema)
+        target_name, struct = self._get_table_name_and_struct(table, struct)
         tmp_name = '{}_tmp_upload'.format(target_name)
         bak_name = '{}_bak'.format(target_name)
         self.force_upload_table(
-            table=tmp_name, schema=schema, data=data, encoding=encoding, skip_first_line=skip_first_line,
+            table=tmp_name, struct=struct, data=data, encoding=encoding, skip_first_line=skip_first_line,
             step=step, skip_lines=skip_lines, max_error_rate=max_error_rate,
             verbose=verbose,
         )
@@ -422,60 +422,60 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
             return str(table)
 
     @staticmethod
-    def _get_table_name_and_schema(
+    def _get_table_name_and_struct(
             table: Union[Table, Name],
-            expected_schema: Schema = None,
-            check_schema: bool = True,
+            expected_struct: Struct = None,
+            check_struct: bool = True,
     ) -> tuple:
         if isinstance(table, Name):
             table_name = table
-            table_schema = expected_schema
+            table_struct = expected_struct
         elif isinstance(table, ct.Table):
             table_name = table.get_name()
-            if hasattr(table, 'get_schema'):
-                table_schema = table.get_schema()
-                if expected_schema and check_schema:
-                    assert table_schema == expected_schema
+            if hasattr(table, 'get_struct'):
+                table_struct = table.get_struct()
+                if expected_struct and check_struct:
+                    assert table_struct == expected_struct
             else:
-                table_schema = expected_schema
+                table_struct = expected_struct
         else:
             raise ValueError('Expected Table or Name, got {}'.format(table))
-        if check_schema:
-            assert table_schema, 'schema must be defined'
-        return table_name, table_schema
+        if check_struct:
+            assert table_struct, 'struct must be defined'
+        return table_name, table_struct
 
     @staticmethod
-    def _get_schema_stream_from_data(data: Data, schema: Schema = None, **file_kwargs) -> Stream:
+    def _get_struct_stream_from_data(data: Data, struct: Struct = None, **file_kwargs) -> Stream:
         if sm.is_stream(data):
             stream = data
         elif ct.is_file(data):
-            stream = data.to_schema_stream()
-            if schema:
+            stream = data.to_struct_stream()
+            if struct:
                 stream_cols = stream.get_columns()
-                schema_cols = schema.get_columns()
-                assert stream_cols == schema_cols, '{} != {}'.format(stream_cols, schema_cols)
+                struct_cols = struct.get_columns()
+                assert stream_cols == struct_cols, '{} != {}'.format(stream_cols, struct_cols)
         elif isinstance(data, str):
             stream = sm.RowStream.from_column_file(filename=data, **file_kwargs)
         else:
             stream = sm.AnyStream(data)
         return stream
 
-    def _get_table_name_and_schema_str(
+    def _get_table_name_and_struct_str(
             self,
-            table: Union[Table, Name], expected_schema: Schema = None,
-            check_schema: bool = True,
+            table: Union[Table, Name], expected_struct: Struct = None,
+            check_struct: bool = True,
     ) -> tuple:
-        table_name, schema = self._get_table_name_and_schema(table, expected_schema, check_schema=check_schema)
-        if isinstance(schema, str):
-            schema_str = schema
-            message = 'String Schemas is deprecated. Use schema.SchemaDescription instead.'
+        table_name, struct = self._get_table_name_and_struct(table, expected_struct, check_struct=check_struct)
+        if isinstance(struct, str):
+            struct_str = struct
+            message = 'String Structs is deprecated. Use items.FlatStruct instead.'
             self.log(msg=message, level=log.LoggingLevel.Warning)
-        elif isinstance(schema, (list, tuple)):
-            schema_str = ', '.join(['{} {}'.format(c[0], c[1]) for c in schema])
-            message = 'Tuple Schemas is deprecated. Use schema.SchemaDescription instead.'
+        elif isinstance(struct, (list, tuple)):
+            struct_str = ', '.join(['{} {}'.format(c[0], c[1]) for c in struct])
+            message = 'Tuple Structs is deprecated. Use items.FlatStruct instead.'
             self.log(msg=message, level=log.LoggingLevel.Warning)
-        elif hasattr(schema, 'get_schema_str'):
-            schema_str = schema.get_schema_str(dialect=self.get_dialect_name())
+        elif hasattr(struct, 'get_struct_str'):
+            struct_str = struct.get_struct_str(dialect=self.get_dialect_name())
         else:
-            raise TypeError('schema must be an instance of SchemaDescription or list[tuple]')
-        return table_name, schema_str
+            raise TypeError('struct must be an instance of items.FlatStruct or list[tuple]')
+        return table_name, struct_str

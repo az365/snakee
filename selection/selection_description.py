@@ -3,7 +3,7 @@ from typing import Optional, Callable, Iterable, Union, NoReturn
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg, selection as sf, items as it
     from interfaces import (
-        SchemaInterface, StructRowInterface, LoggerInterface,
+        StructInterface, StructRowInterface, LoggerInterface,
         ItemType, Item, Row, Record, Field, Name, Array, ARRAY_TYPES,
         AUTO, Auto
     )
@@ -12,19 +12,19 @@ try:  # Assume we're a sub-module in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg, selection as sf, items as it
     from ..interfaces import (
-        SchemaInterface, StructRowInterface, LoggerInterface,
+        StructInterface, StructRowInterface, LoggerInterface,
         ItemType, Item, Row, Record, Field, Name, Array, ARRAY_TYPES,
         AUTO, Auto
     )
     from ..items.base_item_type import ItemType
     from ..items.struct_row_interface import StructRowInterface
-    from ..fields.schema_interface import SchemaInterface
+    from items.struct_interface import StructInterface
     from ..loggers.logger_interface import LoggerInterface
     from . import selection_classes as sn
     from ..items import legacy_classes as sh
 
 Logger = Optional[LoggerInterface]
-Schema = Union[Optional[SchemaInterface], Iterable]
+Struct = Union[Optional[StructInterface], Iterable]
 Description = sn.AbstractDescription
 NAME_TYPES = int, str
 DESC_TYPES = int, str, Description
@@ -92,14 +92,14 @@ class SelectionDescription:
             descriptions: Array,
             target_item_type: ItemType = ItemType.Auto,
             input_item_type: ItemType = ItemType.Auto,
-            input_schema: Schema = None,
+            input_struct: Struct = None,
             logger: Logger = None,
             selection_logger: Union[Logger, Auto] = AUTO,
     ):
         self._descriptions = descriptions
         self._target_item_type = target_item_type
         self._input_item_type = input_item_type
-        self._input_schema = input_schema
+        self._input_struct = input_struct
         self._logger = logger
         self._selection_logger = arg.undefault(selection_logger, getattr(logger, 'get_selection_logger', None))
         self._has_trivial_multiple_selectors = AUTO
@@ -109,7 +109,7 @@ class SelectionDescription:
     def with_expressions(
             cls, fields: list, expressions: dict,
             target_item_type: ItemType = ItemType.Auto, input_item_type: ItemType = ItemType.Auto,
-            input_schema=None, skip_errors=True,
+            input_struct=None, skip_errors=True,
             logger=None, selection_logger=AUTO,
     ):
         descriptions = compose_descriptions(
@@ -121,7 +121,7 @@ class SelectionDescription:
         return cls(
             descriptions=list(descriptions),
             target_item_type=target_item_type, input_item_type=input_item_type,
-            input_schema=input_schema,
+            input_struct=input_struct,
             logger=logger, selection_logger=selection_logger,
         )
 
@@ -151,14 +151,14 @@ class SelectionDescription:
     def get_input_item_type(self) -> ItemType:
         return self._input_item_type
 
-    def get_input_schema(self) -> Schema:
-        return self._input_schema
+    def get_input_struct(self) -> Struct:
+        return self._input_struct
 
-    def get_output_schema(self) -> Schema:
-        assert self.get_input_schema()
+    def get_output_struct(self) -> Struct:
+        assert self.get_input_struct()
         return sh.SchemaDescription(
             self.get_output_field_descriptions(
-                self.get_input_schema(),
+                self.get_input_struct(),
             ),
         )
 
@@ -184,9 +184,9 @@ class SelectionDescription:
     def get_known_output_field_names(self) -> list:
         return self._output_field_names
 
-    def add_output_field_names(self, item_or_schema: Union[Item, Schema]) -> NoReturn:
+    def add_output_field_names(self, item_or_struct: Union[Item, Struct]) -> NoReturn:
         for d in self.get_descriptions():
-            for f in d.get_output_field_names(item_or_schema):
+            for f in d.get_output_field_names(item_or_struct):
                 if f not in self._output_field_names:
                     self._output_field_names.append(f)
 
@@ -204,16 +204,16 @@ class SelectionDescription:
                 self.reset_output_field_names(item)
         return self.get_known_output_field_names()
 
-    def get_dict_output_field_types(self, schema: Union[Schema, Auto] = AUTO) -> dict:
-        schema = arg.delayed_undefault(schema, self.get_input_schema)
+    def get_dict_output_field_types(self, struct: Union[Struct, Auto] = AUTO) -> dict:
+        struct = arg.delayed_undefault(struct, self.get_input_struct)
         output_types = dict()
         for d in self.get_descriptions():
-            output_types.update(d.get_dict_output_field_types(schema))
+            output_types.update(d.get_dict_output_field_types(struct))
         return output_types
 
-    def get_output_field_descriptions(self, schema: Union[Schema, Auto] = AUTO) -> Iterable:
-        dict_output_field_types = self.get_dict_output_field_types(schema)
-        for name in self.get_output_field_names(schema):
+    def get_output_field_descriptions(self, struct: Union[Struct, Auto] = AUTO) -> Iterable:
+        dict_output_field_types = self.get_dict_output_field_types(struct)
+        for name in self.get_output_field_names(struct):
             field_type = dict_output_field_types.get(name)
             yield sh.FieldDescription(name, field_type=field_type)
 

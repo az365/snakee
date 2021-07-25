@@ -4,7 +4,7 @@ try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from items.base_item_type import ItemType
     from fields.field_type import FieldType
-    from fields.schema_interface import SchemaInterface
+    from items.struct_interface import StructInterface
     from fields.abstract_field import AbstractField
     from fields import field_classes as fc
     from selection.abstract_expression import AbstractDescription
@@ -14,7 +14,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..utils import arguments as arg
     from ..items.base_item_type import ItemType
     from .field_type import FieldType
-    from .schema_interface import SchemaInterface
+    from ..items.struct_interface import StructInterface
     from .abstract_field import AbstractField
     from . import field_classes as fc
     from ..selection.abstract_expression import AbstractDescription
@@ -120,12 +120,12 @@ class AdvancedField(AbstractField):
     def drop(self):
         return ce.DropDescription([self], target_item_type=ItemType.Auto)
 
-    def __add__(self, other: Union[AbstractField, SchemaInterface, str]) -> SchemaInterface:
+    def __add__(self, other: Union[AbstractField, StructInterface, str]) -> StructInterface:
         if isinstance(other, str):
             return fc.FlatStruct([self, AdvancedField(other)])
         elif isinstance(other, AbstractField):
             return fc.FlatStruct([self, other])
-        elif isinstance(other, SchemaInterface):
+        elif isinstance(other, StructInterface):
             return other.append_field(self, before=True, inplace=False)
         else:
-            raise TypeError('Expected other as field or schema, got {} as {}'.format(other, type(other)))
+            raise TypeError('Expected other as field or struct, got {} as {}'.format(other, type(other)))

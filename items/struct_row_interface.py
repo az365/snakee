@@ -3,10 +3,10 @@ from typing import Union, Optional
 
 try:  # Assume we're a sub-module in a package.
     from base.interfaces.data_interface import SimpleDataInterface
-    from fields.schema_interface import SchemaInterface
+    from items.struct_interface import StructInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..base.interfaces.data_interface import SimpleDataInterface
-    from ..fields.schema_interface import SchemaInterface
+    from .struct_interface import StructInterface
 
 SimpleRow = Union[list, tuple]
 StructRow = SimpleDataInterface
@@ -17,7 +17,7 @@ FieldId = Union[FieldName, FieldNo]
 
 class StructRowInterface(SimpleDataInterface, ABC):
     @abstractmethod
-    def get_schema(self) -> SchemaInterface:
+    def get_struct(self) -> StructInterface:
         pass
 
     @abstractmethod

@@ -3,14 +3,14 @@ try:  # Assume we're a sub-module in a package.
     from connectors import connector_classes as ct
     from utils import arguments as arg
     from loggers import logger_classes as log
-    from fields.schema_interface import SchemaInterface
+    from items.struct_interface import StructInterface
     from items.legacy_struct import LegacyStruct
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...streams import stream_classes as sm
     from ...connectors import connector_classes as ct
     from ...utils import arguments as arg
     from ...loggers import logger_classes as log
-    from ...fields.schema_interface import SchemaInterface
+    from items.struct_interface import StructInterface
     from ...items.legacy_struct import LegacyStruct
 
 
@@ -18,7 +18,7 @@ class Table(ct.LeafConnector):
     def __init__(
             self,
             name,
-            schema,
+            struct,
             database,
             reconnect=True,
             **kwargs
@@ -27,9 +27,9 @@ class Table(ct.LeafConnector):
             name=name,
             parent=database,
         )
-        self.schema = schema
-        if not isinstance(schema, SchemaInterface):
-            message = 'Schema as {} is deprecated. Use schema.SchemaDescription instead.'.format(type(schema))
+        self.struct = struct
+        if not isinstance(struct, StructInterface):
+            message = 'Struct as {} is deprecated. Use struct.FlatStruct instead.'.format(type(struct))
             self.log(msg=message, level=log.LoggingLevel.Warning)
         self.meta = kwargs
         if reconnect:
@@ -43,13 +43,13 @@ class Table(ct.LeafConnector):
     def get_count(self, verbose=arg.DEFAULT):
         return self.get_database().select_count(self.get_name(), verbose=verbose)
 
-    def get_schema(self):
-        if not self.schema:
-            self.set_schema(schema=arg.DEFAULT)
-        return self.schema
+    def get_struct(self):
+        if not self.struct:
+            self.set_struct(struct=arg.DEFAULT)
+        return self.struct
 
     def get_columns(self):
-        return self.get_schema().get_columns()
+        return self.get_struct().get_columns()
 
     def get_data(self, verbose=arg.DEFAULT):
         return self.get_database().select_all(self.get_name(), verbose=verbose)
@@ -73,7 +73,7 @@ class Table(ct.LeafConnector):
         elif isinstance(stream_type, sm.RecordStream):
             return stream.to_record_stream(columns=self.get_columns())
         elif isinstance(stream_type, sm.SchemaStream):
-            return stream.schematize(self.get_schema(), verbose=verbose)
+            return stream.schematize(self.get_struct(), verbose=verbose)
         else:
             raise ValueError('only RowStream, RecordStream, SchemaStream is supported for Table connector')
 
@@ -81,20 +81,20 @@ class Table(ct.LeafConnector):
         assert sm.is_stream(stream)
         self.upload(data=stream, **kwargs)
 
-    def set_schema(self, schema):
-        if schema is None:
-            self.schema = None
-        elif isinstance(schema, SchemaInterface):
-            self.schema = schema
-        elif isinstance(schema, (list, tuple)):
-            if max([isinstance(f, (list, tuple)) for f in schema]):
-                self.schema = LegacyStruct(schema)
+    def set_struct(self, struct):
+        if struct is None:
+            self.struct = None
+        elif isinstance(struct, StructInterface):
+            self.struct = struct
+        elif isinstance(struct, (list, tuple)):
+            if max([isinstance(f, (list, tuple)) for f in struct]):
+                self.struct = LegacyStruct(struct)
             else:
-                self.schema = LegacyStruct.detect_schema_by_title_row(schema)
-        elif schema == arg.DEFAULT:
-            self.schema = self.get_schema_from_database()
+                self.struct = LegacyStruct.detect_struct_by_title_row(struct)
+        elif struct == arg.DEFAULT:
+            self.struct = self.get_struct_from_database()
         else:
-            message = 'schema must be SchemaDescription or tuple with fields_description (got {})'.format(type(schema))
+            message = 'struct must be FlatStruct or tuple with fields_description (got {})'.format(type(struct))
             raise TypeError(message)
 
     def is_existing(self):
@@ -103,16 +103,16 @@ class Table(ct.LeafConnector):
     def describe(self):
         return self.get_database().describe_table(self.get_path())
 
-    def get_schema_from_database(self, set_schema=False):
-        schema = LegacyStruct(self.describe())
-        if set_schema:
-            self.schema = schema
-        return schema
+    def get_struct_from_database(self, set_struct=False):
+        struct = LegacyStruct(self.describe())
+        if set_struct:
+            self.struct = struct
+        return struct
 
     def create(self, drop_if_exists, verbose=arg.DEFAULT):
         return self.get_database().create_table(
             self.get_name(),
-            schema=self.schema,
+            struct=self.struct,
             drop_if_exists=drop_if_exists,
             verbose=verbose,
         )
@@ -126,7 +126,7 @@ class Table(ct.LeafConnector):
         return self.get_database().safe_upload_table(
             self.get_name(),
             data=data,
-            schema=self.schema,
+            struct=self.struct,
             skip_lines=skip_lines,
             skip_first_line=skip_first_line,
             encoding=encoding,

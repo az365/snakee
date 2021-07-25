@@ -10,7 +10,7 @@ try:  # Assume we're a sub-module in a package.
     from items.base_item_type import ItemType
     from items.struct_row_interface import StructRowInterface
     from fields.abstract_field import AbstractField
-    from fields.schema_interface import SchemaInterface
+    from items.struct_interface import StructInterface
     from loggers.logger_interface import LoggerInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import (
@@ -21,7 +21,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..items.base_item_type import ItemType
     from ..items.struct_row_interface import StructRowInterface
     from ..fields.abstract_field import AbstractField
-    from ..fields.schema_interface import SchemaInterface
+    from items.struct_interface import StructInterface
     from ..loggers.logger_interface import LoggerInterface
 
 Row = Union[list, tuple]
@@ -31,7 +31,7 @@ Name = Union[int, str]
 Field = Union[Name, AbstractField]
 Value = Any
 Array = Union[list, tuple]
-FieldList = Union[Array, SchemaInterface]
+FieldList = Union[Array, StructInterface]
 Logger = Optional[LoggerInterface]
 
 AUTO = arg.DEFAULT
@@ -78,11 +78,11 @@ class AbstractDescription(ABC):
         pass
 
     @abstractmethod
-    def get_output_field_types(self, schema: SchemaInterface) -> Iterable:
+    def get_output_field_types(self, struct: StructInterface) -> Iterable:
         pass
 
-    def get_dict_output_field_types(self, schema: SchemaInterface) -> dict:
-        return dict(zip(self.get_output_field_names(), self.get_output_field_types(schema)))
+    def get_dict_output_field_types(self, struct: StructInterface) -> dict:
+        return dict(zip(self.get_output_field_names(), self.get_output_field_types(struct)))
 
     def get_selection_tuple(self) -> tuple:
         return (self.get_function(), *self.get_input_field_names())
@@ -188,11 +188,11 @@ class TrivialMultipleDescription(MultipleFieldDescription, ABC):
     def get_function(self) -> Callable:
         return lambda i: i
 
-    def get_input_field_names(self, schema: FieldList) -> Iterable:
-        return self.get_output_field_names(schema)
+    def get_input_field_names(self, struct: FieldList) -> Iterable:
+        return self.get_output_field_names(struct)
 
-    def get_output_field_types(self, schema: FieldList) -> list:
-        return [schema.get_field_description(f).get_type() for f in self.get_output_field_names()]
+    def get_output_field_types(self, struct: FieldList) -> list:
+        return [struct.get_field_description(f).get_type() for f in self.get_output_field_names()]
 
     def apply_inplace(self, item):
         pass

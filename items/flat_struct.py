@@ -2,7 +2,7 @@ from typing import Optional, Union, Iterable, NoReturn
 
 try:  # Assume we're a sub-module in a package.
     from interfaces import (
-        SchemaInterface, StructRowInterface, FieldInterface, SelectionLoggerInterface,
+        StructInterface, StructRowInterface, FieldInterface, SelectionLoggerInterface,
         FieldType,
         AUTO, Auto, Name, Array, ARRAY_TYPES,
     )
@@ -15,7 +15,7 @@ try:  # Assume we're a sub-module in a package.
     from loggers.selection_logger_interface import SelectionLoggerInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..interfaces import (
-        SchemaInterface, StructRowInterface, FieldInterface, SelectionLoggerInterface,
+        StructInterface, StructRowInterface, FieldInterface, SelectionLoggerInterface,
         FieldType,
         AUTO, Auto, Name, Array, ARRAY_TYPES,
     )
@@ -26,7 +26,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..selection.abstract_expression import AbstractDescription
     from ..connectors.databases import dialect as di
 
-Native = SchemaInterface
+Native = StructInterface
 Group = Union[Native, Iterable]
 StructName = Optional[Name]
 Dialect = Optional[Name]
@@ -40,7 +40,7 @@ GROUP_TYPE_STR = 'GROUP'
 DICT_VALID_SIGN = {'True': '-', 'False': 'x', 'None': '-', arg.DEFAULT.get_value(): '~'}
 
 
-class FlatStruct(SimpleDataWrapper, SchemaInterface):
+class FlatStruct(SimpleDataWrapper, StructInterface):
     def __init__(
             self,
             fields: Iterable,
@@ -52,7 +52,7 @@ class FlatStruct(SimpleDataWrapper, SchemaInterface):
         self._caption = caption or ''
         super().__init__(name=name, data=list())
         for field_or_group in fields:
-            if isinstance(field_or_group, SchemaInterface):  # FieldGroup
+            if isinstance(field_or_group, StructInterface):  # FieldGroup
                 self.add_fields(field_or_group.get_fields_descriptions(), default_type=default_type, inplace=True)
             elif isinstance(field_or_group, list):  # not tuple (tuple can be old-style FieldDescription
                 self.add_fields(*field_or_group, default_type=default_type, inplace=True)
@@ -100,7 +100,7 @@ class FlatStruct(SimpleDataWrapper, SchemaInterface):
             before: bool = False,
             inplace: bool = True,
             add_group_props: bool = True,
-    ) -> Optional[SchemaInterface]:
+    ) -> Optional[StructInterface]:
         if self._is_field(field):
             field_desc = field
         elif isinstance(field, str):
@@ -127,8 +127,8 @@ class FlatStruct(SimpleDataWrapper, SchemaInterface):
             field_or_group: Union[Field, Group],
             default_type: Optional[Type] = None,
             inplace: bool = False,
-    ) -> Optional[SchemaInterface]:
-        if isinstance(field_or_group, SchemaInterface):
+    ) -> Optional[StructInterface]:
+        if isinstance(field_or_group, StructInterface):
             return self.add_fields(*field_or_group.get_fields_descriptions(), default_type, inplace=inplace)
         elif isinstance(field_or_group, Iterable) and not isinstance(field_or_group, str):
             return self.add_fields(*field_or_group, default_type=default_type, inplace=inplace)
@@ -141,7 +141,7 @@ class FlatStruct(SimpleDataWrapper, SchemaInterface):
             default_type: Optional[Type] = None,
             inplace: bool = False,
             name: StructName = None,
-    ) -> Optional[SchemaInterface]:
+    ) -> Optional[StructInterface]:
         fields = arg.update(fields)
         if inplace:
             for f in fields:
@@ -185,12 +185,15 @@ class FlatStruct(SimpleDataWrapper, SchemaInterface):
         str_fields_count = ' + '.join(['{} {}'.format(c, t) for c, t in zip(types, types_count)])
         return '{} total = {} + {} other'.format(total_count, str_fields_count, other_count)
 
-    def get_schema_str(self, dialect: Dialect = 'py') -> str:
+    def get_struct_str(self, dialect: Dialect = 'py') -> str:
         if dialect is not None and dialect not in di.DIALECTS:
             dialect = di.get_dialect_for_connector(dialect)
         template = '{}: {}' if dialect in ('str', 'py') else '{} {}'
         field_strings = [template.format(c.get_name(), c.get_type_in(dialect)) for c in self.get_fields()]
         return ', '.join(field_strings)
+
+    def get_schema_str(self, dialect: Dialect = 'py') -> str:
+        return self.get_struct_str(dialect=dialect)
 
     def get_columns(self) -> list:
         return [c.get_name() for c in self.get_fields()]
@@ -203,21 +206,21 @@ class FlatStruct(SimpleDataWrapper, SchemaInterface):
             dict_field_types: Optional[dict] = None,
             inplace: bool = True,
             **kwargs
-    ) -> Optional[SchemaInterface]:
+    ) -> Optional[StructInterface]:
         if inplace:
             self.types(dict_field_types=dict_field_types, **kwargs)
         else:
             copy = self.copy().types(dict_field_types=dict_field_types, **kwargs)
             return copy
 
-    def types(self, dict_field_types: Optional[dict] = None, **kwargs) -> SchemaInterface:
+    def types(self, dict_field_types: Optional[dict] = None, **kwargs) -> StructInterface:
         for field_name, field_type in list((dict_field_types or {}).items()) + list(kwargs.items()):
             field = self.get_field_description(field_name)
             assert hasattr(field, 'set_type'), 'Expected SimpleField or FieldDescription, got {}'.format(field)
             field.set_type(FieldType.detect_by_type(field_type), inplace=True)
         return self
 
-    def common_type(self, field_type: Union[FieldType, type]) -> SchemaInterface:
+    def common_type(self, field_type: Union[FieldType, type]) -> StructInterface:
         for f in self.get_fields_descriptions():
             assert isinstance(f, FieldInterface)
             f.set_type(field_type, inplace=True)
@@ -353,10 +356,10 @@ class FlatStruct(SimpleDataWrapper, SchemaInterface):
             return self.describe()
 
     def __repr__(self):
-        return self.get_schema_str(None)
+        return self.get_struct_str(None)
 
     def __str__(self):
-        return '<{}({})>'.format(self.__class__.__name__, self.get_schema_str('str'))
+        return '<{}({})>'.format(self.__class__.__name__, self.get_struct_str('str'))
 
     def __iter__(self):
         yield from self.get_fields_descriptions()
@@ -372,10 +375,10 @@ class FlatStruct(SimpleDataWrapper, SchemaInterface):
                     return f
             raise ValueError('Field with name {} not found (in group {})'.format(item, self))
 
-    def __add__(self, other: Union[FieldInterface, SchemaInterface, Name]) -> SchemaInterface:
+    def __add__(self, other: Union[FieldInterface, StructInterface, Name]) -> StructInterface:
         if isinstance(other, (str, int, FieldInterface)):
             return self.append_field(other, inplace=False)
-        elif isinstance(other, (SchemaInterface, Iterable)):
+        elif isinstance(other, (StructInterface, Iterable)):
             return self.append(other, inplace=False).set_name(None, inplace=False)
         else:
-            raise TypeError('Expected other as field or schema, got {} as {}'.format(other, type(other)))
+            raise TypeError('Expected other as field or struct, got {} as {}'.format(other, type(other)))

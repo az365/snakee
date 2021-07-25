@@ -101,7 +101,7 @@ class StreamBuilder:
             return ItemType.Record
         elif isinstance(item, (list, tuple)):
             return ItemType.Row
-        elif hasattr(item, 'get_schema'):
+        elif hasattr(item, 'get_struct'):
             return ItemType.SchemaRow
         else:
             return ItemType.Any

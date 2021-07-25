@@ -1,4 +1,4 @@
-from typing import Optional, Callable, Iterable, Iterator, Generator, Union, Any, NoReturn
+from typing import Optional, Callable, Union, Any
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
@@ -15,8 +15,8 @@ try:  # Assume we're a sub-module in a package.
     from base.interfaces.data_interface import ContextualDataInterface  # inherits SimpleData, Contextual
     from base.interfaces.tree_interface import TreeInterface  # inherits ContextualData
     from fields.field_interface import FieldInterface  # inherits SimpleData
-    from fields.schema_interface import SchemaInterface  # ROOT
-    from items.struct_row_interface import StructRowInterface  # inherits SimpleData; uses SchemaInterface
+    from items.struct_interface import StructInterface  # ROOT
+    from items.struct_row_interface import StructRowInterface  # inherits SimpleData; uses StructInterface
     from loggers.extended_logger_interface import LoggerInterface  # ROOT
     from loggers.extended_logger_interface import ExtendedLoggerInterface  # inherits Sourced, Logger; uses Base
     from loggers.selection_logger_interface import SelectionLoggerInterface  # inherits Extended, uses DetailedMessage
@@ -40,8 +40,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .base.interfaces.data_interface import ContextualDataInterface  # inherits SimpleData, Contextual
     from .base.interfaces.tree_interface import TreeInterface  # inherits ContextualData
     from .fields.field_interface import FieldInterface  # inherits SimpleData
-    from .fields.schema_interface import SchemaInterface  # ROOT
-    from .items.struct_row_interface import StructRowInterface  # inherits SimpleData; uses SchemaInterface
+    from .items.struct_interface import StructInterface  # ROOT
+    from .items.struct_row_interface import StructRowInterface  # inherits SimpleData; uses StructInterface
     from .loggers.extended_logger_interface import LoggerInterface  # ROOT
     from .loggers.extended_logger_interface import ExtendedLoggerInterface  # inherits Sourced, Logger; uses Base
     from .loggers.selection_logger_interface import SelectionLoggerInterface  # inherits Extended, uses DetailedMessage
@@ -92,7 +92,8 @@ LineStream = RegularStream
 RowStream = RegularStream
 RecordStream = RegularStream
 KeyValueStream = RegularStream
-SchemaStream = RegularStream
+StructStream = RegularStream
+SchemaStream = StructStream
 
 Source = Union[ConnectorInterface, arg.Auto, None]
 Connector = Optional[ConnectorInterface]
@@ -107,7 +108,7 @@ AutoCount = Union[Auto, Count]
 AutoBool = Union[arg.Auto, bool]
 AutoContext = Union[Auto, Context]
 AutoConnector = Union[arg.Auto, Connector]
-UniKey = Union[SchemaInterface, Array, AutoName, Callable]
+UniKey = Union[StructInterface, Array, AutoName, Callable]
 
 AUTO = arg.AUTO
 ARRAY_TYPES = list, tuple

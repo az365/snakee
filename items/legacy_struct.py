@@ -2,7 +2,7 @@ from typing import Optional, Union, Iterable
 
 try:  # Assume we're a sub-module in a package.
     from interfaces import (
-        SchemaInterface, FieldInterface,
+        StructInterface, FieldInterface,
         Field, Name, FieldType, Array, ARRAY_TYPES,
     )
     from utils import arguments as arg
@@ -11,7 +11,7 @@ try:  # Assume we're a sub-module in a package.
     from connectors.databases import dialect as di
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..interfaces import (
-        SchemaInterface, FieldInterface,
+        StructInterface, FieldInterface,
         Field, Name, FieldType, Array, ARRAY_TYPES,
     )
     from ..utils import arguments as arg
@@ -20,7 +20,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..connectors.databases import dialect as di
 
 
-class LegacyStruct(SchemaInterface):
+class LegacyStruct(StructInterface):
     FieldClass = None
 
     @deprecated_with_alternative('fields.FieldGroup')
@@ -60,7 +60,7 @@ class LegacyStruct(SchemaInterface):
             return LegacyStruct(fields)
 
     def append(self, field_or_group, default_type=None, inplace=None):
-        if isinstance(field_or_group, SchemaInterface):
+        if isinstance(field_or_group, StructInterface):
             return self.add_fields(field_or_group.get_fields_descriptions(), default_type=default_type, inplace=inplace)
         elif isinstance(field_or_group, Iterable):
             return self.add_fields(field_or_group, default_type=default_type, inplace=inplace)
@@ -105,31 +105,38 @@ class LegacyStruct(SchemaInterface):
         return field_type
 
     @classmethod
-    def detect_schema_by_title_row(cls, title_row: Iterable) -> SchemaInterface:
+    def detect_struct_by_title_row(cls, title_row: Iterable) -> StructInterface:
         FieldClass = cls.FieldClass
-        schema = LegacyStruct([])
+        struct = LegacyStruct([])
         for name in title_row:
             field_type = cls._detect_field_type_by_name(name)
-            schema.append_field(
+            struct.append_field(
                 FieldClass(name, field_type)
             )
-        return schema
+        return struct
+
+    @classmethod
+    def detect_schema_by_title_row(cls, title_row: Iterable) -> StructInterface:
+        return cls.detect_struct_by_title_row(title_row=title_row)
 
     def get_fields_count(self):
         return len(self.fields_descriptions)
 
-    def get_schema_str(self, dialect='py'):
+    def get_struct_str(self, dialect='py'):
         if dialect is not None and dialect not in di.DIALECTS:
             dialect = di.get_dialect_for_connector(dialect)
         template = '{}: {}' if dialect in ('str', 'py') else '{} {}'
         field_strings = [template.format(c.get_name(), c.get_type_in(dialect)) for c in self.get_fields()]
         return ', '.join(field_strings)
 
+    def get_schema_str(self, dialect='py'):
+        return self.get_struct_str(dialect=dialect)
+
     def __repr__(self):
-        return '[{}]'.format(self.get_schema_str())
+        return '[{}]'.format(self.get_struct_str())
 
     def __str__(self):
-        return '<{}({})>'.format(self.__class__.__name__, self.get_schema_str())
+        return '<{}({})>'.format(self.__class__.__name__, self.get_struct_str())
 
     def get_columns(self):
         return [c.get_name() for c in self.fields_descriptions]
@@ -157,7 +164,7 @@ class LegacyStruct(SchemaInterface):
             except IndexError:
                 pass
             if not skip_errors:
-                raise IndexError('There is no field {} in schema: {}'.format(field, self.get_schema_str()))
+                raise IndexError('There is no field {} in struct: {}'.format(field, self.get_struct_str()))
 
     def get_fields_positions(self, names: Array):
         columns = self.get_columns()
@@ -194,13 +201,13 @@ class LegacyStruct(SchemaInterface):
     def __iter__(self):
         yield from self.get_fields_descriptions()
 
-    def __add__(self, other: Union[FieldInterface, SchemaInterface, str]) -> SchemaInterface:
+    def __add__(self, other: Union[FieldInterface, StructInterface, str]) -> StructInterface:
         if isinstance(other, (str, int, FieldInterface)):
             return self.append_field(other, inplace=False)
-        elif isinstance(other, (SchemaInterface, Iterable)):
+        elif isinstance(other, (StructInterface, Iterable)):
             return self.append(other, inplace=False).set_name(None, inplace=False)
         else:
-            raise TypeError('Expected other as field or schema, got {} as {}'.format(other, type(other)))
+            raise TypeError('Expected other as field or struct, got {} as {}'.format(other, type(other)))
 
 
 SchemaDescription = LegacyStruct

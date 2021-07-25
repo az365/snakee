@@ -1,13 +1,13 @@
 from typing import Optional, Union, Iterable, Any
 
 try:  # Assume we're a sub-module in a package.
-    from interfaces import SchemaInterface, StructRowInterface, Row, Name, Field, FieldInterface
+    from interfaces import StructInterface, StructRowInterface, Row, Name, Field, FieldInterface
     from base.abstract.simple_data import SimpleDataWrapper
     from connectors.databases import dialect as di
     from items.flat_struct import FlatStruct
     from items.legacy_struct import LegacyStruct
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..interfaces import SchemaInterface, StructRowInterface, Row, Name, Field, FieldInterface
+    from ..interfaces import StructInterface, StructRowInterface, Row, Name, Field, FieldInterface
     from ..base.abstract.simple_data import SimpleDataWrapper
     from ..connectors.databases import dialect as di
     from .flat_struct import FlatStruct
@@ -18,10 +18,10 @@ class StructRow(SimpleDataWrapper, StructRowInterface):
     def __init__(
             self,
             data: Row,
-            struct: Union[Row, SchemaInterface],
+            struct: Union[Row, StructInterface],
             check=True,
     ):
-        if not isinstance(struct, SchemaInterface):
+        if not isinstance(struct, StructInterface):
             struct = FlatStruct(struct)
         self._struct = struct
         if check:
@@ -31,7 +31,7 @@ class StructRow(SimpleDataWrapper, StructRowInterface):
     def get_struct(self) -> FlatStruct:
         return self._struct
 
-    def get_schema(self) -> FlatStruct:
+    def get_struct(self) -> FlatStruct:
         return self.get_struct()
 
     def get_fields_descriptions(self) -> Iterable:
@@ -41,18 +41,18 @@ class StructRow(SimpleDataWrapper, StructRowInterface):
         return super().get_data()
 
     @staticmethod
-    def _structure_row(row: Row, struct: SchemaInterface) -> Row:
+    def _structure_row(row: Row, struct: StructInterface) -> Row:
         assert isinstance(row, (list, tuple)), 'Row must be list or tuple (got {})'.format(type(row))
         expected_len = astruct.get_fields_count()
         row_len = len(row)
         assert row_len == expected_len, 'count of cells must match the struct ({} != {})'.format(row_len, expected_len)
-        structurized_fields = list()
+        structured_fields = list()
         for value, desc in zip(row, struct.get_fields_descriptions()):
             if not desc.check_value(value):
                 converter = desc.get_converter('str', 'py')
                 value = converter(value)
-            structurized_fields.append(value)
-        return structurized_fields
+            structured_fields.append(value)
+        return structured_fields
 
     def set_data(self, row: Row, check: bool = True, inplace: bool = True) -> Optional[StructRowInterface]:
         if check:

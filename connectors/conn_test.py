@@ -47,7 +47,7 @@ def test_take_credentials_from_file():
 def test_job():
     cx = SnakeeContext()
     src = cx.get_job_folder().file('test_file_tmp.tsv')
-    dst = cx.get_job_folder().file('test_dst_tmp.tsv', schema=src.get_schema())
+    dst = cx.get_job_folder().file('test_dst_tmp.tsv', struct=src.get_struct())
     job = cx.ct.Job('test_job')
     op_name = 'test_operation'
     operation = cx.ct.TwinSync(name=op_name, src=src, dst=dst, procedure=lambda s: s)

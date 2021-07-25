@@ -21,7 +21,7 @@ Item = ae.Item
 Name = ae.Name
 Field = ae.Field
 Value = ae.Value
-Schema = ae.FieldList
+Struct = ae.FieldList
 Array = ae.Array
 
 
@@ -48,9 +48,9 @@ class TrivialDescription(ae.SingleFieldDescription):
             skip_errors=self.must_skip_errors(), logger=self.get_logger(), default=self.get_default_value(),
         )
 
-    def get_output_field_types(self, schema: Schema) -> list:
+    def get_output_field_types(self, struct: Struct) -> list:
         field_name = self.get_target_field_name()
-        return [schema.get_field_description(field_name).get_type()]
+        return [struct.get_field_description(field_name).get_type()]
 
 
 class AliasDescription(ae.SingleFieldDescription):
@@ -86,8 +86,8 @@ class AliasDescription(ae.SingleFieldDescription):
             skip_errors=self.must_skip_errors(), logger=self.get_logger(), default=self.get_default_value(),
         )
 
-    def get_output_field_types(self, schema) -> list:
-        return [schema.get_field_description(f).get_type() for f in self.get_input_field_names()]
+    def get_output_field_types(self, struct) -> list:
+        return [struct.get_field_description(f).get_type() for f in self.get_input_field_names()]
 
 
 class RegularDescription(ae.SingleFieldDescription):
@@ -119,7 +119,7 @@ class RegularDescription(ae.SingleFieldDescription):
     def get_input_field_names(self) -> Iterable:
         return self._inputs
 
-    def get_output_field_types(self, schema) -> list:
+    def get_output_field_types(self, struct) -> list:
         return [self.get_return_type()]
 
     def get_value_from_item(self, item: Item) -> Value:
@@ -155,7 +155,7 @@ class FunctionDescription(ae.SingleFieldDescription):
     def get_return_type(self) -> Optional[type]:
         return self.get_annotations().get('return')
 
-    def get_output_field_types(self, schema) -> list:
+    def get_output_field_types(self, struct) -> list:
         return [self.get_return_type()]
 
     def get_input_field_names(self) -> list:

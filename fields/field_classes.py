@@ -2,7 +2,7 @@ from typing import Optional, Union, Any
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
-    from interfaces import SchemaInterface, FieldInterface, SelectionLoggerInterface, Auto, AUTO
+    from interfaces import StructInterface, FieldInterface, SelectionLoggerInterface, Auto, AUTO
     from connectors.databases import dialect as di
     from fields.field_type import FieldType
     from items.flat_struct import FlatStruct
@@ -12,7 +12,7 @@ try:  # Assume we're a sub-module in a package.
     from selection import concrete_expression as ce
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
-    from ..interfaces import SchemaInterface, FieldInterface, SelectionLoggerInterface, Auto, AUTO
+    from ..interfaces import StructInterface, FieldInterface, SelectionLoggerInterface, Auto, AUTO
     from ..connectors.databases import dialect as di
     from .field_type import FieldType
     from ..items.flat_struct import FlatStruct
@@ -53,5 +53,5 @@ def struct(
     return FlatStruct(fields, name=name, caption=caption, default_type=default_type, **kwargs)
 
 
-def group(*args, **kwargs) -> FlatStruct:
-    return FlatStruct(*args, **kwargs)
+def group(*fields, **kwargs) -> FlatStruct:
+    return FlatStruct(fields, **kwargs)
