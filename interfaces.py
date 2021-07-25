@@ -57,14 +57,14 @@ try:  # Assume we're a sub-module in a package.
     from streams.stream_type import StreamType  # inherits ClassType(DynamicEnum)
     # from connectors.filesystem.file_type import FileType  # inherits ClassType; uses TextFile, ColumnFile, ...
     from fields.field_type import FieldType  # inherits DynamicEnum
-    from items.base_item_type import ItemType  # inherits SubclassesType(ClassType)
+    from items.item_type import ItemType  # inherits SubclassesType(ClassType)
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from .loggers.extended_logger_interface import LoggingLevel  # standard Enum
     from .loggers.progress_interface import OperationStatus  # standard Enum
     from .streams.stream_type import StreamType  # inherits ClassType(DynamicEnum)
     # from .connectors.filesystem.file_type import FileType  # inherits ClassType; uses TextFile, ColumnFile, ...
     from .fields.field_type import FieldType  # inherits DynamicEnum
-    from .items.base_item_type import ItemType  # inherits SubclassesType(ClassType)
+    from .items.item_type import ItemType  # inherits SubclassesType(ClassType)
 
 Auto = arg.Auto
 Name = Union[str, int]

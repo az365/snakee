@@ -6,7 +6,7 @@ try:  # Assume we're a sub-module in a package.
         items as it,
         selection as sf,
     )
-    from items.base_item_type import ItemType
+    from items.item_type import ItemType
     from selection import abstract_expression as ae
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import (
@@ -14,7 +14,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         items as it,
         selection as sf,
     )
-    from ..items.base_item_type import ItemType
+    from ..items.item_type import ItemType
     from . import abstract_expression as ae
 
 Item = ae.Item

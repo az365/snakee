@@ -6,7 +6,7 @@ import gzip as gz
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
-    from items import base_item_type as it
+    from items import item_type as it
     from base.interfaces.context_interface import ContextInterface
     from connectors.abstract.connector_interface import ConnectorInterface
     from connectors.abstract.leaf_connector import LeafConnector
@@ -15,7 +15,7 @@ try:  # Assume we're a sub-module in a package.
     from streams import stream_classes as sm
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
-    from ...items import base_item_type as it
+    from ...items import item_type as it
     from ...base.interfaces.context_interface import ContextInterface
     from ..abstract.connector_interface import ConnectorInterface
     from ..abstract.leaf_connector import LeafConnector

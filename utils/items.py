@@ -2,12 +2,12 @@ from typing import Iterable, Union, Any, NoReturn
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
-    from items.base_item_type import ItemType
+    from items.item_type import ItemType
     from items.struct_row_interface import StructRowInterface
     from items import legacy_classes as sc
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from . import arguments as arg
-    from ..items.base_item_type import ItemType
+    from ..items.item_type import ItemType
     from ..items.struct_row_interface import StructRowInterface
     from ..items import legacy_classes as sc
 
@@ -31,7 +31,7 @@ ItemType.set_dict_classes(
         ItemType.Line: [Line],
         ItemType.Row: [*ROW_SUBCLASSES],
         ItemType.Record: [Record],
-        ItemType.SchemaRow: [sc.StructRow, StructRowInterface],
+        ItemType.StructRow: [sc.StructRow, StructRowInterface],
     }
 )
 
@@ -50,7 +50,7 @@ def set_to_item_inplace(field, value, item: SelectableItem, item_type=ItemType.A
         if field >= cols_count:
             item += [None] * (field - cols_count + 1)
         item[field] = value
-    elif item_type == ItemType.SchemaRow:
+    elif item_type == ItemType.StructRow:
         item.set_value(field, value)
     else:  # item_type == 'any' or not item_type:
         raise TypeError('type {} not supported'.format(item_type))
@@ -62,7 +62,7 @@ def get_fields_names_from_item(item: SelectableItem, item_type=ItemType.Auto) ->
         return list(range(len(item)))
     elif item_type == ItemType.Record:
         return item.keys()
-    elif item_type == ItemType.SchemaRow:
+    elif item_type == ItemType.StructRow:
         return item.get_columns()
     else:
         raise TypeError('type {} not supported'.format(item_type))
@@ -124,7 +124,7 @@ def simple_select_fields(fields: Array, item: SelectableItem, item_type=ItemType
         return {f: item.get(f) for f in fields}
     elif item_type == ItemType.Row:
         return [item[f] for f in fields]
-    elif item_type == ItemType.SchemaRow:
+    elif item_type == ItemType.StructRow:
         return item.simple_select_fields(fields)
 
 

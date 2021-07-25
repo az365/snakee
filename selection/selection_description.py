@@ -7,6 +7,7 @@ try:  # Assume we're a sub-module in a package.
         ItemType, Item, Row, Record, Field, Name, Array, ARRAY_TYPES,
         AUTO, Auto
     )
+    from items.flat_struct import FlatStruct
     from selection import selection_classes as sn
     from items import legacy_classes as sh
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -16,7 +17,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         ItemType, Item, Row, Record, Field, Name, Array, ARRAY_TYPES,
         AUTO, Auto
     )
-    from ..items.base_item_type import ItemType
+    from ..items.flat_struct import FlatStruct
+    from ..items.item_type import ItemType
     from ..items.struct_row_interface import StructRowInterface
     from items.struct_interface import StructInterface
     from ..loggers.logger_interface import LoggerInterface
@@ -156,7 +158,7 @@ class SelectionDescription:
 
     def get_output_struct(self) -> Struct:
         assert self.get_input_struct()
-        return sh.SchemaDescription(
+        return FlatStruct(
             self.get_output_field_descriptions(
                 self.get_input_struct(),
             ),

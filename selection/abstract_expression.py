@@ -7,7 +7,7 @@ try:  # Assume we're a sub-module in a package.
         items as it,
         selection as sf,
     )
-    from items.base_item_type import ItemType
+    from items.item_type import ItemType
     from items.struct_row_interface import StructRowInterface
     from fields.abstract_field import AbstractField
     from items.struct_interface import StructInterface
@@ -18,7 +18,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         items as it,
         selection as sf,
     )
-    from ..items.base_item_type import ItemType
+    from ..items.item_type import ItemType
     from ..items.struct_row_interface import StructRowInterface
     from ..fields.abstract_field import AbstractField
     from items.struct_interface import StructInterface

@@ -2,7 +2,7 @@ from typing import Optional, Union, Iterable, Callable, Any
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
-    from items.base_item_type import ItemType
+    from items.item_type import ItemType
     from fields.field_type import FieldType
     from items.struct_interface import StructInterface
     from fields.abstract_field import AbstractField
@@ -12,7 +12,7 @@ try:  # Assume we're a sub-module in a package.
     from loggers.selection_logger_interface import SelectionLoggerInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
-    from ..items.base_item_type import ItemType
+    from ..items.item_type import ItemType
     from .field_type import FieldType
     from ..items.struct_interface import StructInterface
     from .abstract_field import AbstractField
