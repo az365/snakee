@@ -2,57 +2,38 @@ from typing import Union, Iterable, Callable, Optional
 from inspect import isclass
 
 try:  # Assume we're a sub-module in a package.
-    from utils import (
-        arguments as arg,
-        items as it,
-        selection as sf,
+    from utils import arguments as arg, items as it, selection as sf
+    from interfaces import (
+        Stream, LocalStream, RegularStream, Context, Connector, TmpFiles,
+        StreamType, ItemType,
+        AUTO, Auto, Name, Count, Source, Array, ARRAY_TYPES, OptionalFields,
     )
-    from items.item_type import ItemType
-    from streams.stream_type import StreamType
     from streams import stream_classes as sm
     from selection import selection_classes as sn
-    from connectors.abstract.connector_interface import ConnectorInterface
-    from base.interfaces.context_interface import ContextInterface
-    from connectors.filesystem.temporary_interface import TemporaryFilesMaskInterface
     from utils.decorators import deprecated_with_alternative
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import (
-        arguments as arg,
-        items as it,
-        selection as sf,
+    from ...utils import arguments as arg, items as it, selection as sf
+    from ...interfaces import (
+        Stream, LocalStream, RegularStream, Context, Connector, TmpFiles,
+        StreamType, ItemType,
+        AUTO, Auto, Name, Count, Source, Array, ARRAY_TYPES, OptionalFields,
     )
-    from ...items.item_type import ItemType
-    from ..stream_type import StreamType
     from .. import stream_classes as sm
     from ...selection import selection_classes as sn
-    from ...connectors.abstract.connector_interface import ConnectorInterface
-    from ...base.interfaces.context_interface import ContextInterface
-    from ...connectors.filesystem.temporary_interface import TemporaryFilesMaskInterface
     from ...utils.decorators import deprecated_with_alternative
 
-OptionalFields = Optional[Union[str, Iterable]]
-OptStreamType = Union[StreamType]
-Stream = sm.StreamInterface
-Native = sm.RegularStreamInterface
-Data = Union[Iterable, arg.Auto]
-Name = Union[str, arg.Auto]
-Count = Union[int, arg.Auto]
-Context = Optional[ContextInterface]
-Source = Optional[ConnectorInterface]
-TmpMask = Union[TemporaryFilesMaskInterface, arg.Auto]
+Native = Union[LocalStream, RegularStream]
+
+AutoStreamType = Union[Auto, StreamType]
+Data = Union[Auto, Iterable]
 
 
-class AnyStream(sm.LocalStream, sm.ConvertMixin, sm.RegularStreamInterface):
+class AnyStream(sm.LocalStream, sm.ConvertMixin, RegularStream):
     def __init__(
-            self,
-            data,
-            name: Name = arg.AUTO,
-            count: Optional[int] = None,
-            less_than: Optional[int] = None,
-            source: Source = None,
-            context: Context = None,
-            max_items_in_memory: Count = arg.AUTO,
-            tmp_files: TmpMask = arg.AUTO,
+            self, data, name: Name = AUTO,
+            count: Count = None, less_than: Count = None,
+            source: Source = None, context: Context = None,
+            max_items_in_memory: Count = AUTO, tmp_files: TmpFiles = AUTO,
             check: bool = False,
     ):
         super().__init__(
@@ -64,8 +45,8 @@ class AnyStream(sm.LocalStream, sm.ConvertMixin, sm.RegularStreamInterface):
         )
 
     @staticmethod
-    def get_item_type() -> it.ItemType:
-        return it.ItemType.Any
+    def get_item_type() -> ItemType:
+        return ItemType.Any
 
     def get_columns(self) -> Optional[Iterable]:
         return None
@@ -82,19 +63,19 @@ class AnyStream(sm.LocalStream, sm.ConvertMixin, sm.RegularStreamInterface):
         stream = super().filter(filter_function)
         return self._assume_native(stream)
 
-    def select(self, *columns, use_extended_method: bool = True, **expressions) -> Stream:
+    def select(self, *columns, use_extended_method: bool = True, **expressions) -> Native:
         if columns and not expressions:
-            target_stream_type = sm.StreamType.RowStream
-            target_item_type = it.ItemType.Row
-            input_item_type = it.ItemType.Any
+            target_stream_type = StreamType.RowStream
+            target_item_type = ItemType.Row
+            input_item_type = ItemType.Any
         elif expressions and not columns:
-            target_stream_type = sm.StreamType.RecordStream
-            target_item_type = it.ItemType.Record
-            input_item_type = it.ItemType.Any
+            target_stream_type = StreamType.RecordStream
+            target_item_type = ItemType.Record
+            input_item_type = ItemType.Any
         else:
-            target_stream_type = sm.StreamType.AnyStream
-            target_item_type = it.ItemType.Auto
-            input_item_type = it.ItemType.Auto
+            target_stream_type = StreamType.AnyStream
+            target_item_type = ItemType.Auto
+            input_item_type = ItemType.Auto
         if use_extended_method:
             selection_method = sn.select
         else:
@@ -109,11 +90,11 @@ class AnyStream(sm.LocalStream, sm.ConvertMixin, sm.RegularStreamInterface):
             stream_type=target_stream_type,
         )
 
-    def map_to_type(self, function: Callable, stream_type: OptStreamType = arg.AUTO) -> Native:
+    def map_to_type(self, function: Callable, stream_type: AutoStreamType = AUTO) -> Native:
         stream = super().map_to(function=function, stream_type=stream_type)
         return self._assume_native(stream)
 
-    def map(self, function: Callable, to: OptStreamType = arg.AUTO) -> Native:
+    def map(self, function: Callable, to: AutoStreamType = AUTO) -> Native:
         if arg.is_defined(to):
             self.get_logger().warning('to-argument for map() is deprecated, use map_to() instead')
             stream = super().map_to(function, stream_type=to)
@@ -121,7 +102,7 @@ class AnyStream(sm.LocalStream, sm.ConvertMixin, sm.RegularStreamInterface):
             stream = super().map(function)
         return self._assume_native(stream)
 
-    def flat_map(self, function: Callable, to: OptStreamType = arg.AUTO) -> Stream:
+    def flat_map(self, function: Callable, to: AutoStreamType = AUTO) -> Stream:
         def get_items():
             for i in self.get_iter():
                 yield from function(i)
@@ -146,7 +127,7 @@ class AnyStream(sm.LocalStream, sm.ConvertMixin, sm.RegularStreamInterface):
             function: Callable,
             *args,
             dynamic: bool = True,
-            stream_type: OptStreamType = arg.AUTO,
+            stream_type: AutoStreamType = AUTO,
             **kwargs
     ) -> Stream:
         return self.stream(
@@ -175,8 +156,8 @@ class AnyStream(sm.LocalStream, sm.ConvertMixin, sm.RegularStreamInterface):
 
     def to_stream(
             self,
-            data: Data = arg.AUTO,
-            stream_type: OptStreamType = arg.AUTO,
+            data: Data = AUTO,
+            stream_type: AutoStreamType = AUTO,
             ex: OptionalFields = None,
             **kwargs
     ) -> Stream:
@@ -204,7 +185,7 @@ class AnyStream(sm.LocalStream, sm.ConvertMixin, sm.RegularStreamInterface):
             filename,
             encoding=None, gzip=False,
             skip_first_line=False, max_count=None,
-            check=arg.AUTO,
+            check=AUTO,
             verbose=False,
     ) -> Stream:
         return sm.LineStream.from_text_file(
