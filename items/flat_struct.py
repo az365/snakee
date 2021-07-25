@@ -2,7 +2,7 @@ from typing import Optional, Union, Iterable, NoReturn
 
 try:  # Assume we're a sub-module in a package.
     from interfaces import (
-        StructInterface, StructRowInterface, FieldInterface, SelectionLoggerInterface,
+        StructInterface, StructRowInterface, FieldInterface, SelectionLoggerInterface, ExtLogger,
         FieldType,
         AUTO, Auto, Name, Array, ARRAY_TYPES,
     )
@@ -12,10 +12,10 @@ try:  # Assume we're a sub-module in a package.
     from fields.advanced_field import AdvancedField
     from selection.abstract_expression import AbstractDescription
     from connectors.databases import dialect as di
-    from loggers.selection_logger_interface import SelectionLoggerInterface
+    from functions import array_functions as fs
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..interfaces import (
-        StructInterface, StructRowInterface, FieldInterface, SelectionLoggerInterface,
+        StructInterface, StructRowInterface, FieldInterface, SelectionLoggerInterface, ExtLogger,
         FieldType,
         AUTO, Auto, Name, Array, ARRAY_TYPES,
     )
@@ -25,6 +25,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..fields.advanced_field import AdvancedField
     from ..selection.abstract_expression import AbstractDescription
     from ..connectors.databases import dialect as di
+    from ..functions import array_functions as fs
 
 Native = StructInterface
 Group = Union[Native, Iterable]
@@ -46,18 +47,24 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
             fields: Iterable,
             name: StructName = None,
             caption: Optional[str] = None,
-            default_type: Type = arg.DEFAULT,
+            default_type: Type = AUTO,
+            exclude_duplicates: bool = False,
+            reassign_group: bool = False,
     ):
-        name = arg.undefault(name, arg.get_generated_name(prefix='FieldGroup'))
+        name = arg.acquire(name, arg.get_generated_name(prefix='FieldGroup'))
         self._caption = caption or ''
         super().__init__(name=name, data=list())
         for field_or_group in fields:
+            kwargs = dict(
+                default_type=default_type, exclude_duplicates=exclude_duplicates,
+                reassign_group=reassign_group, inplace=True,
+            )
             if isinstance(field_or_group, StructInterface):  # FieldGroup
-                self.add_fields(field_or_group.get_fields_descriptions(), default_type=default_type, inplace=True)
+                self.add_fields(field_or_group.get_fields_descriptions(), **kwargs)
             elif isinstance(field_or_group, list):  # not tuple (tuple can be old-style FieldDescription
-                self.add_fields(*field_or_group, default_type=default_type, inplace=True)
+                self.add_fields(*field_or_group, **kwargs)
             elif field_or_group:
-                self.append_field(field_or_group, default_type=default_type, inplace=True)
+                self.append_field(field_or_group, **kwargs)
 
     @classmethod
     def _get_meta_member_mapping(cls) -> dict:
@@ -80,14 +87,20 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
         return self.set_data(data=fields, inplace=inplace, reset_dynamic_meta=False)
 
     def get_fields(self) -> list:
-        return list(self.get_data())
+        return self.get_data()
 
     def get_field_names(self) -> list:
-        return [f.get_name() for f in self.get_fields()]
+        return arg.get_names(self.get_fields())
 
     def fields(self, fields: Iterable) -> Native:
         self._data = list(fields)
         return self
+
+    def set_field_no(self, no: int, field: Field, inplace: bool) -> NoReturn:
+        if inplace:
+            self.get_data()[no] = field
+        else:
+            raise NotImplementedError
 
     @staticmethod
     def _is_field(field):
@@ -98,9 +111,10 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
             field: Field,
             default_type: FieldType = FieldType.Any,
             before: bool = False,
+            exclude_duplicates: bool = True,
+            reassign_group: bool = False,
             inplace: bool = True,
-            add_group_props: bool = True,
-    ) -> Optional[StructInterface]:
+    ) -> Optional[Native]:
         if self._is_field(field):
             field_desc = field
         elif isinstance(field, str):
@@ -111,45 +125,60 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
             field_desc = AdvancedField(**field)
         else:
             raise TypeError('Expected field, str or dict, got {} as {}'.format(field, type(field)))
-        if add_group_props and hasattr(field_desc, 'get_group_name'):  # isinstance(field_desc, AdvancedField)
-            if not arg.is_defined(field_desc.get_group_name()):
-                field_desc.set_group_name(self.get_name(), inplace=True)
-            if not arg.is_defined(field_desc.get_group_caption()):
-                field_desc.set_group_caption(self.get_caption(), inplace=True)
-        if before:
-            fields = [field_desc] + self.get_fields()
+        if exclude_duplicates and field_desc.get_name() in self.get_field_names():
+            return self
         else:
-            fields = self.get_fields() + [field_desc]
-        return self.set_fields(fields, inplace=inplace)
+            if isinstance(field_desc, AdvancedField):
+                if reassign_group or not arg.is_defined(field_desc.get_group_name()):
+                    field_desc.set_group_name(self.get_name(), inplace=True)
+                    field_desc.set_group_caption(self.get_caption(), inplace=True)
+            if before:
+                fields = [field_desc] + self.get_fields()
+            else:
+                fields = self.get_fields() + [field_desc]
+            return self.set_fields(fields, inplace=inplace)
 
     def append(
             self,
             field_or_group: Union[Field, Group],
             default_type: Optional[Type] = None,
+            exclude_duplicates: bool = True,
+            reassign_group: bool = False,
             inplace: bool = False,
-    ) -> Optional[StructInterface]:
+    ) -> Optional[Native]:
+        kwargs = dict(
+            default_type=default_type, exclude_duplicates=exclude_duplicates,
+            reassign_group=reassign_group, inplace=inplace,
+        )
         if isinstance(field_or_group, StructInterface):
-            return self.add_fields(*field_or_group.get_fields_descriptions(), default_type, inplace=inplace)
+            return self.add_fields(*field_or_group.get_fields_descriptions(), **kwargs)
         elif isinstance(field_or_group, Iterable) and not isinstance(field_or_group, str):
-            return self.add_fields(*field_or_group, default_type=default_type, inplace=inplace)
+            return self.add_fields(*field_or_group, **kwargs)
         else:  # isinstance(field_or_group, Field):
-            return self.append_field(field_or_group, default_type=default_type, inplace=inplace, add_group_props=False)
+            return self.append_field(field_or_group, **kwargs)
 
     def add_fields(
             self,
             *fields,
             default_type: Optional[Type] = None,
-            inplace: bool = False,
+            exclude_duplicates: bool = False,
             name: StructName = None,
-    ) -> Optional[StructInterface]:
+            reassign_group: bool = False,
+            inplace: bool = False,
+    ) -> Optional[Native]:
         fields = arg.update(fields)
         if inplace:
             for f in fields:
-                self.append(f, default_type=default_type, inplace=True)
+                self.append(
+                    f, default_type=default_type,
+                    exclude_duplicates=exclude_duplicates,
+                    reassign_group=reassign_group,
+                    inplace=True,
+                )
         else:
-            return FlatStruct(self.get_fields_descriptions() + list(fields), name=name)
+            return self.make_new(fields=self.get_fields_descriptions() + list(fields), name=name)
 
-    def remove_fields(self, *fields, inplace: bool = True, name: StructName = None):
+    def remove_fields(self, *fields, multiple: bool = False, inplace: bool = True):
         removing_fields = arg.update(fields)
         removing_field_names = arg.get_names(removing_fields)
         existing_fields = self.get_data()
@@ -157,14 +186,19 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
             for e in existing_fields:
                 if arg.get_name(e) in removing_field_names:
                     existing_fields.remove(e)
+                    if not multiple:
+                        break
         else:
             new_fields = [f for f in existing_fields if arg.get_name(f) not in removing_field_names]
-            return FlatStruct(new_fields, name=name)
+            return self.make_new(new_fields)
+
+    def get_column_count(self) -> int:
+        return self.get_fields_count()
 
     def get_fields_count(self) -> int:
         return len(self.get_fields())
 
-    def get_type_count(self, field_type: Type = arg.DEFAULT, by_prefix: bool = True) -> int:
+    def get_type_count(self, field_type: Type = AUTO, by_prefix: bool = True) -> int:
         count = 0
         field_type = FieldType(field_type)
         for f in self.get_fields():
@@ -192,9 +226,6 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
         field_strings = [template.format(c.get_name(), c.get_type_in(dialect)) for c in self.get_fields()]
         return ', '.join(field_strings)
 
-    def get_schema_str(self, dialect: Dialect = 'py') -> str:
-        return self.get_struct_str(dialect=dialect)
-
     def get_columns(self) -> list:
         return [c.get_name() for c in self.get_fields()]
 
@@ -206,21 +237,21 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
             dict_field_types: Optional[dict] = None,
             inplace: bool = True,
             **kwargs
-    ) -> Optional[StructInterface]:
+    ) -> Optional[Native]:
         if inplace:
             self.types(dict_field_types=dict_field_types, **kwargs)
         else:
             copy = self.copy().types(dict_field_types=dict_field_types, **kwargs)
             return copy
 
-    def types(self, dict_field_types: Optional[dict] = None, **kwargs) -> StructInterface:
+    def types(self, dict_field_types: Optional[dict] = None, **kwargs) -> Native:
         for field_name, field_type in list((dict_field_types or {}).items()) + list(kwargs.items()):
             field = self.get_field_description(field_name)
             assert hasattr(field, 'set_type'), 'Expected SimpleField or FieldDescription, got {}'.format(field)
             field.set_type(FieldType.detect_by_type(field_type), inplace=True)
         return self
 
-    def common_type(self, field_type: Union[FieldType, type]) -> StructInterface:
+    def common_type(self, field_type: Union[FieldType, type]) -> Native:
         for f in self.get_fields_descriptions():
             assert isinstance(f, FieldInterface)
             f.set_type(field_type, inplace=True)
@@ -251,109 +282,244 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
     def get_fields_descriptions(self) -> list:
         return self.get_fields()
 
+    def get_invalid_columns(self) -> Iterable:
+        for f in self.get_fields():
+            if hasattr(f, 'is_valid'):
+                if not f.is_valid():
+                    yield f
+
+    def get_invalid_fields_count(self) -> Optional[int]:
+        count = 0
+        for _ in self.get_invalid_columns():
+            count += 1
+        return count
+
+    def is_valid_struct(self) -> bool:
+        for _ in self.get_invalid_columns():
+            return False
+        return True
+
     def is_valid_row(self, row: Union[Iterable, StructRowInterface]) -> bool:
         for value, field_type in zip(row, self.get_types('py')):
             if not isinstance(value, field_type):
                 return False
         return True
 
+    @staticmethod
+    def convert_to_native(other: StructInterface) -> Native:
+        if hasattr(other, 'get_caption'):
+            return other
+        elif isinstance(other, StructInterface):
+            return FlatStruct(other, name='FlatStruct', caption='(unknown struct type)')
+
+    def get_struct_comparison_dict(self, other: StructInterface) -> dict:
+        alias = dict(a_field='added', b_field='removed', ab_field='saved', as_dict=True)
+        return fs.compare_lists(**alias)(other, self)
+
+    def get_struct_comparison_iter(self, other: StructInterface, message: Optional[str] = None) -> Iterable:
+        if arg.is_defined(message):
+            title = '{} {}'.format(self.__repr__(), message)
+        else:
+            title = self.__repr__()
+        comparison = self.get_struct_comparison_dict(other)
+        counts = {k: len(v) for k, v in comparison.items()}
+        added_names = arg.get_names(comparison.get('added'))
+        removed_names = arg.get_names(comparison.get('removed'))
+        if added_names or removed_names:
+            message = '{}: {saved} fields will be saved, {added} added, {removed} removed'.format(title, **counts)
+            yield message
+            if added_names:
+                yield 'Added {} fields: {}'.format(len(added_names), ', '.join(added_names))
+            if removed_names:
+                yield 'Removed {} fields: {}'.format(len(removed_names), ', '.join(removed_names))
+        else:
+            yield '{}: Struct is actual, will not be changed'
+
+    def validate_about(self, standard: StructInterface, ignore_moved: bool = False) -> Native:
+        expected_struct = self.convert_to_native(standard)
+        remaining_struct = expected_struct.copy()
+        assert isinstance(expected_struct, FlatStruct)
+        assert isinstance(remaining_struct, FlatStruct)
+        updated_struct = FlatStruct([])
+        for pos_received, f_received in enumerate(self.get_fields()):
+            assert isinstance(f_received, AdvancedField)
+            f_name = f_received.get_name()
+            if f_name in updated_struct.get_field_names():
+                is_valid = False
+                warning = 'DUPLICATE_IN_DATA' if f_name in remaining_struct.get_field_names() else 'DUPLICATE'
+                f_expected = updated_struct.get_fields_descriptions(f_name)
+                f_updated = f_expected.set_valid(is_valid, inplace=False)
+            elif f_name in expected_struct.get_field_names():
+                is_valid = True
+                pos_expected = expected_struct.get_field_position(f_name)
+                warning = None if pos_received == pos_expected or ignore_moved else 'MOVED'
+                f_expected = expected_struct.get_field_description(f_name)
+                f_updated = f_expected.set_valid(is_valid, inplace=False)
+            else:
+                is_valid = False
+                warning = 'UNEXPECTED'
+                message = 'field has been found in actual struct, but not in expected standard struct'
+                caption = '{} ({})'.format(f_received.get_caption(), message)
+                f_updated = f_received.set_valid(is_valid, inplace=False).set_caption(caption, inpace=False)
+            if warning:
+                caption = '{} ({})'.format(warning, f_updated.get_caption() or '')
+                f_updated = f_updated.set_caption(caption, inplace=False)
+            updated_struct.append_field(f_updated)
+            if f_name in remaining_struct.get_field_names():
+                remaining_struct.remove_fields(f_name, inplace=True)
+
+        for f_remaining in remaining_struct.get_columns():
+            f_name = arg.get_name(f_remaining)
+            is_valid = False,
+            f_expected = expected_struct.get_field_description(f_name)
+            if f_name in updated_struct.get_field_names():
+                warning = 'DUPLICATE_IN_STRUCT'
+            else:
+                warning = 'MISSING_IN_STRUCT'
+            caption = '[{}] {}'.format(warning, f_expected.get_caption() or '')
+            f_updated = f_expected.set_valid(is_valid, inplace=False).set_caption(caption, inplace=False)
+            updated_struct.append_field(f_updated)
+        self.set_fields(updated_struct.get_fields(), inplace=True)
+        return self
+
+    def get_validation_message(self, standard: Union[StructInterface, Auto, None] = arg.DEFAULT) -> str:
+        if arg.is_defined(standard):
+            self.validate_about(standard)
+        if self.is_valid_struct():
+            message = 'struct has {} valid columns:'.format(self.get_column_count())
+        else:
+            valid_count = self.get_column_count() - self.get_invalid_fields_count()
+            message = '[INVALID] struct has {} columns = {} valid + {} invalid:'.format(
+                self.get_column_count(), valid_count, self.get_invalid_fields_count(),
+            )
+        return message
+
+    @staticmethod
+    def get_struct_detected_by_title_row(title_row: Iterable) -> Native:
+        struct = FlatStruct([])
+        for name in title_row:
+            field_type = FieldType.detect_by_name(name)
+            struct.append_field(AdvancedField(name, field_type))
+        return struct
+
     def copy(self):
-        return FlatStruct(name=self.get_name(), fields=self.get_fields())
+        return FlatStruct(name=self.get_name(), fields=list(self.get_fields()))
 
     def simple_select_fields(self, fields: Iterable) -> Group:
         return FlatStruct(
             [self.get_field_description(f) for f in fields]
         )
 
-    def get_fields_tuples(self) -> Iterable[tuple]:  # name, type, caption
+    def get_fields_tuples(self) -> Iterable[tuple]:  # (name, type, caption)
         for f in self.get_fields():
             if isinstance(f, AdvancedField):
                 field_name = f.get_name()
                 field_type_name = f.get_type_name()
                 field_caption = f.get_caption() or ''
+                field_is_valid = str(f.is_valid())
                 group_name = f.get_group_name()
                 group_caption = f.get_group_caption()
             elif isinstance(f, tuple) and len(f) == 2:  # old-style FieldDescription
                 field_name = f[0]
                 field_type_name = FieldType(f[1]).get_name()
+                field_is_valid = '?'
                 field_caption, group_name, group_caption = '', '', ''
             else:
                 field_name = str(f)
                 field_type_name = FieldType.get_default()
-                field_caption, group_name, group_caption = '', '', ''
-            yield field_name, field_type_name, field_caption, group_name, group_caption
+                field_caption, field_is_valid, group_name, group_caption = '', '', '', ''
+            str_field_is_valid = DICT_VALID_SIGN.get(field_is_valid, field_is_valid[0])
+            yield field_name, field_type_name, field_caption, str_field_is_valid, group_name, group_caption
 
-    def get_field_description(self, field_name: Name) -> Union[FieldInterface, AdvancedField]:
+    def get_field_description(self, field_name: Name, skip_missing: bool = False) -> Union[Field, AdvancedField]:
         field_position = self.get_field_position(field_name)
-        assert field_position is not None, 'Field {} not found (existing fields: {})'.format(
-            field_name, self.get_columns(),
-        )
-        return self.get_fields()[field_position]
+        if field_position is not None:
+            return self.get_fields()[field_position]
+        elif not skip_missing:
+            message = 'Field {} not found (existing fields: {})'
+            raise IndexError(message.format(field_name, ', '.join(self.get_field_names())))
 
     def get_struct_description(self, include_header: bool = False) -> Iterable[tuple]:
         group_name = self.get_name()
         group_caption = self.get_caption()
         if include_header:
-            yield (GROUP_NO_STR, GROUP_TYPE_STR, group_name, group_caption)
+            yield (GROUP_NO_STR, GROUP_TYPE_STR, group_name, group_caption, '')
         prev_group_name = group_name
-        for n, (f_name, f_type_name, f_caption, group_name, group_caption) in enumerate(self.get_fields_tuples()):
-            is_new_group = group_name != prev_group_name
-            if is_new_group:
-                yield (GROUP_NO_STR, GROUP_TYPE_STR, group_name, group_caption)
-            yield (n, f_type_name, f_name, f_caption)
+        for n, (
+                f_name, f_type_name, f_caption, f_valid, group_name, group_caption,
+        ) in enumerate(self.get_fields_tuples()):
+            is_next_group = group_name != prev_group_name
+            if is_next_group:
+                yield (GROUP_NO_STR, GROUP_TYPE_STR, group_name, group_caption, '')
+            yield (n, f_type_name, f_name, f_caption, f_valid)
+            prev_group_name = group_name
 
-    def get_group_header(self, name=AUTO, caption=AUTO) -> Iterable[str]:
-        is_title_row = name == arg.DEFAULT
-        name = arg.undefault(name, self.get_name())
-        caption = arg.undefault(caption, self.get_caption())
-        if name:
+    def get_group_header(self, name: Comment = AUTO, caption: Comment = AUTO, comment: Comment = None) -> Iterable[str]:
+        is_title_row = name == arg.AUTO
+        name = arg.acquire(name, self.get_name())
+        caption = arg.acquire(caption, self.get_caption())
+        if arg.is_defined(name):
             yield name
-        if caption:
+        if arg.is_defined(caption):
             yield caption
         if is_title_row:
             yield self.get_str_fields_count()
-        yield ''
+        if arg.is_defined(comment):
+            yield comment
 
     @staticmethod
     def _get_describe_template(example) -> tuple:
         if example:
-            columns = ('N', 'TYPE', 'NAME', 'EXAMPLE', 'CAPTION')
-            template = '    {:<03} {:<8} {:<24} {:<14} {:<64}'
+            columns = ('V', 'N', 'TYPE', 'NAME', 'EXAMPLE', 'CAPTION')
+            template = ' {:<1}  {:<3} {:<8} {:<28} {:<14} {:<56}'
         else:
-            columns = ('N', 'TYPE', 'NAME', 'CAPTION')
-            template = '    {:<3} {:<8} {:<24} {:<80}'
+            columns = ('V', 'N', 'TYPE', 'NAME', 'CAPTION')
+            template = ' {:<1}  {:<3} {:<8} {:<28} {:<72}'
         return columns, template
 
-    def describe(self, separate_by_tabs: bool = False, example: Optional[dict] = None, logger=arg.DEFAULT) -> NoReturn:
-        if arg.is_defined(logger):
-            log = logger.log
+    def describe(
+            self, example: Optional[dict] = None,
+            as_dataframe: bool = False,
+            separate_by_tabs: bool = False,
+            show_header: bool = True,
+            comment: Comment = None,
+            select_fields: Optional[Array] = None,
+            logger: Union[ExtLogger, Auto] = AUTO,
+    ) -> Optional[DataFrame]:
+        log = logger.log if arg.is_defined(logger) else print
+        if show_header:
+            for line in self.get_group_header():
+                log(line)
+            log('')
+        if as_dataframe:
+            return self.show()
         else:
-            log = print
-        for line in self.get_group_header():
-            log(line)
-        columns, template = self._get_describe_template(example)
-        log('\t'.join(columns) if separate_by_tabs else template.format(*columns))
-        for (n, type_name, name, caption) in self.get_struct_description(include_header=False):
-            if type_name == GROUP_TYPE_STR:
-                for line in self.get_group_header(name, caption):
-                    log(line)
-            else:
-                if example:
-                    value = example.get(name)
-                    row = (n, type_name, name, value, caption)
+            columns, template = self._get_describe_template(example)
+            log('\t'.join(columns) if separate_by_tabs else template.format(*columns))
+            for (n, type_name, name, caption, is_valid) in self.get_struct_description(include_header=False):
+                if type_name == GROUP_TYPE_STR:
+                    log('')
+                    for line in self.get_group_header(name, caption=caption):
+                        log(line)
                 else:
-                    row = (n, type_name, name, caption)
-                log('\t'.join(row) if separate_by_tabs else template.format(*row))
+                    if name in (select_fields or []):
+                        is_valid = '>' if is_valid == '.' else str(is_valid).upper()
+                    if example:
+                        value = str(example.get(name))
+                        row = (is_valid, n, type_name, name, value, caption)
+                    else:
+                        row = (is_valid, n, type_name, name, caption)
+                    log('\t'.join(row) if separate_by_tabs else template.format(*row))
 
     def get_dataframe(self) -> DataFrame:
         return DataFrame(self.get_struct_description(include_header=True))
 
     def show(self, as_dataframe: Union[bool, Auto] = AUTO) -> Optional[DataFrame]:
-        as_dataframe = arg.undefault(as_dataframe, get_use_objects_for_output())
+        as_dataframe = arg.acquire(as_dataframe, get_use_objects_for_output())
         if as_dataframe:
             return self.get_dataframe()
         else:
-            return self.describe()
+            return self.describe(as_dataframe=False)
 
     def __repr__(self):
         return self.get_struct_str(None)
@@ -375,10 +541,14 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
                     return f
             raise ValueError('Field with name {} not found (in group {})'.format(item, self))
 
-    def __add__(self, other: Union[FieldInterface, StructInterface, Name]) -> StructInterface:
+    def __add__(self, other: Union[FieldInterface, StructInterface, Name]) -> Native:
         if isinstance(other, (str, int, FieldInterface)):
             return self.append_field(other, inplace=False)
         elif isinstance(other, (StructInterface, Iterable)):
             return self.append(other, inplace=False).set_name(None, inplace=False)
         else:
             raise TypeError('Expected other as field or struct, got {} as {}'.format(other, type(other)))
+
+
+FieldGroup = FlatStruct
+
