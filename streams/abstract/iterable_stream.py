@@ -10,7 +10,7 @@ try:  # Assume we're a sub-module in a package.
         mappers as ms,
         external as ex,
     )
-    from fields.schema_interface import SchemaInterface
+    from items.struct_interface import StructInterface
     from base.interfaces.context_interface import ContextInterface
     from connectors.abstract.connector_interface import ConnectorInterface
     from streams.interfaces.abstract_stream_interface import StreamInterface
@@ -26,7 +26,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         mappers as ms,
         external as ex,
     )
-    from fields.schema_interface import SchemaInterface
+    from items.struct_interface import StructInterface
     from ...base.interfaces.context_interface import ContextInterface
     from ...connectors.abstract.connector_interface import ConnectorInterface
     from ..interfaces.abstract_stream_interface import StreamInterface
@@ -44,7 +44,7 @@ SelectionLogger = log.SelectionLoggerInterface
 Name = Union[str, arg.Auto]
 Count = Union[int, arg.Auto]
 Array = Union[list, tuple]
-Fields = Union[SchemaInterface, Array, Name]
+Fields = Union[StructInterface, Array, Name]
 OptionalFields = Union[Iterable, str, None]
 
 DYNAMIC_META_FIELDS = ('count', 'less_than')

@@ -1,4 +1,4 @@
-from typing import Union, Iterable, Optional
+from typing import Union, Iterable
 import gc
 
 try:  # Assume we're a sub-module in a package.
@@ -7,10 +7,8 @@ try:  # Assume we're a sub-module in a package.
         numeric as nm,
         algo,
     )
-    from items.base_item_type import ItemType
-    from streams.stream_type import StreamType
+    from interfaces import StreamInterface, Stream, StreamType, ItemType, OptionalFields, Auto, AUTO
     from streams import stream_classes as sm
-    from streams.interfaces.abstract_stream_interface import StreamInterface
     from functions import item_functions as fs
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import (
@@ -18,15 +16,12 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         numeric as nm,
         algo,
     )
-    from ..items.base_item_type import ItemType
-    from .stream_type import StreamType
+    from ..interfaces import StreamInterface, Stream, StreamType, ItemType, OptionalFields, Auto, AUTO
     from . import stream_classes as sm
-    from .interfaces.abstract_stream_interface import StreamInterface
     from ..functions import item_functions as fs
 
-Stream = StreamInterface
-OptionalStreamType = Union[StreamType, arg.DefaultArgument]
-OptionalFields = Optional[Union[Iterable, str]]
+
+OptionalStreamType = Union[StreamType, Auto]
 
 
 class StreamBuilder:
@@ -37,7 +32,7 @@ class StreamBuilder:
     def stream(
             cls,
             data: Iterable,
-            stream_type: Union[OptionalStreamType, StreamInterface, arg.DefaultArgument] = arg.DEFAULT,
+            stream_type: Union[OptionalStreamType, StreamInterface, arg.DefaultArgument] = AUTO,
             **kwargs
     ) -> Stream:
         if not arg.is_defined(stream_type):
@@ -102,6 +97,6 @@ class StreamBuilder:
         elif isinstance(item, (list, tuple)):
             return ItemType.Row
         elif hasattr(item, 'get_struct'):
-            return ItemType.SchemaRow
+            return ItemType.StructRow
         else:
             return ItemType.Any

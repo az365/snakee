@@ -10,7 +10,7 @@ try:  # Assume we're a sub-module in a package.
     from functions import all_functions as fs
     from loggers.logger_classes import deprecated_with_alternative
     from selection import selection_classes as sn
-    from items import base_item_type as it
+    from items import item_type as it
     from utils import (
         arguments as arg,
         mappers as ms,
@@ -25,7 +25,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...functions import all_functions as fs
     from ...loggers.logger_classes import deprecated_with_alternative
     from ...selection import selection_classes as sn
-    from ...items import base_item_type as it
+    from ...items import item_type as it
     from ...utils import (
         arguments as arg,
         mappers as ms,

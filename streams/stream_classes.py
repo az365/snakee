@@ -8,13 +8,11 @@ TMP_FILES_ENCODING = 'utf8'
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
-    from items.base_item_type import ItemType
-    from streams.stream_type import StreamType
-    from streams.interfaces.abstract_stream_interface import StreamInterface
-    from streams.interfaces.iterable_stream_interface import IterableStreamInterface
-    from streams.interfaces.local_stream_interface import LocalStreamInterface
-    from streams.interfaces.regular_stream_interface import RegularStreamInterface
-    from streams.interfaces.pair_stream_interface import PairStreamInterface
+    from interfaces import (
+        StreamInterface, IterableStreamInterface, LocalStreamInterface, RegularStreamInterface, PairStreamInterface,
+        ContextInterface, TemporaryLocationInterface, TemporaryFilesMaskInterface,
+        StreamType, ItemType,
+    )
     from streams.abstract.abstract_stream import AbstractStream
     from streams.abstract.iterable_stream import IterableStream
     from streams.abstract.local_stream import LocalStream
@@ -25,25 +23,21 @@ try:  # Assume we're a sub-module in a package.
     from streams.regular.line_stream import LineStream
     from streams.regular.row_stream import RowStream
     from streams.pairs.key_value_stream import KeyValueStream
-    from streams.regular.schema_stream import SchemaStream
+    from streams.regular.struct_stream import StructStream
     from streams.regular.record_stream import RecordStream
     from streams.wrappers.pandas_stream import PandasStream
     from streams.wrappers.sql_stream import SqlStream
     from streams.stream_builder import StreamBuilder
-    from connectors.filesystem.temporary_interface import TemporaryLocationInterface, TemporaryFilesMaskInterface
     from connectors.filesystem.temporary_files import TemporaryLocation
-    from base.interfaces.context_interface import ContextInterface
     from items import legacy_classes as sh
     from utils.decorators import deprecated_with_alternative
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
-    from ..items.base_item_type import ItemType
-    from .stream_type import StreamType
-    from .interfaces.abstract_stream_interface import StreamInterface
-    from .interfaces.iterable_stream_interface import IterableStreamInterface
-    from .interfaces.local_stream_interface import LocalStreamInterface
-    from .interfaces.regular_stream_interface import RegularStreamInterface
-    from .interfaces.pair_stream_interface import PairStreamInterface
+    from ..interfaces import (
+        StreamInterface, IterableStreamInterface, LocalStreamInterface, RegularStreamInterface, PairStreamInterface,
+        ContextInterface, TemporaryLocationInterface, TemporaryFilesMaskInterface,
+        StreamType, ItemType,
+    )
     from .abstract.abstract_stream import AbstractStream
     from .abstract.iterable_stream import IterableStream
     from .abstract.local_stream import LocalStream
@@ -54,22 +48,20 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .regular.line_stream import LineStream
     from .regular.row_stream import RowStream
     from .pairs.key_value_stream import KeyValueStream
-    from .regular.schema_stream import SchemaStream
+    from .regular.struct_stream import StructStream
     from .regular.record_stream import RecordStream
     from .wrappers.pandas_stream import PandasStream
     from .wrappers.sql_stream import SqlStream
     from .stream_builder import StreamBuilder
-    from ..connectors.filesystem.temporary_interface import TemporaryLocationInterface, TemporaryFilesMaskInterface
     from ..connectors.filesystem.temporary_files import TemporaryLocation
-    from ..base.interfaces.context_interface import ContextInterface
-    from ..schema import legacy_classes as sh
+    from ..items import legacy_classes as sh
     from ..utils.decorators import deprecated_with_alternative
 
 STREAM_CLASSES = (
     AbstractStream, IterableStream,
     AnyStream,
     LineStream, RowStream, RecordStream,
-    SchemaStream,
+    StructStream,
     KeyValueStream,
     PandasStream, SqlStream,
 )
@@ -78,7 +70,7 @@ DICT_STREAM_CLASSES = dict(
     LineStream=LineStream,
     RowStream=RowStream,
     KeyValueStream=KeyValueStream,
-    SchemaStream=SchemaStream,
+    StructStream=StructStream,
     RecordStream=RecordStream,
     PandasStream=PandasStream,
     SqlStream=SqlStream,
@@ -101,7 +93,7 @@ DICT_ITEM_TO_STREAM_TYPE = {
     ItemType.Line: StreamType.LineStream,
     ItemType.Record: StreamType.RecordStream,
     ItemType.Row: StreamType.RowStream,
-    ItemType.SchemaRow: StreamType.SchemaStream,
+    ItemType.StructRow: StreamType.StructStream,
 }
 StreamBuilder._dict_classes = DICT_ITEM_TO_STREAM_TYPE
 
@@ -142,7 +134,7 @@ def is_record(item) -> bool:
     return RecordStream.is_valid_item_type(item)
 
 
-def is_schema_row(item) -> bool:
+def is_struct_row(item) -> bool:
     return isinstance(item, sh.StructRow)
 
 

@@ -7,7 +7,7 @@ try:  # Assume we're a sub-module in a package.
         items as it,
         selection as sf,
     )
-    from items.base_item_type import ItemType
+    from items.item_type import ItemType
     from streams.stream_type import StreamType
     from streams import stream_classes as sm
     from selection import selection_classes as sn
@@ -21,7 +21,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         items as it,
         selection as sf,
     )
-    from ...items.base_item_type import ItemType
+    from ...items.item_type import ItemType
     from ..stream_type import StreamType
     from .. import stream_classes as sm
     from ...selection import selection_classes as sn
@@ -34,25 +34,25 @@ OptionalFields = Optional[Union[str, Iterable]]
 OptStreamType = Union[StreamType]
 Stream = sm.StreamInterface
 Native = sm.RegularStreamInterface
-Data = Union[Iterable, arg.DefaultArgument]
-Name = Union[str, arg.DefaultArgument]
-Count = Union[int, arg.DefaultArgument]
+Data = Union[Iterable, arg.Auto]
+Name = Union[str, arg.Auto]
+Count = Union[int, arg.Auto]
 Context = Optional[ContextInterface]
 Source = Optional[ConnectorInterface]
-TmpMask = Union[TemporaryFilesMaskInterface, arg.DefaultArgument]
+TmpMask = Union[TemporaryFilesMaskInterface, arg.Auto]
 
 
 class AnyStream(sm.LocalStream, sm.ConvertMixin, sm.RegularStreamInterface):
     def __init__(
             self,
             data,
-            name: Name = arg.DEFAULT,
+            name: Name = arg.AUTO,
             count: Optional[int] = None,
             less_than: Optional[int] = None,
             source: Source = None,
             context: Context = None,
-            max_items_in_memory: Count = arg.DEFAULT,
-            tmp_files: TmpMask = arg.DEFAULT,
+            max_items_in_memory: Count = arg.AUTO,
+            tmp_files: TmpMask = arg.AUTO,
             check: bool = False,
     ):
         super().__init__(
@@ -69,6 +69,9 @@ class AnyStream(sm.LocalStream, sm.ConvertMixin, sm.RegularStreamInterface):
 
     def get_columns(self) -> Optional[Iterable]:
         return None
+
+    def get_detected_columns(self, count) -> list:
+        return [self.get_item_type().get_value()]
 
     def filter(self, *functions) -> Native:
         def filter_function(item):
@@ -106,11 +109,11 @@ class AnyStream(sm.LocalStream, sm.ConvertMixin, sm.RegularStreamInterface):
             stream_type=target_stream_type,
         )
 
-    def map_to_type(self, function: Callable, stream_type: OptStreamType = arg.DEFAULT) -> Native:
+    def map_to_type(self, function: Callable, stream_type: OptStreamType = arg.AUTO) -> Native:
         stream = super().map_to(function=function, stream_type=stream_type)
         return self._assume_native(stream)
 
-    def map(self, function: Callable, to: OptStreamType = arg.DEFAULT) -> Native:
+    def map(self, function: Callable, to: OptStreamType = arg.AUTO) -> Native:
         if arg.is_defined(to):
             self.get_logger().warning('to-argument for map() is deprecated, use map_to() instead')
             stream = super().map_to(function, stream_type=to)
@@ -118,11 +121,11 @@ class AnyStream(sm.LocalStream, sm.ConvertMixin, sm.RegularStreamInterface):
             stream = super().map(function)
         return self._assume_native(stream)
 
-    def flat_map(self, function: Callable, to: OptStreamType = arg.DEFAULT) -> Stream:
+    def flat_map(self, function: Callable, to: OptStreamType = arg.AUTO) -> Stream:
         def get_items():
             for i in self.get_iter():
                 yield from function(i)
-        to = arg.undefault(to, self.get_stream_type())
+        to = arg.acquire(to, self.get_stream_type())
         stream_class = sm.StreamType(to).get_class()
         new_props_keys = stream_class([]).get_meta().keys()
         props = {k: v for k, v in self.get_meta().items() if k in new_props_keys}
@@ -143,7 +146,7 @@ class AnyStream(sm.LocalStream, sm.ConvertMixin, sm.RegularStreamInterface):
             function: Callable,
             *args,
             dynamic: bool = True,
-            stream_type: OptStreamType = arg.DEFAULT,
+            stream_type: OptStreamType = arg.AUTO,
             **kwargs
     ) -> Stream:
         return self.stream(
@@ -172,13 +175,13 @@ class AnyStream(sm.LocalStream, sm.ConvertMixin, sm.RegularStreamInterface):
 
     def to_stream(
             self,
-            data: Data = arg.DEFAULT,
-            stream_type: OptStreamType = arg.DEFAULT,
+            data: Data = arg.AUTO,
+            stream_type: OptStreamType = arg.AUTO,
             ex: OptionalFields = None,
             **kwargs
     ) -> Stream:
-        stream_type = arg.delayed_undefault(stream_type, self.get_stream_type)
-        data = arg.delayed_undefault(data, self.get_data)
+        stream_type = arg.delayed_acquire(stream_type, self.get_stream_type)
+        data = arg.delayed_acquire(data, self.get_data)
         if isinstance(stream_type, str):
             stream_class = StreamType(stream_type).get_class()
         elif isclass(stream_type):
@@ -201,7 +204,7 @@ class AnyStream(sm.LocalStream, sm.ConvertMixin, sm.RegularStreamInterface):
             filename,
             encoding=None, gzip=False,
             skip_first_line=False, max_count=None,
-            check=arg.DEFAULT,
+            check=arg.AUTO,
             verbose=False,
     ) -> Stream:
         return sm.LineStream.from_text_file(

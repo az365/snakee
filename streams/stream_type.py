@@ -16,7 +16,7 @@ DICT_METHOD_SUFFIX = dict(
     LineStream='line_stream',
     RowStream='row_stream',
     KeyValueStream='key_value_stream',
-    SchemaStream='schema_stream',
+    StructStream='struct_stream',
     RecordStream='record_stream',
     PandasStream='pandas_stream',
     SqlStream='sql_stream',
@@ -28,7 +28,7 @@ class StreamType(ClassType):
     LineStream = 'LineStream'
     RowStream = 'RowStream'
     KeyValueStream = 'KeyValueStream'
-    SchemaStream = 'SchemaStream'
+    StructStream = 'StructStream'
     RecordStream = 'RecordStream'
     PandasStream = 'PandasStream'
     SqlStream = 'SqlStream'
@@ -52,8 +52,8 @@ class StreamType(ClassType):
         else:
             name = obj.__class__.__name__
             if name == 'ItemType':
-                if obj.value == 'SchemaRow':
-                    return StreamType.SchemaStream
+                if obj.value == 'StructRow':
+                    return StreamType.StructStream
                 else:
                     return StreamType('{}Stream'.format(name))
         return StreamType(name)

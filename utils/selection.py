@@ -93,7 +93,7 @@ def value_from_row(row, description, logger=None, skip_errors=True):
         raise TypeError(message.format(description, type(description)))
 
 
-def value_from_schema_row(row, description, logger=None, skip_errors=True):
+def value_from_struct_row(row, description, logger=None, skip_errors=True):
     if callable(description):
         return description(row)
     elif isinstance(description, (int, str)):

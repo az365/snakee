@@ -113,12 +113,12 @@ class RowStream(sm.AnyStream, sm.ColumnarMixin):
     def get_rows(self, **kwargs):
         return self.get_data()
 
-    def schematize(self, schema, skip_bad_rows=False, skip_bad_values=False, verbose=True) -> Stream:
-        result = sm.SchemaStream(
+    def structure(self, schema, skip_bad_rows=False, skip_bad_values=False, verbose=True) -> Stream:
+        result = sm.StructStream(
             self.get_items(),
-            **self.get_compatible_meta(sm.StreamType.SchemaStream),
-        ).schematize(
-            schema=schema,
+            **self.get_compatible_meta(sm.StreamType.StructStream),
+        ).structure(
+            struct=schema,
             skip_bad_rows=skip_bad_rows,
             skip_bad_values=skip_bad_values,
             verbose=verbose,
