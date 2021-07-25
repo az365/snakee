@@ -23,7 +23,7 @@ ARRAY_SUBTYPES = list, tuple
 
 
 class SchemaDescription(SchemaInterface):
-    FieldDescription = None
+    FieldClass = None
 
     @deprecated_with_alternative('fields.FieldGroup')
     def __init__(self, fields_descriptions: Iterable):
@@ -35,21 +35,21 @@ class SchemaDescription(SchemaInterface):
     def _import_workaround(self):
         # Temporary workaround for cyclic import dependencies
         try:  # Assume we're a sub-module in a package.
-            from schema.field_description import FieldDescription
+            from fields.legacy_field import LegacyField
         except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-            from .field_description import FieldDescription
-        self.FieldDescription = FieldDescription
+            from fields.legacy_field import LegacyField
+        self.FieldClass = LegacyField
 
     def append_field(self, field, default_type=None, before=False, inplace=True):
-        FieldDescription = self.FieldDescription
+        FieldClass = self.FieldClass
         if isinstance(field, FieldInterface):
             field_desc = field
         elif isinstance(field, str):
-            field_desc = FieldDescription(field, default_type)
+            field_desc = FieldClass(field, default_type)
         elif isinstance(field, ARRAY_SUBTYPES):
-            field_desc = FieldDescription(*field)
+            field_desc = FieldClass(*field)
         elif isinstance(field, dict):
-            field_desc = FieldDescription(**field)
+            field_desc = FieldClass(**field)
         else:
             raise TypeError('Expected Field or str, got {} as {}'.format(field, type(field)))
         if before:
@@ -108,12 +108,12 @@ class SchemaDescription(SchemaInterface):
 
     @classmethod
     def detect_schema_by_title_row(cls, title_row: Iterable) -> SchemaInterface:
-        FieldDescription = cls.FieldDescription
+        FieldClass = cls.FieldClass
         schema = SchemaDescription([])
         for name in title_row:
             field_type = cls._detect_field_type_by_name(name)
             schema.append_field(
-                FieldDescription(name, field_type)
+                FieldClass(name, field_type)
             )
         return schema
 

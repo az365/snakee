@@ -1,30 +1,33 @@
+from typing import Callable
+
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
-    from fields.schema_interface import SchemaInterface
-    from fields.field_interface import FieldInterface
+    from utils.decorators import deprecated_with_alternative
+    from interfaces import SchemaInterface, FieldInterface, FieldType
     from fields.simple_field import SimpleField
     from fields import field_type as ft
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
-    from ..fields.schema_interface import SchemaInterface
-    from ..fields.field_interface import FieldInterface
-    from ..fields.simple_field import SimpleField
-    from ..fields import field_type as ft
+    from ..utils.decorators import deprecated_with_alternative
+    from ..interfaces import SchemaInterface, FieldInterface, FieldType
+    from .simple_field import SimpleField
+    from . import field_type as ft
 
 
-class FieldDescription(SimpleField, FieldInterface):
+class LegacyField(SimpleField, FieldInterface):
+    @deprecated_with_alternative('fields.AdvancedField()')
     def __init__(
             self,
             name,
-            field_type=arg.DEFAULT,
+            field_type=arg.AUTO,
             nullable=False,
             aggr_hint=None,
     ):
-        field_type = arg.undefault(field_type, ft.FieldType.Any)
+        field_type = arg.acquire(field_type, ft.FieldType.Any)
         if field_type is None:
-            field_type = ft.detect_field_type_by_name(name)
+            field_type = FieldType.detect_by_name(name)
         else:
-            field_type = ft.get_canonic_type(field_type)
+            field_type = FieldType(field_type)
         super().__init__(name=name, field_type=field_type)
         assert isinstance(nullable, bool)
         self.nullable = nullable
@@ -41,7 +44,7 @@ class FieldDescription(SimpleField, FieldInterface):
             assert dialect in ft.DIALECTS
             return ft.FIELD_TYPES.get(self.get_type_name(), {}).get(dialect)
 
-    def get_converter(self, source, target):
+    def get_converter(self, source, target) -> Callable:
         converter_name = '{}_to_{}'.format(source, target)
         return ft.FIELD_TYPES.get(self.get_type_name(), {}).get(converter_name, str)
 
@@ -51,3 +54,6 @@ class FieldDescription(SimpleField, FieldInterface):
 
     def get_tuple(self):
         return self.get_name(), self.get_type(), self.nullable, self.aggr_hint
+
+
+FieldDescription = LegacyField
