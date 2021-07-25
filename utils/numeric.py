@@ -83,11 +83,11 @@ def median(a: Iterable, ignore_import_error: bool = False, safe: bool = True) ->
         raise_import_error('numpy')
 
 
-def avg(a: Iterable, default=None, safe: bool = True) -> OptionalFloat:
+def avg(a: Iterable, default=None, safe: bool = True, use_numpy: bool = True) -> OptionalFloat:
     if safe:
         a = filter_numeric(a)
     if a:
-        if np:
+        if np and use_numpy:
             return float(np.mean(a))
         else:
             return div(sum(a), len(a), default=default)
@@ -95,8 +95,8 @@ def avg(a: Iterable, default=None, safe: bool = True) -> OptionalFloat:
         return default
 
 
-def mean(a: Iterable, default=None, safe: bool = True) -> OptionalFloat:
-    return avg(a, default=default, safe=safe)  # alias
+def mean(a: Iterable, default=None, safe: bool = True, use_numpy: bool = True) -> OptionalFloat:
+    return avg(a, default=default, safe=safe, use_numpy=use_numpy)  # alias
 
 
 def min(a: Iterable, default=None, safe: bool = True) -> OptionalFloat:
