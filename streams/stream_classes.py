@@ -33,7 +33,7 @@ try:  # Assume we're a sub-module in a package.
     from connectors.filesystem.temporary_interface import TemporaryLocationInterface, TemporaryFilesMaskInterface
     from connectors.filesystem.temporary_files import TemporaryLocation
     from base.interfaces.context_interface import ContextInterface
-    from schema import schema_classes as sh
+    from items import legacy_classes as sh
     from utils.decorators import deprecated_with_alternative
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
@@ -62,7 +62,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..connectors.filesystem.temporary_interface import TemporaryLocationInterface, TemporaryFilesMaskInterface
     from ..connectors.filesystem.temporary_files import TemporaryLocation
     from ..base.interfaces.context_interface import ContextInterface
-    from ..schema import schema_classes as sh
+    from ..schema import legacy_classes as sh
     from ..utils.decorators import deprecated_with_alternative
 
 STREAM_CLASSES = (

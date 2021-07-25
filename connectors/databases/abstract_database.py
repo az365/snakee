@@ -6,7 +6,7 @@ try:  # Assume we're a sub-module in a package.
     from loggers import logger_classes as log
     from connectors import connector_classes as ct
     from streams import stream_classes as sm
-    from schema import schema_classes as sh
+    from items import legacy_classes as sh
     from fields.schema_interface import SchemaInterface
     from base.interfaces.data_interface import SimpleDataInterface
     from base.interfaces.context_interface import ContextInterface
@@ -17,7 +17,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...loggers import logger_classes as log
     from .. import connector_classes as ct
     from ...streams import stream_classes as sm
-    from ...schema import schema_classes as sh
+    from ...items import legacy_classes as sh
     from ...fields.schema_interface import SchemaInterface
     from ...base.interfaces.data_interface import SimpleDataInterface
     from ...base.interfaces.context_interface import ContextInterface
@@ -292,11 +292,11 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
     ) -> tuple:
         if not arg.is_defined(skip_lines):
             skip_lines = 0
-        is_schema_description = isinstance(schema, sh.SchemaDescription) or hasattr(schema, 'get_schema_str')
+        is_schema_description = isinstance(schema, sh.LegacyStruct) or hasattr(schema, 'get_schema_str')
         if not is_schema_description:
             message = 'Schema as {} is deprecated, use sh.SchemaDescription instead'.format(type(schema))
             self.log(msg=message, level=log.LoggingLevel.Warning)
-            schema = sh.SchemaDescription(schema or [])
+            schema = sh.LegacyStruct(schema or [])
         input_stream = self._get_schema_stream_from_data(
             data, schema=schema,
             encoding=encoding, skip_first_line=skip_first_line, verbose=verbose,

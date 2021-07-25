@@ -1,28 +1,26 @@
 from typing import Optional, Union, Iterable
 
 try:  # Assume we're a sub-module in a package.
+    from interfaces import (
+        SchemaInterface, FieldInterface,
+        Field, Name, FieldType, Array, ARRAY_TYPES,
+    )
     from utils import arguments as arg
     from utils.decorators import deprecated_with_alternative
-    from fields.field_interface import FieldInterface
-    from fields.schema_interface import SchemaInterface
     from fields.field_type import get_canonic_type, HEURISTIC_SUFFIX_TO_TYPE
     from connectors.databases import dialect as di
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
+    from ..interfaces import (
+        SchemaInterface, FieldInterface,
+        Field, Name, FieldType, Array, ARRAY_TYPES,
+    )
     from ..utils import arguments as arg
     from ..utils.decorators import deprecated_with_alternative
-    from ..fields.field_interface import FieldInterface
-    from ..fields.schema_interface import SchemaInterface
     from ..fields.field_type import get_canonic_type, HEURISTIC_SUFFIX_TO_TYPE
     from ..connectors.databases import dialect as di
 
-FieldName = str
-FieldNo = int
-FieldID = Union[FieldNo, FieldName]
-Array = Union[list, tuple]
-ARRAY_SUBTYPES = list, tuple
 
-
-class SchemaDescription(SchemaInterface):
+class LegacyStruct(SchemaInterface):
     FieldClass = None
 
     @deprecated_with_alternative('fields.FieldGroup')
@@ -46,7 +44,7 @@ class SchemaDescription(SchemaInterface):
             field_desc = field
         elif isinstance(field, str):
             field_desc = FieldClass(field, default_type)
-        elif isinstance(field, ARRAY_SUBTYPES):
+        elif isinstance(field, ARRAY_TYPES):
             field_desc = FieldClass(*field)
         elif isinstance(field, dict):
             field_desc = FieldClass(**field)
@@ -59,7 +57,7 @@ class SchemaDescription(SchemaInterface):
         if inplace:
             self.fields_descriptions = fields
         else:
-            return SchemaDescription(fields)
+            return LegacyStruct(fields)
 
     def append(self, field_or_group, default_type=None, inplace=None):
         if isinstance(field_or_group, SchemaInterface):
@@ -74,7 +72,7 @@ class SchemaDescription(SchemaInterface):
         existing_fields = self.get_fields_descriptions()
         if inplace:
             for f in existing_fields.copy():
-                if isinstance(f, ARRAY_SUBTYPES):
+                if isinstance(f, ARRAY_TYPES):
                     name = f[0]
                 elif hasattr(f, 'get_name'):
                     name = f.get_name()
@@ -90,7 +88,7 @@ class SchemaDescription(SchemaInterface):
             for f in fields:
                 self.append_field(f, default_type=default_type, inplace=True)
         else:
-            return SchemaDescription(self.get_fields_descriptions() + list(fields))
+            return LegacyStruct(self.get_fields_descriptions() + list(fields))
 
     def get_fields(self):
         return self.fields_descriptions
@@ -109,7 +107,7 @@ class SchemaDescription(SchemaInterface):
     @classmethod
     def detect_schema_by_title_row(cls, title_row: Iterable) -> SchemaInterface:
         FieldClass = cls.FieldClass
-        schema = SchemaDescription([])
+        schema = LegacyStruct([])
         for name in title_row:
             field_type = cls._detect_field_type_by_name(name)
             schema.append_field(
@@ -147,11 +145,11 @@ class SchemaDescription(SchemaInterface):
         if not inplace:
             return self
 
-    def get_field_position(self, field: FieldID, skip_errors: bool = False) -> Optional[FieldNo]:
-        if isinstance(field, FieldNo):
+    def get_field_position(self, field: Name, skip_errors: bool = False) -> Optional[int]:
+        if isinstance(field, int):
             if field < self.get_fields_count():
                 return field
-        elif isinstance(field, FieldName):
+        elif isinstance(field, str):
             try:
                 return self.get_columns().index(field)
             except ValueError:
@@ -171,7 +169,7 @@ class SchemaDescription(SchemaInterface):
             converters.append(desc.get_converter(src, dst))
         return tuple(converters)
 
-    def get_field_description(self, field_name: FieldID) -> FieldInterface:
+    def get_field_description(self, field_name: Name) -> FieldInterface:
         field_position = self.get_field_position(field_name)
         return self.get_fields_descriptions()[field_position]
 
@@ -186,10 +184,10 @@ class SchemaDescription(SchemaInterface):
         return True
 
     def copy(self):
-        return SchemaDescription(self.fields_descriptions)
+        return LegacyStruct(self.fields_descriptions)
 
     def simple_select_fields(self, fields: Array):
-        return SchemaDescription(
+        return LegacyStruct(
             [self.get_field_description(f) for f in fields]
         )
 
@@ -203,3 +201,6 @@ class SchemaDescription(SchemaInterface):
             return self.append(other, inplace=False).set_name(None, inplace=False)
         else:
             raise TypeError('Expected other as field or schema, got {} as {}'.format(other, type(other)))
+
+
+SchemaDescription = LegacyStruct

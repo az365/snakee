@@ -10,7 +10,7 @@ try:  # Assume we're a sub-module in a package.
     from utils.decorators import singleton
     from utils import arguments as arg
     from loggers import logger_classes as lg
-    from schema import schema_classes as sh
+    from items import legacy_classes as sh
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from .base import base_classes as bs
     from .streams import stream_classes as sm
@@ -20,7 +20,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .utils.decorators import singleton
     from .utils import arguments as arg
     from .loggers import logger_classes as lg
-    from .schema import schema_classes as sh
+    from .items import legacy_classes as sh
 
 Native = bs.ContextInterface
 LoggingLevel = Union[lg.LoggingLevel, int, arg.DefaultArgument]

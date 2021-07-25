@@ -4,14 +4,14 @@ try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from loggers import logger_classes as log
     from fields.schema_interface import SchemaInterface
-    from schema.schema_description import SchemaDescription
+    from items.legacy_struct import LegacyStruct
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...streams import stream_classes as sm
     from ...connectors import connector_classes as ct
     from ...utils import arguments as arg
     from ...loggers import logger_classes as log
     from ...fields.schema_interface import SchemaInterface
-    from ...schema.schema_description import SchemaDescription
+    from ...items.legacy_struct import LegacyStruct
 
 
 class Table(ct.LeafConnector):
@@ -88,9 +88,9 @@ class Table(ct.LeafConnector):
             self.schema = schema
         elif isinstance(schema, (list, tuple)):
             if max([isinstance(f, (list, tuple)) for f in schema]):
-                self.schema = SchemaDescription(schema)
+                self.schema = LegacyStruct(schema)
             else:
-                self.schema = SchemaDescription.detect_schema_by_title_row(schema)
+                self.schema = LegacyStruct.detect_schema_by_title_row(schema)
         elif schema == arg.DEFAULT:
             self.schema = self.get_schema_from_database()
         else:
@@ -104,7 +104,7 @@ class Table(ct.LeafConnector):
         return self.get_database().describe_table(self.get_path())
 
     def get_schema_from_database(self, set_schema=False):
-        schema = SchemaDescription(self.describe())
+        schema = LegacyStruct(self.describe())
         if set_schema:
             self.schema = schema
         return schema

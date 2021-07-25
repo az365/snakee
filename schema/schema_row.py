@@ -5,13 +5,13 @@ try:  # Assume we're a sub-module in a package.
     from connectors.databases import dialect as di
     from items.struct_row_interface import StructRowInterface
     from fields.schema_interface import SchemaInterface
-    from schema.schema_description import SchemaDescription
+    from items.legacy_struct import LegacyStruct
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..base.abstract.simple_data import SimpleDataWrapper
     from ..connectors.databases import dialect as di
     from ..items.struct_row_interface import StructRowInterface
     from ..fields.schema_interface import SchemaInterface
-    from .schema_description import SchemaDescription
+    from items.legacy_struct import LegacyStruct
 
 SimpleRow = Union[list, tuple]
 StructRow = Optional[StructRowInterface]
@@ -29,13 +29,13 @@ class SchemaRow(SimpleDataWrapper, StructRowInterface):
             check=True,
     ):
         if not isinstance(schema, SchemaInterface):
-            schema = SchemaDescription(schema)
+            schema = LegacyStruct(schema)
         self._schema = schema
         if check:
             data = self._schematize_row(data, schema)
         super().__init__(data=data, name='-')
 
-    def get_schema(self) -> SchemaDescription:
+    def get_schema(self) -> LegacyStruct:
         return self._schema
 
     def get_fields_descriptions(self) -> Iterable:

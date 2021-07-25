@@ -9,7 +9,7 @@ try:  # Assume we're a sub-module in a package.
     from loggers import logger_classes as log
     from functions import all_functions as fs
     from selection import selection_classes as sn
-    from schema import schema_classes as sh
+    from items import legacy_classes as sh
     from fields.schema_interface import SchemaInterface
     from utils.decorators import deprecated_with_alternative
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -21,7 +21,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...loggers import logger_classes as log
     from ...functions import all_functions as fs
     from ...selection import selection_classes as sn
-    from ...schema import schema_classes as sh
+    from ...items import legacy_classes as sh
     from ...fields.schema_interface import SchemaInterface
     from ...utils.decorators import deprecated_with_alternative
 
@@ -64,7 +64,7 @@ def check_rows(rows, schema: OptSchema, skip_errors: bool = False) -> Iterable:
         elif skip_errors:
             continue
         else:
-            schema_str = schema.get_schema_str() if isinstance(schema, sh.SchemaDescription) else schema
+            schema_str = schema.get_schema_str() if isinstance(schema, sh.LegacyStruct) else schema
             raise TypeError('check_records(): this item is not valid record for schema {}: {}'.format(schema_str, r))
         yield r
 
@@ -160,7 +160,7 @@ class SchemaStream(sm.RowStream):
 
     def get_schematized_rows(self, rows, schema=arg.DEFAULT, skip_bad_rows=False, skip_bad_values=False, verbose=True):
         schema = arg.undefault(schema, self.get_schema())
-        if isinstance(schema, sh.SchemaDescription):  # actual approach
+        if isinstance(schema, sh.LegacyStruct):  # actual approach
             converters = schema.get_converters('str', 'py')
             for r in rows:
                 converted_row = list()

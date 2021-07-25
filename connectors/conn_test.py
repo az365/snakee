@@ -1,9 +1,9 @@
 try:  # Assume we're a sub-module in a package.
     from context import SnakeeContext
-    from schema import schema_classes as sh
+    from items import legacy_classes as sh
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..context import SnakeeContext
-    from ..schema import schema_classes as sh
+    from ..items import legacy_classes as sh
 
 
 def test_detect_schema_by_title_row():

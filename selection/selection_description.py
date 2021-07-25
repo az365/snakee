@@ -1,40 +1,31 @@
 from typing import Optional, Callable, Iterable, Union, NoReturn
 
 try:  # Assume we're a sub-module in a package.
-    from utils import (
-        arguments as arg,
-        selection as sf,
-        items as it,
+    from utils import arguments as arg, selection as sf, items as it
+    from interfaces import (
+        SchemaInterface, StructRowInterface, LoggerInterface,
+        ItemType, Item, Row, Record, Field, Name, Array, ARRAY_TYPES,
+        AUTO, Auto
     )
-    from items.base_item_type import ItemType
-    from items.struct_row_interface import StructRowInterface
-    from fields.schema_interface import SchemaInterface
-    from loggers.logger_interface import LoggerInterface
     from selection import selection_classes as sn
-    from schema import schema_classes as sh
+    from items import legacy_classes as sh
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..utils import (
-        arguments as arg,
-        selection as sf,
-        items as it,
+    from ..utils import arguments as arg, selection as sf, items as it
+    from ..interfaces import (
+        SchemaInterface, StructRowInterface, LoggerInterface,
+        ItemType, Item, Row, Record, Field, Name, Array, ARRAY_TYPES,
+        AUTO, Auto
     )
     from ..items.base_item_type import ItemType
     from ..items.struct_row_interface import StructRowInterface
     from ..fields.schema_interface import SchemaInterface
     from ..loggers.logger_interface import LoggerInterface
     from . import selection_classes as sn
-    from ..schema import schema_classes as sh
+    from ..items import legacy_classes as sh
 
-Row = Union[list, tuple]
-Record = dict
-Item = Union[StructRowInterface, Row, Record]
 Logger = Optional[LoggerInterface]
 Schema = Union[Optional[SchemaInterface], Iterable]
 Description = sn.AbstractDescription
-Name = Union[int, str]
-Field = Union[Name, Description]
-Array = Union[list, tuple]
-ARRAY_TYPES = list, tuple
 NAME_TYPES = int, str
 DESC_TYPES = int, str, Description
 
@@ -103,7 +94,7 @@ class SelectionDescription:
             input_item_type: ItemType = ItemType.Auto,
             input_schema: Schema = None,
             logger: Logger = None,
-            selection_logger: Union[Logger, arg.DefaultArgument] = arg.DEFAULT,
+            selection_logger: Union[Logger, Auto] = AUTO,
     ):
         self._descriptions = descriptions
         self._target_item_type = target_item_type
@@ -111,15 +102,15 @@ class SelectionDescription:
         self._input_schema = input_schema
         self._logger = logger
         self._selection_logger = arg.undefault(selection_logger, getattr(logger, 'get_selection_logger', None))
-        self._has_trivial_multiple_selectors = arg.DEFAULT
-        self._output_field_names = arg.DEFAULT
+        self._has_trivial_multiple_selectors = AUTO
+        self._output_field_names = AUTO
 
     @classmethod
     def with_expressions(
             cls, fields: list, expressions: dict,
             target_item_type: ItemType = ItemType.Auto, input_item_type: ItemType = ItemType.Auto,
             input_schema=None, skip_errors=True,
-            logger=None, selection_logger=arg.DEFAULT,
+            logger=None, selection_logger=AUTO,
     ):
         descriptions = compose_descriptions(
             fields, expressions,
@@ -142,8 +133,8 @@ class SelectionDescription:
 
     def set_logger(
             self,
-            logger: Union[Logger, arg.DefaultArgument] = arg.DEFAULT,
-            selection_logger: Union[Logger, arg.DefaultArgument] = arg.DEFAULT,
+            logger: Union[Logger, Auto] = AUTO,
+            selection_logger: Union[Logger, Auto] = AUTO,
     ) -> NoReturn:
         self._logger = arg.undefault(logger, getattr(logger, 'get_logger', None))
         self._selection_logger = arg.undefault(selection_logger, getattr(logger, 'get_selection_logger', None))
@@ -171,7 +162,7 @@ class SelectionDescription:
             ),
         )
 
-    def has_trivial_multiple_selectors(self) -> Union[bool, arg.DefaultArgument]:
+    def has_trivial_multiple_selectors(self) -> Union[bool, Auto]:
         return self._has_trivial_multiple_selectors
 
     def mark_trivial_multiple_selectors(self, value: bool = True) -> NoReturn:
@@ -213,14 +204,14 @@ class SelectionDescription:
                 self.reset_output_field_names(item)
         return self.get_known_output_field_names()
 
-    def get_dict_output_field_types(self, schema: Union[Schema, arg.DefaultArgument] = arg.DEFAULT) -> dict:
+    def get_dict_output_field_types(self, schema: Union[Schema, Auto] = AUTO) -> dict:
         schema = arg.delayed_undefault(schema, self.get_input_schema)
         output_types = dict()
         for d in self.get_descriptions():
             output_types.update(d.get_dict_output_field_types(schema))
         return output_types
 
-    def get_output_field_descriptions(self, schema: Union[Schema, arg.DefaultArgument] = arg.DEFAULT) -> Iterable:
+    def get_output_field_descriptions(self, schema: Union[Schema, Auto] = AUTO) -> Iterable:
         dict_output_field_types = self.get_dict_output_field_types(schema)
         for name in self.get_output_field_names(schema):
             field_type = dict_output_field_types.get(name)
