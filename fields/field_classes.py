@@ -21,7 +21,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..selection.abstract_expression import AbstractDescription
     from ..selection import concrete_expression as ce
 
-
 Type = Union[FieldType, type, Auto]
 
 _logger = None
