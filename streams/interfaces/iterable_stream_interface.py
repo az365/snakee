@@ -80,7 +80,7 @@ class IterableStreamInterface(StreamInterface, ABC):
         pass
 
     @abstractmethod
-    def one(self):
+    def get_one_item(self):
         pass
 
     @abstractmethod
