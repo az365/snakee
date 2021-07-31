@@ -5,18 +5,18 @@ import os
 import gzip as gz
 
 try:  # Assume we're a sub-module in a package.
-    from utils import arguments as arg
+    from utils import arguments as arg, dates as dt
     from interfaces import (
-        Context, Connector, Stream, RegularStream, ItemType, StreamType,
+        Context, Connector, ConnectorInterface, Stream, RegularStream, ItemType, StreamType,
         AUTO, Auto, AutoName, AutoCount, AutoBool, OptionalFields,
     )
     from connectors.abstract.leaf_connector import LeafConnector
     from streams.mixin.stream_builder_mixin import StreamBuilderMixin
     from streams import stream_classes as sm
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
+    from ...utils import arguments as arg, dates as dt
     from interfaces import (
-        Context, Connector, Stream, RegularStream, ItemType, StreamType,
+        Context, Connector, ConnectorInterface, Stream, RegularStream, ItemType, StreamType,
         AUTO, Auto, AutoName, AutoCount, AutoBool, OptionalFields,
     )
     from ..abstract.leaf_connector import LeafConnector
@@ -40,12 +40,12 @@ class AbstractFile(LeafConnector, StreamBuilderMixin, ABC):
     ):
         if folder:
             message = 'only LocalFolder supported for *File instances (got {})'.format(type(folder))
-            assert isinstance(folder, Connector), message
-            assert folder.is_folder(), message
+            assert isinstance(folder, ConnectorInterface) or folder.is_folder(), message
         else:
             folder = context.get_job_folder()
-        super().__init__(name=name, parent=folder)
         self._fileholder = None
+        self._modification_ts = None
+        super().__init__(name=name, parent=folder)
         self.verbose = arg.acquire(verbose, self.get_folder().verbose if self.get_folder() else True)
 
     def get_folder(self) -> Union[Connector, Any]:
@@ -140,9 +140,9 @@ class AbstractFile(LeafConnector, StreamBuilderMixin, ABC):
         else:
             return 0
 
-    def open(self, mode: str = 'r', reopen: bool = False) -> Native:
+    def open(self, mode: str = 'r', allow_reopen: bool = False) -> Native:
         if self.is_opened():
-            if reopen:
+            if allow_reopen:
                 self.close()
             else:
                 raise AttributeError('File {} is already opened'.format(self.get_name()))
@@ -163,6 +163,52 @@ class AbstractFile(LeafConnector, StreamBuilderMixin, ABC):
 
     def is_existing(self) -> bool:
         return os.path.exists(self.get_path())
+
+    def is_actual(self) -> bool:
+        return self.get_modification_timestamp() == self.get_prev_modification_timestamp()
+
+    def actualize(self) -> Native:
+        self.get_modification_timestamp()
+        self.get_count()
+        return self
+
+    def get_modification_time_str(self) -> str:
+        timestamp = dt.datetime.fromtimestamp(self.get_modification_timestamp())
+        return dt.get_formatted_datetime(timestamp)
+
+    def get_prev_modification_timestamp(self) -> Optional[float]:
+        return self._modification_ts
+
+    def get_modification_timestamp(self, reset: bool = True) -> Optional[float]:
+        if self.is_existing():
+            timestamp = os.path.getmtime(self.get_path())
+            if reset or not self.get_prev_modification_timestamp():
+                self._modification_ts = timestamp
+            return timestamp
+
+    def reset_modification_timestamp(self, timestamp: Union[float, Auto, None] = AUTO) -> Native:
+        timestamp = arg.acquire(timestamp, self.get_modification_timestamp(reset=False))
+        self._modification_ts = timestamp
+        return self
+
+    def get_file_age_str(self):
+        timestamp = self.get_modification_timestamp()
+        if timestamp:
+            timedelta_age = dt.datetime.now() - dt.datetime.fromtimestamp(timestamp)
+            assert isinstance(timedelta_age, dt.timedelta)
+            if timedelta_age.seconds == 0:
+                return 'now'
+            elif timedelta_age.seconds > 0:
+                return dt.get_str_from_timedelta(timedelta_age)
+            else:
+                return 'future'
+
+    def get_datetime_str(self) -> str:
+        if self.is_existing():
+            times = self.get_modification_time_str(), self.get_file_age_str(), dt.get_current_time_str()
+            return '{} + {} = {}'.format(times)
+        else:
+            return dt.get_current_time_str()
 
     def _get_generated_stream_name(self) -> str:
         return arg.get_generated_name('{}:stream'.format(self.get_name()), include_random=True, include_datetime=False)
@@ -198,12 +244,17 @@ class AbstractFile(LeafConnector, StreamBuilderMixin, ABC):
         stream = self.to_stream(**kwargs).add_stream(stream)
         return self._assume_stream(stream)
 
-    def collect(self, **kwargs) -> Stream:
-        stream = self.to_stream(**kwargs).collect()
+    def collect(self, skip_missing: bool = False, **kwargs) -> Stream:
+        if self.is_existing():
+            stream = self.to_stream(**kwargs).collect()
+        elif skip_missing:
+            stream = self.get_stream_class()([])
+        else:
+            raise FileNotFoundError('File {} not found'.format(self.get_name()))
         return self._assume_stream(stream)
 
     @abstractmethod
-    def get_count(self):
+    def get_count(self, allow_reopen: bool = True, allow_slow_gzip: bool = True, force: bool = False) -> Optional[int]:
         pass
 
     def stream(
@@ -276,45 +327,80 @@ class TextFile(AbstractFile):
     def is_gzip(self) -> bool:
         return self.gzip
 
-    def open(self, mode: str = 'r', reopen: bool = False) -> Native:
-        if self.is_opened():
-            if reopen:
+    def open(self, mode: str = 'r', allow_reopen: bool = False) -> Native:
+        if self.is_opened() or self.is_opened() is None:
+            if allow_reopen:
                 self.close()
             else:
                 raise AttributeError('File {} is already opened'.format(self.get_name()))
+        path = self.get_path()
         if self.is_gzip():
-            fileholder = gz.open(self.get_path(), mode)
-            self.set_fileholder(fileholder)
+            fileholder = gz.open(path, mode)
         else:
             params = dict()
             if self.encoding:
                 params['encoding'] = self.encoding
-            path = self.get_path()
             fileholder = open(path, mode, **params) if self.encoding else open(path, 'r')
-            self.set_fileholder(fileholder)
+        self.set_fileholder(fileholder)
         return self
 
-    def count_lines(self, reopen=False, chunk_size=CHUNK_SIZE, verbose=AUTO) -> int:
-        verbose = arg.acquire(verbose, self.verbose)
-        self.log('Counting lines in {}...'.format(self.get_name()), end='\r', verbose=verbose)
-        self.open(reopen=reopen)
-        count_n = sum(chunk.count('\n') for chunk in iter(lambda: self.get_fileholder().read(chunk_size), ''))
-        self.set_count(count_n + 1)
-        self.close()
-        self.log('Detected {} lines in {}.'.format(self.get_count(), self.get_name()), end='\r', verbose=verbose)
+    def get_prev_lines_count(self) -> Optional[int]:
         return self.count
 
-    def get_count(self, reopen: bool = True) -> Optional[int]:
-        if not (arg.is_defined(self.count) or self.is_gzip()):
-            self.set_count(self.count_lines(reopen=reopen))
-        return self.count
+    def get_slow_lines_count(self, verbose: AutoBool = AUTO) -> int:
+        count = 0
+        for _ in self.get_lines(message='Slow counting lines in {}...', allow_reopen=True, verbose=verbose):
+            count += 1
+        self.set_count(count)
+        return count
+
+    def get_fast_lines_count(self, verbose: AutoBool = AUTO) -> int:
+        if self.is_gzip():
+            raise ValueError('get_fast_lines_count() method is not available for gzip-files')
+        verbose = arg.acquire(verbose, self.verbose)
+        self.log('Counting lines in {}...'.format(self.get_name()), end='\r', verbose=verbose)
+        count_n_symbol = sum(chunk.count('\n') for chunk in self.get_chunks())
+        count_lines = count_n_symbol + 1
+        self.set_count(count_lines)
+        return count_lines
+
+    def get_actual_lines_count(self, allow_reopen: bool = True, allow_slow_gzip: bool = True) -> Optional[int]:
+        if self.is_opened():
+            if allow_reopen:
+                self.close()
+            else:
+                raise ValueError('File is already opened: {}'.format(self))
+        self.open(allow_reopen=allow_reopen)
+        if self.is_gzip():
+            if allow_slow_gzip:
+                count = self.get_slow_lines_count()
+            else:
+                count = None
+        else:
+            count = self.get_fast_lines_count()
+        self.close()
+        if count is not None:
+            self.log('Detected {} lines in {}.'.format(count, self.get_name()), end='\r')
+        return count
+
+    def get_count(self, allow_reopen: bool = True, allow_slow_gzip: bool = True, force: bool = False) -> Optional[int]:
+        must_recount = force or (not self.is_actual() or not arg.is_defined(self.get_prev_lines_count()))
+        if self.is_existing() and must_recount:
+            count = self.get_actual_lines_count(allow_reopen=allow_reopen, allow_slow_gzip=allow_slow_gzip)
+            self.set_count(count)
+        else:
+            count = self.get_prev_lines_count()
+        if arg.is_defined(count):
+            return self.count
 
     def set_count(self, count: int) -> Native:
         self.count = count
         return self
 
     def get_next_lines(self, count: Optional[int] = None, skip_first: bool = False, close: bool = False) -> Iterable:
-        assert self.is_opened()
+        is_opened = self.is_opened()
+        if is_opened is not None:
+            assert is_opened, 'File must be opened for get_next_lines(), got is_opened={}'.format(is_opened)
         for n, row in enumerate(self.get_fileholder()):
             if skip_first and n == 0:
                 continue
@@ -329,15 +415,19 @@ class TextFile(AbstractFile):
         if close:
             self.close()
 
+    def get_chunks(self, chunk_size=CHUNK_SIZE) -> Iterable:
+        return iter(lambda: self.get_fileholder().read(chunk_size), '')
+
     def get_lines(
             self,
             count: Optional[int] = None,
-            skip_first: bool = False, check: bool = True, verbose: AutoBool = AUTO,
-            message: Union[str, arg.Auto] = AUTO, step: AutoCount = AUTO,
+            skip_first: bool = False, allow_reopen: bool = True,
+            check: bool = True, verbose: AutoBool = AUTO,
+            message: Union[str, Auto] = AUTO, step: AutoCount = AUTO,
     ) -> Iterable:
-        if check and not self.gzip:
-            assert self.get_count(reopen=True) > 0
-        self.open(reopen=True)
+        if check and not self.is_gzip():
+            assert self.get_count(allow_reopen=True) > 0
+        self.open(allow_reopen=allow_reopen)
         lines = self.get_next_lines(count=count, skip_first=skip_first, close=True)
         verbose = arg.acquire(verbose, self.verbose)
         if verbose or arg.is_defined(message):
@@ -396,7 +486,7 @@ class TextFile(AbstractFile):
 
     def write_lines(self, lines: Iterable, verbose: AutoBool = AUTO) -> Native:
         verbose = arg.acquire(verbose, self.verbose)
-        self.open('w', reopen=True)
+        self.open('w', allow_reopen=True)
         n = 0
         for n, i in enumerate(lines):
             if n > 0:
@@ -434,6 +524,51 @@ class TextFile(AbstractFile):
             **self.get_static_meta() if dynamic else self.get_meta()
         )
 
+    def _get_demo_example(self, count: int = 10, filters: Optional[list] = None) -> Optional[Iterable]:
+        if self.is_existing():
+            stream_sample = self.filter(*filters or []) if filters else self
+            stream_sample = stream_sample.take(count)
+            return stream_sample.get_items()
+
+    def get_useful_props(self) -> dict:
+        if self.is_existing():
+            return dict(
+                folder=self.get_folder_path(),
+                is_actual=self.is_actual(),
+                is_opened=self.is_opened(),
+                is_empty=self.is_empty(),
+                count=self.get_count(),
+                path=self.get_path_(),
+            )
+        else:
+            return dict(
+                is_existing=self.is_existing(),
+                folder=self.get_folder_path(),
+                path=self.get_path(),
+            )
+
+    def get_str_meta(self, useful_only: bool = False) -> str:
+        if useful_only:
+            args_str = ["'{}'".format(self.get_name())]
+            kwargs_str = ["{}={}".format(k, v) for k, v in self.get_useful_props().items()]
+            return ', '.join(args_str + kwargs_str)
+        else:
+            return super().get_str_meta()
+
+    def get_str_headers(self) -> Iterable:
+        yield '{}({})'.format(self.__class__.__name__, self.get_str_meta(useful_only=True))
+
+    def describe(self, count: Optional[int] = 10, filters: Optional[list] = None, show_header: bool = True):
+        if show_header:
+            for line in self.get_str_headers():
+                self.log(line, end='\n')
+        if self.is_existing():
+            self.actualize()
+            self.log('{} File has {} lines'.format(self.get_datetime_str(), self.get_count()))
+            self.log('')
+            for line in self._get_demo_example(count=count, filters=filters):
+                self.log(line)
+        return self
 
 class JsonFile(TextFile):
     def __init__(
