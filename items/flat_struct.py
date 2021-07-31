@@ -49,7 +49,7 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
             caption: Optional[str] = None,
             default_type: Type = AUTO,
             exclude_duplicates: bool = False,
-            reassign_group: bool = False,
+            reassign_struct_name: bool = False,
     ):
         name = arg.acquire(name, arg.get_generated_name(prefix='FieldGroup'))
         self._caption = caption or ''
@@ -57,7 +57,7 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
         for field_or_group in fields:
             kwargs = dict(
                 default_type=default_type, exclude_duplicates=exclude_duplicates,
-                reassign_group=reassign_group, inplace=True,
+                reassign_group=reassign_struct_name, inplace=True,
             )
             if isinstance(field_or_group, StructInterface):  # FieldGroup
                 self.add_fields(field_or_group.get_fields_descriptions(), **kwargs)
@@ -140,22 +140,22 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
 
     def append(
             self,
-            field_or_group: Union[Field, Group],
+            field_or_struct: Union[Field, Group],
             default_type: Optional[Type] = None,
-            exclude_duplicates: bool = True,
-            reassign_group: bool = False,
+            exclude_duplicates: bool = False,
+            reassign_struct_name: bool = False,
             inplace: bool = False,
     ) -> Optional[Native]:
         kwargs = dict(
             default_type=default_type, exclude_duplicates=exclude_duplicates,
-            reassign_group=reassign_group, inplace=inplace,
+            reassign_struct_name=reassign_struct_name, inplace=inplace,
         )
-        if isinstance(field_or_group, StructInterface):
-            return self.add_fields(*field_or_group.get_fields_descriptions(), **kwargs)
-        elif isinstance(field_or_group, Iterable) and not isinstance(field_or_group, str):
-            return self.add_fields(*field_or_group, **kwargs)
-        else:  # isinstance(field_or_group, Field):
-            return self.append_field(field_or_group, **kwargs)
+        if isinstance(field_or_struct, StructInterface):
+            return self.add_fields(*field_or_struct.get_fields_descriptions(), **kwargs)
+        elif isinstance(field_or_struct, Iterable) and not isinstance(field_or_struct, str):
+            return self.add_fields(*field_or_struct, **kwargs)
+        else:  # isinstance(field_or_struct, Field):
+            return self.append_field(field_or_struct, **kwargs)
 
     def add_fields(
             self,
@@ -163,7 +163,7 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
             default_type: Optional[Type] = None,
             exclude_duplicates: bool = False,
             name: StructName = None,
-            reassign_group: bool = False,
+            reassign_struct_name: bool = False,
             inplace: bool = False,
     ) -> Optional[Native]:
         fields = arg.update(fields)
@@ -172,7 +172,7 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
                 self.append(
                     f, default_type=default_type,
                     exclude_duplicates=exclude_duplicates,
-                    reassign_group=reassign_group,
+                    reassign_struct_name=reassign_struct_name,
                     inplace=True,
                 )
         else:
@@ -181,7 +181,7 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
     def remove_fields(self, *fields, multiple: bool = False, inplace: bool = True):
         removing_fields = arg.update(fields)
         removing_field_names = arg.get_names(removing_fields)
-        existing_fields = self.get_data()
+        existing_fields = self.get_fields()
         if inplace:
             for e in existing_fields:
                 if arg.get_name(e) in removing_field_names:
@@ -200,23 +200,25 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
 
     def get_type_count(self, field_type: Type = AUTO, by_prefix: bool = True) -> int:
         count = 0
-        field_type = FieldType(field_type)
+        field_type_name = arg.get_name(field_type, or_callable=False)
         for f in self.get_fields():
             if by_prefix:
-                is_selected_type = f.get_type_name().startswith(field_type.get_name())
+                is_selected_type = f.get_type_name().startswith(field_type_name)
             else:
-                is_selected_type = f.get_type_name() == field_type.get_name()
+                is_selected_type = f.get_type_name() == field_type_name
             if is_selected_type:
                 count += 1
         return count
 
     def get_str_fields_count(self, types: Array = (str, int, float, bool)) -> str:
         total_count = self.get_fields_count()
+        type_names = list()
         types_count = list()
         for t in types:
             types_count.append(self.get_type_count(t))
+            type_names.append(arg.get_name(t, or_callable=False))
         other_count = total_count - sum(types_count)
-        str_fields_count = ' + '.join(['{} {}'.format(c, t) for c, t in zip(types, types_count)])
+        str_fields_count = ' + '.join(['{} {}'.format(c, t) for c, t in zip(types_count, type_names)])
         return '{} total = {} + {} other'.format(total_count, str_fields_count, other_count)
 
     def get_struct_str(self, dialect: Dialect = 'py') -> str:
@@ -307,10 +309,12 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
 
     @staticmethod
     def convert_to_native(other: StructInterface) -> Native:
-        if hasattr(other, 'get_caption'):
+        if isinstance(other, FlatStruct) or hasattr(other, 'get_caption'):
             return other
         elif isinstance(other, StructInterface):
             return FlatStruct(other, name='FlatStruct', caption='(unknown struct type)')
+        else:
+            return FlatStruct(other, name='UNKNOWN', caption='(unknown struct type)')
 
     def get_struct_comparison_dict(self, other: StructInterface) -> dict:
         alias = dict(a_field='added', b_field='removed', ab_field='saved', as_dict=True)
@@ -333,7 +337,7 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
             if removed_names:
                 yield 'Removed {} fields: {}'.format(len(removed_names), ', '.join(removed_names))
         else:
-            yield '{}: Struct is actual, will not be changed'
+            yield '{}: Struct is actual, will not be changed'.format(title)
 
     def validate_about(self, standard: StructInterface, ignore_moved: bool = False) -> Native:
         expected_struct = self.convert_to_native(standard)
@@ -347,7 +351,7 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
             if f_name in updated_struct.get_field_names():
                 is_valid = False
                 warning = 'DUPLICATE_IN_DATA' if f_name in remaining_struct.get_field_names() else 'DUPLICATE'
-                f_expected = updated_struct.get_fields_descriptions(f_name)
+                f_expected = updated_struct.get_field_description(f_name)
                 f_updated = f_expected.set_valid(is_valid, inplace=False)
             elif f_name in expected_struct.get_field_names():
                 is_valid = True
@@ -360,9 +364,9 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
                 warning = 'UNEXPECTED'
                 message = 'field has been found in actual struct, but not in expected standard struct'
                 caption = '{} ({})'.format(f_received.get_caption(), message)
-                f_updated = f_received.set_valid(is_valid, inplace=False).set_caption(caption, inpace=False)
+                f_updated = f_received.set_valid(is_valid, inplace=False).set_caption(caption, inplace=False)
             if warning:
-                caption = '{} ({})'.format(warning, f_updated.get_caption() or '')
+                caption = '[{}] {}'.format(warning, f_updated.get_caption() or '')
                 f_updated = f_updated.set_caption(caption, inplace=False)
             updated_struct.append_field(f_updated)
             if f_name in remaining_struct.get_field_names():
@@ -370,12 +374,12 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
 
         for f_remaining in remaining_struct.get_columns():
             f_name = arg.get_name(f_remaining)
-            is_valid = False,
+            is_valid = False
             f_expected = expected_struct.get_field_description(f_name)
             if f_name in updated_struct.get_field_names():
                 warning = 'DUPLICATE_IN_STRUCT'
             else:
-                warning = 'MISSING_IN_STRUCT'
+                warning = 'MISSING_IN_FILE'
             caption = '[{}] {}'.format(warning, f_expected.get_caption() or '')
             f_updated = f_expected.set_valid(is_valid, inplace=False).set_caption(caption, inplace=False)
             updated_struct.append_field(f_updated)
@@ -443,7 +447,7 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
         group_name = self.get_name()
         group_caption = self.get_caption()
         if include_header:
-            yield (GROUP_NO_STR, GROUP_TYPE_STR, group_name, group_caption, '')
+            yield (GROUP_NO_STR, GROUP_TYPE_STR, group_name or '', group_caption, '')
         prev_group_name = group_name
         for n, (
                 f_name, f_type_name, f_caption, f_valid, group_name, group_caption,
@@ -451,7 +455,7 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
             is_next_group = group_name != prev_group_name
             if is_next_group:
                 yield (GROUP_NO_STR, GROUP_TYPE_STR, group_name, group_caption, '')
-            yield (n, f_type_name, f_name, f_caption, f_valid)
+            yield (n, f_type_name, f_name or '', f_caption, f_valid)
             prev_group_name = group_name
 
     def get_group_header(self, name: Comment = AUTO, caption: Comment = AUTO, comment: Comment = None) -> Iterable[str]:
@@ -488,7 +492,7 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
     ) -> Optional[DataFrame]:
         log = logger.log if arg.is_defined(logger) else print
         if show_header:
-            for line in self.get_group_header():
+            for line in self.get_group_header(comment=comment):
                 log(line)
             log('')
         if as_dataframe:
@@ -512,7 +516,9 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
                     log('\t'.join(row) if separate_by_tabs else template.format(*row))
 
     def get_dataframe(self) -> DataFrame:
-        return DataFrame(self.get_struct_description(include_header=True))
+        data = self.get_struct_description(include_header=True)
+        columns = ('n', 'type', 'name', 'caption', 'value')
+        return DataFrame(data, columns=columns)
 
     def show(self, as_dataframe: Union[bool, Auto] = AUTO) -> Optional[DataFrame]:
         as_dataframe = arg.acquire(as_dataframe, get_use_objects_for_output())
