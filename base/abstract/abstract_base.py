@@ -75,8 +75,8 @@ class AbstractBaseObject(BaseInterface, ABC):
         return [cls._get_meta_field_by_member_name(k) for k in cls._get_meta_member_names()]
 
     @staticmethod
-    def _get_other_meta_fields_list(other=arg.DEFAULT):
-        if other == arg.DEFAULT:
+    def _get_other_meta_fields_list(other=arg.AUTO):
+        if other == arg.AUTO:
             return tuple()
         elif hasattr(other, 'get_meta_fields_list'):
             other_meta = other.get_meta_fields_list()
@@ -109,7 +109,7 @@ class AbstractBaseObject(BaseInterface, ABC):
         meta = self.get_props(ex=ex_list)
         return meta
 
-    def set_meta(self, inplace=False, **meta):
+    def set_meta(self, inplace: bool = False, **meta):
         if inplace:
             current_meta = self.get_meta()
             current_meta.update(meta)
@@ -136,14 +136,14 @@ class AbstractBaseObject(BaseInterface, ABC):
                 unsupported,
             )
         for key, value in new_meta.items():
-            if value is None or value == arg.DEFAULT:
+            if value is None or value == arg.AUTO:
                 new_meta[key] = old_meta.get(key)
         return self.__class__(
             *self._get_data_member_items(),
             **new_meta
         )
 
-    def get_compatible_meta(self, other=arg.DEFAULT, ex=None, **kwargs) -> dict:
+    def get_compatible_meta(self, other=arg.AUTO, ex=None, **kwargs) -> dict:
         other_meta = self._get_other_meta_fields_list(other)
         compatible_meta = dict()
         for k, v in list(self.get_meta(ex=ex).items()) + list(kwargs.items()):
@@ -161,11 +161,9 @@ class AbstractBaseObject(BaseInterface, ABC):
         return meta_kwargs
 
     def get_str_meta(self):
-        return ', '.join(
-            [i.__repr__() for i in self._get_meta_args()] + [
-                "{}={}".format(k, v) for k, v in self._get_meta_kwargs().items()
-            ]
-        )
+        args_str = [i.__repr__() for i in self._get_meta_args()]
+        kwargs_str = ['{}={}'.format(k, v) for k, v in self._get_meta_kwargs().items()]
+        return ', '.join(args_str + kwargs_str)
 
     def make_new(self, *args, ex: OptionalFields = None, **kwargs):
         meta = self.get_meta(ex=ex)
