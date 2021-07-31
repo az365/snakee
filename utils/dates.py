@@ -1,5 +1,5 @@
 from typing import Union, Optional, NoReturn
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
@@ -280,23 +280,23 @@ def get_year_and_week_from_date(d: Date) -> tuple:
     return year, week
 
 
-def get_day_abs_from_date(d: Date, min_date: Union[Date, arg.DefaultArgument] = arg.DEFAULT) -> int:
-    min_date = arg.delayed_undefault(min_date, get_year_start_monday, get_min_year())
+def get_day_abs_from_date(d: Date, min_date: Union[Date, arg.Auto] = arg.AUTO) -> int:
+    min_date = arg.delayed_acquire(min_date, get_year_start_monday, get_min_year())
     return get_days_between(min_date, d)
 
 
 def get_week_abs_from_year_and_week(
         year: int, week: int,
-        min_year: Union[int, arg.DefaultArgument] = arg.DEFAULT,
+        min_year: Union[int, arg.Auto] = arg.AUTO,
 ) -> int:
-    min_year = arg.undefault(min_year, get_min_year())
+    min_year = arg.acquire(min_year, get_min_year())
     week_abs = (year - min_year) * WEEKS_IN_YEAR + week
     return week_abs
 
 
 def get_week_abs_from_date(
         d: Date,
-        min_year: Union[int, arg.DefaultArgument] = arg.DEFAULT,
+        min_year: Union[int, arg.Auto] = arg.AUTO,
         decimal: bool = False,
 ) -> int:
     year, week = get_year_and_week_from_date(d)
@@ -311,16 +311,16 @@ def get_week_no_from_date(d: Date) -> int:
     return week_no
 
 
-def get_year_and_week_from_week_abs(week_abs: int, min_year: Union[int, arg.DefaultArgument] = arg.DEFAULT) -> tuple:
-    min_year = arg.undefault(min_year, _min_year)
+def get_year_and_week_from_week_abs(week_abs: int, min_year: Union[int, arg.Auto] = arg.AUTO) -> tuple:
+    min_year = arg.acquire(min_year, _min_year)
     delta_year = int(week_abs / WEEKS_IN_YEAR)
     year = min_year + delta_year
     week = week_abs - delta_year * WEEKS_IN_YEAR
     return year, week
 
 
-def get_year_from_week_abs(week_abs: int, min_year: Union[int, arg.DefaultArgument] = arg.DEFAULT) -> int:
-    min_year = arg.undefault(min_year, _min_year)
+def get_year_from_week_abs(week_abs: int, min_year: Union[int, arg.Auto] = arg.AUTO) -> int:
+    min_year = arg.acquire(min_year, _min_year)
     delta_year = int(week_abs / WEEKS_IN_YEAR)
     return min_year + delta_year
 
@@ -332,7 +332,7 @@ def get_week_from_week_abs(week_abs: int) -> int:
 
 def get_date_from_week_abs(
         week_abs: int,
-        min_year: Union[int, arg.DefaultArgument] = arg.DEFAULT,
+        min_year: Union[int, arg.Auto] = arg.AUTO,
         as_iso_date: bool = True,
 ) -> Date:
     year, week = get_year_and_week_from_week_abs(week_abs, min_year=min_year)
@@ -342,10 +342,10 @@ def get_date_from_week_abs(
 
 def get_date_from_day_abs(
         day_abs: int,
-        min_date: Union[Date, arg.DefaultArgument] = arg.DEFAULT,
+        min_date: Union[Date, arg.Auto] = arg.AUTO,
         as_iso_date: bool = True,
 ) -> Date:
-    min_date = arg.delayed_undefault(min_date, get_year_start_monday, get_min_year(), as_iso_date=as_iso_date)
+    min_date = arg.delayed_acquire(min_date, get_year_start_monday, get_min_year(), as_iso_date=as_iso_date)
     cur_date = get_shifted_date(min_date, days=day_abs)
     return cur_date
 
@@ -380,3 +380,35 @@ def get_date_from_numeric(numeric: int, from_scale: str = 'days') -> Date:
     else:
         raise ValueError('only {} time scales supported (got {})'.format(','.join(DATE_SCALES), from_scale))
     return func(numeric)
+
+
+def get_formatted_datetime(dt: datetime) -> str:
+    return dt.isoformat()[:16].replace('T', ' ')
+
+
+def get_current_time_str():
+    return get_formatted_datetime(datetime.now())
+
+
+def get_str_from_timedelta(td: timedelta) -> str:
+    td_abs = abs(td)
+    if td_abs.days >= 365:
+        td_str = '{}Y'.format(int(td_abs.days / 365))
+    elif td_abs.days > 30:
+        td_str = '{}M'.format(int(td_abs.days / 30))
+    elif td_abs.days >= 7:
+        td_str = '{}W'.format(int(td_abs.days / 7))
+    elif td_abs.days >= 1:
+        td_str = '{}D'.format(int(td_abs.days))
+    elif td_abs.seconds >= 60 * 60:
+        td_str = '{}h'.format(int(td_abs.seconds / 60 / 60))
+    elif td_abs.seconds >= 60:
+        td_str = '{}m'.format(int(td_abs / 60))
+    elif td_abs.seconds:
+        td_str = '{}s'.format(td_abs.seconds)
+    else:
+        td_str = '0'
+    if td.seconds >= 0:
+        return td_str
+    else:
+        return '-{}'.format(td_str)
