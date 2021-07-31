@@ -39,6 +39,7 @@ Dialect = str
 
 CHUNK_SIZE = 8192
 EXAMPLE_STR_LEN = 12
+COUNT_ITEMS_TO_LOG_COLLECT_OPERATION = 500000
 STREAM_META_FIELDS = ('count', )
 
 
@@ -50,6 +51,7 @@ class ColumnFile(TextFile, ColumnarMixin):
             first_line_is_title: bool = True,
             expected_count: AutoCount = AUTO,
             struct: Struct = AUTO,
+            schema: Struct = AUTO,  # temporary support of old argument name
             folder: Connector = None,
             verbose: AutoBool = AUTO,
     ):
@@ -62,6 +64,8 @@ class ColumnFile(TextFile, ColumnarMixin):
         self.first_line_is_title = first_line_is_title
         self._struct = None
         self._initial_struct = None
+        struct = arg.acquire(struct, schema)  # temporary support of old argument name
+        struct = arg.delayed_acquire(struct, self.get_detected_struct_by_title_row)
         self.set_struct(struct, inplace=True)
 
     @staticmethod
@@ -93,6 +97,8 @@ class ColumnFile(TextFile, ColumnarMixin):
         return self.get_struct().get_struct_comperison_dict(other)
 
     def reset_struct_to_initial(self, verbose: bool = True, message: Optional[str] = None) -> Native:
+        if not arg.is_defined(message):
+            message = self.__repr__()
         if verbose:
             for line in self.get_struct().get_struct_comparison_iter(self.get_initial_struct(), message=message):
                 self.log(line)
@@ -197,7 +203,7 @@ class ColumnFile(TextFile, ColumnarMixin):
             expected_struct = self.get_initial_struct().copy()
         else:
             expected_struct = self.get_struct()
-        actual_struct = self.get_detected_struct_by_title_row(set_scema=False, verbose=False)
+        actual_struct = self.get_detected_struct_by_title_row(set_struct=False, verbose=False)
         if not isinstance(actual_struct, fc.FlatStruct):
             actual_struct = fc.FlatStruct.convert_to_native(actual_struct)
         self.set_struct(actual_struct.validate_about(expected_struct), inplace=True)
@@ -221,7 +227,7 @@ class ColumnFile(TextFile, ColumnarMixin):
 
     def get_invalid_columns(self) -> Iterable:
         if hasattr(self.get_struct(), 'get_fields'):
-            for f in self.get_struct().get_fieds():
+            for f in self.get_struct().get_fields():
                 if hasattr(f, 'is_valid'):
                     if not f.is_valid():
                         yield f
@@ -239,7 +245,7 @@ class ColumnFile(TextFile, ColumnarMixin):
 
     def actualize(self) -> Native:
         super().actualize()
-        self.reset_struct_to_initial()
+        self.reset_struct_to_initial(message=self.__repr__(), verbose=False)
         return self.validate_fields()
 
     def check(
@@ -287,7 +293,7 @@ class ColumnFile(TextFile, ColumnarMixin):
             elif expected_struct:
                 return True
             else:
-                message = 'Struct for validation must be defined'.format(self.get_name())
+                message = 'Struct for validation must be defined: {}'.format(self.get_name())
             self.log(message)
             if skip_errors:
                 return False
@@ -343,8 +349,8 @@ class ColumnFile(TextFile, ColumnarMixin):
     def is_first_line_title(self) -> bool:
         return self.first_line_is_title
 
-    def get_csv_reader(self, lines) -> Iterator:
-        if self.delimiter:
+    def get_csv_reader(self, lines: Iterable) -> Iterator:
+        if self.get_delimiter():
             return csv.reader(lines, delimiter=self.get_delimiter())
         else:
             return csv.reader(lines)
@@ -387,17 +393,21 @@ class ColumnFile(TextFile, ColumnarMixin):
     def get_records_from_file(
             self,
             convert_types: bool = True,
+            skip_missing: bool = False,
             verbose: AutoBool = AUTO,
             message: Message = AUTO,
             **kwargs
     ) -> Iterable:
-        struct = self.get_struct()
-        assert struct, 'Struct must be defined for {}'.format(self)
-        columns = struct.get_columns()
-        if self.get_count() <= 1:
-            self.get_fast_lines_count(verbose=verbose)
-        for item in self.get_rows(convert_types=convert_types, verbose=verbose, message=message, **kwargs):
-            yield {k: v for k, v in zip(columns, item)}
+        if self.is_existing():
+            struct = self.get_struct()
+            assert struct, 'Struct must be defined for {}.get_records_from_file()'.format(self.__repr__())
+            columns = struct.get_columns()
+            if self.get_count() <= 1:
+                self.get_fast_lines_count(verbose=verbose)
+            for item in self.get_rows(convert_types=convert_types, verbose=verbose, message=message, **kwargs):
+                yield {k: v for k, v in zip(columns, item)}
+        elif not skip_missing:
+            raise FileNotFoundError('File {} is not existing'.format(self.get_name()))
 
     def get_records(self, convert_types: bool = True, verbose: AutoBool = AUTO, **kwargs) -> Iterable:
         return self.get_records_from_file(convert_types=convert_types, verbose=verbose, **kwargs)
@@ -485,7 +495,22 @@ class ColumnFile(TextFile, ColumnarMixin):
         return self._assume_stream(stream)
 
     def is_empty(self) -> bool:
-        return (self.get_columns() or 0) <= (1 if self.is_first_line_title() else 0)
+        return (self.get_count() or 0) <= (1 if self.is_first_line_title() else 0)
+
+    def get_str_description(self) -> str:
+        if self.is_existing():
+            rows_count = self.get_count()
+            if rows_count:
+                cols_count = self.get_column_count() or 0
+                invalid_count = self.get_invalid_fields_count() or 0
+                valid_count = cols_count - invalid_count
+                message = '{} rows, {} columns = {} valid + {} invalid'
+                return message.format(rows_count, cols_count, valid_count, invalid_count)
+            else:
+                message = 'empty file, expected {} columns: {}'
+        else:
+            message = 'file not exists, expected {} columns: {}'
+        return message.format(self.get_column_count(), ', '.join(self.get_columns()))
 
     def has_title(self) -> bool:
         if self.is_first_line_title():
@@ -497,7 +522,7 @@ class ColumnFile(TextFile, ColumnarMixin):
         if self.is_existing():
             return dict(
                 is_actual=self.is_actual(),
-                is_valid=self.is_valid(),
+                is_valid=self.is_valid_struct(),
                 has_title=self.is_first_line_title(),
                 is_opened=self.is_opened(),
                 is_empty=self.is_empty(),
@@ -519,7 +544,7 @@ class ColumnFile(TextFile, ColumnarMixin):
         filters = filters or list()
         if filter_kwargs and safe_filter:
             filter_kwargs = {k: v for k, v in filter_kwargs.items() if k in self.get_columns()}
-        verbose = self.get_count() > 500000
+        verbose = self.get_count() > COUNT_ITEMS_TO_LOG_COLLECT_OPERATION
         stream_example = self.filter(*filters or [], **filter_kwargs, verbose=verbose)
         item_example = stream_example.get_one_item()
         str_filters = self._format_args(*filters, **filter_kwargs)
@@ -587,7 +612,7 @@ class ColumnFile(TextFile, ColumnarMixin):
             else:
                 message = self.get_validation_message()
                 # self.log('{} rows, {} columns:'.format(self.get_count(), self.get_column_count()))
-                example, stream_example, example_comment = self._prepare_examples(
+                example_item, example_stream, example_comment = self._prepare_examples(
                     safe_filter=safe_filter, filters=filter_args, **filter_kwargs,
                 )
         else:
@@ -603,7 +628,7 @@ class ColumnFile(TextFile, ColumnarMixin):
             as_dataframe=as_dataframe, example=example_item,
             logger=self.get_logger(), comment=example_comment,
         )
-        if dataframe:
+        if dataframe is not None:
             return dataframe
         if example_stream and count:
             return self.show_example(
@@ -644,7 +669,9 @@ class CsvFile(ColumnFile):
     # @deprecated_with_alternative('ConnType.get_class()')
     def __init__(
             self,
-            name: Name, struct: Struct = AUTO,
+            name: Name,
+            struct: Struct = AUTO,
+            schema: Struct = AUTO,  # TMP: for compatibility with old version
             gzip: bool = False, encoding: str = 'utf8',
             end: str = '\n', delimiter: str = ',',
             first_line_is_title: bool = True, expected_count: AutoBool = AUTO,
@@ -652,6 +679,7 @@ class CsvFile(ColumnFile):
     ):
         super().__init__(
             name=name, struct=struct, expected_count=expected_count, folder=folder,
+            schema=schema,  # TMP: for compatibility with old version
             gzip=gzip, encoding=encoding, end=end, delimiter=delimiter, first_line_is_title=first_line_is_title,
             verbose=verbose,
         )
@@ -674,6 +702,7 @@ class TsvFile(ColumnFile):
     def __init__(
             self,
             name: Name, struct: Struct = AUTO,
+            schema: Struct = AUTO,  # TMP: for compatibility with old version
             gzip: bool = False, encoding: str = 'utf8',
             end: str = '\n', delimiter: str = '\t',
             first_line_is_title: bool = True, expected_count: AutoBool = AUTO,
@@ -681,6 +710,7 @@ class TsvFile(ColumnFile):
     ):
         super().__init__(
             name=name, struct=struct, expected_count=expected_count, folder=folder,
+            schema=schema,  # TMP: for compatibility with old version
             gzip=gzip, encoding=encoding, end=end, delimiter=delimiter, first_line_is_title=first_line_is_title,
             verbose=verbose,
         )
