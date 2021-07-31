@@ -45,7 +45,7 @@ def field(
 
 def struct(
         *fields, default_type: Type = AUTO,
-        name: Optional[str], caption: Optional[str] = None,
+        name: Optional[str] = None, caption: Optional[str] = None,
         **kwargs
 ) -> FlatStruct:
     fields = arg.update(fields)
