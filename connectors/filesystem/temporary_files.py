@@ -9,8 +9,8 @@ try:  # Assume we're a sub-module in a package.
     )
     from connectors import connector_classes as ct
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from utils import arguments as arg, algo
-    from interfaces import (
+    from ...utils import arguments as arg, algo
+    from ...interfaces import (
         ContextInterface, StreamInterface, ConnectorInterface, TemporaryLocationInterface, TemporaryFilesMaskInterface,
         Context, Stream, Connector, TmpFiles,
         AUTO, Auto, AutoBool, Name, Source,

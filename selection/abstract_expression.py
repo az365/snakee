@@ -21,7 +21,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..items.item_type import ItemType
     from ..items.struct_row_interface import StructRowInterface
     from ..fields.abstract_field import AbstractField
-    from items.struct_interface import StructInterface
+    from ..items.struct_interface import StructInterface
     from ..loggers.logger_interface import LoggerInterface
 
 Row = Union[list, tuple]
@@ -34,7 +34,7 @@ Array = Union[list, tuple]
 FieldList = Union[Array, StructInterface]
 Logger = Optional[LoggerInterface]
 
-AUTO = arg.DEFAULT
+AUTO = arg.AUTO
 GIVE_SAME_FIELD_FOR_FUNCTION_DESCRIPTION = False
 
 
@@ -145,7 +145,7 @@ class SingleFieldDescription(AbstractDescription, ABC):
 
     def apply_inplace(self, item) -> NoReturn:
         item_type = self.get_input_item_type()
-        if item_type == arg.DEFAULT:
+        if item_type == arg.AUTO:
             item_type = it.ItemType.detect(item, default=ItemType.Any)
         it.set_to_item_inplace(
             field=self.get_target_field_name(),

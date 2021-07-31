@@ -18,7 +18,7 @@ try:  # Assume we're a sub-module in a package.
     from loggers import logger_classes as log
     from functions import item_functions as fs
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from interfaces import (
+    from ...interfaces import (
         IterableStreamInterface,
         StreamType, LoggingLevel,
         Stream, Source, ExtLogger, SelectionLogger, Context, Connector, LeafConnector,
@@ -142,9 +142,9 @@ class IterableStream(AbstractStream, IterableStreamInterface):
         for i in self.get_tee_items():
             return i
 
-    @deprecated_witdth_alternative('get_one_item()')
+    @deprecated_with_alternative('get_one_item()')
     def one(self):
-        return get_one_count()
+        return self.get_one_item()
 
     def next(self):
         return next(

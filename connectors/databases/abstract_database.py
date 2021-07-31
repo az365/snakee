@@ -5,22 +5,24 @@ try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from interfaces import (
         Connector, RegularStream, Name, StructInterface, SimpleDataInterface,
+        StreamType,
         AUTO, Auto, AutoBool, AutoContext,
     )
     from loggers import logger_classes as log
     from connectors import connector_classes as ct
     from streams import stream_classes as sm
-    from items import legacy_classes as sh
+    from items.flat_struct import FlatStruct
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from interfaces import (
         Connector, RegularStream, Name, StructInterface, SimpleDataInterface,
+        StreamType,
         AUTO, Auto, AutoBool, AutoContext,
     )
     from ...loggers import logger_classes as log
     from .. import connector_classes as ct
     from ...streams import stream_classes as sm
-    from ...schema import legacy_classes as sh
+    from ...items.flat_struct import FlatStruct
 
 Native = ct.AbstractStorage
 Stream = RegularStream
@@ -141,26 +143,23 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
                     self.log(message_if_no, verbose=verbose)
 
     def create_table(
-            self, table: Union[Table, Name], schema: Struct,
+            self, table: Union[Table, Name], struct: Struct,
             drop_if_exists: bool = False, verbose: AutoBool = arg.AUTO,
     ) -> Table:
         verbose = arg.acquire(verbose, self.verbose)
-        table_name, schema_str = self._get_table_name_and_struct_str(table, schema, check_struct=True)
+        table_name, struct_str = self._get_table_name_and_struct_str(table, struct, check_struct=True)
         if drop_if_exists:
             self.drop_table(table_name, verbose=verbose)
         message = 'Creating table:'
-        query = 'CREATE TABLE {name} ({schema});'.format(
-            name=table_name,
-            schema=schema_str,
-        )
+        query = 'CREATE TABLE {name} ({struct});'.format(name=table_name, struct=struct_str)
         self.execute(
             query, get_data=False, commit=True,
             verbose=message if verbose is True else verbose,
         )
         self.post_create_action(table_name, verbose=verbose)
         self.log('Table {name} is created.'.format(name=table_name), verbose=verbose)
-        if schema:
-            return self.table(table, struct=schema)
+        if struct:
+            return self.table(table, struct=struct)
         else:
             return self.table(table)
 
@@ -209,7 +208,7 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
         assert cat_new == cat_old, 'Can copy within same scheme (folder) only (got {} and {})'.format(cat_new, cat_old)
         new = name_new
         table_old = self.get_child(name_old)
-        schema = table_old.get_schema() if hasattr(table_old, 'get_struct') else arg.AUTO
+        struct = table_old.get_struct() if hasattr(table_old, 'get_struct') else arg.AUTO
         self.execute_if_exists(
             query='ALTER TABLE {old} RENAME TO {new};'.format(old=old, new=new),
             table=old,
@@ -218,7 +217,7 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
             stop_if_no=not if_exists,
             verbose=verbose,
         )
-        return self.table(new, struct=schema)
+        return self.table(new, struct=struct)
 
     def select(
             self, table: Union[Table, Name],
@@ -280,27 +279,27 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
 
     def insert_data(
             self,
-            table: Union[Table, Name], data: Data, schema: Struct = None,
+            table: Union[Table, Name], data: Data, struct: Struct = None,
             encoding: Optional[str] = None, skip_errors: bool = False,
             skip_lines: Optional[int] = 0, skip_first_line: bool = False,
             step: Union[int, arg.Auto] = DEFAULT_STEP, verbose: AutoBool = arg.AUTO,
     ) -> tuple:
         if not arg.is_defined(skip_lines):
             skip_lines = 0
-        is_schema_description = isinstance(schema, sh.LegacyStruct) or hasattr(schema, 'get_struct_str')
-        if not is_schema_description:
-            message = 'Struct as {} is deprecated, use sh.SchemaDescription instead'.format(type(schema))
+        is_struct_description = isinstance(struct, StructInterface) or hasattr(struct, 'get_struct_str')
+        if not is_struct_description:
+            message = 'Struct as {} is deprecated, use FlatStruct instead'.format(type(struct))
             self.log(msg=message, level=log.LoggingLevel.Warning)
-            schema = sh.LegacyStruct(schema or [])
+            struct = FlatStruct(struct or [])
         input_stream = self._get_struct_stream_from_data(
-            data, struct=schema,
+            data, struct=struct,
             encoding=encoding, skip_first_line=skip_first_line, verbose=verbose,
         )
         if skip_lines:
             input_stream = input_stream.skip(skip_lines)
-        if input_stream.get_stream_type() != sm.StreamType.SchemaStream:
-            input_stream = input_stream.schematize(
-                schema,
+        if input_stream.get_stream_type() != StreamType.StructStream:
+            input_stream = input_stream.structure(
+                struct,
                 skip_bad_rows=True,
                 verbose=True,
             ).update_meta(
@@ -316,18 +315,18 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
 
     def force_upload_table(
             self,
-            table: Union[Table, Name], schema: Struct, data: Data,
+            table: Union[Table, Name], struct: Struct, data: Data,
             encoding: Optional[str] = None, step: int = DEFAULT_STEP,
             skip_lines: int = 0, skip_first_line: bool = False, max_error_rate: float = 0.0,
             verbose: AutoBool = arg.AUTO,
     ) -> Table:
         verbose = arg.acquire(verbose, self.verbose)
-        table_name, schema = self._get_table_name_and_struct(table, schema)
+        table_name, struct = self._get_table_name_and_struct(table, struct)
         if not skip_lines:
-            self.create_table(table_name, schema=schema, drop_if_exists=True, verbose=verbose)
+            self.create_table(table_name, struct=struct, drop_if_exists=True, verbose=verbose)
         skip_errors = (max_error_rate is None) or (max_error_rate > DEFAULT_ERRORS_THRESHOLD)
         initial_count, write_count = self.insert_data(
-            table, schema=schema, data=data,
+            table, struct=struct, data=data,
             encoding=encoding, skip_first_line=skip_first_line,
             step=step, skip_lines=skip_lines, skip_errors=skip_errors,
             verbose=verbose,
@@ -348,17 +347,17 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
 
     def safe_upload_table(
             self,
-            table: Union[Table, Name], schema: Struct, data: Data,
+            table: Union[Table, Name], struct: Struct, data: Data,
             encoding: Optional[str] = None,
             step: int = DEFAULT_STEP,
             skip_lines: int = 0, skip_first_line: bool = False, max_error_rate: float = 0.0,
             verbose: AutoBool = arg.AUTO,
     ) -> Table:
-        target_name, schema = self._get_table_name_and_struct(table, schema)
+        target_name, struct = self._get_table_name_and_struct(table, struct)
         tmp_name = '{}_tmp_upload'.format(target_name)
         bak_name = '{}_bak'.format(target_name)
         self.force_upload_table(
-            table=tmp_name, schema=schema, data=data, encoding=encoding, skip_first_line=skip_first_line,
+            table=tmp_name, struct=struct, data=data, encoding=encoding, skip_first_line=skip_first_line,
             step=step, skip_lines=skip_lines, max_error_rate=max_error_rate,
             verbose=verbose,
         )

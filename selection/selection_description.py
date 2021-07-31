@@ -19,9 +19,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     )
     from ..items.flat_struct import FlatStruct
     from ..items.item_type import ItemType
-    from ..items.struct_row_interface import StructRowInterface
-    from items.struct_interface import StructInterface
-    from ..loggers.logger_interface import LoggerInterface
     from . import selection_classes as sn
     from ..items import legacy_classes as sh
 
@@ -53,7 +50,7 @@ def build_expression_description(left: Field, right: Union[Optional[Array], Call
     if isinstance(desc, Callable):
         return sn.FunctionDescription(target, function=desc, **kwargs)
     elif desc is not None:
-        assert isinstance(desc, (int, str))
+        assert isinstance(desc, (int, str)), 'int or str expected, got {}'.format(desc)
         return sn.AliasDescription(alias=target, source=desc, **kwargs)
     elif target == '*':
         return sn.StarDescription(**kwargs)
@@ -103,7 +100,7 @@ class SelectionDescription:
         self._input_item_type = input_item_type
         self._input_struct = input_struct
         self._logger = logger
-        self._selection_logger = arg.undefault(selection_logger, getattr(logger, 'get_selection_logger', None))
+        self._selection_logger = arg.acquire(selection_logger, getattr(logger, 'get_selection_logger', None))
         self._has_trivial_multiple_selectors = AUTO
         self._output_field_names = AUTO
 
@@ -138,8 +135,8 @@ class SelectionDescription:
             logger: Union[Logger, Auto] = AUTO,
             selection_logger: Union[Logger, Auto] = AUTO,
     ) -> NoReturn:
-        self._logger = arg.undefault(logger, getattr(logger, 'get_logger', None))
-        self._selection_logger = arg.undefault(selection_logger, getattr(logger, 'get_selection_logger', None))
+        self._logger = arg.acquire(logger, getattr(logger, 'get_logger', None))
+        self._selection_logger = arg.acquire(selection_logger, getattr(logger, 'get_selection_logger', None))
 
     def set_selection_logger(self, logger: Logger) -> NoReturn:
         self._selection_logger = logger
@@ -171,7 +168,7 @@ class SelectionDescription:
         self._has_trivial_multiple_selectors = value
 
     def check_has_trivial_multiple_selectors(self) -> bool:
-        if self.has_trivial_multiple_selectors() == arg.DEFAULT:
+        if self.has_trivial_multiple_selectors() == AUTO:
             self.mark_trivial_multiple_selectors(False)
             for d in self.get_descriptions():
                 if hasattr(d, 'is_trivial_multiple'):
@@ -202,7 +199,7 @@ class SelectionDescription:
 
     def get_output_field_names(self, item: Optional[Item] = None) -> list:
         if arg.is_defined(item):
-            if self.check_changing_output_fields() or self.get_known_output_field_names() == arg.DEFAULT:
+            if self.check_changing_output_fields() or self.get_known_output_field_names() == AUTO:
                 self.reset_output_field_names(item)
         return self.get_known_output_field_names()
 
@@ -217,7 +214,7 @@ class SelectionDescription:
         dict_output_field_types = self.get_dict_output_field_types(struct)
         for name in self.get_output_field_names(struct):
             field_type = dict_output_field_types.get(name)
-            yield sh.FieldDescription(name, field_type=field_type)
+            yield FlatStruct(name, field_type=field_type)
 
     def select_output_fields(self, item: Item) -> Item:
         return it.simple_select_fields(
@@ -245,9 +242,9 @@ class SelectionDescription:
     def process_item(self, item: Item) -> Item:
         input_item_type = self.get_input_item_type()
         target_item_type = self.get_target_item_type()
-        if input_item_type == arg.DEFAULT:
+        if input_item_type == AUTO:
             input_item_type = ItemType.detect(item, default=ItemType.Any)
-        if target_item_type == arg.DEFAULT:
+        if target_item_type == AUTO:
             target_item_type = input_item_type
         if target_item_type == input_item_type and target_item_type != ItemType.Row:
             new_item = it.get_copy(item)
@@ -257,7 +254,7 @@ class SelectionDescription:
             new_item = self.apply_outplace(item, target_item_type)
         return it.get_frozen(new_item)
 
-    def get_mapper(self, logger: Union[Logger, arg.DefaultArgument] = arg.DEFAULT) -> Callable:
+    def get_mapper(self, logger: Union[Logger, Auto] = AUTO) -> Callable:
         if arg.is_defined(logger):
             self.set_selection_logger(logger)
         return self.process_item

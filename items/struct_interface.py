@@ -4,7 +4,7 @@ from typing import Union, Optional
 try:  # Assume we're a sub-module in a package.
     from fields.field_interface import FieldInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from fields.field_interface import FieldInterface
+    from ..fields.field_interface import FieldInterface
 
 FieldName = str
 FieldNo = int

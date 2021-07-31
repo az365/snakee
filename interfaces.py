@@ -1,4 +1,4 @@
-from typing import Optional, Callable, Union, Any
+from typing import Optional, Callable, Iterable, Iterator, Generator, Union, Any, NoReturn
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
@@ -55,14 +55,12 @@ try:  # Assume we're a sub-module in a package.
     from loggers.extended_logger_interface import LoggingLevel  # standard Enum
     from loggers.progress_interface import OperationStatus  # standard Enum
     from streams.stream_type import StreamType  # inherits ClassType(DynamicEnum)
-    # from connectors.filesystem.file_type import FileType  # inherits ClassType; uses TextFile, ColumnFile, ...
     from fields.field_type import FieldType  # inherits DynamicEnum
     from items.item_type import ItemType  # inherits SubclassesType(ClassType)
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from .loggers.extended_logger_interface import LoggingLevel  # standard Enum
     from .loggers.progress_interface import OperationStatus  # standard Enum
     from .streams.stream_type import StreamType  # inherits ClassType(DynamicEnum)
-    # from .connectors.filesystem.file_type import FileType  # inherits ClassType; uses TextFile, ColumnFile, ...
     from .fields.field_type import FieldType  # inherits DynamicEnum
     from .items.item_type import ItemType  # inherits SubclassesType(ClassType)
 
@@ -74,7 +72,7 @@ Message = Union[str, Array]
 Field = Union[Name, FieldInterface]
 OptionalFields = Union[Array, str, None]
 Columns = Optional[Array]
-AutoColumns = Union[arg.Auto, Columns]
+AutoColumns = Union[Auto, Columns]
 
 
 Line = str
@@ -93,7 +91,7 @@ RowStream = RegularStream
 RecordStream = RegularStream
 KeyValueStream = RegularStream
 StructStream = RegularStream
-SchemaStream = StructStream
+StructStream = StructStream
 
 Source = Union[ConnectorInterface, arg.Auto, None]
 Connector = Optional[ConnectorInterface]

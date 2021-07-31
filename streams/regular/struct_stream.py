@@ -2,24 +2,32 @@ from typing import Optional, Union, Iterable, Callable
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg, selection as sf
-    from interfaces import StructInterface, StructRowInterface, StructRow
+    from interfaces import (
+        StreamInterface, StructInterface, StructRowInterface, Row, Item, ItemType,
+        AUTO, Auto, Source, Context, TmpFiles, Count,
+    )
     from streams import stream_classes as sm
     from loggers import logger_classes as log
     from functions import all_functions as fs
     from selection import selection_classes as sn
-    from items import legacy_classes as sh
+    from items.flat_struct import FlatStruct
+    from items.struct_row import StructRow
     from utils.decorators import deprecated_with_alternative
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg, selection as sf
-    from ..interfaces import StructInterface, StructRowInterface, StructRow
+    from ...interfaces import (
+        StreamInterface, StructInterface, StructRowInterface, Row, Item, ItemType,
+        AUTO, Auto, Source, Context, TmpFiles, Count,
+    )
     from .. import stream_classes as sm
     from ...loggers import logger_classes as log
     from ...functions import all_functions as fs
     from ...selection import selection_classes as sn
-    from ...items import legacy_classes as sh
-    from ...items.struct_interface import StructInterface
+    from ...items.flat_struct import FlatStruct
+    from ...items.struct_row import StructRow
     from ...utils.decorators import deprecated_with_alternative
 
+Native = Union[StreamInterface, StructRowInterface]
 Struct = StructInterface
 OptStruct = Optional[Union[Struct, Iterable]]
 
@@ -27,11 +35,11 @@ DYNAMIC_META_FIELDS = ('count', 'struct')
 NAME_POS, TYPE_POS, HINT_POS = 0, 1, 2  # old style struct fields
 
 
-def is_row(row) -> bool:
+def is_row(row: Row) -> bool:
     return isinstance(row, (list, tuple))
 
 
-def is_valid(row, struct: OptStruct) -> bool:
+def is_valid(row: Row, struct: OptStruct) -> bool:
     if is_row(row):
         if isinstance(struct, Struct):
             return struct.is_valid_row(row)
@@ -59,7 +67,7 @@ def check_rows(rows, struct: OptStruct, skip_errors: bool = False) -> Iterable:
         elif skip_errors:
             continue
         else:
-            struct_str = struct.get_struct_str() if isinstance(struct, sh.LegacyStruct) else struct
+            struct_str = struct.get_struct_str() if isinstance(struct, StructInterface) else struct
             raise TypeError('check_records(): this item is not valid record for struct {}: {}'.format(struct_str, r))
         yield r
 
@@ -101,15 +109,15 @@ def apply_struct_to_row(row, struct: OptStruct, skip_bad_values=False, logger=No
         raise TypeError
 
 
-class StructStream(sm.RowStream):
+class StructStream(sm.RowStream, FlatStruct):
     def __init__(
             self,
             data, struct: OptStruct = None,
             name=arg.DEFAULT, check=True,
-            count=None, less_than=None,
-            source=None, context=None,
-            max_items_in_memory=arg.DEFAULT,
-            tmp_files=arg.DEFAULT,
+            count: Count = None, less_than: Count = None,
+            source: Source = None, context: Context = None,
+            max_items_in_memory: Count = AUTO,
+            tmp_files: TmpFiles = AUTO,
     ):
         self._struct = struct or list()
         super().__init__(
@@ -126,11 +134,11 @@ class StructStream(sm.RowStream):
         return DYNAMIC_META_FIELDS
 
     @staticmethod
-    def get_item_type():
-        return sn.it.ItemType.StructRow
+    def get_item_type() -> ItemType:
+        return ItemType.StructRow
 
     @classmethod
-    def is_valid_item_type(cls, item):
+    def is_valid_item_type(cls, item: Item) -> bool:
         return super().is_valid_item_type(item)
 
     def is_valid_item(self, item) -> bool:
@@ -155,7 +163,7 @@ class StructStream(sm.RowStream):
 
     def get_struct_rows(self, rows, struct=arg.DEFAULT, skip_bad_rows=False, skip_bad_values=False, verbose=True):
         struct = arg.undefault(struct, self.get_struct())
-        if isinstance(struct, sh.LegacyStruct):  # actual approach
+        if isinstance(struct, StructInterface):  # actual approach
             converters = struct.get_converters('str', 'py')
             for r in rows:
                 converted_row = list()
@@ -190,7 +198,7 @@ class StructStream(sm.RowStream):
 
     def get_struct_rows(self) -> Iterable:
         for r in self.get_items():
-            yield sh.StructRow(r, self.get_struct(), check=False)
+            yield StructRow(r, self.get_struct(), check=False)
 
     def struct_map(self, function: Callable, struct: Struct):
         return self.__class__(
@@ -216,7 +224,7 @@ class StructStream(sm.RowStream):
             struct=output_struct,
         )
 
-    def filter(self, *fields, **expressions):
+    def filter(self, *fields, **expressions) -> Native:
         primitives = (str, int, float, bool)
         expressions_list = [(k, fs.equal(v) if isinstance(v, primitives) else v) for k, v in expressions.items()]
         expressions_list = list(fields) + expressions_list
@@ -231,3 +239,7 @@ class StructStream(sm.RowStream):
             filter(filter_function, self.get_items()),
         )
         return result.to_memory() if self.is_in_memory() else result
+
+    @staticmethod
+    def _assume_native(obj) -> Native:
+        return obj

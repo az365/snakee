@@ -1,16 +1,26 @@
-from typing import Callable, NoReturn
+from typing import Callable, Union, Any, NoReturn
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
-    from interfaces import StructRowInterface, Line, Row, Record, Field, Array, RegularItem, Item, Auto, AUTO
     from utils.enum import SubclassesType
     from utils.decorators import deprecated_with_alternative
+    from fields.field_interface import FieldInterface
+    from items.struct_row_interface import StructRowInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
-    from ..interfaces import StructRowInterface, Line, Row, Record, Field, Array, RegularItem, Item, Auto, AUTO
     from ..utils.enum import SubclassesType
     from ..utils.decorators import deprecated_with_alternative
+    from ..fields.field_interface import FieldInterface
+    from .struct_row_interface import StructRowInterface
 
+Name = Union[str, int]
+Field = Union[Name, FieldInterface]
+Array = Union[list, tuple]
+Line = str
+Record = dict
+Row = Array
+RegularItem = Union[Line, Record, Row, StructRowInterface]
+Item = Union[RegularItem, Any]
 
 STAR = '*'
 
@@ -21,7 +31,7 @@ class ItemType(SubclassesType):
     Record = 'record'
     StructRow = 'struct_row'
     Any = 'any'
-    Auto = AUTO
+    Auto = arg.AUTO
 
     _auto_value = False  # option: do not update auto-value for ItemType.Auto
 

@@ -2,49 +2,40 @@ from typing import Optional, Iterable, Callable, Union
 
 try:  # Assume we're a sub-module in a package.
     from interfaces import (
-        Stream, RegularStream, RowStream, KeyValueStream, StructStream,
+        Stream, RegularStream, RowStream, KeyValueStream, StructStream, FieldInterface,
         Context, Connector, AutoConnector, TmpFiles,
         Count, Name, Field, Columns, Array, ARRAY_TYPES,
         AUTO, Auto, AutoCount, AutoName, AutoBool,
     )
-    from fields.field_interface import FieldInterface
+    from utils import arguments as arg, mappers as ms, selection as sf
+    from utils.external import pd, DataFrame, get_use_objects_for_output
+    from utils.decorators import deprecated_with_alternative
     from streams import stream_classes as sm
     from connectors import connector_classes as cs
     from functions import all_functions as fs
     from selection import selection_classes as sn
     from items import item_type as it
-    from utils import (
-        arguments as arg,
-        mappers as ms,
-        selection as sf,
-    )
-    from utils.external import pd, DataFrame, get_use_objects_for_output
-    from utils.decorators import deprecated_with_alternative
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
-        Stream, RegularStream, RowStream, KeyValueStream, StructStream,
+        Stream, RegularStream, RowStream, KeyValueStream, StructStream, FieldInterface,
         Context, Connector, AutoConnector, TmpFiles,
         Count, Name, Field, Columns, Array, ARRAY_TYPES,
         AUTO, Auto, AutoCount, AutoName, AutoBool,
     )
-    from ...fields.field_interface import FieldInterface
+    from ...utils import arguments as arg, mappers as ms, selection as sf
+    from ...utils.external import pd, DataFrame, get_use_objects_for_output
+    from ...utils.decorators import deprecated_with_alternative
     from .. import stream_classes as sm
     from ...connectors import connector_classes as cs
     from ...functions import all_functions as fs
     from ...selection import selection_classes as sn
     from ...items import item_type as it
-    from ...utils import (
-        arguments as arg,
-        mappers as ms,
-        selection as sf,
-    )
-    from ...utils.external import pd, DataFrame, get_use_objects_for_output
-    from utils.decorators import deprecated_with_alternative
 
 Native = RegularStream
 
 
 def get_key_function(descriptions: Array, take_hash: bool = False) -> Callable:
+    descriptions = arg.get_names(descriptions)
     if len(descriptions) == 0:
         raise ValueError('key must be defined')
     elif len(descriptions) == 1:
@@ -208,7 +199,7 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
         values = arg.get_names(values)
         if hasattr(keys[0], 'get_field_names'):  # if isinstance(keys[0], FieldGroup)
             keys = keys[0].get_field_names()
-        step = arg.undefault(step, self.max_items_in_memory)
+        step = arg.acquire(step, self.max_items_in_memory)
         if as_pairs:
             key_for_sort = keys
         else:
@@ -253,7 +244,7 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
     def get_dataframe(self, columns: Columns = None) -> DataFrame:
         if pd and get_use_objects_for_output():
             dataframe = DataFrame(self.get_data())
-            if columns:
+            if arg.is_defined(columns):
                 columns = arg.get_names(columns)
                 dataframe = dataframe[columns]
             return dataframe
@@ -262,14 +253,14 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
             self, count: Count = 10,
             filters: Columns = None, columns: Columns = None,
             as_dataframe: AutoBool = AUTO,
-    ) -> Union[DataFrame]:
+    ) -> Union[DataFrame, list, None]:
         as_dataframe = arg.acquire(as_dataframe, get_use_objects_for_output())
         sm_sample = self.filter(*filters) if filters else self
         sm_sample = sm_sample.take(count)
         assert isinstance(sm_sample, RecordStream)
         if as_dataframe:
             return sm_sample.get_dataframe(columns)
-        else:
+        elif hasattr(sm_sample, 'get_list'):
             return sm_sample.get_list()
 
     def get_rows(self, columns: Union[Columns, Auto] = AUTO, add_title_row=False) -> Iterable:
@@ -299,10 +290,10 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
             less_than=less_than,
         )
 
-    def schematize(self, schema, skip_bad_rows=False, skip_bad_values=False, verbose=True) -> StructStream:
+    def structure(self, schema, skip_bad_rows=False, skip_bad_values=False, verbose=True) -> StructStream:
         return self.to_row_stream(
             columns=schema.get_columns(),
-        ).schematize(
+        ).structure(
             schema=schema,
             skip_bad_rows=skip_bad_rows,
             skip_bad_values=skip_bad_values,
@@ -441,6 +432,7 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
             of_lists: bool = False,
             skip_errors: bool = False,
     ) -> dict:
+        key = arg.get_names(key)
         key_value_stream = self.to_key_value_stream(key, value, skip_errors=skip_errors)
         return key_value_stream.get_dict(of_lists=of_lists)
 
