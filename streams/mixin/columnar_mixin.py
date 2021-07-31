@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Union, Iterable, Generator, Callable, Any, Optional
+from typing import Union, Iterable, Generator, Callable, Optional
 
 try:  # Assume we're a sub-module in a package.
     from interfaces import (
@@ -176,6 +176,7 @@ class ColumnarMixin(ContextualDataWrapper, ColumnarInterface, ABC):
 
     def map_side_join(self, right: Native, key: UniKey, how='left', right_is_uniq=True) -> Native:
         assert how in algo.JOIN_TYPES, 'only {} join types are supported ({} given)'.format(algo.JOIN_TYPES, how)
+        key = arg.get_names(key)
         keys = arg.update([key])
         joined_items = algo.map_side_join(
             iter_left=self.get_items(),
@@ -264,7 +265,7 @@ class ColumnarMixin(ContextualDataWrapper, ColumnarInterface, ABC):
         )
 
     def get_str_headers(self) -> Iterable:
-        yield '{}({}) {}'.format(self.__class__.__name__, self.get_name(), self.get_str_description())
+        yield "{}('{}') {}".format(self.__class__.__name__, self.get_name(), self.get_str_description())
 
     def get_one_item(self):
         one_item_stream = self.take(1)
@@ -280,7 +281,7 @@ class ColumnarMixin(ContextualDataWrapper, ColumnarInterface, ABC):
             allow_tee_iterator: bool = True,
             allow_spend_iterator: bool = True,
             **filter_kwargs
-    ):
+    ) -> Native:
         self.actualize()
         use_tee = allow_tee_iterator and hasattr(self, 'tee_stream')
         if self.is_in_memory() or (allow_spend_iterator and not use_tee):
@@ -296,10 +297,11 @@ class ColumnarMixin(ContextualDataWrapper, ColumnarInterface, ABC):
             self, count: int = 10,
             as_dataframe: AutoBool = AUTO,
             filters: Optional[Array] = None, columns: Optional[Array] = None,
-    ):
+    ) -> Union[DataFrame, Iterable]:
+        as_dataframe = arg.acquire(as_dataframe, get_use_objects_for_output())
         sm_sample = self.filter(*filters or []) if filters else self
         sm_sample = sm_sample.take(count)
-        if hasattr(sm_sample, 'get_dataframe'):
+        if hasattr(sm_sample, 'get_dataframe') and as_dataframe:
             return sm_sample.get_dataframe(columns)
         elif hasattr(sm_sample, 'select') and columns:
             return sm_sample.select(*columns).get_items()

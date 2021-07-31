@@ -31,7 +31,7 @@ class StructRow(SimpleDataWrapper, StructRowInterface):
     def get_struct(self) -> FlatStruct:
         return self._struct
 
-    def get_struct(self) -> FlatStruct:
+    def get_schema(self) -> FlatStruct:
         return self.get_struct()
 
     def get_fields_descriptions(self) -> Iterable:

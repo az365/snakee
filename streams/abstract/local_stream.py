@@ -248,7 +248,7 @@ class LocalStream(IterableStream, LocalStreamInterface):
             key_function = fs.same()
         else:
             key_function = fs.composite_key(keys)
-        if self.can_be_in_memory():
+        if self.can_be_in_memory(step=step) or step is None:
             stream = self.memory_sort(key_function, reverse=reverse, verbose=verbose)
         else:
             stream = self.disk_sort(key_function, reverse=reverse, step=step, verbose=verbose)

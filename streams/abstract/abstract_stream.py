@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 import inspect
+from typing import Optional, Callable, Iterable, Union, Any, NoReturn
 import gc
 
 try:  # Assume we're a sub-module in a package.
@@ -9,7 +10,6 @@ try:  # Assume we're a sub-module in a package.
         StreamType, LoggingLevel,
         Stream, ExtLogger, Context, Connector, LeafConnector,
         AUTO, AutoName, OptionalFields, Message,
-        Optional, Callable, Iterable, Union, Any, NoReturn,
     )
     from base.abstract.contextual_data import ContextualDataWrapper
     from streams import stream_classes as sm
@@ -23,7 +23,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         Stream, ExtLogger, Context, Connector, LeafConnector,
         AUTO, AutoName, OptionalFields, Message,
         Iterable, Union, Any,
-        Optional, Callable, Iterable, Union, Any, NoReturn,
     )
     from ...base.abstract.contextual_data import ContextualDataWrapper
     from .. import stream_classes as sm
@@ -120,13 +119,13 @@ class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
         else:
             return self.apply_to_data(function, *args, **kwargs)
 
-    @log.deprecated_with_alternative('get_stream_type()')
+    @deprecated_with_alternative('get_stream_type()')
     def get_class_name(self) -> str:
         return self.__class__.__name__
 
     @classmethod
     def get_stream_type(cls) -> StreamType:
-        return sm.StreamType(cls.__name__)
+        return StreamType.detect(cls)
 
     @classmethod
     def get_class(cls, other: Stream = None):

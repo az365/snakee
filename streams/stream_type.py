@@ -37,7 +37,7 @@ class StreamType(ClassType):
         global DICT_METHOD_SUFFIX
         return DICT_METHOD_SUFFIX.get(self.get_name())
 
-    def stream(self, data, source=arg.DEFAULT, context=arg.DEFAULT, *args, **kwargs):
+    def stream(self, data, source=arg.AUTO, context=arg.AUTO, *args, **kwargs):
         if arg.is_defined(source):
             kwargs['source'] = source
         if arg.is_defined(context):
@@ -47,7 +47,9 @@ class StreamType(ClassType):
 
     @staticmethod
     def detect(obj):
-        if inspect.isclass(obj):
+        if isinstance(obj, str):
+            name = obj
+        elif inspect.isclass(obj):
             name = obj.__name__
         else:
             name = obj.__class__.__name__

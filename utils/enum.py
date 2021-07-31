@@ -7,7 +7,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from . import arguments as arg
 
 Name = str
-Value = Union[str, int, arg.DefaultArgument]
+Value = Union[str, int, arg.Auto]
 Class = Callable
 
 AUX_NAMES = ('name', 'value', 'is_prepared')
@@ -16,10 +16,11 @@ AUX_NAMES = ('name', 'value', 'is_prepared')
 class EnumItem:
     _auto_value = True
 
-    def __init__(self, name: Name, value: Union[Value, arg.DefaultArgument] = arg.DEFAULT, update: bool = False):
+    def __init__(self, name: Name, value: Union[Value, arg.Auto] = arg.AUTO, update: bool = False):
         if update or not self._is_initialized():
+            name = arg.get_name(name)
             if self._auto_value:
-                value = arg.undefault(value, name)
+                value = arg.acquire(value, name)
             self.name = name
             self.value = value
 
@@ -75,10 +76,6 @@ class DynamicEnum(EnumItem):
     _enum_default_item = dict()
 
     @classmethod
-    def get_enum_name(cls) -> str:
-        return cls.__name__
-
-    @classmethod
     def get_default(cls) -> EnumItem:
         return cls._enum_default_item.get(cls.get_enum_name())
 
@@ -107,7 +104,7 @@ class DynamicEnum(EnumItem):
     def convert(
             cls,
             obj: Union[EnumItem, Name],
-            default: Union[EnumItem, arg.DefaultArgument, None] = arg.DEFAULT,
+            default: Union[EnumItem, arg.Auto, None] = arg.AUTO,
             skip_missing: bool = False,
     ):
         assert cls.is_prepared(), 'DynamicEnum must be prepared before usage'
@@ -117,7 +114,7 @@ class DynamicEnum(EnumItem):
             instance = cls.find_instance(string)
             if instance:
                 return instance
-        default = arg.delayed_undefault(default, cls.get_default)
+        default = arg.delayed_acquire(default, cls.get_default)
         if default:
             return cls.convert(default)
         elif not skip_missing:
@@ -153,11 +150,11 @@ class DynamicEnum(EnumItem):
     def prepare(cls) -> EnumItem:
         dict_copy = cls.__dict__.copy()
         for name, value in dict_copy.items():
-            if isinstance(value, (str, int, arg.DefaultArgument)) and not cls._is_aux_name(name):
+            if isinstance(value, (str, int, arg.Auto)) and not cls._is_aux_name(name):
                 item = cls(name, value)
                 cls.add_enum_item(item)
                 setattr(cls, name, item)
-                if value == arg.DEFAULT:
+                if value == arg.AUTO:
                     cls.set_default(item)
         cls.set_prepared(True)
         return cls

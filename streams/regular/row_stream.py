@@ -29,11 +29,11 @@ class RowStream(sm.AnyStream, sm.ColumnarMixin):
     def __init__(
             self,
             data,
-            name=arg.DEFAULT, check=True,
+            name=arg.AUTO, check=True,
             count=None, less_than=None,
             source=None, context=None,
             max_items_in_memory=sm.MAX_ITEMS_IN_MEMORY,
-            tmp_files=arg.DEFAULT,
+            tmp_files=arg.AUTO,
     ):
         super().__init__(
             data,
@@ -104,8 +104,8 @@ class RowStream(sm.AnyStream, sm.ColumnarMixin):
             count=self.get_count(),
         )
 
-    def get_records(self, columns=arg.DEFAULT):
-        if columns == arg.DEFAULT:
+    def get_records(self, columns=arg.AUTO):
+        if columns == arg.AUTO:
             columns = self.get_columns()
         for row in self.get_rows():
             yield {k: v for k, v in zip(columns, row)}
@@ -133,7 +133,7 @@ class RowStream(sm.AnyStream, sm.ColumnarMixin):
             encoding=None, gzip=False,
             delimiter='\t',
             skip_first_line=False, max_count=None,
-            check=arg.DEFAULT,
+            check=arg.AUTO,
             verbose=False,
     ):
         fx_rows = sm.LineStream.from_text_file(
@@ -152,13 +152,13 @@ class RowStream(sm.AnyStream, sm.ColumnarMixin):
             self,
             filename,
             delimiter='\t',
-            encoding=arg.DEFAULT,
+            encoding=arg.AUTO,
             gzip=False,
-            check=arg.DEFAULT,
+            check=arg.AUTO,
             verbose=True,
             return_stream=True,
     ):
-        encoding = arg.undefault(encoding, self.get_encoding())
+        encoding = arg.acquire(encoding, self.get_encoding())
         meta = self.get_meta()
         if not gzip:
             meta.pop('count')

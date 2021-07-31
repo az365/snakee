@@ -4,7 +4,7 @@ from inspect import isclass
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg, items as it, selection as sf
     from interfaces import (
-        Stream, LocalStream, RegularStream, Context, Connector, TmpFiles,
+        Stream, LocalStream, RegularStreamInterface, Context, Connector, TmpFiles,
         StreamType, ItemType,
         AUTO, Auto, Name, Count, Source, Array, ARRAY_TYPES, OptionalFields,
     )
@@ -14,7 +14,7 @@ try:  # Assume we're a sub-module in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg, items as it, selection as sf
     from ...interfaces import (
-        Stream, LocalStream, RegularStream, Context, Connector, TmpFiles,
+        Stream, LocalStream, RegularStreamInterface, Context, Connector, TmpFiles,
         StreamType, ItemType,
         AUTO, Auto, Name, Count, Source, Array, ARRAY_TYPES, OptionalFields,
     )
@@ -22,13 +22,13 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...selection import selection_classes as sn
     from ...utils.decorators import deprecated_with_alternative
 
-Native = Union[LocalStream, RegularStream]
+Native = Union[LocalStream, RegularStreamInterface]
 
 AutoStreamType = Union[Auto, StreamType]
 Data = Union[Auto, Iterable]
 
 
-class AnyStream(sm.LocalStream, sm.ConvertMixin, RegularStream):
+class AnyStream(sm.LocalStream, sm.ConvertMixin, RegularStreamInterface):
     def __init__(
             self, data, name: Name = AUTO,
             count: Count = None, less_than: Count = None,
@@ -103,16 +103,15 @@ class AnyStream(sm.LocalStream, sm.ConvertMixin, RegularStream):
         return self._assume_native(stream)
 
     def flat_map(self, function: Callable, to: AutoStreamType = AUTO) -> Stream:
-        def get_items():
-            for i in self.get_iter():
-                yield from function(i)
-        to = arg.acquire(to, self.get_stream_type())
-        stream_class = sm.StreamType(to).get_class()
+        if not arg.is_defined(to):
+            stream_class = self.__class__
+        else:
+            stream_class = StreamType.detect(to).get_class()
         new_props_keys = stream_class([]).get_meta().keys()
         props = {k: v for k, v in self.get_meta().items() if k in new_props_keys}
         props.pop('count')
         return stream_class(
-            get_items(),
+            self.get_mapped_items(function=function, flat=True),
             **props
         )
 

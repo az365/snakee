@@ -191,7 +191,7 @@ class StarDescription(ae.TrivialMultipleDescription):
             skip_errors=skip_errors, logger=logger,
         )
 
-    def get_output_field_names(self, item: Item, item_type=arg.DEFAULT) -> Array:
+    def get_output_field_names(self, item: Item, item_type=arg.AUTO) -> Array:
         return it.get_fields_names_from_item(item, item_type=item_type)
 
     def get_values_from_row(self, item: Item) -> Item:
