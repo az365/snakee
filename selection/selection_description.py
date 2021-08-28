@@ -7,9 +7,8 @@ try:  # Assume we're a sub-module in a package.
         ItemType, Item, Row, Record, Field, Name, Array, ARRAY_TYPES,
         AUTO, Auto
     )
-    from items.flat_struct import FlatStruct
+    from fields.simple_field import SimpleField
     from selection import selection_classes as sn
-    from items import legacy_classes as sh
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg, selection as sf, items as it
     from ..interfaces import (
@@ -17,10 +16,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         ItemType, Item, Row, Record, Field, Name, Array, ARRAY_TYPES,
         AUTO, Auto
     )
-    from ..items.flat_struct import FlatStruct
-    from ..items.item_type import ItemType
+    from ..fields.simple_field import SimpleField
     from . import selection_classes as sn
-    from ..items import legacy_classes as sh
 
 Logger = Optional[LoggerInterface]
 Struct = Union[Optional[StructInterface], Iterable]
@@ -214,7 +211,7 @@ class SelectionDescription:
         dict_output_field_types = self.get_dict_output_field_types(struct)
         for name in self.get_output_field_names(struct):
             field_type = dict_output_field_types.get(name)
-            yield FlatStruct(name, field_type=field_type)
+            yield SimpleField(name, field_type=field_type)
 
     def select_output_fields(self, item: Item) -> Item:
         return it.simple_select_fields(
