@@ -28,19 +28,17 @@ class Table(ct.LeafConnector):
             database,
             reconnect: bool = True,
             verbose: AutoBool = arg.AUTO,
-            **kwargs
     ):
+        self.struct = struct
         super().__init__(
             name=name,
             parent=database,
             verbose=verbose,
         )
-        self.struct = struct
 
         if not isinstance(struct, StructInterface):
             message = 'Struct as {} is deprecated. Use items.FlatStruct instead.'.format(type(struct))
             self.log(msg=message, level=log.LoggingLevel.Warning)
-        self.meta = kwargs
         if reconnect:
             if hasattr(self.get_database(), 'connect'):
                 self.get_database().connect(reconnect=True)
