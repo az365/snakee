@@ -8,7 +8,7 @@ try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg, dates as dt
     from interfaces import (
         Context, Connector, ConnectorInterface, Stream, RegularStream, ItemType, StreamType,
-        AUTO, Auto, AutoName, AutoCount, AutoBool, OptionalFields,
+        AUTO, Auto, AutoName, AutoCount, AutoBool, AutoConnector, OptionalFields,
     )
     from connectors.abstract.leaf_connector import LeafConnector
     from streams.mixin.stream_builder_mixin import StreamBuilderMixin
@@ -17,7 +17,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils import arguments as arg, dates as dt
     from ...interfaces import (
         Context, Connector, ConnectorInterface, Stream, RegularStream, ItemType, StreamType,
-        AUTO, Auto, AutoName, AutoCount, AutoBool, OptionalFields,
+        AUTO, Auto, AutoName, AutoCount, AutoBool, AutoConnector, OptionalFields,
     )
     from ..abstract.leaf_connector import LeafConnector
     from ...streams.mixin.stream_builder_mixin import StreamBuilderMixin
@@ -28,6 +28,7 @@ Native = LeafConnector
 CHUNK_SIZE = 8192
 LOGGING_LEVEL_INFO = 20
 LOGGING_LEVEL_WARN = 30
+DEFAULT_VERBOSE = True
 
 
 class AbstractFile(LeafConnector, StreamBuilderMixin, ABC):
@@ -35,7 +36,7 @@ class AbstractFile(LeafConnector, StreamBuilderMixin, ABC):
             self,
             name: str,
             folder: Connector = None,
-            context: Context = arg.AUTO,
+            context: Context = AUTO,
             verbose: AutoBool = AUTO,
     ):
         if folder:
@@ -46,7 +47,8 @@ class AbstractFile(LeafConnector, StreamBuilderMixin, ABC):
         self._fileholder = None
         self._modification_ts = None
         super().__init__(name=name, parent=folder)
-        self.verbose = arg.acquire(verbose, self.get_folder().verbose if self.get_folder() else True)
+        self.verbose = DEFAULT_VERBOSE
+        self.set_verbose(verbose)
 
     def get_folder(self) -> Union[Connector, Any]:
         return self.get_parent()
@@ -84,6 +86,21 @@ class AbstractFile(LeafConnector, StreamBuilderMixin, ABC):
     def get_stream_class(cls):
         return cls.get_stream_type().get_class()
 
+    def is_verbose(self) -> bool:
+        return self.verbose
+
+    def set_verbose(self, verbose: AutoBool = True, parent: AutoConnector = arg.AUTO) -> Native:
+        parent = arg.acquire(parent, self.get_parent())
+        if not arg.is_defined(verbose):
+            if hasattr(parent, 'is_verbose'):
+                verbose = parent.is_verbose()
+            elif hasattr(parent, 'verbose'):
+                verbose = parent.verbose
+            else:
+                verbose = DEFAULT_VERBOSE
+        self.verbose = verbose
+        return self
+
     def is_directly_in_parent_folder(self) -> bool:
         return self.get_path_delimiter() in self.get_name()
 
@@ -114,7 +131,7 @@ class AbstractFile(LeafConnector, StreamBuilderMixin, ABC):
     def get_folder_path(self) -> str:
         return self.get_path_delimiter().join(self.get_list_path()[:-1])
 
-    def is_inside_folder(self, folder: Union[str, Connector, arg.Auto] = AUTO) -> bool:
+    def is_inside_folder(self, folder: Union[str, Connector, Auto] = AUTO) -> bool:
         folder_obj = arg.acquire(folder, self.get_folder())
         if isinstance(folder_obj, str):
             folder_path = folder_obj
@@ -164,12 +181,15 @@ class AbstractFile(LeafConnector, StreamBuilderMixin, ABC):
     def is_existing(self) -> bool:
         return os.path.exists(self.get_path())
 
+    def is_changed_by_another(self) -> bool:
+        return not self.is_actual()
+
     def is_actual(self) -> bool:
         return self.get_modification_timestamp() == self.get_prev_modification_timestamp()
 
     def actualize(self) -> Native:
         self.get_modification_timestamp()
-        self.get_count()
+        self.get_count(force=True)
         return self
 
     def get_modification_time_str(self) -> str:
@@ -206,7 +226,7 @@ class AbstractFile(LeafConnector, StreamBuilderMixin, ABC):
     def get_datetime_str(self) -> str:
         if self.is_existing():
             times = self.get_modification_time_str(), self.get_file_age_str(), dt.get_current_time_str()
-            return '{} + {} = {}'.format(times)
+            return '{} + {} = {}'.format(*times)
         else:
             return dt.get_current_time_str()
 
@@ -357,7 +377,7 @@ class TextFile(AbstractFile):
     def get_fast_lines_count(self, verbose: AutoBool = AUTO) -> int:
         if self.is_gzip():
             raise ValueError('get_fast_lines_count() method is not available for gzip-files')
-        verbose = arg.acquire(verbose, self.verbose)
+        verbose = arg.acquire(verbose, self.is_verbose())
         self.log('Counting lines in {}...'.format(self.get_name()), end='\r', verbose=verbose)
         count_n_symbol = sum(chunk.count('\n') for chunk in self.get_chunks())
         count_lines = count_n_symbol + 1
@@ -384,14 +404,14 @@ class TextFile(AbstractFile):
         return count
 
     def get_count(self, allow_reopen: bool = True, allow_slow_gzip: bool = True, force: bool = False) -> Optional[int]:
-        must_recount = force or (not self.is_actual() or not arg.is_defined(self.get_prev_lines_count()))
+        must_recount = force or self.is_changed_by_another() or not arg.is_defined(self.get_prev_lines_count())
         if self.is_existing() and must_recount:
             count = self.get_actual_lines_count(allow_reopen=allow_reopen, allow_slow_gzip=allow_slow_gzip)
             self.set_count(count)
         else:
             count = self.get_prev_lines_count()
         if arg.is_defined(count):
-            return self.count
+            return count
 
     def set_count(self, count: int) -> Native:
         self.count = count
@@ -429,7 +449,7 @@ class TextFile(AbstractFile):
             assert self.get_count(allow_reopen=True) > 0
         self.open(allow_reopen=allow_reopen)
         lines = self.get_next_lines(count=count, skip_first=skip_first, close=True)
-        verbose = arg.acquire(verbose, self.verbose)
+        verbose = arg.acquire(verbose, self.is_verbose())
         if verbose or arg.is_defined(message):
             message = arg.acquire(message, 'Reading {}')
             if '{}' in message:
@@ -440,7 +460,7 @@ class TextFile(AbstractFile):
         return lines
 
     def get_items(self, verbose: AutoBool = AUTO, step: AutoCount = AUTO) -> Iterable:
-        verbose = arg.acquire(verbose, self.verbose)
+        verbose = arg.acquire(verbose, self.is_verbose())
         if isinstance(verbose, str):
             self.log(verbose, verbose=bool(verbose))
         elif (self.get_count() or 0) > 0:
@@ -459,7 +479,7 @@ class TextFile(AbstractFile):
             verbose: AutoBool = AUTO, step: AutoCount = AUTO,
             **kwargs
     ) -> dict:
-        verbose = arg.acquire(verbose, self.verbose)
+        verbose = arg.acquire(verbose, self.is_verbose())
         data = arg.delayed_acquire(data, self.get_items, verbose=verbose, step=step)
         name = arg.delayed_acquire(name, self._get_generated_stream_name)
         result = dict(
@@ -485,7 +505,7 @@ class TextFile(AbstractFile):
         )
 
     def write_lines(self, lines: Iterable, verbose: AutoBool = AUTO) -> Native:
-        verbose = arg.acquire(verbose, self.verbose)
+        verbose = arg.acquire(verbose, self.is_verbose())
         self.open('w', allow_reopen=True)
         n = 0
         for n, i in enumerate(lines):
