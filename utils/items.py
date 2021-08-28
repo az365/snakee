@@ -37,7 +37,7 @@ ItemType.set_dict_classes(
 
 
 def set_to_item_inplace(field, value, item: SelectableItem, item_type=ItemType.Auto) -> NoReturn:
-    item_type = arg.delayed_undefault(item_type, ItemType.detect, item, default=ItemType.Any)
+    item_type = arg.delayed_acquire(item_type, ItemType.detect, item, default=ItemType.Any)
     if not isinstance(item_type, ItemType):
         if hasattr(item_type, 'value'):
             item_type = ItemType(item_type.value)
@@ -57,7 +57,7 @@ def set_to_item_inplace(field, value, item: SelectableItem, item_type=ItemType.A
 
 
 def get_fields_names_from_item(item: SelectableItem, item_type=ItemType.Auto) -> Row:
-    item_type = arg.delayed_undefault(item_type, ItemType.detect, item, default=ItemType.Any)
+    item_type = arg.delayed_acquire(item_type, ItemType.detect, item, default=ItemType.Any)
     if item_type == ItemType.Row:
         return list(range(len(item)))
     elif item_type == ItemType.Record:
@@ -86,7 +86,9 @@ def get_field_value_from_record(field: FieldID, record: Record, default=None, sk
         return record[field]
 
 
-def get_field_value_from_item(field, item, item_type=ItemType.Auto, skip_errors=False, logger=None, default=None):
+def get_field_value_from_item(
+        field: FieldID, item: ConcreteItem, item_type: ItemType = ItemType.Auto,
+        skip_errors: bool = False, logger=None, default=None):
     if field == STAR:
         return item
     if item_type == ItemType.Auto or not arg.is_defined(item_type):
@@ -99,14 +101,17 @@ def get_field_value_from_item(field, item, item_type=ItemType.Auto, skip_errors=
         return item_type.get_value_from_item(
             item=item, field=field, default=default, skip_unsupported_types=skip_errors,
         )
-    except IndexError or TypeError:
-        msg = 'Field {} does no exists in current item'.format(field)
-        if skip_errors:
-            if logger:
-                logger.log(msg)
-            return default
-        else:
-            raise IndexError(msg)
+    except IndexError as e:
+        pass
+    except TypeError as e:
+        pass
+    msg = 'Field {} does no exists in current item ({})'.format(field, e)
+    if skip_errors:
+        if logger:
+            logger.log(msg)
+        return default
+    else:
+        raise IndexError(msg)
 
 
 def get_fields_values_from_item(
@@ -117,7 +122,7 @@ def get_fields_values_from_item(
 
 
 def simple_select_fields(fields: Array, item: SelectableItem, item_type=ItemType.Auto) -> SelectableItem:
-    item_type = arg.delayed_undefault(item_type, ItemType.detect, item, default=ItemType.Any)
+    item_type = arg.delayed_acquire(item_type, ItemType.detect, item, default=ItemType.Any)
     if isinstance(item_type, str):
         item_type = ItemType(item_type)
     if item_type == ItemType.Record:
@@ -141,14 +146,14 @@ def get_value_by_key_from_item(item, key, default=None) -> Any:  # equivalent ge
         return item[key] if isinstance(key, int) and 0 <= key <= len(item) else default
 
 
-def get_copy(item) -> Any:
+def get_copy(item) -> ConcreteItem:
     if isinstance(item, tuple):
         return list(item)
     else:
         return item.copy()
 
 
-def get_frozen(item) -> Any:
+def get_frozen(item) -> ConcreteItem:
     if isinstance(item, list):
         return tuple(item)
     else:
