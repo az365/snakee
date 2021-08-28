@@ -7,19 +7,21 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .. import connector_classes as ct
     from ...utils import arguments as arg
 
+DEFAULT_STORAGE_CLASS = 'COLD'
+
 
 class S3Object(ct.LeafConnector):
     def __init__(
             self,
             name,
             folder,
-            verbose=arg.DEFAULT,
+            verbose=arg.AUTO,
     ):
         super().__init__(
             name=name,
             parent=folder,
+            verbose=verbose,
         )
-        self.verbose = arg.undefault(verbose, folder.verbose)
 
     def get_folder(self):
         return self.get_parent()
@@ -55,7 +57,7 @@ class S3Object(ct.LeafConnector):
         for line in self.get_body():
             yield line.decode('utf8', errors='ignore')
 
-    def put_object(self, data, storage_class='COLD'):
+    def put_object(self, data, storage_class=DEFAULT_STORAGE_CLASS):
         return self.get_client().put_object(
             Bucket=self.get_bucket_name(),
             Key=self.get_object_path_in_bucket(),
@@ -81,12 +83,12 @@ class S3Object(ct.LeafConnector):
     def is_existing(self):
         return self.get_object_path_in_bucket() in self.get_bucket().list_object_names()
 
-    def from_stream(self, stream, storage_class='COLD'):
+    def from_stream(self, stream, storage_class=DEFAULT_STORAGE_CLASS, verbose: bool = True):
         assert sm.is_stream(stream)
-        return self.put_object(data=stream.iterable(), storage_class=storage_class)
+        return self.put_object(data=stream.get_items(), storage_class=storage_class)
 
-    def to_stream(self, stream_type=arg.DEFAULT, **kwargs):
-        stream_class = sm.get_class(stream_type)
+    def to_stream(self, stream_type=arg.AUTO, **kwargs):
+        stream_class = sm.StreamType(stream_type).get_class()
         return stream_class(
             self.get_data(),
             **kwargs

@@ -28,17 +28,10 @@ Native = LeafConnector
 CHUNK_SIZE = 8192
 LOGGING_LEVEL_INFO = 20
 LOGGING_LEVEL_WARN = 30
-DEFAULT_VERBOSE = True
 
 
 class AbstractFile(LeafConnector, StreamBuilderMixin, ABC):
-    def __init__(
-            self,
-            name: str,
-            folder: Connector = None,
-            context: Context = AUTO,
-            verbose: AutoBool = AUTO,
-    ):
+    def __init__(self, name: str, folder: Connector = None, context: Context = AUTO, verbose: AutoBool = AUTO):
         if folder:
             message = 'only LocalFolder supported for *File instances (got {})'.format(type(folder))
             assert isinstance(folder, ConnectorInterface) or folder.is_folder(), message
@@ -46,9 +39,7 @@ class AbstractFile(LeafConnector, StreamBuilderMixin, ABC):
             folder = context.get_job_folder()
         self._fileholder = None
         self._modification_ts = None
-        super().__init__(name=name, parent=folder)
-        self.verbose = DEFAULT_VERBOSE
-        self.set_verbose(verbose)
+        super().__init__(name=name, parent=folder, verbose=verbose)
 
     def get_folder(self) -> Union[Connector, Any]:
         return self.get_parent()
@@ -85,21 +76,6 @@ class AbstractFile(LeafConnector, StreamBuilderMixin, ABC):
     @classmethod
     def get_stream_class(cls):
         return cls.get_stream_type().get_class()
-
-    def is_verbose(self) -> bool:
-        return self.verbose
-
-    def set_verbose(self, verbose: AutoBool = True, parent: AutoConnector = arg.AUTO) -> Native:
-        parent = arg.acquire(parent, self.get_parent())
-        if not arg.is_defined(verbose):
-            if hasattr(parent, 'is_verbose'):
-                verbose = parent.is_verbose()
-            elif hasattr(parent, 'verbose'):
-                verbose = parent.verbose
-            else:
-                verbose = DEFAULT_VERBOSE
-        self.verbose = verbose
-        return self
 
     def is_directly_in_parent_folder(self) -> bool:
         return self.get_path_delimiter() in self.get_name()
@@ -277,6 +253,9 @@ class AbstractFile(LeafConnector, StreamBuilderMixin, ABC):
     def get_count(self, allow_reopen: bool = True, allow_slow_gzip: bool = True, force: bool = False) -> Optional[int]:
         pass
 
+    def is_empty(self) -> bool:
+        return (self.get_count() or 0) <= 0
+
     def stream(
             self, data: Union[Iterable, Auto] = AUTO,
             stream_type: Union[StreamType, Auto] = AUTO,
@@ -311,13 +290,13 @@ class AbstractFile(LeafConnector, StreamBuilderMixin, ABC):
 class TextFile(AbstractFile):
     def __init__(
             self,
-            name,
-            gzip=False,
-            encoding='utf8',
-            end='\n',
-            expected_count=AUTO,
-            folder=None,
-            verbose=AUTO,
+            name: str,
+            gzip: bool = False,
+            encoding: str = 'utf8',
+            end: str = '\n',
+            expected_count: AutoCount = AUTO,
+            folder: Connector = None,
+            verbose: AutoBool = AUTO,
     ):
         self.gzip = gzip
         self.encoding = encoding

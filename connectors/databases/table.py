@@ -1,3 +1,5 @@
+from typing import Optional, Iterable, Union
+
 try:  # Assume we're a sub-module in a package.
     from streams import stream_classes as sm
     from connectors import connector_classes as ct
@@ -13,19 +15,25 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...items.struct_interface import StructInterface
     from ...items.flat_struct import FlatStruct
 
+GeneralizedStruct = Union[StructInterface, list, tuple, arg.Auto, None]
+AutoBool = Union[bool, arg.Auto]
+ARRAY_TYPES = list, tuple
+
 
 class Table(ct.LeafConnector):
     def __init__(
             self,
-            name,
-            struct,
+            name: str,
+            struct: StructInterface,
             database,
-            reconnect=True,
+            reconnect: bool = True,
+            verbose: AutoBool = arg.AUTO,
             **kwargs
     ):
         super().__init__(
             name=name,
             parent=database,
+            verbose=verbose,
         )
         self.struct = struct
 
@@ -41,18 +49,40 @@ class Table(ct.LeafConnector):
     def get_database(self):
         return self.get_parent()
 
-    def get_count(self, verbose=arg.AUTO):
+    def get_count(self, verbose: AutoBool = arg.AUTO):
         return self.get_database().select_count(self.get_name(), verbose=verbose)
+
+    def get_columns(self):
+        return self.get_struct().get_columns()
+
+    def set_struct(self, struct: GeneralizedStruct):
+        if struct is None:
+            self.struct = None
+        elif isinstance(struct, StructInterface):
+            self.struct = struct
+        elif isinstance(struct, ARRAY_TYPES):
+            if max([isinstance(f, ARRAY_TYPES) for f in struct]):
+                self.struct = FlatStruct(struct)
+            else:
+                self.struct = FlatStruct.get_struct_detected_by_title_row(struct)
+        elif struct == arg.AUTO:
+            self.struct = self.get_struct_from_database()
+        else:
+            message = 'struct must be StructInterface or tuple with fields_description (got {})'.format(type(struct))
+            raise TypeError(message)
 
     def get_struct(self):
         if not self.struct:
             self.set_struct(struct=arg.AUTO)
         return self.struct
 
-    def get_columns(self):
-        return self.get_struct().get_columns()
+    def get_struct_from_database(self, set_struct: bool = False):
+        struct = FlatStruct(self.describe())
+        if set_struct:
+            self.struct = struct
+        return struct
 
-    def get_data(self, verbose=arg.AUTO):
+    def get_data(self, verbose: AutoBool = arg.AUTO):
         return self.get_database().select_all(self.get_name(), verbose=verbose)
 
     def get_stream(self):
@@ -66,7 +96,7 @@ class Table(ct.LeafConnector):
         self.links.append(stream)
         return stream
 
-    def to_stream(self, stream_type=arg.AUTO, verbose=arg.AUTO):
+    def to_stream(self, stream_type=arg.AUTO, verbose: AutoBool = arg.AUTO):
         stream_type = arg.acquire(stream_type, sm.RowStream)
         stream = self.get_stream()
         if isinstance(stream_type, sm.RowStream):
@@ -82,35 +112,13 @@ class Table(ct.LeafConnector):
         assert sm.is_stream(stream)
         self.upload(data=stream, **kwargs)
 
-    def set_struct(self, struct):
-        if struct is None:
-            self.struct = None
-        elif isinstance(struct, StructInterface):
-            self.struct = struct
-        elif isinstance(struct, (list, tuple)):
-            if max([isinstance(f, (list, tuple)) for f in struct]):
-                self.struct = FlatStruct(struct)
-            else:
-                self.struct = FlatStruct.get_struct_detected_by_title_row(struct)
-        elif struct == arg.AUTO:
-            self.struct = self.get_struct_from_database()
-        else:
-            message = 'struct must be StructInterface or tuple with fields_description (got {})'.format(type(struct))
-            raise TypeError(message)
-
     def is_existing(self):
         return self.get_database().exists_table(self.get_path())
 
     def describe(self):
         return self.get_database().describe_table(self.get_path())
 
-    def get_struct_from_database(self, set_struct=False):
-        struct = FlatStruct(self.describe())
-        if set_struct:
-            self.struct = struct
-        return struct
-
-    def create(self, drop_if_exists, verbose=arg.AUTO):
+    def create(self, drop_if_exists: bool, verbose: AutoBool = arg.AUTO):
         return self.get_database().create_table(
             self.get_name(),
             struct=self.struct,
@@ -119,10 +127,10 @@ class Table(ct.LeafConnector):
         )
 
     def upload(
-            self, data,
-            encoding=None, skip_first_line=False,
-            skip_lines=0, max_error_rate=0.0,
-            verbose=arg.AUTO
+            self, data: Iterable,
+            encoding: Optional[str] = None, skip_first_line: bool = False,
+            skip_lines: int = 0, max_error_rate: float = 0.0,
+            verbose: AutoBool = arg.AUTO,
     ):
         return self.get_database().safe_upload_table(
             self.get_name(),

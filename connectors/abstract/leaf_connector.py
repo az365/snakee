@@ -2,21 +2,27 @@ from abc import ABC, abstractmethod
 from typing import Optional, Union
 
 try:  # Assume we're a sub-module in a package.
-    from interfaces import LeafConnectorInterface, Context, Stream
+    from utils import arguments as arg
+    from interfaces import LeafConnectorInterface, Context, Stream, AUTO, Auto, AutoBool, AutoConnector
     from connectors.abstract.abstract_connector import AbstractConnector
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...interfaces import LeafConnectorInterface, Context, Stream
+    from ...utils import arguments as arg
+    from ...interfaces import LeafConnectorInterface, Context, Stream, AUTO, Auto, AutoBool, AutoConnector
     from ..abstract.abstract_connector import AbstractConnector
 
+Native = LeafConnectorInterface
 Parent = Union[Context, AbstractConnector]
 Links = Optional[dict]
 
 META_MEMBER_MAPPING = dict(_data='streams', _source='parent')
+DEFAULT_VERBOSE = True
 
 
 class LeafConnector(AbstractConnector, LeafConnectorInterface, ABC):
-    def __init__(self, name, parent: Parent = None, streams: Links = None):
+    def __init__(self, name, parent: Parent = None, streams: Links = None, verbose: AutoBool = AUTO):
+        self.verbose = DEFAULT_VERBOSE
         super().__init__(name=name, parent=parent, children=streams)
+        self.set_verbose(verbose)
 
     @classmethod
     def _get_meta_member_mapping(cls) -> dict:
@@ -41,6 +47,21 @@ class LeafConnector(AbstractConnector, LeafConnectorInterface, ABC):
     @staticmethod
     def has_hierarchy():
         return False
+
+    def is_verbose(self) -> bool:
+        return self.verbose
+
+    def set_verbose(self, verbose: AutoBool = True, parent: AutoConnector = arg.AUTO) -> Native:
+        parent = arg.acquire(parent, self.get_parent())
+        if not arg.is_defined(verbose):
+            if hasattr(parent, 'is_verbose'):
+                verbose = parent.is_verbose()
+            elif hasattr(parent, 'verbose'):
+                verbose = parent.verbose
+            else:
+                verbose = DEFAULT_VERBOSE
+        self.verbose = verbose
+        return self
 
     @abstractmethod
     def is_existing(self):
