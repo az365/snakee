@@ -4,9 +4,8 @@ from typing import Union, Optional, Iterable, NoReturn
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from interfaces import (
-        Connector, RegularStream, Name, StructInterface, SimpleDataInterface,
-        StreamType,
-        AUTO, Auto, AutoBool, AutoContext,
+        Connector, RegularStream, StreamType, StructInterface, SimpleDataInterface,
+        AUTO, Auto, AutoBool, AutoContext, Name,
     )
     from loggers import logger_classes as log
     from connectors import connector_classes as ct
@@ -14,10 +13,9 @@ try:  # Assume we're a sub-module in a package.
     from items.flat_struct import FlatStruct
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
-    from interfaces import (
-        Connector, RegularStream, Name, StructInterface, SimpleDataInterface,
-        StreamType,
-        AUTO, Auto, AutoBool, AutoContext,
+    from ...interfaces import (
+        Connector, RegularStream, StreamType, StructInterface, SimpleDataInterface,
+        AUTO, Auto, AutoBool, AutoContext, Name,
     )
     from ...loggers import logger_classes as log
     from .. import connector_classes as ct
