@@ -15,7 +15,7 @@ try:  # Assume we're a sub-module in a package.
     from streams import stream_classes as sm
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg, dates as dt
-    from interfaces import (
+    from ...interfaces import (
         Context, Connector, ConnectorInterface, Stream, RegularStream, ItemType, StreamType,
         AUTO, Auto, AutoName, AutoCount, AutoBool, OptionalFields,
     )
@@ -34,7 +34,7 @@ class AbstractFile(LeafConnector, StreamBuilderMixin, ABC):
     def __init__(
             self,
             name: str,
-            folder: Optional[Connector] = None,
+            folder: Connector = None,
             context: Context = arg.AUTO,
             verbose: AutoBool = AUTO,
     ):
@@ -63,7 +63,7 @@ class AbstractFile(LeafConnector, StreamBuilderMixin, ABC):
             return self
 
     def add_to_folder(self, folder: Connector) -> Native:
-        assert isinstance(folder, Connector), 'folder must be a LocalFolder (got {})'.format(type(folder))
+        assert isinstance(folder, ConnectorInterface), 'folder must be a LocalFolder (got {})'.format(type(folder))
         assert folder.is_folder(), 'folder must be a LocalFolder (got {})'.format(type(folder))
         folder.add_child(self)
         return self
@@ -538,7 +538,7 @@ class TextFile(AbstractFile):
                 is_opened=self.is_opened(),
                 is_empty=self.is_empty(),
                 count=self.get_count(),
-                path=self.get_path_(),
+                path=self.get_path(),
             )
         else:
             return dict(
@@ -570,6 +570,7 @@ class TextFile(AbstractFile):
                 self.log(line)
         return self
 
+
 class JsonFile(TextFile):
     def __init__(
             self,
@@ -579,7 +580,7 @@ class JsonFile(TextFile):
             expected_count: AutoCount = AUTO,
             struct=AUTO,
             default_value: Any = None,
-            folder: Optional[Connector] = None,
+            folder: Connector = None,
             verbose: AutoBool = AUTO,
     ):
         super().__init__(
