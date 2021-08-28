@@ -57,7 +57,7 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
         for field_or_group in fields:
             kwargs = dict(
                 default_type=default_type, exclude_duplicates=exclude_duplicates,
-                reassign_group=reassign_struct_name, inplace=True,
+                reassign_struct_name=reassign_struct_name, inplace=True,
             )
             if isinstance(field_or_group, StructInterface):  # FieldGroup
                 self.add_fields(field_or_group.get_fields_descriptions(), **kwargs)
@@ -112,7 +112,7 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
             default_type: FieldType = FieldType.Any,
             before: bool = False,
             exclude_duplicates: bool = True,
-            reassign_group: bool = False,
+            reassign_struct_name: bool = False,
             inplace: bool = True,
     ) -> Optional[Native]:
         if self._is_field(field):
@@ -129,7 +129,7 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
             return self
         else:
             if isinstance(field_desc, AdvancedField):
-                if reassign_group or not arg.is_defined(field_desc.get_group_name()):
+                if reassign_struct_name or not arg.is_defined(field_desc.get_group_name()):
                     field_desc.set_group_name(self.get_name(), inplace=True)
                     field_desc.set_group_caption(self.get_caption(), inplace=True)
             if before:
@@ -449,9 +449,8 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
         if include_header:
             yield (GROUP_NO_STR, GROUP_TYPE_STR, group_name or '', group_caption, '')
         prev_group_name = group_name
-        for n, (
-                f_name, f_type_name, f_caption, f_valid, group_name, group_caption,
-        ) in enumerate(self.get_fields_tuples()):
+        for n, field_tuple in enumerate(self.get_fields_tuples()):
+            f_name, f_type_name, f_caption, f_valid, group_name, group_caption = field_tuple
             is_next_group = group_name != prev_group_name
             if is_next_group:
                 yield (GROUP_NO_STR, GROUP_TYPE_STR, group_name, group_caption, '')
@@ -517,7 +516,7 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
 
     def get_dataframe(self) -> DataFrame:
         data = self.get_struct_description(include_header=True)
-        columns = ('n', 'type', 'name', 'caption', 'value')
+        columns = ('n', 'type', 'name', 'caption', 'valid')
         return DataFrame(data, columns=columns)
 
     def show(self, as_dataframe: Union[bool, Auto] = AUTO) -> Optional[DataFrame]:
@@ -557,4 +556,3 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
 
 
 FieldGroup = FlatStruct
-
