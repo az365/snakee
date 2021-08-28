@@ -19,6 +19,9 @@ MAX_DAYS_IN_MONTH = 31
 DAYS_IN_WEEK = 7
 WEEKS_IN_YEAR = 52
 
+SECONDS_IN_MINUTE = 60
+MINUTES_IN_HOUR = 60
+
 _min_year = 2010
 
 
@@ -392,18 +395,18 @@ def get_current_time_str():
 
 def get_str_from_timedelta(td: timedelta) -> str:
     td_abs = abs(td)
-    if td_abs.days >= 365:
-        td_str = '{}Y'.format(int(td_abs.days / 365))
-    elif td_abs.days > 30:
-        td_str = '{}M'.format(int(td_abs.days / 30))
-    elif td_abs.days >= 7:
-        td_str = '{}W'.format(int(td_abs.days / 7))
+    if td_abs.days >= DAYS_IN_YEAR:
+        td_str = '{}Y'.format(int(td_abs.days / DAYS_IN_YEAR))
+    elif td_abs.days >= MEAN_DAYS_IN_MONTH:
+        td_str = '{}M'.format(int(td_abs.days / MEAN_DAYS_IN_MONTH))
+    elif td_abs.days >= DAYS_IN_WEEK:
+        td_str = '{}W'.format(int(td_abs.days / DAYS_IN_WEEK))
     elif td_abs.days >= 1:
         td_str = '{}D'.format(int(td_abs.days))
-    elif td_abs.seconds >= 60 * 60:
-        td_str = '{}h'.format(int(td_abs.seconds / 60 / 60))
-    elif td_abs.seconds >= 60:
-        td_str = '{}m'.format(int(td_abs / 60))
+    elif td_abs.seconds >= SECONDS_IN_MINUTE * MINUTES_IN_HOUR:
+        td_str = '{}h'.format(int(td_abs.seconds / SECONDS_IN_MINUTE / MINUTES_IN_HOUR))
+    elif td_abs.seconds >= SECONDS_IN_MINUTE:
+        td_str = '{}m'.format(int(td_abs.seconds / MINUTES_IN_HOUR))
     elif td_abs.seconds:
         td_str = '{}s'.format(td_abs.seconds)
     else:
