@@ -24,28 +24,28 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...functions import item_functions as fs
 
 Stream = Union[StreamInterface, Any]
-OptionalStreamType = Union[Any, arg.DefaultArgument]
-OptionalFields = Optional[Union[Iterable, str]]
+OptionalStreamType = Union[Any, arg.Auto]
+OptionalFields = Union[Iterable, str, None]
 
 
 class StreamBuilderInterface(StreamInterface, ABC):
-    @staticmethod
+    @classmethod
     @abstractmethod
-    def get_stream_type() -> OptionalStreamType:
+    def get_stream_type(cls) -> OptionalStreamType:
         pass
 
     @abstractmethod
     def stream(
             self,
             data: Iterable,
-            stream_type: OptionalStreamType = arg.DEFAULT,
+            stream_type: OptionalStreamType = arg.AUTO,
             ex: OptionalFields = None,
             **kwargs
     ) -> Stream:
         pass
 
     @abstractmethod
-    def get_compatible_meta(self, stream_class, ex: OptionalFields = None) -> dict:
+    def get_compatible_meta(self, other=arg.AUTO, ex: OptionalFields = None, **kwargs) -> dict:
         pass
 
 
@@ -53,11 +53,11 @@ class StreamBuilderMixin(StreamBuilderInterface, ABC):
     def stream(
             self,
             data: Iterable,
-            stream_type: Union[OptionalStreamType, StreamInterface, arg.DefaultArgument] = arg.DEFAULT,
+            stream_type: Union[OptionalStreamType, StreamInterface, arg.Auto] = arg.AUTO,
             ex: OptionalFields = None,
             **kwargs
     ) -> Stream:
-        stream_type = arg.undefault(stream_type, self.get_stream_type())
+        stream_type = arg.acquire(stream_type, self.get_stream_type())
         if isinstance(stream_type, str):
             stream_class = sm.StreamType(stream_type).get_class()
         elif isclass(stream_type):
