@@ -13,7 +13,7 @@ started at September 2019.
 
 Snakee project code distributed [under MIT licence](https://github.com/az365/snakee/blob/main/LICENSE).
 
-### Base ideas
+### Basic ideas
 
 * Do not keep full dataset(s) in memory (by default);
 * iteration over datasets on local disk, cloud storages, other sources;
@@ -22,11 +22,11 @@ Snakee project code distributed [under MIT licence](https://github.com/az365/sna
 * use SQL-like definition of operations over all data sources;
 * uniformly manage connections for databases and other data sources.
  
-### Abstractions 
+### Generic abstractions 
  
 * [streams](https://github.com/az365/snakee/tree/main/streams/readme.md)
 * items 
 * fields 
 * [functions](https://github.com/az365/snakee/tree/main/functions/readme.md)
-* connectors
-* context
+* [connectors](https://github.com/az365/snakee/blob/main/connectors/readme.md)
+* [context](https://github.com/az365/snakee/blob/main/base/context.md)
