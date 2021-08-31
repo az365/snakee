@@ -2,16 +2,18 @@ from typing import Optional, Iterable, Callable, Union, Any
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
-    from interfaces import StructInterface, StructRowInterface, Row, Name, Field, FieldInterface
+    from interfaces import ROW_SUBCLASSES, Row, Name, Field, FieldNo, FieldInterface, StructInterface
     from base.abstract.simple_data import SimpleDataWrapper
     from connectors.databases import dialect as di
+    from items.struct_row_interface import StructRowInterface, DEFAULT_DELIMITER
     from items.flat_struct import FlatStruct
     from items.legacy_struct import LegacyStruct
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
-    from ..interfaces import StructInterface, StructRowInterface, Row, Name, Field, FieldInterface
+    from ..interfaces import ROW_SUBCLASSES, Row, Name, Field, FieldNo, FieldInterface, StructInterface
     from ..base.abstract.simple_data import SimpleDataWrapper
     from ..connectors.databases import dialect as di
+    from .struct_row_interface import StructRowInterface, DEFAULT_DELIMITER
     from .flat_struct import FlatStruct
     from .legacy_struct import LegacyStruct
 
@@ -44,8 +46,8 @@ class StructRow(SimpleDataWrapper, StructRowInterface):
 
     @staticmethod
     def _structure_row(row: Row, struct: StructInterface) -> Row:
-        assert isinstance(row, (list, tuple)), 'Row must be list or tuple (got {})'.format(type(row))
-        expected_len = astruct.get_fields_count()
+        assert isinstance(row, ROW_SUBCLASSES), 'Row must be list or tuple (got {})'.format(type(row))
+        expected_len = struct.get_fields_count()
         row_len = len(row)
         assert row_len == expected_len, 'count of cells must match the struct ({} != {})'.format(row_len, expected_len)
         structured_fields = list()
@@ -71,7 +73,7 @@ class StructRow(SimpleDataWrapper, StructRowInterface):
     def get_record(self) -> dict:
         return {k.name: v for k, v in zip(self.get_fields_descriptions(), self.get_data())}
 
-    def get_line(self, dialect='str', delimiter='\t', need_quotes=False) -> str:
+    def get_line(self, dialect='str', delimiter=DEFAULT_DELIMITER, need_quotes=False) -> str:
         assert dialect in di.DIALECTS
         list_str = list()
         for k, v in zip(self.get_fields_descriptions(), self.get_data()):
@@ -86,8 +88,8 @@ class StructRow(SimpleDataWrapper, StructRowInterface):
     def get_columns(self) -> Row:
         return self.get_struct().get_columns()
 
-    def get_field_position(self, field: Field) -> Optional[int]:
-        if isinstance(field, int):
+    def get_field_position(self, field: Field) -> Optional[FieldNo]:
+        if isinstance(field, FieldNo):
             return field
         else:
             field_name = arg.get_name(field)
@@ -115,10 +117,34 @@ class StructRow(SimpleDataWrapper, StructRowInterface):
         positions = self.get_fields_positions(fields)
         return [self.get_data()[p] for p in positions]
 
+    def get_slice(self, start: FieldNo, stop: Optional[FieldNo] = None, step: Optional[FieldNo] = None) -> Row:
+        return [self.get_value(i) for i in range(start, stop, step)]
+
     def simple_select_fields(self, fields: Row) -> StructRowInterface:
         return StructRow(
             data=self.get_values(fields),
             struct=self.get_struct().simple_select_fields(fields)
+        )
+
+    def __iter__(self):
+        return self.get_data()
+
+    def __len__(self):
+        return self.get_struct().get_column_count()
+
+    def __getitem__(self, item):
+        if isinstance(item, slice):
+            return self.get_slice(start=item.start, stop=item.stop, step=item.step)
+        elif isinstance(item, ROW_SUBCLASSES):
+            return self.get_values(item)
+        else:
+            return self.get_value(item)
+
+    def __add__(self, other: StructRowInterface):
+        assert isinstance(other, StructRowInterface), 'can add only StructRow, got {}'.format(other)
+        return StructRow(
+            data=list(self.get_data()) + list(other.get_data()),
+            struct=self.get_struct() + other.get_struct(),
         )
 
 

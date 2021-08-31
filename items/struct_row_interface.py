@@ -1,21 +1,22 @@
 from abc import ABC, abstractmethod
-from typing import Union, Optional
+from typing import Optional, Callable, Union
 
 try:  # Assume we're a sub-module in a package.
     from base.interfaces.data_interface import SimpleDataInterface
     from items.struct_interface import StructInterface
+    from items.simple_items import SimpleRowInterface, SimpleRow, FieldNo, FieldName, FieldID, Value
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..base.interfaces.data_interface import SimpleDataInterface
     from .struct_interface import StructInterface
+    from .simple_items import SimpleRowInterface, SimpleRow, FieldNo, FieldName, FieldID, Value
 
-SimpleRow = Union[list, tuple]
 StructRow = SimpleDataInterface
-FieldName = str
-FieldNo = int
-FieldId = Union[FieldName, FieldNo]
+GenericRow = Union[SimpleRow, StructRow]
+
+DEFAULT_DELIMITER = '\t'
 
 
-class StructRowInterface(SimpleDataInterface, ABC):
+class StructRowInterface(SimpleDataInterface, SimpleRowInterface, ABC):
     @abstractmethod
     def get_struct(self) -> StructInterface:
         pass
@@ -25,11 +26,11 @@ class StructRowInterface(SimpleDataInterface, ABC):
         pass
 
     @abstractmethod
-    def set_data(self, row: SimpleRow, check: bool = True, inplace: bool = True) -> StructRow:
+    def set_data(self, row: SimpleRow, check: bool = True, inplace: bool = True) -> Optional[StructRow]:
         pass
 
     @abstractmethod
-    def set_value(self, field: FieldId, value):
+    def set_value(self, field: FieldID, value: Value, inplace: bool = True) -> Optional[StructRow]:
         pass
 
     @abstractmethod
@@ -37,7 +38,7 @@ class StructRowInterface(SimpleDataInterface, ABC):
         pass
 
     @abstractmethod
-    def get_line(self, dialect='str', delimiter: str = '\t', need_quotes: bool = False) -> str:
+    def get_line(self, dialect='str', delimiter: str = DEFAULT_DELIMITER, need_quotes: bool = False) -> str:
         pass
 
     @abstractmethod
@@ -45,7 +46,7 @@ class StructRowInterface(SimpleDataInterface, ABC):
         pass
 
     @abstractmethod
-    def get_field_position(self, field: FieldId) -> Optional[FieldNo]:
+    def get_field_position(self, field: FieldID) -> Optional[FieldNo]:
         pass
 
     @abstractmethod
@@ -53,7 +54,13 @@ class StructRowInterface(SimpleDataInterface, ABC):
         pass
 
     @abstractmethod
-    def get_value(self, field: FieldId, skip_missing: bool = False, logger=None, default=None):
+    def get_value(
+            self,
+            field: Union[FieldID, Callable],
+            skip_missing: bool = False,
+            logger=None,
+            default: Value = None,
+    ) -> Value:
         pass
 
     @abstractmethod
