@@ -8,10 +8,10 @@ try:  # Assume we're a sub-module in a package.
         IterableStreamInterface,
         StreamType, LoggingLevel,
         Stream, Source, ExtLogger, SelectionLogger, Context, Connector, LeafConnector,
-        AUTO, Auto, AutoName, AutoCount, OptionalFields, Message, Array, UniKey,
+        AUTO, Auto, AutoName, AutoCount, Count, OptionalFields, Message, Array, UniKey,
     )
     from streams.abstract.abstract_stream import AbstractStream
-    from utils import algo, arguments as arg, items as it
+    from utils import algo, arguments as arg
     from utils.external import pd, DataFrame, get_use_objects_for_output
     from utils.decorators import deprecated_with_alternative
     from streams import stream_classes as sm
@@ -22,10 +22,10 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         IterableStreamInterface,
         StreamType, LoggingLevel,
         Stream, Source, ExtLogger, SelectionLogger, Context, Connector, LeafConnector,
-        AUTO, AutoName, AutoCount, OptionalFields, Message, Array, UniKey,
+        AUTO, AutoName, AutoCount, Count, OptionalFields, Message, Array, UniKey,
     )
     from ..abstract.abstract_stream import AbstractStream
-    from ...utils import algo, arguments as arg, items as it
+    from ...utils import algo, arguments as arg
     from ...utils.external import pd, DataFrame, get_use_objects_for_output
     from ...utils.decorators import deprecated_with_alternative
     from .. import stream_classes as sm
@@ -43,7 +43,7 @@ class IterableStream(AbstractStream, IterableStreamInterface):
             data: Iterable,
             name: AutoName = AUTO,
             source: Source = None, context: Context = None,
-            count: Optional[int] = None, less_than: Optional[int] = None,
+            count: Count = None, less_than: Count = None,
             check: bool = False,
             max_items_in_memory: AutoCount = AUTO,
     ):
@@ -131,7 +131,7 @@ class IterableStream(AbstractStream, IterableStreamInterface):
         else:
             return closed_streams
 
-    def get_expected_count(self) -> Optional[int]:
+    def get_expected_count(self) -> Count:
         return self._count
 
     def set_expected_count(self, count: int) -> Native:
@@ -157,13 +157,13 @@ class IterableStream(AbstractStream, IterableStreamInterface):
             result += 1
         return result
 
-    def get_count(self, final: bool = False) -> Optional[int]:
+    def get_count(self, final: bool = False) -> Count:
         if final:
             return self.final_count()
         else:
             return self.get_expected_count()
 
-    def get_estimated_count(self) -> Optional[int]:
+    def get_estimated_count(self) -> Count:
         return self.get_count() or self._less_than
 
     def set_estimated_count(self, count: int):
@@ -415,7 +415,7 @@ class IterableStream(AbstractStream, IterableStreamInterface):
             count=2,
         )
 
-    def split(self, by: Union[int, list, tuple, Callable], count: Optional[int] = None) -> Iterable:
+    def split(self, by: Union[int, list, tuple, Callable], count: Count = None) -> Iterable:
         if isinstance(by, int):
             return self.split_by_pos(by)
         elif isinstance(by, (list, tuple)):
@@ -480,8 +480,8 @@ class IterableStream(AbstractStream, IterableStreamInterface):
             iter_left=self.get_items(),
             iter_right=right.get_items(),
             key_function=fs.composite_key(keys),
-            merge_function=it.merge_two_items,
-            dict_function=it.items_to_dict,
+            merge_function=fs.merge_two_items(),
+            dict_function=fs.items_to_dict(),
             how=how,
             uniq_right=right_is_uniq,
         )

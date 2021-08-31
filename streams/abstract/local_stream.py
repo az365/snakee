@@ -2,7 +2,7 @@ from typing import Optional, Union, Iterable, Callable
 import json
 
 try:  # Assume we're a sub-module in a package.
-    from utils import algo, arguments as arg, items as it
+    from utils import algo, arguments as arg
     from interfaces import (
         LocalStreamInterface, ContextInterface, ConnectorInterface, TemporaryFilesMaskInterface,
         Context, Connector, StreamType,
@@ -11,10 +11,9 @@ try:  # Assume we're a sub-module in a package.
     )
     from streams.abstract.iterable_stream import IterableStream
     from streams import stream_classes as sm
-    from connectors.filesystem.temporary_interface import TemporaryFilesMaskInterface
-    from functions import all_functions as fs
+    from functions import item_functions as fs, array_functions as af
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import algo, arguments as arg, items as it
+    from ...utils import algo, arguments as arg
     from ...interfaces import (
         LocalStreamInterface, ContextInterface, ConnectorInterface, TemporaryFilesMaskInterface,
         Context, Connector, StreamType,
@@ -23,8 +22,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     )
     from .iterable_stream import IterableStream
     from .. import stream_classes as sm
-    from ...connectors.filesystem.temporary_interface import TemporaryFilesMaskInterface
-    from ...functions import all_functions as fs
+    from ...functions import item_functions as fs, array_functions as af
 
 Native = LocalStreamInterface
 TmpMask = Union[TemporaryFilesMaskInterface, Auto]
@@ -264,8 +262,8 @@ class LocalStream(IterableStream, LocalStreamInterface):
             iter_left=self.get_iter(),
             iter_right=right.get_iter(),
             key_function=fs.composite_key(keys),
-            merge_function=it.merge_two_items,
-            order_function=fs.is_ordered(reverse=sorting_is_reversed, including=True),
+            merge_function=fs.merge_two_items(),
+            order_function=af.is_ordered(reverse=sorting_is_reversed, including=True),
             how=how,
         )
         return self.stream(
