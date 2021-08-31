@@ -1,12 +1,14 @@
-from typing import Optional, Union, Iterable, Any
+from typing import Optional, Iterable, Callable, Union, Any
 
 try:  # Assume we're a sub-module in a package.
+    from utils import arguments as arg
     from interfaces import StructInterface, StructRowInterface, Row, Name, Field, FieldInterface
     from base.abstract.simple_data import SimpleDataWrapper
     from connectors.databases import dialect as di
     from items.flat_struct import FlatStruct
     from items.legacy_struct import LegacyStruct
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
+    from ..utils import arguments as arg
     from ..interfaces import StructInterface, StructRowInterface, Row, Name, Field, FieldInterface
     from ..base.abstract.simple_data import SimpleDataWrapper
     from ..connectors.databases import dialect as di
@@ -19,7 +21,7 @@ class StructRow(SimpleDataWrapper, StructRowInterface):
             self,
             data: Row,
             struct: Union[Row, StructInterface],
-            check=True,
+            check: bool = True,
     ):
         if not isinstance(struct, StructInterface):
             struct = FlatStruct(struct)
@@ -87,13 +89,16 @@ class StructRow(SimpleDataWrapper, StructRowInterface):
     def get_field_position(self, field: Field) -> Optional[int]:
         if isinstance(field, int):
             return field
-        else:  # isinstance(field, str):
-            return self.get_struct().get_field_position(field)
+        else:
+            field_name = arg.get_name(field)
+            return self.get_struct().get_field_position(field_name)
 
     def get_fields_positions(self, fields: Row) -> Row:
         return [self.get_field_position(f) for f in fields]
 
-    def get_value(self, field: Name, skip_missing=False, logger=None, default=None):
+    def get_value(self, field: Union[Name, Callable], skip_missing: bool = False, logger=None, default=None):
+        if isinstance(field, Callable):
+            return field(self)
         position = self.get_field_position(field)
         try:
             return self.get_data()[position]
