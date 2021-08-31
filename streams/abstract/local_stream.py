@@ -3,40 +3,32 @@ import json
 
 try:  # Assume we're a sub-module in a package.
     from utils import algo, arguments as arg, items as it
-    from streams.interfaces.local_stream_interface import LocalStreamInterface
-    from base.interfaces.context_interface import ContextInterface
-    from connectors.abstract.connector_interface import ConnectorInterface
-    from streams.stream_type import StreamType
+    from interfaces import (
+        LocalStreamInterface, ContextInterface, ConnectorInterface, TemporaryFilesMaskInterface,
+        Context, Connector, StreamType,
+        Array, Count, FieldID, UniKey,
+        AUTO, Auto, AutoBool, AutoCount, AutoName, OptionalFields,
+    )
     from streams.abstract.iterable_stream import IterableStream
     from streams import stream_classes as sm
     from connectors.filesystem.temporary_interface import TemporaryFilesMaskInterface
     from functions import all_functions as fs
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import algo, arguments as arg, items as it
-    from ..interfaces.local_stream_interface import LocalStreamInterface
-    from ...base.interfaces.context_interface import ContextInterface
-    from ...connectors.abstract.connector_interface import ConnectorInterface
-    from ..stream_type import StreamType
+    from ...interfaces import (
+        LocalStreamInterface, ContextInterface, ConnectorInterface, TemporaryFilesMaskInterface,
+        Context, Connector, StreamType,
+        Array, Count, FieldID, UniKey,
+        AUTO, Auto, AutoBool, AutoCount, AutoName, OptionalFields,
+    )
     from .iterable_stream import IterableStream
     from .. import stream_classes as sm
     from ...connectors.filesystem.temporary_interface import TemporaryFilesMaskInterface
     from ...functions import all_functions as fs
 
 Native = LocalStreamInterface
-Auto = arg.Auto
-OptionalFields = Optional[Union[Iterable, str]]
-Name = Union[str, int]
-AutoName = Union[Auto, Name]
-Array = Union[list, tuple]
-Key = Union[Name, Array, Callable]
-Count = Union[int, Auto, None]
 TmpMask = Union[TemporaryFilesMaskInterface, Auto]
-Verbose = Union[bool, Auto]
 OptStreamType = Union[StreamType, Auto]
-Context = Optional[ContextInterface]
-Source = Optional[ConnectorInterface]
-
-AUTO = arg.AUTO
 
 
 class LocalStream(IterableStream, LocalStreamInterface):
@@ -44,9 +36,9 @@ class LocalStream(IterableStream, LocalStreamInterface):
             self,
             data: Iterable,
             name: AutoName = AUTO, check: bool = False,
-            count: Count = None, less_than: Count = None,
-            source: Source = None, context: Context = None,
-            max_items_in_memory: Count = AUTO,
+            count: AutoCount = None, less_than: AutoCount = None,
+            source: Connector = None, context: Context = None,
+            max_items_in_memory: AutoCount = AUTO,
             tmp_files: TmpMask = AUTO,
     ):
         count = arg.get_optional_len(data, count)
@@ -62,13 +54,13 @@ class LocalStream(IterableStream, LocalStreamInterface):
     def get_limit_items_in_memory(self) -> int:
         return self.max_items_in_memory
 
-    def set_limit_items_in_memory(self, count: Count, inplace: bool) -> Optional[Native]:
+    def set_limit_items_in_memory(self, count: AutoCount, inplace: bool) -> Optional[Native]:
         if inplace:
             self.limit_items_in_memory(count)
         else:
             return self.make_new(self.get_data()).limit_items_in_memory(count)
 
-    def limit_items_in_memory(self, count: Count) -> Native:
+    def limit_items_in_memory(self, count: AutoCount) -> Native:
         count = arg.acquire(count, sm.MAX_ITEMS_IN_MEMORY)
         self.max_items_in_memory = count
         return self
@@ -108,7 +100,7 @@ class LocalStream(IterableStream, LocalStreamInterface):
             self.get_iter(),
         )
 
-    def can_be_in_memory(self, step: Count = AUTO) -> bool:
+    def can_be_in_memory(self, step: AutoCount = AUTO) -> bool:
         step = arg.acquire(step, self.max_items_in_memory)
         if self.is_in_memory() or step is None:
             return True
@@ -127,7 +119,7 @@ class LocalStream(IterableStream, LocalStreamInterface):
             check=False,
         )
 
-    def collect(self, inplace: bool = False, log: Union[bool, Auto] = AUTO) -> Native:
+    def collect(self, inplace: bool = False, log: AutoBool = AUTO) -> Native:
         if inplace:
             estimated_count = self.get_estimated_count()
             if arg.is_defined(estimated_count):
@@ -143,7 +135,7 @@ class LocalStream(IterableStream, LocalStreamInterface):
 
     def tail(self, count: int = 10) -> Native:
         total_count = self.get_count()
-        if count:
+        if total_count:
             stream = self.skip(total_count - count)
         else:
             stream = super().tail(count)
@@ -197,13 +189,13 @@ class LocalStream(IterableStream, LocalStreamInterface):
             stream = super().filter(function)
             return self._assume_native(stream)
 
-    def split(self, by: Union[int, list, tuple, Callable], count: Optional[int] = None) -> Iterable:
+    def split(self, by: Union[int, list, tuple, Callable], count: Count = None) -> Iterable:
         for stream in super().split(by=by, count=count):
             if self.is_in_memory():
                 stream = stream.to_memory()
             yield stream
 
-    def memory_sort(self, key: Key = fs.same(), reverse: bool = False, verbose: Verbose = False) -> Native:
+    def memory_sort(self, key: UniKey = fs.same(), reverse: bool = False, verbose: AutoBool = False) -> Native:
         key_function = fs.composite_key(key)
         list_to_sort = self.get_list()
         count = len(list_to_sort)
@@ -219,10 +211,10 @@ class LocalStream(IterableStream, LocalStreamInterface):
 
     def disk_sort(
             self,
-            key: Key = fs.same(),
+            key: UniKey = fs.same(),
             reverse: bool = False,
-            step: Count = AUTO,
-            verbose: Verbose = False,
+            step: AutoCount = AUTO,
+            verbose: AutoBool = False,
     ) -> Native:
         step = arg.acquire(step, self.max_items_in_memory)
         key_function = fs.composite_key(key)
@@ -245,7 +237,7 @@ class LocalStream(IterableStream, LocalStreamInterface):
             count=sum(counts),
         )
 
-    def sort(self, *keys, reverse: bool = False, step: Count = AUTO, verbose: Verbose = True) -> Native:
+    def sort(self, *keys, reverse: bool = False, step: AutoCount = AUTO, verbose: AutoBool = True) -> Native:
         keys = arg.update(keys)
         step = arg.acquire(step, self.max_items_in_memory)
         if len(keys) == 0:
@@ -261,7 +253,7 @@ class LocalStream(IterableStream, LocalStreamInterface):
     def sorted_join(
             self,
             right: Native,
-            key: Key,
+            key: UniKey,
             how: str = 'left',
             sorting_is_reversed: bool = False,
     ) -> Native:
@@ -283,11 +275,11 @@ class LocalStream(IterableStream, LocalStreamInterface):
 
     def join(
             self,
-            right: Native, key: Key, how='left',
+            right: Native, key: UniKey, how='left',
             reverse: bool = False,
             is_sorted: bool = False, right_is_uniq: bool = False,
             allow_map_side: bool = True, force_map_side: bool = True,
-            verbose: Verbose = AUTO,
+            verbose: AutoBool = AUTO,
     ) -> Native:
         on_map_side = force_map_side or (allow_map_side and right.can_be_in_memory())
         if on_map_side:
@@ -304,7 +296,7 @@ class LocalStream(IterableStream, LocalStreamInterface):
     def split_to_disk_by_step(
             self,
             step: Count = AUTO,
-            sort_each_by: Key = None,
+            sort_each_by: UniKey = None,
             reverse: bool = False,
             verbose: bool = True,
     ) -> list:
@@ -362,11 +354,7 @@ class LocalStream(IterableStream, LocalStreamInterface):
             raise ValueError('Cannot count items in iterator ({})'.format(message))
         return self
 
-    def get_count(
-            self,
-            in_memory: Union[bool, Auto] = AUTO,
-            final: bool = False,
-    ) -> Optional[int]:
+    def get_count(self, in_memory: AutoBool = AUTO, final: bool = False) -> Count:
         in_memory = arg.acquire(in_memory, self.is_in_memory())
         if in_memory:
             data = self.get_list()
