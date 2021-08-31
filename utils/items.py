@@ -20,10 +20,10 @@ ConcreteItem = Union[Line, SelectableItem]
 FieldName = str
 FieldNo = int
 FieldID = Union[FieldNo, FieldName]
+Value = Any
 
 STAR = '*'
 ROW_SUBCLASSES = (list, tuple)
-
 
 ItemType.prepare()
 ItemType.set_dict_classes(
@@ -36,7 +36,10 @@ ItemType.set_dict_classes(
 )
 
 
-def set_to_item_inplace(field, value, item: SelectableItem, item_type=ItemType.Auto) -> NoReturn:
+def set_to_item_inplace(
+        field: FieldID, value: Value,
+        item: SelectableItem, item_type: ItemType = ItemType.Auto,
+) -> NoReturn:
     item_type = arg.delayed_acquire(item_type, ItemType.detect, item, default=ItemType.Any)
     if not isinstance(item_type, ItemType):
         if hasattr(item_type, 'value'):
@@ -56,7 +59,7 @@ def set_to_item_inplace(field, value, item: SelectableItem, item_type=ItemType.A
         raise TypeError('type {} not supported'.format(item_type))
 
 
-def get_fields_names_from_item(item: SelectableItem, item_type=ItemType.Auto) -> Row:
+def get_fields_names_from_item(item: SelectableItem, item_type: ItemType = ItemType.Auto) -> Row:
     item_type = arg.delayed_acquire(item_type, ItemType.detect, item, default=ItemType.Any)
     if item_type == ItemType.Row:
         return list(range(len(item)))
@@ -68,18 +71,24 @@ def get_fields_names_from_item(item: SelectableItem, item_type=ItemType.Auto) ->
         raise TypeError('type {} not supported'.format(item_type))
 
 
-def get_field_value_from_schema_row(key: FieldID, row: StructRowInterface, default=None, skip_missing=True):
+def get_field_value_from_schema_row(
+        key: FieldID, row: StructRowInterface,
+        default: Value = None, skip_missing: bool = True,
+) -> Any:
     return row.get_value(key, default=default, skip_missing=skip_missing)
 
 
-def get_field_value_from_row(column: int, row: Row, default=None, skip_missing=True):
+def get_field_value_from_row(column: FieldNo, row: Row, default: Value = None, skip_missing: bool = True) -> Value:
     if column < len(row) or not skip_missing:
         return row[column]
     else:
         return default
 
 
-def get_field_value_from_record(field: FieldID, record: Record, default=None, skip_missing=True):
+def get_field_value_from_record(
+        field: FieldID, record: Record,
+        default: Value = None, skip_missing: bool = True,
+) -> Value:
     if skip_missing:
         return record.get(field, default)
     else:
@@ -88,7 +97,7 @@ def get_field_value_from_record(field: FieldID, record: Record, default=None, sk
 
 def get_field_value_from_item(
         field: FieldID, item: ConcreteItem, item_type: ItemType = ItemType.Auto,
-        skip_errors: bool = False, logger=None, default=None):
+        skip_errors: bool = False, logger=None, default: Value = None):
     if field == STAR:
         return item
     if item_type == ItemType.Auto or not arg.is_defined(item_type):
@@ -116,12 +125,12 @@ def get_field_value_from_item(
 
 def get_fields_values_from_item(
         fields: Array, item: SelectableItem, item_type=ItemType.Auto,
-        skip_errors=False, logger=None, default=None,
+        skip_errors: bool = False, logger=None, default: Value = None,
 ) -> list:
     return [get_field_value_from_item(f, item, item_type, skip_errors, logger, default) for f in fields]
 
 
-def simple_select_fields(fields: Array, item: SelectableItem, item_type=ItemType.Auto) -> SelectableItem:
+def simple_select_fields(fields: Array, item: SelectableItem, item_type: ItemType = ItemType.Auto) -> SelectableItem:
     item_type = arg.delayed_acquire(item_type, ItemType.detect, item, default=ItemType.Any)
     if isinstance(item_type, str):
         item_type = ItemType(item_type)
@@ -134,26 +143,28 @@ def simple_select_fields(fields: Array, item: SelectableItem, item_type=ItemType
 
 
 def get_values_by_keys_from_item(  # equivalent get_fields_values_from_items()
-        item: SelectableItem, keys: Iterable, default=None,
+        item: SelectableItem, keys: Iterable, default: Value = None,
 ) -> list:
     return [get_value_by_key_from_item(item, k, default) for k in keys]
 
 
-def get_value_by_key_from_item(item, key, default=None) -> Any:  # equivalent get_field_value_from_item()
+def get_value_by_key_from_item(  # equivalent get_field_value_from_item()
+        item: ConcreteItem, key: FieldID, default: Value = None,
+) -> Any:
     if ItemType.Record.isinstance(item):
         return item.get(key, default)
     elif ItemType.Row.isinstance(item):
         return item[key] if isinstance(key, int) and 0 <= key <= len(item) else default
 
 
-def get_copy(item) -> ConcreteItem:
+def get_copy(item: ConcreteItem) -> ConcreteItem:
     if isinstance(item, tuple):
         return list(item)
     else:
         return item.copy()
 
 
-def get_frozen(item) -> ConcreteItem:
+def get_frozen(item: ConcreteItem) -> ConcreteItem:
     if isinstance(item, list):
         return tuple(item)
     else:
