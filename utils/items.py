@@ -4,26 +4,23 @@ try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from items.item_type import ItemType
     from items.struct_row_interface import StructRowInterface
+    from items.simple_items import (
+        STAR, ROW_SUBCLASSES, Row, Record, Line, SimpleSelectableItem,
+        FieldNo, FieldName, FieldID, Value, Array,
+    )
     from items import legacy_classes as sc
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from . import arguments as arg
     from ..items.item_type import ItemType
     from ..items.struct_row_interface import StructRowInterface
+    from ..items.simple_items import (
+        STAR, ROW_SUBCLASSES, Row, Record, Line, SimpleSelectableItem,
+        FieldNo, FieldName, FieldID, Value, Array,
+    )
     from ..items import legacy_classes as sc
 
-Array = Union[list, tuple]
-Row = Array
-Record = dict
-Line = str
-SelectableItem = Union[Row, Record, StructRowInterface]
+SelectableItem = Union[SimpleSelectableItem, StructRowInterface]
 ConcreteItem = Union[Line, SelectableItem]
-FieldName = str
-FieldNo = int
-FieldID = Union[FieldNo, FieldName]
-Value = Any
-
-STAR = '*'
-ROW_SUBCLASSES = (list, tuple)
 
 ItemType.prepare()
 ItemType.set_dict_classes(
@@ -171,7 +168,7 @@ def get_frozen(item: ConcreteItem) -> ConcreteItem:
         return item
 
 
-def merge_two_items(first: ConcreteItem, second: ConcreteItem, default_right_name: str = '_right'):
+def merge_two_items(first: ConcreteItem, second: ConcreteItem, default_right_name: str = '_right') -> ConcreteItem:
     if ItemType.Row.isinstance(first):
         if second is None:
             result = first
@@ -197,7 +194,7 @@ def items_to_dict(
         key_function: Callable,
         value_function: Optional[Callable] = None,
         of_lists: bool = False,
-):
+) -> dict:
     result = dict()
     for i in items:
         k = key_function(i)

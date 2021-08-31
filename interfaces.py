@@ -15,8 +15,6 @@ try:  # Assume we're a sub-module in a package.
     from base.interfaces.data_interface import ContextualDataInterface  # inherits SimpleData, Contextual
     from base.interfaces.tree_interface import TreeInterface  # inherits ContextualData
     from fields.field_interface import FieldInterface  # inherits SimpleData
-    from items.struct_interface import StructInterface  # ROOT
-    from items.struct_row_interface import StructRowInterface  # inherits SimpleData; uses StructInterface
     from loggers.extended_logger_interface import LoggerInterface  # ROOT
     from loggers.extended_logger_interface import ExtendedLoggerInterface  # inherits Sourced, Logger; uses Base
     from loggers.selection_logger_interface import SelectionLoggerInterface  # inherits Extended, uses DetailedMessage
@@ -25,6 +23,13 @@ try:  # Assume we're a sub-module in a package.
     from connectors.abstract.connector_interface import LeafConnectorInterface  # inherits Connector
     from connectors.filesystem.temporary_interface import TemporaryLocationInterface  # inherits Connector
     from connectors.filesystem.temporary_interface import TemporaryFilesMaskInterface  # inherits Connector
+    from items.struct_interface import StructInterface  # ROOT
+    from items.struct_row_interface import StructRowInterface  # inherits SimpleData; uses StructInterface
+    from items.simple_items import (
+        ARRAY_TYPES, ROW_SUBCLASSES, RECORD_SUBCLASSES,
+        SimpleRowInterface, SimpleRow, Row, Record, Line, SimpleItem, SimpleSelectableItem,
+        FieldNo, FieldName, FieldID, Value, Array,
+    )
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from .utils import arguments as arg
     from .base.interfaces.base_interface import BaseInterface  # ROOT
@@ -40,8 +45,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .base.interfaces.data_interface import ContextualDataInterface  # inherits SimpleData, Contextual
     from .base.interfaces.tree_interface import TreeInterface  # inherits ContextualData
     from .fields.field_interface import FieldInterface  # inherits SimpleData
-    from .items.struct_interface import StructInterface  # ROOT
-    from .items.struct_row_interface import StructRowInterface  # inherits SimpleData; uses StructInterface
     from .loggers.extended_logger_interface import LoggerInterface  # ROOT
     from .loggers.extended_logger_interface import ExtendedLoggerInterface  # inherits Sourced, Logger; uses Base
     from .loggers.selection_logger_interface import SelectionLoggerInterface  # inherits Extended, uses DetailedMessage
@@ -50,6 +53,13 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .connectors.abstract.connector_interface import LeafConnectorInterface  # inherits Connector
     from .connectors.filesystem.temporary_interface import TemporaryLocationInterface  # inherits Connector
     from .connectors.filesystem.temporary_interface import TemporaryFilesMaskInterface  # inherits Connector
+    from .items.struct_interface import StructInterface  # ROOT
+    from .items.struct_row_interface import StructRowInterface  # inherits SimpleData; uses StructInterface
+    from .items.simple_items import (
+        ARRAY_TYPES, ROW_SUBCLASSES, RECORD_SUBCLASSES,
+        SimpleRowInterface, SimpleRow, Row, Record, Line, SimpleItem, SimpleSelectableItem,
+        FieldNo, FieldName, FieldID, Value, Array,
+    )
 
 try:  # Assume we're a sub-module in a package.
     from loggers.extended_logger_interface import LoggingLevel  # standard Enum
@@ -64,22 +74,17 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .fields.field_type import FieldType  # inherits DynamicEnum
     from .items.item_type import ItemType  # inherits SubclassesType(ClassType)
 
+AUTO = arg.AUTO
 Auto = arg.Auto
-Name = Union[str, int]
+Name = FieldID
 Count = Optional[int]
-Array = Union[list, tuple]
 Message = Union[str, Array]
-Field = Union[Name, FieldInterface]
+Field = Union[FieldID, FieldInterface]
 OptionalFields = Union[Array, str, None]
 Columns = Optional[Array]
-AutoColumns = Union[Auto, Columns]
 
-
-Line = str
-Record = dict
-Row = Array
 StructRow = StructRowInterface
-RegularItem = Union[Line, Record, Row, StructRow]
+RegularItem = Union[SimpleItem, StructRow]
 Item = Union[Any, RegularItem]
 
 Stream = StreamInterface
@@ -91,7 +96,7 @@ RowStream = RegularStream
 RecordStream = RegularStream
 KeyValueStream = RegularStream
 StructStream = RegularStream
-StructStream = StructStream
+SchemaStream = StructStream
 
 Source = Union[ConnectorInterface, arg.Auto, None]
 Connector = Optional[ConnectorInterface]
@@ -106,7 +111,5 @@ AutoCount = Union[Auto, Count]
 AutoBool = Union[arg.Auto, bool]
 AutoContext = Union[Auto, Context]
 AutoConnector = Union[arg.Auto, Connector]
+AutoColumns = Union[Auto, Columns]
 UniKey = Union[StructInterface, Array, AutoName, Callable]
-
-AUTO = arg.AUTO
-ARRAY_TYPES = list, tuple
