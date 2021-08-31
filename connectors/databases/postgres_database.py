@@ -4,25 +4,19 @@ import psycopg2
 import psycopg2.extras
 
 try:  # Assume we're a sub-module in a package.
-    from connectors.databases import abstract_database as ad
-    from utils import (
-        arguments as arg,
-        mappers as ms,
-    )
+    from utils import arguments as arg
+    from connectors.databases.abstract_database import AbstractDatabase, TEST_QUERY, DEFAULT_STEP, DEFAULT_GROUP
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..databases import abstract_database as ad
-    from ...utils import (
-        arguments as arg,
-        mappers as ms,
-    )
+    from ...utils import arguments as arg
+    from ..databases.abstract_database import AbstractDatabase, TEST_QUERY, DEFAULT_STEP, DEFAULT_GROUP
 
 
-class PostgresDatabase(ad.AbstractDatabase):
+class PostgresDatabase(AbstractDatabase):
     def __init__(
             self,
             name: str, host: str, port: int, db: str,
             user: Optional[str] = None, password: Optional[str] = None,
-            context=arg.DEFAULT,
+            context=arg.AUTO,
             **kwargs
     ):
         super().__init__(
@@ -54,8 +48,8 @@ class PostgresDatabase(ad.AbstractDatabase):
             )
         return self.connection
 
-    def disconnect(self, skip_errors=False, verbose=arg.DEFAULT) -> Optional[int]:
-        verbose = arg.undefault(verbose, self.verbose)
+    def disconnect(self, skip_errors=False, verbose=arg.AUTO) -> Optional[int]:
+        verbose = arg.acquire(verbose, self.verbose)
         if self.is_connected():
             if skip_errors:
                 try:
@@ -68,12 +62,14 @@ class PostgresDatabase(ad.AbstractDatabase):
             self.connection = None
             return 1
 
-    def execute(self, query=ad.TEST_QUERY, get_data=arg.DEFAULT, commit=arg.DEFAULT, data=None, verbose=arg.DEFAULT):
-        verbose = arg.undefault(verbose, self.verbose)
-        message = verbose if isinstance(verbose, str) else 'Execute:'
+    def execute(self, query=TEST_QUERY, get_data=arg.AUTO, commit=arg.AUTO, data=None, verbose=arg.AUTO):
+        verbose = arg.acquire(verbose, self.verbose)
+        message = verbose if isinstance(verbose, str) else 'Execute: {}'
+        if '{}' in message:
+            message = message.format(self._get_compact_query_view(query))
         level = self.LoggingLevel.Debug
-        self.log([message, ms.remove_extra_spaces(query)], level=level, end='\r', verbose=verbose)
-        if get_data == arg.DEFAULT:
+        self.log(message, level=level, end='\r', verbose=verbose)
+        if get_data == arg.AUTO:
             if 'SELECT' in query and 'GRANT' not in query:
                 get_data, commit = True, False
             else:
@@ -93,17 +89,17 @@ class PostgresDatabase(ad.AbstractDatabase):
         cur.close()
         if not has_connection:
             self.connection.close()
-        self.log([message, 'successful'], end='\r', verbose=bool(verbose))
+        self.log('{} {}'.format(message, 'successful'), end='\r', verbose=bool(verbose))
         if get_data:
             return result
 
-    def execute_batch(self, query, batch, step=ad.DEFAULT_STEP, cursor=arg.DEFAULT) -> NoReturn:
-        if cursor == arg.DEFAULT:
+    def execute_batch(self, query, batch, step=DEFAULT_STEP, cursor=arg.AUTO) -> NoReturn:
+        if cursor == arg.AUTO:
             cursor = self.connect().cursor()
         psycopg2.extras.execute_batch(cursor, query, batch, page_size=step)
 
-    def grant_permission(self, name, permission='SELECT', group=ad.DEFAULT_GROUP, verbose=arg.DEFAULT) -> NoReturn:
-        verbose = arg.undefault(verbose, self.verbose)
+    def grant_permission(self, name, permission='SELECT', group=DEFAULT_GROUP, verbose=arg.AUTO) -> NoReturn:
+        verbose = arg.acquire(verbose, self.verbose)
         message = 'Grant access:'
         query = 'GRANT {permission} ON {name} TO {group};'.format(
             name=name,
@@ -115,10 +111,10 @@ class PostgresDatabase(ad.AbstractDatabase):
             verbose=message if verbose is True else verbose,
         )
 
-    def post_create_action(self, name, verbose=arg.DEFAULT) -> NoReturn:
+    def post_create_action(self, name, verbose=arg.AUTO) -> NoReturn:
         self.grant_permission(name, verbose=verbose)
 
-    def exists_table(self, name, verbose=arg.DEFAULT) -> bool:
+    def exists_table(self, name, verbose=arg.AUTO) -> bool:
         schema, table = name.split('.')
         query = """
             SELECT 1
@@ -130,7 +126,7 @@ class PostgresDatabase(ad.AbstractDatabase):
         """.format(schema=schema, table=table)
         return bool(self.execute(query, verbose))
 
-    def describe_table(self, name, verbose=arg.DEFAULT):
+    def describe_table(self, name, verbose=arg.AUTO):
         return self.select(
             table='information_schema.COLUMNS',
             fields=['COLUMN_NAME', 'DATA_TYPE'],
@@ -140,12 +136,12 @@ class PostgresDatabase(ad.AbstractDatabase):
     def insert_rows(
             self,
             table: str, rows: Iterable, columns: Iterable,
-            step: int = ad.DEFAULT_STEP, skip_errors: bool = False,
+            step: int = DEFAULT_STEP, skip_errors: bool = False,
             expected_count: Optional[int] = None, return_count: bool = True,
-            verbose: Union[bool, arg.DefaultArgument] = arg.DEFAULT,
+            verbose: Union[bool, arg.Auto] = arg.AUTO,
     ) -> Optional[int]:
         assert columns, 'columns must be defined'
-        verbose = arg.undefault(verbose, self.verbose)
+        verbose = arg.acquire(verbose, self.verbose)
         count = len(rows) if isinstance(rows, (list, tuple)) else expected_count
         conn = self.connect(reconnect=True)
         cur = conn.cursor()

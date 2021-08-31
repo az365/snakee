@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Union, Optional, Iterable, NoReturn
 
 try:  # Assume we're a sub-module in a package.
-    from utils import arguments as arg
+    from utils import arguments as arg, mappers as ms
     from interfaces import (
         Connector, RegularStream, StreamType, StructInterface, SimpleDataInterface,
         AUTO, Auto, AutoContext, AutoBool, AutoCount, Count, Name,
@@ -12,7 +12,7 @@ try:  # Assume we're a sub-module in a package.
     from streams import stream_classes as sm
     from items.flat_struct import FlatStruct
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
+    from ...utils import arguments as arg, mappers as ms
     from ...interfaces import (
         Connector, RegularStream, StreamType, StructInterface, SimpleDataInterface,
         AUTO, Auto, AutoContext, AutoBool, AutoCount, Count, Name,
@@ -405,6 +405,10 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
             assert isinstance(two_lines, sm.LineStream)
             login, password = two_lines.get_list()[:2]
             yield login, password
+
+    @staticmethod
+    def _get_compact_query_view(query: str) -> str:
+        return ms.remove_extra_spaces(query)
 
     @staticmethod
     def _get_table_name(table: Union[Table, Name]) -> str:
