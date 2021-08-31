@@ -5,8 +5,11 @@ try:  # Assume we're a sub-module in a package.
     from items.item_type import ItemType
     from items.struct_row_interface import StructRowInterface
     from items.simple_items import (
-        STAR, ROW_SUBCLASSES, Row, Record, Line, SimpleSelectableItem,
+        STAR, ROW_SUBCLASSES, RECORD_SUBCLASSES,
+        Row, Record, Line, SimpleSelectableItem,
         FieldNo, FieldName, FieldID, Value, Array,
+        get_field_value_from_row, get_field_value_from_record,
+        merge_two_rows, merge_two_records,
     )
     from items import legacy_classes as sc
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -14,8 +17,11 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..items.item_type import ItemType
     from ..items.struct_row_interface import StructRowInterface
     from ..items.simple_items import (
-        STAR, ROW_SUBCLASSES, Row, Record, Line, SimpleSelectableItem,
+        STAR, ROW_SUBCLASSES, RECORD_SUBCLASSES,
+        Row, Record, Line, SimpleSelectableItem,
         FieldNo, FieldName, FieldID, Value, Array,
+        get_field_value_from_row, get_field_value_from_record,
+        merge_two_rows, merge_two_records,
     )
     from ..items import legacy_classes as sc
 
@@ -26,8 +32,8 @@ ItemType.prepare()
 ItemType.set_dict_classes(
     {
         ItemType.Line: [Line],
-        ItemType.Row: [*ROW_SUBCLASSES],
-        ItemType.Record: [Record],
+        ItemType.Row: ROW_SUBCLASSES,
+        ItemType.Record: RECORD_SUBCLASSES,
         ItemType.StructRow: [sc.StructRow, StructRowInterface],
     }
 )
@@ -66,30 +72,6 @@ def get_fields_names_from_item(item: SelectableItem, item_type: ItemType = ItemT
         return item.get_columns()
     else:
         raise TypeError('type {} not supported'.format(item_type))
-
-
-def get_field_value_from_schema_row(
-        key: FieldID, row: StructRowInterface,
-        default: Value = None, skip_missing: bool = True,
-) -> Any:
-    return row.get_value(key, default=default, skip_missing=skip_missing)
-
-
-def get_field_value_from_row(column: FieldNo, row: Row, default: Value = None, skip_missing: bool = True) -> Value:
-    if column < len(row) or not skip_missing:
-        return row[column]
-    else:
-        return default
-
-
-def get_field_value_from_record(
-        field: FieldID, record: Record,
-        default: Value = None, skip_missing: bool = True,
-) -> Value:
-    if skip_missing:
-        return record.get(field, default)
-    else:
-        return record[field]
 
 
 def get_field_value_from_item(
@@ -170,22 +152,13 @@ def get_frozen(item: ConcreteItem) -> ConcreteItem:
 
 def merge_two_items(first: ConcreteItem, second: ConcreteItem, default_right_name: str = '_right') -> ConcreteItem:
     if ItemType.Row.isinstance(first):
-        if second is None:
-            result = first
-        elif ItemType.Row.isinstance(second):
-            result = tuple(list(first) + list(second))
-        else:
-            result = tuple(list(first) + [second])
+        result = merge_two_rows(first, second)
     elif ItemType.Record.isinstance(first):
-        result = first.copy()
-        if ItemType.Record.isinstance(second):
-            result.update(second)
-        else:
-            result[default_right_name] = second
+        result = merge_two_records(first, second, default_right_name=default_right_name)
     elif first is None and ItemType.Record.isinstance(second):
         result = second
     else:
-        result = (first, second)
+        result = first, second
     return result
 
 
