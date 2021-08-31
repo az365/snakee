@@ -29,7 +29,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils import selection as sf
 
 Native = RegularStream
-Schema = StructInterface
+Struct = Optional[StructInterface]
 
 SAFE_COUNT_ITEMS_IN_MEMORY = 10000
 EXAMPLE_STR_LEN = 12
@@ -231,14 +231,14 @@ class ColumnarMixin(ContextualDataWrapper, ColumnarInterface, ABC):
         self.update_count()
         return self
 
-    def get_source_schema(self, default=None) -> Optional[Schema]:
+    def get_source_struct(self, default=None) -> Struct:
         source = self.get_source()
         if hasattr(source, 'get_struct'):
-            return source.get_schema()
+            return source.get_struct()
         else:
             return default
 
-    def get_detected_struct(self, count: int = 100, set_types: Optional[dict] = None, default=None) -> Optional[Schema]:
+    def get_detected_struct(self, count: int = 100, set_types: Optional[dict] = None, default=None) -> Struct:
         if hasattr(self, 'get_detected_columns'):
             columns = self.get_detected_columns(count)
         else:
@@ -325,10 +325,10 @@ class ColumnarMixin(ContextualDataWrapper, ColumnarInterface, ABC):
         example = self.example(*filters, **filter_kwargs, count=count)
         assert isinstance(example, ColumnarMixin)
         if hasattr(self, 'get_struct'):
-            struct = self.get_schema()
+            struct = self.get_struct()
             source_str = 'native'
         elif take_struct_from_source:
-            struct = self.get_source_schema()
+            struct = self.get_source_struct()
             source_str = 'from source {}'.format(self.get_source().__repr__())
         else:
             struct = self.get_detected_struct()
