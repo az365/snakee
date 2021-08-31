@@ -1,12 +1,6 @@
 import csv
 import re
 
-try:  # Assume we're a sub-module in a package.
-    from utils import items as it
-except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..utils import items as it
-
-
 RE_LETTERS = re.compile('[^a-zа-я ]')
 
 
@@ -125,41 +119,6 @@ def get_first_values(records, fields):
         for f in added_fields:
             empty_fields.remove(f)
     return dict_first_values
-
-
-def merge_two_items(first, second, default_right_name='_right'):
-    if it.ItemType.Row.isinstance(first):
-        if second is None:
-            result = first
-        elif it.ItemType.Row.isinstance(second):
-            result = tuple(list(first) + list(second))
-        else:
-            result = tuple(list(first) + [second])
-    elif it.ItemType.Record.isinstance(first):
-        result = first.copy()
-        if it.ItemType.Record.isinstance(second):
-            result.update(second)
-        else:
-            result[default_right_name] = second
-    elif first is None and it.ItemType.Record.isinstance(second):
-        result = second
-    else:
-        result = (first, second)
-    return result
-
-
-def items_to_dict(items, key_function, value_function=None, of_lists=False):
-    result = dict()
-    for i in items:
-        k = key_function(i)
-        v = i if value_function is None else value_function(i)
-        if of_lists:
-            distinct = result.get(k, [])
-            if v not in distinct:
-                result[k] = distinct + [v]
-        else:
-            result[k] = v
-    return result
 
 
 def fold_lists(list_records, key_fields, list_fields, skip_missing=False):

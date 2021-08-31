@@ -2,7 +2,7 @@ from typing import Optional, Union, Iterable, Callable
 import json
 
 try:  # Assume we're a sub-module in a package.
-    from utils import algo, arguments as arg, mappers as ms
+    from utils import algo, arguments as arg, items as it
     from streams.interfaces.local_stream_interface import LocalStreamInterface
     from base.interfaces.context_interface import ContextInterface
     from connectors.abstract.connector_interface import ConnectorInterface
@@ -12,7 +12,7 @@ try:  # Assume we're a sub-module in a package.
     from connectors.filesystem.temporary_interface import TemporaryFilesMaskInterface
     from functions import all_functions as fs
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import algo, arguments as arg, mappers as ms
+    from ...utils import algo, arguments as arg, items as it
     from ..interfaces.local_stream_interface import LocalStreamInterface
     from ...base.interfaces.context_interface import ContextInterface
     from ...connectors.abstract.connector_interface import ConnectorInterface
@@ -113,7 +113,11 @@ class LocalStream(IterableStream, LocalStreamInterface):
         if self.is_in_memory() or step is None:
             return True
         else:
-            return self.get_estimated_count() is not None and self.get_estimated_count() <= step
+            count = self.get_estimated_count()
+            if count is None:
+                return False
+            else:
+                return count <= step
 
     def to_memory(self) -> Native:
         items_as_list_in_memory = self.get_list()
@@ -268,7 +272,7 @@ class LocalStream(IterableStream, LocalStreamInterface):
             iter_left=self.get_iter(),
             iter_right=right.get_iter(),
             key_function=fs.composite_key(keys),
-            merge_function=ms.merge_two_items,
+            merge_function=it.merge_two_items,
             order_function=fs.is_ordered(reverse=sorting_is_reversed, including=True),
             how=how,
         )

@@ -1,4 +1,4 @@
-from typing import Iterable, Union, Any, NoReturn
+from typing import Optional, Iterable, Callable, Union, Any, NoReturn
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
@@ -169,3 +169,43 @@ def get_frozen(item: ConcreteItem) -> ConcreteItem:
         return tuple(item)
     else:
         return item
+
+
+def merge_two_items(first: ConcreteItem, second: ConcreteItem, default_right_name: str = '_right'):
+    if ItemType.Row.isinstance(first):
+        if second is None:
+            result = first
+        elif ItemType.Row.isinstance(second):
+            result = tuple(list(first) + list(second))
+        else:
+            result = tuple(list(first) + [second])
+    elif ItemType.Record.isinstance(first):
+        result = first.copy()
+        if ItemType.Record.isinstance(second):
+            result.update(second)
+        else:
+            result[default_right_name] = second
+    elif first is None and ItemType.Record.isinstance(second):
+        result = second
+    else:
+        result = (first, second)
+    return result
+
+
+def items_to_dict(
+        items: Iterable,
+        key_function: Callable,
+        value_function: Optional[Callable] = None,
+        of_lists: bool = False,
+):
+    result = dict()
+    for i in items:
+        k = key_function(i)
+        v = i if value_function is None else value_function(i)
+        if of_lists:
+            distinct = result.get(k, [])
+            if v not in distinct:
+                result[k] = distinct + [v]
+        else:
+            result[k] = v
+    return result

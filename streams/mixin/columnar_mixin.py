@@ -8,7 +8,7 @@ try:  # Assume we're a sub-module in a package.
         Count, UniKey, Item, Array, Columns, OptionalFields,
         AUTO, Auto, AutoBool,
     )
-    from utils import algo, arguments as arg, mappers as ms
+    from utils import algo, arguments as arg, items as it
     from utils.external import pd, DataFrame, get_use_objects_for_output
     from fields import field_classes as fc
     from base.abstract.contextual_data import ContextualDataWrapper
@@ -21,7 +21,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         Count, UniKey, Item, Array, Columns, OptionalFields,
         AUTO, Auto, AutoBool,
     )
-    from ...utils import algo, arguments as arg, mappers as ms
+    from ...utils import algo, arguments as arg, items as it
     from ...utils.external import pd, DataFrame, get_use_objects_for_output
     from ...fields import field_classes as fc
     from ...base.abstract.contextual_data import ContextualDataWrapper
@@ -182,8 +182,8 @@ class ColumnarMixin(ContextualDataWrapper, ColumnarInterface, ABC):
             iter_left=self.get_items(),
             iter_right=right.get_items(),
             key_function=fs.composite_key(keys),
-            merge_function=ms.merge_two_items,
-            dict_function=ms.items_to_dict,
+            merge_function=it.merge_two_items,
+            dict_function=it.items_to_dict,
             how=how,
             uniq_right=right_is_uniq,
         )

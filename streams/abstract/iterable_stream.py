@@ -11,7 +11,7 @@ try:  # Assume we're a sub-module in a package.
         AUTO, Auto, AutoName, AutoCount, OptionalFields, Message, Array, UniKey,
     )
     from streams.abstract.abstract_stream import AbstractStream
-    from utils import algo, arguments as arg, mappers as ms
+    from utils import algo, arguments as arg, items as it
     from utils.external import pd, DataFrame, get_use_objects_for_output
     from utils.decorators import deprecated_with_alternative
     from streams import stream_classes as sm
@@ -25,7 +25,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         AUTO, AutoName, AutoCount, OptionalFields, Message, Array, UniKey,
     )
     from ..abstract.abstract_stream import AbstractStream
-    from ...utils import algo, arguments as arg, mappers as ms
+    from ...utils import algo, arguments as arg, items as it
     from ...utils.external import pd, DataFrame, get_use_objects_for_output
     from ...utils.decorators import deprecated_with_alternative
     from .. import stream_classes as sm
@@ -480,8 +480,8 @@ class IterableStream(AbstractStream, IterableStreamInterface):
             iter_left=self.get_items(),
             iter_right=right.get_items(),
             key_function=fs.composite_key(keys),
-            merge_function=ms.merge_two_items,
-            dict_function=ms.items_to_dict,
+            merge_function=it.merge_two_items,
+            dict_function=it.items_to_dict,
             how=how,
             uniq_right=right_is_uniq,
         )
