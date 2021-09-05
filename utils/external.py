@@ -28,6 +28,11 @@ try:  # Assume psycopg2 installed
 except ImportError:
     psycopg2 = None
 
+try:  # Assume psycopg2 installed
+    import boto3
+except ImportError:
+    boto3 = None
+
 
 class FallbackFake:
     library_name = None
