@@ -1,13 +1,13 @@
 from typing import Optional, Union, Iterable, NoReturn
 import gc
-import psycopg2
-import psycopg2.extras
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
+    from utils.external import psycopg2
     from connectors.databases.abstract_database import AbstractDatabase, TEST_QUERY, DEFAULT_STEP, DEFAULT_GROUP
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
+    from ...utils.external import psycopg2
     from ..databases.abstract_database import AbstractDatabase, TEST_QUERY, DEFAULT_STEP, DEFAULT_GROUP
 
 
@@ -29,15 +29,17 @@ class PostgresDatabase(AbstractDatabase):
     def is_connected(self) -> bool:
         return (self.connection is not None) and not self.connection.closed
 
-    def get_connection(self, connect=False):
+    def get_connection(self, connect: bool = False):
         if connect and not self.connection:
             self.connect()
         return self.connection
 
-    def connect(self, reconnect=True):
+    def connect(self, reconnect: bool = True):
         if self.is_connected() and reconnect:
             self.disconnect(True)
         if not self.is_connected():
+            if not psycopg2:
+                raise ImportError('psycopg2 must be installed (pip install psycopg2)')
             self.connection = psycopg2.connect(
                 host=self.host,
                 port=self.port,
@@ -48,9 +50,11 @@ class PostgresDatabase(AbstractDatabase):
             )
         return self.connection
 
-    def disconnect(self, skip_errors=False, verbose=arg.AUTO) -> Optional[int]:
+    def disconnect(self, skip_errors: bool = False, verbose=arg.AUTO) -> Optional[int]:
         verbose = arg.acquire(verbose, self.verbose)
         if self.is_connected():
+            if not psycopg2:
+                raise ImportError('psycopg2 must be installed (pip install psycopg2)')
             if skip_errors:
                 try:
                     self.connection.close()
@@ -93,9 +97,11 @@ class PostgresDatabase(AbstractDatabase):
         if get_data:
             return result
 
-    def execute_batch(self, query, batch, step=DEFAULT_STEP, cursor=arg.AUTO) -> NoReturn:
+    def execute_batch(self, query: str, batch: Iterable, step: int = DEFAULT_STEP, cursor=arg.AUTO) -> NoReturn:
         if cursor == arg.AUTO:
             cursor = self.connect().cursor()
+        if not psycopg2:
+            raise ImportError('psycopg2 must be installed (pip install psycopg2)')
         psycopg2.extras.execute_batch(cursor, query, batch, page_size=step)
 
     def grant_permission(self, name, permission='SELECT', group=DEFAULT_GROUP, verbose=arg.AUTO) -> NoReturn:
@@ -169,8 +175,8 @@ class PostgresDatabase(AbstractDatabase):
                 try:
                     cur.execute(query, row)
                 except TypeError or IndexError as e:  # TypeError: not all arguments converted during string formatting
-                    self.log(['Error line:', str(row)], level=self.LoggingLevel.Debug, verbose=verbose)
-                    self.log([e.__class__.__name__, e], level=self.LoggingLevel.Error)
+                    self.log('Error line: {}'.format(str(row)), level=self.LoggingLevel.Debug, verbose=verbose)
+                    self.log('{}: {}'.format(e.__class__.__name__, e), level=self.LoggingLevel.Error)
             if (n + 1) % step == 0:
                 if use_fast_batch_method:
                     self.execute_batch(query, records_batch, step, cursor=cur)

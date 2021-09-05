@@ -22,6 +22,12 @@ try:  # Assume MatPlotLib installed
 except ImportError:
     plt = None
 
+try:  # Assume psycopg2 installed
+    import psycopg2
+    import psycopg2.extras
+except ImportError:
+    psycopg2 = None
+
 
 class FallbackFake:
     library_name = None
