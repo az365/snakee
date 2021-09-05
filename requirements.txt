@@ -1,0 +1,7 @@
+requests
+psycopg2
+boto3
+numpy
+scipy
+pandas
+matplotlib
