@@ -2,18 +2,12 @@ from typing import Optional, Callable
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
-    from connectors.operations.abstract_sync import (
-        AbstractSync,
-        Name, Options, OptStreamType, Stream, Connector, Context,
-        SRC_ID, DST_ID,
-    )
+    from interfaces import Name, Options, AutoStreamType, Stream, ConnectorInterface, AutoContext, AUTO
+    from connectors.operations.abstract_sync import AbstractSync, SRC_ID, DST_ID
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
-    from .abstract_sync import (
-        AbstractSync,
-        Name, Options, OptStreamType, Stream, Connector, Context,
-        SRC_ID, DST_ID,
-    )
+    from ...interfaces import Name, Options, AutoStreamType, Stream, ConnectorInterface, AutoContext, AUTO
+    from .abstract_sync import AbstractSync, SRC_ID, DST_ID
 
 
 class MultiSync(AbstractSync):
@@ -26,8 +20,8 @@ class MultiSync(AbstractSync):
             procedure: Optional[Callable],
             options: Optional[dict] = None,
             apply_to_stream: bool = True,
-            stream_type: OptStreamType = arg.DEFAULT,
-            context: Context = arg.DEFAULT,
+            stream_type: AutoStreamType = AUTO,
+            context: AutoContext = AUTO,
     ):
         connectors = dict()
         for c in inputs, outputs, intermediates:
@@ -57,11 +51,11 @@ class MultiSync(AbstractSync):
     def run_now(
             self,
             return_stream: bool = True,
-            stream_type: OptStreamType = arg.DEFAULT,
+            stream_type: AutoStreamType = AUTO,
             options: Options = None,
             verbose: bool = True,
     ) -> Stream:
-        stream_type = arg.undefault(stream_type, self.get_stream_type())
+        stream_type = arg.acquire(stream_type, self.get_stream_type())
         stream = self.get_src().to_stream(stream_type=stream_type)
         if verbose:
             self.log('Running operation: {}'.format(self.get_name()))
@@ -76,11 +70,11 @@ class MultiSync(AbstractSync):
             self,
             raise_error_if_exists: bool = False,
             return_stream: bool = True,
-            stream_type: OptStreamType = arg.DEFAULT,
+            stream_type: AutoStreamType = AUTO,
             options: Options = None,
             verbose: bool = True,
     ) -> Optional[Stream]:
-        stream_type = arg.undefault(stream_type, self.get_stream_type())
+        stream_type = arg.acquire(stream_type, self.get_stream_type())
         if not self.is_done():
             return self.run_now(return_stream=return_stream, stream_type=stream_type, verbose=verbose)
         elif raise_error_if_exists:
@@ -90,11 +84,11 @@ class MultiSync(AbstractSync):
                 self.log('Operation is already done: {}'.format(self.get_name()))
             return self.get_dst().to_stream(stream_type=stream_type)
 
-    def to_stream(self, stream_type=arg.DEFAULT, **kwargs):
-        stream_type = arg.undefault(stream_type, self.get_stream_type())
+    def to_stream(self, stream_type=AUTO, **kwargs):
+        stream_type = arg.acquire(stream_type, self.get_stream_type())
         return self.run_if_not_yet(raise_error_if_exists=False, return_stream=True, stream_type=stream_type)
 
-    def from_stream(self, stream: Stream, rewrite: bool = False) -> Optional[Connector]:
+    def from_stream(self, stream: Stream, rewrite: bool = False) -> Optional[ConnectorInterface]:
         if rewrite or not self.has_inputs():
             self.get_src().from_stream(stream)
         else:
@@ -105,5 +99,5 @@ class MultiSync(AbstractSync):
             self.log('dst-object ({}) is already exists'.format(self.get_dst()))
 
     @staticmethod
-    def _assume_connector(connector) -> Connector:
+    def _assume_connector(connector) -> ConnectorInterface:
         return connector

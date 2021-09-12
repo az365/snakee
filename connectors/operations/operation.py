@@ -2,25 +2,12 @@ from typing import Optional, Iterable, Callable, Union, Any, NoReturn
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
-    from base.interfaces.context_interface import ContextInterface
-    from connectors.abstract.connector_interface import ConnectorInterface
-    from streams.interfaces.abstract_stream_interface import StreamInterface
-    from streams.stream_type import StreamType
+    from interfaces import AUTO, AutoContext, AutoStreamType, Name, Options
     from connectors import connector_classes as ct
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
-    from ...base.interfaces.context_interface import ContextInterface
-    from ..abstract.connector_interface import ConnectorInterface
-    from ...streams.interfaces.abstract_stream_interface import StreamInterface
-    from ...streams.stream_type import StreamType
+    from ...interfaces import AUTO, AutoContext, AutoStreamType, Name, Options
     from .. import connector_classes as ct
-
-Name = str
-Stream = StreamInterface
-OptStreamType = Union[StreamType, arg.DefaultArgument]
-Connector = ConnectorInterface
-Context = Union[ContextInterface, arg.DefaultArgument, None]
-Options = Union[dict, arg.DefaultArgument, None]
 
 
 class Operation(ct.HierarchicConnector):
@@ -30,12 +17,12 @@ class Operation(ct.HierarchicConnector):
             connectors: dict,
             procedure: Optional[Callable],
             options: Optional[dict] = None,
-            context: Context = arg.DEFAULT,
+            context: AutoContext = AUTO,
     ):
         super().__init__(
             name=name,
             children=connectors,
-            parent=arg.undefault(context, ct.get_context()),
+            parent=arg.acquire(context, ct.get_context()),
         )
         assert procedure is None or isinstance(procedure, Callable)
         self._procedure = procedure
