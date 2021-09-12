@@ -3,24 +3,17 @@ from typing import Optional, Union, NoReturn
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
-    from base.interfaces.context_interface import ContextInterface
-    from connectors.abstract.connector_interface import ConnectorInterface
-    from base.interfaces.tree_interface import TreeInterface
+    from interfaces import Connector, ConnectorInterface, LoggerInterface, ExtendedLoggerInterface, AutoContext
     from base.abstract.tree_item import TreeItem
     from loggers import logger_classes as log
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
-    from ...base.interfaces.context_interface import ContextInterface
-    from .connector_interface import ConnectorInterface
+    from ...interfaces import Connector, ConnectorInterface, LoggerInterface, ExtendedLoggerInterface, AutoContext
     from ...base.abstract.tree_item import TreeItem
-    from ...base.interfaces.tree_interface import TreeInterface
     from ...loggers import logger_classes as log
 
-Logger = Union[log.LoggerInterface, log.ExtendedLoggerInterface]
-OptionalParent = Optional[ConnectorInterface]
-Context = Union[ContextInterface, arg.DefaultArgument, None]
+Logger = Union[LoggerInterface, ExtendedLoggerInterface]
 
-AUTO = arg.DEFAULT
 DEFAULT_PATH_DELIMITER = '/'
 CHUNK_SIZE = 8192
 
@@ -29,12 +22,12 @@ class AbstractConnector(TreeItem, ConnectorInterface, ABC):
     def __init__(
             self,
             name: Union[str, int],
-            parent: OptionalParent = None,
+            parent: Connector = None,
             children: Optional[dict] = None,
     ):
         super().__init__(name=name, parent=parent, children=children)
 
-    def get_storage(self) -> OptionalParent:
+    def get_storage(self) -> Connector:
         parent = self.get_parent()
         if parent:
             if hasattr(parent, 'is_storage'):
@@ -50,7 +43,7 @@ class AbstractConnector(TreeItem, ConnectorInterface, ABC):
         elif create_if_not_yet:
             return log.get_logger()
 
-    def log(self, msg: str, level=AUTO, end: Union[str, arg.DefaultArgument] = AUTO, verbose: bool = True):
+    def log(self, msg: str, level=arg.AUTO, end: Union[str, arg.Auto] = arg.AUTO, verbose: bool = True):
         logger = self.get_logger()
         if logger is not None:
             logger.log(
@@ -58,7 +51,7 @@ class AbstractConnector(TreeItem, ConnectorInterface, ABC):
                 end=end, verbose=verbose,
             )
 
-    def get_new_progress(self, name: str, count: Optional[int] = None, context: Context = arg.DEFAULT):
+    def get_new_progress(self, name: str, count: Optional[int] = None, context: AutoContext = arg.AUTO):
         logger = self.get_logger()
         if hasattr(logger, 'get_new_progress'):
             return logger.get_new_progress(name, count=count, context=context)

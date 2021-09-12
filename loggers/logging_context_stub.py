@@ -3,34 +3,26 @@ from typing import Optional, Union, NoReturn
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from utils.decorators import singleton
-    from base.interfaces.context_interface import ContextInterface
-    from base.interfaces.contextual_interface import ContextualInterface
+    from interfaces import ContextInterface, ContextualInterface, LoggerInterface, ConnectorInterface, Name, AUTO
     from base.abstract.tree_item import TreeItem
-    from loggers.logger_interface import LoggerInterface
     from loggers.extended_logger import SingletonLogger
     from loggers.message_collector import SelectionMessageCollector
-    from connectors.abstract.connector_interface import ConnectorInterface
     from connectors.filesystem.local_storage import LocalStorage
     from connectors.filesystem.local_folder import LocalFolder
     from connectors import connector_classes as ct
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
     from ..utils.decorators import singleton
-    from ..base.interfaces.context_interface import ContextInterface
-    from ..base.interfaces.contextual_interface import ContextualInterface
+    from ..interfaces import ContextInterface, ContextualInterface, LoggerInterface, ConnectorInterface, Name, AUTO
     from ..base.abstract.tree_item import TreeItem
-    from .logger_interface import LoggerInterface
     from .extended_logger import SingletonLogger
     from .message_collector import SelectionMessageCollector
-    from ..connectors.abstract.connector_interface import ConnectorInterface
     from ..connectors.filesystem.local_storage import LocalStorage
     from ..connectors.filesystem.local_folder import LocalFolder
     from ..connectors import connector_classes as ct
 
 Native = ContextInterface
-Name = Union[int, str]
 Child = ContextualInterface
-NameOrChild = Union[Name, Child]
 
 NAME = 'logging_context_stub'
 
@@ -39,15 +31,15 @@ NAME = 'logging_context_stub'
 class LoggingContextStub(TreeItem, ContextInterface):
     def __init__(
             self,
-            name: Union[Name, arg.DefaultArgument] = arg.DEFAULT,
-            logger: Union[LoggerInterface, arg.DefaultArgument] = arg.DEFAULT,
+            name: Union[Name, arg.Auto] = AUTO,
+            logger: Union[LoggerInterface, arg.Auto] = AUTO,
             skip_not_implemented: bool = True
     ):
         self._logger = logger
         self._local_storage = None
         self._skip_not_implemented = skip_not_implemented
         self._tmp_folder = None
-        super().__init__(name=arg.undefault(name, NAME))
+        super().__init__(name=arg.acquire(name, NAME))
 
     def set_logger(self, logger: LoggerInterface, inplace: bool = False) -> Optional[Native]:
         self._logger = logger
@@ -73,7 +65,7 @@ class LoggingContextStub(TreeItem, ContextInterface):
     def get_new_selection_logger(name, **kwargs) -> LoggerInterface:
         return SelectionMessageCollector(name, **kwargs)
 
-    def get_selection_logger(self, name=arg.DEFAULT, **kwargs) -> LoggerInterface:
+    def get_selection_logger(self, name=AUTO, **kwargs) -> LoggerInterface:
         logger = self.get_logger()
         if hasattr(logger, 'get_selection_logger'):
             selection_logger = logger.get_selection_logger(name, **kwargs)
@@ -85,7 +77,7 @@ class LoggingContextStub(TreeItem, ContextInterface):
                 logger.set_selection_logger(selection_logger)
         return selection_logger
 
-    def log(self, msg, level=arg.DEFAULT, end=arg.DEFAULT, verbose=True) -> NoReturn:
+    def log(self, msg, level=AUTO, end=AUTO, verbose=True) -> NoReturn:
         logger = self.get_logger()
         if logger is not None:
             logger.log(
@@ -93,7 +85,7 @@ class LoggingContextStub(TreeItem, ContextInterface):
                 end=end, verbose=verbose,
             )
 
-    def add_child(self, name_or_child: NameOrChild, check: bool = True, inplace: bool = True) -> Optional[Child]:
+    def add_child(self, name_or_child: Union[Name, Child], check: bool = True, inplace: bool = True) -> Optional[Child]:
         name, child = self._get_name_and_child(name_or_child)
         if self.is_logger(child):
             if hasattr(child, 'is_common_logger'):
@@ -150,10 +142,10 @@ class LoggingContextStub(TreeItem, ContextInterface):
     def get_connection(self, name, skip_missing=True):
         self._method_stub()
 
-    def conn(self, conn, name=arg.DEFAULT, check=True, redefine=True, **kwargs):
+    def conn(self, conn, name=AUTO, check=True, redefine=True, **kwargs):
         self._method_stub()
 
-    def stream(self, stream_type, name=arg.DEFAULT, check=True, **kwargs):
+    def stream(self, stream_type, name=AUTO, check=True, **kwargs):
         self._method_stub()
 
     def rename_stream(self, old_name, new_name):
