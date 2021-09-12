@@ -1,11 +1,7 @@
 try:  # Assume we're a sub-module in a package.
     from utils.enum import ClassType
-    from connectors.filesystem.local_file import TextFile, JsonFile
-    from connectors.filesystem.column_file import ColumnFile, CsvFile, TsvFile
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils.enum import ClassType
-    from .local_file import TextFile, JsonFile
-    from .column_file import ColumnFile, CsvFile, TsvFile
 
 
 class FileType(ClassType):
@@ -35,12 +31,3 @@ class FileType(ClassType):
 
 
 FileType.prepare()
-FileType.set_dict_classes(
-    {
-        FileType.TextFile: TextFile,
-        FileType.JsonFile: JsonFile,
-        FileType.ColumnFile: ColumnFile,
-        FileType.CsvFile: CsvFile,
-        FileType.TsvFile: TsvFile,
-    }
-)

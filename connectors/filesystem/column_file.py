@@ -5,12 +5,12 @@ try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from interfaces import (
         StructInterface, Connector, LeafConnector, RegularStream, LineStream, RowStream, RecordStream, StructStream,
-        FieldType, ItemType, StreamType,
+        FieldType, ItemType, StreamType, FileType,
         Field, Name, Item, Array, Columns,
         AUTO, Auto, AutoName, AutoCount, AutoBool, OptionalFields
     )
     from fields import field_classes as fc
-    from connectors.filesystem.local_file import TextFile
+    from connectors.filesystem.local_file import TextFile, JsonFile
     from streams.mixin.columnar_mixin import ColumnarMixin
     from streams import stream_classes as sm
     from items import legacy_classes as sh
@@ -19,12 +19,12 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils import arguments as arg
     from ...interfaces import (
         StructInterface, Connector, LeafConnector, RegularStream, LineStream, RowStream, RecordStream, StructStream,
-        FieldType, ItemType, StreamType,
+        FieldType, ItemType, StreamType, FileType,
         Field, Name, Item, Array, Columns,
         AUTO, Auto, AutoName, AutoCount, AutoBool, OptionalFields
     )
     from ...fields import field_classes as fc
-    from .local_file import TextFile
+    from .local_file import TextFile, JsonFile
     from ...streams.mixin.columnar_mixin import ColumnarMixin
     from ...streams import stream_classes as sm
     from ...items import legacy_classes as sh
@@ -329,7 +329,7 @@ class ColumnFile(TextFile, ColumnarMixin):
     def get_columns(self) -> list:
         return self.get_struct().get_columns()
 
-    def get_types(self, dialect=arg.AUTO) -> Iterable:
+    def get_types(self, dialect=AUTO) -> Iterable:
         return self.get_struct().get_types(dialect)
 
     def set_types(self, dict_field_types: Optional[dict] = None, inplace: bool = False, **kwargs) -> Optional[Native]:
@@ -726,3 +726,14 @@ class TsvFile(ColumnFile):
     @classmethod
     def get_stream_type(cls) -> StreamType:
         return StreamType.RecordStream
+
+
+FileType.set_dict_classes(
+    {
+        FileType.TextFile: TextFile,
+        FileType.JsonFile: JsonFile,
+        FileType.ColumnFile: ColumnFile,
+        FileType.CsvFile: CsvFile,
+        FileType.TsvFile: TsvFile,
+    }
+)
