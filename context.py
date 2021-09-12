@@ -1,37 +1,36 @@
 import gc
-from typing import Optional, Union, Iterable, Any, NoReturn
+from typing import Optional, Iterable, Union, Any, NoReturn
 
 try:  # Assume we're a sub-module in a package.
+    from utils import arguments as arg
+    from utils.decorators import singleton
+    from interfaces import (
+        Context, ContextInterface, Connector, ConnectorInterface, ConnType, Stream, StreamType,
+        TemporaryLocationInterface, LoggerInterface, ExtendedLoggerInterface, SelectionLoggerInterface, LoggingLevel,
+        AUTO, Auto, Name, Array, ARRAY_TYPES,
+    )
     from base import base_classes as bs
     from streams import stream_classes as sm
     from connectors import connector_classes as ct
-    from connectors.filesystem.temporary_interface import TemporaryLocationInterface
     from connectors.filesystem.temporary_files import TemporaryLocation
-    from utils.decorators import singleton
-    from utils import arguments as arg
     from loggers import logger_classes as lg
-    from items import legacy_classes as sh
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
+    from .utils import arguments as arg
+    from .utils.decorators import singleton
+    from interfaces import (
+        Context, ContextInterface, Connector, ConnectorInterface, ConnType, Stream, StreamType,
+        TemporaryLocationInterface, LoggerInterface, ExtendedLoggerInterface, SelectionLoggerInterface, LoggingLevel,
+        AUTO, Auto, Name, Array, ARRAY_TYPES,
+    )
     from .base import base_classes as bs
     from .streams import stream_classes as sm
     from .connectors import connector_classes as ct
-    from .connectors.filesystem.temporary_interface import TemporaryLocationInterface
     from .connectors.filesystem.temporary_files import TemporaryLocation
-    from .utils.decorators import singleton
-    from .utils import arguments as arg
     from .loggers import logger_classes as lg
-    from .items import legacy_classes as sh
 
-Native = bs.ContextInterface
-LoggingLevel = Union[lg.LoggingLevel, int, arg.DefaultArgument]
-Logger = Union[lg.LoggerInterface, lg.ExtendedLoggerInterface]
-Connector = Optional[ct.ConnectorInterface]
-Stream = Optional[sm.StreamInterface]
+Logger = Union[LoggerInterface, ExtendedLoggerInterface]
 Child = Union[Logger, Connector, Stream]
-ChildType = Union[Child, str, Any, arg.DefaultArgument]
-Name = Union[str, int]
-Array = Union[list, tuple]
-ARRAY_TYPES = list, tuple
+ChildType = Union[ConnType, Child, Name, Auto]
 
 NAME = 'cx'
 DEFAULT_STREAM_CONFIG = dict(
@@ -42,34 +41,33 @@ DEFAULT_STREAM_CONFIG = dict(
 
 
 @singleton
-class SnakeeContext(bs.AbstractNamed, bs.ContextInterface):
+class SnakeeContext(bs.AbstractNamed, ContextInterface):
     def __init__(
             self,
-            name: Union[Name, arg.DefaultArgument] = arg.DEFAULT,
-            stream_config: Union[dict, arg.DefaultArgument] = arg.DEFAULT,
-            conn_config: Union[dict, arg.DefaultArgument] = arg.DEFAULT,
-            logger: Union[Optional[Logger], arg.DefaultArgument] = arg.DEFAULT,
+            name: Union[Name, Auto] = AUTO,
+            stream_config: Union[dict, Auto] = AUTO,
+            conn_config: Union[dict, Auto] = AUTO,
+            logger: Union[Optional[Logger], Auto] = AUTO,
             clear_tmp: bool = False,
     ):
         self.logger = logger
-        self.stream_config = arg.undefault(stream_config, DEFAULT_STREAM_CONFIG)
-        self.conn_config = arg.undefault(conn_config, dict())
+        self.stream_config = arg.acquire(stream_config, DEFAULT_STREAM_CONFIG)
+        self.conn_config = arg.acquire(conn_config, dict())
         self.stream_instances = dict()
         self.conn_instances = dict()
 
-        name = arg.undefault(name, NAME)
+        name = arg.acquire(name, NAME)
         super().__init__(name)
 
         self.sm = sm
         self.sm.set_context(self)
         self.ct = ct
         self.ct.set_context(self)
-        self.sh = sh
 
         if clear_tmp:
             self.clear_tmp_files()
 
-    def set_logger(self, logger: Logger, inplace: bool = False) -> Optional[Native]:
+    def set_logger(self, logger: Logger, inplace: bool = False) -> Context:
         self.logger = logger
         if hasattr(logger, 'get_context'):
             if not logger.get_context():
@@ -91,11 +89,7 @@ class SnakeeContext(bs.AbstractNamed, bs.ContextInterface):
     def get_new_selection_logger(name: Name, **kwargs) -> lg.SelectionLoggerInterface:
         return lg.SelectionMessageCollector(name, **kwargs)
 
-    def get_selection_logger(
-            self,
-            name: Union[Name, arg.DefaultArgument] = arg.DEFAULT,
-            **kwargs,
-    ) -> lg.SelectionLoggerInterface:
+    def get_selection_logger(self, name: Union[Name, Auto] = AUTO, **kwargs) -> SelectionLoggerInterface:
         logger = self.get_logger()
         if hasattr(logger, 'get_selection_logger'):
             selection_logger = logger.get_selection_logger(name=name, **kwargs)
@@ -109,8 +103,8 @@ class SnakeeContext(bs.AbstractNamed, bs.ContextInterface):
 
     def log(
             self,
-            msg: str, level: LoggingLevel = arg.DEFAULT,
-            end: Union[str, arg.DefaultArgument] = arg.DEFAULT, verbose: bool = True,
+            msg: str, level: Union[LoggingLevel, int, Auto] = AUTO,
+            end: Union[str, Auto] = AUTO, verbose: bool = True,
     ) -> NoReturn:
         logger = self.get_logger()
         if logger is not None:
@@ -119,12 +113,12 @@ class SnakeeContext(bs.AbstractNamed, bs.ContextInterface):
                 end=end, verbose=verbose,
             )
 
-    def set_parent(self, parent: Any, reset: bool = False, inplace: bool = False) -> Optional[Native]:
+    def set_parent(self, parent: Any, reset: bool = False, inplace: bool = False) -> Context:
         assert not reset, 'SnakeeContext is a root object'
         if not inplace:
             return self
 
-    def set_context(self, context: Native, reset: bool = False, inplace: bool = True) -> Optional[Native]:
+    def set_context(self, context: Context, reset: bool = False, inplace: bool = True) -> Context:
         assert not reset, 'SnakeeContext is a root object'
         if not inplace:
             return self
@@ -136,7 +130,7 @@ class SnakeeContext(bs.AbstractNamed, bs.ContextInterface):
     def get_children(self) -> dict:
         return dict(self.get_items())
 
-    def add_child(self, instance: Child, inplace: bool = False) -> Optional[Native]:
+    def add_child(self, instance: Child, inplace: bool = False) -> Context:
         name = instance.get_name()
         err_msg = 'instance with name {} already registered (got {})'
         if ct.is_conn(instance):
@@ -162,11 +156,11 @@ class SnakeeContext(bs.AbstractNamed, bs.ContextInterface):
     def conn(
             self,
             conn: Union[Connector, ChildType],
-            name: Union[Name, arg.DefaultArgument] = arg.DEFAULT,
+            name: Union[Name, Auto] = AUTO,
             check: bool = True, redefine: bool = True,
             **kwargs
     ) -> Connector:
-        name = arg.undefault(name, arg.get_generated_name('Connection'))
+        name = arg.acquire(name, arg.get_generated_name('Connection'))
         conn_object = self.conn_instances.get(name)
         if conn_object:
             if redefine or ct.is_conn(conn):
@@ -185,12 +179,12 @@ class SnakeeContext(bs.AbstractNamed, bs.ContextInterface):
 
     def stream(
             self,
-            stream_type: Union[Stream, ChildType],
-            name: Union[Name, arg.DefaultArgument] = arg.DEFAULT,
+            stream_type: Union[StreamType, Stream, Name],
+            name: Union[Name, Auto] = AUTO,
             check: bool = True,
             **kwargs
     ) -> Stream:
-        name = arg.undefault(name, arg.get_generated_name('Stream'))
+        name = arg.acquire(name, arg.get_generated_name('Stream'))
         if sm.is_stream(stream_type):
             stream_object = stream_type
         else:
@@ -212,13 +206,13 @@ class SnakeeContext(bs.AbstractNamed, bs.ContextInterface):
         else:
             return self.stream_instances[name]
 
-    def get_connection(self, name: Name, skip_missing: bool = True) -> Optional[Connector]:
+    def get_connection(self, name: Name, skip_missing: bool = True) -> Connector:
         if skip_missing:
             return self.conn_instances.get(name)
         else:
             return self.conn_instances[name]
 
-    def get_child(self, name: Name, class_or_type: ChildType = arg.DEFAULT, deep: bool = True) -> Child:
+    def get_child(self, name: Name, class_or_type: ChildType = AUTO, deep: bool = True) -> Child:
         if 'Stream' in str(class_or_type):
             return self.get_stream(name)
         elif 'Conn' in str(class_or_type):
@@ -245,7 +239,7 @@ class SnakeeContext(bs.AbstractNamed, bs.ContextInterface):
             name = child.get_name()
         return name, child
 
-    def rename_stream(self, old_name: Name, new_name: Name, inplace: bool = True) -> Union[Stream, Native]:
+    def rename_stream(self, old_name: Name, new_name: Name, inplace: bool = True) -> Union[Stream, ContextInterface]:
         assert old_name in self.stream_instances, 'Stream must be defined (name {} is not registered)'.format(old_name)
         if new_name != old_name:
             assert new_name not in self.stream_instances, 'Stream name "{}" already exists'.format(new_name)
@@ -258,7 +252,7 @@ class SnakeeContext(bs.AbstractNamed, bs.ContextInterface):
         else:
             return stream
 
-    def take_credentials_from_file(self, file: Union[Name, Connector]) -> Native:
+    def take_credentials_from_file(self, file: Union[Name, Connector]) -> ContextInterface:
         for name, conn in self.get_children().items():
             if hasattr(conn, 'take_credentials_from_file'):
                 conn.take_credentials_from_file(file=file, by_name=True)
