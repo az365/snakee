@@ -1,9 +1,9 @@
-from abc import ABC, abstractmethod
+from abc import ABC
 from typing import Union, Iterable, Generator, Callable, Optional
 
 try:  # Assume we're a sub-module in a package.
     from interfaces import (
-        Stream, RegularStream, RegularStreamInterface, StructStream, StructInterface,
+        Stream, RegularStream, RegularStreamInterface, StructStream, StructInterface, ColumnarInterface, Context,
         StreamType, ItemType,
         Count, UniKey, Item, Array, Columns, OptionalFields,
         AUTO, Auto, AutoBool,
@@ -16,7 +16,7 @@ try:  # Assume we're a sub-module in a package.
     from utils import selection as sf
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
-        Stream, RegularStream, RegularStreamInterface, StructStream, StructInterface,
+        Stream, RegularStream, RegularStreamInterface, StructStream, StructInterface, ColumnarInterface, Context,
         StreamType, ItemType,
         Count, UniKey, Item, Array, Columns, OptionalFields,
         AUTO, Auto, AutoBool,
@@ -28,94 +28,20 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...functions import item_functions as fs
     from ...utils import selection as sf
 
-Native = RegularStream
+Native = ColumnarInterface
 Struct = Optional[StructInterface]
 
 SAFE_COUNT_ITEMS_IN_MEMORY = 10000
 EXAMPLE_STR_LEN = 12
 
 
-class ColumnarInterface(RegularStreamInterface, ABC):
-    @staticmethod
-    @abstractmethod
-    def get_item_type() -> ItemType:
-        pass
-
-    @abstractmethod
-    def get_columns(self) -> list:
-        pass
-
-    @abstractmethod
-    def get_one_column_values(self, column) -> Iterable:
-        pass
-
-    @abstractmethod
-    def get_records(self) -> Iterable:
-        pass
-
-    @abstractmethod
-    def filter(self, *args, **kwargs) -> Stream:
-        pass
-
-    @abstractmethod
-    def map(self, function: Callable) -> Stream:
-        pass
-
-    @abstractmethod
-    def map_side_join(self, right: Stream, key: UniKey, how: str = 'left', right_is_uniq: bool = True) -> Stream:
-        pass
-
-    @abstractmethod
-    def select(self, *fields, **expressions) -> Stream:
-        pass
-
-    @abstractmethod
-    def sort(self, *keys, reverse: bool = False) -> Stream:
-        pass
-
-    @abstractmethod
-    def sorted_group_by(self, *keys, values: OptionalFields = None, as_pairs: bool = False) -> Stream:
-        pass
-
-    @abstractmethod
-    def group_by(self, *keys, values: OptionalFields = None, as_pairs: bool = False) -> Stream:
-        pass
-
-    @abstractmethod
-    def is_in_memory(self) -> bool:
-        pass
-
-    @abstractmethod
-    def get_dataframe(self, columns: Columns = None) -> DataFrame:
-        pass
-
-    @abstractmethod
-    def show(self, count: int = 10, filters: OptionalFields = None, columns: OptionalFields = None):
-        pass
-
-    @abstractmethod
-    def apply_to_stream(self, function: Callable, *args, **kwargs) -> Stream:
-        pass
-
-    @abstractmethod
-    def get_one_item(self) -> Item:
-        pass
-
-    @abstractmethod
-    def update_count(self) -> Stream:
-        pass
-
-
-Native = ColumnarInterface
-
-
 class ColumnarMixin(ContextualDataWrapper, ColumnarInterface, ABC):
     @classmethod
-    def is_valid_item(cls, item) -> bool:
+    def is_valid_item(cls, item: Item) -> bool:
         return cls.get_item_type().isinstance(item)
 
     @classmethod
-    def get_validated(cls, items, skip_errors=False, context=None):
+    def get_validated(cls, items: Iterable, skip_errors: bool = False, context: Context = None):
         for i in items:
             if cls.is_valid_item(i):
                 yield i
@@ -127,7 +53,7 @@ class ColumnarMixin(ContextualDataWrapper, ColumnarInterface, ABC):
                 else:
                     raise TypeError(message)
 
-    def validated(self, skip_errors=False) -> Native:
+    def validated(self, skip_errors: bool = False) -> Native:
         stream = self.stream(
             self.get_validated(self.get_items(), skip_errors=skip_errors),
         )
@@ -267,7 +193,7 @@ class ColumnarMixin(ContextualDataWrapper, ColumnarInterface, ABC):
     def get_str_headers(self) -> Iterable:
         yield "{}('{}') {}".format(self.__class__.__name__, self.get_name(), self.get_str_description())
 
-    def get_one_item(self):
+    def get_one_item(self) -> Optional[Item]:
         one_item_stream = self.take(1)
         assert isinstance(one_item_stream, RegularStreamInterface)
         list_one_item = list(one_item_stream.get_items())

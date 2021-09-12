@@ -9,6 +9,7 @@ try:  # Assume we're a sub-module in a package.
     from streams.interfaces.local_stream_interface import LocalStreamInterface  # inherits IterableStream
     from streams.interfaces.regular_stream_interface import RegularStreamInterface  # inherits Stream
     from streams.interfaces.pair_stream_interface import PairStreamInterface  # inherits Regular, uses Stream
+    from streams.interfaces.columnar_interface import ColumnarInterface  # inherits RegularStream
     from base.interfaces.context_interface import ContextInterface  # inherits Base; uses Stream, Logger, ExtendedLog..
     from base.interfaces.contextual_interface import ContextualInterface  # inherits Sourced; uses Base, Context
     from base.interfaces.data_interface import SimpleDataInterface  # inherits BaseInterface
@@ -39,6 +40,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .streams.interfaces.local_stream_interface import LocalStreamInterface  # inherits IterableStream
     from .streams.interfaces.regular_stream_interface import RegularStreamInterface  # inherits Stream
     from .streams.interfaces.pair_stream_interface import PairStreamInterface  # inherits Regular, uses Stream
+    from .streams.interfaces.columnar_interface import ColumnarInterface  # inherits RegularStream
     from .base.interfaces.context_interface import ContextInterface  # inherits Base; uses Stream, Logger, ExtendedLog..
     from .base.interfaces.contextual_interface import ContextualInterface  # inherits Sourced; uses Base, Context
     from .base.interfaces.data_interface import SimpleDataInterface  # inherits BaseInterface
