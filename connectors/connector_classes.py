@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Type, Optional, Union
 
 try:  # Assume we're a sub-module in a package.
     from connectors.abstract.connector_interface import ConnectorInterface
@@ -26,8 +26,8 @@ try:  # Assume we're a sub-module in a package.
     from connectors.operations.twin_sync import TwinSync
     from connectors.operations.multi_sync import MultiSync
     from connectors.operations.job import Job
+    from connectors.conn_type import ConnType
     from base.interfaces.context_interface import ContextInterface
-    from utils.enum import ClassType
     from utils.decorators import deprecated_with_alternative
     from loggers import logger_classes as log
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -56,8 +56,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .operations.twin_sync import TwinSync
     from .operations.multi_sync import MultiSync
     from .operations.job import Job
+    from .conn_type import ConnType
     from ..base.interfaces.context_interface import ContextInterface
-    from ..utils.enum import ClassType
     from ..utils.decorators import deprecated_with_alternative
     from ..loggers import logger_classes as log
 
@@ -94,34 +94,11 @@ DB_CLASS_NAMES = DICT_DB_TO_DIALECT.keys()
 _context: Optional[ContextInterface] = None
 _local_storage: Optional[LocalStorage] = None
 PostgresDatabase.cx = _context
-
-
-class ConnType(ClassType):
-    # Only concrete classes, not abstract ones
-    LocalStorage = 'LocalStorage'
-    LocalFolder = 'LocalFolder'
-    FileMask = 'FileMask'
-    TextFile = 'TextFile'
-    JsonFile = 'JsonFile'
-    ColumnFile = 'ColumnFile'
-    CsvFile = 'CsvFile'
-    TsvFile = 'TsvFile'
-    PostgresDatabase = 'PostgresDatabase'
-    ClickhouseDatabase = 'ClickhouseDatabase'
-    Table = 'Table'
-    S3Storage = 'S3Storage'
-    S3Bucket = 'S3Bucket'
-    S3Folder = 'S3Folder'
-    S3Object = 'S3Object'
-    TwinSync = 'TwinSync'
-
-
-ConnType.prepare()
 ConnType.set_dict_classes(DICT_CONN_CLASSES, skip_missing=True)
 
 
 @deprecated_with_alternative('ConnType.get_class()')
-def get_class(conn_type):
+def get_class(conn_type: Union[ConnType, Type, str]) -> Type:
     if conn_type in CONN_CLASSES:
         return conn_type
     elif isinstance(conn_type, str):
