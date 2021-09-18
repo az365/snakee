@@ -259,7 +259,7 @@ class ColumnFile(TextFile, ColumnarMixin):
         ):
             return self
         else:
-            return arg.undefault(default, self)
+            return arg.acquire(default, self)
 
     def get_check(
             self, must_exists: bool = False,
@@ -403,7 +403,7 @@ class ColumnFile(TextFile, ColumnarMixin):
             assert struct, 'Struct must be defined for {}.get_records_from_file()'.format(self.__repr__())
             columns = struct.get_columns()
             if self.get_count() <= 1:
-                self.get_fast_lines_count(verbose=verbose)
+                self.get_count(allow_slow_gzip=False)
             for item in self.get_rows(convert_types=convert_types, verbose=verbose, message=message, **kwargs):
                 yield {k: v for k, v in zip(columns, item)}
         elif not skip_missing:
@@ -462,11 +462,8 @@ class ColumnFile(TextFile, ColumnarMixin):
         method_name = 'to_{}_stream'.format(type_name)
         stream_method = self.__getattribute__(method_name)
         stream = stream_method()
-        assert isinstance(stream, sm.AnyStream), 'got {}'.format(stream)
-        if hasattr(stream, 'get_one_item()'):
-            return stream.get_one_item(item_type=item_type)  # actual_method
-        else:
-            return stream.one()  # deprecated method
+        assert isinstance(stream, sm.AnyStream), 'RegularStream expected, got {}'.format(stream)
+        return stream.get_one_item()
 
     def select(self, *args, **kwargs) -> Stream:
         stream = self.to_record_stream().select(*args, **kwargs)
@@ -623,7 +620,7 @@ class ColumnFile(TextFile, ColumnarMixin):
                 self.log('Invalid columns: {}'.format(self._format_args(*self.get_invalid_columns())))
             self.log('')
         struct = fc.FlatStruct.convert_to_native(self.get_struct())
-        assert hasattr(struct, 'describe')
+        assert isinstance(struct, fc.FlatStruct), 'got {}'.format(struct)
         dataframe = struct.describe(
             as_dataframe=as_dataframe, example=example_item,
             logger=self.get_logger(), comment=example_comment,
