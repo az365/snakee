@@ -254,7 +254,8 @@ class AbstractFile(LeafConnector, StreamBuilderMixin, ABC):
         pass
 
     def is_empty(self) -> bool:
-        return (self.get_count() or 0) <= 0
+        count = self.get_count(allow_slow_gzip=False) or 0
+        return count <= 0
 
     def stream(
             self, data: Union[Iterable, Auto] = AUTO,
@@ -327,7 +328,7 @@ class TextFile(AbstractFile):
         return self.gzip
 
     def open(self, mode: str = 'r', allow_reopen: bool = False) -> Native:
-        if self.is_opened() or self.is_opened() is None:
+        if self.is_opened() is None or self.is_opened():
             if allow_reopen:
                 self.close()
             else:
@@ -425,7 +426,7 @@ class TextFile(AbstractFile):
             message: Union[str, Auto] = AUTO, step: AutoCount = AUTO,
     ) -> Iterable:
         if check and not self.is_gzip():
-            assert self.get_count(allow_reopen=True) > 0
+            assert not self.is_empty(), 'for get_lines() file must be non-empty: {}'.format(self)
         self.open(allow_reopen=allow_reopen)
         lines = self.get_next_lines(count=count, skip_first=skip_first, close=True)
         verbose = arg.acquire(verbose, self.is_verbose())
@@ -492,7 +493,9 @@ class TextFile(AbstractFile):
                 self.get_fileholder().write(self.end.encode(self.encoding) if self.gzip else self.end)
             self.get_fileholder().write(str(i).encode(self.encoding) if self.gzip else str(i))
         self.close()
-        self.log('Done. {} rows has written into {}'.format(n + 1, self.get_name()), verbose=verbose)
+        count = n + 1
+        self.set_count(count)
+        self.log('Done. {} rows has written into {}'.format(count, self.get_name()), verbose=verbose)
         return self
 
     def write_stream(self, stream: Stream, verbose: AutoBool = AUTO) -> Native:
