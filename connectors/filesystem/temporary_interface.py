@@ -2,9 +2,9 @@ from abc import abstractmethod
 from typing import Callable, Iterable
 
 try: # Assume we're a sub-module in a package.
-    from connectors.abstract.connector_interface import ConnectorInterface
+    from connectors.interfaces.connector_interface import ConnectorInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..abstract.connector_interface import ConnectorInterface
+    from ..interfaces.connector_interface import ConnectorInterface
 
 Count = int
 

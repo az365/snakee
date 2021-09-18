@@ -20,8 +20,8 @@ try:  # Assume we're a sub-module in a package.
     from loggers.extended_logger_interface import ExtendedLoggerInterface  # inherits Sourced, Logger; uses Base
     from loggers.selection_logger_interface import SelectionLoggerInterface  # inherits Extended, uses DetailedMessage
     from loggers.progress_interface import ProgressInterface  # inherits Tree; uses ExtendedLogger
-    from connectors.abstract.connector_interface import ConnectorInterface  # inherits Sourced, uses ExtendedLogger, P..
-    from connectors.abstract.connector_interface import LeafConnectorInterface  # inherits Connector
+    from connectors.interfaces.connector_interface import ConnectorInterface  # inherits Sourced, uses ExtendedLogger,..
+    from connectors.interfaces.connector_interface import LeafConnectorInterface  # inherits Connector
     from connectors.filesystem.temporary_interface import TemporaryLocationInterface  # inherits Connector
     from connectors.filesystem.temporary_interface import TemporaryFilesMaskInterface  # inherits Connector
     from items.struct_interface import StructInterface  # ROOT
@@ -51,8 +51,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .loggers.extended_logger_interface import ExtendedLoggerInterface  # inherits Sourced, Logger; uses Base
     from .loggers.selection_logger_interface import SelectionLoggerInterface  # inherits Extended, uses DetailedMessage
     from .loggers.progress_interface import ProgressInterface  # inherits Tree; uses ExtendedLogger
-    from .connectors.abstract.connector_interface import ConnectorInterface  # inherits Sourced, uses ExtendedLogger, P.
-    from .connectors.abstract.connector_interface import LeafConnectorInterface  # inherits Connector
+    from .connectors.interfaces.connector_interface import ConnectorInterface  # inherits Sourced, uses ExtendedLogger,.
+    from .connectors.interfaces.connector_interface import LeafConnectorInterface  # inherits Connector
     from .connectors.filesystem.temporary_interface import TemporaryLocationInterface  # inherits Connector
     from .connectors.filesystem.temporary_interface import TemporaryFilesMaskInterface  # inherits Connector
     from .items.struct_interface import StructInterface  # ROOT
