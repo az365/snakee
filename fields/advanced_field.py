@@ -3,24 +3,22 @@ from typing import Optional, Union, Iterable, Callable, Any
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from interfaces import (
-        Field, FieldInterface, StructInterface, ExtLogger, SelectionLogger,
-        FieldType, ItemType,
-        AUTO, Auto, AutoBool,
+        ItemType, FieldType, Field, FieldInterface, StructInterface, ExtLogger, SelectionLogger,
+        AutoBool, Auto, AUTO, ARRAY_TYPES,
     )
     from fields.abstract_field import AbstractField
     from fields import field_classes as fc
-    from selection.abstract_expression import AbstractDescription
+    from selection import abstract_expression as ae
     from selection import concrete_expression as ce
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
     from ..interfaces import (
-        Field, FieldInterface, StructInterface, ExtLogger, SelectionLogger,
-        FieldType, ItemType,
-        AUTO, Auto, AutoBool,
+        ItemType, FieldType, Field, FieldInterface, StructInterface, ExtLogger, SelectionLogger,
+        AutoBool, Auto, AUTO, ARRAY_TYPES,
     )
     from .abstract_field import AbstractField
     from . import field_classes as fc
-    from ..selection.abstract_expression import AbstractDescription
+    from ..selection import abstract_expression as ae
     from ..selection import concrete_expression as ce
 
 Native = AbstractField
@@ -107,7 +105,7 @@ class AdvancedField(AbstractField):
     def get_extractors(self) -> Optional[Iterable]:
         return self.get_data()
 
-    def extract(self, extractor: AbstractDescription) -> Native:
+    def extract(self, extractor: ae.AbstractDescription) -> Native:
         self.get_extractors().append(extractor)
         return self
 
@@ -115,7 +113,7 @@ class AdvancedField(AbstractField):
         self._transform = func
         return self
 
-    def to(self, target: Union[str, AbstractField]) -> AbstractDescription:
+    def to(self, target: Union[str, AbstractField]) -> ae.AbstractDescription:
         if self._transform:
             return ce.RegularDescription(
                 target=target, target_item_type=self._target_item_type,
@@ -147,6 +145,8 @@ class AdvancedField(AbstractField):
             return fc.FlatStruct([self, AdvancedField(other)])
         elif isinstance(other, AbstractField):
             return fc.FlatStruct([self, other])
+        elif isinstance(other, ARRAY_TYPES):
+            return fc.FlatStruct([self] + list(other))
         elif isinstance(other, StructInterface):
             return other.append_field(self, before=True, inplace=False)
         else:
