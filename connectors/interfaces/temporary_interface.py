@@ -1,11 +1,14 @@
 from abc import abstractmethod
-from typing import Callable, Iterable
+from typing import Callable, Iterable, Union
 
-try: # Assume we're a sub-module in a package.
+try:  # Assume we're a sub-module in a package.
+    from utils import arguments as arg
     from connectors.interfaces.connector_interface import ConnectorInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..interfaces.connector_interface import ConnectorInterface
+    from ...utils import arguments as arg
+    from .connector_interface import ConnectorInterface
 
+Name = Union[str, int]
 Count = int
 
 
@@ -65,4 +68,8 @@ class TemporaryFilesMaskInterface(ConnectorInterface):
             remove_after: bool = False,
             verbose: bool = True,
     ):
+        pass
+
+    @abstractmethod
+    def file(self, name: Name, filetype=arg.AUTO, **kwargs):
         pass

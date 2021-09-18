@@ -3,14 +3,14 @@ from typing import Optional, Iterable, Callable, Union
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
-    from streams.interfaces.iterable_stream_interface import IterableStreamInterface
     from connectors.interfaces.connector_interface import ConnectorInterface
-    from connectors.filesystem.temporary_interface import TemporaryFilesMaskInterface
+    from connectors.interfaces.temporary_interface import TemporaryFilesMaskInterface
+    from streams.interfaces.iterable_stream_interface import IterableStreamInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
-    from ..interfaces.iterable_stream_interface import IterableStreamInterface
-    from connectors.interfaces.connector_interface import ConnectorInterface
-    from ...connectors.filesystem.temporary_interface import TemporaryFilesMaskInterface
+    from ...connectors.interfaces.connector_interface import ConnectorInterface
+    from ...connectors.interfaces.temporary_interface import TemporaryFilesMaskInterface
+    from .iterable_stream_interface import IterableStreamInterface
 
 Native = IterableStreamInterface
 Array = Union[list, tuple]

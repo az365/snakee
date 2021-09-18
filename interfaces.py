@@ -1,4 +1,4 @@
-from typing import Optional, Callable, Iterable, Iterator, Generator, Union, Any, NoReturn
+from typing import Optional, Callable, Union, Any
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
@@ -22,8 +22,8 @@ try:  # Assume we're a sub-module in a package.
     from loggers.progress_interface import ProgressInterface  # inherits Tree; uses ExtendedLogger
     from connectors.interfaces.connector_interface import ConnectorInterface  # inherits Sourced, uses ExtendedLogger,..
     from connectors.interfaces.connector_interface import LeafConnectorInterface  # inherits Connector
-    from connectors.filesystem.temporary_interface import TemporaryLocationInterface  # inherits Connector
-    from connectors.filesystem.temporary_interface import TemporaryFilesMaskInterface  # inherits Connector
+    from connectors.interfaces.temporary_interface import TemporaryLocationInterface  # inherits Connector
+    from connectors.interfaces.temporary_interface import TemporaryFilesMaskInterface  # inherits Connector
     from items.struct_interface import StructInterface  # ROOT
     from items.struct_row_interface import StructRowInterface  # inherits SimpleData; uses StructInterface
     from items.simple_items import (
@@ -53,8 +53,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .loggers.progress_interface import ProgressInterface  # inherits Tree; uses ExtendedLogger
     from .connectors.interfaces.connector_interface import ConnectorInterface  # inherits Sourced, uses ExtendedLogger,.
     from .connectors.interfaces.connector_interface import LeafConnectorInterface  # inherits Connector
-    from .connectors.filesystem.temporary_interface import TemporaryLocationInterface  # inherits Connector
-    from .connectors.filesystem.temporary_interface import TemporaryFilesMaskInterface  # inherits Connector
+    from .connectors.interfaces.temporary_interface import TemporaryLocationInterface  # inherits Connector
+    from .connectors.interfaces.temporary_interface import TemporaryFilesMaskInterface  # inherits Connector
     from .items.struct_interface import StructInterface  # ROOT
     from .items.struct_row_interface import StructRowInterface  # inherits SimpleData; uses StructInterface
     from .items.simple_items import (

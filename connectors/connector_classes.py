@@ -1,7 +1,11 @@
 from typing import Type, Optional, Union
 
 try:  # Assume we're a sub-module in a package.
-    from interfaces import ConnectorInterface, ContextInterface, ConnType
+    from interfaces import (
+        ConnectorInterface, ContextInterface, Context,
+        TemporaryLocationInterface, TemporaryFilesMaskInterface,
+        ConnType, FolderType, FileType, Name,
+    )
     from connectors.abstract.abstract_connector import AbstractConnector
     from connectors.abstract.leaf_connector import LeafConnector
     from connectors.abstract.hierarchic_connector import HierarchicConnector
@@ -11,8 +15,6 @@ try:  # Assume we're a sub-module in a package.
     from connectors.filesystem.local_folder import LocalFolder, FileMask
     from connectors.filesystem.local_file import AbstractFile, TextFile, JsonFile
     from connectors.filesystem.column_file import ColumnFile, CsvFile, TsvFile
-    from connectors.filesystem.file_type import FileType
-    from connectors.filesystem.temporary_interface import TemporaryLocationInterface, TemporaryFilesMaskInterface
     from connectors.filesystem.temporary_files import TemporaryLocation, TemporaryFilesMask
     from connectors.storages.s3_storage import AbstractObjectStorage, S3Storage
     from connectors.storages.s3_bucket import S3Bucket, S3Folder
@@ -29,7 +31,11 @@ try:  # Assume we're a sub-module in a package.
     from loggers import logger_classes as log
     from utils.decorators import deprecated_with_alternative
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..interfaces import ConnectorInterface, ContextInterface, ConnType
+    from ..interfaces import (
+        ConnectorInterface, ContextInterface, Context,
+        TemporaryLocationInterface, TemporaryFilesMaskInterface,
+        ConnType, FolderType, FileType, Name,
+    )
     from .abstract.abstract_connector import AbstractConnector
     from .abstract.leaf_connector import LeafConnector
     from .abstract.hierarchic_connector import HierarchicConnector
@@ -39,8 +45,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .filesystem.local_folder import LocalFolder, FileMask
     from .filesystem.local_file import AbstractFile, TextFile, JsonFile
     from .filesystem.column_file import ColumnFile, CsvFile, TsvFile
-    from .filesystem.file_type import FileType
-    from .filesystem.temporary_interface import TemporaryLocationInterface, TemporaryFilesMaskInterface
     from .filesystem.temporary_files import TemporaryLocation, TemporaryFilesMask
     from .storages.s3_storage import AbstractObjectStorage, S3Storage
     from .storages.s3_bucket import S3Bucket, S3Folder
@@ -87,7 +91,7 @@ DICT_EXT_TO_CLASS = {
 DICT_DB_TO_DIALECT = {PostgresDatabase.__name__: 'pg', ClickhouseDatabase.__name__: 'ch'}
 DB_CLASS_NAMES = DICT_DB_TO_DIALECT.keys()
 
-_context: Optional[ContextInterface] = None
+_context: Context = None
 _local_storage: Optional[LocalStorage] = None
 PostgresDatabase.cx = _context
 ConnType.set_dict_classes(DICT_CONN_CLASSES, skip_missing=True)
@@ -104,7 +108,7 @@ def get_class(conn_type: Union[ConnType, Type, str]) -> Type:
     return conn_type.get_class()
 
 
-def get_context() -> ContextInterface:
+def get_context() -> Context:
     global _context
     return _context
 
@@ -153,7 +157,7 @@ def get_logging_context_stub() -> ContextInterface:
     return log.LoggingContextStub()
 
 
-def get_local_storage(name='filesystem') -> LocalStorage:
+def get_local_storage(name: Name = 'filesystem') -> LocalStorage:
     global _local_storage
     if not _local_storage:
         cx = get_context()
@@ -169,5 +173,5 @@ def get_local_storage(name='filesystem') -> LocalStorage:
     return _local_storage
 
 
-def get_default_job_folder(name='') -> LocalFolder:
+def get_default_job_folder(name: Name = '') -> LocalFolder:
     return get_local_storage().folder(name)
