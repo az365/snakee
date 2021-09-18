@@ -61,7 +61,8 @@ def is_date(d: Date, also_gost_format: bool = False) -> bool:
 
 def from_gost_format(d: GostDate, as_iso_date: bool = False) -> Date:
     gost_str = d.split(' ')[0]
-    day, month, year = gost_str.split('.')[:3]
+    date_parts = gost_str.split('.')[:3]
+    day, month, year = [int(i) for i in date_parts]
     if year < 100:
         year = 2000 + year
     standard_date = date(year=year, month=month, day=day)
@@ -406,7 +407,7 @@ def get_str_from_timedelta(td: timedelta) -> str:
     elif td_abs.seconds >= SECONDS_IN_MINUTE * MINUTES_IN_HOUR:
         td_str = '{}h'.format(int(td_abs.seconds / SECONDS_IN_MINUTE / MINUTES_IN_HOUR))
     elif td_abs.seconds >= SECONDS_IN_MINUTE:
-        td_str = '{}m'.format(int(td_abs.seconds / MINUTES_IN_HOUR))
+        td_str = '{}m'.format(int(td_abs.seconds / SECONDS_IN_MINUTE))
     elif td_abs.seconds:
         td_str = '{}s'.format(td_abs.seconds)
     else:
