@@ -157,6 +157,29 @@ class ColumnarMixin(ContextualDataWrapper, ColumnarInterface, ABC):
         self.update_count()
         return self
 
+    def structure(
+            self,
+            struct: StructInterface,
+            skip_bad_rows: bool = False,
+            skip_bad_values: bool = False,
+            verbose: bool = True,
+    ) -> StructStream:
+        if hasattr(self, 'to_row_stream'):
+            row_stream = self.to_row_stream(
+                columns=struct.get_columns(),
+            )
+        else:
+            row_stream = self.to_stream(
+                stream_type=StreamType.RowStream,
+                columns=struct.get_columns(),
+            )
+        return row_stream.structure(
+            struct=struct,
+            skip_bad_rows=skip_bad_rows,
+            skip_bad_values=skip_bad_values,
+            verbose=verbose,
+        )
+
     def get_source_struct(self, default=None) -> Struct:
         source = self.get_source()
         if hasattr(source, 'get_struct'):

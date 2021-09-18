@@ -2,7 +2,7 @@ from typing import Optional, Iterable, Callable, Union
 
 try:  # Assume we're a sub-module in a package.
     from interfaces import (
-        Stream, RegularStream, RowStream, KeyValueStream, StructStream, FieldInterface,
+        Stream, RegularStream, RowStream, KeyValueStream, StructStream, StructInterface, FieldInterface,
         Context, Connector, AutoConnector, TmpFiles,
         Count, Name, Field, Columns, Array, ARRAY_TYPES,
         AUTO, Auto, AutoCount, AutoName, AutoBool,
@@ -17,7 +17,7 @@ try:  # Assume we're a sub-module in a package.
     from items import item_type as it
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
-        Stream, RegularStream, RowStream, KeyValueStream, StructStream, FieldInterface,
+        Stream, RegularStream, RowStream, KeyValueStream, StructStream, StructInterface, FieldInterface,
         Context, Connector, AutoConnector, TmpFiles,
         Count, Name, Field, Columns, Array, ARRAY_TYPES,
         AUTO, Auto, AutoCount, AutoName, AutoBool,
@@ -32,6 +32,9 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...items import item_type as it
 
 Native = RegularStream
+
+DEFAULT_EXAMPLE_COUNT = 10
+DEFAULT_ANALYZE_COUNT = 100
 
 
 def get_key_function(descriptions: Array, take_hash: bool = False) -> Callable:
@@ -79,7 +82,7 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
             for r in self.get_records():
                 yield r.get(column)
 
-    def get_detected_columns(self, by_items_count: int = 100, sort: bool = True) -> Iterable:
+    def get_detected_columns(self, by_items_count: int = DEFAULT_ANALYZE_COUNT, sort: bool = True) -> Iterable:
         example = self.example(count=by_items_count)
         columns = set()
         for r in example.get_items():
@@ -88,7 +91,7 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
             columns = sorted(columns)
         return columns
 
-    def get_columns(self, by_items_count: int = 100) -> Iterable:
+    def get_columns(self, by_items_count: int = DEFAULT_ANALYZE_COUNT) -> Iterable:
         return self.get_detected_columns(by_items_count=by_items_count)
 
     def get_records(self, columns: Union[Iterable, Auto] = AUTO) -> Iterable:
@@ -250,14 +253,13 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
             return dataframe
 
     def get_demo_example(
-            self, count: Count = 10,
+            self, count: Count = DEFAULT_EXAMPLE_COUNT,
             filters: Columns = None, columns: Columns = None,
             as_dataframe: AutoBool = AUTO,
     ) -> Union[DataFrame, list, None]:
         as_dataframe = arg.acquire(as_dataframe, get_use_objects_for_output())
         sm_sample = self.filter(*filters) if filters else self
         sm_sample = sm_sample.take(count)
-        assert isinstance(sm_sample, RecordStream)
         if as_dataframe:
             return sm_sample.get_dataframe(columns)
         elif hasattr(sm_sample, 'get_list'):
@@ -273,7 +275,14 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
 
     def to_row_stream(self, *columns, **kwargs) -> RowStream:
         add_title_row = kwargs.pop('add_title_row', None)
-        columns = arg.update(columns, kwargs.pop('columns', None))
+        kwarg_columns = arg.update(columns, kwargs.pop('columns', None))
+        if kwarg_columns:
+            msg = 'columns can be provided by args or kwargs, not both (got args={}, kwargs={})'
+            assert not columns, msg.format(columns, kwarg_columns)
+            columns = kwarg_columns
+        if columns == [arg.AUTO]:
+            columns = arg.AUTO
+        assert columns, 'columns for convert RecordStream to RowStream must be defined'
         if kwargs:
             raise ValueError('to_row_stream(): {} arguments are not supported'.format(kwargs.keys()))
         count = self.get_count()
@@ -288,16 +297,6 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
             stream_type=sm.StreamType.RowStream,
             count=count,
             less_than=less_than,
-        )
-
-    def structure(self, schema, skip_bad_rows=False, skip_bad_values=False, verbose=True) -> StructStream:
-        return self.to_row_stream(
-            columns=schema.get_columns(),
-        ).structure(
-            schema=schema,
-            skip_bad_rows=skip_bad_rows,
-            skip_bad_values=skip_bad_values,
-            verbose=verbose,
         )
 
     def get_key_value_pairs(self, key: Field, value: Field, **kwargs) -> Iterable:

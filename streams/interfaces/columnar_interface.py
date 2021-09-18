@@ -82,15 +82,15 @@ class ColumnarInterface(RegularStreamInterface, ABC):
         pass
 
     @abstractmethod
-    def sorted_group_by(self, *keys, **kwargs) -> Stream:
+    def sorted_group_by(self, *keys, **kwargs) -> Native:
         pass
 
     @abstractmethod
-    def group_by(self, *keys, values: Optional[Iterable] = None, as_pairs: bool = False) -> Stream:
+    def group_by(self, *keys, values: Optional[Iterable] = None, as_pairs: bool = False) -> Native:
         pass
 
     @abstractmethod
-    def apply_to_stream(self, function: Callable, *args, **kwargs) -> Stream:
+    def apply_to_stream(self, function: Callable, *args, **kwargs) -> Native:
         pass
 
     @staticmethod
@@ -103,6 +103,10 @@ class ColumnarInterface(RegularStreamInterface, ABC):
 
     @abstractmethod
     def actualize(self) -> Native:
+        pass
+
+    @abstractmethod
+    def structure(self, struct: StructInterface, skip_bad_rows=False, skip_bad_values=False, verbose=True) -> Native:
         pass
 
     @abstractmethod
