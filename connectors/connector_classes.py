@@ -17,7 +17,8 @@ try:  # Assume we're a sub-module in a package.
     from connectors.filesystem.column_file import ColumnFile, CsvFile, TsvFile
     from connectors.filesystem.temporary_files import TemporaryLocation, TemporaryFilesMask
     from connectors.storages.s3_storage import AbstractObjectStorage, S3Storage
-    from connectors.storages.s3_bucket import S3Bucket, S3Folder
+    from connectors.storages.s3_bucket import S3Bucket
+    from connectors.storages.s3_folder import S3Folder
     from connectors.storages.s3_object import S3Object
     from connectors.databases.abstract_database import AbstractDatabase
     from connectors.databases.postgres_database import PostgresDatabase
@@ -47,7 +48,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .filesystem.column_file import ColumnFile, CsvFile, TsvFile
     from .filesystem.temporary_files import TemporaryLocation, TemporaryFilesMask
     from .storages.s3_storage import AbstractObjectStorage, S3Storage
-    from .storages.s3_bucket import S3Bucket, S3Folder
+    from .storages.s3_bucket import S3Bucket
+    from .storages.s3_folder import S3Folder
     from .storages.s3_object import S3Object
     from .databases.abstract_database import AbstractDatabase
     from .databases.postgres_database import PostgresDatabase

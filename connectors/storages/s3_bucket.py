@@ -1,49 +1,58 @@
 import io
-from typing import Optional
+from typing import Optional, Iterable, Generator, Union, Type
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from utils.external import boto3
+    from interfaces import ConnectorInterface, Name
+    from connectors.abstract.abstract_folder import HierarchicFolder
     from connectors import connector_classes as ct
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
-    from utils.external import boto3
+    from ...utils.external import boto3
+    from ...interfaces import ConnectorInterface, Name
+    from ..abstract.abstract_folder import HierarchicFolder
     from .. import connector_classes as ct
 
+DEFAULT_KEYS_LIMIT = 1000
 
-class S3Bucket(ct.HierarchicFolder):
+
+class S3Bucket(HierarchicFolder):
     def __init__(
             self,
-            name,
-            storage,
-            verbose=True,
-            access_key=arg.AUTO,
-            secret_key=arg.AUTO,
+            name: Name,
+            storage: ConnectorInterface,
+            verbose: bool = True,
+            access_key: str = arg.AUTO,
+            secret_key: str = arg.AUTO,
     ):
+        assert isinstance(storage, ct.S3Storage), 'S3Storage expected, got {}'.format(storage)
+        self.access_key = arg.acquire(access_key, self.get_storage().access_key)
+        self.secret_key = arg.acquire(secret_key, self.get_storage().secret_key)
+        self.session = None
+        self.client = None
+        self.resource = None
         super().__init__(
             name=name,
             parent=storage,
             verbose=verbose,
         )
-        self.access_key = arg.undefault(access_key, self.get_storage().access_key)
-        self.secret_key = arg.undefault(secret_key, self.get_storage().secret_key)
-        self.session = None
-        self.client = None
-        self.resource = None
 
-    def get_default_child_class(self):
-        return S3Folder
+    def get_default_child_class(self) -> Type:
+        return ct.S3Folder
 
-    def child(self, name: str, **kwargs):
+    def child(self, name: Name, **kwargs) -> ConnectorInterface:
         return super().child(name, parent_field='bucket', **kwargs)
 
-    def folder(self, name: str, **kwargs):
+    def folder(self, name: Name, **kwargs) -> ConnectorInterface:
         return self.child(name, **kwargs)
 
-    def object(self, name: str, folder_name='', folder_kwargs=None, **kwargs):
-        return self.folder(folder_name, **(folder_kwargs or {})).object(name, **kwargs)
+    def object(self, name: Name, folder_name='', folder_kwargs=None, **kwargs) -> ConnectorInterface:
+        folder = self.folder(folder_name, **(folder_kwargs or {}))
+        assert isinstance(folder, ct.S3Folder)
+        return folder.object(name, **kwargs)
 
-    def get_bucket_name(self):
+    def get_bucket_name(self) -> Name:
         return self.get_name()
 
     def get_session(self, props: Optional[dict] = None):
@@ -51,7 +60,7 @@ class S3Bucket(ct.HierarchicFolder):
             self.reset_session(props)
         return self.session
 
-    def reset_session(self, props: Optional[dict] = None):
+    def reset_session(self, props: Optional[dict] = None, inplace: bool = True):
         if not boto3:
             raise ImportError('boto3 must be installed (pip install boto3)')
         if not props:
@@ -59,29 +68,40 @@ class S3Bucket(ct.HierarchicFolder):
                 aws_access_key_id=self.access_key,
                 aws_secret_access_key=self.secret_key,
             )
-        self.session = boto3.session.Session(**props)
+        session = boto3.session.Session(**props)
+        self.session = session
+        return session if inplace else self
 
-    def get_client(self, props=None):
+    def get_client(self, props: Optional[dict] = None):
         if not self.client:
             self.reset_client(props)
         return self.client
 
-    def reset_client(self, props=None):
+    def reset_client(self, props: Optional[dict] = None, inplace: bool = True):
         if not props:
             props = self.get_storage().get_resource_properties()
-        self.client = self.get_session().client(**props)
+        client = self.get_session().client(**props)
+        self.client = client
+        return client if inplace else self
 
-    def get_resource(self, props=None):
+    def get_resource(self, props: Optional[dict] = None):
         if not self.resource:
             self.reset_resource(props)
         return self.resource
 
-    def reset_resource(self, props=None):
+    def reset_resource(self, props: Optional[dict] = None, inplace: bool = True):
         if not props:
             props = self.get_storage().get_resource_properties()
-        self.resource = self.get_session().resource(**props)
+        resource = self.get_session().resource(**props)
+        self.resource = resource
+        return resource if inplace else self
 
-    def list_objects(self, params: Optional[dict] = None, v2=False, field: Optional[str] = 'Contents'):
+    def list_objects(
+            self,
+            params: Optional[dict] = None,
+            v2: bool = False,
+            field: Optional[str] = 'Contents',
+    ) -> Union[dict, list]:
         if not params:
             params = dict()
         if 'Bucket' not in params:
@@ -98,12 +118,12 @@ class S3Bucket(ct.HierarchicFolder):
         else:
             return objects
 
-    def yield_objects(self, params: Optional[dict] = None):
+    def yield_objects(self, params: Optional[dict] = None) -> Generator:
         continuation_token = None
         if not params:
             params = dict()
         if 'MaxKeys' not in params:
-            params['MaxKeys'] = 1000
+            params['MaxKeys'] = DEFAULT_KEYS_LIMIT
         while True:
             if continuation_token:
                 params['ContinuationToken'] = continuation_token
@@ -113,49 +133,20 @@ class S3Bucket(ct.HierarchicFolder):
                 break
             continuation_token = response.get('NextContinuationToken')
 
-    def yield_object_names(self):
+    def yield_object_names(self) -> Generator:
         for obj in self.yield_objects():
             yield obj['Key']
 
-    def list_object_names(self):
+    def list_object_names(self) -> list:
         return list(self.yield_object_names())
 
-    def list_prefixes(self):
+    def list_prefixes(self) -> Iterable:
         return self.list_objects(field='CommonPrefixes')
 
-    def get_object(self, object_path_in_bucket):
+    def get_object(self, object_path_in_bucket: str):
         return self.get_resource().Object(self.get_bucket_name(), object_path_in_bucket)
 
-    def get_buffer(self, object_path_in_bucket):
+    def get_buffer(self, object_path_in_bucket: str):
         buffer = io.BytesIO()
         self.get_object(object_path_in_bucket).download_fileobj(buffer)
         return buffer
-
-
-class S3Folder(ct.FlatFolder):
-    def __init__(
-            self,
-            name,
-            bucket,
-            verbose=arg.AUTO,
-    ):
-        super().__init__(
-            name=name,
-            parent=bucket,
-            verbose=verbose,
-        )
-
-    def get_default_child_class(self):
-        return ct.S3Object
-
-    def get_bucket(self):
-        return self.get_parent()
-
-    def child(self, name: str, **kwargs):
-        return super().child(name, parent_field='folder', **kwargs)
-
-    def object(self, name: str, **kwargs):
-        return self.child(name, **kwargs)
-
-    def get_buffer(self, object_path_in_bucket):
-        return self.get_bucket().get_buffer(object_path_in_bucket)
