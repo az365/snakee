@@ -192,6 +192,9 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
             new_fields = [f for f in existing_fields if arg.get_name(f) not in removing_field_names]
             return self.make_new(new_fields)
 
+    def is_empty(self) -> bool:
+        return not self.get_column_count()
+
     def get_column_count(self) -> int:
         return self.get_fields_count()
 
