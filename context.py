@@ -5,9 +5,9 @@ try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from utils.decorators import singleton
     from interfaces import (
-        Context, ContextInterface, Connector, ConnectorInterface, ConnType, Stream, StreamType,
+        Context, ContextInterface, Connector, ConnType, Stream, StreamType,
         TemporaryLocationInterface, LoggerInterface, ExtendedLoggerInterface, SelectionLoggerInterface, LoggingLevel,
-        AUTO, Auto, Name, Array, ARRAY_TYPES,
+        AUTO, Auto, Name, ARRAY_TYPES,
     )
     from base import base_classes as bs
     from streams import stream_classes as sm
@@ -17,10 +17,10 @@ try:  # Assume we're a sub-module in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from .utils import arguments as arg
     from .utils.decorators import singleton
-    from interfaces import (
-        Context, ContextInterface, Connector, ConnectorInterface, ConnType, Stream, StreamType,
+    from .interfaces import (
+        Context, ContextInterface, Connector, ConnType, Stream, StreamType,
         TemporaryLocationInterface, LoggerInterface, ExtendedLoggerInterface, SelectionLoggerInterface, LoggingLevel,
-        AUTO, Auto, Name, Array, ARRAY_TYPES,
+        AUTO, Auto, Name, ARRAY_TYPES,
     )
     from .base import base_classes as bs
     from .streams import stream_classes as sm

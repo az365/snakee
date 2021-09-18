@@ -35,19 +35,19 @@ class LegacyStruct(StructInterface):
         try:  # Assume we're a sub-module in a package.
             from fields.legacy_field import LegacyField
         except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-            from fields.legacy_field import LegacyField
+            from ..fields.legacy_field import LegacyField
         self.FieldClass = LegacyField
 
     def append_field(self, field, default_type=None, before=False, inplace=True):
-        FieldClass = self.FieldClass
+        field_class = self.FieldClass
         if isinstance(field, FieldInterface):
             field_desc = field
         elif isinstance(field, str):
-            field_desc = FieldClass(field, default_type)
+            field_desc = field_class(field, default_type)
         elif isinstance(field, ARRAY_TYPES):
-            field_desc = FieldClass(*field)
+            field_desc = field_class(*field)
         elif isinstance(field, dict):
-            field_desc = FieldClass(**field)
+            field_desc = field_class(**field)
         else:
             raise TypeError('Expected Field or str, got {} as {}'.format(field, type(field)))
         if before:
@@ -106,12 +106,12 @@ class LegacyStruct(StructInterface):
 
     @classmethod
     def detect_struct_by_title_row(cls, title_row: Iterable) -> StructInterface:
-        FieldClass = cls.FieldClass
+        field_class = cls.FieldClass
         struct = LegacyStruct([])
         for name in title_row:
             field_type = cls._detect_field_type_by_name(name)
             struct.append_field(
-                FieldClass(name, field_type)
+                field_class(name, field_type)
             )
         return struct
 
