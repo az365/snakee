@@ -40,27 +40,59 @@ class ColumnarInterface(RegularStreamInterface, ABC):
     @classmethod
     @abstractmethod
     def is_valid_item(cls, item: Item) -> bool:
+        """Checks is provided item valid for this stream class.
+
+        :param item: item to validate
+        :return: boolean flag
+        """
         pass
 
     @classmethod
     @abstractmethod
-    def get_validated(cls, items: Iterable, skip_errors: bool = False, context: Context = None):
+    def get_validated(cls, items: Iterable, skip_errors: bool = False, context: Context = None) -> Iterable:
+        """Returns same items after validation by is_valid_item() method.
+
+        :param items: items to validate
+        :param skip_errors: if `True` this function will return only validated items,
+        if `False` it will raise exception if any item isn't valid
+        :param context: you can provide context with common logger for log validation errors
+        :return: validated items
+        """
         pass
 
     @abstractmethod
     def validated(self, skip_errors: bool = False) -> Native:
+        """Returns same stream with validated items.
+        Use this method when you need to be sure that all items in stream have valid type for this type of stream.
+
+        :param skip_errors: if `True` this method will return stream only valid items,
+        if `False` it will raise exception if any item isn't valid.
+        :return: stream with validated items
+        """
         pass
 
     @abstractmethod
     def get_shape(self) -> tuple:
+        """Returns tuple with 2 integers: count of items and count of columns.
+
+        :return: tuple: items count, columns count
+        """
         pass
 
     @abstractmethod
     def get_description(self) -> str:
+        """Returns string with short description of stream data: count of rows and columns and list of columns
+
+        :return: string with short description of stream data
+        """
         pass
 
     @abstractmethod
     def get_column_count(self) -> int:
+        """Returns count of columns in items of stream (fast detected by some example lines).
+
+        :return: integer with count of columns in items
+        """
         pass
 
     @abstractmethod
