@@ -1,5 +1,5 @@
-from typing import Optional, Union, Iterable, Callable
 import json
+from typing import Optional, Union, Iterable, Callable
 
 try:  # Assume we're a sub-module in a package.
     from utils import algo, arguments as arg
@@ -11,7 +11,7 @@ try:  # Assume we're a sub-module in a package.
     )
     from streams.abstract.iterable_stream import IterableStream
     from streams import stream_classes as sm
-    from functions import item_functions as fs, array_functions as af
+    from functions import item_functions as fs, basic_functions as bf
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import algo, arguments as arg
     from ...interfaces import (
@@ -22,7 +22,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     )
     from .iterable_stream import IterableStream
     from .. import stream_classes as sm
-    from ...functions import item_functions as fs, array_functions as af
+    from ...functions import item_functions as fs, basic_functions as bf
 
 Native = LocalStreamInterface
 TmpMask = Union[TemporaryFilesMaskInterface, Auto]
@@ -263,7 +263,7 @@ class LocalStream(IterableStream, LocalStreamInterface):
             iter_right=right.get_iter(),
             key_function=fs.composite_key(keys),
             merge_function=fs.merge_two_items(),
-            order_function=af.is_ordered(reverse=sorting_is_reversed, including=True),
+            order_function=bf.is_ordered(reverse=sorting_is_reversed, including=True),
             how=how,
         )
         return self.stream(

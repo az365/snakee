@@ -93,6 +93,17 @@ def safe_more_than(other, including=False) -> Callable:
     return func
 
 
+def is_ordered(reverse: bool = False, including: bool = True) -> Callable:
+    def func(previous, current) -> bool:
+        if current == previous:
+            return including
+        elif reverse:
+            return safe_more_than(current)(previous)
+        else:
+            return safe_more_than(previous)(current)
+    return func
+
+
 def between(min_value, max_value, including=False) -> Callable:
     def func(value) -> bool:
         if including:

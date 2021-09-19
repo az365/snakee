@@ -6,14 +6,12 @@ try:  # Assume we're a sub-module in a package.
         mappers as ms,
         numeric as nm,
     )
-    from functions import basic_functions as bf
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import (
         arguments as arg,
         mappers as ms,
         numeric as nm,
     )
-    from . import basic_functions as bf
 
 Array = Union[list, tuple]
 
@@ -31,17 +29,6 @@ def not_in(*list_values) -> Callable:
 
     def func(value: Any) -> bool:
         return value not in list_values
-    return func
-
-
-def is_ordered(reverse: bool = False, including: bool = True) -> Callable:
-    def func(previous, current) -> bool:
-        if current == previous:
-            return including
-        elif reverse:
-            return bf.safe_more_than(current)(previous)
-        else:
-            return bf.safe_more_than(previous)(current)
     return func
 
 
@@ -137,14 +124,12 @@ def list_minus(save_order: bool = True) -> Callable:
 
 def values_not_none() -> Callable:
     def func(a: Iterable) -> list:
-        return [v for v in a if bf.not_none()(v)]
+        return [v for v in a if nm.is_defined(v)]
     return func
 
 
 def defined_values() -> Callable:
-    def func(a: Iterable) -> list:
-        return [v for v in a if nm.is_defined(v)]
-    return func
+    return values_not_none()
 
 
 def nonzero_values() -> Callable:
@@ -164,17 +149,17 @@ def shift_right(shift: int, default: Any = 0, save_count: bool = True) -> Callab
         list_a = list(a)
         if shift == 0:
             return list_a
-        count = len(list_a)
-        if abs(shift) > count and save_count:
-            addition = [default] * count
+        count_a = len(list_a)
+        if abs(shift) > count_a and save_count:
+            addition = [default] * count_a
         else:
             addition = [default] * abs(shift)
         if shift > 0:
             result = addition + list_a
             if save_count:
-                result = result[:count]
+                result = result[:count_a]
         else:  # shift < 0
-            if count > shift:
+            if count_a > shift:
                 result = list_a[-shift:]
             else:
                 result = list()

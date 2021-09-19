@@ -1,7 +1,7 @@
 try:  # Assume we're a sub-module in a package.
     from functions.basic_functions import (
         partial, const, defined, is_none, not_none, nonzero, equal, not_equal,
-        at_least, more_than, safe_more_than, less_than, between, not_between,
+        at_least, more_than, safe_more_than, less_than, between, not_between, is_ordered,
         apply_dict,
     )
     from functions.cast_functions import DICT_CAST_TYPES, cast, date, number, percent
@@ -10,7 +10,7 @@ try:  # Assume we're a sub-module in a package.
         is_in, not_in,
         elem_no, first, second, last,
         distinct, uniq, count_uniq, count,
-        is_ordered, compare_lists, list_minus,
+        compare_lists, list_minus,
         values_not_none, defined_values, nonzero_values, numeric_values, shift_right,
         unfold_lists, top, hist, mean,
     )
@@ -24,7 +24,7 @@ try:  # Assume we're a sub-module in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from .basic_functions import (
         partial, const, defined, is_none, not_none, nonzero, equal, not_equal,
-        at_least, more_than, safe_more_than, less_than, between, not_between,
+        at_least, more_than, safe_more_than, less_than, between, not_between, is_ordered,
         apply_dict,
     )
     from .cast_functions import DICT_CAST_TYPES, cast, date, number, percent
@@ -33,7 +33,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         is_in, not_in,
         elem_no, first, second, last,
         distinct, uniq, count_uniq, count,
-        is_ordered, compare_lists, list_minus,
+        compare_lists, list_minus,
         values_not_none, defined_values, nonzero_values, numeric_values, shift_right,
         unfold_lists, top, hist, mean,
     )
