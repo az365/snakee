@@ -1,11 +1,11 @@
 from abc import ABC, abstractmethod
-from typing import Union, Optional, Iterable, NoReturn
+from typing import Optional, Iterable, Union, NoReturn
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg, mappers as ms
     from interfaces import (
-        Connector, RegularStream, StreamType, StructInterface, SimpleDataInterface,
-        AUTO, Auto, AutoContext, AutoBool, AutoCount, Count, Name,
+        Connector, ColumnarInterface, RegularStream, StreamType, StructInterface, SimpleDataInterface,
+        AUTO, Auto, AutoContext, AutoBool, AutoCount, Count,
     )
     from loggers import logger_classes as log
     from connectors import connector_classes as ct
@@ -14,8 +14,8 @@ try:  # Assume we're a sub-module in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg, mappers as ms
     from ...interfaces import (
-        Connector, RegularStream, StreamType, StructInterface, SimpleDataInterface,
-        AUTO, Auto, AutoContext, AutoBool, AutoCount, Count, Name,
+        Connector, ColumnarInterface, RegularStream, StreamType, StructInterface, SimpleDataInterface,
+        AUTO, Auto, AutoContext, AutoBool, AutoCount, Count,
     )
     from ...loggers import logger_classes as log
     from .. import connector_classes as ct
@@ -23,10 +23,11 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...items.flat_struct import FlatStruct
 
 Native = ct.AbstractStorage
-Stream = RegularStream
+Stream = Union[RegularStream, ColumnarInterface]
 Struct = Optional[StructInterface]
 Table = Connector
 File = ct.AbstractFile
+Name = str
 Data = Union[Stream, File, Table, str, Iterable]
 
 TEST_QUERY = 'SELECT now()'
@@ -64,7 +65,7 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
     def get_tables(self) -> dict:
         return self.get_children()
 
-    def table(self, table: Union[Table, Name], struct: Struct = None, **kwargs) -> Table:
+    def table(self, table: Union[Table, Name], struct: Union[Struct, Auto] = None, **kwargs) -> Table:
         table_name, struct = self._get_table_name_and_struct(table, struct, check_struct=False)
         table = self.get_tables().get(table_name)
         if table:
@@ -96,7 +97,7 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
         pass
 
     @abstractmethod
-    def describe_table(self, name: Name, verbose: AutoBool = AUTO) -> bool:
+    def describe_table(self, name: Name, verbose: AutoBool = AUTO) -> Iterable:
         pass
 
     @abstractmethod
@@ -239,7 +240,8 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
         return self.execute(query, get_data=True, commit=False, verbose=verbose)
 
     def select_count(self, table: Union[Table, Name], verbose: AutoBool = AUTO) -> int:
-        return self.select(table, fields='COUNT(*)', verbose=verbose)[0][0]
+        response = self.select(table, fields='COUNT(*)', verbose=verbose)
+        return list(response)[0][0]
 
     def select_all(self, table: Union[Table, Name], verbose=AUTO) -> Iterable:
         return self.select(table, fields='*', verbose=verbose)
