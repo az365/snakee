@@ -4,7 +4,7 @@ try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from interfaces import (
         ConnectorInterface, StructInterface, ColumnarInterface, RegularStream, StreamType,
-        Count, AutoBool, ARRAY_TYPES,
+        Count, AutoBool, Auto, AUTO, ARRAY_TYPES,
     )
     from items.flat_struct import FlatStruct
     from loggers import logger_classes as log
@@ -14,7 +14,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils import arguments as arg
     from ...interfaces import (
         ConnectorInterface, StructInterface, ColumnarInterface, RegularStream, StreamType,
-        Count, AutoBool, ARRAY_TYPES,
+        Count, AutoBool, Auto, AUTO, ARRAY_TYPES,
     )
     from ...items.flat_struct import FlatStruct
     from ...loggers import logger_classes as log
@@ -23,17 +23,17 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 
 Native = ct.LeafConnector
 Stream = Union[RegularStream, ColumnarInterface]
-GeneralizedStruct = Union[StructInterface, list, tuple, arg.Auto, None]
+GeneralizedStruct = Union[StructInterface, list, tuple, Auto, None]
 
 
 class Table(ct.LeafConnector):
     def __init__(
             self,
             name: str,
-            struct: StructInterface,
+            struct: Union[StructInterface, Auto],
             database: ConnectorInterface,
             reconnect: bool = True,
-            verbose: AutoBool = arg.AUTO,
+            verbose: AutoBool = AUTO,
     ):
         assert isinstance(database, ct.AbstractDatabase), '*Database expected, got {}'.format(database)
         self.struct = struct
@@ -42,7 +42,7 @@ class Table(ct.LeafConnector):
             parent=database,
             verbose=verbose,
         )
-        if struct == arg.AUTO:
+        if struct == AUTO:
             struct = self.get_struct_from_database(set_struct=True)
         if not isinstance(struct, StructInterface):
             message = 'Struct as {} is deprecated. Use items.FlatStruct instead.'.format(type(struct))
@@ -55,7 +55,7 @@ class Table(ct.LeafConnector):
         assert isinstance(database, ct.AbstractDatabase)
         return database
 
-    def get_count(self, verbose: AutoBool = arg.AUTO) -> Count:
+    def get_count(self, verbose: AutoBool = AUTO) -> Count:
         database = self.get_database()
         assert isinstance(database, ct.AbstractDatabase)
         return database.select_count(self.get_name(), verbose=verbose)
@@ -111,13 +111,13 @@ class Table(ct.LeafConnector):
         stream_type = arg.acquire(stream_type, sm.RowStream)
         stream = self.get_stream()
         assert isinstance(stream, sm.RowStream)
-        if not isinstance(stream_type, sm.StreamType):
-            stream_type = sm.StreamType.detect(stream_type)
-        if isinstance(stream_type, sm.StreamType.RowStream):
+        if not isinstance(stream_type, StreamType):
+            stream_type = StreamType.detect(stream_type)
+        if stream_type == StreamType.RowStream:
             return stream
-        elif isinstance(stream_type, sm.StreamType.RecordStream):
+        elif stream_type == StreamType.RecordStream:
             return stream.to_record_stream(columns=self.get_columns())
-        elif isinstance(stream_type, sm.StreamType.StructStream):
+        elif stream_type == StreamType.StructStream:
             return stream.structure(self.get_struct(), verbose=verbose)
         else:
             msg = 'only RowStream, RecordStream, StructStream is supported for Table connector, got {}'

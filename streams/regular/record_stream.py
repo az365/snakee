@@ -2,7 +2,7 @@ from typing import Optional, Iterable, Callable, Union
 
 try:  # Assume we're a sub-module in a package.
     from interfaces import (
-        Stream, RegularStream, RowStream, KeyValueStream, StructStream, StructInterface, FieldInterface,
+        Stream, RegularStream, RowStream, KeyValueStream, StructStream, FieldInterface,
         Context, Connector, AutoConnector, TmpFiles,
         Count, Name, Field, Columns, Array, ARRAY_TYPES,
         AUTO, Auto, AutoCount, AutoName, AutoBool,
@@ -17,7 +17,7 @@ try:  # Assume we're a sub-module in a package.
     from items import item_type as it
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
-        Stream, RegularStream, RowStream, KeyValueStream, StructStream, StructInterface, FieldInterface,
+        Stream, RegularStream, RowStream, KeyValueStream, StructStream, FieldInterface,
         Context, Connector, AutoConnector, TmpFiles,
         Count, Name, Field, Columns, Array, ARRAY_TYPES,
         AUTO, Auto, AutoCount, AutoName, AutoBool,
@@ -275,7 +275,7 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
 
     def to_row_stream(self, *columns, **kwargs) -> RowStream:
         add_title_row = kwargs.pop('add_title_row', None)
-        kwarg_columns = arg.update(columns, kwargs.pop('columns', None))
+        kwarg_columns = kwargs.pop('columns', None)
         if kwarg_columns:
             msg = 'columns can be provided by args or kwargs, not both (got args={}, kwargs={})'
             assert not columns, msg.format(columns, kwarg_columns)
