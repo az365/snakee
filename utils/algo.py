@@ -1,8 +1,6 @@
-from typing import Optional, Union, Callable, Iterable, Iterator, Generator, Any
+from typing import Optional, Callable, Iterable, Iterator, Union
 
 Array = Union[list, tuple]
-Logger = Optional[Any]
-Iter = Union[Iterable, Iterator, Generator]
 
 JOIN_TYPES = ('left', 'right', 'inner', 'full')
 
@@ -11,7 +9,7 @@ def topologically_sorted(  # Kahn's algorithm
         nodes: Array,
         edges: dict,
         ignore_cycles: bool = False,
-        logger: Logger = None,
+        logger=None,
 ):
     if len(nodes) < 2:
         return nodes
@@ -77,8 +75,8 @@ def map_side_join(
         iter_left: Iterable,
         iter_right: Iterable,
         key_function: Callable,
-        merge_function: Callable,  # ms.merge_two_items
-        dict_function: Callable,  # ms.items_to_dict
+        merge_function: Callable,  # it.merge_two_items
+        dict_function: Callable,  # it.items_to_dict
         how: str = 'left',
         uniq_right: bool = False,
 ):
@@ -115,8 +113,8 @@ def map_side_join(
 
 
 def sorted_join(
-        iter_left: Iter,
-        iter_right: Iter,
+        iter_left: Iterator,
+        iter_right: Iterator,
         key_function: Callable,
         merge_function: Callable,  # ms.merge_two_items
         order_function: Callable,  # fs.is_ordered(reverse=sorting_is_reversed, including=True)
@@ -145,6 +143,7 @@ def sorted_join(
                 right_finished = True
         left_key_changed = left_finished or left_key != prev_left_key
         right_key_changed = right_finished or right_key != prev_right_key
+
         if left_key_changed and right_key_changed:
             if prev_left_key == prev_right_key:
                 if how != 'outer':
@@ -159,6 +158,7 @@ def sorted_join(
                     for out_right in group_right:
                         yield merge_function(None, out_right)
             group_left, group_right = list(), list()
+
         if left_key == right_key:
             take_next_left, take_next_right = True, True
             prev_left_key, prev_right_key = left_key, right_key
@@ -178,3 +178,6 @@ def sorted_join(
             prev_right_key = right_key
             if take_next_right and not right_finished:
                 group_right.append(cur_right)
+
+        if (left_finished and not take_next_right) or (right_finished and not take_next_left):
+            break
