@@ -1,3 +1,5 @@
+from typing import Callable, Union, Any
+
 try:  # Assume we're a sub-module in a package.
     from utils import (
         algo,
@@ -11,12 +13,14 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         items as it,
     )
 
-AUTO = arg.DEFAULT
+Description = Union[Callable, list, tuple]
+
 IGNORE_CYCLIC_DEPENDENCIES = False
+PRIMITIVE_TYPES = str, int, float, bool
 
 
-def process_description(d):
-    if callable(d):
+def process_description(d) -> tuple:
+    if isinstance(d, Callable):
         function, inputs = d, list()
     elif isinstance(d, (list, tuple)):
         if callable(d[0]):
@@ -30,7 +34,7 @@ def process_description(d):
     return function, inputs
 
 
-def topologically_sorted(expressions, ignore_cycles=IGNORE_CYCLIC_DEPENDENCIES, logger=None):
+def topologically_sorted(expressions: dict, ignore_cycles: bool = IGNORE_CYCLIC_DEPENDENCIES, logger=None) -> list:
     unordered_fields = list()
     unresolved_dependencies = dict()
     for field, description in expressions.items():
@@ -49,7 +53,7 @@ def topologically_sorted(expressions, ignore_cycles=IGNORE_CYCLIC_DEPENDENCIES, 
     return [(f, expressions[f]) for f in ordered_fields]
 
 
-def flatten_descriptions(*fields, **expressions):
+def flatten_descriptions(*fields, **expressions) -> list:
     descriptions = list(fields)
     logger = expressions.pop('logger', None)
     ignore_cycles = logger is not None
@@ -63,7 +67,7 @@ def flatten_descriptions(*fields, **expressions):
     return descriptions
 
 
-def safe_apply_function(function, fields, values, item=None, logger=None, skip_errors=True):
+def safe_apply_function(function: Callable, fields, values, item=None, logger=None, skip_errors=True) -> Any:
     item = item or dict()
     try:
         return function(*values)
@@ -79,8 +83,8 @@ def safe_apply_function(function, fields, values, item=None, logger=None, skip_e
             raise e
 
 
-def value_from_row(row, description, logger=None, skip_errors=True):
-    if callable(description):
+def value_from_row(row: Union[list, tuple], description: Description, logger=None, skip_errors=True) -> Any:
+    if isinstance(description, Callable):
         return description(row)
     elif isinstance(description, (list, tuple)):
         function, columns = process_description(description)
@@ -93,7 +97,7 @@ def value_from_row(row, description, logger=None, skip_errors=True):
         raise TypeError(message.format(description, type(description)))
 
 
-def value_from_struct_row(row, description, logger=None, skip_errors=True):
+def value_from_struct_row(row, description: Description, logger=None, skip_errors=True) -> Any:
     if callable(description):
         return description(row)
     elif isinstance(description, (int, str)):
@@ -104,7 +108,7 @@ def value_from_struct_row(row, description, logger=None, skip_errors=True):
         return safe_apply_function(function, fields, values, item=row, logger=logger, skip_errors=skip_errors)
 
 
-def value_from_record(record, description, logger=None, skip_errors=True):
+def value_from_record(record: dict, description: Description, logger=None, skip_errors=True) -> Any:
     if callable(description):
         return description(record)
     elif isinstance(description, (list, tuple)):
@@ -119,7 +123,7 @@ def value_from_record(record, description, logger=None, skip_errors=True):
         return record.get(description)
 
 
-def value_from_any(item, description, logger=None, skip_errors=True):
+def value_from_any(item, description: Description, logger=None, skip_errors=True) -> Any:
     if callable(description):
         return description(item)
     elif isinstance(description, (list, tuple)):
@@ -130,7 +134,7 @@ def value_from_any(item, description, logger=None, skip_errors=True):
         return it.get_field_value_from_item(description, item)
 
 
-def value_from_item(item, description, item_type=AUTO, logger=None, skip_errors=True, default=None):
+def value_from_item(item, description: Description, item_type=arg.AUTO, logger=None, skip_errors=True, default=None):
     if hasattr(description, 'get_name'):
         description = description.get_name()
     if callable(description):
@@ -152,12 +156,12 @@ def value_from_item(item, description, item_type=AUTO, logger=None, skip_errors=
         raise TypeError(message.format(description, type(description)))
 
 
-def get_composite_key(item, keys_descriptions, item_type=AUTO, logger=None, skip_errors=True):
+def get_composite_key(item, keys_descriptions: list, item_type=arg.AUTO, logger=None, skip_errors=True) -> tuple:
     keys_descriptions = arg.update(keys_descriptions)
     keys_descriptions = [d.get_field_names() if hasattr(d, 'get_field_names') else d for d in keys_descriptions]
     result = list()
     for d in keys_descriptions:
-        if callable(d):
+        if isinstance(d, Callable):
             value = d(item)
         else:
             value = value_from_item(item, d, item_type=item_type, logger=logger, skip_errors=skip_errors)
@@ -165,11 +169,11 @@ def get_composite_key(item, keys_descriptions, item_type=AUTO, logger=None, skip
     return tuple(result)
 
 
-def tuple_from_record(record, descriptions, logger=None):
+def tuple_from_record(record: dict, descriptions: list, logger=None) -> tuple:
     return tuple([value_from_record(record, d, logger=logger) for d in descriptions])
 
 
-def row_from_row(row_in, *descriptions):
+def row_from_row(row_in: Union[list, tuple], *descriptions) -> tuple:
     row_out = [None] * len(descriptions)
     c = 0
     for d in descriptions:
@@ -182,7 +186,7 @@ def row_from_row(row_in, *descriptions):
     return tuple(row_out)
 
 
-def row_from_any(item_in, *descriptions):
+def row_from_any(item_in, *descriptions) -> tuple:
     row_out = [None] * len(descriptions)
     c = 0
     for desc in descriptions:
@@ -199,7 +203,7 @@ def row_from_any(item_in, *descriptions):
     return tuple(row_out)
 
 
-def record_from_any(item_in, *descriptions, logger=None):
+def record_from_any(item_in, *descriptions, logger=None) -> dict:
     rec_out = dict()
     for desc in descriptions:
         assert isinstance(desc, (list, tuple)) and len(desc) > 1, 'for AnyStream items description {} is not applicable'
@@ -216,7 +220,7 @@ def record_from_any(item_in, *descriptions, logger=None):
     return rec_out
 
 
-def record_from_record(rec_in, *descriptions, logger=None):
+def record_from_record(rec_in: dict, *descriptions, logger=None) -> dict:
     record = rec_in.copy()
     fields_out = list()
     for desc in descriptions:
@@ -239,7 +243,7 @@ def record_from_record(rec_in, *descriptions, logger=None):
     return {f: record[f] for f in fields_out}
 
 
-def auto_to_auto(item, *descriptions, logger=None):
+def auto_to_auto(item, *descriptions, logger=None) -> Any:
     item_type = it.ItemType.detect(item, default=it.ItemType.Any)
     if item_type == it.ItemType.Record:
         return record_from_record(item, *descriptions, logger=logger)
@@ -251,8 +255,8 @@ def auto_to_auto(item, *descriptions, logger=None):
 
 def select(
         *fields,
-        target_item_type=AUTO, input_item_type=AUTO,
-        logger=None, selection_logger=AUTO,
+        target_item_type=arg.AUTO, input_item_type=arg.AUTO,
+        logger=None, selection_logger=arg.AUTO,
         **expressions
 ):
     descriptions = flatten_descriptions(
@@ -272,9 +276,9 @@ def select(
         return lambda i: auto_to_auto(i, *descriptions, logger=logger)
 
 
-def filter_items(*fields, item_type=AUTO, skip_errors=False, logger=None, **expressions):
+def filter_items(*fields, item_type=arg.AUTO, skip_errors=False, logger=None, **expressions) -> Callable:
     expressions_list = [
-        (k, (lambda i, v=v: i == v) if isinstance(v, (str, int, float, bool)) else v)
+        (k, (lambda i, v=v: i == v) if isinstance(v, PRIMITIVE_TYPES) else v)
         for k, v in expressions.items()
     ]
     extended_filters_list = list(fields) + expressions_list
@@ -285,9 +289,9 @@ def filter_items(*fields, item_type=AUTO, skip_errors=False, logger=None, **expr
 
 
 def apply_filter_list_to_item(
-        item, filter_list, item_type=AUTO,
+        item, filter_list, item_type=arg.AUTO,
         skip_errors=False, logger=None,
-):
+) -> bool:
     for filter_desc in filter_list:
         if not value_from_item(item, filter_desc, item_type=item_type, logger=logger, skip_errors=skip_errors):
             return False
