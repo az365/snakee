@@ -4,7 +4,7 @@ from typing import Union, Iterable, Generator, Callable, Optional
 try:  # Assume we're a sub-module in a package.
     from interfaces import (
         Stream, RegularStream, RegularStreamInterface, StructStream, StructInterface, ColumnarInterface, Context,
-        StreamType, ItemType,
+        StreamType, ItemType, JoinType, How,
         Count, UniKey, Item, Array, Columns, OptionalFields,
         AUTO, Auto, AutoBool,
     )
@@ -17,7 +17,7 @@ try:  # Assume we're a sub-module in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         Stream, RegularStream, RegularStreamInterface, StructStream, StructInterface, ColumnarInterface, Context,
-        StreamType, ItemType,
+        StreamType, ItemType, JoinType, How,
         Count, UniKey, Item, Array, Columns, OptionalFields,
         AUTO, Auto, AutoBool,
     )
@@ -100,10 +100,11 @@ class ColumnarMixin(ContextualDataWrapper, ColumnarInterface, ABC):
         )
         return self._assume_native(stream)
 
-    def map_side_join(self, right: Native, key: UniKey, how='left', right_is_uniq=True) -> Native:
-        assert how in algo.JOIN_TYPES, 'only {} join types are supported ({} given)'.format(algo.JOIN_TYPES, how)
+    def map_side_join(self, right: Native, key: UniKey, how: How = JoinType.Left, right_is_uniq=True) -> Native:
         key = arg.get_names(key)
         keys = arg.update([key])
+        if not isinstance(how, JoinType):
+            how = JoinType(how)
         joined_items = algo.map_side_join(
             iter_left=self.get_items(),
             iter_right=right.get_items(),

@@ -5,7 +5,7 @@ try:  # Assume we're a sub-module in a package.
     from utils import algo, arguments as arg
     from interfaces import (
         LocalStreamInterface, ContextInterface, ConnectorInterface, TemporaryFilesMaskInterface,
-        Context, Connector, StreamType,
+        Context, Connector, StreamType, JoinType, How,
         Array, Count, FieldID, UniKey,
         AUTO, Auto, AutoBool, AutoCount, AutoName, OptionalFields,
     )
@@ -16,7 +16,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils import algo, arguments as arg
     from ...interfaces import (
         LocalStreamInterface, ContextInterface, ConnectorInterface, TemporaryFilesMaskInterface,
-        Context, Connector, StreamType,
+        Context, Connector, StreamType, JoinType, How,
         Array, Count, FieldID, UniKey,
         AUTO, Auto, AutoBool, AutoCount, AutoName, OptionalFields,
     )
@@ -252,12 +252,12 @@ class LocalStream(IterableStream, LocalStreamInterface):
             self,
             right: Native,
             key: UniKey,
-            how: str = 'left',
+            how: How = JoinType.Left,
             sorting_is_reversed: bool = False,
     ) -> Native:
-        assert sm.is_stream(right)
-        assert how in algo.JOIN_TYPES, 'only {} join types are supported ({} given)'.format(algo.JOIN_TYPES, how)
         keys = arg.update([key])
+        if not isinstance(how, JoinType):
+            how = JoinType(how)
         joined_items = algo.sorted_join(
             iter_left=self.get_iter(),
             iter_right=right.get_iter(),
@@ -273,7 +273,7 @@ class LocalStream(IterableStream, LocalStreamInterface):
 
     def join(
             self,
-            right: Native, key: UniKey, how='left',
+            right: Native, key: UniKey, how: How = JoinType.Left,
             reverse: bool = False,
             is_sorted: bool = False, right_is_uniq: bool = False,
             allow_map_side: bool = True, force_map_side: bool = True,

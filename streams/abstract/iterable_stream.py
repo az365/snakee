@@ -6,7 +6,7 @@ import gc
 try:  # Assume we're a sub-module in a package.
     from interfaces import (
         IterableStreamInterface,
-        StreamType, LoggingLevel,
+        StreamType, LoggingLevel, JoinType, How,
         Stream, Source, ExtLogger, SelectionLogger, Context, Connector, LeafConnector,
         AUTO, Auto, AutoName, AutoCount, Count, OptionalFields, Message, Array, UniKey,
     )
@@ -20,7 +20,7 @@ try:  # Assume we're a sub-module in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         IterableStreamInterface,
-        StreamType, LoggingLevel,
+        StreamType, LoggingLevel, JoinType, How,
         Stream, Source, ExtLogger, SelectionLogger, Context, Connector, LeafConnector,
         AUTO, AutoName, AutoCount, Count, OptionalFields, Message, Array, UniKey,
     )
@@ -471,11 +471,11 @@ class IterableStream(AbstractStream, IterableStreamInterface):
             self.get_mapped_items(function, flat=True),
         )
 
-    def map_side_join(self, right: Native, key: UniKey, how: str = 'left', right_is_uniq: bool = True) -> Native:
-        assert sm.is_stream(right)
-        assert how in algo.JOIN_TYPES, 'only {} join types are supported ({} given)'.format(algo.JOIN_TYPES, how)
+    def map_side_join(self, right: Native, key: UniKey, how: How = JoinType.Left, right_is_uniq: bool = True) -> Native:
         key = arg.get_names(key)
         keys = arg.update([key])
+        if not isinstance(how, JoinType):
+            how = JoinType(how)
         joined_items = algo.map_side_join(
             iter_left=self.get_items(),
             iter_right=right.get_items(),

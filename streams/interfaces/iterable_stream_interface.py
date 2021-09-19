@@ -4,6 +4,7 @@ from typing import Optional, Union, Callable, Iterable, Iterator, NoReturn
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from utils.external import DataFrame
+    from utils.algo import JoinType
     from streams.stream_type import StreamType
     from streams.interfaces.abstract_stream_interface import StreamInterface
     from base.interfaces.context_interface import ContextInterface
@@ -11,6 +12,7 @@ try:  # Assume we're a sub-module in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...utils.external import DataFrame
+    from ...utils.algo import JoinType
     from ..stream_type import StreamType
     from ..interfaces.abstract_stream_interface import StreamInterface
     from ...base.interfaces.context_interface import ContextInterface
@@ -21,7 +23,6 @@ Stream = StreamInterface
 Context = Union[ContextInterface, arg.Auto, None]
 Count = Union[int, arg.Auto]
 OptionalFields = Union[Iterable, str, None]
-How = str
 
 
 class IterableStreamInterface(StreamInterface, ABC):
@@ -160,7 +161,13 @@ class IterableStreamInterface(StreamInterface, ABC):
         pass
 
     @abstractmethod
-    def map_side_join(self, right: Native, key, how: How = 'left', right_is_uniq: bool = True) -> Native:
+    def map_side_join(
+            self,
+            right: Native,
+            key,
+            how: Union[JoinType, str] = JoinType.Left,
+            right_is_uniq: bool = True,
+    ) -> Native:
         pass
 
     @abstractmethod
@@ -195,7 +202,8 @@ class IterableStreamInterface(StreamInterface, ABC):
             self,
             external_object: Union[list, dict, Callable] = print,
             stream_function: Union[Callable, str] = 'count',
-            key: Optional[str] = None, show=False,
+            key: Optional[str] = None,
+            show: bool = False,
     ) -> Stream:
         pass
 

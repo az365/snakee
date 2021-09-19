@@ -64,6 +64,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     )
 
 try:  # Assume we're a sub-module in a package.
+    from utils.algo import JoinType  # standard Enum
     from loggers.extended_logger_interface import LoggingLevel  # standard Enum
     from loggers.progress_interface import OperationStatus  # standard Enum
     from connectors.filesystem.folder_type import FolderType  # inherits ClassType(DynamicEnum)
@@ -73,6 +74,7 @@ try:  # Assume we're a sub-module in a package.
     from fields.field_type import FieldType  # inherits DynamicEnum
     from items.item_type import ItemType  # inherits SubclassesType(ClassType)
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
+    from .utils.algo import JoinType  # standard Enum
     from .loggers.extended_logger_interface import LoggingLevel  # standard Enum
     from .loggers.progress_interface import OperationStatus  # standard Enum
     from .connectors.filesystem.folder_type import FolderType  # inherits ClassType(DynamicEnum)
@@ -91,6 +93,7 @@ Columns = Optional[Array]
 Field = Union[FieldID, FieldInterface]
 OptionalFields = Union[Array, str, None]
 Options = Union[dict, arg.Auto, None]
+How = Union[JoinType, str]
 
 StructRow = StructRowInterface
 RegularItem = Union[SimpleItem, StructRow]
@@ -100,11 +103,12 @@ Stream = StreamInterface
 IterableStream = IterableStreamInterface
 LocalStream = LocalStreamInterface
 RegularStream = RegularStreamInterface
+ColumnarStream = Union[RegularStream, ColumnarInterface]
 LineStream = RegularStream
-RowStream = RegularStream
-RecordStream = RegularStream
-KeyValueStream = RegularStream
-StructStream = RegularStream
+RowStream = ColumnarStream
+RecordStream = ColumnarStream
+KeyValueStream = ColumnarStream
+StructStream = ColumnarStream
 SchemaStream = StructStream
 
 Source = Union[ConnectorInterface, arg.Auto, None]

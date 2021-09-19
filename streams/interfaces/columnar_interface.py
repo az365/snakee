@@ -4,6 +4,7 @@ from typing import Optional, Iterable, Callable, Union
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from utils.external import DataFrame
+    from utils.algo import JoinType
     from streams.interfaces.abstract_stream_interface import StreamInterface
     from streams.interfaces.regular_stream_interface import RegularStreamInterface
     from streams.stream_type import StreamType
@@ -13,6 +14,7 @@ try:  # Assume we're a sub-module in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...utils.external import DataFrame
+    from ...utils.algo import JoinType
     from .abstract_stream_interface import StreamInterface
     from .regular_stream_interface import RegularStreamInterface
     from ..stream_type import StreamType
@@ -78,7 +80,13 @@ class ColumnarInterface(RegularStreamInterface, ABC):
         pass
 
     @abstractmethod
-    def map_side_join(self, right: Native, key: UniKey, how='left', right_is_uniq=True) -> Native:
+    def map_side_join(
+            self,
+            right: Native,
+            key: UniKey,
+            how: Union[JoinType, str] = JoinType.Left,
+            right_is_uniq: bool = True,
+    ) -> Native:
         pass
 
     @abstractmethod
@@ -139,7 +147,9 @@ class ColumnarInterface(RegularStreamInterface, ABC):
 
     @abstractmethod
     def example(
-            self, *filters, count: int = LINES_COUNT_FOR_SHOW_EXAMPLE,
+            self,
+            *filters,
+            count: int = LINES_COUNT_FOR_SHOW_EXAMPLE,
             allow_tee_iterator: bool = True,
             allow_spend_iterator: bool = True,
             **filter_kwargs
@@ -148,7 +158,8 @@ class ColumnarInterface(RegularStreamInterface, ABC):
 
     @abstractmethod
     def get_demo_example(
-            self, count: int = LINES_COUNT_FOR_SHOW_EXAMPLE,
+            self,
+            count: int = LINES_COUNT_FOR_SHOW_EXAMPLE,
             as_dataframe: AutoBool = AUTO,
             filters: Optional[Columns] = None, columns: Optional[Columns] = None,
     ) -> Union[DataFrame, Iterable]:
@@ -156,7 +167,8 @@ class ColumnarInterface(RegularStreamInterface, ABC):
 
     @abstractmethod
     def show(
-            self, count: int = LINES_COUNT_FOR_SHOW_EXAMPLE,
+            self,
+            count: int = LINES_COUNT_FOR_SHOW_EXAMPLE,
             filters: Columns = None,
             columns: Columns = None,
             as_dataframe: AutoBool = AUTO,
@@ -165,7 +177,8 @@ class ColumnarInterface(RegularStreamInterface, ABC):
 
     @abstractmethod
     def describe(
-            self, *filters,
+            self,
+            *filters,
             take_struct_from_source: bool = False,
             count: int = LINES_COUNT_FOR_SHOW_EXAMPLE,
             columns: Columns = None,

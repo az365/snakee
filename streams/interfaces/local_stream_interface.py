@@ -3,11 +3,13 @@ from typing import Optional, Iterable, Callable, Union
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
+    from utils.algo import JoinType
     from connectors.interfaces.connector_interface import ConnectorInterface
     from connectors.interfaces.temporary_interface import TemporaryFilesMaskInterface
     from streams.interfaces.iterable_stream_interface import IterableStreamInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
+    from ...utils.algo import JoinType
     from ...connectors.interfaces.connector_interface import ConnectorInterface
     from ...connectors.interfaces.temporary_interface import TemporaryFilesMaskInterface
     from .iterable_stream_interface import IterableStreamInterface
@@ -76,7 +78,7 @@ class LocalStreamInterface(IterableStreamInterface, ABC):
             self,
             right: Native,
             key: Key,
-            how: str = 'left',
+            how: JoinType = JoinType.Left,
             sorting_is_reversed: bool = False,
     ) -> Native:
         pass
@@ -84,7 +86,9 @@ class LocalStreamInterface(IterableStreamInterface, ABC):
     @abstractmethod
     def join(
             self,
-            right: Native, key: Key, how='left',
+            right: Native,
+            key: Key,
+            how: Union[JoinType, str] = JoinType.Left,
             reverse: bool = False,
             is_sorted=False, right_is_uniq: bool = False,
             allow_map_side: bool = True, force_map_side: bool = True,

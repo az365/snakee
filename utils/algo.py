@@ -1,12 +1,20 @@
+from enum import Enum
 from typing import Optional, Callable, Iterable, Iterator, Union
 
-Array = Union[list, tuple]
 
-JOIN_TYPES = ('left', 'right', 'inner', 'full')
+JOIN_TYPES = ('left', 'right', 'full', 'inner', 'outer')  # deprecated
+
+
+class JoinType(Enum):
+    Left = 'left'
+    Right = 'right'
+    Full = 'full'
+    Inner = 'inner'
+    Outer = 'outer'
 
 
 def topologically_sorted(  # Kahn's algorithm
-        nodes: Array,
+        nodes: Union[list, tuple],
         edges: dict,
         ignore_cycles: bool = False,
         logger=None,
@@ -41,7 +49,7 @@ def topologically_sorted(  # Kahn's algorithm
 
 
 def merge_iter(
-        iterables: Array,
+        iterables: Union[list, tuple],
         key_function: Callable,
         reverse: bool = False,
         post_action: Optional[Callable] = None,
@@ -77,16 +85,17 @@ def map_side_join(
         key_function: Callable,
         merge_function: Callable,  # it.merge_two_items
         dict_function: Callable,  # it.items_to_dict
-        how: str = 'left',
+        how: JoinType = JoinType.Left,
         uniq_right: bool = False,
 ):
-    assert how in JOIN_TYPES
+    if not isinstance(how, JoinType):
+        how = JoinType(how)
     dict_right = dict_function(iter_right, key_function=key_function, of_lists=not uniq_right)
     keys_used = set()
     for left_part in iter_left:
         cur_key = key_function(left_part)
         right_part = dict_right.get(cur_key)
-        if how in ('right', 'full'):
+        if how in (JoinType.Right, JoinType.Full):
             keys_used.add(cur_key)
         if right_part:
             if uniq_right:
@@ -97,13 +106,13 @@ def map_side_join(
                 message = 'right part must be list or tuple while using uniq_right option (got {})'
                 raise ValueError(message.format(type(right_part)))
         else:
-            if how in ('right', 'inner'):
+            if how in (JoinType.Right, JoinType.Inner):
                 out_items = []
             else:
                 out_items = [left_part]
-        if right_part or how != 'inner':
+        if right_part or how != JoinType.Inner:
             yield from out_items
-    if how in ('right', 'full'):
+    if how in (JoinType.Right, JoinType.Full):
         for k in dict_right:
             if k not in keys_used:
                 if uniq_right:
@@ -116,11 +125,12 @@ def sorted_join(
         iter_left: Iterator,
         iter_right: Iterator,
         key_function: Callable,
-        merge_function: Callable,  # ms.merge_two_items
+        merge_function: Callable,  # fs.merge_two_items()
         order_function: Callable,  # fs.is_ordered(reverse=sorting_is_reversed, including=True)
-        how: str = 'left',
+        how: JoinType = JoinType.Left,
 ):
-    assert how in JOIN_TYPES
+    if not isinstance(how, JoinType):
+        how = JoinType(how)
     left_finished, right_finished = False, False
     take_next_left, take_next_right = True, True
     cur_left, cur_right = None, None
@@ -146,15 +156,15 @@ def sorted_join(
 
         if left_key_changed and right_key_changed:
             if prev_left_key == prev_right_key:
-                if how != 'outer':
+                if how != JoinType.Outer:
                     for out_left in group_left:
                         for out_right in group_right:
                             yield merge_function(out_left, out_right)
             else:
-                if how in ('left', 'full', 'outer'):
+                if how in (JoinType.Left, JoinType.Full, JoinType.Outer):
                     for out_left in group_left:
                         yield merge_function(out_left, None)
-                if how in ('right', 'full', 'outer'):
+                if how in (JoinType.Right, JoinType.Full, JoinType.Outer):
                     for out_right in group_right:
                         yield merge_function(None, out_right)
             group_left, group_right = list(), list()

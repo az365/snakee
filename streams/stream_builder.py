@@ -2,26 +2,15 @@ from typing import Union, Iterable
 import gc
 
 try:  # Assume we're a sub-module in a package.
-    from utils import (
-        arguments as arg,
-        numeric as nm,
-        algo,
-    )
-    from interfaces import StreamInterface, Stream, StreamType, ItemType, OptionalFields, Auto, AUTO
+    from utils import arguments as arg
+    from interfaces import StreamInterface, Stream, StreamType, ItemType, JoinType, How, OptionalFields, Auto, AUTO
     from streams import stream_classes as sm
     from functions import item_functions as fs
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..utils import (
-        arguments as arg,
-        numeric as nm,
-        algo,
-    )
-    from ..interfaces import StreamInterface, Stream, StreamType, ItemType, OptionalFields, Auto, AUTO
+    from ..utils import arguments as arg
+    from ..interfaces import StreamInterface, Stream, StreamType, ItemType, JoinType, How, OptionalFields, Auto, AUTO
     from . import stream_classes as sm
     from ..functions import item_functions as fs
-
-
-OptionalStreamType = Union[StreamType, Auto]
 
 
 class StreamBuilder:
@@ -32,7 +21,7 @@ class StreamBuilder:
     def stream(
             cls,
             data: Iterable,
-            stream_type: Union[OptionalStreamType, StreamInterface, arg.DefaultArgument] = AUTO,
+            stream_type: Union[StreamType, StreamInterface, Auto] = AUTO,
             **kwargs
     ) -> Stream:
         if not arg.is_defined(stream_type):
@@ -42,7 +31,7 @@ class StreamBuilder:
         return cls._get_stream_types().of(stream_type).stream(data, **kwargs)
 
     @classmethod
-    def stack(cls, *iter_streams, how='vertical', name=arg.DEFAULT, context=None, **kwargs):
+    def stack(cls, *iter_streams, how: How = 'vertical', name=AUTO, context=None, **kwargs):
         iter_streams = arg.update(iter_streams)
         result = None
         for cur_stream in iter_streams:
@@ -64,11 +53,11 @@ class StreamBuilder:
         return result
 
     @classmethod
-    def concat(cls, *iter_streams, name=arg.DEFAULT, context=None):
+    def concat(cls, *iter_streams, name=AUTO, context=None):
         return cls.stack(*iter_streams, name=name, context=context)
 
     @classmethod
-    def join(cls, *iter_streams, key, how='left', step=arg.DEFAULT, name=arg.DEFAULT, context=None):
+    def join(cls, *iter_streams, key, how: How = JoinType.Left, step=AUTO, name=AUTO, context=None):
         return cls.stack(*iter_streams, key=key, how=how, step=step, name=name, context=context)
 
     @classmethod

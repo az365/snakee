@@ -11,7 +11,7 @@ try:  # Assume we're a sub-module in a package.
     from interfaces import (
         StreamInterface, IterableStreamInterface, LocalStreamInterface, RegularStreamInterface, PairStreamInterface,
         ContextInterface, TemporaryLocationInterface, TemporaryFilesMaskInterface,
-        StreamType, ItemType,
+        StreamType, ItemType, JoinType, How, Auto, AUTO,
     )
     from streams.abstract.abstract_stream import AbstractStream
     from streams.abstract.iterable_stream import IterableStream
@@ -36,7 +36,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..interfaces import (
         StreamInterface, IterableStreamInterface, LocalStreamInterface, RegularStreamInterface, PairStreamInterface,
         ContextInterface, TemporaryLocationInterface, TemporaryFilesMaskInterface,
-        StreamType, ItemType,
+        StreamType, ItemType, JoinType, How, Auto, AUTO,
     )
     from .abstract.abstract_stream import AbstractStream
     from .abstract.iterable_stream import IterableStream
@@ -156,13 +156,13 @@ def get_tmp_mask(name: str) -> TemporaryFilesMaskInterface:
     return location.mask(name)
 
 
-def concat(*iter_streams, context=arg.AUTO) -> StreamInterface:
+def concat(*iter_streams, context=AUTO) -> StreamInterface:
     global _context
     context = arg.acquire(context, _context)
     return StreamBuilder.concat(*iter_streams, context=context)
 
 
-def join(*iter_streams, key, how='left', step=arg.AUTO, name=arg.AUTO, context=None) -> StreamInterface:
+def join(*iter_streams, key, how: How = JoinType.Left, step=AUTO, name=AUTO, context=None) -> StreamInterface:
     global _context
     context = arg.acquire(context, _context)
     return StreamBuilder.join(*iter_streams, key=key, how=how, step=step, name=name, context=context)
