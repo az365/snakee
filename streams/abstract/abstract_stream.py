@@ -9,7 +9,7 @@ try:  # Assume we're a sub-module in a package.
         StreamInterface,
         StreamType, LoggingLevel,
         Stream, ExtLogger, Context, Connector, LeafConnector,
-        AUTO, AutoName, OptionalFields, Message,
+        AUTO, Auto, AutoName, OptionalFields, Message,
     )
     from base.abstract.contextual_data import ContextualDataWrapper
     from streams import stream_classes as sm
@@ -21,8 +21,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         StreamInterface,
         StreamType, LoggingLevel,
         Stream, ExtLogger, Context, Connector, LeafConnector,
-        AUTO, AutoName, OptionalFields, Message,
-        Iterable, Union, Any,
+        AUTO, Auto, AutoName, OptionalFields, Message,
     )
     from ...base.abstract.contextual_data import ContextualDataWrapper
     from .. import stream_classes as sm
@@ -38,7 +37,7 @@ class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
     def __init__(
             self,
             data: Any,
-            name: AutoName = arg.AUTO,
+            name: AutoName = AUTO,
             source: Connector = None,
             context: Context = None,
             check: bool = False,
@@ -125,7 +124,9 @@ class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
 
     @classmethod
     def get_stream_type(cls) -> StreamType:
-        return StreamType.detect(cls)
+        stream_type = StreamType.detect(cls)
+        assert isinstance(stream_type, StreamType)
+        return stream_type
 
     @classmethod
     def get_class(cls, other: Stream = None):
@@ -165,8 +166,8 @@ class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
         return logger
 
     def log(
-            self, msg: Message, level: LoggingLevel = arg.AUTO,
-            end=arg.AUTO, truncate: bool = True, force: bool = True, verbose: bool = True,
+            self, msg: Message, level: LoggingLevel = AUTO,
+            end: str = AUTO, truncate: bool = True, force: bool = True, verbose: bool = True,
     ):
         logger = self.get_logger()
         if logger:
