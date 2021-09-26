@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import NoReturn
+from typing import Union, NoReturn
 
 
 class LoggingLevel(Enum):
@@ -13,7 +13,7 @@ class LoggingLevel(Enum):
 
 class LoggerInterface(ABC):
     @abstractmethod
-    def log(self, msg: str, level: int, *args, **kwargs) -> NoReturn:
+    def log(self, msg: str, level: Union[LoggingLevel, int], *args, **kwargs) -> NoReturn:
         pass
 
     @abstractmethod
