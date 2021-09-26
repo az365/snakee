@@ -1,5 +1,14 @@
 from abc import ABC, abstractmethod
+from enum import Enum
 from typing import NoReturn
+
+
+class LoggingLevel(Enum):
+    Debug = 10
+    Info = 20
+    Warning = 30
+    Error = 40
+    Critical = 50
 
 
 class LoggerInterface(ABC):

@@ -1,33 +1,24 @@
-from enum import Enum
 from typing import Union, Optional, Iterable, Any
 import warnings
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
-    from loggers.logger_interface import LoggerInterface
+    from loggers.logger_interface import LoggerInterface, LoggingLevel
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
-    from .logger_interface import LoggerInterface
+    from .logger_interface import LoggerInterface, LoggingLevel
 
 DEFAULT_LOGGER_NAME = 'fallback'
 DEFAULT_LOGGING_LEVEL = 30  # LoggingLevel.get_default()
 
 
-class LoggingLevel(Enum):
-    Debug = 10
-    Info = 20
-    Warning = 30
-    Error = 40
-    Critical = 50
-
-
 class FallbackLogger(LoggerInterface):
     def __init__(
             self,
-            name: Union[str, arg.DefaultArgument] = arg.DEFAULT,
+            name: Union[str, arg.Auto] = arg.AUTO,
             ignore_warnings: bool = False,
     ):
-        self._name = arg.undefault(name, DEFAULT_LOGGER_NAME)
+        self._name = arg.acquire(name, DEFAULT_LOGGER_NAME)
         self._ignore_warnings = ignore_warnings
 
     def log(self, msg, level: Union[LoggingLevel, int] = DEFAULT_LOGGING_LEVEL, *args, **kwargs):
