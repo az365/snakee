@@ -2,7 +2,7 @@ from typing import Optional, Iterable, Callable, Union
 
 try:  # Assume we're a sub-module in a package.
     from interfaces import (
-        Stream, RegularStream, RowStream, KeyValueStream, StructStream, FieldInterface,
+        Stream, RegularStream, RowStream, KeyValueStream, StructStream, FieldInterface, ItemType,
         Context, Connector, AutoConnector, TmpFiles,
         Count, Name, Field, Columns, Array, ARRAY_TYPES,
         AUTO, Auto, AutoCount, AutoName, AutoBool,
@@ -14,10 +14,9 @@ try:  # Assume we're a sub-module in a package.
     from connectors import connector_classes as cs
     from functions import all_functions as fs
     from selection import selection_classes as sn
-    from items import item_type as it
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
-        Stream, RegularStream, RowStream, KeyValueStream, StructStream, FieldInterface,
+        Stream, RegularStream, RowStream, KeyValueStream, StructStream, FieldInterface, ItemType,
         Context, Connector, AutoConnector, TmpFiles,
         Count, Name, Field, Columns, Array, ARRAY_TYPES,
         AUTO, Auto, AutoCount, AutoName, AutoBool,
@@ -29,7 +28,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...connectors import connector_classes as cs
     from ...functions import all_functions as fs
     from ...selection import selection_classes as sn
-    from ...items import item_type as it
 
 Native = RegularStream
 
@@ -71,8 +69,8 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
         self.check = check
 
     @staticmethod
-    def get_item_type() -> it.ItemType:
-        return it.ItemType.Record
+    def get_item_type() -> ItemType:
+        return ItemType.Record
 
     def get_one_column_values(self, column: Field, as_list: bool = False) -> Iterable:
         column = arg.get_name(column)
@@ -122,7 +120,7 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
         stream = self.map(
             sn.select(
                 *fields, **expressions,
-                target_item_type=it.ItemType.Record, input_item_type=it.ItemType.Record,
+                target_item_type=ItemType.Record, input_item_type=ItemType.Record,
                 logger=self.get_logger(), selection_logger=self.get_selection_logger(),
                 use_extended_method=use_extended_method,
             )
@@ -130,7 +128,7 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
         return self._assume_native(stream)
 
     def filter(self, *fields, **expressions) -> Native:
-        filter_function = sf.filter_items(*fields, **expressions, item_type=it.ItemType.Record, skip_errors=True)
+        filter_function = sf.filter_items(*fields, **expressions, item_type=ItemType.Record, skip_errors=True)
         filtered_items = self.get_filtered_items(filter_function)
         if self.is_in_memory():
             filtered_items = list(filtered_items)
@@ -146,6 +144,19 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
                 count=None,
                 less_than=self.get_estimated_count(),
             )
+        return stream
+
+    def add_column(self, name: Field, values: Iterable, ignore_errors: bool = False) -> Native:
+        name = arg.get_name(name)
+        items = map(lambda i, v: fs.merge_two_items()(i, {name: v}), self.get_items(), values)
+        stream = self.stream(items)
+        if self.is_in_memory():
+            if not ignore_errors:
+                if not isinstance(values, ARRAY_TYPES):
+                    values = list(values)
+                msg = 'for add_column() stream and values must have same items count, got {} != {}'
+                assert self.get_count() == len(values), msg.format(self.get_count(), len(values))
+            stream = stream.to_memory()
         return stream
 
     def _get_groups(self, key_function: Callable, as_pairs: bool) -> Iterable:
@@ -277,7 +288,7 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
         add_title_row = kwargs.pop('add_title_row', None)
         kwarg_columns = kwargs.pop('columns', None)
         if kwarg_columns:
-            msg = 'columns can be provided by args or kwargs, not both (got args={}, kwargs={})'
+            msg = 'columns can be provided by args or kwargs, not both (got args={}, kwargs.columns={})'
             assert not columns, msg.format(columns, kwarg_columns)
             columns = kwarg_columns
         if columns == [arg.AUTO]:
