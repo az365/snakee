@@ -18,9 +18,14 @@ def sign() -> Callable:
 
 
 def diff(constant: Optional[float] = None, take_abs: bool = False, default: Optional[float] = None) -> Callable:
-    def func(v: float, c: Optional[float] = None) -> float:
-        if constant is not None:
+    def func(*args) -> float:
+        if constant is None:
+            assert len(args) == 2, 'Expected two values (constant={}), got {}'.format(constant, args)
+            c, v = args
+        else:
+            assert len(args) == 1, 'Expected one value (constant={}), got {}'.format(constant, args)
             c = constant
+            v = args[0]
         return nm.diff(c=c, v=v, take_abs=take_abs, default=default)
     return func
 
