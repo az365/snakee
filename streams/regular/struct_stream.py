@@ -120,8 +120,10 @@ class StructStream(sm.RowStream, FlatStruct):
             tmp_files: TmpFiles = AUTO,
     ):
         self._struct = struct or list()
+        if check:
+            data = self._get_validated_items(data, struct=struct)
         super().__init__(
-            data=self.get_validated_items(data, struct=struct),
+            data=data,
             name=name, check=False,
             count=count, less_than=less_than,
             source=source, context=context,
@@ -141,10 +143,10 @@ class StructStream(sm.RowStream, FlatStruct):
     def is_valid_item_type(cls, item: Item) -> bool:
         return super().is_valid_item_type(item)
 
-    def is_valid_item(self, item) -> bool:
+    def _is_valid_item(self, item) -> bool:
         return is_valid(item, struct=self.get_struct())
 
-    def get_validated_items(self, items, struct=arg.DEFAULT, skip_errors=False, context=arg.NOT_USED):
+    def _get_validated_items(self, items, struct=arg.DEFAULT, skip_errors=False, context=arg.NOT_USED):
         if struct == arg.DEFAULT:
             struct = self.get_struct()
         return check_rows(items, struct, skip_errors)
@@ -161,7 +163,7 @@ class StructStream(sm.RowStream, FlatStruct):
                 struct=struct,
             )
 
-    def get_struct_rows(self, rows, struct=arg.DEFAULT, skip_bad_rows=False, skip_bad_values=False, verbose=True):
+    def get_struct_rows(self, rows, struct=arg.AUTO, skip_bad_rows=False, skip_bad_values=False, verbose=True):
         struct = arg.undefault(struct, self.get_struct())
         if isinstance(struct, StructInterface):  # actual approach
             converters = struct.get_converters('str', 'py')
@@ -195,10 +197,6 @@ class StructStream(sm.RowStream, FlatStruct):
             return struct.get_columns()
         elif isinstance(struct, Iterable):
             return [c[0] for c in struct]
-
-    def get_struct_rows(self) -> Iterable:
-        for r in self.get_items():
-            yield StructRow(r, self.get_struct(), check=False)
 
     def struct_map(self, function: Callable, struct: Struct):
         return self.__class__(

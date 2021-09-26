@@ -32,35 +32,42 @@ class PandasStream(sm.WrapperStream, sm.ColumnarMixin, sm.ConvertMixin):
             context=context,
         )
 
+    def get_data(self) -> DataFrame:
+        return super().get_data()
+
     @staticmethod
     def get_item_type():
         return pd.Series
 
     @classmethod
-    def is_valid_item(cls, item):
-        return isinstance(item, cls.get_item_type())
+    def _is_valid_item(cls, item):
+        return isinstance(item, pd.Series)
 
-    @staticmethod
-    def is_in_memory():
+    def is_in_memory(self) -> bool:
         return True
 
     def get_dataframe(self, columns=None) -> DataFrame:
+        data = self.get_data()
+        assert isinstance(data, DataFrame)
         if columns:
-            return self.get_data()[columns]
-        else:
-            return self.get_data()
+            data = data[columns]
+        return data
 
     def get_count(self, final: bool = False) -> Optional[int]:
-        return self.get_data().shape[0]
+        data = self.get_data()
+        assert isinstance(data, DataFrame)
+        return data.shape[0]
 
     def get_items(self):
         yield from self.get_dataframe().iterrows()
 
-    def get_records(self):
-        return self.get_mapped_items(lambda i: i[1].to_dict())
+    def get_records(self, columns=arg.AUTO):
+        stream = self.select(*columns) if arg.is_defined(columns) else self
+        return stream.get_mapped_items(lambda i: i[1].to_dict())
 
-    def get_rows(self):
-        return self.get_mapped_items(lambda i: i[1].to_list())
+    def get_rows(self, columns=arg.AUTO):
+        stream = self.select(*columns) if arg.is_defined(columns) else self
+        return stream.get_mapped_items(lambda i: i[1].to_list())
 
     def get_columns(self):
         return self.get_dataframe().columns
@@ -90,9 +97,9 @@ class PandasStream(sm.WrapperStream, sm.ColumnarMixin, sm.ConvertMixin):
 
     def add_stream(self, stream, before=False) -> sm.ColumnarMixin:
         if isinstance(stream, PandasStream):
-            return self.add_dataframe(stream.data, before)
+            return self.add_dataframe(stream.get_data(), before=before)
         else:
-            return self.add_items(stream.get_items(), before)
+            return self.add_items(stream.get_items(), before=before)
 
     def add(self, dataframe_or_stream_or_items, before=False, **kwargs) -> sm.ColumnarMixin:
         assert not kwargs

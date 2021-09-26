@@ -52,16 +52,16 @@ class IterableStreamInterface(StreamInterface, ABC):
         pass
 
     @abstractmethod
-    def is_valid_item(self, item) -> bool:
+    def _is_valid_item(self, item) -> bool:
         pass
 
     @classmethod
     @abstractmethod
-    def get_typing_validated_items(cls, items, skip_errors: bool = False, context: Context = None) -> Iterable:
+    def _get_typing_validated_items(cls, items, skip_errors: bool = False, context: Context = None) -> Iterable:
         pass
 
     @abstractmethod
-    def get_validated_items(self, items, skip_errors: bool = False, context: Context = None) -> Iterable:
+    def _get_validated_items(self, items, skip_errors: bool = False, context: Context = None) -> Iterable:
         pass
 
     @abstractmethod

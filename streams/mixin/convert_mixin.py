@@ -49,7 +49,7 @@ class ConvertMixin(IterableStream, ABC):
                 for r in self.get_items():
                     yield [r.get(c) for c in columns]
             else:
-                return sm.RowStream.get_typing_validated_items(self.get_items())
+                return sm.RowStream._get_typing_validated_items(self.get_items())
         else:
             return self.get_mapped_items(fs.composite_key(columns))
 

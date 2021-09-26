@@ -52,7 +52,7 @@ class IterableStream(AbstractStream, IterableStreamInterface):
         self.check = check
         self.max_items_in_memory = arg.acquire(max_items_in_memory, sm.MAX_ITEMS_IN_MEMORY)
         super().__init__(
-            data=self.get_typing_validated_items(data, context=context) if check else data,
+            data=self._get_typing_validated_items(data, context=context) if check else data,
             name=name,
             source=source,
             context=context,
@@ -81,11 +81,11 @@ class IterableStream(AbstractStream, IterableStreamInterface):
     def is_valid_item_type(cls, item) -> bool:
         return True
 
-    def is_valid_item(self, item) -> bool:
+    def _is_valid_item(self, item) -> bool:
         return self.is_valid_item_type(item)
 
     @classmethod
-    def get_typing_validated_items(
+    def _get_typing_validated_items(
             cls,
             items: Iterable,
             skip_errors: bool = False,
@@ -95,22 +95,22 @@ class IterableStream(AbstractStream, IterableStreamInterface):
             if cls.is_valid_item_type(i):
                 yield i
             else:
-                message = 'get_typing_validated_items() found invalid item {} for {}'.format(i, cls.get_stream_type())
+                message = '_get_typing_validated_items() found invalid item {} for {}'.format(i, cls.get_stream_type())
                 if skip_errors:
                     if context:
-                        context.get_logger().log(message)
+                        context.get_logger().log(msg=message, level=LoggingLevel.Warning)
                 else:
                     raise TypeError(message)
 
-    def get_validated_items(self, items: Iterable, skip_errors: bool = False, context: Context = None) -> Iterable:
+    def _get_validated_items(self, items: Iterable, skip_errors: bool = False, context: Context = None) -> Iterable:
         for i in items:
-            if self.is_valid_item(i):
+            if self._is_valid_item(i):
                 yield i
             else:
-                message = 'get_validated_items() found invalid item {} for {}'.format(i, self.get_stream_type())
+                message = '_get_validated_items() found invalid item {} for {}'.format(i, self.get_stream_type())
                 if skip_errors:
                     if context:
-                        context.get_logger().log(message)
+                        context.get_logger().log(msg=message, level=LoggingLevel.Warning)
                 else:
                     raise TypeError(message)
 
