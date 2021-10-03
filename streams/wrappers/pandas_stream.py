@@ -1,13 +1,17 @@
-from typing import Optional, Union
+from typing import Optional, Iterable, Union
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from utils.external import pd, DataFrame
+    from interfaces import StreamInterface, ColumnarInterface, Field
     from streams import stream_classes as sm
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...utils.external import pd, DataFrame
+    from ...interfaces import StreamInterface, ColumnarInterface, Field
     from .. import stream_classes as sm
+
+Native = Union[StreamInterface, ColumnarInterface]
 
 
 class PandasStream(sm.WrapperStream, sm.ColumnarMixin, sm.ConvertMixin):
@@ -21,7 +25,7 @@ class PandasStream(sm.WrapperStream, sm.ColumnarMixin, sm.ConvertMixin):
         assert pd, 'Pandas must be installed and imported for instantiate PandasStream (got fallback {})'.format(pd)
         if isinstance(data, DataFrame) or data.__class__.__name__ == 'DataFrame':
             dataframe = data
-        elif hasattr(data, 'get_dataframe'):
+        elif hasattr(data, 'get_dataframe'):  # isinstance(data, RecordStream):
             dataframe = data.get_dataframe()
         else:  # isinstance(data, (list, tuple)):
             dataframe = DataFrame(data=data)
@@ -40,7 +44,7 @@ class PandasStream(sm.WrapperStream, sm.ColumnarMixin, sm.ConvertMixin):
         return pd.Series
 
     @classmethod
-    def _is_valid_item(cls, item):
+    def _is_valid_item(cls, item) -> bool:
         return isinstance(item, pd.Series)
 
     def is_in_memory(self) -> bool:
@@ -58,10 +62,10 @@ class PandasStream(sm.WrapperStream, sm.ColumnarMixin, sm.ConvertMixin):
         assert isinstance(data, DataFrame)
         return data.shape[0]
 
-    def get_items(self):
+    def get_items(self) -> Iterable:
         yield from self.get_dataframe().iterrows()
 
-    def get_records(self, columns=arg.AUTO):
+    def get_records(self, columns=arg.AUTO) -> Iterable:
         stream = self.select(*columns) if arg.is_defined(columns) else self
         return stream.get_mapped_items(lambda i: i[1].to_dict())
 
@@ -76,46 +80,58 @@ class PandasStream(sm.WrapperStream, sm.ColumnarMixin, sm.ConvertMixin):
         return self.get_dataframe().shape[0]
 
     def take(self, count: Union[int, bool] = 1):
-        return self.stream(
-            self.get_dataframe().head(count),
-        )
+        if isinstance(count, bool):
+            if count:
+                return self
+            else:
+                return self.stream(DataFrame())
+        elif isinstance(count, int):
+            return self.stream(
+                self.get_dataframe().head(count),
+            )
+        else:
+            raise TypeError('Expected count as int or bool, got {}'.format(count))
 
-    def get_one_column_values(self, column):
-        return self.get_dataframe()[column]
+    def get_one_column_values(self, column: Field):
+        column_name = arg.get_name(column)
+        return self.get_dataframe()[column_name]
 
-    def add_dataframe(self, dataframe, before=False) -> sm.ColumnarMixin:
+    def add_dataframe(self, dataframe: DataFrame, before=False) -> Native:
         if before:
             frames = [dataframe, self.get_dataframe()]
         else:
             frames = [self.get_dataframe(), dataframe]
         concatenated = pd.concat(frames)
-        return PandasStream(concatenated)
+        return self.stream(concatenated)
 
-    def add_items(self, items, before=False) -> sm.ColumnarMixin:
-        dataframe = pd.DataFrame(items)
+    def add_items(self, items: Iterable, before: bool = False) -> Native:
+        dataframe = DataFrame(items)
         return self.add_dataframe(dataframe, before)
 
-    def add_stream(self, stream, before=False) -> sm.ColumnarMixin:
+    def add_stream(self, stream: StreamInterface, before: bool = False) -> Native:
         if isinstance(stream, PandasStream):
             return self.add_dataframe(stream.get_data(), before=before)
         else:
             return self.add_items(stream.get_items(), before=before)
 
-    def add(self, dataframe_or_stream_or_items, before=False, **kwargs) -> sm.ColumnarMixin:
-        assert not kwargs
-        if isinstance(dataframe_or_stream_or_items, pd.DataFrame):
+    def add(self, dataframe_or_stream_or_items, before: bool = False, **kwargs) -> Native:
+        assert not kwargs, 'kwargs for PandasStream.add() not supported'
+        if isinstance(dataframe_or_stream_or_items, DataFrame):
             return self.add_dataframe(dataframe_or_stream_or_items, before)
-        elif sm.is_stream(dataframe_or_stream_or_items):
+        elif isinstance(dataframe_or_stream_or_items, StreamInterface) or sm.is_stream(dataframe_or_stream_or_items):
             return self.add_stream(dataframe_or_stream_or_items, before)
-        else:
+        elif isinstance(dataframe_or_stream_or_items, Iterable):
             return self.add_items(dataframe_or_stream_or_items)
+        else:
+            msg = 'dataframe_or_stream_or_items must be DataFrame, Stream or Iterable, got {}'
+            raise TypeError(msg.format(dataframe_or_stream_or_items))
 
-    def select(self, *fields, **expressions) -> sm.ColumnarMixin:
+    def select(self, *fields, **expressions) -> Native:
         assert not expressions, 'custom expressions are not implemented yet'
         dataframe = self.get_dataframe(columns=fields)
-        return PandasStream(dataframe)
+        return self.stream(dataframe)
 
-    def filter(self, *filters, **expressions) -> sm.ColumnarMixin:
+    def filter(self, *filters, **expressions) -> Native:
         assert not filters, 'custom filters are not implemented yet'
         pandas_filter = None
         for k, v in expressions.items():
@@ -125,29 +141,27 @@ class PandasStream(sm.WrapperStream, sm.ColumnarMixin, sm.ConvertMixin):
             else:
                 pandas_filter = one_filter
         if pandas_filter:
-            return PandasStream(
-                self.get_data()[pandas_filter],
-                **self.get_meta()
-            )
+            data = self.get_data()[pandas_filter]
+            return self.stream(data)
         else:
             return self
 
-    def sort(self, *keys, reverse=False):
+    def sort(self, *keys, reverse: bool = False) -> Native:
         dataframe = self.get_dataframe().sort_values(
             by=keys,
             ascending=not reverse,
         )
-        return PandasStream(dataframe)
+        return self.stream(dataframe)
 
-    def group_by(self, *keys, as_pairs=False):
+    def group_by(self, *keys, as_pairs: bool = False) -> Native:
         grouped = self.get_dataframe().groupby(
             by=keys,
             as_index=as_pairs,
         )
-        return PandasStream(grouped)
+        return self.stream(grouped)
 
     def is_empty(self) -> bool:
         return self.get_count() == 0
 
-    def collect(self):
+    def collect(self) -> Native:
         return self
