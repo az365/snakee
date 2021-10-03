@@ -12,6 +12,7 @@ try:  # Assume we're a sub-module in a package.
     from selection import selection_classes as sn
     from items.flat_struct import FlatStruct
     from items.struct_row import StructRow
+    from items.legacy_classes import get_validation_errors as get_legacy_validation_errors
     from utils.decorators import deprecated_with_alternative
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg, selection as sf
@@ -25,6 +26,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...selection import selection_classes as sn
     from ...items.flat_struct import FlatStruct
     from ...items.struct_row import StructRow
+    from ...items.legacy_classes import get_validation_errors as get_legacy_validation_errors
     from ...utils.decorators import deprecated_with_alternative
 
 Native = Union[StreamInterface, StructRowInterface]
@@ -39,6 +41,7 @@ def is_row(row: Row) -> bool:
     return isinstance(row, (list, tuple))
 
 
+# deprecated
 def is_valid(row: Row, struct: OptStruct) -> bool:
     if is_row(row):
         if isinstance(struct, Struct):
@@ -60,15 +63,26 @@ def is_valid(row: Row, struct: OptStruct) -> bool:
             return True
 
 
+def get_validation_errors(row: Row, struct: OptStruct) -> list:
+    if is_row(row):
+        if isinstance(struct, FlatStruct):
+            return struct.get_validation_errors(row)
+        elif isinstance(struct, Iterable):
+            return get_legacy_validation_errors(row, struct)
+    else:
+        msg = 'Expected row as list or tuple, got {} (row={})'.format(type(row), row)
+        return [msg]
+
+
 def check_rows(rows, struct: OptStruct, skip_errors: bool = False) -> Iterable:
     for r in rows:
-        if is_valid(r, struct=struct):
+        validation_errors = get_validation_errors(r, struct=struct)
+        if not validation_errors:
             pass
         elif skip_errors:
             continue
         else:
-            struct_str = struct.get_struct_str() if isinstance(struct, StructInterface) else struct
-            raise TypeError('check_records(): this item is not valid record for struct {}: {}'.format(struct_str, r))
+            raise TypeError('check_rows() got validation errors: {}'.format(validation_errors))
         yield r
 
 
@@ -109,7 +123,7 @@ def apply_struct_to_row(row, struct: OptStruct, skip_bad_values=False, logger=No
         raise TypeError
 
 
-class StructStream(sm.RowStream, FlatStruct):
+class StructStream(sm.RowStream):
     def __init__(
             self,
             data, struct: OptStruct = None,

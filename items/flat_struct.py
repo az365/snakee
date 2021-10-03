@@ -310,6 +310,17 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
                 return False
         return True
 
+    def get_validation_errors(self, row: Union[Iterable, StructInterface]) -> list:
+        validation_errors = list()
+        for value, field_description in zip(row, self.get_fields_descriptions()):
+            assert isinstance(field_description, FieldInterface)
+            field_type = field_description.get_type()
+            if not field_type.isinstance(value):
+                template = '(FlatStruct) Field {}: type {} expected, got {} (value={})'
+                msg = template.format(field_description.get_name(), field_type, type(value), value)
+                validation_errors.append(msg)
+        return validation_errors
+
     @staticmethod
     def convert_to_native(other: StructInterface) -> Native:
         if isinstance(other, FlatStruct) or hasattr(other, 'get_caption'):
@@ -409,8 +420,8 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
             struct.append_field(AdvancedField(name, field_type))
         return struct
 
-    def copy(self):
-        return FlatStruct(name=self.get_name(), fields=list(self.get_fields()))
+    def copy(self) -> Native:
+        return FlatStruct(fields=list(self.get_fields()), name=self.get_name())
 
     def simple_select_fields(self, fields: Iterable) -> Group:
         return FlatStruct(
