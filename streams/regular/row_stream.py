@@ -110,8 +110,9 @@ class RowStream(sm.AnyStream, sm.ColumnarMixin):
     def get_records(self, columns: AutoColumns = AUTO) -> Generator:
         if columns == AUTO:
             columns = self.get_columns()
+        column_names = arg.get_names(columns)
         for row in self.get_rows():
-            yield {k: v for k, v in zip(columns, row)}
+            yield {k: v for k, v in zip(column_names, row)}
 
     def get_rows(self, **kwargs) -> Iterable:
         return self.get_data()
@@ -144,7 +145,7 @@ class RowStream(sm.AnyStream, sm.ColumnarMixin):
             check=AUTO,
             verbose=False,
     ):
-        fx_rows = sm.LineStream.from_text_file(
+        stream = sm.LineStream.from_text_file(
             filename,
             encoding=encoding, gzip=gzip,
             skip_first_line=skip_first_line, max_count=max_count,
@@ -153,7 +154,7 @@ class RowStream(sm.AnyStream, sm.ColumnarMixin):
         ).to_row_stream(
             delimiter=delimiter
         )
-        return fx_rows
+        return stream
 
     @deprecated_with_alternative('to_file(Connectors.ColumnFile)')
     def to_column_file(
@@ -170,7 +171,7 @@ class RowStream(sm.AnyStream, sm.ColumnarMixin):
         meta = self.get_meta()
         if not gzip:
             meta.pop('count')
-        fx_csv_file = self.to_line_stream(
+        stream_csv_file = self.to_line_stream(
             delimiter=delimiter,
         ).to_text_file(
             filename,
@@ -181,7 +182,7 @@ class RowStream(sm.AnyStream, sm.ColumnarMixin):
             return_stream=return_stream,
         )
         if return_stream:
-            return fx_csv_file.to_row_stream(
+            return stream_csv_file.to_row_stream(
                 delimiter=delimiter,
             ).update_meta(
                 **meta
