@@ -379,7 +379,7 @@ def plot_multiple(
                 else:
                     block = axis[row_no] if rows_count > 1 else axis
                 is_last_block = row_no == len(rows) - 1 and col_no == len(cols) - 1
-                plot_legend_here = plot_legend and is_last_block
+                plot_legend_here = (plot_legend and is_last_block) or plot_legend == 'each'
                 subtitle = get_subplot_title(subplot_data, x_range_field, y_range_field, title)
                 plot_single(
                     dataframe=subplot_data,
