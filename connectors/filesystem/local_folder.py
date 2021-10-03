@@ -158,7 +158,7 @@ class LocalFolder(HierarchicFolder):
 
     def has_relative_path(self) -> bool:  # path including parent folder
         if self.has_parent_folder():
-            return self.get_parent().has_path_relative()
+            return self.get_parent().has_relative_path()
         else:
             return self.is_relative_path()
 
