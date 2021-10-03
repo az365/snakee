@@ -202,21 +202,20 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
     ) -> Table:
         name_old = self._get_table_name(old)
         name_new = self._get_table_name(new)
-        cat_old, name_old = name_old.split('.')
-        cat_new, name_new = name_new.split('.') if '.' in name_new else (cat_old, name_new)
+        cat_old, table_old = name_old.split('.')
+        cat_new, table_new = name_new.split('.') if '.' in name_new else (cat_old, name_new)
         assert cat_new == cat_old, 'Can copy within same scheme (folder) only (got {} and {})'.format(cat_new, cat_old)
-        new = name_new
-        table_old = self.get_child(name_old)
-        struct = table_old.get_struct() if hasattr(table_old, 'get_struct') else AUTO
+        table_connector_old = self.get_child(name_old)
+        struct = table_connector_old.get_struct() if hasattr(table_connector_old, 'get_struct') else AUTO
         self.execute_if_exists(
-            query='ALTER TABLE {old} RENAME TO {new};'.format(old=old, new=new),
+            query='ALTER TABLE {old} RENAME TO {new};'.format(old=name_old, new=table_new),
             table=old,
             message_if_yes='Table {old} is renamed to {new}'.format(old=old, new=new),
             message_if_no='Can not rename table {}: not exists.',
             stop_if_no=not if_exists,
             verbose=verbose,
         )
-        return self.table(new, struct=struct)
+        return self.table(name_new, struct=struct)
 
     def select(
             self, table: Union[Table, Name],
