@@ -22,10 +22,29 @@ class FieldType(DynamicEnum):
     Dict = 'dict'
 
     _dict_heuristic_suffix_to_type = dict()
+    _dict_dialect_types = dict()
 
     @classmethod
-    def get_heuristic_suffix_to_type(cls):
+    def get_heuristic_suffix_to_type(cls) -> dict:
         return cls._dict_heuristic_suffix_to_type
+
+    @classmethod
+    def get_dialect_types(cls) -> dict:
+        return cls._dict_dialect_types
+
+    def get_type_in_dialect(self, dialect_name: str):
+        type_props = self.get_dialect_types()[self.get_value()]
+        return type_props[dialect_name]
+
+    def get_py_type(self):
+        return self.get_type_in_dialect(dialect_name='py')
+
+    def isinstance(self, value) -> bool:
+        py_type = self.get_py_type()
+        if py_type == float:
+            return isinstance(value, (int, float))
+        else:
+            return isinstance(value, py_type)
 
     @classmethod
     def detect_by_name(cls, field_name: str):
@@ -78,9 +97,12 @@ FieldType._dict_heuristic_suffix_to_type = {
 }
 
 
+STR_FALSE_SYNONYMS = ('False', 'false', 'None', 'none', 'no', '0', '')
+
+
 def any_to_bool(value):
     if isinstance(value, str):
-        return value not in ('False', 'false', 'None', 'none', 'no', '0', '')
+        return value not in STR_FALSE_SYNONYMS
     else:
         return bool(value)
 
@@ -117,12 +139,16 @@ FIELD_TYPES = {
 AGGR_HINTS = (None, 'id', 'cat', 'measure')
 HEURISTIC_SUFFIX_TO_TYPE = FieldType.get_heuristic_suffix_to_type()
 
+FieldType._dict_dialect_types = FIELD_TYPES
+
 
 def get_canonic_type(field_type, ignore_absent=False):
     if isinstance(field_type, FieldType):
         return field_type
     elif field_type in FieldType.__dict__.values():
         return FieldType(field_type)
+    elif field_type == 'integer':
+        return FieldType.Int
     else:
         for canonic_type, dict_names in sorted(FIELD_TYPES.items(), key=lambda i: i[0], reverse=True):
             for dialect, type_name in dict_names.items():
