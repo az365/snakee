@@ -2,8 +2,10 @@ from inspect import isclass
 import json
 
 try:  # Assume we're a sub-module in a package.
+    from utils.arguments import any_to_bool, safe_converter
     from utils.enum import DynamicEnum
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
+    from ..utils.arguments import any_to_bool, safe_converter
     from ..utils.enum import DynamicEnum
 
 
@@ -72,7 +74,25 @@ class FieldType(DynamicEnum):
 
 
 FieldType.prepare()
-FieldType._dict_heuristic_suffix_to_type = {
+
+
+DIALECTS = ('str', 'py', 'pg', 'ch')
+FIELD_TYPES = {
+    FieldType.Any.value: dict(py=str, pg='text', ch='String', str_to_py=str),
+    FieldType.Json.value: dict(py=dict, pg='text', ch='String', str_to_py=json.loads, py_to_str=json.dumps),
+    FieldType.Str.value: dict(py=str, pg='text', ch='String', str_to_py=str),
+    FieldType.Str16.value: dict(py=str, pg='varchar(16)', ch='FixedString(16)', str_to_py=str),
+    FieldType.Str64.value: dict(py=str, pg='varchar(64)', ch='FixedString(64)', str_to_py=str),
+    FieldType.Str256.value: dict(py=str, pg='varchar(256)', ch='FixedString(256)', str_to_py=str),
+    FieldType.Int.value: dict(py=int, pg='int', ch='Int32', str_to_py=safe_converter(int)),
+    FieldType.Float.value: dict(py=float, pg='numeric', ch='Float32', str_to_py=safe_converter(float)),
+    FieldType.IsoDate.value: dict(py=str, pg='date', ch='Date', str_to_py=str),
+    FieldType.Bool.value: dict(py=bool, pg='bool', ch='UInt8', str_to_py=any_to_bool, py_to_ch=safe_converter(int)),
+    FieldType.Tuple.value: dict(py=tuple, pg='text', str_to_py=safe_converter(eval, tuple())),
+    FieldType.Dict.value: dict(py=dict, pg='text', str_to_py=safe_converter(eval, dict())),
+}
+AGGR_HINTS = (None, 'id', 'cat', 'measure')
+HEURISTIC_SUFFIX_TO_TYPE = {
     'hist': FieldType.Dict,
     'names': FieldType.Tuple,
     'ids': FieldType.Tuple,
@@ -95,50 +115,7 @@ FieldType._dict_heuristic_suffix_to_type = {
     'has': FieldType.Bool,
     None: FieldType.Str,
 }
-
-
-STR_FALSE_SYNONYMS = ('False', 'false', 'None', 'none', 'no', '0', '')
-
-
-def any_to_bool(value):
-    if isinstance(value, str):
-        return value not in STR_FALSE_SYNONYMS
-    else:
-        return bool(value)
-
-
-def safe_converter(converter, default_value=0):
-    def func(value):
-        if value is None or value == '':
-            return default_value
-        else:
-            try:
-                return converter(value)
-            except ValueError:
-                return default_value
-            except NameError:
-                return default_value
-    return func
-
-
-DIALECTS = ('str', 'py', 'pg', 'ch')
-FIELD_TYPES = {
-    FieldType.Any.value: dict(py=str, pg='text', ch='String', str_to_py=str),
-    FieldType.Json.value: dict(py=dict, pg='text', ch='String', str_to_py=json.loads, py_to_str=json.dumps),
-    FieldType.Str.value: dict(py=str, pg='text', ch='String', str_to_py=str),
-    FieldType.Str16.value: dict(py=str, pg='varchar(16)', ch='FixedString(16)', str_to_py=str),
-    FieldType.Str64.value: dict(py=str, pg='varchar(64)', ch='FixedString(64)', str_to_py=str),
-    FieldType.Str256.value: dict(py=str, pg='varchar(256)', ch='FixedString(256)', str_to_py=str),
-    FieldType.Int.value: dict(py=int, pg='int', ch='Int32', str_to_py=safe_converter(int)),
-    FieldType.Float.value: dict(py=float, pg='numeric', ch='Float32', str_to_py=safe_converter(float)),
-    FieldType.IsoDate.value: dict(py=str, pg='date', ch='Date', str_to_py=str),
-    FieldType.Bool.value: dict(py=bool, pg='bool', ch='UInt8', str_to_py=any_to_bool, py_to_ch=safe_converter(int)),
-    FieldType.Tuple.value: dict(py=tuple, pg='text', str_to_py=safe_converter(eval, tuple())),
-    FieldType.Dict.value: dict(py=dict, pg='text', str_to_py=safe_converter(eval, dict())),
-}
-AGGR_HINTS = (None, 'id', 'cat', 'measure')
-HEURISTIC_SUFFIX_TO_TYPE = FieldType.get_heuristic_suffix_to_type()
-
+FieldType._dict_heuristic_suffix_to_type = HEURISTIC_SUFFIX_TO_TYPE
 FieldType._dict_dialect_types = FIELD_TYPES
 
 

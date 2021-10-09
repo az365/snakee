@@ -6,6 +6,7 @@ NOT_USED = None
 _AUTO_VALUE = 'Auto'
 DEFAULT_VALUE = _AUTO_VALUE
 DEFAULT_RANDOM_LEN = 4
+STR_FALSE_SYNONYMS = ('False', 'false', 'None', 'none', 'no', '0', '')
 
 
 class Auto:
@@ -204,3 +205,24 @@ def is_formatter(string: str, count=None) -> bool:
         else:
             # return min([len(string.split(s)) > 1 for s in '{}'])
             return min([is_mask(string, count, placeholder=s) for s in '{}'])
+
+
+def any_to_bool(value):
+    if isinstance(value, str):
+        return value not in STR_FALSE_SYNONYMS
+    else:
+        return bool(value)
+
+
+def safe_converter(converter, default_value=0):
+    def func(value):
+        if value is None or value == '':
+            return default_value
+        else:
+            try:
+                return converter(value)
+            except ValueError:
+                return default_value
+            except NameError:
+                return default_value
+    return func

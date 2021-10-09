@@ -1,6 +1,7 @@
 from typing import Iterable, Union
 
 try:  # Assume we're a sub-module in a package.
+    from utils.arguments import any_to_bool, safe_converter
     from interfaces import StructInterface, StructRowInterface, StructRow
     from fields.legacy_field import LegacyField
     from items.legacy_struct import LegacyStruct
@@ -8,9 +9,10 @@ try:  # Assume we're a sub-module in a package.
     from fields.field_type import (
         FieldType,
         FIELD_TYPES, DIALECTS, AGGR_HINTS, HEURISTIC_SUFFIX_TO_TYPE,
-        any_to_bool, safe_converter, get_canonic_type, detect_field_type_by_name,
+        get_canonic_type, detect_field_type_by_name,
     )
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
+    from ..utils.arguments import any_to_bool, safe_converter
     from ..interfaces import StructInterface, StructRowInterface, StructRow
     from ..fields.legacy_field import LegacyField
     from .legacy_struct import LegacyStruct
@@ -18,7 +20,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..fields.field_type import (
         FieldType,
         FIELD_TYPES, DIALECTS, AGGR_HINTS, HEURISTIC_SUFFIX_TO_TYPE,
-        any_to_bool, safe_converter, get_canonic_type, detect_field_type_by_name,
+        get_canonic_type, detect_field_type_by_name,
     )
 
 FieldDescription = LegacyField
