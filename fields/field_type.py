@@ -38,13 +38,13 @@ class FieldType(DynamicEnum):
     def get_dialect_types(cls) -> dict:
         return cls._dict_dialect_types
 
-    def get_type_in_dialect(self, dialect):
+    def get_type_in(self, dialect):
         type_props = self.get_dialect_types()[self.get_value()]
         dialect_value = get_value(dialect)
         return type_props[dialect_value]
 
     def get_py_type(self):
-        return self.get_type_in_dialect(dialect='py')
+        return self.get_type_in(dialect='py')
 
     def isinstance(self, value) -> bool:
         py_type = self.get_py_type()
@@ -96,10 +96,17 @@ class FieldType(DynamicEnum):
         if not ignore_absent:
             raise ValueError('Unsupported field type: {}'.format(field_type))
 
+    def get_converter(self, source, target):
+        source_dialect_name = get_value(source)
+        target_dialect_name = get_value(target)
+        converter_name = '{}_to_{}'.format(source_dialect_name, target_dialect_name)
+        field_types_by_dialect = self.get_dialect_types()
+        types_by_dialects = field_types_by_dialect.get(self, {})
+        return types_by_dialects.get(converter_name, str)
+
 
 FieldType.prepare()
-
-FIELD_TYPES = {
+FieldType._dict_dialect_types = {
     FieldType.Any: dict(py=str, pg='text', ch='String', str_to_py=str),
     FieldType.Json: dict(py=dict, pg='text', ch='String', str_to_py=json.loads, py_to_str=json.dumps),
     FieldType.Str: dict(py=str, pg='text', ch='String', str_to_py=str),
@@ -113,7 +120,7 @@ FIELD_TYPES = {
     FieldType.Tuple: dict(py=tuple, pg='text', str_to_py=safe_converter(eval, tuple())),
     FieldType.Dict: dict(py=dict, pg='text', str_to_py=safe_converter(eval, dict())),
 }
-HEURISTIC_SUFFIX_TO_TYPE = {
+FieldType._dict_heuristic_suffix_to_type = {
     'hist': FieldType.Dict,
     'names': FieldType.Tuple,
     'ids': FieldType.Tuple,
@@ -136,8 +143,6 @@ HEURISTIC_SUFFIX_TO_TYPE = {
     'has': FieldType.Bool,
     None: FieldType.Str,
 }
-FieldType._dict_heuristic_suffix_to_type = HEURISTIC_SUFFIX_TO_TYPE
-FieldType._dict_dialect_types = FIELD_TYPES
 
 
 @deprecated_with_alternative('FieldType.get_canonic_type()')
