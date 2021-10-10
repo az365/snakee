@@ -23,7 +23,7 @@ class LegacyField(SimpleField, FieldInterface):
             nullable=False,
             aggr_hint=None,
     ):
-        field_type = arg.acquire(field_type, ft.FieldType.Any)
+        field_type = arg.acquire(field_type, FieldType.Any)
         if field_type is None:
             field_type = FieldType.detect_by_name(name)
         else:
@@ -31,7 +31,6 @@ class LegacyField(SimpleField, FieldInterface):
         super().__init__(name=name, field_type=field_type)
         assert isinstance(nullable, bool)
         self.nullable = nullable
-        assert aggr_hint in ft.AGGR_HINTS
         self.aggr_hint = aggr_hint
 
     def get_field_type(self):
@@ -42,11 +41,7 @@ class LegacyField(SimpleField, FieldInterface):
             return self.get_type_name()
         else:
             dialect_name = arg.get_value(dialect)
-            return ft.FIELD_TYPES.get(self.get_type_name(), {}).get(dialect_name)
-
-    def get_converter(self, source, target) -> Callable:
-        converter_name = '{}_to_{}'.format(source, target)
-        return ft.FIELD_TYPES.get(self.get_type_name(), {}).get(converter_name, str)
+            return ft.FIELD_TYPES.get(self.get_type(), {}).get(dialect_name)
 
     def check_value(self, value):
         py_type = self.get_type_in(DialectType.Python)

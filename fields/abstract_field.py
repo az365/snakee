@@ -5,22 +5,22 @@ from inspect import isclass
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
-    from interfaces import DialectType
-    from fields.field_type import FieldType, FIELD_TYPES, get_canonic_type
-    from fields.field_interface import FieldInterface
+    from interfaces import FieldInterface, FieldType, DialectType
+    from fields.field_type import FIELD_TYPES
     from base.abstract.simple_data import SimpleDataWrapper
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
-    from ..interfaces import DialectType
-    from .field_type import FieldType, FIELD_TYPES, get_canonic_type
-    from .field_interface import FieldInterface
+    from ..interfaces import FieldInterface, FieldType, DialectType
+    from .field_type import FIELD_TYPES
     from ..base.abstract.simple_data import SimpleDataWrapper
 
 
 class AbstractField(SimpleDataWrapper, FieldInterface, ABC):
     def __init__(self, name: str, field_type: FieldType = FieldType.Any, properties=None):
         field_type = arg.acquire(field_type, FieldType.detect_by_name, field_name=name)
-        self._type = get_canonic_type(field_type)
+        field_type = FieldType.get_canonic_type(field_type)
+        assert isinstance(field_type, FieldType)
+        self._type = field_type
         super().__init__(name=name, data=properties)
 
     def set_type(self, field_type: FieldType, inplace: bool) -> Optional[FieldInterface]:
@@ -51,11 +51,16 @@ class AbstractField(SimpleDataWrapper, FieldInterface, ABC):
         if dialect == DialectType.String:
             return self.get_type_name()
         else:
-            return FIELD_TYPES.get(self.get_type_name(), {}).get(dialect)
+            return FIELD_TYPES.get(self.get_type(), {}).get(dialect)
 
-    def get_converter(self, source, target) -> Callable:
-        converter_name = '{}_to_{}'.format(source, target)
-        return FIELD_TYPES.get(self.get_type_name(), {}).get(converter_name, str)
+    def get_converter(self, source: DialectType, target: DialectType) -> Callable:
+        source_dialect_name = arg.get_value(source)
+        target_dialect_name = arg.get_value(target)
+        converter_name = '{}_to_{}'.format(source_dialect_name, target_dialect_name)
+        canonic_type = self.get_type()
+        assert isinstance(canonic_type, FieldType)
+        types_by_dialects = FIELD_TYPES.get(canonic_type, {})
+        return types_by_dialects.get(converter_name, str)
 
     def __repr__(self):
         return '{}: {}'.format(self.get_name(), self.get_type_name())

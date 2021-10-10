@@ -4,11 +4,13 @@ import json
 try:  # Assume we're a sub-module in a package.
     from utils.arguments import any_to_bool, safe_converter, get_value
     from utils.enum import DynamicEnum
+    from utils.decorators import deprecated_with_alternative
     from connectors.databases.dialect import DialectType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils.arguments import any_to_bool, safe_converter, get_value
     from ..utils.enum import DynamicEnum
     from ..connectors.databases.dialect import DialectType
+    from ..utils.decorators import deprecated_with_alternative
 
 
 class FieldType(DynamicEnum):
@@ -75,6 +77,25 @@ class FieldType(DynamicEnum):
         field_type_name = str(field_type)
         return FieldType(field_type_name)
 
+    @classmethod
+    def get_canonic_type(cls, field_type, ignore_absent: bool = False):
+        if isinstance(field_type, FieldType):
+            return field_type
+        elif field_type in FieldType.__dict__.values():
+            return FieldType(field_type)
+        elif field_type == 'integer':
+            field_type = FieldType.Int
+            assert isinstance(field_type, FieldType)
+            return field_type
+        else:
+            field_types_by_dialect = cls.get_dialect_types()
+            for canonic_type, dict_names in sorted(field_types_by_dialect.items(), key=lambda i: i[0], reverse=True):
+                for dialect, type_name in dict_names.items():
+                    if field_type == type_name:
+                        return FieldType(canonic_type)
+        if not ignore_absent:
+            raise ValueError('Unsupported field type: {}'.format(field_type))
+
 
 FieldType.prepare()
 
@@ -92,7 +113,6 @@ FIELD_TYPES = {
     FieldType.Tuple: dict(py=tuple, pg='text', str_to_py=safe_converter(eval, tuple())),
     FieldType.Dict: dict(py=dict, pg='text', str_to_py=safe_converter(eval, dict())),
 }
-AGGR_HINTS = (None, 'id', 'cat', 'measure')
 HEURISTIC_SUFFIX_TO_TYPE = {
     'hist': FieldType.Dict,
     'names': FieldType.Tuple,
@@ -120,30 +140,15 @@ FieldType._dict_heuristic_suffix_to_type = HEURISTIC_SUFFIX_TO_TYPE
 FieldType._dict_dialect_types = FIELD_TYPES
 
 
+@deprecated_with_alternative('FieldType.get_canonic_type()')
 def get_canonic_type(field_type, ignore_absent: bool = False) -> FieldType:
-    if isinstance(field_type, FieldType):
-        return field_type
-    elif field_type in FieldType.__dict__.values():
-        return FieldType(field_type)
-    elif field_type == 'integer':
-        field_type = FieldType.Int
-        assert isinstance(field_type, FieldType)
-        return field_type
-    else:
-        for canonic_type, dict_names in sorted(FIELD_TYPES.items(), key=lambda i: i[0], reverse=True):
-            for dialect, type_name in dict_names.items():
-                if field_type == type_name:
-                    return FieldType(canonic_type)
-    if not ignore_absent:
-        raise ValueError('Unsupported field type: {}'.format(field_type))
+    field_type = FieldType.get_canonic_type(field_type, ignore_absent=ignore_absent)
+    assert isinstance(field_type, FieldType)
+    return field_type
 
 
-def detect_field_type_by_name(field_name):
-    name_parts = field_name.split('_')
-    default_type = HEURISTIC_SUFFIX_TO_TYPE[None]
-    field_type = default_type
-    for suffix in HEURISTIC_SUFFIX_TO_TYPE:
-        if suffix in name_parts:
-            field_type = HEURISTIC_SUFFIX_TO_TYPE[suffix]
-            break
+@deprecated_with_alternative('FieldType.detect_by_name()')
+def detect_field_type_by_name(field_name) -> FieldType:
+    field_type = FieldType.detect_by_name(field_name)
+    assert isinstance(field_type, FieldType)
     return field_type
