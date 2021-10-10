@@ -67,6 +67,7 @@ try:  # Assume we're a sub-module in a package.
     from utils.algo import JoinType  # standard Enum
     from loggers.extended_logger_interface import LoggingLevel  # standard Enum
     from loggers.progress_interface import OperationStatus  # standard Enum
+    from connectors.databases.dialect import DialectType  # inherits DynamicEnum
     from connectors.filesystem.folder_type import FolderType  # inherits ClassType(DynamicEnum)
     from connectors.filesystem.file_type import FileType  # inherits ClassType(DynamicEnum)
     from connectors.conn_type import ConnType  # inherits ClassType(DynamicEnum)
@@ -77,6 +78,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .utils.algo import JoinType  # standard Enum
     from .loggers.extended_logger_interface import LoggingLevel  # standard Enum
     from .loggers.progress_interface import OperationStatus  # standard Enum
+    from .connectors.databases.dialect import DialectType  # inherits DynamicEnum
     from .connectors.filesystem.folder_type import FolderType  # inherits ClassType(DynamicEnum)
     from .connectors.filesystem.file_type import FileType  # inherits ClassType(DynamicEnum)
     from .connectors.conn_type import ConnType  # inherits ClassType(DynamicEnum)
