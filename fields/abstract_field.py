@@ -5,19 +5,21 @@ from inspect import isclass
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
-    from fields.field_type import FieldType, FIELD_TYPES, DIALECTS, get_canonic_type
+    from interfaces import DialectType
+    from fields.field_type import FieldType, FIELD_TYPES, get_canonic_type
     from fields.field_interface import FieldInterface
     from base.abstract.simple_data import SimpleDataWrapper
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
-    from .field_type import FieldType, FIELD_TYPES, DIALECTS, get_canonic_type
+    from ..interfaces import DialectType
+    from .field_type import FieldType, FIELD_TYPES, get_canonic_type
     from .field_interface import FieldInterface
     from ..base.abstract.simple_data import SimpleDataWrapper
 
 
 class AbstractField(SimpleDataWrapper, FieldInterface, ABC):
     def __init__(self, name: str, field_type: FieldType = FieldType.Any, properties=None):
-        field_type = arg.undefault(field_type, FieldType.detect_by_name, field_name=name)
+        field_type = arg.acquire(field_type, FieldType.detect_by_name, field_name=name)
         self._type = get_canonic_type(field_type)
         super().__init__(name=name, data=properties)
 
@@ -43,11 +45,12 @@ class AbstractField(SimpleDataWrapper, FieldInterface, ABC):
         else:
             return str(field_type)
 
-    def get_type_in(self, dialect):
-        if dialect is None or dialect == 'str':
+    def get_type_in(self, dialect: DialectType):
+        if not isinstance(dialect, DialectType):
+            dialect = DialectType.detect(dialect)
+        if dialect == DialectType.String:
             return self.get_type_name()
         else:
-            assert dialect in DIALECTS
             return FIELD_TYPES.get(self.get_type_name(), {}).get(dialect)
 
     def get_converter(self, source, target) -> Callable:

@@ -1,12 +1,12 @@
 from typing import Union
 
 try:  # Assume we're a sub-module in a package.
-    from fields.field_type import FieldType, FIELD_TYPES, DIALECTS, get_canonic_type
+    from fields.field_type import FieldType, get_canonic_type
     from items.struct_interface import StructInterface
     from fields.abstract_field import AbstractField
     from fields import field_classes as fc
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from .field_type import FieldType, FIELD_TYPES, DIALECTS, get_canonic_type
+    from .field_type import FieldType, get_canonic_type
     from ..items.struct_interface import StructInterface
     from .abstract_field import AbstractField
     from . import field_classes as fc

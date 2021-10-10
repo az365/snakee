@@ -2,7 +2,7 @@ from typing import Optional, Union, Iterable
 
 try:  # Assume we're a sub-module in a package.
     from interfaces import (
-        StructInterface, FieldInterface,
+        StructInterface, FieldInterface, DialectType,
         Field, Name, FieldType, Array, ARRAY_TYPES,
     )
     from utils import arguments as arg
@@ -11,7 +11,7 @@ try:  # Assume we're a sub-module in a package.
     from connectors.databases import dialect as di
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..interfaces import (
-        StructInterface, FieldInterface,
+        StructInterface, FieldInterface, DialectType,
         Field, Name, FieldType, Array, ARRAY_TYPES,
     )
     from ..utils import arguments as arg
@@ -122,14 +122,14 @@ class LegacyStruct(StructInterface):
     def get_fields_count(self):
         return len(self.fields_descriptions)
 
-    def get_struct_str(self, dialect='py'):
-        if dialect is not None and dialect not in di.DIALECTS:
-            dialect = di.get_dialect_for_connector(dialect)
+    def get_struct_str(self, dialect: DialectType = DialectType.String) -> str:
+        if not isinstance(dialect, DialectType):
+            dialect = DialectType.detect(dialect)
         template = '{}: {}' if dialect in ('str', 'py') else '{} {}'
         field_strings = [template.format(c.get_name(), c.get_type_in(dialect)) for c in self.get_fields()]
         return ', '.join(field_strings)
 
-    def get_schema_str(self, dialect='py'):
+    def get_schema_str(self, dialect: DialectType = DialectType.Python):
         return self.get_struct_str(dialect=dialect)
 
     def __repr__(self):

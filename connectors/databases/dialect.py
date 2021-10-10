@@ -10,8 +10,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils.enum import DynamicEnum, EnumItem
     from ...utils.decorators import deprecated, deprecated_with_alternative
 
-DIALECTS = ('str', 'py', 'pg', 'ch')
-
 
 class DialectType(DynamicEnum):
     String = 'str'

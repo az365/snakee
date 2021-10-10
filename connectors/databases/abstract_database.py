@@ -4,7 +4,8 @@ from typing import Optional, Iterable, Union, NoReturn
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg, mappers as ms
     from interfaces import (
-        Connector, ColumnarInterface, RegularStream, StreamType, StructInterface, SimpleDataInterface,
+        Connector, ColumnarInterface, RegularStream, StructInterface, SimpleDataInterface,
+        DialectType, StreamType,
         AUTO, Auto, AutoContext, AutoBool, AutoCount, Count,
     )
     from loggers import logger_classes as log
@@ -14,7 +15,8 @@ try:  # Assume we're a sub-module in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg, mappers as ms
     from ...interfaces import (
-        Connector, ColumnarInterface, RegularStream, StreamType, StructInterface, SimpleDataInterface,
+        Connector, ColumnarInterface, RegularStream, StructInterface, SimpleDataInterface,
+        DialectType, StreamType,
         AUTO, Auto, AutoContext, AutoBool, AutoCount, Count,
     )
     from ...loggers import logger_classes as log
@@ -89,8 +91,14 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
         return hasattr(cls, 'connection')
 
     @classmethod
+    def get_dialect_type(cls) -> DialectType:
+        dialect_type = ct.get_dialect_type(cls.__name__)
+        assert isinstance(dialect_type, DialectType)
+        return dialect_type
+
+    @classmethod
     def get_dialect_name(cls) -> str:
-        return ct.get_dialect_type(cls.__name__)
+        return cls.get_dialect_type().get_value()
 
     @abstractmethod
     def exists_table(self, name: Name, verbose: AutoBool = AUTO) -> bool:
@@ -472,7 +480,7 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
             message = 'Tuple-description of Struct is deprecated. Use items.FlatStruct instead.'
             self.log(msg=message, level=log.LoggingLevel.Warning)
         elif hasattr(struct, 'get_struct_str'):
-            struct_str = struct.get_struct_str(dialect=self.get_dialect_name())
+            struct_str = struct.get_struct_str(dialect=self.get_dialect_type())
         else:
             raise TypeError('struct must be an instance of StructInterface or list[tuple]')
         return table_name, struct_str

@@ -3,13 +3,13 @@ from typing import Callable
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from utils.decorators import deprecated_with_alternative
-    from interfaces import StructInterface, FieldInterface, FieldType
+    from interfaces import StructInterface, FieldInterface, FieldType, DialectType
     from fields.simple_field import SimpleField
     from fields import field_type as ft
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
     from ..utils.decorators import deprecated_with_alternative
-    from ..interfaces import StructInterface, FieldInterface, FieldType
+    from ..interfaces import StructInterface, FieldInterface, FieldType, DialectType
     from .simple_field import SimpleField
     from . import field_type as ft
 
@@ -37,19 +37,19 @@ class LegacyField(SimpleField, FieldInterface):
     def get_field_type(self):
         return self.get_type_in(None)
 
-    def get_type_in(self, dialect):
+    def get_type_in(self, dialect: DialectType):
         if dialect is None:
             return self.get_type_name()
         else:
-            assert dialect in ft.DIALECTS
-            return ft.FIELD_TYPES.get(self.get_type_name(), {}).get(dialect)
+            dialect_name = arg.get_value(dialect)
+            return ft.FIELD_TYPES.get(self.get_type_name(), {}).get(dialect_name)
 
     def get_converter(self, source, target) -> Callable:
         converter_name = '{}_to_{}'.format(source, target)
         return ft.FIELD_TYPES.get(self.get_type_name(), {}).get(converter_name, str)
 
     def check_value(self, value):
-        py_type = self.get_type_in('py')
+        py_type = self.get_type_in(DialectType.Python)
         return isinstance(value, py_type)
 
     def get_tuple(self):

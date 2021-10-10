@@ -2,11 +2,13 @@ from inspect import isclass
 import json
 
 try:  # Assume we're a sub-module in a package.
-    from utils.arguments import any_to_bool, safe_converter
+    from utils.arguments import any_to_bool, safe_converter, get_value
     from utils.enum import DynamicEnum
+    from connectors.databases.dialect import DialectType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..utils.arguments import any_to_bool, safe_converter
+    from ..utils.arguments import any_to_bool, safe_converter, get_value
     from ..utils.enum import DynamicEnum
+    from ..connectors.databases.dialect import DialectType
 
 
 class FieldType(DynamicEnum):
@@ -34,12 +36,13 @@ class FieldType(DynamicEnum):
     def get_dialect_types(cls) -> dict:
         return cls._dict_dialect_types
 
-    def get_type_in_dialect(self, dialect_name: str):
+    def get_type_in_dialect(self, dialect):
         type_props = self.get_dialect_types()[self.get_value()]
-        return type_props[dialect_name]
+        dialect_value = get_value(dialect)
+        return type_props[dialect_value]
 
     def get_py_type(self):
-        return self.get_type_in_dialect(dialect_name='py')
+        return self.get_type_in_dialect(dialect='py')
 
     def isinstance(self, value) -> bool:
         py_type = self.get_py_type()
@@ -75,21 +78,19 @@ class FieldType(DynamicEnum):
 
 FieldType.prepare()
 
-
-DIALECTS = ('str', 'py', 'pg', 'ch')
 FIELD_TYPES = {
-    FieldType.Any.value: dict(py=str, pg='text', ch='String', str_to_py=str),
-    FieldType.Json.value: dict(py=dict, pg='text', ch='String', str_to_py=json.loads, py_to_str=json.dumps),
-    FieldType.Str.value: dict(py=str, pg='text', ch='String', str_to_py=str),
-    FieldType.Str16.value: dict(py=str, pg='varchar(16)', ch='FixedString(16)', str_to_py=str),
-    FieldType.Str64.value: dict(py=str, pg='varchar(64)', ch='FixedString(64)', str_to_py=str),
-    FieldType.Str256.value: dict(py=str, pg='varchar(256)', ch='FixedString(256)', str_to_py=str),
-    FieldType.Int.value: dict(py=int, pg='int', ch='Int32', str_to_py=safe_converter(int)),
-    FieldType.Float.value: dict(py=float, pg='numeric', ch='Float32', str_to_py=safe_converter(float)),
-    FieldType.IsoDate.value: dict(py=str, pg='date', ch='Date', str_to_py=str),
-    FieldType.Bool.value: dict(py=bool, pg='bool', ch='UInt8', str_to_py=any_to_bool, py_to_ch=safe_converter(int)),
-    FieldType.Tuple.value: dict(py=tuple, pg='text', str_to_py=safe_converter(eval, tuple())),
-    FieldType.Dict.value: dict(py=dict, pg='text', str_to_py=safe_converter(eval, dict())),
+    FieldType.Any: dict(py=str, pg='text', ch='String', str_to_py=str),
+    FieldType.Json: dict(py=dict, pg='text', ch='String', str_to_py=json.loads, py_to_str=json.dumps),
+    FieldType.Str: dict(py=str, pg='text', ch='String', str_to_py=str),
+    FieldType.Str16: dict(py=str, pg='varchar(16)', ch='FixedString(16)', str_to_py=str),
+    FieldType.Str64: dict(py=str, pg='varchar(64)', ch='FixedString(64)', str_to_py=str),
+    FieldType.Str256: dict(py=str, pg='varchar(256)', ch='FixedString(256)', str_to_py=str),
+    FieldType.Int: dict(py=int, pg='int', ch='Int32', str_to_py=safe_converter(int)),
+    FieldType.Float: dict(py=float, pg='numeric', ch='Float32', str_to_py=safe_converter(float)),
+    FieldType.IsoDate: dict(py=str, pg='date', ch='Date', str_to_py=str),
+    FieldType.Bool: dict(py=bool, pg='bool', ch='UInt8', str_to_py=any_to_bool, py_to_ch=safe_converter(int)),
+    FieldType.Tuple: dict(py=tuple, pg='text', str_to_py=safe_converter(eval, tuple())),
+    FieldType.Dict: dict(py=dict, pg='text', str_to_py=safe_converter(eval, dict())),
 }
 AGGR_HINTS = (None, 'id', 'cat', 'measure')
 HEURISTIC_SUFFIX_TO_TYPE = {
@@ -119,13 +120,15 @@ FieldType._dict_heuristic_suffix_to_type = HEURISTIC_SUFFIX_TO_TYPE
 FieldType._dict_dialect_types = FIELD_TYPES
 
 
-def get_canonic_type(field_type, ignore_absent=False):
+def get_canonic_type(field_type, ignore_absent: bool = False) -> FieldType:
     if isinstance(field_type, FieldType):
         return field_type
     elif field_type in FieldType.__dict__.values():
         return FieldType(field_type)
     elif field_type == 'integer':
-        return FieldType.Int
+        field_type = FieldType.Int
+        assert isinstance(field_type, FieldType)
+        return field_type
     else:
         for canonic_type, dict_names in sorted(FIELD_TYPES.items(), key=lambda i: i[0], reverse=True):
             for dialect, type_name in dict_names.items():
