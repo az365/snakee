@@ -5,13 +5,11 @@ try:  # Assume we're a sub-module in a package.
     from utils.decorators import deprecated_with_alternative
     from interfaces import StructInterface, FieldInterface, FieldType, DialectType
     from fields.simple_field import SimpleField
-    from fields import field_type as ft
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
     from ..utils.decorators import deprecated_with_alternative
     from ..interfaces import StructInterface, FieldInterface, FieldType, DialectType
     from .simple_field import SimpleField
-    from . import field_type as ft
 
 
 class LegacyField(SimpleField, FieldInterface):
@@ -35,13 +33,6 @@ class LegacyField(SimpleField, FieldInterface):
 
     def get_field_type(self):
         return self.get_type_in(None)
-
-    def get_type_in(self, dialect: DialectType):
-        if dialect is None:
-            return self.get_type_name()
-        else:
-            dialect_name = arg.get_value(dialect)
-            return ft.FIELD_TYPES.get(self.get_type(), {}).get(dialect_name)
 
     def check_value(self, value):
         py_type = self.get_type_in(DialectType.Python)
