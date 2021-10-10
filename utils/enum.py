@@ -1,5 +1,6 @@
 from inspect import isclass
-from typing import Union, Optional, Iterable, Callable, NoReturn
+from functools import total_ordering
+from typing import Type, Optional, Iterable, Callable, Union, NoReturn
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
@@ -13,6 +14,7 @@ Class = Callable
 AUX_NAMES = ('name', 'value', 'is_prepared')
 
 
+@total_ordering
 class EnumItem:
     _auto_value = True
 
@@ -67,7 +69,12 @@ class EnumItem:
         return "<{}.{}: '{}'>".format(self.__class__.__name__, self.get_name(), self.get_value())
 
     def __hash__(self):
-        return hash(str(self))
+        return hash(self.get_value())
+
+    def __lt__(self, other):
+        if hasattr(other, 'get_value'):
+            other = other.get_value()
+        return self.get_value() < other
 
 
 class DynamicEnum(EnumItem):
@@ -147,7 +154,7 @@ class DynamicEnum(EnumItem):
         cls._enum_prepared[cls.get_enum_name()] = value
 
     @classmethod
-    def prepare(cls) -> EnumItem:
+    def prepare(cls) -> Type:
         dict_copy = cls.__dict__.copy()
         for name, value in dict_copy.items():
             if isinstance(value, (str, int, arg.Auto)) and not cls._is_aux_name(name):
