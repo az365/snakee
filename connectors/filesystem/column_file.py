@@ -5,7 +5,7 @@ try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from interfaces import (
         StructInterface, Connector, LeafConnector, RegularStream, LineStream, RowStream, RecordStream, StructStream,
-        FieldType, ItemType, StreamType, FileType,
+        FieldType, ItemType, StreamType, FileType, DialectType,
         Field, Name, Item, Array, Columns,
         AUTO, Auto, AutoName, AutoCount, AutoBool, OptionalFields
     )
@@ -19,7 +19,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils import arguments as arg
     from ...interfaces import (
         StructInterface, Connector, LeafConnector, RegularStream, LineStream, RowStream, RecordStream, StructStream,
-        FieldType, ItemType, StreamType, FileType,
+        FieldType, ItemType, StreamType, FileType, DialectType,
         Field, Name, Item, Array, Columns,
         AUTO, Auto, AutoName, AutoCount, AutoBool, OptionalFields
     )
@@ -35,7 +35,6 @@ Struct = Union[StructInterface, Auto, None]
 Stream = Union[ColumnarMixin, RegularStream]
 Type = Optional[FieldType]
 Message = Union[AutoName, str, Array]
-Dialect = str
 
 CHUNK_SIZE = 8192
 EXAMPLE_STR_LEN = 12
@@ -126,7 +125,7 @@ class ColumnFile(TextFile, ColumnarMixin):
             self.set_initial_struct(struct, inplace=True)
         return self
 
-    def get_struct_str(self, dialect: Dialect = 'pg') -> str:
+    def get_struct_str(self, dialect: DialectType = DialectType.Postgres) -> str:
         return self.get_struct().get_struct_str(dialect=dialect)
 
     def _get_native_struct(self, raw_struct: Struct) -> Struct:
@@ -329,7 +328,7 @@ class ColumnFile(TextFile, ColumnarMixin):
     def get_columns(self) -> list:
         return self.get_struct().get_columns()
 
-    def get_types(self, dialect=AUTO) -> Iterable:
+    def get_types(self, dialect: DialectType = DialectType.String) -> Iterable:
         return self.get_struct().get_types(dialect)
 
     def set_types(self, dict_field_types: Optional[dict] = None, inplace: bool = False, **kwargs) -> Optional[Native]:

@@ -2,17 +2,15 @@ from typing import Optional, Iterable, Callable, Union, Any
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
-    from interfaces import ROW_SUBCLASSES, Row, Name, Field, FieldNo, FieldInterface, StructInterface
+    from interfaces import ROW_SUBCLASSES, Row, Name, Field, FieldNo, FieldInterface, StructInterface, DialectType
     from base.abstract.simple_data import SimpleDataWrapper
-    from connectors.databases import dialect as di
     from items.struct_row_interface import StructRowInterface, DEFAULT_DELIMITER
     from items.flat_struct import FlatStruct
     from items.legacy_struct import LegacyStruct
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
-    from ..interfaces import ROW_SUBCLASSES, Row, Name, Field, FieldNo, FieldInterface, StructInterface
+    from ..interfaces import ROW_SUBCLASSES, Row, Name, Field, FieldNo, FieldInterface, StructInterface, DialectType
     from ..base.abstract.simple_data import SimpleDataWrapper
-    from ..connectors.databases import dialect as di
     from .struct_row_interface import StructRowInterface, DEFAULT_DELIMITER
     from .flat_struct import FlatStruct
     from .legacy_struct import LegacyStruct
@@ -73,11 +71,15 @@ class StructRow(SimpleDataWrapper, StructRowInterface):
     def get_record(self) -> dict:
         return {k.name: v for k, v in zip(self.get_fields_descriptions(), self.get_data())}
 
-    def get_line(self, dialect='str', delimiter=DEFAULT_DELIMITER, need_quotes=False) -> str:
-        assert dialect in di.DIALECTS
+    def get_line(
+            self,
+            dialect: DialectType = DialectType.String,
+            delimiter: str = DEFAULT_DELIMITER,
+            need_quotes: bool = False,
+    ) -> str:
         list_str = list()
         for k, v in zip(self.get_fields_descriptions(), self.get_data()):
-            convert = k.get_converter('py', dialect)
+            convert = k.get_converter(DialectType.Python, dialect)
             value = convert(v)
             if need_quotes:
                 if not isinstance(value, (int, float, bool)):

@@ -3,7 +3,6 @@ from typing import Optional, Union, Any
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from interfaces import StructInterface, FieldInterface, SelectionLoggerInterface, Auto, AUTO
-    from connectors.databases import dialect as di
     from fields.field_type import FieldType
     from items.flat_struct import FlatStruct
     from fields.abstract_field import AbstractField
@@ -13,7 +12,6 @@ try:  # Assume we're a sub-module in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
     from ..interfaces import StructInterface, FieldInterface, SelectionLoggerInterface, Auto, AUTO
-    from ..connectors.databases import dialect as di
     from .field_type import FieldType
     from ..items.flat_struct import FlatStruct
     from .abstract_field import AbstractField

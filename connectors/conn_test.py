@@ -1,16 +1,16 @@
 try:  # Assume we're a sub-module in a package.
     from context import SnakeeContext
-    from items import legacy_classes as sh
+    from items.flat_struct import FlatStruct
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..context import SnakeeContext
-    from ..items import legacy_classes as sh
+    from ..items.flat_struct import FlatStruct
 
 
-def test_detect_schema_by_title_row():
+def test_detect_struct_by_title_row():
     title_row = ('page_id', 'hits_count', 'conversion_rate')
     expected = 'page_id int, hits_count int, conversion_rate numeric'
-    received = sh.detect_schema_by_title_row(title_row).get_schema_str('pg')
-    assert received == expected
+    received = FlatStruct.get_struct_detected_by_title_row(title_row).get_struct_str('pg')
+    assert received == expected, '{} != {}'.format(received, expected)
 
 
 def test_local_file():
@@ -18,13 +18,15 @@ def test_local_file():
     data = [{'a': 1}, {'a': 2}]
     cx = SnakeeContext()
     test_folder = cx.conn(cx.ct.ConnType.LocalFolder, name='test_tmp', path='test_tmp')
-    test_file = test_folder.file(file_name, schema=['a']).set_types(a=int)
+    test_file = test_folder.file(file_name, struct=['a']).set_types(a=int)
     stream = cx.sm.RecordStream(data).to_file(test_file)
-    assert stream.get_list() == data, 'test case 0'
+    received = stream.get_list()
+    assert received == data, 'test case 0: {} != {}'.format(received, data)
     cx.forget_all_conns()
-    test_file = cx.get_job_folder().file(file_name, schema=['a']).set_types(a=int)
+    test_file = cx.get_job_folder().file(file_name, struct=['a']).set_types(a=int)
     stream = cx.sm.RecordStream(data).to_file(test_file)
-    assert stream.get_list() == data, 'test case 1'
+    received = stream.get_list()
+    assert received == data, 'test case 1: {} != {}'.format(received, data)
 
 
 def test_take_credentials_from_file():
@@ -64,7 +66,7 @@ def test_job():
 
 
 def main():
-    test_detect_schema_by_title_row()
+    test_detect_struct_by_title_row()
     test_local_file()
     test_take_credentials_from_file()
     test_job()

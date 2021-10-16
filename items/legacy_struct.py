@@ -1,23 +1,13 @@
 from typing import Optional, Union, Iterable
 
 try:  # Assume we're a sub-module in a package.
-    from interfaces import (
-        StructInterface, FieldInterface,
-        Field, Name, FieldType, Array, ARRAY_TYPES,
-    )
     from utils import arguments as arg
     from utils.decorators import deprecated_with_alternative
-    from fields.field_type import get_canonic_type, HEURISTIC_SUFFIX_TO_TYPE
-    from connectors.databases import dialect as di
+    from interfaces import StructInterface, FieldInterface, DialectType, FieldType, Field, Name, Array, ARRAY_TYPES
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..interfaces import (
-        StructInterface, FieldInterface,
-        Field, Name, FieldType, Array, ARRAY_TYPES,
-    )
     from ..utils import arguments as arg
     from ..utils.decorators import deprecated_with_alternative
-    from ..fields.field_type import get_canonic_type, HEURISTIC_SUFFIX_TO_TYPE
-    from ..connectors.databases import dialect as di
+    from ..interfaces import StructInterface, FieldInterface, DialectType, FieldType, Field, Name, Array, ARRAY_TYPES
 
 
 class LegacyStruct(StructInterface):
@@ -94,14 +84,9 @@ class LegacyStruct(StructInterface):
         return self.fields_descriptions
 
     @staticmethod
-    def _detect_field_type_by_name(field_name):
-        name_parts = field_name.split('_')
-        default_type = HEURISTIC_SUFFIX_TO_TYPE[None]
-        field_type = default_type
-        for suffix in HEURISTIC_SUFFIX_TO_TYPE:
-            if suffix in name_parts:
-                field_type = HEURISTIC_SUFFIX_TO_TYPE[suffix]
-                break
+    def _detect_field_type_by_name(field_name) -> FieldType:
+        field_type = FieldType.detect_by_name(field_name)
+        assert isinstance(field_type, FieldType)
         return field_type
 
     @classmethod
@@ -122,14 +107,14 @@ class LegacyStruct(StructInterface):
     def get_fields_count(self):
         return len(self.fields_descriptions)
 
-    def get_struct_str(self, dialect='py'):
-        if dialect is not None and dialect not in di.DIALECTS:
-            dialect = di.get_dialect_for_connector(dialect)
+    def get_struct_str(self, dialect: DialectType = DialectType.String) -> str:
+        if not isinstance(dialect, DialectType):
+            dialect = DialectType.detect(dialect)
         template = '{}: {}' if dialect in ('str', 'py') else '{} {}'
         field_strings = [template.format(c.get_name(), c.get_type_in(dialect)) for c in self.get_fields()]
         return ', '.join(field_strings)
 
-    def get_schema_str(self, dialect='py'):
+    def get_schema_str(self, dialect: DialectType = DialectType.Python):
         return self.get_struct_str(dialect=dialect)
 
     def __repr__(self):
@@ -148,7 +133,9 @@ class LegacyStruct(StructInterface):
         for field_name, field_type in list((dict_field_types or {}).items()) + list(kwargs.items()):
             field_description = self.get_field_description(field_name)
             assert isinstance(field_description, FieldInterface)
-            field_description.set_type(get_canonic_type(field_type), inplace=True)
+            canonic_type = FieldType.get_canonic_type(field_type)
+            assert isinstance(canonic_type, FieldType)
+            field_description.set_type(canonic_type, inplace=True)
         if not inplace:
             return self
 

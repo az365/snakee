@@ -3,7 +3,7 @@ from typing import Optional, Union, Iterable, NoReturn
 try:  # Assume we're a sub-module in a package.
     from interfaces import (
         StructInterface, StructRowInterface, FieldInterface, SelectionLoggerInterface, ExtLogger,
-        FieldType,
+        FieldType, DialectType,
         AUTO, Auto, Name, Array, ARRAY_TYPES,
     )
     from utils import arguments as arg
@@ -11,12 +11,11 @@ try:  # Assume we're a sub-module in a package.
     from base.abstract.simple_data import SimpleDataWrapper
     from fields.advanced_field import AdvancedField
     from selection.abstract_expression import AbstractDescription
-    from connectors.databases import dialect as di
     from functions import array_functions as fs
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..interfaces import (
         StructInterface, StructRowInterface, FieldInterface, SelectionLoggerInterface, ExtLogger,
-        FieldType,
+        FieldType, DialectType,
         AUTO, Auto, Name, Array, ARRAY_TYPES,
     )
     from ..utils import arguments as arg
@@ -24,13 +23,11 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..base.abstract.simple_data import SimpleDataWrapper
     from ..fields.advanced_field import AdvancedField
     from ..selection.abstract_expression import AbstractDescription
-    from ..connectors.databases import dialect as di
     from ..functions import array_functions as fs
 
 Native = StructInterface
 Group = Union[Native, Iterable]
 StructName = Optional[Name]
-Dialect = Optional[Name]
 Field = Union[Name, dict, FieldInterface]
 Type = Union[FieldType, type, Auto]
 Comment = Union[StructName, Auto]
@@ -224,9 +221,9 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
         str_fields_count = ' + '.join(['{} {}'.format(c, t) for c, t in zip(types_count, type_names)])
         return '{} total = {} + {} other'.format(total_count, str_fields_count, other_count)
 
-    def get_struct_str(self, dialect: Dialect = 'py') -> str:
-        if dialect is not None and dialect not in di.DIALECTS:
-            dialect = di.get_dialect_for_connector(dialect)
+    def get_struct_str(self, dialect: DialectType = DialectType.Python) -> str:
+        if not isinstance(dialect, DialectType):
+            dialect = DialectType.detect(dialect)
         template = '{}: {}' if dialect in ('str', 'py') else '{} {}'
         field_strings = [template.format(c.get_name(), c.get_type_in(dialect)) for c in self.get_fields()]
         return ', '.join(field_strings)
@@ -234,7 +231,7 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
     def get_columns(self) -> list:
         return [c.get_name() for c in self.get_fields()]
 
-    def get_types(self, dialect: Dialect) -> list:
+    def get_types(self, dialect: DialectType) -> list:
         return [c.get_type_in(dialect) for c in self.get_fields()]
 
     def set_types(
@@ -278,7 +275,7 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
         columns = self.get_columns()
         return [columns.index(f) for f in names]
 
-    def get_converters(self, src: Dialect = 'str', dst: Dialect = 'py') -> tuple:
+    def get_converters(self, src: DialectType = DialectType.String, dst: DialectType = DialectType.Python) -> tuple:
         converters = list()
         for desc in self.get_fields():
             converters.append(desc.get_converter(src, dst))

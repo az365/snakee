@@ -4,7 +4,7 @@ try:  # Assume we're a sub-module in a package.
     from interfaces import (
         ConnectorInterface, ContextInterface, Context,
         TemporaryLocationInterface, TemporaryFilesMaskInterface,
-        ConnType, FolderType, FileType, Name,
+        ConnType, FolderType, FileType, DialectType, Name,
     )
     from connectors.abstract.abstract_connector import AbstractConnector
     from connectors.abstract.leaf_connector import LeafConnector
@@ -35,7 +35,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..interfaces import (
         ConnectorInterface, ContextInterface, Context,
         TemporaryLocationInterface, TemporaryFilesMaskInterface,
-        ConnType, FolderType, FileType, Name,
+        ConnType, FolderType, FileType, DialectType, Name,
     )
     from .abstract.abstract_connector import AbstractConnector
     from .abstract.leaf_connector import LeafConnector
@@ -90,8 +90,11 @@ DICT_EXT_TO_CLASS = {
     c.get_default_file_extension.__get__(c): c for c in CONN_CLASSES
     if c in FILE_CLASSES and not c.__name__.startswith('Abstract')
 }
-DICT_DB_TO_DIALECT = {PostgresDatabase.__name__: 'pg', ClickhouseDatabase.__name__: 'ch'}
-DB_CLASS_NAMES = DICT_DB_TO_DIALECT.keys()
+DICT_DB_TO_DIALECT_TYPE = {
+    PostgresDatabase.__name__: DialectType.Postgres,
+    ClickhouseDatabase.__name__: DialectType.Clickhouse,
+}
+DB_CLASS_NAMES = DICT_DB_TO_DIALECT_TYPE.keys()
 
 _context: Context = None
 _local_storage: Optional[LocalStorage] = None
@@ -143,8 +146,9 @@ def is_database(obj) -> bool:
     return isinstance(obj, AbstractDatabase) or obj.__class__.__name__ in DB_CLASS_NAMES
 
 
-def get_dialect_type(database_type) -> Optional[str]:
-    return DICT_DB_TO_DIALECT.get(ConnType(database_type).value)
+def get_dialect_type(database_type) -> Optional[DialectType]:
+    conn_type_name = ConnType(database_type).get_value()
+    return DICT_DB_TO_DIALECT_TYPE.get(conn_type_name)
 
 
 def get_type_by_ext(ext, default: ConnType = ConnType.TextFile) -> ConnType:
