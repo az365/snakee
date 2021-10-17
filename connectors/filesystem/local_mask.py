@@ -57,7 +57,3 @@ class LocalMask(LocalFolder):
 
     def list_existing_names(self) -> list:
         return list(self.yield_existing_names())
-
-
-FolderType.prepare()
-FolderType.set_dict_classes({FolderType.LocalFolder: LocalFolder, FolderType.LocalMask: LocalMask})

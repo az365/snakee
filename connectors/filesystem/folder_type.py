@@ -8,6 +8,7 @@ class FolderType(ClassType):
     LocalStorage = 'LocalStorage'
     LocalFolder = 'LocalFolder'
     LocalMask = 'LocalMask'
+    PartitionedLocalFile = 'PartitionedLocalFile'
 
     @staticmethod
     def detect_by_name(name: str):
@@ -15,3 +16,6 @@ class FolderType(ClassType):
             return FolderType.LocalMask
         else:
             return FolderType.LocalFolder
+
+
+FolderType.prepare()

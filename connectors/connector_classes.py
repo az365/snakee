@@ -16,6 +16,7 @@ try:  # Assume we're a sub-module in a package.
     from connectors.filesystem.local_file import AbstractFile, TextFile, JsonFile
     from connectors.filesystem.column_file import ColumnFile, CsvFile, TsvFile
     from connectors.filesystem.local_mask import LocalMask
+    from connectors.filesystem.partitioned_local_file import PartitionedLocalFile
     from connectors.filesystem.temporary_files import TemporaryLocation, TemporaryFilesMask
     from connectors.storages.s3_storage import AbstractObjectStorage, S3Storage
     from connectors.storages.s3_bucket import S3Bucket
@@ -49,6 +50,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .filesystem.column_file import ColumnFile, CsvFile, TsvFile
     from .filesystem.temporary_files import TemporaryLocation, TemporaryFilesMask
     from .filesystem.local_mask import LocalMask
+    from .filesystem.partitioned_local_file import PartitionedLocalFile
     from .storages.s3_storage import AbstractObjectStorage, S3Storage
     from .storages.s3_bucket import S3Bucket
     from .storages.s3_folder import S3Folder
@@ -72,7 +74,7 @@ CONN_CLASSES = (
     AbstractFolder, FlatFolder, HierarchicFolder,
     AbstractStorage,
     LocalStorage,
-    LocalFolder, LocalMask,
+    LocalFolder, LocalMask, PartitionedLocalFile,
     AbstractFile, TextFile, JsonFile, ColumnFile, CsvFile, TsvFile,
     AbstractObjectStorage, S3Storage,
     S3Bucket, S3Folder,
@@ -84,7 +86,7 @@ CONN_CLASSES = (
     TwinSync,
 )
 DICT_CONN_CLASSES = {c.__name__: c for c in CONN_CLASSES}
-FOLDER_CLASSES = (LocalFolder, LocalMask, S3Folder)
+FOLDER_CLASSES = (LocalFolder, LocalMask, PartitionedLocalFile, S3Folder)
 FOLDER_CLASS_NAMES = tuple([c.__name__ for c in FOLDER_CLASSES])
 FILE_CLASSES = tuple([c for c in CONN_CLASSES if c.__name__.endswith('File')])
 FILE_CLASS_NAMES = tuple([c.__name__ for c in FILE_CLASSES])
