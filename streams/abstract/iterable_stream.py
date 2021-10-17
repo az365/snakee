@@ -4,6 +4,9 @@ from typing import Optional, Callable, Iterable, Generator, Union
 import gc
 
 try:  # Assume we're a sub-module in a package.
+    from utils import algo, arguments as arg
+    from utils.external import pd, DataFrame, get_use_objects_for_output
+    from utils.decorators import deprecated_with_alternative
     from interfaces import (
         IterableStreamInterface,
         StreamType, LoggingLevel, JoinType, How,
@@ -11,13 +14,12 @@ try:  # Assume we're a sub-module in a package.
         AUTO, Auto, AutoName, AutoCount, Count, OptionalFields, Message, Array, UniKey,
     )
     from streams.abstract.abstract_stream import AbstractStream
-    from utils import algo, arguments as arg
-    from utils.external import pd, DataFrame, get_use_objects_for_output
-    from utils.decorators import deprecated_with_alternative
     from streams import stream_classes as sm
-    from loggers import logger_classes as log
     from functions import item_functions as fs
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
+    from ...utils import algo, arguments as arg
+    from ...utils.external import pd, DataFrame, get_use_objects_for_output
+    from ...utils.decorators import deprecated_with_alternative
     from ...interfaces import (
         IterableStreamInterface,
         StreamType, LoggingLevel, JoinType, How,
@@ -25,11 +27,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         AUTO, AutoName, AutoCount, Count, OptionalFields, Message, Array, UniKey,
     )
     from ..abstract.abstract_stream import AbstractStream
-    from ...utils import algo, arguments as arg
-    from ...utils.external import pd, DataFrame, get_use_objects_for_output
-    from ...utils.decorators import deprecated_with_alternative
     from .. import stream_classes as sm
-    from ...loggers import logger_classes as log
     from ...functions import item_functions as fs
 
 Native = IterableStreamInterface
@@ -499,7 +497,13 @@ class IterableStream(AbstractStream, IterableStreamInterface):
             message: str = 'Progress',
     ) -> Native:
         count = arg.acquire(expected_count, self.get_count()) or self.get_estimated_count()
-        items_with_logger = self.get_logger().progress(self.get_data(), name=message, count=count, step=step)
+        logger = self.get_logger()
+        if isinstance(logger, ExtLogger):
+            items_with_logger = logger.progress(self.get_data(), name=message, count=count, step=step)
+        else:
+            if logger:
+                logger.log(msg=message)
+            items_with_logger = self.get_data()
         return self.stream(items_with_logger)
 
     def get_demo_example(self, count: int = 3) -> Iterable:
@@ -524,7 +528,7 @@ class IterableStream(AbstractStream, IterableStreamInterface):
     def submit(
             self,
             external_object: Union[list, dict, Callable] = print,
-            stream_function: Union[Callable, str] = 'count',
+            stream_function: Union[Callable, str] = 'get_count',
             key: Optional[str] = None, show=False,
     ) -> Native:
         value = self.get_property(stream_function)
@@ -555,10 +559,13 @@ class IterableStream(AbstractStream, IterableStreamInterface):
         return self._assume_native(stream)
 
     def get_selection_logger(self) -> SelectionLogger:
-        if self.get_context():
-            return self.get_context().get_selection_logger()
+        context = self.get_context()
+        if context:
+            return context.get_selection_logger()
         else:
-            return log.get_selection_logger()
+            logger = self.get_logger()
+            if isinstance(logger, ExtLogger) or hasattr(logger, 'get_selection_logger'):
+                return logger.get_selection_logger()
 
     def get_dataframe(self, columns: Optional[Iterable] = None) -> DataFrame:
         if pd and get_use_objects_for_output():

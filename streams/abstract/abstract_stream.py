@@ -5,28 +5,28 @@ import gc
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
+    from utils.decorators import deprecated_with_alternative
     from interfaces import (
-        StreamInterface,
+        StreamInterface, LoggerInterface,
         StreamType, LoggingLevel,
         Stream, ExtLogger, Context, Connector, LeafConnector,
         AUTO, Auto, AutoName, OptionalFields, Message,
     )
     from base.abstract.contextual_data import ContextualDataWrapper
+    from loggers.fallback_logger import FallbackLogger
     from streams import stream_classes as sm
-    from loggers import logger_classes as log
-    from loggers.logger_classes import deprecated_with_alternative
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
+    from ...utils.decorators import deprecated_with_alternative
     from ...interfaces import (
-        StreamInterface,
+        StreamInterface, LoggerInterface,
         StreamType, LoggingLevel,
         Stream, ExtLogger, Context, Connector, LeafConnector,
         AUTO, Auto, AutoName, OptionalFields, Message,
     )
     from ...base.abstract.contextual_data import ContextualDataWrapper
+    from ...loggers.fallback_logger import FallbackLogger
     from .. import stream_classes as sm
-    from ...loggers import logger_classes as log
-    from ...loggers.logger_classes import deprecated_with_alternative
 
 Native = StreamInterface
 
@@ -156,18 +156,19 @@ class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
         if return_stream:
             return connector.to_stream(verbose=verbose).update_meta(**self.get_meta())
 
-    def get_logger(self, skip_missing: bool = True) -> ExtLogger:
-        if self.get_context():
-            logger = self.get_context().get_logger(create_if_not_yet=skip_missing)
+    def get_logger(self, skip_missing: bool = True) -> LoggerInterface:
+        context = self.get_context()
+        if context:
+            logger = context.get_logger(create_if_not_yet=skip_missing)
         else:
             logger = None
         if not logger:
-            logger = log.get_logger()
+            return FallbackLogger()
         return logger
 
     def log(
             self, msg: Message, level: LoggingLevel = AUTO,
-            end: str = AUTO, truncate: bool = True, force: bool = True, verbose: bool = True,
+            end: str = AUTO, truncate: bool = True, force: bool = False, verbose: bool = True,
     ):
         logger = self.get_logger()
         if logger:
