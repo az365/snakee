@@ -13,7 +13,7 @@ try:  # Assume we're a sub-module in a package.
     from connectors.abstract.abstract_storage import AbstractStorage
     from connectors.filesystem.local_storage import LocalStorage
     from connectors.filesystem.local_folder import LocalFolder
-    from connectors.filesystem.local_file import AbstractFile, TextFile, JsonFile
+    from connectors.filesystem.local_file import StreamFileMixin, AbstractFile, TextFile, JsonFile
     from connectors.filesystem.column_file import ColumnFile, CsvFile, TsvFile
     from connectors.filesystem.local_mask import LocalMask
     from connectors.filesystem.partitioned_local_file import PartitionedLocalFile
@@ -46,7 +46,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .abstract.abstract_storage import AbstractStorage
     from .filesystem.local_storage import LocalStorage
     from .filesystem.local_folder import LocalFolder
-    from .filesystem.local_file import AbstractFile, TextFile, JsonFile
+    from .filesystem.local_file import StreamFileMixin, AbstractFile, TextFile, JsonFile
     from .filesystem.column_file import ColumnFile, CsvFile, TsvFile
     from .filesystem.temporary_files import TemporaryLocation, TemporaryFilesMask
     from .filesystem.local_mask import LocalMask
