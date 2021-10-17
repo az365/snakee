@@ -100,12 +100,12 @@ class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
             raise TypeError('property name must be function, meta-field or attribute name')
         return value
 
-    def get_calc(self, function: Callable, *args, **kwargs) -> Any:
+    def _get_calc(self, function: Callable, *args, **kwargs) -> Any:
         return function(self.get_data(), *args, **kwargs)
 
     def apply_to_data(self, function: Callable, dynamic=False, *args, **kwargs) -> Native:
         return self.stream(  # can be file
-            self.get_calc(function, *args, **kwargs),
+            self._get_calc(function, *args, **kwargs),
             ex=self._get_dynamic_meta_fields() if dynamic else None,
         )
 

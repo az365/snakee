@@ -74,7 +74,7 @@ class LocalStream(IterableStream, LocalStreamInterface):
 
     def apply_to_data(self, function: Callable, dynamic: bool = False, *args, **kwargs):
         return self.stream(  # can be file
-            self.get_calc(function, *args, **kwargs),
+            self._get_calc(function, *args, **kwargs),
             ex=self._get_dynamic_meta_fields() if dynamic else None,
         )
 
