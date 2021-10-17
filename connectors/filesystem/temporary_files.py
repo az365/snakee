@@ -52,7 +52,7 @@ class TemporaryLocation(ct.LocalFolder, TemporaryLocationInterface):
         return self.stream_mask(mask)
 
     def stream_mask(self, stream_or_name: Union[StreamInterface, Name], *args, **kwargs) -> ConnectorInterface:
-        if isinstance(stream_or_name, str):
+        if isinstance(stream_or_name, (str, int)):
             name = stream_or_name
             context = self.get_context()
             stream = context.get_stream(name) if context else None
@@ -78,7 +78,7 @@ class TemporaryLocation(ct.LocalFolder, TemporaryLocationInterface):
         return count
 
 
-class TemporaryFilesMask(ct.FileMask, TemporaryFilesMaskInterface):
+class TemporaryFilesMask(ct.LocalMask, TemporaryFilesMaskInterface):
     def __init__(
             self,
             name: Name,

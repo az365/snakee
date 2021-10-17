@@ -7,11 +7,11 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 class FolderType(ClassType):
     LocalStorage = 'LocalStorage'
     LocalFolder = 'LocalFolder'
-    FileMask = 'FileMask'
+    LocalMask = 'LocalMask'
 
     @staticmethod
     def detect_by_name(name: str):
         if '*' in name:
-            return FolderType.FileMask
+            return FolderType.LocalMask
         else:
             return FolderType.LocalFolder

@@ -1,5 +1,4 @@
 import os
-import fnmatch
 from typing import Type, Optional, Iterable, Union
 
 try:  # Assume we're a sub-module in a package.
@@ -80,7 +79,7 @@ class LocalFolder(HierarchicFolder):
     @staticmethod
     def get_type_by_name(name: str) -> Union[FileType, FolderType, str]:
         if '*' in name:
-            return FolderType.FileMask
+            return FolderType.LocalMask
         else:
             return FileType.detect_by_name(name)
 
@@ -121,7 +120,7 @@ class LocalFolder(HierarchicFolder):
         return folder_obj
 
     def mask(self, mask: str) -> ConnectorInterface:
-        folder_type = FolderType.FileMask
+        folder_type = FolderType.LocalMask
         assert isinstance(folder_type, FolderType)
         return self.folder(mask, folder_type)
 
@@ -217,51 +216,3 @@ class LocalFolder(HierarchicFolder):
             return files
         else:
             return self
-
-
-class FileMask(LocalFolder):
-    def __init__(
-            self,
-            mask: str,
-            parent: HierarchicConnector,
-            context: AutoContext = None,
-            verbose: AutoBool = AUTO,
-    ):
-        if not arg.is_defined(parent):
-            if arg.is_defined(context):
-                parent = context.get_local_storage()
-        assert parent.is_folder() or parent.is_storage()
-        super().__init__(path=mask, parent=parent, context=context, verbose=verbose)
-
-    def get_mask(self) -> str:
-        return self.get_name()
-
-    def get_folder(self, skip_missing: bool = False) -> HierarchicFolder:
-        parent = self.get_parent()
-        if not skip_missing:
-            assert isinstance(parent, HierarchicFolder)
-        return parent
-
-    def get_folder_path(self) -> str:
-        return self.get_folder().get_path()
-
-    def get_mask_path(self) -> str:
-        return self.get_folder_path() + self.get_path_delimiter() + self.get_mask()
-
-    def get_path(self, with_mask: bool = True) -> str:
-        if with_mask:
-            return self.get_mask_path()
-        else:
-            return self.get_folder_path()
-
-    def yield_existing_names(self) -> Iterable:
-        for name in self.get_folder().list_existing_names():
-            if fnmatch.fnmatch(name, self.get_mask()):
-                yield name
-
-    def list_existing_names(self) -> list:
-        return list(self.yield_existing_names())
-
-
-FolderType.prepare()
-FolderType.set_dict_classes({FolderType.LocalFolder: LocalFolder, FolderType.FileMask: FileMask})
