@@ -3,17 +3,19 @@ import gc
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
-    from interfaces import StreamInterface, Stream, StreamType, ItemType, JoinType, How, OptionalFields, Auto, AUTO
-    from streams import stream_classes as sm
-    from functions import item_functions as fs
+    from interfaces import (
+        StreamInterface, Stream, StreamBuilderInterface,
+        StreamType, ItemType, JoinType, How, OptionalFields, Auto, AUTO,
+    )
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
-    from ..interfaces import StreamInterface, Stream, StreamType, ItemType, JoinType, How, OptionalFields, Auto, AUTO
-    from . import stream_classes as sm
-    from ..functions import item_functions as fs
+    from ..interfaces import (
+        StreamInterface, Stream, StreamBuilderInterface,
+        StreamType, ItemType, JoinType, How, OptionalFields, Auto, AUTO,
+    )
 
 
-class StreamBuilder:
+class StreamBuilder(StreamBuilderInterface):
     _dict_classes = dict()
     _stream_types = StreamType
 

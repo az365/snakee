@@ -8,9 +8,10 @@ TMP_FILES_ENCODING = 'utf8'
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
+    from utils.decorators import deprecated_with_alternative
     from interfaces import (
         StreamInterface, IterableStreamInterface, LocalStreamInterface, RegularStreamInterface, PairStreamInterface,
-        ContextInterface, TemporaryLocationInterface, TemporaryFilesMaskInterface,
+        StreamBuilderInterface, ContextInterface, TemporaryLocationInterface, TemporaryFilesMaskInterface,
         StreamType, ItemType, JoinType, How, Auto, AUTO,
     )
     from streams.abstract.abstract_stream import AbstractStream
@@ -29,13 +30,13 @@ try:  # Assume we're a sub-module in a package.
     from streams.wrappers.sql_stream import SqlStream
     from streams.stream_builder import StreamBuilder
     from connectors.filesystem.temporary_files import TemporaryLocation
-    from items import legacy_classes as sh
-    from utils.decorators import deprecated_with_alternative
+    from items import struct_row as sr
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
+    from ..utils.decorators import deprecated_with_alternative
     from ..interfaces import (
         StreamInterface, IterableStreamInterface, LocalStreamInterface, RegularStreamInterface, PairStreamInterface,
-        ContextInterface, TemporaryLocationInterface, TemporaryFilesMaskInterface,
+        StreamBuilderInterface, ContextInterface, TemporaryLocationInterface, TemporaryFilesMaskInterface,
         StreamType, ItemType, JoinType, How, Auto, AUTO,
     )
     from .abstract.abstract_stream import AbstractStream
@@ -54,8 +55,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .wrappers.sql_stream import SqlStream
     from .stream_builder import StreamBuilder
     from ..connectors.filesystem.temporary_files import TemporaryLocation
-    from ..items import legacy_classes as sh
-    from ..utils.decorators import deprecated_with_alternative
+    from ..items import struct_row as sr
 
 STREAM_CLASSES = (
     AbstractStream, IterableStream,
@@ -135,7 +135,7 @@ def is_record(item) -> bool:
 
 
 def is_struct_row(item) -> bool:
-    return isinstance(item, sh.StructRow)
+    return isinstance(item, sr.StructRow)
 
 
 @deprecated_with_alternative('AbstractStream.generate_name()')
@@ -153,7 +153,9 @@ def get_tmp_mask(name: str) -> TemporaryFilesMaskInterface:
     else:
         location = TemporaryLocation()
     assert isinstance(location, TemporaryLocation), 'got {}'.format(type(location))
-    return location.mask(name)
+    tmp_mask = location.mask(name)
+    assert isinstance(tmp_mask, TemporaryFilesMaskInterface)
+    return tmp_mask
 
 
 def concat(*iter_streams, context=AUTO) -> StreamInterface:

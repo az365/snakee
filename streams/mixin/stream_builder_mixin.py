@@ -1,72 +1,33 @@
-from abc import ABC, abstractmethod
-from typing import Union, Iterable, Callable, Any, Optional
+from abc import ABC
+from typing import Union, Iterable, Callable, Any
 from inspect import isclass
 
 try:  # Assume we're a sub-module in a package.
-    from utils import (
-        arguments as arg,
-        numeric as nm,
-        algo,
-    )
-    from items.item_type import ItemType
-    from streams import stream_classes as sm
-    from streams.interfaces.abstract_stream_interface import StreamInterface
-    from functions import item_functions as fs
+    from utils import arguments as arg
+    from interfaces import Stream, StreamBuilderInterface, StreamType, ItemType, OptionalFields
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import (
-        arguments as arg,
-        numeric as nm,
-        algo,
-    )
-    from ...items.item_type import ItemType
-    from .. import stream_classes as sm
-    from ..interfaces.abstract_stream_interface import StreamInterface
-    from ...functions import item_functions as fs
-
-Stream = Union[StreamInterface, Any]
-OptionalStreamType = Union[Any, arg.Auto]
-OptionalFields = Union[Iterable, str, None]
-
-
-class StreamBuilderInterface(StreamInterface, ABC):
-    @classmethod
-    @abstractmethod
-    def get_stream_type(cls) -> OptionalStreamType:
-        pass
-
-    @abstractmethod
-    def stream(
-            self,
-            data: Iterable,
-            stream_type: OptionalStreamType = arg.AUTO,
-            ex: OptionalFields = None,
-            **kwargs
-    ) -> Stream:
-        pass
-
-    @abstractmethod
-    def get_compatible_meta(self, other=arg.AUTO, ex: OptionalFields = None, **kwargs) -> dict:
-        pass
+    from ...utils import arguments as arg
+    from ...interfaces import Stream, StreamBuilderInterface, StreamType, ItemType, OptionalFields
 
 
 class StreamBuilderMixin(StreamBuilderInterface, ABC):
     def stream(
             self,
             data: Iterable,
-            stream_type: Union[OptionalStreamType, StreamInterface, arg.Auto] = arg.AUTO,
+            stream_type: Union[StreamType, Stream, arg.Auto] = arg.AUTO,
             ex: OptionalFields = None,
             **kwargs
     ) -> Stream:
         stream_type = arg.acquire(stream_type, self.get_stream_type())
         if isinstance(stream_type, str):
-            stream_class = sm.StreamType(stream_type).get_class()
+            stream_class = StreamType(stream_type).get_class()
         elif isclass(stream_type):
             stream_class = stream_type
         else:
             stream_class = stream_type.get_class()
         meta = self.get_compatible_meta(stream_class, ex=ex)
         meta.update(kwargs)
-        return sm.StreamType.of(stream_type).stream(data, **meta)
+        return StreamType.of(stream_type).stream(data, **meta)
 
     def get_calc(self, function: Callable, *args, **kwargs) -> Any:
         return function(self.get_data(), *args, **kwargs)
@@ -83,7 +44,9 @@ class StreamBuilderMixin(StreamBuilderInterface, ABC):
         )
 
     def get_demo_example(self, count=3) -> Iterable:
-        yield from self.take(count).get_items()
+        stream = self.take(count)
+        assert isinstance(stream, Stream)
+        yield from stream.get_items()
         source = self.get_source()
         if hasattr(source, 'close'):
             source.close()
