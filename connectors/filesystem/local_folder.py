@@ -124,13 +124,30 @@ class LocalFolder(HierarchicFolder):
         assert isinstance(folder_type, FolderType)
         return self.folder(mask, folder_type)
 
+    def partitioned(self, mask: str, suffix: Optional[str] = None) -> ConnectorInterface:
+        folder_type = FolderType.PartitionedLocalFile
+        partitioned_local_file = self.folder(mask, folder_type=folder_type)
+        if suffix:
+            if hasattr(partitioned_local_file, 'set_suffix'):  # isinstance(partitioned_local_file, PartitionedFile)
+                partitioned_local_file.set_suffix(suffix)
+            else:
+                raise TypeError
+        return partitioned_local_file
+
     def add_file(self, file: File, inplace: bool = True):
         assert file.is_leaf(), 'file must be an instance of *File (got {})'.format(type(file))
         return super().add_child(file, inplace=inplace)
 
-    def add_folder(self, folder: HierarchicFolder):
+    def add_folder(self, folder: HierarchicFolder, inplace: bool = True):
         assert folder.is_folder()
-        super().add_child(folder)
+        return super().add_child(folder, inplace=inplace)
+
+    def set_suffix(self, suffix, inplace: bool = True):
+        assert inplace, 'for LocalFolder suffixes can be set inplace only'
+        for child in self.get_children().values():
+            if hasattr(child, 'set_suffix'):
+                child.set_suffix(suffix, inplace=True)
+        return self
 
     def get_links(self) -> Iterable:
         for item in self.get_files():
