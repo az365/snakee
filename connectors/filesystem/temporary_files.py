@@ -7,6 +7,7 @@ try:  # Assume we're a sub-module in a package.
         Context, Stream, Connector, TmpFiles,
         AUTO, Auto, AutoBool, Name, Source,
     )
+    from connectors.filesystem.local_mask import LocalFolder, LocalMask
     from connectors import connector_classes as ct
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg, algo
@@ -15,8 +16,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         Context, Stream, Connector, TmpFiles,
         AUTO, Auto, AutoBool, Name, Source,
     )
+    from .local_mask import LocalFolder, LocalMask
     from .. import connector_classes as ct
-
 
 DEFAULT_FOLDER = 'tmp'
 DEFAULT_MASK = 'stream_{}_part{}.tmp'
@@ -24,7 +25,7 @@ PART_PLACEHOLDER = '{:03}'
 DEFAULT_ENCODING = 'utf8'
 
 
-class TemporaryLocation(ct.LocalFolder, TemporaryLocationInterface):
+class TemporaryLocation(LocalFolder, TemporaryLocationInterface):
     def __init__(
             self,
             path: Name = DEFAULT_FOLDER,
@@ -52,7 +53,7 @@ class TemporaryLocation(ct.LocalFolder, TemporaryLocationInterface):
         return self.stream_mask(mask)
 
     def stream_mask(self, stream_or_name: Union[StreamInterface, Name], *args, **kwargs) -> ConnectorInterface:
-        if isinstance(stream_or_name, str):
+        if isinstance(stream_or_name, (str, int)):
             name = stream_or_name
             context = self.get_context()
             stream = context.get_stream(name) if context else None
@@ -78,7 +79,7 @@ class TemporaryLocation(ct.LocalFolder, TemporaryLocationInterface):
         return count
 
 
-class TemporaryFilesMask(ct.FileMask, TemporaryFilesMaskInterface):
+class TemporaryFilesMask(LocalMask, TemporaryFilesMaskInterface):
     def __init__(
             self,
             name: Name,

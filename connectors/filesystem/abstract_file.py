@@ -7,30 +7,33 @@ import gzip as gz
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg, dates as dt
     from interfaces import (
-        Context, Connector, ConnectorInterface, Stream, RegularStream, ItemType, StreamType,
+        Context, Connector, ConnectorInterface, IterableStreamInterface, ItemType, StreamType,
         AUTO, Auto, AutoName, AutoCount, AutoBool, AutoConnector, OptionalFields,
     )
     from connectors.abstract.leaf_connector import LeafConnector
+    from connectors.mixin.stream_file_mixin import StreamFileMixin
     from streams.mixin.stream_builder_mixin import StreamBuilderMixin
-    from streams import stream_classes as sm
+    from streams.mixin.iterable_mixin import IterableStreamMixin
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg, dates as dt
     from ...interfaces import (
-        Context, Connector, ConnectorInterface, Stream, RegularStream, ItemType, StreamType,
+        Context, Connector, ConnectorInterface, IterableStreamInterface, ItemType, StreamType,
         AUTO, Auto, AutoName, AutoCount, AutoBool, AutoConnector, OptionalFields,
     )
     from ..abstract.leaf_connector import LeafConnector
+    from ..mixin.stream_file_mixin import StreamFileMixin
     from ...streams.mixin.stream_builder_mixin import StreamBuilderMixin
-    from ...streams import stream_classes as sm
+    from ...streams.mixin.iterable_mixin import IterableStreamMixin
 
-Native = LeafConnector
+Stream = IterableStreamInterface
+Native = Union[LeafConnector, Stream]
 
 CHUNK_SIZE = 8192
 LOGGING_LEVEL_INFO = 20
 LOGGING_LEVEL_WARN = 30
 
 
-class AbstractFile(LeafConnector, StreamBuilderMixin, ABC):
+class AbstractFile(LeafConnector, StreamFileMixin, ABC):
     def __init__(self, name: str, folder: Connector = None, context: Context = AUTO, verbose: AutoBool = AUTO):
         if folder:
             message = 'only LocalFolder supported for *File instances (got {})'.format(type(folder))
@@ -64,18 +67,6 @@ class AbstractFile(LeafConnector, StreamBuilderMixin, ABC):
     @staticmethod
     def get_default_file_extension() -> str:
         pass
-
-    @staticmethod
-    def get_default_item_type() -> ItemType:
-        return ItemType.Any
-
-    @classmethod
-    def get_stream_type(cls):
-        return sm.StreamType.AnyStream
-
-    @classmethod
-    def get_stream_class(cls):
-        return cls.get_stream_type().get_class()
 
     def is_directly_in_parent_folder(self) -> bool:
         return self.get_path_delimiter() in self.get_name()
@@ -206,49 +197,6 @@ class AbstractFile(LeafConnector, StreamBuilderMixin, ABC):
         else:
             return dt.get_current_time_str()
 
-    def _get_generated_stream_name(self) -> str:
-        return arg.get_generated_name('{}:stream'.format(self.get_name()), include_random=True, include_datetime=False)
-
-    @abstractmethod
-    def from_stream(self, stream: Stream, verbose: bool = True) -> Native:
-        pass
-
-    def to_stream(
-            self,
-            data: Union[Iterable, Auto] = AUTO, name: AutoName = AUTO,
-            stream_type: Union[StreamType, Auto] = AUTO, ex: OptionalFields = None,
-            **kwargs
-    ) -> Stream:
-        stream_type = arg.delayed_acquire(stream_type, self.get_stream_type)
-        name = arg.delayed_acquire(name, self._get_generated_stream_name)
-        if not arg.is_defined(data):
-            data = self.get_data()
-        if isinstance(stream_type, str):
-            stream_class = sm.StreamType(stream_type).get_class()
-        elif isclass(stream_type):
-            stream_class = stream_type
-        else:
-            stream_class = stream_type.get_class()
-        meta = self.get_compatible_meta(stream_class, name=name, ex=ex, **kwargs)
-        if 'count' not in meta:
-            meta['count'] = self.get_count()
-        if 'source' not in meta:
-            meta['source'] = self
-        return stream_class(data, **meta)
-
-    def add_stream(self, stream: Stream, **kwargs) -> Stream:
-        stream = self.to_stream(**kwargs).add_stream(stream)
-        return self._assume_stream(stream)
-
-    def collect(self, skip_missing: bool = False, **kwargs) -> Stream:
-        if self.is_existing():
-            stream = self.to_stream(**kwargs).collect()
-        elif skip_missing:
-            stream = self.get_stream_class()([])
-        else:
-            raise FileNotFoundError('File {} not found'.format(self.get_name()))
-        return self._assume_stream(stream)
-
     @abstractmethod
     def get_count(self, allow_reopen: bool = True, allow_slow_gzip: bool = True, force: bool = False) -> Optional[int]:
         pass
@@ -257,25 +205,6 @@ class AbstractFile(LeafConnector, StreamBuilderMixin, ABC):
         count = self.get_count(allow_slow_gzip=False) or 0
         return count <= 0
 
-    def stream(
-            self, data: Union[Iterable, Auto] = AUTO,
-            stream_type: Union[StreamType, Auto] = AUTO,
-            ex: OptionalFields = None,
-            **kwargs
-    ) -> Stream:
-        return self.to_stream(data, stream_type=stream_type, ex=ex, **kwargs)
-
-    def map(self, function: Callable) -> Stream:
-        return self.stream(
-            map(function, self.get_items()),
-        )
-
-    def filter(self, function: Callable) -> Stream:
-        return self.stream(
-            filter(function, self.get_items()),
-            count=None,
-        )
-
     def is_in_memory(self) -> bool:
         return False
 
@@ -283,9 +212,11 @@ class AbstractFile(LeafConnector, StreamBuilderMixin, ABC):
     def is_file() -> bool:
         return True
 
-    @staticmethod
-    def _assume_stream(obj) -> Stream:
-        return obj
+    def is_verbose(self) -> bool:
+        return self.verbose
+
+    def get_children(self) -> dict:
+        return self._data
 
 
 class TextFile(AbstractFile):
@@ -319,9 +250,9 @@ class TextFile(AbstractFile):
 
     @classmethod
     def get_stream_type(cls):
-        return sm.StreamType.LineStream
+        return StreamType.LineStream
 
-    def get_data(self, verbose: AutoBool = AUTO, *args, **kwargs) -> Iterable:
+    def get_stream_data(self, verbose: AutoBool = AUTO, *args, **kwargs) -> Iterable:
         return self.get_items(verbose=verbose, *args, **kwargs)
 
     def is_gzip(self) -> bool:
@@ -450,7 +381,7 @@ class TextFile(AbstractFile):
     def get_stream(self, to=AUTO, verbose: AutoBool = AUTO) -> Stream:
         to = arg.acquire(to, self.get_stream_type())
         return self.to_stream_class(
-            stream_class=sm.StreamType(to).get_class(),
+            stream_class=StreamType(to).get_class(),
             verbose=verbose,
         )
 
@@ -477,10 +408,10 @@ class TextFile(AbstractFile):
     def to_line_stream(self, step: AutoCount = AUTO, verbose: AutoBool = AUTO, **kwargs) -> Stream:
         data = self.get_lines(step=step, verbose=verbose)
         stream_kwargs = self.get_stream_kwargs(data=data, step=step, verbose=verbose, **kwargs)
-        return sm.LineStream(**stream_kwargs)
+        return StreamType.LineStream.stream(**stream_kwargs)
 
     def to_any_stream(self, **kwargs) -> Stream:
-        return sm.AnyStream(
+        return StreamType.AnyStream.stream(
             **self.get_stream_kwargs(**kwargs)
         )
 
@@ -501,30 +432,31 @@ class TextFile(AbstractFile):
     def write_stream(self, stream: Stream, verbose: AutoBool = AUTO) -> Native:
         if hasattr(stream, 'to_line_stream'):
             return self.write_lines(
-                stream.to_line_stream().get_data(),
+                stream.to_line_stream().get_items(),
                 verbose=verbose,
             )
         else:
             raise TypeError('stream-argument must be a Stream (got {})'.format(stream))
 
     def from_stream(self, stream: Stream, verbose: bool = True) -> Native:
-        assert isinstance(stream, sm.LineStream)
+        assert stream.get_stream_type() == StreamType.LineStream
         return self.write_lines(stream.get_iter(), verbose=verbose)
 
-    def skip(self, count: int) -> Stream:
+    def skip(self, count: int = 1) -> Stream:
         stream = self.to_line_stream().skip(count)
         return self._assume_stream(stream)
 
-    def take(self, count: int) -> Stream:
+    def take(self, count: int = 10) -> Stream:
         stream = self.to_line_stream().take(count)
         return self._assume_stream(stream)
 
     def apply_to_data(self, function: Callable, *args, dynamic: bool = False, **kwargs) -> Stream:
-        return self.stream(  # can be file
-            function(self.get_data(), *args, **kwargs),
+        stream = self.stream(  # can be file
+            function(self.get_items(), *args, **kwargs),
         ).set_meta(
             **self.get_static_meta() if dynamic else self.get_meta()
         )
+        return self._assume_stream(stream)
 
     def _get_demo_example(self, count: int = 10, filters: Optional[list] = None) -> Optional[Iterable]:
         if self.is_existing():
@@ -572,6 +504,29 @@ class TextFile(AbstractFile):
                 self.log(line)
         return self
 
+    def to_stream(
+            self,
+            data: Union[Iterable, Auto] = AUTO, name: AutoName = AUTO,
+            stream_type: Union[StreamType, Auto] = AUTO, ex: OptionalFields = None,
+            **kwargs
+    ) -> Stream:
+        stream_type = arg.delayed_acquire(stream_type, self.get_stream_type)
+        name = arg.delayed_acquire(name, self._get_generated_stream_name)
+        if not arg.is_defined(data):
+            data = self.get_items()
+        if isinstance(stream_type, str):
+            stream_class = StreamType(stream_type).get_class()
+        elif isclass(stream_type):
+            stream_class = stream_type
+        else:
+            stream_class = stream_type.get_class()
+        meta = self.get_compatible_meta(stream_class, name=name, ex=ex, **kwargs)
+        if 'count' not in meta:
+            meta['count'] = self.get_count()
+        if 'source' not in meta:
+            meta['source'] = self
+        return stream_class(data, **meta)
+
 
 class JsonFile(TextFile):
     def __init__(
@@ -606,7 +561,7 @@ class JsonFile(TextFile):
 
     @classmethod
     def get_stream_type(cls):
-        return sm.StreamType.AnyStream
+        return StreamType.AnyStream
 
     def get_items(self, verbose: AutoBool = AUTO, step: AutoCount = AUTO) -> Iterable:
         stream = self.to_line_stream(verbose=verbose)
@@ -616,7 +571,7 @@ class JsonFile(TextFile):
             raise NotImplementedError
 
     def to_record_stream(self, verbose: AutoBool = AUTO, **kwargs) -> Stream:
-        return sm.RecordStream(
+        return StreamType.RecordStream.stream(
             self.get_items(verbose=verbose),
             count=self.get_count(),
             source=self,
@@ -626,7 +581,7 @@ class JsonFile(TextFile):
 
     def write_stream(self, stream: Stream, verbose: AutoBool = AUTO) -> Native:
         if hasattr(stream, 'to_json'):
-            stream = stream.to_json().get_data()
+            lines = stream.to_json().get_items()
         else:
             raise TypeError('for write to json-file stream must support .to_json() method (got {})'.format(stream))
-        return self.write_lines(stream, verbose=verbose)
+        return self.write_lines(lines, verbose=verbose)

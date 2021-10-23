@@ -1,5 +1,4 @@
 import os
-import fnmatch
 from typing import Type, Optional, Iterable, Union
 
 try:  # Assume we're a sub-module in a package.
@@ -12,7 +11,7 @@ try:  # Assume we're a sub-module in a package.
     from connectors.abstract.hierarchic_connector import HierarchicConnector
     from connectors.abstract.leaf_connector import LeafConnector
     from connectors.abstract.abstract_folder import HierarchicFolder
-    from connectors.filesystem.local_file import TextFile
+    from connectors.filesystem.text_file import TextFile
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...interfaces import (
@@ -23,7 +22,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..abstract.hierarchic_connector import HierarchicConnector
     from ..abstract.leaf_connector import LeafConnector
     from ..abstract.abstract_folder import HierarchicFolder
-    from .local_file import TextFile
+    from .text_file import TextFile
 
 File = LeafConnector
 Parent = Union[HierarchicConnector, ConnectorInterface, Auto]
@@ -80,7 +79,7 @@ class LocalFolder(HierarchicFolder):
     @staticmethod
     def get_type_by_name(name: str) -> Union[FileType, FolderType, str]:
         if '*' in name:
-            return FolderType.FileMask
+            return FolderType.LocalMask
         else:
             return FileType.detect_by_name(name)
 
@@ -121,17 +120,34 @@ class LocalFolder(HierarchicFolder):
         return folder_obj
 
     def mask(self, mask: str) -> ConnectorInterface:
-        folder_type = FolderType.FileMask
+        folder_type = FolderType.LocalMask
         assert isinstance(folder_type, FolderType)
         return self.folder(mask, folder_type)
+
+    def partitioned(self, mask: str, suffix: Optional[str] = None) -> ConnectorInterface:
+        folder_type = FolderType.PartitionedLocalFile
+        partitioned_local_file = self.folder(mask, folder_type=folder_type)
+        if suffix:
+            if hasattr(partitioned_local_file, 'set_suffix'):  # isinstance(partitioned_local_file, PartitionedFile)
+                partitioned_local_file.set_suffix(suffix)
+            else:
+                raise TypeError
+        return partitioned_local_file
 
     def add_file(self, file: File, inplace: bool = True):
         assert file.is_leaf(), 'file must be an instance of *File (got {})'.format(type(file))
         return super().add_child(file, inplace=inplace)
 
-    def add_folder(self, folder: HierarchicFolder):
+    def add_folder(self, folder: HierarchicFolder, inplace: bool = True):
         assert folder.is_folder()
-        super().add_child(folder)
+        return super().add_child(folder, inplace=inplace)
+
+    def set_suffix(self, suffix, inplace: bool = True):
+        assert inplace, 'for LocalFolder suffixes can be set inplace only'
+        for child in self.get_children().values():
+            if hasattr(child, 'set_suffix'):
+                child.set_suffix(suffix, inplace=True)
+        return self
 
     def get_links(self) -> Iterable:
         for item in self.get_files():
@@ -217,51 +233,3 @@ class LocalFolder(HierarchicFolder):
             return files
         else:
             return self
-
-
-class FileMask(LocalFolder):
-    def __init__(
-            self,
-            mask: str,
-            parent: HierarchicConnector,
-            context: AutoContext = None,
-            verbose: AutoBool = AUTO,
-    ):
-        if not arg.is_defined(parent):
-            if arg.is_defined(context):
-                parent = context.get_local_storage()
-        assert parent.is_folder() or parent.is_storage()
-        super().__init__(path=mask, parent=parent, context=context, verbose=verbose)
-
-    def get_mask(self) -> str:
-        return self.get_name()
-
-    def get_folder(self, skip_missing: bool = False) -> HierarchicFolder:
-        parent = self.get_parent()
-        if not skip_missing:
-            assert isinstance(parent, HierarchicFolder)
-        return parent
-
-    def get_folder_path(self) -> str:
-        return self.get_folder().get_path()
-
-    def get_mask_path(self) -> str:
-        return self.get_folder_path() + self.get_path_delimiter() + self.get_mask()
-
-    def get_path(self, with_mask: bool = True) -> str:
-        if with_mask:
-            return self.get_mask_path()
-        else:
-            return self.get_folder_path()
-
-    def yield_existing_names(self) -> Iterable:
-        for name in self.get_folder().list_existing_names():
-            if fnmatch.fnmatch(name, self.get_mask()):
-                yield name
-
-    def list_existing_names(self) -> list:
-        return list(self.yield_existing_names())
-
-
-FolderType.prepare()
-FolderType.set_dict_classes({FolderType.LocalFolder: LocalFolder, FolderType.FileMask: FileMask})

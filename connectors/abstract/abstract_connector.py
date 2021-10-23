@@ -5,12 +5,12 @@ try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from interfaces import Connector, ConnectorInterface, LoggerInterface, ExtendedLoggerInterface, AutoContext
     from base.abstract.tree_item import TreeItem
-    from loggers import logger_classes as log
+    from loggers.fallback_logger import FallbackLogger
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...interfaces import Connector, ConnectorInterface, LoggerInterface, ExtendedLoggerInterface, AutoContext
     from ...base.abstract.tree_item import TreeItem
-    from ...loggers import logger_classes as log
+    from ...loggers.fallback_logger import FallbackLogger
 
 Logger = Union[LoggerInterface, ExtendedLoggerInterface]
 
@@ -41,7 +41,7 @@ class AbstractConnector(TreeItem, ConnectorInterface, ABC):
         if logger:
             return logger
         elif create_if_not_yet:
-            return log.get_logger()
+            return FallbackLogger()
 
     def log(self, msg: str, level=arg.AUTO, end: Union[str, arg.Auto] = arg.AUTO, verbose: bool = True):
         logger = self.get_logger()

@@ -163,17 +163,6 @@ class StreamInterface(SourcedInterface, ABC):
         pass
 
     @abstractmethod
-    def get_calc(self, function: Callable, *args, **kwargs) -> Any:
-        """Applies function to data, returns result value (not stream, unlike apply_to_data method).
-
-        :param function: function receiving internal data object as first argument
-        :param args, kwargs: additional args and kwargs for function
-
-        :returns: resulting value of function
-        """
-        pass
-
-    @abstractmethod
     def get_static_meta(self, ex: OptionalFields = None) -> dict:
         """Extract static meta information (independent of data or items count).
 

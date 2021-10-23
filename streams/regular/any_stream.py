@@ -130,7 +130,7 @@ class AnyStream(sm.LocalStream, sm.ConvertMixin, RegularStreamInterface):
             **kwargs
     ) -> Stream:
         return self.stream(
-            self.get_calc(function, *args, **kwargs),
+            self._get_calc(function, *args, **kwargs),
             stream_type=stream_type,
             ex=self._get_dynamic_meta_fields() if dynamic else None,
         )

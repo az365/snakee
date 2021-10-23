@@ -126,7 +126,7 @@ class TreeItem(ContextualDataWrapper, TreeInterface):
         return count
 
     def get_data(self) -> Iterable:
-        for _, i in self.get_children():
+        for _, i in self.get_children().items():
             if hasattr(i, 'get_data'):
                 yield from i.get_data()
 

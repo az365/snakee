@@ -10,6 +10,7 @@ try:  # Assume we're a sub-module in a package.
     from streams.interfaces.regular_stream_interface import RegularStreamInterface  # inherits Stream
     from streams.interfaces.pair_stream_interface import PairStreamInterface  # inherits Regular, uses Stream
     from streams.interfaces.columnar_interface import ColumnarInterface  # inherits RegularStream
+    from streams.interfaces.stream_builder_interface import StreamBuilderInterface  # inherits Stream
     from base.interfaces.context_interface import ContextInterface  # inherits Base; uses Stream, Logger, ExtendedLog..
     from base.interfaces.contextual_interface import ContextualInterface  # inherits Sourced; uses Base, Context
     from base.interfaces.data_interface import SimpleDataInterface  # inherits BaseInterface
@@ -21,7 +22,7 @@ try:  # Assume we're a sub-module in a package.
     from loggers.selection_logger_interface import SelectionLoggerInterface  # inherits Extended, uses DetailedMessage
     from loggers.progress_interface import ProgressInterface  # inherits Tree; uses ExtendedLogger
     from connectors.interfaces.connector_interface import ConnectorInterface  # inherits Sourced, uses ExtendedLogger,..
-    from connectors.interfaces.connector_interface import LeafConnectorInterface  # inherits Connector
+    from connectors.interfaces.leaf_connector_interface import LeafConnectorInterface
     from connectors.interfaces.temporary_interface import TemporaryLocationInterface  # inherits Connector
     from connectors.interfaces.temporary_interface import TemporaryFilesMaskInterface  # inherits Connector
     from items.struct_interface import StructInterface  # ROOT
@@ -41,6 +42,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .streams.interfaces.regular_stream_interface import RegularStreamInterface  # inherits Stream
     from .streams.interfaces.pair_stream_interface import PairStreamInterface  # inherits Regular, uses Stream
     from .streams.interfaces.columnar_interface import ColumnarInterface  # inherits RegularStream
+    from .streams.interfaces.stream_builder_interface import StreamBuilderInterface  # inherits Stream
     from .base.interfaces.context_interface import ContextInterface  # inherits Base; uses Stream, Logger, ExtendedLog..
     from .base.interfaces.contextual_interface import ContextualInterface  # inherits Sourced; uses Base, Context
     from .base.interfaces.data_interface import SimpleDataInterface  # inherits BaseInterface
@@ -52,7 +54,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .loggers.selection_logger_interface import SelectionLoggerInterface  # inherits Extended, uses DetailedMessage
     from .loggers.progress_interface import ProgressInterface  # inherits Tree; uses ExtendedLogger
     from .connectors.interfaces.connector_interface import ConnectorInterface  # inherits Sourced, uses ExtendedLogger,.
-    from .connectors.interfaces.connector_interface import LeafConnectorInterface  # inherits Connector
+    from .connectors.interfaces.leaf_connector_interface import LeafConnectorInterface  # inherits Connector
     from .connectors.interfaces.temporary_interface import TemporaryLocationInterface  # inherits Connector
     from .connectors.interfaces.temporary_interface import TemporaryFilesMaskInterface  # inherits Connector
     from .items.struct_interface import StructInterface  # ROOT
