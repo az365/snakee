@@ -22,7 +22,7 @@ try:  # Assume we're a sub-module in a package.
     from loggers.selection_logger_interface import SelectionLoggerInterface  # inherits Extended, uses DetailedMessage
     from loggers.progress_interface import ProgressInterface  # inherits Tree; uses ExtendedLogger
     from connectors.interfaces.connector_interface import ConnectorInterface  # inherits Sourced, uses ExtendedLogger,..
-    from connectors.interfaces.connector_interface import LeafConnectorInterface  # inherits Connector
+    from connectors.interfaces.leaf_connector_interface import LeafConnectorInterface
     from connectors.interfaces.temporary_interface import TemporaryLocationInterface  # inherits Connector
     from connectors.interfaces.temporary_interface import TemporaryFilesMaskInterface  # inherits Connector
     from items.struct_interface import StructInterface  # ROOT
@@ -54,7 +54,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .loggers.selection_logger_interface import SelectionLoggerInterface  # inherits Extended, uses DetailedMessage
     from .loggers.progress_interface import ProgressInterface  # inherits Tree; uses ExtendedLogger
     from .connectors.interfaces.connector_interface import ConnectorInterface  # inherits Sourced, uses ExtendedLogger,.
-    from .connectors.interfaces.connector_interface import LeafConnectorInterface  # inherits Connector
+    from .connectors.interfaces.leaf_connector_interface import LeafConnectorInterface  # inherits Connector
     from .connectors.interfaces.temporary_interface import TemporaryLocationInterface  # inherits Connector
     from .connectors.interfaces.temporary_interface import TemporaryFilesMaskInterface  # inherits Connector
     from .items.struct_interface import StructInterface  # ROOT
