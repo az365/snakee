@@ -4,7 +4,7 @@ from typing import Optional, Iterable, Union, NoReturn
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg, mappers as ms
     from interfaces import (
-        Connector, ColumnarInterface, RegularStream, StructInterface, SimpleDataInterface,
+        Connector, ColumnarInterface, ColumnarStream, StructStream, StructInterface, SimpleDataInterface,
         DialectType, StreamType,
         AUTO, Auto, AutoContext, AutoBool, AutoCount, Count,
     )
@@ -15,7 +15,7 @@ try:  # Assume we're a sub-module in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg, mappers as ms
     from ...interfaces import (
-        Connector, ColumnarInterface, RegularStream, StructInterface, SimpleDataInterface,
+        Connector, ColumnarInterface, ColumnarStream, StructStream, StructInterface, SimpleDataInterface,
         DialectType, StreamType,
         AUTO, Auto, AutoContext, AutoBool, AutoCount, Count,
     )
@@ -25,12 +25,11 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...items.flat_struct import FlatStruct
 
 Native = ct.AbstractStorage
-Stream = Union[RegularStream, ColumnarInterface]
 Struct = Optional[StructInterface]
 Table = Connector
 File = ct.AbstractFile
 Name = str
-Data = Union[Stream, File, Table, str, Iterable]
+Data = Union[ColumnarStream, File, Table, str, Iterable]
 
 TEST_QUERY = 'SELECT now()'
 DEFAULT_GROUP = 'PUBLIC'
@@ -119,7 +118,7 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
             self, file: File,
             get_data: AutoBool = AUTO, commit: AutoBool = AUTO, verbose: AutoBool = AUTO,
     ) -> Optional[Iterable]:
-        assert isinstance(file, ct.TextFile), 'file must be TextFile, got {}'.format(file)
+        assert isinstance(file, ct.TextFile) or hasattr(file, 'get_items'), 'file must be TextFile, got {}'.format(file)
         query = '\n'.join(file.get_items())
         return self.execute(query, get_data=get_data, commit=commit, verbose=verbose)
 
@@ -260,27 +259,26 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
             step: int = DEFAULT_STEP, skip_errors: bool = False,
             expected_count: AutoCount = AUTO, return_count: bool = True,
             verbose: AutoBool = AUTO,
-    ) -> Optional[int]:
+    ) -> Count:
         pass
 
     def insert_struct_stream(
-            self, table: Union[Table, Name], stream: Stream,
+            self, table: Union[Table, Name], stream: StructStream,
             skip_errors: bool = False, step: int = DEFAULT_STEP, verbose: AutoBool = AUTO,
-    ) -> Optional[int]:
+    ) -> Count:
         columns = stream.get_columns()
         assert columns, 'columns in StructStream must be defined (got {})'.format(stream)
+        assert hasattr(stream, 'get_struct')  # isinstance(stream, StructStream)
         if hasattr(table, 'get_columns'):
             table_cols = table.get_columns()
             assert columns == table_cols, '{} != {}'.format(columns, table_cols)
         table_name = self._get_table_name(table)
         expected_count = stream.get_count()
-        final_count = stream.get_calc(
-            lambda a: self.insert_rows(
-                table_name, rows=a, columns=columns,
-                step=step, expected_count=expected_count,
-                skip_errors=skip_errors, return_count=True,
-                verbose=verbose,
-            ),
+        final_count = self.insert_rows(
+            table_name, rows=stream.get_items(), columns=tuple(columns),
+            step=step, expected_count=expected_count,
+            skip_errors=skip_errors, return_count=True,
+            verbose=verbose,
         )
         return final_count
 
@@ -403,7 +401,7 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
 
     @staticmethod
     def _parse_credentials_file(file: File, delimiter='\n') -> Iterable:
-        assert isinstance(file, ct.TextFile)
+        assert isinstance(file, ct.TextFile) or hasattr(file, 'to_line_stream')
         has_columns = delimiter != '\n'
         if has_columns:
             for item in file.to_line_stream().get_items():
@@ -450,7 +448,7 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
         return table_name, table_struct
 
     @staticmethod
-    def _get_struct_stream_from_data(data: Data, struct: Struct = None, **file_kwargs) -> Stream:
+    def _get_struct_stream_from_data(data: Data, struct: Struct = None, **file_kwargs) -> StructStream:
         if sm.is_stream(data):
             stream = data
         elif ct.is_file(data):

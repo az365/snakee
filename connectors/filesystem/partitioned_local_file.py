@@ -11,7 +11,7 @@ try:  # Assume we're a sub-module in a package.
     from connectors.abstract.leaf_connector import LeafConnector
     from connectors.abstract.abstract_folder import HierarchicFolder
     from connectors.filesystem.local_folder import LocalFolder
-    from connectors.filesystem.local_file import AbstractFile
+    from connectors.filesystem.abstract_file import AbstractFile
     from connectors.filesystem.local_mask import LocalMask
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
@@ -24,7 +24,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..abstract.leaf_connector import LeafConnector
     from ..abstract.abstract_folder import HierarchicFolder
     from .local_folder import LocalFolder
-    from .local_file import AbstractFile
+    from .abstract_file import AbstractFile
     from .local_mask import LocalMask
 
 Native = Union[LocalMask, AbstractFile]

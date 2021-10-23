@@ -11,7 +11,7 @@ try:  # Assume we're a sub-module in a package.
     from connectors.abstract.hierarchic_connector import HierarchicConnector
     from connectors.abstract.leaf_connector import LeafConnector
     from connectors.abstract.abstract_folder import HierarchicFolder
-    from connectors.filesystem.local_file import TextFile
+    from connectors.filesystem.text_file import TextFile
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...interfaces import (
@@ -22,7 +22,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..abstract.hierarchic_connector import HierarchicConnector
     from ..abstract.leaf_connector import LeafConnector
     from ..abstract.abstract_folder import HierarchicFolder
-    from .local_file import TextFile
+    from .text_file import TextFile
 
 File = LeafConnector
 Parent = Union[HierarchicConnector, ConnectorInterface, Auto]

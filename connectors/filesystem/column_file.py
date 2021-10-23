@@ -9,10 +9,10 @@ try:  # Assume we're a sub-module in a package.
         Field, Name, Item, Array, Columns,
         AUTO, Auto, AutoName, AutoCount, AutoBool, OptionalFields
     )
-    from fields import field_classes as fc
-    from connectors.filesystem.local_file import TextFile, JsonFile
+    from connectors.filesystem.abstract_file import TextFile, JsonFile
     from streams.mixin.columnar_mixin import ColumnarMixin
     from streams import stream_classes as sm
+    from fields import field_classes as fc
     from items import legacy_classes as sh
     from utils.decorators import deprecated_with_alternative
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -23,10 +23,10 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         Field, Name, Item, Array, Columns,
         AUTO, Auto, AutoName, AutoCount, AutoBool, OptionalFields
     )
-    from ...fields import field_classes as fc
-    from .local_file import TextFile, JsonFile
+    from .abstract_file import TextFile, JsonFile
     from ...streams.mixin.columnar_mixin import ColumnarMixin
     from ...streams import stream_classes as sm
+    from ...fields import field_classes as fc
     from ...items import legacy_classes as sh
     from ...utils.decorators import deprecated_with_alternative
 
