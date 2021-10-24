@@ -1,3 +1,5 @@
+from typing import Optional
+
 try:  # Assume we're a sub-module in a package.
     from utils.enum import ClassType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -12,7 +14,7 @@ class FileType(ClassType):
     TsvFile = 'TsvFile'
 
     @staticmethod
-    def _get_dict_ext():
+    def _get_dict_extensions():
         return {
             'txt': FileType.TextFile,
             'json': FileType.JsonFile,
@@ -21,13 +23,18 @@ class FileType(ClassType):
         }
 
     @classmethod
-    def detect_by_ext(cls, ext: str):
-        return cls._get_dict_ext().get(ext)
+    def detect_by_file_extension(cls, ext: str):
+        return cls._get_dict_extensions().get(ext)
 
     @classmethod
     def detect_by_name(cls, name: str):
         ext = name.split('.')[-1]
-        return cls.detect_by_ext(ext)
+        return cls.detect_by_file_extension(ext)
+
+    def get_default_file_extension(self) -> Optional[str]:
+        for ext, file_type in self._get_dict_extensions().items():
+            if file_type == self:
+                return ext
 
 
 FileType.prepare()
