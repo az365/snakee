@@ -49,11 +49,8 @@ class AbstractFormat(AbstractBaseObject, ABC):
     def get_default_item_type(self) -> Optional[ItemType]:
         pass
 
-    @staticmethod
-    def detect_by_name(name: str):
-        content_type = ContentType.detect_by_name(name)
-        compress_method = 'gzip' if '.gz' in name else None
-        return LeanFormat(content_type=content_type, compress=compress_method)
+    def copy(self):
+        return self.make_new()
 
 
 class BinaryFormat(AbstractFormat):

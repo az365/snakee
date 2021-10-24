@@ -2,13 +2,13 @@ from typing import Union
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
-    from interfaces import Item, ItemType, StreamType, FileType, Auto, AUTO
+    from interfaces import Item, ItemType, StreamType, FileType, StructInterface, Auto, AUTO
     from connectors.content_format.abstract_format import ParsedFormat, ContentType, Compress
     from connectors.content_format.text_format import TextFormat, JsonFormat
     from connectors.content_format.columnar_format import ColumnarFormat, FlatStructFormat
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
-    from ...interfaces import Item, ItemType, StreamType, FileType, Auto, AUTO
+    from ...interfaces import Item, ItemType, StreamType, FileType, StructInterface, Auto, AUTO
     from .abstract_format import ParsedFormat, ContentType, Compress
     from .text_format import TextFormat, JsonFormat
     from .columnar_format import ColumnarFormat, FlatStructFormat
@@ -28,6 +28,12 @@ class LeanFormat(ParsedFormat):
     def get_options(self) -> dict:
         return self._options
 
+    @staticmethod
+    def detect_by_name(name: str) -> ParsedFormat:
+        content_type = ContentType.detect_by_name(name)
+        compress_method = 'gzip' if '.gz' in name else None
+        return LeanFormat(content_type=content_type, compress=compress_method).get_defined()
+
     def get_defined(self, skip_errors: bool = False) -> ParsedFormat:
         props = self.get_props(ex='options')
         props.update(self.get_options())
@@ -43,6 +49,12 @@ class LeanFormat(ParsedFormat):
         else:
             msg = 'LeanFormat(content_type={}) not supported for LeanFormat.get_defined()'
             raise ValueError(msg.format(self.get_content_type()))
+
+    def set_struct(self, struct: StructInterface, inplace: bool) -> FlatStructFormat:
+        if inplace:
+            raise ValueError('for ColumnarFormat struct can not be set inplace, use inplace=False instead')
+        else:
+            return FlatStructFormat(struct=struct, **self.get_props())
 
     def get_default_stream_type(self) -> StreamType:
         defined_format = self.get_defined()

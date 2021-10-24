@@ -18,12 +18,15 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     )
     from .text_format import TextFormat, Compress, DEFAULT_ENDING, DEFAULT_ENCODING
 
+DEFAULT_DELIMITER = '\t'
+POPULAR_DELIMITERS = '\t', '; ', ', ', ';', ',', ' '
+
 
 class ColumnarFormat(TextFormat):
     def __init__(
             self,
-            first_line_is_title: bool,
-            delimiter: str,
+            first_line_is_title: bool = True,
+            delimiter: str = DEFAULT_DELIMITER,
             ending: str = DEFAULT_ENDING,
             encoding: str = DEFAULT_ENCODING,
             compress: Compress = None,
@@ -53,11 +56,24 @@ class ColumnarFormat(TextFormat):
         else:
             return self.make_new(delimiter=delimiter)
 
+    @staticmethod
+    def detect_delimiter_by_example_line(line: str, expected_delimiters=POPULAR_DELIMITERS) -> str:
+        for delimiter in expected_delimiters:
+            if delimiter in line:
+                return delimiter
+        return DEFAULT_DELIMITER
+
     def get_default_stream_type(self) -> StreamType:
         return StreamType.RowStream
 
     def get_default_item_type(self) -> ItemType:
         return ItemType.Row
+
+    def set_struct(self, struct: StructInterface, inplace: bool) -> TextFormat:
+        if inplace:
+            raise ValueError('for ColumnarFormat struct can not be set inplace, use inplace=False instead')
+        else:
+            return FlatStructFormat(struct=struct, **self.get_props())
 
     def get_formatted_item(self, item: Item, item_type: Union[ItemType, Auto] = AUTO) -> str:
         if not arg.is_defined(item_type):
@@ -228,3 +244,6 @@ class FlatStructFormat(ColumnarFormat):
     ) -> Generator:
         struct = self._get_validated_struct(struct)
         return super().get_items(lines, item_type=item_type, struct=struct)
+
+    def copy(self):
+        return self.make_new(struct=self.get_struct().copy())
