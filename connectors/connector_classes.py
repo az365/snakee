@@ -15,6 +15,7 @@ try:  # Assume we're a sub-module in a package.
     from connectors.content_format.text_format import TextFormat, JsonFormat
     from connectors.content_format.columnar_format import ColumnarFormat, FlatStructFormat
     from connectors.content_format.lean_format import LeanFormat
+    from connectors.mixin.connector_format_mixin import ConnectorFormatMixin
     from connectors.mixin.actualize_mixin import ActualizeMixin
     from connectors.mixin.stream_file_mixin import StreamFileMixin
     from connectors.filesystem.local_storage import LocalStorage
@@ -55,6 +56,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .content_format.text_format import TextFormat, JsonFormat
     from .content_format.columnar_format import ColumnarFormat, FlatStructFormat
     from .content_format.lean_format import LeanFormat
+    from .mixin.connector_format_mixin import ConnectorFormatMixin
     from .mixin.actualize_mixin import ActualizeMixin
     from .mixin.stream_file_mixin import StreamFileMixin
     from .filesystem.local_storage import LocalStorage
