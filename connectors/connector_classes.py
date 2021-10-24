@@ -11,6 +11,11 @@ try:  # Assume we're a sub-module in a package.
     from connectors.abstract.hierarchic_connector import HierarchicConnector
     from connectors.abstract.abstract_folder import AbstractFolder, FlatFolder, HierarchicFolder
     from connectors.abstract.abstract_storage import AbstractStorage
+    from connectors.content_format.abstract_format import AbstractFormat, BinaryFormat, ParsedFormat
+    from connectors.content_format.text_format import TextFormat, JsonFormat
+    from connectors.content_format.columnar_format import ColumnarFormat, FlatStructFormat
+    from connectors.content_format.lean_format import LeanFormat
+    from connectors.mixin.actualize_mixin import ActualizeMixin
     from connectors.mixin.stream_file_mixin import StreamFileMixin
     from connectors.filesystem.local_storage import LocalStorage
     from connectors.filesystem.local_folder import LocalFolder
@@ -46,6 +51,11 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .abstract.hierarchic_connector import HierarchicConnector
     from .abstract.abstract_folder import AbstractFolder, FlatFolder, HierarchicFolder
     from .abstract.abstract_storage import AbstractStorage
+    from .content_format.abstract_format import AbstractFormat, BinaryFormat, ParsedFormat
+    from .content_format.text_format import TextFormat, JsonFormat
+    from .content_format.columnar_format import ColumnarFormat, FlatStructFormat
+    from .content_format.lean_format import LeanFormat
+    from .mixin.actualize_mixin import ActualizeMixin
     from .mixin.stream_file_mixin import StreamFileMixin
     from .filesystem.local_storage import LocalStorage
     from .filesystem.local_folder import LocalFolder
