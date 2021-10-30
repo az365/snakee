@@ -4,10 +4,12 @@ import gc
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from utils.external import psycopg2
+    from interfaces import DialectType, Count, Array, ARRAY_TYPES
     from connectors.databases.abstract_database import AbstractDatabase, TEST_QUERY, DEFAULT_STEP, DEFAULT_GROUP
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...utils.external import psycopg2
+    from ...interfaces import DialectType, Count, Array, ARRAY_TYPES
     from ..databases.abstract_database import AbstractDatabase, TEST_QUERY, DEFAULT_STEP, DEFAULT_GROUP
 
 
@@ -25,6 +27,10 @@ class PostgresDatabase(AbstractDatabase):
             context=context,
             **kwargs
         )
+
+    @classmethod
+    def get_dialect_type(cls) -> DialectType:
+        return DialectType.Postgres
 
     def is_connected(self) -> bool:
         return (self.connection is not None) and not self.connection.closed
@@ -50,7 +56,7 @@ class PostgresDatabase(AbstractDatabase):
             )
         return self.connection
 
-    def disconnect(self, skip_errors: bool = False, verbose=arg.AUTO) -> Optional[int]:
+    def disconnect(self, skip_errors: bool = False, verbose=arg.AUTO) -> Count:
         verbose = arg.acquire(verbose, self.verbose)
         if self.is_connected():
             if not psycopg2:
@@ -104,7 +110,7 @@ class PostgresDatabase(AbstractDatabase):
             raise ImportError('psycopg2 must be installed (pip install psycopg2)')
         psycopg2.extras.execute_batch(cursor, query, batch, page_size=step)
 
-    def grant_permission(self, name, permission='SELECT', group=DEFAULT_GROUP, verbose=arg.AUTO) -> NoReturn:
+    def grant_permission(self, name: str, permission='SELECT', group=DEFAULT_GROUP, verbose=arg.AUTO) -> NoReturn:
         verbose = arg.acquire(verbose, self.verbose)
         message = 'Grant access:'
         query = 'GRANT {permission} ON {name} TO {group};'.format(
@@ -117,10 +123,10 @@ class PostgresDatabase(AbstractDatabase):
             verbose=message if verbose is True else verbose,
         )
 
-    def post_create_action(self, name, verbose=arg.AUTO) -> NoReturn:
+    def post_create_action(self, name: str, verbose=arg.AUTO) -> NoReturn:
         self.grant_permission(name, verbose=verbose)
 
-    def exists_table(self, name, verbose=arg.AUTO) -> bool:
+    def exists_table(self, name: str, verbose=arg.AUTO) -> bool:
         schema, table = name.split('.')
         query = """
             SELECT 1
@@ -132,7 +138,7 @@ class PostgresDatabase(AbstractDatabase):
         """.format(schema=schema, table=table)
         return bool(self.execute(query, verbose))
 
-    def describe_table(self, name, verbose=arg.AUTO):
+    def describe_table(self, name: str, verbose=arg.AUTO):
         return self.select(
             table='information_schema.COLUMNS',
             fields=['COLUMN_NAME', 'DATA_TYPE'],
@@ -141,14 +147,17 @@ class PostgresDatabase(AbstractDatabase):
 
     def insert_rows(
             self,
-            table: str, rows: Iterable, columns: Iterable,
+            table: str, rows: Iterable, columns: Array,
             step: int = DEFAULT_STEP, skip_errors: bool = False,
-            expected_count: Optional[int] = None, return_count: bool = True,
+            expected_count: Count = None, return_count: bool = True,
             verbose: Union[bool, arg.Auto] = arg.AUTO,
-    ) -> Optional[int]:
-        assert columns, 'columns must be defined'
+    ) -> Count:
+        assert isinstance(columns, ARRAY_TYPES), 'list or tuple expected, got {}'.format(columns)
         verbose = arg.acquire(verbose, self.verbose)
-        count = len(rows) if isinstance(rows, (list, tuple)) else expected_count
+        if isinstance(rows, ARRAY_TYPES):
+            count = len(rows)
+        else:
+            count = expected_count
         conn = self.connect(reconnect=True)
         cur = conn.cursor()
         use_fast_batch_method = not skip_errors

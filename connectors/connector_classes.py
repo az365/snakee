@@ -11,10 +11,17 @@ try:  # Assume we're a sub-module in a package.
     from connectors.abstract.hierarchic_connector import HierarchicConnector
     from connectors.abstract.abstract_folder import AbstractFolder, FlatFolder, HierarchicFolder
     from connectors.abstract.abstract_storage import AbstractStorage
+    from connectors.content_format.abstract_format import AbstractFormat, BinaryFormat, ParsedFormat
+    from connectors.content_format.text_format import TextFormat, JsonFormat
+    from connectors.content_format.columnar_format import ColumnarFormat, FlatStructFormat
+    from connectors.content_format.lean_format import LeanFormat
+    from connectors.mixin.connector_format_mixin import ConnectorFormatMixin
+    from connectors.mixin.actualize_mixin import ActualizeMixin
     from connectors.mixin.stream_file_mixin import StreamFileMixin
     from connectors.filesystem.local_storage import LocalStorage
     from connectors.filesystem.local_folder import LocalFolder
     from connectors.filesystem.abstract_file import AbstractFile
+    from connectors.filesystem.local_file import LocalFile
     from connectors.filesystem.text_file import TextFile, JsonFile
     from connectors.filesystem.column_file import ColumnFile, CsvFile, TsvFile
     from connectors.filesystem.local_mask import LocalMask
@@ -46,10 +53,17 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .abstract.hierarchic_connector import HierarchicConnector
     from .abstract.abstract_folder import AbstractFolder, FlatFolder, HierarchicFolder
     from .abstract.abstract_storage import AbstractStorage
+    from .content_format.abstract_format import AbstractFormat, BinaryFormat, ParsedFormat
+    from .content_format.text_format import TextFormat, JsonFormat
+    from .content_format.columnar_format import ColumnarFormat, FlatStructFormat
+    from .content_format.lean_format import LeanFormat
+    from .mixin.connector_format_mixin import ConnectorFormatMixin
+    from .mixin.actualize_mixin import ActualizeMixin
     from .mixin.stream_file_mixin import StreamFileMixin
     from .filesystem.local_storage import LocalStorage
     from .filesystem.local_folder import LocalFolder
     from .filesystem.abstract_file import AbstractFile
+    from .filesystem.local_file import LocalFile
     from .filesystem.text_file import TextFile, JsonFile
     from .filesystem.column_file import ColumnFile, CsvFile, TsvFile
     from .filesystem.temporary_files import TemporaryLocation, TemporaryFilesMask
