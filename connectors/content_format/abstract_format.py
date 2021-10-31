@@ -5,7 +5,7 @@ try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from interfaces import (
         Item, Record, Row, StructRow,
-        ItemType, StreamType, FileType,
+        ItemType, StreamType, ContentType,
         AUTO, Auto, AutoName, AutoCount, AutoBool, AutoConnector, OptionalFields, Array, ARRAY_TYPES,
     )
     from base.abstract.abstract_base import AbstractBaseObject
@@ -13,12 +13,11 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils import arguments as arg
     from ...interfaces import (
         Item, Record, Row, StructRow,
-        ItemType, StreamType, FileType,
+        ItemType, StreamType, ContentType,
         AUTO, Auto, AutoName, AutoCount, AutoBool, AutoConnector, OptionalFields, Array, ARRAY_TYPES,
     )
     from ...base.abstract.abstract_base import AbstractBaseObject
 
-ContentType = FileType
 Compress = Union[str, bool, None]
 
 DEFAULT_COMPRESS_METHOD = 'gzip'
