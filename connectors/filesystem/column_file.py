@@ -9,7 +9,7 @@ try:  # Assume we're a sub-module in a package.
         Field, Name, Item, Array, Columns,
         AUTO, Auto, AutoName, AutoCount, AutoBool, OptionalFields
     )
-    from connectors.filesystem.abstract_file import TextFile, JsonFile
+    from connectors.filesystem.text_file import TextFile, JsonFile
     from streams.mixin.columnar_mixin import ColumnarMixin
     from streams import stream_classes as sm
     from fields import field_classes as fc
@@ -23,7 +23,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         Field, Name, Item, Array, Columns,
         AUTO, Auto, AutoName, AutoCount, AutoBool, OptionalFields
     )
-    from .abstract_file import TextFile, JsonFile
+    from .text_file import TextFile, JsonFile
     from ...streams.mixin.columnar_mixin import ColumnarMixin
     from ...streams import stream_classes as sm
     from ...fields import field_classes as fc

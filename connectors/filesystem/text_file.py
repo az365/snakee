@@ -1,18 +1,20 @@
-import gzip as gz
 from inspect import isclass
 from typing import Iterable, Optional, Union, Callable, Any
+import gzip as gz
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
+    from utils.decorators import deprecated, deprecated_with_alternative
     from interfaces import (
-        Connector, IterableStreamInterface, StreamType, ItemType,
+        Connector, IterableStreamInterface, StreamType, ItemType, FileType,
         AUTO, AutoCount, AutoBool, Auto, AutoName, OptionalFields,
     )
     from connectors.filesystem.abstract_file import CHUNK_SIZE, AbstractFile
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
+    from ...utils.decorators import deprecated, deprecated_with_alternative
     from ...interfaces import (
-        Connector, IterableStreamInterface, StreamType, ItemType,
+        Connector, IterableStreamInterface, StreamType, ItemType, FileType,
         AUTO, AutoCount, AutoBool, Auto, AutoName, OptionalFields,
     )
     from .abstract_file import CHUNK_SIZE, AbstractFile
@@ -51,11 +53,17 @@ class TextFile(AbstractFile):
         return ItemType.Line
 
     @classmethod
-    def get_stream_type(cls):
+    def get_stream_type(cls) -> StreamType:
         return StreamType.LineStream
+
+    def get_content_type(self) -> FileType:
+        return FileType.TextFile
 
     def get_stream_data(self, verbose: AutoBool = AUTO, *args, **kwargs) -> Iterable:
         return self.get_items(verbose=verbose, *args, **kwargs)
+
+    def get_expected_count(self) -> AutoCount:
+        return self.count
 
     def is_gzip(self) -> bool:
         return self.gzip
@@ -169,10 +177,19 @@ class TextFile(AbstractFile):
                 message = message.format(self.get_name())
             logger = self.get_logger()
             assert hasattr(logger, 'progress'), '{} has no progress in {}'.format(self, logger)
-            lines = self.get_logger().progress(lines, name=message, count=self.count, step=step)
+            if not arg.is_defined(count):
+                count = self.get_count(allow_slow_gzip=False)
+            lines = self.get_logger().progress(lines, name=message, count=count, step=step)
         return lines
 
-    def get_items(self, verbose: AutoBool = AUTO, step: AutoCount = AUTO) -> Iterable:
+    def get_items(
+            self,
+            item_type: Union[ItemType, Auto] = AUTO,
+            verbose: AutoBool = AUTO,
+            step: AutoCount = AUTO,
+    ) -> Iterable:
+        item_type = arg.delayed_acquire(item_type, self.get_default_item_type)
+        assert item_type == ItemType.Line
         verbose = arg.acquire(verbose, self.is_verbose())
         if isinstance(verbose, str):
             self.log(verbose, verbose=bool(verbose))
@@ -180,6 +197,7 @@ class TextFile(AbstractFile):
             self.log('Expecting {} lines in file {}...'.format(self.get_count(), self.get_name()), verbose=verbose)
         return self.get_lines(verbose=verbose, step=step)
 
+    @deprecated_with_alternative('to_stream()')
     def get_stream(self, to=AUTO, verbose: AutoBool = AUTO) -> Stream:
         to = arg.acquire(to, self.get_stream_type())
         return self.to_stream_class(
@@ -195,13 +213,15 @@ class TextFile(AbstractFile):
         verbose = arg.acquire(verbose, self.is_verbose())
         data = arg.delayed_acquire(data, self.get_items, verbose=verbose, step=step)
         name = arg.delayed_acquire(name, self._get_generated_stream_name)
+        expected_count = self.get_count(allow_slow_gzip=False)
         result = dict(
             data=data, name=name, source=self,
-            count=self.get_count(), context=self.get_context(),
+            count=expected_count, context=self.get_context(),
         )
         result.update(kwargs)
         return result
 
+    @deprecated
     def to_stream_class(self, stream_class, **kwargs) -> Stream:
         return stream_class(
             **self.get_stream_kwargs(**kwargs)
@@ -375,12 +395,24 @@ class JsonFile(TextFile):
     def get_stream_type(cls):
         return StreamType.AnyStream
 
-    def get_items(self, verbose: AutoBool = AUTO, step: AutoCount = AUTO) -> Iterable:
-        stream = self.to_line_stream(verbose=verbose)
-        if hasattr(stream, 'parse_json'):
-            return stream.parse_json(default_value=self._default_value).get_items()
+    def get_content_type(self) -> FileType:
+        return FileType.JsonFile
+
+    def get_items(
+            self,
+            item_type: Union[ItemType, Auto] = AUTO,
+            verbose: AutoBool = AUTO,
+            step: AutoCount = AUTO,
+    ) -> Iterable:
+        item_type = arg.delayed_acquire(item_type, self.get_default_item_type)
+        if item_type == ItemType.Line:
+            return super().get_items(item_type=item_type, verbose=verbose, step=step)
         else:
-            raise NotImplementedError
+            stream = self.to_line_stream(verbose=verbose)
+            if hasattr(stream, 'parse_json'):
+                return stream.parse_json(default_value=self._default_value).get_items()
+            else:
+                raise NotImplementedError
 
     def to_record_stream(self, verbose: AutoBool = AUTO, **kwargs) -> Stream:
         return StreamType.RecordStream.stream(
