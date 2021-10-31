@@ -2,7 +2,7 @@ from typing import Optional, Iterable, Callable, Union
 
 try:  # Assume we're a sub-module in a package.
     from interfaces import (
-        Stream, RegularStream, RowStream, KeyValueStream, StructStream, FieldInterface, ItemType,
+        Stream, RegularStream, RowStream, KeyValueStream, StructStream, FieldInterface, ItemType, StreamType,
         Context, Connector, AutoConnector, TmpFiles,
         Count, Name, Field, Columns, Array, ARRAY_TYPES,
         AUTO, Auto, AutoCount, AutoName, AutoBool,
@@ -16,7 +16,7 @@ try:  # Assume we're a sub-module in a package.
     from selection import selection_classes as sn
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
-        Stream, RegularStream, RowStream, KeyValueStream, StructStream, FieldInterface, ItemType,
+        Stream, RegularStream, RowStream, KeyValueStream, StructStream, FieldInterface, ItemType, StreamType,
         Context, Connector, AutoConnector, TmpFiles,
         Count, Name, Field, Columns, Array, ARRAY_TYPES,
         AUTO, Auto, AutoCount, AutoName, AutoBool,
@@ -111,8 +111,8 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
             )
         else:
             return self.stream(
-                self.get_enumerated_items(),
-                stream_type=sm.StreamType.KeyValueStream,
+                self._get_enumerated_items(),
+                stream_type=StreamType.KeyValueStream,
                 secondary=self.get_stream_type(),
             )
 
@@ -129,7 +129,7 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
 
     def filter(self, *fields, **expressions) -> Native:
         filter_function = sf.filter_items(*fields, **expressions, item_type=ItemType.Record, skip_errors=True)
-        filtered_items = self.get_filtered_items(filter_function)
+        filtered_items = self._get_filtered_items(filter_function)
         if self.is_in_memory():
             filtered_items = list(filtered_items)
             count = len(filtered_items)
@@ -190,13 +190,13 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
         key_function = get_key_function(keys)
         groups = self._get_groups(key_function, as_pairs=as_pairs)
         if as_pairs:
-            sm_groups = sm.KeyValueStream(groups, value_stream_type=sm.StreamType.RowStream)
+            sm_groups = sm.KeyValueStream(groups, value_stream_type=StreamType.RowStream)
         else:
             sm_groups = sm.RowStream(groups, check=False)
         if values:
             sm_groups = sm_groups.map_to_type(
                 lambda r: ms.fold_lists(r, keys, values, skip_missing=skip_missing),
-                stream_type=sm.StreamType.RecordStream,
+                stream_type=StreamType.RecordStream,
             )
         if self.is_in_memory():
             return sm_groups.to_memory()
@@ -303,9 +303,10 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
                 count += 1
             if less_than:
                 less_than += 1
+        rows = self.get_rows(columns=columns, add_title_row=add_title_row)  # tmp for debug
         return self.stream(
-            self.get_rows(columns=columns, add_title_row=add_title_row),
-            stream_type=sm.StreamType.RowStream,
+            rows,
+            stream_type=StreamType.RowStream,
             count=count,
             less_than=less_than,
         )
@@ -321,8 +322,8 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
         pairs = self.get_key_value_pairs(key, value, **kwargs)
         stream = self.stream(
             list(pairs) if self.is_in_memory() else pairs,
-            stream_type=sm.StreamType.KeyValueStream,
-            value_stream_type=sm.StreamType.RecordStream if value is None else sm.StreamType.AnyStream,
+            stream_type=StreamType.KeyValueStream,
+            value_stream_type=StreamType.RecordStream if value is None else StreamType.AnyStream,
             check=False,
         )
         return self._assume_pairs(stream)
@@ -330,7 +331,7 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
     def to_file(self, file: Connector, verbose: bool = True, return_stream: bool = True) -> Native:
         assert cs.is_file(file), TypeError('Expected TsvFile, got {} as {}'.format(file, type(file)))
         meta = self.get_meta()
-        if not file.gzip:
+        if not file.is_gzip():
             meta.pop('count')
         file.write_stream(self, verbose=verbose)
         if return_stream:
@@ -423,7 +424,7 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
             verbose=verbose,
         ).parse_json(
             default_value=default_value,
-            to=sm.StreamType.RecordStream,
+            to=StreamType.RecordStream,
         )
         return parsed_stream
 
