@@ -63,6 +63,12 @@ class StreamFileMixin(IterableStreamMixin, ABC):
     def _get_generated_stream_name(self) -> str:
         return arg.get_generated_name('{}:stream'.format(self.get_name()), include_random=True, include_datetime=False)
 
+    def _get_fast_count(self):
+        if hasattr(self, 'is_gzip'):
+            return self.get_count(allow_slow_gzip=False)
+        else:
+            return self.get_count()
+
     @abstractmethod
     def get_items(
             self,
@@ -85,7 +91,7 @@ class StreamFileMixin(IterableStreamMixin, ABC):
         name = arg.delayed_acquire(name, self._get_generated_stream_name)
         result = dict(
             data=data, name=name, source=self,
-            count=self.get_count(), context=self.get_context(),
+            count=self._get_fast_count(), context=self.get_context(),
         )
         result.update(kwargs)
         return result
@@ -118,7 +124,7 @@ class StreamFileMixin(IterableStreamMixin, ABC):
             data = self.get_items(item_type=item_type, verbose=kwargs.get('verbose', AUTO), step=step)
         meta = self.get_compatible_meta(stream_class, name=name, ex=ex, **kwargs)
         if 'count' not in meta:
-            meta['count'] = self.get_count()
+            meta['count'] = self._get_fast_count()
         if 'source' not in meta:
             meta['source'] = self
         stream = stream_class(data, **meta)
