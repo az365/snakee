@@ -5,7 +5,7 @@ try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from interfaces import (
         Item, Record, Row, StructRow, StructInterface,
-        ItemType, StreamType, FileType,
+        ItemType, StreamType, ContentType,
         AUTO, Auto, AutoBool, Array,
     )
     from connectors.content_format.text_format import TextFormat, Compress, DEFAULT_ENDING, DEFAULT_ENCODING
@@ -13,7 +13,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils import arguments as arg
     from ...interfaces import (
         Item, Record, Row, StructRow, StructInterface,
-        ItemType, StreamType, FileType,
+        ItemType, StreamType, ContentType,
         AUTO, Auto, AutoBool, Array,
     )
     from .text_format import TextFormat, Compress, DEFAULT_ENDING, DEFAULT_ENCODING
@@ -151,16 +151,17 @@ class ColumnarFormat(TextFormat):
                 column_names = None
             if item_type in (ItemType.Row, ItemType.Any, ItemType.Auto):
                 yield from rows
-            for r in rows:
-                if item_type == ItemType.Record:
+            elif item_type == ItemType.Record:
+                for r in rows:
                     if column_names:
-                        return {k: v for k, v in zip(column_names, r)}
+                        yield {k: v for k, v in zip(column_names, r)}
                     else:
-                        return {k: v for k, v in enumerate(r)}
-                elif item_type == ItemType.StructRow:
-                    assert arg.is_defined(struct)
-                    return ItemType.StructRow.build(data=r, struct=struct)
-        else:
+                        yield {k: v for k, v in enumerate(r)}
+            elif item_type == ItemType.StructRow:
+                assert arg.is_defined(struct)
+                for r in rows:
+                    yield ItemType.StructRow.build(data=r, struct=struct)
+        else:  # item_type == ItemType.Line
             for line in lines:
                 yield self.get_parsed_line(line, item_type=item_type, struct=struct)
 
