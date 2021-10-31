@@ -9,6 +9,7 @@ try:  # Assume we're a sub-module in a package.
         Field, Name, Item, Array, Columns,
         AUTO, Auto, AutoName, AutoCount, AutoBool, OptionalFields
     )
+    from connectors.filesystem.local_file import LocalFile, AbstractFormat, ContentType
     from connectors.filesystem.text_file import TextFile, JsonFile
     from streams.mixin.columnar_mixin import ColumnarMixin
     from streams import stream_classes as sm
@@ -23,6 +24,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         Field, Name, Item, Array, Columns,
         AUTO, Auto, AutoName, AutoCount, AutoBool, OptionalFields
     )
+    from .local_file import LocalFile, AbstractFormat, ContentType
     from .text_file import TextFile, JsonFile
     from ...streams.mixin.columnar_mixin import ColumnarMixin
     from ...streams import stream_classes as sm
@@ -42,7 +44,7 @@ COUNT_ITEMS_TO_LOG_COLLECT_OPERATION = 500000
 STREAM_META_FIELDS = ('count', )
 
 
-class ColumnFile(TextFile, ColumnarMixin):
+class ColumnFile(LocalFile, ColumnarMixin):
     def __init__(
             self,
             name: str, gzip: bool = False, encoding: str = 'utf8',
@@ -50,45 +52,22 @@ class ColumnFile(TextFile, ColumnarMixin):
             first_line_is_title: bool = True,
             expected_count: AutoCount = AUTO,
             struct: Struct = AUTO,
-            schema: Struct = AUTO,  # temporary support of old argument name
             folder: Connector = None,
             verbose: AutoBool = AUTO,
     ):
-        super().__init__(
-            name=name, gzip=gzip, encoding=encoding,
-            end=end, expected_count=expected_count,
-            folder=folder, verbose=verbose,
+        content_class = ContentType.ColumnFile.get_class()
+        content_format = content_class(
+            encoding=encoding, ending=end, delimiter=delimiter, first_line_is_title=first_line_is_title,
+            compress='gzip' if gzip else None,
         )
-        self.delimiter = delimiter
-        self.first_line_is_title = first_line_is_title
-        self._struct = None
-        self._initial_struct = None
-        struct = arg.acquire(struct, schema)  # temporary support of old argument name
-        struct = arg.delayed_acquire(struct, self.get_detected_struct_by_title_row)
-        self.set_struct(struct, inplace=True)
+        super().__init__(
+            name=name, content_format=content_format, struct=struct,
+            folder=folder, expected_count=expected_count, verbose=verbose,
+        )
 
     @staticmethod
     def get_item_type() -> ItemType:
         return ItemType.Record
-
-    def is_in_memory(self) -> bool:
-        return False
-
-    def get_data(self, verbose: AutoBool = AUTO, *args, **kwargs) -> Iterable:
-        return self.get_items(verbose=verbose, *args, **kwargs)
-
-    def get_initial_struct(self) -> Struct:
-        return self._initial_struct
-
-    def set_initial_struct(self, struct: Struct, inplace: bool) -> Optional[Native]:
-        if inplace:
-            self._initial_struct = self._get_native_struct(struct).copy()
-        else:
-            return self.make_new(initial_struct=struct)
-
-    def initial_struct(self, struct: Struct) -> Native:
-        self._initial_struct = self._get_native_struct(struct).copy()
-        return self
 
     def get_struct_comparison_dict(self, other: Optional[Struct] = None) -> dict:
         if not arg.is_defined(other):
@@ -106,78 +85,8 @@ class ColumnFile(TextFile, ColumnarMixin):
     def get_schema(self) -> Struct:
         return self.get_struct()
 
-    def get_struct(self) -> Struct:
-        return fc.FlatStruct.convert_to_native(self._struct)
-
-    def set_struct(self, struct: Struct, inplace: bool) -> Optional[Native]:
-        struct = self._get_native_struct(struct)
-        if inplace:
-            self._struct = struct
-            if not self.get_initial_struct():
-                self.set_initial_struct(struct, inplace=True)
-        else:
-            return self.make_new(struct=struct)
-
-    def struct(self, struct: Struct) -> Native:
-        struct = self._get_native_struct(struct)
-        self._struct = struct
-        if not self.get_initial_struct():
-            self.set_initial_struct(struct, inplace=True)
-        return self
-
     def get_struct_str(self, dialect: DialectType = DialectType.Postgres) -> str:
         return self.get_struct().get_struct_str(dialect=dialect)
-
-    def _get_native_struct(self, raw_struct: Struct) -> Struct:
-        if raw_struct is None:
-            native_struct = None
-        elif isinstance(raw_struct, StructInterface):
-            native_struct = raw_struct
-        elif hasattr(raw_struct, 'get_fields'):
-            native_struct = fc.FlatStruct.convert_to_native(raw_struct)
-        elif isinstance(raw_struct, (list, tuple)):
-            self.log('Struct as list is deprecated, use FlatStruct(StructInterface) class instead', level=30)
-            has_types_descriptions = [isinstance(f, (list, tuple)) for f in raw_struct]
-            if max(has_types_descriptions):
-                native_struct = fc.FlatStruct(raw_struct)
-            else:
-                native_struct = self._get_struct_detected_by_title_row(raw_struct)
-        elif raw_struct == AUTO:
-            if self.is_first_line_title():
-                native_struct = self.detect_struct_by_title_row()
-            else:
-                native_struct = None
-        else:
-            message = 'struct must be FlatStruct(StructInterface), got {}'.format(type(raw_struct))
-            raise TypeError(message)
-        return native_struct
-
-    @staticmethod
-    def _get_struct_detected_by_title_row(title_row: Iterable) -> Struct:
-        struct = fc.FlatStruct([])
-        for name in title_row:
-            field_type = fc.FieldType.detect_by_name(name)
-            struct.append_field(fc.AdvancedField(name, field_type))
-        return struct
-
-    def get_detected_struct_by_title_row(self, set_struct: bool = False, verbose: AutoBool = AUTO) -> Struct:
-        assert self.is_first_line_title(), 'Can detect struct by title row only if first line is a title row'
-        verbose = arg.acquire(verbose, self.verbose)
-        title_row = self.get_title_row(close=True)
-        struct = self._get_struct_detected_by_title_row(title_row)
-        message = 'Struct for {} detected by title row: {}'.format(self.get_name(), struct.get_struct_str(None))
-        self.log(message, end='\n', verbose=verbose)
-        if set_struct:
-            self.set_struct(struct, inplace=True)
-        return struct
-
-    def get_title_row(self, close: bool = True) -> tuple:
-        lines = self.get_lines(skip_first=False, check=False, verbose=False)
-        rows = self.get_csv_reader(lines)
-        title_row = next(rows)
-        if close:
-            self.close()
-        return title_row
 
     def detect_struct_by_title_row(self) -> Native:
         struct = self.get_detected_struct_by_title_row()
@@ -212,12 +121,12 @@ class ColumnFile(TextFile, ColumnarMixin):
         self.validate_fields()
         if self.is_valid_struct():
             message = 'file has {} rows, {} valid columns:'.format(
-                self.get_count(), self.get_column_count(),
+                self.get_count(allow_slow_gzip=False), self.get_column_count(),
             )
         else:
             valid_count = self.get_column_count() - self.get_invalid_fields_count()
             message = '[INVALID] file has {} rows, {} columns = {} valid + {} invalid:'.format(
-                self.get_count(), self.get_column_count(),
+                self.get_count(allow_slow_gzip=False), self.get_column_count(),
                 valid_count, self.get_invalid_fields_count(),
             )
         if not hasattr(self.get_struct(), 'get_caption'):
@@ -241,24 +150,6 @@ class ColumnFile(TextFile, ColumnarMixin):
         for _ in self.get_invalid_columns():
             return False
         return True
-
-    def actualize(self) -> Native:
-        super().actualize()
-        self.reset_struct_to_initial(message=self.__repr__(), verbose=False)
-        return self.validate_fields()
-
-    def check(
-            self, must_exists: bool = False,
-            check_types: bool = False, check_order: bool = False,
-            skip_errors: bool = False, default: Union[Native, Auto] = AUTO,
-    ) -> Native:
-        if self.get_check(
-                must_exists=must_exists, check_types=check_types, check_order=check_order,
-                skip_errors=skip_errors,
-        ):
-            return self
-        else:
-            return arg.acquire(default, self)
 
     def get_check(
             self, must_exists: bool = False,
@@ -336,18 +227,6 @@ class ColumnFile(TextFile, ColumnarMixin):
         if not inplace:
             return self
 
-    def get_delimiter(self) -> str:
-        return self.delimiter
-
-    def set_delimiter(self, delimiter: str, inplace: bool) -> Optional[Native]:
-        if inplace:
-            self.delimiter = delimiter
-        else:
-            return self.make_new(delimiter=delimiter)
-
-    def is_first_line_title(self) -> bool:
-        return self.first_line_is_title
-
     def get_csv_reader(self, lines: Iterable) -> Iterator:
         if self.get_delimiter():
             return csv.reader(lines, delimiter=self.get_delimiter())
@@ -377,13 +256,6 @@ class ColumnFile(TextFile, ColumnarMixin):
                     converted_row.append(converted_value)
                 yield converted_row
 
-    def get_items(self, item_type=ItemType.Auto, *args, **kwargs) -> Iterable:
-        item_type = arg.acquire(item_type, self.get_default_item_type())
-        item_type = ItemType(item_type)
-        method_name = 'get_{}s'.format(item_type.get_name().lower())
-        method_callable = self.__getattribute__(method_name)
-        return method_callable(*args, **kwargs)
-
     def get_struct_rows(self, verbose: AutoBool = AUTO, message: Message = AUTO, step: AutoCount = AUTO) -> Iterable:
         assert self.get_struct() is not None, 'For getting structured rows struct must be defined.'
         for row in self.get_rows(verbose=verbose, message=message, step=step):
@@ -401,8 +273,8 @@ class ColumnFile(TextFile, ColumnarMixin):
             struct = self.get_struct()
             assert struct, 'Struct must be defined for {}.get_records_from_file()'.format(self.__repr__())
             columns = struct.get_columns()
-            if self.get_count() <= 1:
-                self.get_count(allow_slow_gzip=False)
+            if self.get_count(allow_slow_gzip=False) <= 1:
+                self.get_count(allow_slow_gzip=False, force=True)
             for item in self.get_rows(convert_types=convert_types, verbose=verbose, message=message, **kwargs):
                 yield {k: v for k, v in zip(columns, item)}
         elif not skip_missing:
@@ -415,68 +287,8 @@ class ColumnFile(TextFile, ColumnarMixin):
         stream = self.to_record_stream(check=False)
         return stream.get_dict(key, value, skip_errors=skip_errors)
 
-    def stream(self, data=AUTO, stream_type: StreamType = AUTO, ex: OptionalFields = None, **kwargs) -> Stream:
-        stream = self.to_stream(data, stream_type=stream_type, ex=ex, source=self, count=self.get_count())
-        return stream
-
-    def to_row_stream(
-            self,
-            name: AutoName = AUTO,
-            convert_types: bool = True,
-            verbose: AutoBool = AUTO,
-            message: Message = AUTO,
-            **kwargs
-    ) -> RowStream:
-        data = self.get_rows(convert_types=convert_types, verbose=verbose, message=message)
-        stream = sm.RowStream(
-            **self.get_stream_kwargs(data=data, name=name, **kwargs)
-        )
-        return stream
-
-    def to_struct_stream(
-            self, name: AutoName = AUTO,
-            verbose: AutoBool = AUTO, message: Message = AUTO,
-            **kwargs
-    ) -> StructStream:
-        data = self.get_rows(convert_types=True, verbose=verbose, message=message)
-        stream = sm.StructStream(
-            struct=self.get_struct(),
-            **self.get_stream_kwargs(data=data, name=name, **kwargs)
-        )
-        return stream
-
-    def to_record_stream(self, name: AutoName = AUTO, message: Message = AUTO, **kwargs) -> RecordStream:
-        data = self.get_records_from_file(verbose=name, message=message)
-        kwargs = self.get_stream_kwargs(data=data, name=name, **kwargs)
-        kwargs['stream_type'] = sm.RecordStream
-        return self.stream(**kwargs)
-
-    def progress(self, step: AutoCount = AUTO, message: Message = AUTO) -> Stream:
-        if '{}' in message:
-            message.format(self.get_name())
-        return self.to_record_stream().progress(step=step, expected_count=self.get_count(True), message=message)
-
-    def get_one_item(self, item_type: Union[ItemType, str] = ItemType.Record) -> Item:
-        type_name = item_type if isinstance(item_type, str) else item_type.get_name().lower()
-        method_name = 'to_{}_stream'.format(type_name)
-        stream_method = self.__getattribute__(method_name)
-        stream = stream_method()
-        assert isinstance(stream, sm.AnyStream), 'RegularStream expected, got {}'.format(stream)
-        return stream.get_one_item()
-
     def select(self, *args, **kwargs) -> Stream:
         stream = self.to_record_stream().select(*args, **kwargs)
-        return self._assume_stream(stream)
-
-    def filter(self, *args, verbose: AutoBool = AUTO, **kwargs) -> Union[Stream, Native]:
-        if args or kwargs:
-            stream = self.to_record_stream(verbose=verbose).filter(*args, **kwargs)
-            return self._assume_stream(stream)
-        else:
-            return self
-
-    def take(self, count: Union[int, bool]) -> Stream:
-        stream = self.to_record_stream().take(count)
         return self._assume_stream(stream)
 
     def sort(self, *keys, reverse: bool = False) -> Stream:
@@ -490,12 +302,9 @@ class ColumnFile(TextFile, ColumnarMixin):
         stream = self.to_record_stream().collect()
         return self._assume_stream(stream)
 
-    def is_empty(self) -> bool:
-        return (self.get_count() or 0) <= (1 if self.is_first_line_title() else 0)
-
     def get_str_description(self) -> str:
         if self.is_existing():
-            rows_count = self.get_count()
+            rows_count = self.get_count(allow_slow_gzip=False)
             if rows_count:
                 cols_count = self.get_column_count() or 0
                 invalid_count = self.get_invalid_fields_count() or 0
@@ -511,7 +320,7 @@ class ColumnFile(TextFile, ColumnarMixin):
     def has_title(self) -> bool:
         if self.is_first_line_title():
             if self.is_existing():
-                return bool(self.get_count())
+                return bool(self.get_count(allow_slow_gzip=False))
         return False
 
     def get_useful_props(self) -> dict:
@@ -522,7 +331,7 @@ class ColumnFile(TextFile, ColumnarMixin):
                 has_title=self.is_first_line_title(),
                 is_opened=self.is_opened(),
                 is_empty=self.is_empty(),
-                count=self.get_count(),
+                count=self.get_count(allow_slow_gzip=False),
                 path=self.get_path(),
             )
         else:
@@ -540,7 +349,7 @@ class ColumnFile(TextFile, ColumnarMixin):
         filters = filters or list()
         if filter_kwargs and safe_filter:
             filter_kwargs = {k: v for k, v in filter_kwargs.items() if k in self.get_columns()}
-        verbose = self.get_count() > COUNT_ITEMS_TO_LOG_COLLECT_OPERATION
+        verbose = self.is_gzip() or self.get_count(allow_slow_gzip=False) > COUNT_ITEMS_TO_LOG_COLLECT_OPERATION
         stream_example = self.filter(*filters or [], **filter_kwargs, verbose=verbose)
         item_example = stream_example.get_one_item()
         str_filters = self._format_args(*filters, **filter_kwargs)
@@ -649,35 +458,26 @@ class ColumnFile(TextFile, ColumnarMixin):
         )
         self.write_rows(rows, verbose=verbose)
 
-    def write_stream(self, stream: Stream, verbose: AutoBool = AUTO) -> NoReturn:
-        assert sm.is_stream(stream)
-        item_type_str = stream.get_item_type().get_value()
-        if item_type_str in ('row', 'record', 'row'):
-            method_name = 'write_{}s'.format(item_type_str)
-            method = self.__getattribute__(method_name)
-            return method(stream.get_data(), verbose=verbose)
-        else:
-            message = '{}.write_stream() supports RecordStream, RowStream, LineStream only (got {})'
-            raise TypeError(message.format(self.__class__.__name__, stream.__class__.__name__))
 
-
-class CsvFile(ColumnFile):
+class CsvFile(LocalFile, ColumnarMixin):
     # @deprecated_with_alternative('ConnType.get_class()')
     def __init__(
             self,
             name: Name,
             struct: Struct = AUTO,
-            schema: Struct = AUTO,  # TMP: for compatibility with old version
             gzip: bool = False, encoding: str = 'utf8',
             end: str = '\n', delimiter: str = ',',
             first_line_is_title: bool = True, expected_count: AutoBool = AUTO,
             folder: Connector = None, verbose: AutoBool = AUTO,
     ):
+        content_class = ContentType.CsvFile.get_class()
+        content_format = content_class(
+            encoding=encoding, ending=end, delimiter=delimiter, first_line_is_title=first_line_is_title,
+            compress='gzip' if gzip else None,
+        )
         super().__init__(
-            name=name, struct=struct, expected_count=expected_count, folder=folder,
-            schema=schema,  # TMP: for compatibility with old version
-            gzip=gzip, encoding=encoding, end=end, delimiter=delimiter, first_line_is_title=first_line_is_title,
-            verbose=verbose,
+            name=name, content_format=content_format, struct=struct,
+            folder=folder, expected_count=expected_count, verbose=verbose,
         )
 
     @staticmethod
@@ -692,23 +492,30 @@ class CsvFile(ColumnFile):
     def get_stream_type(cls) -> StreamType:
         return StreamType.RecordStream
 
+    def select(self, *args, **kwargs) -> Stream:
+        stream = self.to_record_stream().select(*args, **kwargs)
+        return self._assume_stream(stream)
 
-class TsvFile(ColumnFile):
+
+class TsvFile(LocalFile, ColumnarMixin):
     # @deprecated_with_alternative('ConnType.get_class()')
     def __init__(
             self,
             name: Name, struct: Struct = AUTO,
-            schema: Struct = AUTO,  # TMP: for compatibility with old version
             gzip: bool = False, encoding: str = 'utf8',
             end: str = '\n', delimiter: str = '\t',
             first_line_is_title: bool = True, expected_count: AutoBool = AUTO,
             folder: Connector = None, verbose: AutoBool = AUTO,
     ):
+        content_class = ContentType.TsvFile.get_class()
+        content_format = content_class(
+            encoding=encoding, ending=end, delimiter=delimiter, first_line_is_title=first_line_is_title,
+            compress='gzip' if gzip else None,
+            struct=struct,
+        )
         super().__init__(
-            name=name, struct=struct, expected_count=expected_count, folder=folder,
-            schema=schema,  # TMP: for compatibility with old version
-            gzip=gzip, encoding=encoding, end=end, delimiter=delimiter, first_line_is_title=first_line_is_title,
-            verbose=verbose,
+            name=name, content_format=content_format, struct=struct,
+            folder=folder, expected_count=expected_count, verbose=verbose,
         )
 
     @staticmethod
@@ -722,6 +529,10 @@ class TsvFile(ColumnFile):
     @classmethod
     def get_stream_type(cls) -> StreamType:
         return StreamType.RecordStream
+
+    def select(self, *args, **kwargs) -> Stream:
+        stream = self.to_record_stream().select(*args, **kwargs)
+        return self._assume_stream(stream)
 
 
 FileType.set_dict_classes(
