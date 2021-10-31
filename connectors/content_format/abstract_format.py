@@ -22,6 +22,7 @@ Compress = Union[str, bool, None]
 
 DEFAULT_COMPRESS_METHOD = 'gzip'
 AVAILABLE_COMPRESS_METHODS = (DEFAULT_COMPRESS_METHOD, )
+META_MEMBER_MAPPING = dict(_compress_method='compress')
 
 
 class AbstractFormat(AbstractBaseObject, ABC):
@@ -92,6 +93,10 @@ class CompressibleFormat(AbstractFormat, ABC):
 
     def is_gzip(self) -> bool:
         return self.get_compress_method() == 'gzip'
+
+    @classmethod
+    def _get_meta_member_mapping(cls) -> dict:
+        return META_MEMBER_MAPPING
 
 
 class ParsedFormat(CompressibleFormat, ABC):
