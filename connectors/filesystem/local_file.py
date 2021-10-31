@@ -6,12 +6,15 @@ try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from interfaces import (
         Context, Connector, ConnectorInterface, StructInterface, IterableStreamInterface,
-        FileType, ItemType,
+        ContentType, ItemType,
         AUTO, Auto, AutoCount, AutoBool,
     )
     from connectors.abstract.leaf_connector import LeafConnector
-    from connectors.content_format.text_format import AbstractFormat, ParsedFormat, TextFormat
-    from connectors.content_format.lean_format import LeanFormat
+    from connectors.content_format.content_classes import (
+        AbstractFormat, ParsedFormat, LeanFormat,
+        TextFormat, ColumnarFormat, FlatStructFormat,
+        ContentType,
+    )
     from connectors.mixin.connector_format_mixin import ConnectorFormatMixin
     from connectors.mixin.actualize_mixin import ActualizeMixin
     from connectors.mixin.stream_file_mixin import StreamFileMixin
@@ -20,12 +23,15 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils import arguments as arg
     from ...interfaces import (
         Context, Connector, ConnectorInterface, StructInterface, IterableStreamInterface,
-        FileType, ItemType,
+        ContentType, ItemType,
         AUTO, Auto, AutoCount, AutoBool,
     )
     from ..abstract.leaf_connector import LeafConnector
-    from ..content_format.text_format import AbstractFormat, ParsedFormat, TextFormat
-    from ..content_format.lean_format import LeanFormat
+    from ..content_format.content_classes import (
+        AbstractFormat, ParsedFormat, LeanFormat,
+        TextFormat, ColumnarFormat, FlatStructFormat,
+        ContentType,
+    )
     from ..mixin.connector_format_mixin import ConnectorFormatMixin
     from ..mixin.actualize_mixin import ActualizeMixin
     from ..mixin.stream_file_mixin import StreamFileMixin
@@ -63,10 +69,15 @@ class LocalFile(LeafConnector, ConnectorFormatMixin, ActualizeMixin, StreamFileM
         self._count = expected_count
         super().__init__(name=name, parent=folder, verbose=verbose)
         content_format = arg.delayed_acquire(content_format, LeanFormat.detect_by_name, name)
+        assert isinstance(content_format, AbstractFormat)
         self.set_content_format(content_format, inplace=True)
         if struct is not None:
-            struct = arg.delayed_acquire(struct, self.get_detected_struct_by_title_row)
-            self.set_struct(struct, inplace=True)
+            if struct == AUTO:
+                if isinstance(content_format, ColumnarFormat) or hasattr(content_format, 'is_first_line_title'):
+                    if content_format.is_first_line_title():
+                        struct = self.get_detected_struct_by_title_row()
+            if arg.is_defined(struct):
+                self.set_struct(struct, inplace=True)
 
     def get_content_format(self) -> AbstractFormat:
         return self._content_format
@@ -90,7 +101,7 @@ class LocalFile(LeafConnector, ConnectorFormatMixin, ActualizeMixin, StreamFileM
             new.set_initial_format(initial_format, inplace=True)
             return new
 
-    def get_content_type(self) -> FileType:
+    def get_content_type(self) -> ContentType:
         # return self._content_type
         return self.get_content_format().get_content_type()
 
@@ -198,12 +209,14 @@ class LocalFile(LeafConnector, ConnectorFormatMixin, ActualizeMixin, StreamFileM
     def close(self) -> int:
         if self.is_opened():
             self.get_fileholder().close()
-            return 1
+            closed_count = 1
         else:
-            return 0
+            closed_count = 0
+        return closed_count
 
     def open(self, mode: str = 'r', allow_reopen: bool = False) -> Native:
-        if self.is_opened() is None or self.is_opened():
+        is_opened = self.is_opened()
+        if is_opened or is_opened is None:
             if allow_reopen:
                 self.close()
             else:
@@ -213,9 +226,10 @@ class LocalFile(LeafConnector, ConnectorFormatMixin, ActualizeMixin, StreamFileM
             fileholder = gz.open(path, mode)
         else:
             params = dict()
-            if self.get_encoding():
-                params['encoding'] = self.encoding
-            fileholder = open(path, mode, **params) if self.encoding else open(path, 'r')
+            encoding = self.get_encoding()
+            if encoding:
+                params['encoding'] = encoding
+            fileholder = open(path, mode, **params) if encoding else open(path, 'r')
         self.set_fileholder(fileholder)
         return self
 
@@ -278,13 +292,16 @@ class LocalFile(LeafConnector, ConnectorFormatMixin, ActualizeMixin, StreamFileM
         is_opened = self.is_opened()
         if is_opened is not None:
             assert is_opened, 'File must be opened for get_next_lines(), got is_opened={}'.format(is_opened)
-        for n, line in enumerate(self.get_fileholder()):
+        encoding = self.get_encoding()
+        ending = self.get_ending()
+        iter_lines = self.get_fileholder()
+        for n, line in enumerate(iter_lines):
             if skip_first and n == 0:
                 continue
             if isinstance(line, bytes):
-                line = line.decode(self.encoding) if self.encoding else line.decode()
-            if self.end:
-                line = line.rstrip(self.end)
+                line = line.decode(encoding) if encoding else line.decode()
+            if ending:
+                line = line.rstrip(ending)
             yield line
             if arg.is_defined(count):
                 if count > 0 and (n + 1 == count):
@@ -311,7 +328,9 @@ class LocalFile(LeafConnector, ConnectorFormatMixin, ActualizeMixin, StreamFileM
                 message = message.format(self.get_name())
             logger = self.get_logger()
             assert hasattr(logger, 'progress'), '{} has no progress in {}'.format(self, logger)
-            lines = self.get_logger().progress(lines, name=message, count=self.get_count(), step=step)
+            if not count:
+                count = self.get_count(allow_slow_gzip=False)
+            lines = self.get_logger().progress(lines, name=message, count=count, step=step)
         return lines
 
     def get_items(
@@ -323,11 +342,12 @@ class LocalFile(LeafConnector, ConnectorFormatMixin, ActualizeMixin, StreamFileM
         verbose = arg.acquire(verbose, self.is_verbose())
         content_format = self.get_content_format()
         assert isinstance(content_format, ParsedFormat)
+        count = self.get_count(allow_slow_gzip=False)
         if isinstance(verbose, str):
             self.log(verbose, verbose=bool(verbose))
-        elif (self.get_count() or 0) > 0:
-            self.log('Expecting {} lines in file {}...'.format(self.get_count(), self.get_name()), verbose=verbose)
-        lines = self.get_lines(verbose=verbose, step=step)
+        elif (count or 0) > 0:
+            self.log('Expecting {} lines in file {}...'.format(count, self.get_name()), verbose=verbose)
+        lines = self.get_lines(verbose=verbose, skip_first=self.is_first_line_title(), step=step)
         items = content_format.get_items(lines, item_type=item_type)
         return items
 
@@ -380,4 +400,4 @@ class LocalFile(LeafConnector, ConnectorFormatMixin, ActualizeMixin, StreamFileM
         return super(StreamFileMixin).from_stream(stream, verbose=verbose)
 
     def to_stream(self, **kwargs) -> Stream:
-        return super(StreamFileMixin).to_stream(**kwargs)
+        return self.to_stream_type(stream_type=self.get_stream_type(), **kwargs)
