@@ -1,15 +1,15 @@
 from abc import ABC
+from typing import Optional, Callable, Iterable, Generator, Union, Any
+from inspect import isclass
 from itertools import chain, tee
 from datetime import datetime
-from typing import Optional, Callable, Iterable, Generator, Union, Any
 
 try:  # Assume we're a sub-module in a package.
     from utils import algo, arguments as arg
     from utils.external import pd, DataFrame, get_use_objects_for_output
     from interfaces import (
-        IterableStreamInterface,
-        LoggingLevel, JoinType, How,
-        Stream, StreamType, Source, ExtLogger, SelectionLogger,
+        IterableStreamInterface, RegularStreamInterface, Stream, StreamType, ItemType, JoinType, How,
+        Source, ExtLogger, SelectionLogger, LoggingLevel,
         AUTO, Auto, AutoName, AutoCount, Count, OptionalFields, UniKey,
     )
     from functions import item_functions as fs
@@ -17,14 +17,15 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils import algo, arguments as arg
     from ...utils.external import pd, DataFrame, get_use_objects_for_output
     from ...interfaces import (
-        IterableStreamInterface,
-        LoggingLevel, JoinType, How,
-        Stream, StreamType, Source, ExtLogger, SelectionLogger,
-        AUTO, AutoName, AutoCount, Count, OptionalFields, UniKey,
+        IterableStreamInterface, RegularStreamInterface, Stream, StreamType, ItemType, JoinType, How,
+        Source, ExtLogger, SelectionLogger, LoggingLevel,
+        AUTO, Auto, AutoName, AutoCount, Count, OptionalFields, UniKey,
     )
     from ...functions import item_functions as fs
 
 Native = IterableStreamInterface
+Data = Union[Auto, Iterable]
+AutoStreamType = Union[Auto, StreamType]
 
 
 class IterableStreamMixin(IterableStreamInterface, ABC):
@@ -58,8 +59,17 @@ class IterableStreamMixin(IterableStreamInterface, ABC):
             **props
         )
 
-    def _get_enumerated_items(self) -> Iterable:
-        for n, i in enumerate(self.get_items()):
+    def _get_enumerated_items(self, item_type: Union[ItemType, Auto] = AUTO) -> Iterable:
+        if arg.is_defined(item_type) and item_type not in (ItemType.Any, ItemType.Auto):
+            if hasattr(self, 'get_items_of_type'):
+                items = self.get_items_of_type(item_type)
+            else:
+                assert isinstance(self, RegularStreamInterface) or hasattr(self, 'get_item_type')
+                assert item_type == self.get_item_type()
+                items = self.get_items()
+        else:
+            items = self.get_items()
+        for n, i in enumerate(items):
             yield n, i
 
     def get_iter(self) -> Generator:
@@ -69,14 +79,14 @@ class IterableStreamMixin(IterableStreamInterface, ABC):
         return self.get_iter()
 
     def get_one_item(self):
-        for i in self._get_tee_items():
+        for i in self.get_iter():
             return i
 
     def get_description(self) -> str:
         return '{} items'.format(self.get_str_count())
 
-    def _get_first_items(self, count: int = 1) -> Iterable:
-        for n, i in self._get_enumerated_items():
+    def _get_first_items(self, count: int = 1, item_type: Union[ItemType, Auto] = AUTO) -> Iterable:
+        for n, i in self._get_enumerated_items(item_type=item_type):
             yield i
             if n + 1 >= count:
                 break
@@ -86,11 +96,13 @@ class IterableStreamMixin(IterableStreamInterface, ABC):
             return self
         elif isinstance(count, int):
             if count > 0:
-                return self.stream(
-                    self._get_first_items(count),
+                item_type = self.get_stream_type().get_item_type()
+                stream = self.stream(
+                    self._get_first_items(count, item_type=item_type),
                     count=min(self.get_count(), count) if self.get_count() else None,
                     less_than=min(self.get_estimated_count(), count) if self.get_estimated_count() else count,
                 )
+                return self._assume_native(stream)
             elif count < 0:
                 return self.tail(count=count)
             else:  # count in (0, False)
@@ -140,25 +152,31 @@ class IterableStreamMixin(IterableStreamInterface, ABC):
         return self
 
     def tee_streams(self, n: int = 2) -> list:
-        return [
-            self.stream(
-                tee_stream,
-            ) for tee_stream in tee(
-                self.get_items(),
-                n,
-            )
-        ]
+        tee_iterators = tee(self.get_items(), n)
+        return [self.stream(t) for t in tee_iterators]
 
-    def _get_tee_items(self) -> Iterable:
-        two_iterators = tee(self.get_items(), 2)
-        self._data, tee_items = two_iterators
-        return tee_items
-
-    def tee_stream(self) -> Native:
-        return self.stream(
-            self._get_tee_items(),
-            check=False,
-        )
+    def to_stream(
+            self,
+            data: Data = AUTO,
+            stream_type: AutoStreamType = AUTO,
+            ex: OptionalFields = None,
+            **kwargs
+    ) -> Stream:
+        stream_type = arg.delayed_acquire(stream_type, self.get_stream_type)
+        if isinstance(stream_type, str):
+            stream_class = StreamType(stream_type).get_class()
+        elif isclass(stream_type):
+            stream_class = stream_type
+        else:
+            stream_class = stream_type.get_class()
+        data = arg.delayed_acquire(data, self.get_data)
+        meta = self.get_compatible_meta(stream_class, ex=ex)
+        meta.update(kwargs)
+        if 'count' not in meta:
+            meta['count'] = self.get_count()
+        if 'source' not in meta:
+            meta['source'] = self.get_source()
+        return stream_class(data, **meta)
 
     def stream(self, data: Iterable, ex: OptionalFields = None, **kwargs) -> Native:
         stream = super().stream(data, ex=ex, **kwargs)
@@ -167,9 +185,6 @@ class IterableStreamMixin(IterableStreamInterface, ABC):
     @staticmethod
     def _is_stream(obj) -> bool:
         return isinstance(obj, IterableStreamInterface) or (hasattr(obj, 'get_count') and hasattr(obj, 'get_items'))
-
-    def copy(self) -> Native:
-        return self.tee_stream()
 
     def add(self, stream_or_items: Union[Stream, Iterable], before: bool = False, **kwargs) -> Native:
         if self._is_stream(stream_or_items):
@@ -242,15 +257,8 @@ class IterableStreamMixin(IterableStreamInterface, ABC):
         if less_than:
             less_than -= 1
         title_item = next(items)
-        data_stream = self.stream(
-            items,
-            count=count,
-            less_than=less_than,
-        )
-        return (
-            title_item,
-            data_stream,
-        )
+        data_stream = self.stream(items, count=count, less_than=less_than)
+        return title_item, data_stream
 
     def split_by_pos(self, pos: int) -> tuple:
         first_stream, second_stream = self.tee_streams(2)
@@ -346,15 +354,13 @@ class IterableStreamMixin(IterableStreamInterface, ABC):
             yield from map(function, self.get_items())
 
     def map(self, function: Callable) -> Native:
-        stream = self.stream(
-            self._get_mapped_items(function, flat=False),
-        )
+        items = self._get_mapped_items(function, flat=False)
+        stream = self.stream(items)
         return self._assume_native(stream)
 
     def flat_map(self, function: Callable) -> Native:
-        stream = self.stream(
-            self._get_mapped_items(function, flat=True),
-        )
+        items = self._get_mapped_items(function, flat=True)
+        stream = self.stream(items)
         return self._assume_native(stream)
 
     def map_side_join(self, right: Native, key: UniKey, how: How = JoinType.Left, right_is_uniq: bool = True) -> Native:
@@ -394,6 +400,10 @@ class IterableStreamMixin(IterableStreamInterface, ABC):
             items_with_logger = self.get_items()
         stream = self.stream(items_with_logger)
         return self._assume_native(stream)
+
+    def get_dict(self, key, value) -> dict:
+        field_getter = fs.it.get_field_value_from_item
+        return {field_getter(key, i): field_getter(value, i) for i in self.get_items()}
 
     def get_demo_example(self, count: int = 3) -> Iterable:
         yield from self.tee_stream().take(count).get_items()

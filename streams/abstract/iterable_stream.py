@@ -1,4 +1,5 @@
 from typing import Optional, Callable, Iterable, Union
+from itertools import tee
 import gc
 
 try:  # Assume we're a sub-module in a package.
@@ -68,6 +69,24 @@ class IterableStream(AbstractStream, IterableStreamMixin):
     def get_items(self) -> Iterable:  # list or generator (need for inherited subclasses)
         return self.get_stream_data()
 
+    def _get_tee_items(self) -> Iterable:
+        two_iterators = tee(self.get_items(), 2)
+        data_items, tee_items = two_iterators
+        self.set_data(data_items, inplace=True)
+        return tee_items
+
+    def tee_stream(self) -> Native:
+        stream = self.stream(self._get_tee_items(), check=False)
+        return self._assume_native(stream)
+
+    def copy(self) -> Native:
+        return self.tee_stream()
+
+    def set_meta(self, inplace: bool = False, **meta) -> Optional[Native]:
+        stream = super().set_meta(**meta, inplace=inplace)
+        if stream:
+            return self._assume_native(stream)
+
     @staticmethod
     def _get_dynamic_meta_fields() -> tuple:
         return DYNAMIC_META_FIELDS
@@ -133,15 +152,6 @@ class IterableStream(AbstractStream, IterableStreamMixin):
         self._count = count
         return self
 
-    @deprecated_with_alternative('get_one_item()')
-    def one(self):
-        return self.get_one_item()
-
-    def next(self):
-        return next(
-            self.get_iter(),
-        )
-
     def final_count(self) -> int:
         result = 0
         for _ in self.get_items():
@@ -187,10 +197,16 @@ class IterableStream(AbstractStream, IterableStreamMixin):
     def get_mapped_items(self, function: Callable, flat: bool = False) -> Iterable:
         return self._get_mapped_items(function, flat=flat)
 
+    @deprecated_with_alternative('get_one_item()')
+    def one(self):
+        return self.get_one_item()
+
+    def get_one_item(self):
+        for i in self._get_tee_items():
+            return i
+
+    def next(self):
+        return next(self.get_iter())
+
     def get_demo_example(self, count: int = 3) -> Iterable:
         yield from self.tee_stream().take(count).get_items()
-
-    def set_meta(self, inplace: bool = False, **meta) -> Optional[Native]:
-        stream = super().set_meta(**meta, inplace=inplace)
-        if stream:
-            return self._assume_native(stream)

@@ -34,20 +34,6 @@ class IterableStreamInterface(StreamInterface, ABC):
         pass
 
     @abstractmethod
-    def get_iter(self) -> Iterator:
-        """Presents items from stream as Iterator.
-        :return: Iterator or Generator
-        """
-        pass
-
-    @abstractmethod
-    def get_count(self) -> Optional[int]:
-        """Returns count of items in stream is it's known, otherwise returns None.
-        :return: int or None
-        """
-        pass
-
-    @abstractmethod
     def is_in_memory(self) -> bool:
         """Checks is the data of stream in RAM or in external iterator.
         :return: True if stream has data as Sequence in memory, False if it has an iterator
@@ -71,6 +57,20 @@ class IterableStreamInterface(StreamInterface, ABC):
     @abstractmethod
     def forget(self) -> NoReturn:
         """Closes stream and remove links to it from SnakeeContext and connectors."""
+        pass
+
+    @abstractmethod
+    def get_iter(self) -> Iterator:
+        """Presents items from stream as Iterator.
+        :return: Iterator or Generator
+        """
+        pass
+
+    @abstractmethod
+    def get_count(self) -> Optional[int]:
+        """Returns count of items in stream is it's known, otherwise returns None.
+        :return: int or None
+        """
         pass
 
     @abstractmethod
@@ -166,16 +166,6 @@ class IterableStreamInterface(StreamInterface, ABC):
         pass
 
     @abstractmethod
-    def tee_stream(self) -> Native:
-        """Return stream with copy of initial iterator.
-        Current stream save previous iterator position.
-        Uses tee() functions from python itertools: https://docs.python.org/3/library/itertools.html#itertools.tee
-
-        :return: Native Stream (stream of same class)
-        """
-        pass
-
-    @abstractmethod
     def stream(self, data: Iterable, ex: OptionalFields = None, **kwargs) -> Native:
         """Build new stream with data provided.
         Meta-information of initial stream will by saved by default (excluding fields from ex-argument).
@@ -188,11 +178,6 @@ class IterableStreamInterface(StreamInterface, ABC):
 
         :return: Native Stream (stream of same class)
         """
-        pass
-
-    @abstractmethod
-    def copy(self) -> Native:
-        """Return full copy of stream (including copy of iterator from tee_stream() method)."""
         pass
 
     @abstractmethod
