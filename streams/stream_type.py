@@ -45,8 +45,8 @@ class StreamType(ClassType):
         stream_class = self.get_class()
         return stream_class(data, *args, **kwargs)
 
-    @staticmethod
-    def detect(obj):
+    @classmethod
+    def detect(cls, obj, default=arg.AUTO) -> ClassType:
         if isinstance(obj, str):
             name = obj
         elif inspect.isclass(obj):
@@ -54,10 +54,15 @@ class StreamType(ClassType):
         else:
             name = obj.__class__.__name__
             if name == 'ItemType':
-                if obj.value == 'StructRow':
-                    return StreamType.StructStream
+                item_type_name = obj.get_name()
+                if item_type_name == 'StructRow':
+                    stream_type_obj = StreamType.StructStream
                 else:
-                    return StreamType('{}Stream'.format(name))
+                    stream_type_name = '{}Stream'.format(name)
+                    stream_type_obj = cls.find_instance(stream_type_name)
+                if stream_type_obj is None:
+                    stream_type_obj = arg.delayed_acquire(default, cls.get_default)
+                return stream_type_obj
         return StreamType(name)
 
     @classmethod
@@ -68,6 +73,11 @@ class StreamType(ClassType):
             return StreamType(obj)
         else:
             return cls.detect(obj)
+
+    def get_item_type(self):
+        stream_class = self.get_class()
+        if hasattr(stream_class, 'get_item_type'):
+            return stream_class.get_item_type()
 
     def isinstance(self, stream):
         if hasattr(stream, 'get_stream_type'):
