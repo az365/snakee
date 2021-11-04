@@ -2,18 +2,24 @@ from typing import Optional, Iterable, Callable, Union, Any
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
-    from interfaces import ROW_SUBCLASSES, Row, Name, Field, FieldNo, FieldInterface, StructInterface, DialectType
+    from interfaces import (
+        FieldInterface, StructInterface,
+        FieldType, DialectType,
+        ROW_SUBCLASSES, Row, Name, Field, FieldNo, Auto, AUTO,
+    )
     from base.abstract.simple_data import SimpleDataWrapper
     from items.struct_row_interface import StructRowInterface, DEFAULT_DELIMITER
     from items.flat_struct import FlatStruct
-    from items.legacy_struct import LegacyStruct
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
-    from ..interfaces import ROW_SUBCLASSES, Row, Name, Field, FieldNo, FieldInterface, StructInterface, DialectType
+    from ..interfaces import (
+        FieldInterface, StructInterface,
+        FieldType, DialectType,
+        ROW_SUBCLASSES, Row, Name, Field, FieldNo, Auto, AUTO,
+    )
     from ..base.abstract.simple_data import SimpleDataWrapper
     from .struct_row_interface import StructRowInterface, DEFAULT_DELIMITER
     from .flat_struct import FlatStruct
-    from .legacy_struct import LegacyStruct
 
 
 class StructRow(SimpleDataWrapper, StructRowInterface):
@@ -42,31 +48,82 @@ class StructRow(SimpleDataWrapper, StructRowInterface):
     def get_data(self) -> Row:
         return super().get_data()
 
-    @staticmethod
-    def _structure_row(row: Row, struct: StructInterface) -> Row:
-        assert isinstance(row, ROW_SUBCLASSES), 'Row must be list or tuple (got {})'.format(type(row))
-        expected_len = struct.get_fields_count()
-        row_len = len(row)
-        assert row_len == expected_len, 'count of cells must match the struct ({} != {})'.format(row_len, expected_len)
-        structured_fields = list()
-        for value, desc in zip(row, struct.get_fields_descriptions()):
-            if not desc.check_value(value):
-                converter = desc.get_converter('str', 'py')
-                value = converter(value)
-            structured_fields.append(value)
-        return structured_fields
-
     def set_data(self, row: Row, check: bool = True, inplace: bool = True) -> Optional[StructRowInterface]:
         if check:
             row = self._structure_row(row, self.get_struct())
         return super().set_data(data=row, inplace=inplace)
 
-    def set_value(self, field: Field, value: Any, inplace: bool = True) -> Optional[StructRowInterface]:
-        if isinstance(field, str):
-            field = self.get_struct().get_field_position(field)
-        self.get_data()[field] = value
+    def get_columns(self) -> Row:
+        return self.get_struct().get_columns()
+
+    def get_field_position(self, field: Field) -> Optional[FieldNo]:
+        if isinstance(field, FieldNo):
+            return field
+        else:
+            field_name = arg.get_name(field)
+            return self.get_struct().get_field_position(field_name)
+
+    def get_fields_positions(self, fields: Row) -> Row:
+        return [self.get_field_position(f) for f in fields]
+
+    def keys(self) -> Iterable:
+        return map(arg.get_name, self.get_fields_descriptions())
+
+    def get_keys(self) -> list:
+        return list(self.keys())
+
+    def get_values(self, fields: Row) -> Row:
+        positions = self.get_fields_positions(fields)
+        return [self.get_data()[p] for p in positions]
+
+    def get_value(self, field: Union[Name, Callable], skip_missing: bool = False, logger=None, default=None):
+        if isinstance(field, Callable):
+            return field(self)
+        position = self.get_field_position(field)
+        try:
+            return self.get_data()[position]
+        except IndexError or TypeError:
+            msg = 'Field {} does no exists in current row'.format(field)
+            if skip_missing:
+                if logger:
+                    logger.log(msg)
+                return default
+            else:
+                raise IndexError(msg)
+
+    def set_value(
+            self,
+            field: Field,
+            value: Any,
+            field_type: Union[FieldType, Auto] = AUTO,
+            update_struct: bool = False,
+            inplace: bool = True,
+    ) -> Optional[StructRowInterface]:
+        if isinstance(field, FieldNo):
+            field_position = field
+        else:
+            field_position = self.get_field_position(field)
+        if field_position is None:
+            if update_struct:
+                self.get_struct().append_field(field, field_type, inplace=True)
+                self.get_data().append(value)
+            else:
+                msg = 'field {} not found in {} and struct is locked (update_struct={})'
+                raise ValueError(msg.format(field, self.get_struct(), update_struct))
+        self.get_data()[field_position] = value
         if not inplace:
             return self
+
+    def get(self, field: Field, default=None) -> Any:
+        return self.get_value(field, skip_missing=False, default=default)
+
+    def get_slice(self, start: FieldNo, stop: Optional[FieldNo] = None, step: Optional[FieldNo] = None) -> Row:
+        return [self.get_value(i) for i in range(start, stop, step)]
+
+    def simple_select_fields(self, fields: Row) -> StructRowInterface:
+        data = self.get_values(fields)
+        struct = self.get_struct().simple_select_fields(fields)
+        return StructRow(data, struct=struct, check=False)
 
     def get_record(self) -> dict:
         return {k.name: v for k, v in zip(self.get_fields_descriptions(), self.get_data())}
@@ -87,46 +144,24 @@ class StructRow(SimpleDataWrapper, StructRowInterface):
             list_str.append(str(value))
         return delimiter.join(list_str)
 
-    def get_columns(self) -> Row:
-        return self.get_struct().get_columns()
+    def copy(self):
+        data = self.get_data().copy()
+        struct = self.get_struct().copy()
+        return StructRow(data, struct=struct, check=False)
 
-    def get_field_position(self, field: Field) -> Optional[FieldNo]:
-        if isinstance(field, FieldNo):
-            return field
-        else:
-            field_name = arg.get_name(field)
-            return self.get_struct().get_field_position(field_name)
-
-    def get_fields_positions(self, fields: Row) -> Row:
-        return [self.get_field_position(f) for f in fields]
-
-    def get_value(self, field: Union[Name, Callable], skip_missing: bool = False, logger=None, default=None):
-        if isinstance(field, Callable):
-            return field(self)
-        position = self.get_field_position(field)
-        try:
-            return self.get_data()[position]
-        except IndexError or TypeError:
-            msg = 'Field {} does no exists in current row'.format(field)
-            if skip_missing:
-                if logger:
-                    logger.log(msg)
-                return default
-            else:
-                raise IndexError(msg)
-
-    def get_values(self, fields: Row) -> Row:
-        positions = self.get_fields_positions(fields)
-        return [self.get_data()[p] for p in positions]
-
-    def get_slice(self, start: FieldNo, stop: Optional[FieldNo] = None, step: Optional[FieldNo] = None) -> Row:
-        return [self.get_value(i) for i in range(start, stop, step)]
-
-    def simple_select_fields(self, fields: Row) -> StructRowInterface:
-        return StructRow(
-            data=self.get_values(fields),
-            struct=self.get_struct().simple_select_fields(fields)
-        )
+    @staticmethod
+    def _structure_row(row: Row, struct: StructInterface) -> Row:
+        assert isinstance(row, ROW_SUBCLASSES), 'Row must be list or tuple (got {})'.format(type(row))
+        expected_len = struct.get_fields_count()
+        row_len = len(row)
+        assert row_len == expected_len, 'count of cells must match the struct ({} != {})'.format(row_len, expected_len)
+        structured_fields = list()
+        for value, desc in zip(row, struct.get_fields_descriptions()):
+            if not desc.check_value(value):
+                converter = desc.get_converter('str', 'py')
+                value = converter(value)
+            structured_fields.append(value)
+        return structured_fields
 
     def __iter__(self):
         return self.get_data()
@@ -142,12 +177,21 @@ class StructRow(SimpleDataWrapper, StructRowInterface):
         else:
             return self.get_value(item)
 
+    def __setitem__(self, key, value):
+        self.set_value(key, value, update_struct=True, inplace=True)
+
     def __add__(self, other: StructRowInterface):
         assert isinstance(other, StructRowInterface), 'can add only StructRow, got {}'.format(other)
         return StructRow(
             data=list(self.get_data()) + list(other.get_data()),
             struct=self.get_struct() + other.get_struct(),
         )
+
+    def __str__(self):
+        field_names = self.get_columns()
+        field_values = self.get_values(field_names)
+        field_strings = ['{}={}'.format(k, v.__repr__()) for k, v in zip(field_names, field_values)]
+        return '{}({})'.format(self.__class__.__name__, ', '.format(field_strings))
 
 
 SchemaRow = StructRow
