@@ -5,8 +5,8 @@ try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from interfaces import (
         LeafConnectorInterface, StructInterface, StructFileInterface, IterableStreamInterface,
-        ItemType, FieldType, DialectType,
-        AUTO, Auto, AutoBool, Array, ARRAY_TYPES,
+        ItemType, FieldType, DialectType, StreamType,
+        AUTO, Auto, AutoBool, Columns, Array, ARRAY_TYPES,
     )
     from connectors.content_format.text_format import AbstractFormat, ParsedFormat, TextFormat
     from connectors.content_format.lean_format import LeanFormat, ColumnarFormat, FlatStructFormat
@@ -14,8 +14,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils import arguments as arg
     from ...interfaces import (
         LeafConnectorInterface, StructInterface, StructFileInterface, IterableStreamInterface,
-        ItemType, FieldType, DialectType,
-        AUTO, Auto, AutoBool, Array, ARRAY_TYPES,
+        ItemType, FieldType, DialectType, StreamType,
+        AUTO, Auto, AutoBool, Columns, Array, ARRAY_TYPES,
     )
     from ..content_format.text_format import AbstractFormat, ParsedFormat, TextFormat
     from ..content_format.lean_format import LeanFormat, ColumnarFormat, FlatStructFormat
@@ -79,6 +79,17 @@ class ConnectorFormatMixin(LeafConnectorInterface, ABC):
         self.set_struct(struct, inplace=True)
         return self._assume_native(self)
 
+    def get_struct_str(self, dialect: DialectType = DialectType.Postgres) -> str:
+        return self.get_struct().get_struct_str(dialect=dialect)
+
+    def reset_struct_to_initial(self, verbose: bool = True, message: Optional[str] = None) -> Native:
+        if not arg.is_defined(message):
+            message = self.__repr__()
+        if verbose:
+            for line in self.get_struct().get_struct_comparison_iter(self.get_initial_struct(), message=message):
+                self.log(line)
+        return self.struct(self.get_initial_struct())
+
     def add_fields(self, *fields, default_type: Type = None, inplace: bool = False) -> Optional[Native]:
         self.get_struct().add_fields(*fields, default_type=default_type, inplace=True)
         if not inplace:
@@ -91,6 +102,9 @@ class ConnectorFormatMixin(LeafConnectorInterface, ABC):
 
     def get_columns(self) -> list:
         return self.get_struct().get_columns()
+
+    def get_column_count(self) -> int:
+        return len(self.get_columns())
 
     def get_types(self, dialect: DialectType = DialectType.String) -> Iterable:
         return self.get_struct().get_types(dialect)
@@ -200,6 +214,21 @@ class ConnectorFormatMixin(LeafConnectorInterface, ABC):
         if isinstance(content_format, ParsedFormat):
             return content_format.is_gzip()
         return False
+
+    def get_stream_type(self) -> StreamType:
+        content_format = self.get_content_format()
+        return content_format.get_default_stream_type()
+
+    def get_item_type(self) -> ItemType:
+        stream_class = self.get_stream_type().get_class()
+        if hasattr(stream_class, 'get_item_type'):
+            return stream_class.get_item_type()
+        else:
+            stream_obj = stream_class([])
+        if hasattr(stream_obj, 'get_item_type'):
+            return stream_obj.get_item_type()
+        else:
+            return ItemType.Any
 
     @abstractmethod
     def is_verbose(self) -> bool:
