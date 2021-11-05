@@ -133,17 +133,11 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
         if self.is_in_memory():
             filtered_items = list(filtered_items)
             count = len(filtered_items)
-            stream = self.stream(
-                filtered_items,
-                count=count,
-                less_than=count,
-            )
+            less_than = count
         else:
-            stream = self.stream(
-                filtered_items,
-                count=None,
-                less_than=self.get_estimated_count(),
-            )
+            count = None
+            less_than = self.get_estimated_count()
+        stream = self.stream(filtered_items, count=count, less_than=less_than)
         return stream
 
     def add_column(self, name: Field, values: Iterable, ignore_errors: bool = False) -> Native:
@@ -257,7 +251,7 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
 
     def get_dataframe(self, columns: Columns = None) -> DataFrame:
         if pd and get_use_objects_for_output():
-            dataframe = DataFrame(self.get_data())
+            dataframe = DataFrame(self.get_items())
             if arg.is_defined(columns):
                 columns = arg.get_names(columns)
                 dataframe = dataframe[columns]
@@ -451,7 +445,7 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
         return '{} rows, {} columns: {}'.format(
             self.get_str_count(),
             self.get_column_count(),
-            ', '.join(self.get_columns()),
+            ', '.join([str(c) for c in self.get_columns()]),
         )
 
     def __str__(self):
