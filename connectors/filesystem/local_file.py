@@ -356,7 +356,7 @@ class LocalFile(LeafConnector, ConnectorFormatMixin, ActualizeMixin, StreamFileM
         elif (count or 0) > 0:
             self.log('Expecting {} lines in file {}...'.format(count, self.get_name()), verbose=verbose)
         lines = self.get_lines(verbose=verbose, skip_first=self.is_first_line_title(), step=step)
-        items = content_format.get_items(lines, item_type=item_type)
+        items = content_format.get_items_from_lines(lines, item_type=item_type)
         return items
 
     def get_chunks(self, chunk_size=CHUNK_SIZE) -> Iterable:

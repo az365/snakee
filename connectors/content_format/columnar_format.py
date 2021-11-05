@@ -6,7 +6,7 @@ try:  # Assume we're a sub-module in a package.
     from interfaces import (
         Item, Record, Row, StructRow, StructInterface,
         ItemType, StreamType, ContentType,
-        AUTO, Auto, AutoBool, Array,
+        AUTO, Auto, AutoBool, Array, ARRAY_TYPES,
     )
     from connectors.content_format.text_format import TextFormat, Compress, DEFAULT_ENDING, DEFAULT_ENCODING
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -14,7 +14,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...interfaces import (
         Item, Record, Row, StructRow, StructInterface,
         ItemType, StreamType, ContentType,
-        AUTO, Auto, AutoBool, Array,
+        AUTO, Auto, AutoBool, Array, ARRAY_TYPES,
     )
     from .text_format import TextFormat, Compress, DEFAULT_ENDING, DEFAULT_ENCODING
 
@@ -112,27 +112,27 @@ class ColumnarFormat(TextFormat):
             struct: Union[Array, StructInterface, Auto] = AUTO,
     ) -> Item:
         item_type = arg.delayed_acquire(item_type, self.get_default_item_type)
-        if item_type in (ItemType.Record, ItemType.Row, ItemType.StructRow, ItemType.Any, ItemType.Auto):
-            row = self._parse_csv_line(line)
-            if isinstance(struct, StructInterface):
-                field_converters = struct.get_converters()
-                row_converter = self._get_row_converter(converters=field_converters)
-                row = row_converter(row)
-            if item_type in (ItemType.Row, ItemType.Any, ItemType.Auto):
-                return row
-            if not arg.is_defined(struct):
-                column_count = len(row)
-                struct = list(range(column_count))
-            if item_type == ItemType.Record:
-                return {k: v for k, v in zip(struct, row)}
-            elif item_type == ItemType.StructRow:
-                return ItemType.StructRow.build(data=row, struct=struct)
-        elif item_type == ItemType.Line:
+        if item_type == ItemType.Line:
             return line
-        msg = 'item_type {} is not supported for {}.parse_lines()'
-        raise ValueError(msg.format(item_type, self.__class__.__name__))
+        row = self._parse_csv_line(line)
+        if isinstance(struct, StructInterface):
+            field_converters = struct.get_converters()
+            row_converter = self._get_row_converter(converters=field_converters)
+            row = row_converter(row)
+        if item_type in (ItemType.Row, ItemType.Any, ItemType.Auto):
+            return row
+        if not arg.is_defined(struct, check_name=False):
+            column_count = len(row)
+            struct = list(range(column_count))
+        if item_type == ItemType.Record:
+            return {arg.get_name(k): v for k, v in zip(struct, row)}
+        elif item_type == ItemType.StructRow:
+            return ItemType.StructRow.build(data=row, struct=struct)
+        else:
+            msg = 'item_type {} is not supported for {}.parse_lines()'
+            raise ValueError(msg.format(item_type, self.__class__.__name__))
 
-    def get_items(
+    def get_items_from_lines(
             self,
             lines: Iterable,
             item_type: Union[ItemType, Auto] = AUTO,
@@ -145,7 +145,7 @@ class ColumnarFormat(TextFormat):
                 column_names = struct.get_columns()
                 field_converters = struct.get_converters()
                 rows = map(self._get_row_converter(converters=field_converters), rows)
-            elif isinstance(struct, Array):
+            elif isinstance(struct, ARRAY_TYPES):
                 column_names = struct
             else:
                 column_names = None
@@ -158,7 +158,7 @@ class ColumnarFormat(TextFormat):
                     else:
                         yield {k: v for k, v in enumerate(r)}
             elif item_type == ItemType.StructRow:
-                assert arg.is_defined(struct)
+                assert arg.is_defined(struct, check_name=False)
                 for r in rows:
                     yield ItemType.StructRow.build(data=r, struct=struct)
         else:  # item_type == ItemType.Line
@@ -182,6 +182,12 @@ class FlatStructFormat(ColumnarFormat):
             delimiter=delimiter, ending=ending,
             encoding=encoding, compress=compress,
         )
+
+    def get_content_type(self) -> ContentType:
+        if self.get_delimiter() == DEFAULT_DELIMITER:
+            return ContentType.TsvFile
+        else:
+            return ContentType.CsvFile
 
     def get_struct(self) -> StructInterface:
         return self._struct
@@ -237,14 +243,17 @@ class FlatStructFormat(ColumnarFormat):
         struct = self._get_validated_struct(struct)
         return super().get_parsed_line(line, item_type=item_type, struct=struct)
 
-    def get_items(
+    def get_items_from_lines(
             self,
             lines: Iterable,
             item_type: Union[ItemType, Auto] = AUTO,
-            struct: Union[Array, Auto] = AUTO,
+            struct: Union[Array, StructInterface, Auto] = AUTO,
     ) -> Generator:
         struct = self._get_validated_struct(struct)
-        return super().get_items(lines, item_type=item_type, struct=struct)
+        return super().get_items_from_lines(lines, item_type=item_type, struct=struct)
 
     def copy(self):
-        return self.make_new(struct=self.get_struct().copy())
+        struct = self.get_struct()
+        if isinstance(struct, StructInterface) or hasattr(struct, 'copy'):
+            struct = struct.copy()
+        return self.make_new(struct=struct)

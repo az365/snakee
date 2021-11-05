@@ -118,7 +118,7 @@ class ParsedFormat(CompressibleFormat, ABC):
     def get_parsed_line(self, line: str, item_type: Union[ItemType, arg.Auto] = AUTO) -> Item:
         pass
 
-    def get_items(
+    def get_items_from_lines(
             self,
             lines: Iterable,
             item_type: Union[ItemType, arg.Auto] = AUTO,
@@ -140,5 +140,5 @@ class ParsedFormat(CompressibleFormat, ABC):
         else:
             raise TypeError
         item_kwargs = dict(struct=kwargs['struct']) if 'struct' in kwargs else dict()
-        items = self.get_items(lines, item_type=item_type, **item_kwargs)
+        items = self.get_items_from_lines(lines, item_type=item_type, **item_kwargs)
         return stream_class(items, **kwargs)
