@@ -65,8 +65,10 @@ class ColumnFile(LocalFile, ColumnarMixin):
             folder=folder, expected_count=expected_count, verbose=verbose,
         )
 
-    @staticmethod
-    def get_item_type() -> ItemType:
+    def get_default_file_extension(self) -> str:
+        return 'tsv'
+
+    def get_item_type(self) -> ItemType:
         return ItemType.Record
 
     def get_struct_comparison_dict(self, other: Optional[Struct] = None) -> dict:
@@ -103,7 +105,7 @@ class ColumnFile(LocalFile, ColumnarMixin):
             item_type = ItemType.Record
         else:
             raise ValueError('Expected column as int or str, got {}'.format(column))
-        for item in self.get_items(item_type=item_type):
+        for item in self.get_items_of_type(item_type=item_type):
             yield item_type.get_value_from_item(item=item, field=column, skip_unsupported_types=True)
 
     def validate_fields(self, initial: bool = True) -> Native:
@@ -283,10 +285,6 @@ class ColumnFile(LocalFile, ColumnarMixin):
     def get_records(self, convert_types: bool = True, verbose: AutoBool = AUTO, **kwargs) -> Iterable:
         return self.get_records_from_file(convert_types=convert_types, verbose=verbose, **kwargs)
 
-    def get_dict(self, key: Union[Field, Array], value: Union[Field, Array], skip_errors: bool = False) -> dict:
-        stream = self.to_record_stream(check=False)
-        return stream.get_dict(key, value, skip_errors=skip_errors)
-
     def select(self, *args, **kwargs) -> Stream:
         stream = self.to_record_stream().select(*args, **kwargs)
         return self._assume_stream(stream)
@@ -463,8 +461,7 @@ class CsvFile(LocalFile, ColumnarMixin):
     # @deprecated_with_alternative('ConnType.get_class()')
     def __init__(
             self,
-            name: Name,
-            struct: Struct = AUTO,
+            name: Name, struct: Struct = AUTO,
             gzip: bool = False, encoding: str = 'utf8',
             end: str = '\n', delimiter: str = ',',
             first_line_is_title: bool = True, expected_count: AutoBool = AUTO,
@@ -472,7 +469,8 @@ class CsvFile(LocalFile, ColumnarMixin):
     ):
         content_class = ContentType.CsvFile.get_class()
         content_format = content_class(
-            encoding=encoding, ending=end, delimiter=delimiter, first_line_is_title=first_line_is_title,
+            struct=struct, first_line_is_title=first_line_is_title,
+            encoding=encoding, ending=end, delimiter=delimiter,
             compress='gzip' if gzip else None,
         )
         super().__init__(
@@ -480,13 +478,12 @@ class CsvFile(LocalFile, ColumnarMixin):
             folder=folder, expected_count=expected_count, verbose=verbose,
         )
 
-    @staticmethod
-    def get_default_file_extension() -> str:
+    def get_default_file_extension(self) -> str:
         return 'csv'
 
     @staticmethod
     def get_default_item_type() -> ItemType:
-        return ItemType.Row
+        return ItemType.Record
 
     @classmethod
     def get_stream_type(cls) -> StreamType:
@@ -509,17 +506,16 @@ class TsvFile(LocalFile, ColumnarMixin):
     ):
         content_class = ContentType.TsvFile.get_class()
         content_format = content_class(
-            encoding=encoding, ending=end, delimiter=delimiter, first_line_is_title=first_line_is_title,
+            struct=struct, first_line_is_title=first_line_is_title,
+            encoding=encoding, ending=end, delimiter=delimiter,
             compress='gzip' if gzip else None,
-            struct=struct,
         )
         super().__init__(
             name=name, content_format=content_format, struct=struct,
             folder=folder, expected_count=expected_count, verbose=verbose,
         )
 
-    @staticmethod
-    def get_default_file_extension() -> str:
+    def get_default_file_extension(self) -> str:
         return 'tsv'
 
     @staticmethod
