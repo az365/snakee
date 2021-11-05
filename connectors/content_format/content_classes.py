@@ -20,6 +20,7 @@ class CsvFormat(FlatStructFormat):
     @deprecated_with_alternative('FlatStructFormat.__init__()')
     def __init__(
             self,
+            struct,
             first_line_is_title: bool = True,
             delimiter: str = ',',
             ending: str = '\n',
@@ -27,6 +28,7 @@ class CsvFormat(FlatStructFormat):
             compress=None,
     ):
         super().__init__(
+            struct=struct,
             delimiter=delimiter, first_line_is_title=first_line_is_title,
             ending=ending, encoding=encoding, compress=compress,
         )
