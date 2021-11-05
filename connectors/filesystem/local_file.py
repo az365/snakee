@@ -335,10 +335,18 @@ class LocalFile(LeafConnector, ConnectorFormatMixin, ActualizeMixin, StreamFileM
 
     def get_items(
             self,
-            item_type: Union[ItemType, arg.Auto] = AUTO,
             verbose: AutoBool = AUTO,
             step: AutoCount = AUTO,
     ) -> Iterable:
+        return self.get_items_of_type(item_type=AUTO, verbose=verbose, step=step)
+
+    def get_items_of_type(
+            self,
+            item_type: Union[ItemType, Auto],
+            verbose: AutoBool = AUTO,
+            step: AutoCount = AUTO,
+    ) -> Iterable:
+        item_type = arg.acquire(item_type, self.get_default_item_type())
         verbose = arg.acquire(verbose, self.is_verbose())
         content_format = self.get_content_format()
         assert isinstance(content_format, ParsedFormat)
@@ -399,5 +407,11 @@ class LocalFile(LeafConnector, ConnectorFormatMixin, ActualizeMixin, StreamFileM
     def from_stream(self, stream: Stream, verbose: bool = True) -> Native:
         return super(StreamFileMixin).from_stream(stream, verbose=verbose)
 
-    def to_stream(self, **kwargs) -> Stream:
-        return self.to_stream_type(stream_type=self.get_stream_type(), **kwargs)
+    def to_stream(self, data: Union[Iterable, Auto, None] = AUTO, **kwargs) -> Stream:
+        if 'stream_type' not in kwargs:
+            kwargs['stream_type'] = self.get_stream_type()
+        if arg.is_defined(data):
+            kwargs['data'] = data
+        ex = kwargs.pop('ex', None)
+        assert not ex, 'ex-argument for LocalFile.to_stream() not supported (got {})'.format(ex)
+        return self.to_stream_type(**kwargs)

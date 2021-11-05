@@ -70,9 +70,9 @@ class StreamFileMixin(IterableStreamMixin, ABC):
             return self.get_count()
 
     @abstractmethod
-    def get_items(
+    def get_items_of_type(
             self,
-            item_type: Union[ItemType, Auto] = AUTO,
+            item_type: Union[ItemType, Auto],
             verbose: AutoBool = AUTO,
             step: AutoCount = AUTO,
     ) -> Iterable:
@@ -137,8 +137,11 @@ class StreamFileMixin(IterableStreamMixin, ABC):
             verbose: AutoBool = AUTO,
             **kwargs,
     ):
+        stream_type = arg.delayed_acquire(stream_type, self._get_stream_type)
         item_type = self._get_item_type(stream_type)
-        data = self.get_items(item_type=item_type, step=step, verbose=verbose)
+        data = kwargs.pop('data', None)
+        if not arg.is_defined(data):
+            data = self.get_items_of_type(item_type=item_type, step=step, verbose=verbose)
         stream_kwargs = self.get_stream_kwargs(data=data, step=step, verbose=verbose, **kwargs)
         return stream_type.stream(**stream_kwargs)
 
@@ -203,8 +206,8 @@ class StreamFileMixin(IterableStreamMixin, ABC):
         return self._assume_stream(stream)
 
     @staticmethod
-    def _assume_stream(obj) -> Stream:
-        return obj
+    def _assume_stream(stream) -> Stream:
+        return stream
 
     def get_children(self) -> dict:
         return self._data
