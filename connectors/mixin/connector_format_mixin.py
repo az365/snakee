@@ -26,13 +26,13 @@ Struct = Optional[StructInterface]
 
 class ConnectorFormatMixin(LeafConnectorInterface, ABC):
     def get_initial_struct(self) -> Struct:
-        initial_format = self.get_initial_format()
+        initial_format = self.get_declared_format()
         if isinstance(initial_format, FlatStructFormat) or hasattr(initial_format, 'get_struct'):
             return initial_format.get_struct()
 
     def set_initial_struct(self, struct: Struct, inplace: bool) -> Optional[Native]:
         struct = self._get_native_struct(struct).copy()
-        initial_format = self.get_initial_format()
+        initial_format = self.get_declared_format()
         if inplace:
             if isinstance(initial_format, (LeanFormat, ColumnarFormat)) or hasattr(initial_format, 'set_struct'):
                 initial_format.set_struct(struct, inplace=True)
@@ -251,5 +251,5 @@ class ConnectorFormatMixin(LeafConnectorInterface, ABC):
         pass
 
     @abstractmethod
-    def get_initial_format(self) -> AbstractFormat:
+    def get_declared_format(self) -> AbstractFormat:
         pass

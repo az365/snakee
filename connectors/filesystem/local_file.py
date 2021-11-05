@@ -46,12 +46,12 @@ LOGGING_LEVEL_INFO = 20
 LOGGING_LEVEL_WARN = 30
 
 
-class LocalFile(LeafConnector, ConnectorFormatMixin, ActualizeMixin, StreamFileMixin, IterableStreamMixin):
+class LocalFile(LeafConnector, ConnectorFormatMixin, StreamFileMixin, ActualizeMixin, IterableStreamMixin):
     def __init__(
             self,
             name: str,
-            content_format: Union[AbstractFormat, arg.Auto] = AUTO,
-            struct: Union[Struct, arg.Auto, None] = AUTO,
+            content_format: Union[AbstractFormat, Auto] = AUTO,
+            struct: Union[Struct, Auto, None] = AUTO,
             folder: Connector = None,
             context: Context = AUTO,
             expected_count: AutoCount = AUTO,
@@ -62,8 +62,8 @@ class LocalFile(LeafConnector, ConnectorFormatMixin, ActualizeMixin, StreamFileM
             assert isinstance(folder, ConnectorInterface) or folder.is_folder(), message
         else:
             folder = context.get_job_folder()
-        self._content_format = None
-        self._initial_format = None
+        self._declared_format = None
+        self._detected_format = None
         self._fileholder = None
         self._modification_ts = None
         self._count = expected_count
@@ -76,29 +76,36 @@ class LocalFile(LeafConnector, ConnectorFormatMixin, ActualizeMixin, StreamFileM
                 if isinstance(content_format, ColumnarFormat) or hasattr(content_format, 'is_first_line_title'):
                     if content_format.is_first_line_title():
                         struct = self.get_detected_struct_by_title_row()
-            if arg.is_defined(struct):
+            if arg.is_defined(struct, check_name=False):
                 self.set_struct(struct, inplace=True)
 
     def get_content_format(self) -> AbstractFormat:
-        return self._content_format
-
-    def get_initial_format(self) -> AbstractFormat:
-        return self._initial_format
+        return self.get_detected_format()
 
     def set_content_format(self, content_format: AbstractFormat, inplace: bool) -> Optional[Native]:
+        return self.set_detected_format(content_format=content_format, inplace=inplace)
+
+    def get_detected_format(self) -> AbstractFormat:
+        return self._detected_format
+
+    def set_detected_format(self, content_format: AbstractFormat, inplace: bool) -> Optional[Native]:
         if inplace:
-            self._content_format = content_format
-            if not self.get_initial_format():
-                self.set_initial_format(content_format, inplace=True)
+            self._detected_format = content_format
+            if not self.get_declared_format():
+                self.set_declared_format(content_format, inplace=True)
         else:
             return self.make_new(content_format=content_format)
 
-    def set_initial_format(self, initial_format: AbstractFormat, inplace: bool) -> Optional[Native]:
+    def get_declared_format(self) -> AbstractFormat:
+        return self._declared_format
+
+    def set_declared_format(self, initial_format: AbstractFormat, inplace: bool) -> Optional[Native]:
         if inplace:
-            self._initial_format = initial_format.copy()
+            self._declared_format = initial_format.copy()
         else:
             new = self.copy()
-            new.set_initial_format(initial_format, inplace=True)
+            assert isinstance(new, LocalFile)
+            new.set_declared_format(initial_format, inplace=True)
             return new
 
     def get_content_type(self) -> ContentType:
@@ -255,8 +262,7 @@ class LocalFile(LeafConnector, ConnectorFormatMixin, ActualizeMixin, StreamFileM
             return not self.is_empty()
         return False
 
-    @staticmethod
-    def is_in_memory() -> bool:
+    def is_in_memory(self) -> bool:
         return False
 
     @staticmethod
@@ -315,7 +321,7 @@ class LocalFile(LeafConnector, ConnectorFormatMixin, ActualizeMixin, StreamFileM
             skip_first: bool = False, allow_reopen: bool = True,
             check: bool = True, verbose: AutoBool = AUTO,
             message: Union[str, Auto] = AUTO, step: AutoCount = AUTO,
-    ) -> Generator:
+    ) -> Iterable:
         if check and not self.is_gzip():
             # assert self.get_count(allow_reopen=True) > 0
             assert not self.is_empty(), 'for get_lines() file must be non-empty: {}'.format(self)
@@ -415,3 +421,9 @@ class LocalFile(LeafConnector, ConnectorFormatMixin, ActualizeMixin, StreamFileM
         ex = kwargs.pop('ex', None)
         assert not ex, 'ex-argument for LocalFile.to_stream() not supported (got {})'.format(ex)
         return self.to_stream_type(**kwargs)
+
+    def copy(self) -> Native:
+        copy = self.make_new()
+        copy.set_declared_format(self.get_declared_format().copy())
+        copy.set_detected_format(self.get_detected_format().copy())
+        return self._assume_native(copy)
