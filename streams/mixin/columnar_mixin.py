@@ -3,7 +3,8 @@ from typing import Union, Iterable, Generator, Callable, Optional
 
 try:  # Assume we're a sub-module in a package.
     from interfaces import (
-        Stream, RegularStream, RegularStreamInterface, StructStream, StructInterface, ColumnarInterface, Context,
+        Context, LoggerInterface,
+        Stream, RegularStream, RegularStreamInterface, StructStream, StructInterface, ColumnarInterface,
         StreamType, ItemType, JoinType, How,
         Count, UniKey, Item, Array, Columns, OptionalFields,
         AUTO, Auto, AutoBool,
@@ -16,7 +17,8 @@ try:  # Assume we're a sub-module in a package.
     from utils import selection as sf
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
-        Stream, RegularStream, RegularStreamInterface, StructStream, StructInterface, ColumnarInterface, Context,
+        Context, LoggerInterface,
+        Stream, RegularStream, RegularStreamInterface, StructStream, StructInterface, ColumnarInterface,
         StreamType, ItemType, JoinType, How,
         Count, UniKey, Item, Array, Columns, OptionalFields,
         AUTO, Auto, AutoBool,
@@ -41,7 +43,7 @@ class ColumnarMixin(ContextualDataWrapper, ColumnarInterface, ABC):
         return cls.get_item_type().isinstance(item)
 
     @classmethod
-    def get_validated(cls, items: Iterable, skip_errors: bool = False, context: Context = None):
+    def get_validated(cls, items: Iterable, skip_errors: bool = False, context: Context = None) -> Generator:
         for i in items:
             if cls.is_valid_item(i):
                 yield i
@@ -72,10 +74,28 @@ class ColumnarMixin(ContextualDataWrapper, ColumnarInterface, ABC):
     def get_column_count(self) -> int:
         return len(list(self.get_columns()))
 
-    def filter(self, *args, item_type: ItemType = ItemType.Auto, skip_errors: bool = False, **kwargs) -> Native:
-        stream = self.stream(
-            sf.filter_items(*args, item_type=item_type, skip_errors=skip_errors, logger=self.get_logger(), **kwargs),
+    def _get_filtered_items(
+            self,
+            *args,
+            item_type: ItemType = ItemType.Auto,
+            skip_errors: bool = False,
+            logger: Union[LoggerInterface, Auto] = AUTO,
+            **kwargs
+    ) -> Iterable:
+        logger = arg.delayed_acquire(logger, self.get_logger)
+        item_type = arg.delayed_acquire(item_type, self.get_item_type)
+        filter_function = sf.filter_items(
+            *args, item_type=item_type,
+            skip_errors=skip_errors, logger=logger,
+            **kwargs,
         )
+        return filter(filter_function, self.get_items())
+
+    def filter(self, *args, item_type: ItemType = ItemType.Auto, skip_errors: bool = False, **kwargs) -> Native:
+        item_type = arg.delayed_acquire(item_type, self.get_item_type)
+        stream_type = StreamType.detect(item_type)
+        filtered_items = self._get_filtered_items(*args, item_type=item_type, skip_errors=skip_errors, **kwargs)
+        stream = self.to_stream(data=filtered_items, stream_type=stream_type)
         return self._assume_native(stream)
 
     def _get_flat_mapped_items(self, function: Callable) -> Generator:
@@ -148,14 +168,19 @@ class ColumnarMixin(ContextualDataWrapper, ColumnarInterface, ABC):
     def get_str_count(self) -> str:  # tmp?
         return str(self.get_count())
 
-    def actualize(self) -> Native:
+    def actualize(self, force: bool = False) -> Native:
         source = self.get_source()
         if hasattr(source, 'actualize'):
-            source.actualize()
+            if hasattr(source, 'is_actual') and not force:
+                if not source.is_actual():
+                    source.actualize()
+            else:
+                source.actualize()
         if self.get_count():
             if self.get_count() < SAFE_COUNT_ITEMS_IN_MEMORY:
-                self.collect(inplace=True)
-        self.update_count()
+                if hasattr(self, '_collect_inplace()'):
+                    self._collect_inplace()
+                    self.update_count()
         return self
 
     def structure(
@@ -210,7 +235,7 @@ class ColumnarMixin(ContextualDataWrapper, ColumnarInterface, ABC):
     def get_str_description(self) -> str:
         return '{} rows, {} columns: {}'.format(
             self.get_str_count(),
-            self.get_columns_count(),
+            self.get_column_count(),
             ', '.join(self.get_columns()),
         )
 
@@ -265,9 +290,13 @@ class ColumnarMixin(ContextualDataWrapper, ColumnarInterface, ABC):
     def describe(
             self, *filters,
             take_struct_from_source: bool = False,
-            count: Count = 10, columns: Columns = None,
-            show_header: bool = True, struct_as_dataframe: bool = False, separate_by_tabs: bool = False,
-            allow_collect: bool = True, **filter_kwargs
+            count: Count = 10,
+            columns: Columns = None,
+            show_header: bool = True,
+            struct_as_dataframe: bool = False,
+            separate_by_tabs: bool = False,
+            allow_collect: bool = True,
+            **filter_kwargs
     ):
         if show_header:
             for line in self.get_str_headers():
@@ -275,19 +304,20 @@ class ColumnarMixin(ContextualDataWrapper, ColumnarInterface, ABC):
         example = self.example(*filters, **filter_kwargs, count=count)
         assert isinstance(example, ColumnarMixin)
         if hasattr(self, 'get_struct'):
-            struct = self.get_struct()
+            expected_struct = self.get_struct()
             source_str = 'native'
         elif take_struct_from_source:
-            struct = self.get_source_struct()
+            expected_struct = self.get_source_struct()
             source_str = 'from source {}'.format(self.get_source().__repr__())
         else:
-            struct = self.get_detected_struct()
+            expected_struct = self.get_detected_struct()
             source_str = 'detected from example items'
-        struct = fc.FlatStruct.convert_to_native(struct)
-        struct.validate_about(example.get_detected_struct(count))
-        message = '{} {}'.format(source_str, struct.get_validation_message())
+        expected_struct = fc.FlatStruct.convert_to_native(expected_struct)
+        detected_struct = example.get_detected_struct(count)
+        detected_struct.validate_about(expected_struct)
+        message = '{} {}'.format(source_str, expected_struct.get_validation_message())
         struct_as_dataframe = struct_as_dataframe and get_use_objects_for_output()
-        struct_dataframe = struct.describe(
+        struct_dataframe = expected_struct.describe(
             as_dataframe=struct_as_dataframe, show_header=False, logger=self.get_logger(),
             separate_by_tabs=separate_by_tabs, example=example.get_one_item(), comment=message,
         )
