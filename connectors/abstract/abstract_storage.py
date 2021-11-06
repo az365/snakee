@@ -2,9 +2,11 @@ from abc import ABC, abstractmethod
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
+    from interfaces import Context, ContextInterface, Name
     from connectors.abstract.hierarchic_connector import HierarchicConnector
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
+    from ...interfaces import Context, ContextInterface, Name
     from .hierarchic_connector import HierarchicConnector
 
 
@@ -12,7 +14,9 @@ DEFAULT_PATH_DELIMITER = '/'
 
 
 class AbstractStorage(HierarchicConnector, ABC):
-    def __init__(self, name, context, verbose=True):
+    _default_context: Context = None
+
+    def __init__(self, name: Name, context: Context, verbose: bool = True):
         super().__init__(name=name, parent=context)
         self.verbose = verbose
 
@@ -46,3 +50,18 @@ class AbstractStorage(HierarchicConnector, ABC):
 
     def get_path_as_list(self):
         return [self.get_path()]
+
+    def get_context(self) -> Context:
+        context = super().get_context()
+        if isinstance(context, ContextInterface):
+            return context
+        else:
+            return self.get_default_context()
+
+    @classmethod
+    def get_default_context(cls) -> Context:
+        return cls._default_context
+
+    @classmethod
+    def set_default_context(cls, context: ContextInterface) -> None:
+        cls._default_context = context

@@ -145,6 +145,7 @@ def get_context() -> Context:
 def set_context(cx: ContextInterface):
     global _context
     _context = cx
+    AbstractStorage.set_default_context(cx)
     default_folder = cx.get_job_folder()
     assert isinstance(default_folder, LocalFolder)
     LocalFile.set_default_folder(default_folder)
