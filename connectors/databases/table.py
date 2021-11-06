@@ -3,8 +3,9 @@ from typing import Optional, Iterable, Union
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from interfaces import (
-        ConnectorInterface, StructInterface, ColumnarInterface, RegularStream, StreamType,
-        Count, AutoBool, Auto, AUTO, ARRAY_TYPES,
+        ConnectorInterface, StructInterface, ColumnarInterface, RegularStream,
+        ContentType, StreamType,
+        ARRAY_TYPES, AUTO, Auto, AutoBool, Count, Name,
     )
     from items.flat_struct import FlatStruct
     from loggers import logger_classes as log
@@ -13,8 +14,9 @@ try:  # Assume we're a sub-module in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...interfaces import (
-        ConnectorInterface, StructInterface, ColumnarInterface, RegularStream, StreamType,
-        Count, AutoBool, Auto, AUTO, ARRAY_TYPES,
+        ConnectorInterface, StructInterface, ColumnarInterface, RegularStream,
+        ContentType, StreamType,
+        ARRAY_TYPES, AUTO, Auto, AutoBool, Count, Name,
     )
     from ...items.flat_struct import FlatStruct
     from ...loggers import logger_classes as log
@@ -29,7 +31,7 @@ GeneralizedStruct = Union[StructInterface, list, tuple, Auto, None]
 class Table(ct.LeafConnector):
     def __init__(
             self,
-            name: str,
+            name: Name,
             struct: Union[StructInterface, Auto],
             database: ConnectorInterface,
             reconnect: bool = True,
@@ -49,6 +51,9 @@ class Table(ct.LeafConnector):
             self.log(msg=message, level=log.LoggingLevel.Warning)
         if reconnect and hasattr(database, 'connect'):
             database.connect(reconnect=True)
+
+    def get_content_type(self) -> ContentType:
+        return ContentType.TsvFile
 
     def get_database(self) -> ConnectorInterface:
         database = self.get_parent()
@@ -92,6 +97,16 @@ class Table(ct.LeafConnector):
         if set_struct:
             self.set_struct(struct)
         return struct
+
+    def get_first_line(self, close: bool = True, verbose: bool = True) -> Optional[str]:
+        database = self.get_database()
+        assert isinstance(database, ct.AbstractDatabase)
+        iter_lines = database.select(self.get_name(), '*', count=1, verbose=verbose)
+        lines = list(iter_lines)
+        if close:
+            self.close()
+        if lines:
+            return lines[0]
 
     def get_data(self, verbose: AutoBool = arg.AUTO):
         database = self.get_database()

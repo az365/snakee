@@ -1,38 +1,54 @@
+from typing import Optional, Generator, Union
+
 try:  # Assume we're a sub-module in a package.
-    from streams import stream_classes as sm
-    from connectors import connector_classes as ct
     from utils import arguments as arg
+    from interfaces import (
+        ConnectorInterface, Stream,
+        StreamType, ContentType,
+        AUTO, Auto, AutoContext, AutoBool, Name,
+    )
+    from connectors.abstract.leaf_connector import LeafConnector
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...streams import stream_classes as sm
-    from .. import connector_classes as ct
     from ...utils import arguments as arg
+    from ...interfaces import (
+        ConnectorInterface, Stream,
+        StreamType, ContentType,
+        AUTO, Auto, AutoContext, AutoBool, Name,
+    )
+    from ..abstract.leaf_connector import LeafConnector
 
 DEFAULT_STORAGE_CLASS = 'COLD'
 
 
-class S3Object(ct.LeafConnector):
+class S3Object(LeafConnector):
     def __init__(
             self,
-            name,
-            folder,
-            verbose=arg.AUTO,
+            name: Name,
+            folder: ConnectorInterface,
+            context: AutoContext = AUTO,
+            verbose: AutoBool = AUTO,
     ):
         super().__init__(
             name=name,
             parent=folder,
+            context=context,
             verbose=verbose,
         )
 
-    def get_folder(self):
-        return self.get_parent()
+    def get_content_type(self) -> ContentType:
+        return ContentType.TextFile
 
-    def get_bucket(self):
+    def get_folder(self) -> ConnectorInterface:
+        parent = self.get_parent()
+        return self._assume_connector(parent)
+
+    def get_bucket(self) -> ConnectorInterface:
         return self.get_folder().get_bucket()
 
-    def get_bucket_name(self):
+    def get_bucket_name(self) -> Name:
         return self.get_bucket().get_name()
 
-    def get_object_path_in_bucket(self):
+    def get_object_path_in_bucket(self) -> str:
         if self.get_folder().get_name():
             return self.get_folder().get_name() + self.get_path_delimiter() + self.get_name()
         else:
@@ -53,9 +69,22 @@ class S3Object(ct.LeafConnector):
     def get_body(self):
         return self.get_object_response()['Body']
 
-    def get_data(self):
+    def get_first_line(self, close: bool = True) -> Optional[str]:
+        iter_lines = self.get_lines()
+        try:
+            first_line = next(iter_lines)
+        except StopIteration:
+            first_line = None
+        if close:
+            self.close()
+        return first_line
+
+    def get_lines(self) -> Generator:
         for line in self.get_body():
             yield line.decode('utf8', errors='ignore')
+
+    def get_data(self) -> Generator:
+        return self.get_lines()
 
     def put_object(self, data, storage_class=DEFAULT_STORAGE_CLASS):
         return self.get_client().put_object(
@@ -65,10 +94,10 @@ class S3Object(ct.LeafConnector):
             StorageClass=storage_class,
         )
 
-    def upload_file(self, file, extra_args={}):
+    def upload_file(self, file: Union[LeafConnector, str], extra_args={}):
         if isinstance(file, str):
             filename = file
-        elif isinstance(file, ct.LeafConnector):
+        elif isinstance(file, LeafConnector):
             filename = file.get_path()
         else:
             message = 'file-argument must be path to local file or File(LeafConnector) object (got {} as {})'
@@ -80,16 +109,12 @@ class S3Object(ct.LeafConnector):
             ExtraArgs=extra_args,
         )
 
-    def is_existing(self):
+    def is_existing(self) -> bool:
         return self.get_object_path_in_bucket() in self.get_bucket().list_object_names()
 
-    def from_stream(self, stream, storage_class=DEFAULT_STORAGE_CLASS, verbose: bool = True):
-        assert sm.is_stream(stream)
+    def from_stream(self, stream: Stream, storage_class=DEFAULT_STORAGE_CLASS, verbose: bool = True):
         return self.put_object(data=stream.get_items(), storage_class=storage_class)
 
-    def to_stream(self, stream_type=arg.AUTO, **kwargs):
-        stream_class = sm.StreamType(stream_type).get_class()
-        return stream_class(
-            self.get_data(),
-            **kwargs
-        )
+    def to_stream(self, stream_type: Union[StreamType, str, Auto] = AUTO, **kwargs) -> Stream:
+        stream_class = StreamType(stream_type).get_class()
+        return stream_class(self.get_data(), **kwargs)

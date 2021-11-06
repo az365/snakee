@@ -1,12 +1,12 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Iterable, Union, NoReturn
+from typing import Optional, Iterable, Union
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg, mappers as ms
     from interfaces import (
         Connector, ColumnarInterface, ColumnarStream, StructStream, StructInterface, SimpleDataInterface,
         DialectType, StreamType,
-        AUTO, Auto, AutoContext, AutoBool, AutoCount, Count,
+        AUTO, Auto, AutoContext, AutoBool, AutoCount, Count, Name, FieldName,
     )
     from loggers import logger_classes as log
     from connectors import connector_classes as ct
@@ -17,7 +17,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...interfaces import (
         Connector, ColumnarInterface, ColumnarStream, StructStream, StructInterface, SimpleDataInterface,
         DialectType, StreamType,
-        AUTO, Auto, AutoContext, AutoBool, AutoCount, Count,
+        AUTO, Auto, AutoContext, AutoBool, AutoCount, Count, Name, FieldName,
     )
     from ...loggers import logger_classes as log
     from .. import connector_classes as ct
@@ -28,7 +28,6 @@ Native = ct.AbstractStorage
 Struct = Optional[StructInterface]
 Table = Connector
 File = ct.AbstractFile
-Name = str
 Data = Union[ColumnarStream, File, Table, str, Iterable]
 
 TEST_QUERY = 'SELECT now()'
@@ -41,15 +40,12 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
     def __init__(
             self, name: Name,
             host: str, port: int, db: str,
-            user: Optional[str] = None, password: Optional[str] = None,
-            verbose: AutoBool = AUTO, context: AutoContext = AUTO,
+            user: Optional[str] = None,
+            password: Optional[str] = None,
+            context: AutoContext = AUTO,
+            verbose: AutoBool = AUTO,
             **kwargs
     ):
-        super().__init__(
-            name=name,
-            context=arg.acquire(context, ct.get_context()),
-            verbose=verbose,
-        )
         self.host = host
         self.port = port
         self.db = db
@@ -57,7 +53,11 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
         self.password = password
         self.conn_kwargs = kwargs
         self.connection = None
-        self.LoggingLevel = log.LoggingLevel
+        super().__init__(
+            name=name,
+            context=arg.acquire(context, ct.get_context()),
+            verbose=verbose,
+        )
 
     @staticmethod
     def get_default_child_class():
@@ -169,7 +169,7 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
         else:
             return self.table(table)
 
-    def post_create_action(self, name: Name, **kwargs) -> NoReturn:
+    def post_create_action(self, name: Name, **kwargs) -> None:
         pass
 
     def drop_table(self, table: Union[Table, Name], if_exists: bool = True, verbose: AutoBool = AUTO) -> Native:
@@ -225,24 +225,22 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
         return self.table(name_new, struct=struct)
 
     def select(
-            self, table: Union[Table, Name],
-            fields: Union[Iterable, str], filters: Union[Optional[Iterable], str] = None,
+            self,
+            table: Union[Table, Name],
+            fields: Union[Iterable, str],
+            filters: Union[Iterable, str, None] = None,
+            count: Count = None,
             verbose: AutoBool = AUTO,
     ) -> Iterable:
         fields_str = fields if isinstance(fields, str) else ', '.join(fields)
         filters_str = filters if isinstance(filters, str) else ' AND '.join(filters) if filters is not None else ''
         table_name = self._get_table_name(table)
+        query = 'SELECT {fields} FROM {table}'.format(table=table_name, fields=fields_str)
         if filters:
-            query = 'SELECT {fields} FROM {table} WHERE {filters};'.format(
-                table=table_name,
-                fields=fields_str,
-                filters=filters_str,
-            )
-        else:
-            query = 'SELECT {fields} FROM {table};'.format(
-                table=table_name,
-                fields=fields_str,
-            )
+            query += ' WHERE {filters}'.format(filters=filters_str)
+        if count:
+            query += ' LIMIT {count}'.format(count=count)
+        query += ';'
         return self.execute(query, get_data=True, commit=False, verbose=verbose)
 
     def select_count(self, table: Union[Table, Name], verbose: AutoBool = AUTO) -> int:
