@@ -1,31 +1,29 @@
 from typing import Optional, Iterable, Callable, Union
 
 try:  # Assume we're a sub-module in a package.
+    from utils import arguments as arg, mappers as ms, selection as sf
+    from utils.decorators import deprecated_with_alternative
+    from utils.external import pd, DataFrame, get_use_objects_for_output
     from interfaces import (
         Stream, RegularStream, RowStream, KeyValueStream, StructStream, FieldInterface, ItemType, StreamType,
-        Context, Connector, AutoConnector, TmpFiles,
+        Context, Connector, AutoConnector, LeafConnectorInterface, TmpFiles,
         Count, Name, Field, Columns, Array, ARRAY_TYPES,
         AUTO, Auto, AutoCount, AutoName, AutoBool,
     )
-    from utils import arguments as arg, mappers as ms, selection as sf
-    from utils.external import pd, DataFrame, get_use_objects_for_output
-    from utils.decorators import deprecated_with_alternative
     from streams import stream_classes as sm
-    from connectors import connector_classes as cs
     from functions import all_functions as fs
     from selection import selection_classes as sn
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
+    from ...utils import arguments as arg, mappers as ms, selection as sf
+    from ...utils.decorators import deprecated_with_alternative
+    from ...utils.external import pd, DataFrame, get_use_objects_for_output
     from ...interfaces import (
         Stream, RegularStream, RowStream, KeyValueStream, StructStream, FieldInterface, ItemType, StreamType,
-        Context, Connector, AutoConnector, TmpFiles,
+        Context, Connector, AutoConnector, LeafConnectorInterface, TmpFiles,
         Count, Name, Field, Columns, Array, ARRAY_TYPES,
         AUTO, Auto, AutoCount, AutoName, AutoBool,
     )
-    from ...utils import arguments as arg, mappers as ms, selection as sf
-    from ...utils.external import pd, DataFrame, get_use_objects_for_output
-    from ...utils.decorators import deprecated_with_alternative
     from .. import stream_classes as sm
-    from ...connectors import connector_classes as cs
     from ...functions import all_functions as fs
     from ...selection import selection_classes as sn
 
@@ -323,7 +321,7 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
         return self._assume_pairs(stream)
 
     def to_file(self, file: Connector, verbose: bool = True, return_stream: bool = True) -> Native:
-        assert cs.is_file(file), TypeError('Expected TsvFile, got {} as {}'.format(file, type(file)))
+        assert isinstance(file, LeafConnectorInterface) or hasattr(file, 'write_stream')
         meta = self.get_meta()
         if not file.is_gzip():
             meta.pop('count')
