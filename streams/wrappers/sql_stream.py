@@ -3,19 +3,17 @@ from typing import Optional, Iterable, Callable, Union
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
-    from base.interfaces.context_interface import ContextInterface
+    from interfaces import ContextInterface, ConnType
     from streams.abstract.wrapper_stream import WrapperStream
-    from connectors import connector_classes as ct
     from fields.abstract_field import AbstractField
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
-    from ...base.interfaces.context_interface import ContextInterface
+    from ...interfaces import ContextInterface, ConnType
     from ..abstract.wrapper_stream import WrapperStream
-    from ...connectors import connector_classes as ct
     from ...fields.abstract_field import AbstractField
 
 Native = WrapperStream
-Context = Union[ContextInterface, arg.DefaultArgument, None]
+Context = Union[ContextInterface, arg.Auto, None]
 Field = AbstractField
 Array = Union[list, tuple]
 
@@ -44,7 +42,7 @@ class SqlStream(WrapperStream):
             name: Optional[str] = None,
             data: Optional[dict] = None,
             source=None,
-            context: Context = arg.DEFAULT,
+            context: Context = arg.AUTO,
     ):
         super().__init__(
             name=name or DEFAULT_NAME,
@@ -55,19 +53,18 @@ class SqlStream(WrapperStream):
 
     def get_source_table(self):
         source = self.get_source()
-        if isinstance(source, ct.Table):
+        if source.get_conn_type() == ConnType.Table:
             return source
         else:
             return source.get_source_table()
 
     def get_database(self):
         table = self.get_source_table()
-        assert isinstance(table, ct.Table)
+        assert table.get_conn_type() == ConnType.Table
         return table.get_database()
 
     def execute_query(self) -> Iterable:
         db = self.get_database()
-        assert isinstance(db, ct.AbstractDatabase)
         return db.execute(self.get_query())
 
     def get_expressions_for(self, section: SqlSection) -> list:

@@ -4,21 +4,21 @@ from typing import Optional, Union
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from interfaces import (
-        Connector, ConnectorInterface,
+        Connector, ConnectorInterface, ConnType,
         LoggerInterface, ExtendedLoggerInterface, LoggingLevel, Message,
         AUTO, Auto, AutoBool, AutoConnector, AutoContext,
     )
     from base.abstract.tree_item import TreeItem
-    from loggers.fallback_logger import FallbackLogger
+    from loggers.logging_context_stub import LoggingContextStub
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...interfaces import (
-        Connector, ConnectorInterface,
+        Connector, ConnectorInterface, ConnType,
         LoggerInterface, ExtendedLoggerInterface, LoggingLevel, Message,
         AUTO, Auto, AutoBool, AutoConnector, AutoContext,
     )
     from ...base.abstract.tree_item import TreeItem
-    from ...loggers.fallback_logger import FallbackLogger
+    from ...loggers.logging_context_stub import LoggingContextStub
 
 Native = ConnectorInterface
 Logger = Union[LoggerInterface, ExtendedLoggerInterface]
@@ -33,13 +33,18 @@ class AbstractConnector(TreeItem, ConnectorInterface, ABC):
             name: Union[str, int],
             parent: Connector = None,
             children: Optional[dict] = None,
-            context: AutoConnector = AUTO,
+            context: AutoContext = AUTO,
             verbose: AutoBool = AUTO,
     ):
         self._verbose = DEFAULT_VERBOSE
         super().__init__(name=name, parent=parent, children=children)
         self.set_verbose(verbose)
         self.set_context(context)
+
+    def get_conn_type(self) -> ConnType:
+        conn_type = ConnType.detect(self)
+        if isinstance(conn_type, ConnType):
+            return conn_type
 
     def is_verbose(self) -> bool:
         return self._verbose
@@ -77,12 +82,12 @@ class AbstractConnector(TreeItem, ConnectorInterface, ABC):
             if hasattr(parent, 'get_storage'):
                 return parent.get_storage()
 
-    def get_logger(self, skip_missing: bool = True, create_if_not_yet: bool = True) -> Logger:
-        logger = super().get_logger(skip_missing=skip_missing)
+    def get_logger(self, force: bool = True) -> Logger:
+        logger = super().get_logger(skip_missing=True)
         if logger:
             return logger
-        elif create_if_not_yet:
-            return FallbackLogger()
+        elif force:
+            return LoggingContextStub().get_logger(force)
 
     def log(
             self,
@@ -93,7 +98,7 @@ class AbstractConnector(TreeItem, ConnectorInterface, ABC):
             force: bool = False,
             verbose: bool = True,
     ):
-        logger = self.get_logger(skip_missing=force)
+        logger = self.get_logger(force=force)
         if isinstance(logger, ExtendedLoggerInterface):
             logger.log(msg=msg, level=level, end=end, truncate=truncate, verbose=verbose)
         elif logger:
