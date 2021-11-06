@@ -96,18 +96,6 @@ class AppropriateInterface(LeafConnectorInterface, ABC):
         pass
 
     @abstractmethod
-    def _get_native_struct(self, struct) -> StructInterface:
-        pass
-
-    @abstractmethod
-    def get_columns(self) -> Iterable:
-        pass
-
-    @abstractmethod
-    def get_column_count(self) -> int:
-        pass
-
-    @abstractmethod
     def get_one_item(self, item_type: ItemType):
         pass
 
@@ -303,11 +291,6 @@ class ActualizeMixin(AppropriateInterface, ABC):
                 path=self.get_path(),
             )
 
-    @staticmethod
-    def _format_args(*args, **kwargs) -> str:
-        formatted_args = list(args) + ['{}={}'.format(k, v) for k, v in kwargs.items()]
-        return ', '.join(map(str, formatted_args))
-
     def _prepare_examples(self, *filters, safe_filter: bool = True, **filter_kwargs) -> tuple:
         filters = filters or list()
         if filter_kwargs and safe_filter:
@@ -315,7 +298,7 @@ class ActualizeMixin(AppropriateInterface, ABC):
         verbose = self.is_gzip() or self.get_count(allow_slow_gzip=False) > COUNT_ITEMS_TO_LOG_COLLECT_OPERATION
         stream_example = self.filter(*filters or [], **filter_kwargs, verbose=verbose)
         item_example = stream_example.get_one_item()
-        str_filters = self._format_args(*filters, **filter_kwargs)
+        str_filters = arg.get_str_from_args_kwargs(*filters, **filter_kwargs)
         if item_example:
             if str_filters:
                 message = 'Example with filters: {}'.format(str_filters)
@@ -389,7 +372,7 @@ class ActualizeMixin(AppropriateInterface, ABC):
         if show_header:
             self.log('{} {}'.format(self.get_datetime_str(), message))
             if self.get_invalid_fields_count():
-                self.log('Invalid columns: {}'.format(self._format_args(*self.get_invalid_columns())))
+                self.log('Invalid columns: {}'.format(arg.get_str_from_args_kwargs(*self.get_invalid_columns())))
             self.log('')
         struct = self.get_struct()
         dataframe = struct.describe(
