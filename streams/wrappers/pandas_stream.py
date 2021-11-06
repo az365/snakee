@@ -67,19 +67,19 @@ class PandasStream(sm.WrapperStream, sm.ColumnarMixin, sm.ConvertMixin):
 
     def get_records(self, columns=arg.AUTO) -> Iterable:
         stream = self.select(*columns) if arg.is_defined(columns) else self
-        return stream.get_mapped_items(lambda i: i[1].to_dict())
+        return stream._get_mapped_items(lambda i: i[1].to_dict())
 
     def get_rows(self, columns=arg.AUTO):
         stream = self.select(*columns) if arg.is_defined(columns) else self
-        return stream.get_mapped_items(lambda i: i[1].to_list())
+        return stream._get_mapped_items(lambda i: i[1].to_list())
 
-    def get_columns(self):
+    def get_columns(self) -> Iterable:
         return self.get_dataframe().columns
 
     def get_expected_count(self) -> int:
         return self.get_dataframe().shape[0]
 
-    def take(self, count: Union[int, bool] = 1):
+    def take(self, count: Union[int, bool] = 1) -> Native:
         if isinstance(count, bool):
             if count:
                 return self
@@ -92,7 +92,7 @@ class PandasStream(sm.WrapperStream, sm.ColumnarMixin, sm.ConvertMixin):
         else:
             raise TypeError('Expected count as int or bool, got {}'.format(count))
 
-    def get_one_column_values(self, column: Field):
+    def get_one_column_values(self, column: Field) -> Iterable:
         column_name = arg.get_name(column)
         return self.get_dataframe()[column_name]
 
