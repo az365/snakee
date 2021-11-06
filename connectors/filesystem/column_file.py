@@ -13,7 +13,6 @@ try:  # Assume we're a sub-module in a package.
     from connectors.filesystem.text_file import TextFile, JsonFile
     from streams.mixin.columnar_mixin import ColumnarMixin
     from streams import stream_classes as sm
-    from fields import field_classes as fc
     from items import legacy_classes as sh
     from utils.decorators import deprecated_with_alternative
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -28,7 +27,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .text_file import TextFile, JsonFile
     from ...streams.mixin.columnar_mixin import ColumnarMixin
     from ...streams import stream_classes as sm
-    from ...fields import field_classes as fc
     from ...items import legacy_classes as sh
     from ...utils.decorators import deprecated_with_alternative
 
@@ -71,86 +69,6 @@ class ColumnFile(LocalFile, ColumnarMixin):
     def get_item_type(self) -> ItemType:
         return ItemType.Record
 
-    def get_struct_comparison_dict(self, other: Optional[Struct] = None) -> dict:
-        if not arg.is_defined(other):
-            other = self.get_initial_struct()
-        return self.get_struct().get_struct_comperison_dict(other)
-
-    def reset_struct_to_initial(self, verbose: bool = True, message: Optional[str] = None) -> Native:
-        if not arg.is_defined(message):
-            message = self.__repr__()
-        if verbose:
-            for line in self.get_struct().get_struct_comparison_iter(self.get_initial_struct(), message=message):
-                self.log(line)
-        return self.struct(self.get_initial_struct())
-
-    def get_schema(self) -> Struct:
-        return self.get_struct()
-
-    def get_struct_str(self, dialect: DialectType = DialectType.Postgres) -> str:
-        return self.get_struct().get_struct_str(dialect=dialect)
-
-    def detect_struct_by_title_row(self) -> Native:
-        struct = self.get_detected_struct_by_title_row()
-        self.set_struct(struct, inplace=True)
-        return self
-
-    def get_detected_columns(self) -> StructInterface:
-        return self.get_detected_struct_by_title_row(set_struct=False, verbose=False)
-
-    def get_one_column_values(self, column: Field) -> Iterable:
-        if isinstance(column, int):
-            item_type = ItemType.Row
-        elif isinstance(column, str):
-            item_type = ItemType.Record
-        else:
-            raise ValueError('Expected column as int or str, got {}'.format(column))
-        for item in self.get_items_of_type(item_type=item_type):
-            yield item_type.get_value_from_item(item=item, field=column, skip_unsupported_types=True)
-
-    def get_check(
-            self, must_exists: bool = False,
-            check_types: bool = False, check_order: bool = False,
-            skip_errors: bool = False,
-    ) -> bool:
-        expected_struct = self.get_struct()
-        if self.is_existing():
-            received_struct = self.get_detected_struct_by_title_row(verbose=False)
-            expected = expected_struct
-            received = received_struct
-            if not check_types:
-                received = received.get_columns()
-                expected = expected.get_columns()
-            if not check_order:
-                received = sorted(received)
-                expected = sorted(expected)
-            if received == expected:
-                return True
-            else:
-                template = '{} actual fields does not meet expected fields: \nRECEIVED = {} \nEXPECTED = {}'
-                msg = template.format(self.__repr__(), arg.get_names(received_struct), arg.get_names(expected_struct))
-                self.log(msg, end='\n')
-                if skip_errors:
-                    return False
-                else:
-                    raise AssertionError(msg)
-        else:
-            if must_exists:
-                message = 'For struct validation file {} must exists'.format(self.get_name())
-            elif expected_struct:
-                return True
-            else:
-                message = 'Struct for validation must be defined: {}'.format(self.get_name())
-            self.log(message)
-            if skip_errors:
-                return False
-            else:
-                raise FileNotFoundError(message)
-
-    @staticmethod
-    def get_default_file_extension() -> str:
-        return 'tsv'
-
     @staticmethod
     def get_default_item_type() -> ItemType:
         return ItemType.Row
@@ -158,31 +76,6 @@ class ColumnFile(LocalFile, ColumnarMixin):
     @classmethod
     def get_stream_type(cls) -> StreamType:
         return StreamType.RowStream
-
-    @staticmethod
-    def _assume_stream(stream) -> Native:
-        return stream
-
-    def add_fields(self, *fields, default_type: Type = None, inplace: bool = False) -> Optional[Native]:
-        self.get_struct().add_fields(*fields, default_type=default_type, inplace=True)
-        if not inplace:
-            return self
-
-    def remove_fields(self, *fields, inplace=True) -> Optional[Native]:
-        self.get_struct().remove_fields(*fields, inplace=True)
-        if not inplace:
-            return self
-
-    def get_columns(self) -> list:
-        return self.get_struct().get_columns()
-
-    def get_types(self, dialect: DialectType = DialectType.String) -> Iterable:
-        return self.get_struct().get_types(dialect)
-
-    def set_types(self, dict_field_types: Optional[dict] = None, inplace: bool = False, **kwargs) -> Optional[Native]:
-        self.get_struct().set_types(dict_field_types=dict_field_types, inplace=True, **kwargs)
-        if not inplace:
-            return self
 
     def get_csv_reader(self, lines: Iterable) -> Iterator:
         if self.get_delimiter():
@@ -271,6 +164,16 @@ class ColumnFile(LocalFile, ColumnarMixin):
             records,
         )
         self.write_rows(rows, verbose=verbose)
+
+    def get_one_column_values(self, column: Field) -> Iterable:
+        if isinstance(column, int):
+            item_type = ItemType.Row
+        elif isinstance(column, str):
+            item_type = ItemType.Record
+        else:
+            raise ValueError('Expected column as int or str, got {}'.format(column))
+        for item in self.get_items_of_type(item_type=item_type):
+            yield item_type.get_value_from_item(item=item, field=column, skip_unsupported_types=True)
 
 
 class CsvFile(LocalFile, ColumnarMixin):
