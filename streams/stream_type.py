@@ -58,7 +58,7 @@ class StreamType(ClassType):
                 if item_type_name == 'StructRow':
                     stream_type_obj = StreamType.StructStream
                 else:
-                    stream_type_name = '{}Stream'.format(name)
+                    stream_type_name = '{}Stream'.format(item_type_name)
                     stream_type_obj = cls.find_instance(stream_type_name)
                 if stream_type_obj is None:
                     stream_type_obj = arg.delayed_acquire(default, cls.get_default)
@@ -79,9 +79,11 @@ class StreamType(ClassType):
         if hasattr(stream_class, 'get_item_type'):
             return stream_class.get_item_type()
 
-    def isinstance(self, stream):
+    def isinstance(self, stream) -> bool:
         if hasattr(stream, 'get_stream_type'):
             return stream.get_stream_type() == self
+        else:
+            return super().isinstance(stream)
 
 
 StreamType.prepare()

@@ -178,7 +178,7 @@ class ColumnarMixin(ContextualDataWrapper, ColumnarInterface, ABC):
                 source.actualize()
         if self.get_count():
             if self.get_count() < SAFE_COUNT_ITEMS_IN_MEMORY:
-                if hasattr(self, '_collect_inplace()'):
+                if hasattr(self, '_collect_inplace'):
                     self._collect_inplace()
                     self.update_count()
         return self

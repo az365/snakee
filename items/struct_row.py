@@ -115,7 +115,7 @@ class StructRow(SimpleDataWrapper, StructRowInterface):
             return self
 
     def get(self, field: Field, default=None) -> Any:
-        return self.get_value(field, skip_missing=False, default=default)
+        return self.get_value(field, skip_missing=True, default=default)
 
     def get_slice(self, start: FieldNo, stop: Optional[FieldNo] = None, step: Optional[FieldNo] = None) -> Row:
         return [self.get_value(i) for i in range(start, stop, step)]
@@ -191,7 +191,7 @@ class StructRow(SimpleDataWrapper, StructRowInterface):
         field_names = self.get_columns()
         field_values = self.get_values(field_names)
         field_strings = ['{}={}'.format(k, v.__repr__()) for k, v in zip(field_names, field_values)]
-        return '{}({})'.format(self.__class__.__name__, ', '.format(field_strings))
+        return '{}({})'.format(self.__class__.__name__, ', '.join(field_strings))
 
 
 SchemaRow = StructRow
