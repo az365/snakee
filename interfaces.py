@@ -26,7 +26,7 @@ try:  # Assume we're a sub-module in a package.
     from connectors.interfaces.struct_file_interface import StructFileInterface  # inherits LeafConnectorInterface
     from connectors.interfaces.temporary_interface import TemporaryLocationInterface  # inherits Connector
     from connectors.interfaces.temporary_interface import TemporaryFilesMaskInterface  # inherits Connector
-    from items.struct_interface import StructInterface  # ROOT
+    from items.struct_interface import StructInterface, StructMixinInterface  # ROOT
     from items.struct_row_interface import StructRowInterface  # inherits SimpleData; uses StructInterface
     from items.simple_items import (
         ARRAY_TYPES, ROW_SUBCLASSES, RECORD_SUBCLASSES,
@@ -59,7 +59,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .connectors.interfaces.struct_file_interface import StructFileInterface  # inherits LeafConnectorInterface
     from .connectors.interfaces.temporary_interface import TemporaryLocationInterface  # inherits Connector
     from .connectors.interfaces.temporary_interface import TemporaryFilesMaskInterface  # inherits Connector
-    from .items.struct_interface import StructInterface  # ROOT
+    from .items.struct_interface import StructInterface, StructMixinInterface  # ROOT
     from .items.struct_row_interface import StructRowInterface  # inherits SimpleData; uses StructInterface
     from .items.simple_items import (
         ARRAY_TYPES, ROW_SUBCLASSES, RECORD_SUBCLASSES,

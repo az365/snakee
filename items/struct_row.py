@@ -10,6 +10,7 @@ try:  # Assume we're a sub-module in a package.
     from base.abstract.simple_data import SimpleDataWrapper
     from items.struct_row_interface import StructRowInterface, DEFAULT_DELIMITER
     from items.flat_struct import FlatStruct
+    from items.struct_mixin import StructMixin
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
     from ..interfaces import (
@@ -20,9 +21,10 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..base.abstract.simple_data import SimpleDataWrapper
     from .struct_row_interface import StructRowInterface, DEFAULT_DELIMITER
     from .flat_struct import FlatStruct
+    from .struct_mixin import StructMixin
 
 
-class StructRow(SimpleDataWrapper, StructRowInterface):
+class StructRow(SimpleDataWrapper, StructMixin, StructRowInterface):
     def __init__(
             self,
             data: Row,
@@ -52,19 +54,6 @@ class StructRow(SimpleDataWrapper, StructRowInterface):
         if check:
             row = self._structure_row(row, self.get_struct())
         return super().set_data(data=row, inplace=inplace)
-
-    def get_columns(self) -> Row:
-        return self.get_struct().get_columns()
-
-    def get_field_position(self, field: Field) -> Optional[FieldNo]:
-        if isinstance(field, FieldNo):
-            return field
-        else:
-            field_name = arg.get_name(field)
-            return self.get_struct().get_field_position(field_name)
-
-    def get_fields_positions(self, fields: Row) -> Row:
-        return [self.get_field_position(f) for f in fields]
 
     def keys(self) -> Iterable:
         return map(arg.get_name, self.get_fields_descriptions())
