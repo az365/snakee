@@ -21,6 +21,7 @@ try:  # Assume we're a sub-module in a package.
     from loggers.extended_logger_interface import ExtendedLoggerInterface  # inherits Sourced, Logger; uses Base
     from loggers.selection_logger_interface import SelectionLoggerInterface  # inherits Extended, uses DetailedMessage
     from loggers.progress_interface import ProgressInterface  # inherits Tree; uses ExtendedLogger
+    from connectors.interfaces.format_interface import ContentFormatInterface  # inherits Base
     from connectors.interfaces.connector_interface import ConnectorInterface  # inherits Sourced, uses ExtendedLogger,..
     from connectors.interfaces.leaf_connector_interface import LeafConnectorInterface  # inherits Connector
     from connectors.interfaces.struct_file_interface import StructFileInterface  # inherits LeafConnectorInterface
@@ -54,6 +55,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .loggers.extended_logger_interface import ExtendedLoggerInterface  # inherits Sourced, Logger; uses Base
     from .loggers.selection_logger_interface import SelectionLoggerInterface  # inherits Extended, uses DetailedMessage
     from .loggers.progress_interface import ProgressInterface  # inherits Tree; uses ExtendedLogger
+    from .connectors.interfaces.format_interface import ContentFormatInterface  # inherits Base
     from .connectors.interfaces.connector_interface import ConnectorInterface  # inherits Sourced, uses ExtendedLogger,.
     from .connectors.interfaces.leaf_connector_interface import LeafConnectorInterface  # inherits Connector
     from .connectors.interfaces.struct_file_interface import StructFileInterface  # inherits LeafConnectorInterface
