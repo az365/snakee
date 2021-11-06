@@ -94,7 +94,7 @@ CONN_CLASSES = (
     AbstractFolder, FlatFolder, HierarchicFolder,
     AbstractStorage,
     LocalStorage,
-    LocalFolder, LocalMask, PartitionedLocalFile,
+    LocalFolder, LocalMask, LocalFile, PartitionedLocalFile,
     AbstractFile, TextFile, JsonFile, ColumnFile, CsvFile, TsvFile,
     AbstractObjectStorage, S3Storage,
     S3Bucket, S3Folder,
@@ -145,6 +145,9 @@ def get_context() -> Context:
 def set_context(cx: ContextInterface):
     global _context
     _context = cx
+    default_folder = cx.get_job_folder()
+    assert isinstance(default_folder, LocalFolder)
+    LocalFile.set_default_folder(default_folder)
 
 
 def is_conn(obj) -> bool:

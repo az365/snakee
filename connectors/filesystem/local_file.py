@@ -47,6 +47,8 @@ LOGGING_LEVEL_WARN = 30
 
 
 class LocalFile(LeafConnector, StreamableMixin, ActualizeMixin, IterableStreamMixin):
+    _default_folder: Connector = None
+
     def __init__(
             self,
             name: str,
@@ -60,8 +62,10 @@ class LocalFile(LeafConnector, StreamableMixin, ActualizeMixin, IterableStreamMi
         if folder:
             message = 'only LocalFolder supported for *File instances (got {})'.format(type(folder))
             assert isinstance(folder, ConnectorInterface) or folder.is_folder(), message
-        else:
+        elif arg.is_defined(context):
             folder = context.get_job_folder()
+        else:
+            folder = self.get_default_folder()
         self._fileholder = None
         super().__init__(
             name=name,
@@ -385,3 +389,11 @@ class LocalFile(LeafConnector, StreamableMixin, ActualizeMixin, IterableStreamMi
         copy.set_declared_format(self.get_declared_format().copy())
         copy.set_detected_format(self.get_detected_format().copy())
         return self._assume_native(copy)
+
+    @classmethod
+    def get_default_folder(cls) -> Connector:
+        return cls._default_folder
+
+    @classmethod
+    def set_default_folder(cls, folder: ConnectorInterface) -> None:
+        cls._default_folder = folder
