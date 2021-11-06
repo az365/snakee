@@ -18,7 +18,7 @@ try:  # Assume we're a sub-module in a package.
     )
     from connectors.mixin.connector_format_mixin import ConnectorFormatMixin
     from connectors.mixin.actualize_mixin import ActualizeMixin
-    from connectors.mixin.stream_file_mixin import StreamFileMixin
+    from connectors.mixin.streamable_mixin import StreamableMixin
     from connectors.filesystem.local_storage import LocalStorage
     from connectors.filesystem.local_folder import LocalFolder
     from connectors.filesystem.abstract_file import AbstractFile
@@ -61,7 +61,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     )
     from .mixin.connector_format_mixin import ConnectorFormatMixin
     from .mixin.actualize_mixin import ActualizeMixin
-    from .mixin.stream_file_mixin import StreamFileMixin
+    from .mixin.streamable_mixin import StreamableMixin
     from .filesystem.local_storage import LocalStorage
     from .filesystem.local_folder import LocalFolder
     from .filesystem.abstract_file import AbstractFile

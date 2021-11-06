@@ -29,7 +29,7 @@ Message = Union[AutoName, Array]
 Native = Union[LeafConnector, Stream]
 
 
-class StreamFileMixin(IterableStreamMixin, ABC):
+class StreamableMixin(IterableStreamMixin, ABC):
     @staticmethod
     def get_default_item_type() -> ItemType:
         return ItemType.Any
