@@ -7,7 +7,7 @@ try:  # Assume we're a sub-module in a package.
         AutoBool, Auto, AUTO, ARRAY_TYPES,
     )
     from fields.abstract_field import AbstractField
-    from fields import field_classes as fc
+    from items import flat_struct as fc
     from selection import abstract_expression as ae
     from selection import concrete_expression as ce
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -17,7 +17,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         AutoBool, Auto, AUTO, ARRAY_TYPES,
     )
     from .abstract_field import AbstractField
-    from . import field_classes as fc
+    from ..items import flat_struct as fc
     from ..selection import abstract_expression as ae
     from ..selection import concrete_expression as ce
 
@@ -75,6 +75,9 @@ class AdvancedField(AbstractField):
     def valid(self, is_valid: bool) -> Native:
         self._is_valid = is_valid
         return self
+
+    def check_value(self, value) -> bool:
+        return self.get_type().check_value(value)
 
     def get_group_name(self) -> str:
         return self._group_name

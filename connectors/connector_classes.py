@@ -11,10 +11,11 @@ try:  # Assume we're a sub-module in a package.
     from connectors.abstract.hierarchic_connector import HierarchicConnector
     from connectors.abstract.abstract_folder import AbstractFolder, FlatFolder, HierarchicFolder
     from connectors.abstract.abstract_storage import AbstractStorage
-    from connectors.content_format.abstract_format import AbstractFormat, BinaryFormat, ParsedFormat
-    from connectors.content_format.text_format import TextFormat, JsonFormat
-    from connectors.content_format.columnar_format import ColumnarFormat, FlatStructFormat
-    from connectors.content_format.lean_format import LeanFormat
+    from connectors.content_format.content_classes import (
+        AbstractFormat, BinaryFormat, ParsedFormat, LeanFormat,
+        TextFormat, JsonFormat, ColumnarFormat, FlatStructFormat,
+        ContentType,
+    )
     from connectors.mixin.connector_format_mixin import ConnectorFormatMixin
     from connectors.mixin.actualize_mixin import ActualizeMixin
     from connectors.mixin.stream_file_mixin import StreamFileMixin
@@ -53,10 +54,11 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .abstract.hierarchic_connector import HierarchicConnector
     from .abstract.abstract_folder import AbstractFolder, FlatFolder, HierarchicFolder
     from .abstract.abstract_storage import AbstractStorage
-    from .content_format.abstract_format import AbstractFormat, BinaryFormat, ParsedFormat
-    from .content_format.text_format import TextFormat, JsonFormat
-    from .content_format.columnar_format import ColumnarFormat, FlatStructFormat
-    from .content_format.lean_format import LeanFormat
+    from .content_format.content_classes import (
+        AbstractFormat, BinaryFormat, ParsedFormat, LeanFormat,
+        TextFormat, JsonFormat, ColumnarFormat, FlatStructFormat,
+        ContentType,
+    )
     from .mixin.connector_format_mixin import ConnectorFormatMixin
     from .mixin.actualize_mixin import ActualizeMixin
     from .mixin.stream_file_mixin import StreamFileMixin

@@ -110,7 +110,7 @@ class TemporaryFilesMask(LocalMask, TemporaryFilesMaskInterface):
         count = 0
         files = list(self.get_files())
         for file in files:
-            assert isinstance(file, ct.AbstractFile)
+            assert isinstance(file, (ct.AbstractFile, ct.LocalFile)), 'LocalFile expected, got {}'.format(file)
             if file.is_existing():
                 count += file.remove(log=log, verbose=verbose)
             if forget:

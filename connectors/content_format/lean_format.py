@@ -2,18 +2,22 @@ from typing import Union
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
-    from interfaces import Item, ItemType, StreamType, FileType, StructInterface, Auto, AUTO
-    from connectors.content_format.abstract_format import ParsedFormat, ContentType, Compress
+    from interfaces import Item, ItemType, StreamType, FileType, ContentType, StructInterface, Auto, AUTO
+    from connectors.content_format.abstract_format import ParsedFormat, Compress
     from connectors.content_format.text_format import TextFormat, JsonFormat
     from connectors.content_format.columnar_format import ColumnarFormat, FlatStructFormat
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
-    from ...interfaces import Item, ItemType, StreamType, FileType, StructInterface, Auto, AUTO
-    from .abstract_format import ParsedFormat, ContentType, Compress
+    from ...interfaces import Item, ItemType, StreamType, FileType, ContentType, StructInterface, Auto, AUTO
+    from .content_type import ContentType
+    from .abstract_format import ParsedFormat, Compress
     from .text_format import TextFormat, JsonFormat
     from .columnar_format import ColumnarFormat, FlatStructFormat
 
-TEXT_TYPES = FileType.TextFile, FileType.JsonFile, FileType.ColumnFile, FileType.CsvFile, FileType.TsvFile
+TEXT_TYPES = (
+    ContentType.TextFile, ContentType.JsonFile, ContentType.ColumnFile, ContentType.CsvFile, ContentType.TsvFile,
+    FileType.TextFile, FileType.JsonFile, FileType.ColumnFile, FileType.CsvFile, FileType.TsvFile,
+)
 
 
 class LeanFormat(ParsedFormat):
@@ -83,3 +87,14 @@ class LeanFormat(ParsedFormat):
     def get_parsed_line(self, line: str, item_type: Union[ItemType, Auto] = AUTO) -> Item:
         defined_format = self.get_defined(skip_errors=False)
         return defined_format.get_parsed_line(line, item_type=item_type)
+
+
+ContentType.set_dict_classes(
+    {
+        ContentType.TextFile: TextFormat,
+        ContentType.JsonFile: JsonFormat,
+        ContentType.ColumnFile: ColumnarFormat,
+        ContentType.CsvFile: ColumnarFormat,
+        ContentType.TsvFile: ColumnarFormat,
+    }
+)

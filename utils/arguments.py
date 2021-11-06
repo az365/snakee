@@ -169,14 +169,16 @@ def is_absolute_path(path: str) -> bool:
     return path.startswith('/') or path.startswith('\\') or ':' in path
 
 
-def is_defined(obj) -> bool:
+def is_defined(obj, check_name: bool = True) -> bool:
     if obj is None:
         result = False
     elif obj in (AUTO, AUTO.get_value(), str(AUTO)):
         result = False
+    elif hasattr(obj, 'is_defined'):
+        result = obj.is_defined()
     elif hasattr(obj, 'get_value'):
         result = is_defined(obj.get_value())
-    elif hasattr(obj, 'get_name'):
+    elif hasattr(obj, 'get_name') and check_name:
         try:
             name = obj.get_name()
             result = not (name is None or name in (AUTO, _AUTO_VALUE))

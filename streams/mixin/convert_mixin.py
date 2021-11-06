@@ -51,13 +51,13 @@ class ConvertMixin(IterableStream, ABC):
             else:
                 return sm.RowStream._get_typing_validated_items(self.get_items())
         else:
-            return self.get_mapped_items(fs.composite_key(columns))
+            return self._get_mapped_items(fs.composite_key(columns))
 
     def get_records(self, columns: Columns = AUTO) -> Iterable:
         if columns == AUTO:
-            return self.get_mapped_items(lambda i: dict(item=i))
+            return self._get_mapped_items(lambda i: dict(item=i))
         else:
-            return self.get_mapped_items(lambda i: dict(zip(columns, fs.composite_key(columns)(i))))
+            return self._get_mapped_items(lambda i: dict(zip(columns, fs.composite_key(columns)(i))))
 
     def get_dataframe(self) -> pd.DataFrame:
         return pd.DataFrame(self.get_data())
@@ -125,7 +125,8 @@ class ConvertMixin(IterableStream, ABC):
             columns: Columns = AUTO,
             add_title_row: Union[bool, Auto] = AUTO,
     ) -> LineStream:
-        delimiter = arg.acquire(delimiter, '\t' if sm.StreamType.RowStream.isinstance(self) else None)
+        stream_type = self.get_stream_type()
+        delimiter = arg.acquire(delimiter, '\t' if stream_type == StreamType.RowStream else None)
         stream = self
         if stream.get_stream_type() == sm.StreamType.RecordStream:
             assert isinstance(stream, sm.RecordStream)
@@ -137,14 +138,14 @@ class ConvertMixin(IterableStream, ABC):
         else:
             func = str
         stream = self.stream(
-            stream.get_mapped_items(func),
+            stream._get_mapped_items(func),
             stream_type=sm.StreamType.LineStream,
         )
         return self._assume_native(stream)
 
     def to_json(self) -> LineStream:
         stream = self.stream(
-            self.get_mapped_items(json.dumps),
+            self._get_mapped_items(json.dumps),
             stream_type=sm.StreamType.LineStream,
         )
         return self._assume_native(stream)
@@ -152,7 +153,7 @@ class ConvertMixin(IterableStream, ABC):
     def to_record_stream(self, *args, **kwargs) -> RecordStream:
         if 'function' in kwargs:
             func = kwargs.pop('function')
-            items = self.get_mapped_items(lambda i: func(i, *args, **kwargs))
+            items = self._get_mapped_items(lambda i: func(i, *args, **kwargs))
         elif 'columns' in kwargs and len(kwargs) == 1:
             columns = kwargs.pop('columns')
             assert not args
@@ -165,7 +166,7 @@ class ConvertMixin(IterableStream, ABC):
         elif args:  # and not kwargs
             if len(kwargs) == 1:
                 if callable(args[0]):
-                    items = self.get_mapped_items(args[0])
+                    items = self._get_mapped_items(args[0])
                 else:
                     items = self.get_records(args[0])
             else:
@@ -174,7 +175,7 @@ class ConvertMixin(IterableStream, ABC):
             if hasattr(self, 'get_records'):
                 items = self.get_records()
             else:
-                items = self.get_mapped_items(lambda i: dict(item=i))
+                items = self._get_mapped_items(lambda i: dict(item=i))
         stream = self.stream(
             items,
             stream_type=sm.StreamType.RecordStream,
@@ -203,7 +204,7 @@ class ConvertMixin(IterableStream, ABC):
             assert not kwargs
             return self.to_any_stream().select(*args)
         if function:
-            items = self.get_mapped_items(lambda i: function(i, *args, **kwargs))
+            items = self._get_mapped_items(lambda i: function(i, *args, **kwargs))
         elif delimiter:
             items = csv.reader(self.get_items(), *args, delimiter=delimiter, **kwargs)
         else:
@@ -219,7 +220,7 @@ class ConvertMixin(IterableStream, ABC):
         if isinstance(value, (list, tuple)):
             value = fs.composite_key(value)
         stream = self.stream(
-            self.get_mapped_items(lambda i: (key(i), value(i))),
+            self._get_mapped_items(lambda i: (key(i), value(i))),
             stream_type=sm.StreamType.KeyValueStream,
         )
         return self._assume_native(stream)

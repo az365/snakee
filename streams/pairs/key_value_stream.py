@@ -2,15 +2,17 @@ from typing import Union, Callable, Iterable, Optional
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
-    from streams.interfaces.regular_stream_interface import RegularStreamInterface
-    from streams.interfaces.pair_stream_interface import PairStreamInterface
-    from streams.stream_type import StreamType
+    from interfaces import (
+        RegularStreamInterface, PairStreamInterface, StreamType,
+        AUTO, Auto,
+    )
     from streams.regular.row_stream import RowStream
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
-    from ..interfaces.regular_stream_interface import RegularStreamInterface
-    from ..interfaces.pair_stream_interface import PairStreamInterface
-    from ..stream_type import StreamType
+    from interfaces import (
+        RegularStreamInterface, PairStreamInterface, StreamType,
+        AUTO, Auto,
+    )
     from ..regular.row_stream import RowStream
 
 Native = PairStreamInterface
@@ -21,12 +23,12 @@ class KeyValueStream(RowStream, PairStreamInterface):
     def __init__(
             self,
             data,
-            name=arg.DEFAULT, check=True,
+            name=AUTO, check=True,
             count=None, less_than=None,
             value_stream_type: Union[StreamType, str] = None,
             source=None, context=None,
-            max_items_in_memory=arg.DEFAULT,
-            tmp_files=arg.DEFAULT,
+            max_items_in_memory=AUTO,
+            tmp_files=AUTO,
     ):
         super().__init__(
             data,
@@ -60,14 +62,14 @@ class KeyValueStream(RowStream, PairStreamInterface):
         return item[1]
 
     def get_keys(self):
-        keys = self.get_mapped_items(self._get_key)
+        keys = self._get_mapped_items(self._get_key)
         return list(keys) if self.is_in_memory() else keys
 
     def get_values(self):
-        values = self.get_mapped_items(self._get_value)
+        values = self._get_mapped_items(self._get_value)
         return list(values) if self.is_in_memory() else values
 
-    def map(self, function: Callable, to: Union[StreamType, arg.DefaultArgument] = arg.DEFAULT) -> Native:
+    def map(self, function: Callable, to: Union[StreamType, Auto] = AUTO) -> Native:
         if arg.is_defined(to):
             self.log('to-argument for map() is deprecated, use map_to_type() method instead', level=30)
             stream = super().map_to_type(function, stream_type=to)
@@ -91,10 +93,10 @@ class KeyValueStream(RowStream, PairStreamInterface):
         )
         return self._assume_regular(stream)
 
-    def keys(self, uniq, stream_type=arg.DEFAULT) -> RegularStreamInterface:
+    def keys(self, uniq, stream_type=AUTO) -> RegularStreamInterface:
         stream = self.stream(
             self.get_uniq_keys() if uniq else self.get_keys(),
-            stream_type=arg.undefault(stream_type, StreamType.AnyStream),
+            stream_type=arg.acquire(stream_type, StreamType.AnyStream),
         )
         return self._assume_regular(stream)
 
@@ -138,8 +140,8 @@ class KeyValueStream(RowStream, PairStreamInterface):
         )
         return self._assume_native(stream)
 
-    def disk_sort_by_key(self, reverse=False, step=arg.DEFAULT) -> Native:
-        step = arg.undefault(step, self.max_items_in_memory)
+    def disk_sort_by_key(self, reverse=False, step=AUTO) -> Native:
+        step = arg.acquire(step, self.max_items_in_memory)
         stream = self.disk_sort(
             key=self._get_key,
             reverse=reverse,

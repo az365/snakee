@@ -104,6 +104,13 @@ class FieldType(DynamicEnum):
         types_by_dialects = field_types_by_dialect.get(self, {})
         return types_by_dialects.get(converter_name, str)
 
+    def is_str(self) -> bool:
+        return self.get_value().startswith('str')
+
+    def check_value(self, value) -> bool:
+        py_type = self.get_py_type()
+        return isinstance(value, py_type)
+
 
 FieldType.prepare()
 FieldType._dict_dialect_types = {

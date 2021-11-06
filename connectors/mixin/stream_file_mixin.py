@@ -63,10 +63,16 @@ class StreamFileMixin(IterableStreamMixin, ABC):
     def _get_generated_stream_name(self) -> str:
         return arg.get_generated_name('{}:stream'.format(self.get_name()), include_random=True, include_datetime=False)
 
+    def _get_fast_count(self):
+        if hasattr(self, 'is_gzip'):
+            return self.get_count(allow_slow_gzip=False)
+        else:
+            return self.get_count()
+
     @abstractmethod
-    def get_items(
+    def get_items_of_type(
             self,
-            item_type: Union[ItemType, Auto] = AUTO,
+            item_type: Union[ItemType, Auto],
             verbose: AutoBool = AUTO,
             step: AutoCount = AUTO,
     ) -> Iterable:
@@ -85,7 +91,7 @@ class StreamFileMixin(IterableStreamMixin, ABC):
         name = arg.delayed_acquire(name, self._get_generated_stream_name)
         result = dict(
             data=data, name=name, source=self,
-            count=self.get_count(), context=self.get_context(),
+            count=self._get_fast_count(), context=self.get_context(),
         )
         result.update(kwargs)
         return result
@@ -118,7 +124,7 @@ class StreamFileMixin(IterableStreamMixin, ABC):
             data = self.get_items(item_type=item_type, verbose=kwargs.get('verbose', AUTO), step=step)
         meta = self.get_compatible_meta(stream_class, name=name, ex=ex, **kwargs)
         if 'count' not in meta:
-            meta['count'] = self.get_count()
+            meta['count'] = self._get_fast_count()
         if 'source' not in meta:
             meta['source'] = self
         stream = stream_class(data, **meta)
@@ -131,8 +137,11 @@ class StreamFileMixin(IterableStreamMixin, ABC):
             verbose: AutoBool = AUTO,
             **kwargs,
     ):
+        stream_type = arg.delayed_acquire(stream_type, self._get_stream_type)
         item_type = self._get_item_type(stream_type)
-        data = self.get_items(item_type=item_type, step=step, verbose=verbose)
+        data = kwargs.pop('data', None)
+        if not arg.is_defined(data):
+            data = self.get_items_of_type(item_type=item_type, step=step, verbose=verbose)
         stream_kwargs = self.get_stream_kwargs(data=data, step=step, verbose=verbose, **kwargs)
         return stream_type.stream(**stream_kwargs)
 
@@ -197,8 +206,8 @@ class StreamFileMixin(IterableStreamMixin, ABC):
         return self._assume_stream(stream)
 
     @staticmethod
-    def _assume_stream(obj) -> Stream:
-        return obj
+    def _assume_stream(stream) -> Stream:
+        return stream
 
     def get_children(self) -> dict:
         return self._data

@@ -9,6 +9,8 @@ class ConnType(ClassType):
     LocalStorage = 'LocalStorage'
     LocalFolder = 'LocalFolder'
     FileMask = 'FileMask'
+    PartitionedLocalFile = 'PartitionedLocalFile'
+    LocalFile = 'LocalFile'
     TextFile = 'TextFile'
     JsonFile = 'JsonFile'
     ColumnFile = 'ColumnFile'

@@ -1,5 +1,5 @@
 import json
-from typing import Optional, Union, Iterable, Callable
+from typing import Optional, Callable, Iterable, Union
 
 try:  # Assume we're a sub-module in a package.
     from utils import algo, arguments as arg
@@ -119,17 +119,21 @@ class LocalStream(IterableStream, LocalStreamInterface):
 
     def collect(self, inplace: bool = False, log: AutoBool = AUTO) -> Native:
         if inplace:
-            estimated_count = self.get_estimated_count()
-            if arg.is_defined(estimated_count):
-                log = arg.acquire(log, estimated_count > self.get_limit_items_in_memory())
-            if log and estimated_count:
-                self.log('Trying to collect {} items into memory from {}...'.format(estimated_count, self.__repr__()))
-            self.set_data(self.get_list(), inplace=True)
-            self.update_count(force=False)
-            if log:
-                self.log('Collected {} items into memory from {}...'.format(estimated_count, self.__repr__()))
+            self._collect_inplace(log=log)
+            return self
         else:
             return self.to_memory()
+
+    def _collect_inplace(self, log: AutoBool = AUTO) -> None:
+        estimated_count = self.get_estimated_count()
+        if arg.is_defined(estimated_count):
+            log = arg.acquire(log, estimated_count > self.get_limit_items_in_memory())
+        if log and estimated_count:
+            self.log('Trying to collect {} items into memory from {}...'.format(estimated_count, self.__repr__()))
+        self.set_data(self.get_list(), inplace=True)
+        self.update_count(force=False)
+        if log:
+            self.log('Collected {} items into memory from {}...'.format(estimated_count, self.__repr__()))
 
     def tail(self, count: int = 10) -> Native:
         total_count = self.get_count()
@@ -147,11 +151,15 @@ class LocalStream(IterableStream, LocalStreamInterface):
         else:  # is iterable generator
             return self._assume_native(super().copy())
 
-    def get_tee_items(self, mem_copy: bool = False) -> Iterable:
+    def _get_tee_items(self, mem_copy: bool = False) -> Iterable:
         if self.is_in_memory():
             return self.copy().get_items() if mem_copy else self.get_items()
         else:
-            return super().get_tee_items()
+            return super()._get_tee_items()
+
+    # @deprecated
+    def get_tee_items(self, mem_copy: bool = False) -> Iterable:
+        return self._get_tee_items(mem_copy=mem_copy)
 
     def map_to(self, function: Callable, stream_type: OptStreamType = AUTO) -> Native:
         stream_type = arg.acquire(stream_type, self.get_stream_type, delayed=True)
@@ -174,7 +182,7 @@ class LocalStream(IterableStream, LocalStreamInterface):
         return self._assume_native(stream)
 
     def filter(self, function: Callable) -> Native:
-        filtered_items = self.get_filtered_items(function)
+        filtered_items = self._get_filtered_items(function)
         if self.is_in_memory():
             filtered_items = list(filtered_items)
             count = len(filtered_items)

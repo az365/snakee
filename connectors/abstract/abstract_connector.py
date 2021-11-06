@@ -3,12 +3,18 @@ from typing import Optional, Union, NoReturn
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
-    from interfaces import Connector, ConnectorInterface, LoggerInterface, ExtendedLoggerInterface, AutoContext
+    from interfaces import (
+        Connector, ConnectorInterface, AutoContext,
+        LoggerInterface, ExtendedLoggerInterface, LoggingLevel, Message,
+    )
     from base.abstract.tree_item import TreeItem
     from loggers.fallback_logger import FallbackLogger
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
-    from ...interfaces import Connector, ConnectorInterface, LoggerInterface, ExtendedLoggerInterface, AutoContext
+    from ...interfaces import (
+        Connector, ConnectorInterface, AutoContext,
+        LoggerInterface, ExtendedLoggerInterface, LoggingLevel, Message,
+    )
     from ...base.abstract.tree_item import TreeItem
     from ...loggers.fallback_logger import FallbackLogger
 
@@ -43,22 +49,26 @@ class AbstractConnector(TreeItem, ConnectorInterface, ABC):
         elif create_if_not_yet:
             return FallbackLogger()
 
-    def log(self, msg: str, level=arg.AUTO, end: Union[str, arg.Auto] = arg.AUTO, verbose: bool = True):
-        logger = self.get_logger()
-        if logger is not None:
-            logger.log(
-                msg=msg, level=level,
-                end=end, verbose=verbose,
-            )
+    def log(
+            self,
+            msg: Message,
+            level: Union[LoggingLevel, int, arg.Auto] = arg.AUTO,
+            end: Union[str, arg.Auto] = arg.AUTO,
+            truncate: bool = True,
+            force: bool = False,
+            verbose: bool = True,
+    ):
+        logger = self.get_logger(skip_missing=force)
+        if isinstance(logger, ExtendedLoggerInterface):
+            logger.log(msg=msg, level=level, end=end, truncate=truncate, verbose=verbose)
+        elif logger:
+            logger.log(msg=msg, level=level)
+        return self
 
     def get_new_progress(self, name: str, count: Optional[int] = None, context: AutoContext = arg.AUTO):
         logger = self.get_logger()
         if hasattr(logger, 'get_new_progress'):
             return logger.get_new_progress(name, count=count, context=context)
-
-    @staticmethod
-    def _assume_connector(obj) -> ConnectorInterface:
-        return obj
 
     def get_path_prefix(self) -> str:
         return self.get_storage().get_path_prefix()
@@ -105,3 +115,7 @@ class AbstractConnector(TreeItem, ConnectorInterface, ABC):
         context = self.get_context()
         if context:
             context.forget_conn(self)
+
+    @staticmethod
+    def _assume_connector(connector) -> ConnectorInterface:
+        return connector

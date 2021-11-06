@@ -5,7 +5,7 @@ try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from interfaces import (
         Item, Record, Row, StructRow,
-        ItemType, StreamType, FileType,
+        ItemType, StreamType, ContentType,
         AUTO, Auto, AutoName, AutoCount, AutoBool, AutoConnector, OptionalFields, Array, ARRAY_TYPES,
     )
     from base.abstract.abstract_base import AbstractBaseObject
@@ -13,16 +13,16 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils import arguments as arg
     from ...interfaces import (
         Item, Record, Row, StructRow,
-        ItemType, StreamType, FileType,
+        ItemType, StreamType, ContentType,
         AUTO, Auto, AutoName, AutoCount, AutoBool, AutoConnector, OptionalFields, Array, ARRAY_TYPES,
     )
     from ...base.abstract.abstract_base import AbstractBaseObject
 
-ContentType = FileType
 Compress = Union[str, bool, None]
 
 DEFAULT_COMPRESS_METHOD = 'gzip'
 AVAILABLE_COMPRESS_METHODS = (DEFAULT_COMPRESS_METHOD, )
+META_MEMBER_MAPPING = dict(_compress_method='compress')
 
 
 class AbstractFormat(AbstractBaseObject, ABC):
@@ -94,6 +94,10 @@ class CompressibleFormat(AbstractFormat, ABC):
     def is_gzip(self) -> bool:
         return self.get_compress_method() == 'gzip'
 
+    @classmethod
+    def _get_meta_member_mapping(cls) -> dict:
+        return META_MEMBER_MAPPING
+
 
 class ParsedFormat(CompressibleFormat, ABC):
     @abstractmethod
@@ -114,7 +118,7 @@ class ParsedFormat(CompressibleFormat, ABC):
     def get_parsed_line(self, line: str, item_type: Union[ItemType, arg.Auto] = AUTO) -> Item:
         pass
 
-    def get_items(
+    def get_items_from_lines(
             self,
             lines: Iterable,
             item_type: Union[ItemType, arg.Auto] = AUTO,
@@ -136,5 +140,5 @@ class ParsedFormat(CompressibleFormat, ABC):
         else:
             raise TypeError
         item_kwargs = dict(struct=kwargs['struct']) if 'struct' in kwargs else dict()
-        items = self.get_items(lines, item_type=item_type, **item_kwargs)
+        items = self.get_items_from_lines(lines, item_type=item_type, **item_kwargs)
         return stream_class(items, **kwargs)
