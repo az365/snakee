@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Iterable, Union, NoReturn
+from typing import Optional, Iterable, Union
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
@@ -156,6 +156,14 @@ class ConnectorInterface(SourcedInterface, ABC):
         pass
 
     @abstractmethod
+    def is_verbose(self) -> bool:
+        """Get verbose mode setting:
+        True value means that connector must log and show its actions,
+        False value means that connector will be silent.
+        """
+        pass
+
+    @abstractmethod
     def get_logger(self, skip_missing=True, create_if_not_yet=True) -> Logger:
         """Returns current common (default) logger.
 
@@ -166,7 +174,7 @@ class ConnectorInterface(SourcedInterface, ABC):
         pass
 
     @abstractmethod
-    def log(self, msg, level=AUTO, end=AUTO, verbose=True) -> NoReturn:
+    def log(self, msg, level=AUTO, end=AUTO, verbose=True) -> None:
         """Log message with using current common logger
 
         :param msg: any text message as str

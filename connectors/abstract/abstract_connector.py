@@ -1,27 +1,30 @@
 from abc import ABC
-from typing import Optional, Union, NoReturn
+from typing import Optional, Union
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from interfaces import (
-        Connector, ConnectorInterface, AutoContext,
+        Connector, ConnectorInterface,
         LoggerInterface, ExtendedLoggerInterface, LoggingLevel, Message,
+        AUTO, Auto, AutoBool, AutoConnector, AutoContext,
     )
     from base.abstract.tree_item import TreeItem
     from loggers.fallback_logger import FallbackLogger
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...interfaces import (
-        Connector, ConnectorInterface, AutoContext,
+        Connector, ConnectorInterface,
         LoggerInterface, ExtendedLoggerInterface, LoggingLevel, Message,
+        AUTO, Auto, AutoBool, AutoConnector, AutoContext,
     )
     from ...base.abstract.tree_item import TreeItem
     from ...loggers.fallback_logger import FallbackLogger
 
+Native = ConnectorInterface
 Logger = Union[LoggerInterface, ExtendedLoggerInterface]
 
 DEFAULT_PATH_DELIMITER = '/'
-CHUNK_SIZE = 8192
+DEFAULT_VERBOSE = True
 
 
 class AbstractConnector(TreeItem, ConnectorInterface, ABC):
@@ -30,8 +33,40 @@ class AbstractConnector(TreeItem, ConnectorInterface, ABC):
             name: Union[str, int],
             parent: Connector = None,
             children: Optional[dict] = None,
+            context: AutoConnector = AUTO,
+            verbose: AutoBool = AUTO,
     ):
+        self._verbose = DEFAULT_VERBOSE
         super().__init__(name=name, parent=parent, children=children)
+        self.set_verbose(verbose)
+        self.set_context(context)
+
+    def is_verbose(self) -> bool:
+        return self._verbose
+
+    def set_verbose(self, verbose: AutoBool = AUTO, parent: AutoConnector = AUTO) -> Native:
+        if not arg.is_defined(verbose):
+            parent = arg.delayed_acquire(parent, self.get_parent)
+            if hasattr(parent, 'is_verbose'):
+                verbose = parent.is_verbose()
+            elif hasattr(parent, 'verbose'):
+                verbose = parent.verbose
+            else:
+                verbose = DEFAULT_VERBOSE
+        self._verbose = verbose
+        return self
+
+    def set_context(self, context: AutoContext, reset: bool = False, inplace: bool = True) -> Optional[Native]:
+        if arg.is_defined(context):
+            parent = self.get_parent()
+            if arg.is_defined(parent):
+                parent.set_context(context, reset=False, inplace=True)
+            else:
+                self.set_parent(context, reset=False, inplace=True)
+            if not inplace:
+                return self
+        else:
+            return self
 
     def get_storage(self) -> Connector:
         parent = self.get_parent()
@@ -109,7 +144,7 @@ class AbstractConnector(TreeItem, ConnectorInterface, ABC):
             config[k] = v
         return config
 
-    def forget(self) -> NoReturn:
+    def forget(self) -> None:
         if hasattr(self, 'close'):
             self.close()
         context = self.get_context()
