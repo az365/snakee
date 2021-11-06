@@ -1,9 +1,13 @@
-from typing import Optional, Union, NoReturn
+from typing import Optional, Union
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from utils.decorators import singleton
-    from interfaces import ContextInterface, ContextualInterface, LoggerInterface, ConnectorInterface, Name, AUTO
+    from interfaces import (
+        ContextInterface, ContextualInterface, ConnectorInterface,
+        LoggerInterface, ExtendedLoggerInterface,
+        AUTO, Auto, Name,
+    )
     from base.abstract.tree_item import TreeItem
     from loggers.extended_logger import SingletonLogger
     from loggers.message_collector import SelectionMessageCollector
@@ -13,7 +17,11 @@ try:  # Assume we're a sub-module in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
     from ..utils.decorators import singleton
-    from ..interfaces import ContextInterface, ContextualInterface, LoggerInterface, ConnectorInterface, Name, AUTO
+    from ..interfaces import (
+        ContextInterface, ContextualInterface, ConnectorInterface,
+        LoggerInterface, ExtendedLoggerInterface,
+        AUTO, Auto, Name,
+    )
     from ..base.abstract.tree_item import TreeItem
     from .extended_logger import SingletonLogger
     from .message_collector import SelectionMessageCollector
@@ -31,8 +39,8 @@ NAME = 'logging_context_stub'
 class LoggingContextStub(TreeItem, ContextInterface):
     def __init__(
             self,
-            name: Union[Name, arg.Auto] = AUTO,
-            logger: Union[LoggerInterface, arg.Auto] = AUTO,
+            name: Union[Name, Auto] = AUTO,
+            logger: Union[LoggerInterface, Auto] = AUTO,
             skip_not_implemented: bool = True
     ):
         self._logger = logger
@@ -51,9 +59,12 @@ class LoggingContextStub(TreeItem, ContextInterface):
             return self
 
     def get_logger(self, create_if_not_yet=True) -> LoggerInterface:
-        if arg.is_defined(self._logger):
-            if not self._logger.get_context():
-                self._logger.set_context(self)
+        logger = self._logger
+        if arg.is_defined(logger):
+            if isinstance(logger, ExtendedLoggerInterface) or hasattr(logger, 'get_context'):
+                if not logger.get_context():
+                    if hasattr(logger, 'set_context'):
+                        logger.set_context(self)
             return self._logger
         elif create_if_not_yet:
             return self.get_new_logger()
@@ -77,13 +88,12 @@ class LoggingContextStub(TreeItem, ContextInterface):
                 logger.set_selection_logger(selection_logger)
         return selection_logger
 
-    def log(self, msg, level=AUTO, end=AUTO, verbose=True) -> NoReturn:
+    def log(self, msg, level=AUTO, end=AUTO, truncate: bool = True, verbose=True) -> None:
         logger = self.get_logger()
-        if logger is not None:
-            logger.log(
-                msg=msg, level=level,
-                end=end, verbose=verbose,
-            )
+        if isinstance(logger, ExtendedLoggerInterface):
+            logger.log(msg=msg, level=level, end=end, truncate=truncate, verbose=verbose)
+        elif logger is not None:
+            logger.log(msg=msg, level=level)
 
     def add_child(self, name_or_child: Union[Name, Child], check: bool = True, inplace: bool = True) -> Optional[Child]:
         name, child = self._get_name_and_child(name_or_child)
@@ -126,7 +136,7 @@ class LoggingContextStub(TreeItem, ContextInterface):
         if not inplace:
             return self
 
-    def _method_stub(self, method_name='called') -> NoReturn:
+    def _method_stub(self, method_name='called') -> None:
         msg_template = '{} method not implemented for {} class (use SnakeeContext class instead)'
         message = msg_template.format(method_name, self.__class__.__name__)
         if self._skip_not_implemented:
