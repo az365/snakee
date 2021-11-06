@@ -1,5 +1,5 @@
-from abc import ABC, abstractmethod
-from typing import Iterable, Union
+from abc import ABC
+from typing import Optional, Iterable, Union
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
@@ -10,6 +10,7 @@ try:  # Assume we're a sub-module in a package.
         Auto, AUTO, AutoBool, AutoCount, AutoName, Array, OptionalFields,
     )
     from streams.mixin.iterable_mixin import IterableStreamMixin
+    from connectors.mixin.connector_format_mixin import ConnectorFormatMixin
     from connectors.abstract.leaf_connector import LeafConnector
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
@@ -20,6 +21,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         Auto, AUTO, AutoBool, AutoCount, AutoName, Array, OptionalFields,
     )
     from ...streams.mixin.iterable_mixin import IterableStreamMixin
+    from ..mixin.connector_format_mixin import ConnectorFormatMixin
     from ..abstract.leaf_connector import LeafConnector
 
 Stream = Union[IterableStreamInterface, RegularStream]
@@ -58,7 +60,11 @@ class StreamFileMixin(IterableStreamMixin, ABC):
         else:
             stream_class = self._get_stream_class()
         assert isinstance(stream_class, RegularStream) or hasattr(stream_class, 'get_item_type')
-        return stream_class.get_item_type()
+        if hasattr(stream_class, 'get_item_type'):
+            return stream_class.get_item_type()
+        else:
+            stream_obj = stream_class([])
+            return stream_obj.get_item_type()
 
     def _get_generated_stream_name(self) -> str:
         return arg.get_generated_name('{}:stream'.format(self.get_name()), include_random=True, include_datetime=False)
@@ -69,14 +75,16 @@ class StreamFileMixin(IterableStreamMixin, ABC):
         else:
             return self.get_count()
 
-    @abstractmethod
-    def get_items_of_type(
+    def _get_items_of_type(
             self,
             item_type: Union[ItemType, Auto],
             verbose: AutoBool = AUTO,
             step: AutoCount = AUTO,
     ) -> Iterable:
-        pass
+        if hasattr(self, 'get_items_of_type'):
+            return self.get_items_of_type(item_type, verbose=verbose, step=step)
+        else:
+            raise AttributeError('for get items object must be Connector and have get_items_of_type() method')
 
     def get_stream_kwargs(
             self,
@@ -86,9 +94,10 @@ class StreamFileMixin(IterableStreamMixin, ABC):
             step: AutoCount = AUTO,
             **kwargs
     ) -> dict:
-        verbose = arg.acquire(verbose, self.is_verbose())
-        data = arg.delayed_acquire(data, self.get_items, verbose=verbose, step=step)
         name = arg.delayed_acquire(name, self._get_generated_stream_name)
+        if not arg.is_defined(data):
+            item_type = self._get_item_type()
+            data = self._get_items_of_type(item_type, verbose=verbose, step=step)
         result = dict(
             data=data, name=name, source=self,
             count=self._get_fast_count(), context=self.get_context(),
@@ -121,7 +130,7 @@ class StreamFileMixin(IterableStreamMixin, ABC):
         else:
             item_type = AUTO
         if not arg.is_defined(data):
-            data = self.get_items(item_type=item_type, verbose=kwargs.get('verbose', AUTO), step=step)
+            data = self._get_items_of_type(item_type, verbose=kwargs.get('verbose', AUTO), step=step)
         meta = self.get_compatible_meta(stream_class, name=name, ex=ex, **kwargs)
         if 'count' not in meta:
             meta['count'] = self._get_fast_count()
@@ -136,12 +145,12 @@ class StreamFileMixin(IterableStreamMixin, ABC):
             step: AutoCount = AUTO,
             verbose: AutoBool = AUTO,
             **kwargs,
-    ):
+    ) -> Stream:
         stream_type = arg.delayed_acquire(stream_type, self._get_stream_type)
         item_type = self._get_item_type(stream_type)
         data = kwargs.pop('data', None)
         if not arg.is_defined(data):
-            data = self.get_items_of_type(item_type=item_type, step=step, verbose=verbose)
+            data = self._get_items_of_type(item_type, step=step, verbose=verbose)
         stream_kwargs = self.get_stream_kwargs(data=data, step=step, verbose=verbose, **kwargs)
         return stream_type.stream(**stream_kwargs)
 
@@ -164,36 +173,25 @@ class StreamFileMixin(IterableStreamMixin, ABC):
             verbose: AutoBool = AUTO,
             **kwargs,
     ) -> StructStream:
+        assert self._is_existing(), 'for get stream file must exists'
         if not arg.is_defined(struct):
-            if hasattr(self, 'get_struct'):
-                struct = self.get_struct()
-            elif hasattr(self, 'get_content_format'):
-                struct = self.get_content_format().get_struct()
+            assert isinstance(self, ConnectorFormatMixin)
+            struct = self.get_struct()
         kwargs['struct'] = struct
         return self.to_stream_type(StreamType.StructStream, step=step, verbose=verbose, **kwargs)
 
     def from_stream(self, stream: Stream, verbose: AutoBool = AUTO) -> Native:
-        return self.write_stream(stream, verbose=verbose)
-
-    @abstractmethod
-    def write_stream(
-            self,
-            stream: IterableStreamInterface,
-            add_title_row: AutoBool = AUTO,
-            verbose: AutoBool = AUTO,
-    ) -> Native:
-        pass
-
-    @abstractmethod
-    def write_lines(self, lines: Iterable, verbose: AutoBool = AUTO) -> Native:
-        pass
+        if hasattr(self, 'write_stream'):
+            return self.write_stream(stream, verbose=verbose)
+        else:
+            raise AttributeError
 
     def add_stream(self, stream: Stream, **kwargs) -> Stream:
         stream = self.to_stream(**kwargs).add_stream(stream)
         return self._assume_stream(stream)
 
     def collect(self, skip_missing: bool = False, **kwargs) -> Stream:
-        if self.is_existing():
+        if self._is_existing():
             stream = self.to_stream(**kwargs)
             if hasattr(stream, 'collect'):
                 stream = stream.collect()
@@ -209,17 +207,8 @@ class StreamFileMixin(IterableStreamMixin, ABC):
     def _assume_stream(stream) -> Stream:
         return stream
 
-    def get_children(self) -> dict:
-        return self._data
-
-    @abstractmethod
-    def get_context(self) -> Context:
-        pass
-
-    @abstractmethod
-    def is_verbose(self) -> bool:
-        pass
-
-    @abstractmethod
-    def is_existing(self) -> bool:
-        pass
+    def _is_existing(self) -> Optional[bool]:
+        if hasattr(self, 'is_existing'):
+            return self.is_existing()
+        else:
+            raise AttributeError
