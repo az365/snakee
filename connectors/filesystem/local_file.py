@@ -5,7 +5,7 @@ import gzip as gz
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from interfaces import (
-        Context, Connector, ConnectorInterface, StructInterface, IterableStreamInterface,
+        Context, Connector, ConnectorInterface, ContentFormatInterface, StructInterface, IterableStreamInterface,
         ContentType, ItemType,
         AUTO, Auto, AutoCount, AutoBool,
     )
@@ -22,7 +22,7 @@ try:  # Assume we're a sub-module in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...interfaces import (
-        Context, Connector, ConnectorInterface, StructInterface, IterableStreamInterface,
+        Context, Connector, ConnectorInterface, ContentFormatInterface, StructInterface, IterableStreamInterface,
         ContentType, ItemType,
         AUTO, Auto, AutoCount, AutoBool,
     )
@@ -46,11 +46,11 @@ LOGGING_LEVEL_INFO = 20
 LOGGING_LEVEL_WARN = 30
 
 
-class LocalFile(LeafConnector, ConnectorFormatMixin, StreamFileMixin, ActualizeMixin, IterableStreamMixin):
+class LocalFile(LeafConnector, StreamFileMixin, ActualizeMixin, IterableStreamMixin):
     def __init__(
             self,
             name: str,
-            content_format: Union[AbstractFormat, Auto] = AUTO,
+            content_format: Union[ContentFormatInterface, Auto] = AUTO,
             struct: Union[Struct, Auto, None] = AUTO,
             folder: Connector = None,
             context: Context = AUTO,
@@ -62,55 +62,13 @@ class LocalFile(LeafConnector, ConnectorFormatMixin, StreamFileMixin, ActualizeM
             assert isinstance(folder, ConnectorInterface) or folder.is_folder(), message
         else:
             folder = context.get_job_folder()
-        self._declared_format = None
-        self._detected_format = None
         self._fileholder = None
-        self._modification_ts = None
-        self._count = expected_count
-        super().__init__(name=name, parent=folder, verbose=verbose)
-        content_format = arg.delayed_acquire(content_format, LeanFormat.detect_by_name, name)
-        assert isinstance(content_format, AbstractFormat)
-        self.set_content_format(content_format, inplace=True)
-        if struct is not None:
-            if struct == AUTO:
-                if isinstance(content_format, ColumnarFormat) or hasattr(content_format, 'is_first_line_title'):
-                    if content_format.is_first_line_title():
-                        struct = self.get_detected_struct_by_title_row()
-            if arg.is_defined(struct, check_name=False):
-                self.set_struct(struct, inplace=True)
-
-    def get_content_format(self) -> AbstractFormat:
-        return self.get_detected_format()
-
-    def set_content_format(self, content_format: AbstractFormat, inplace: bool) -> Optional[Native]:
-        return self.set_detected_format(content_format=content_format, inplace=inplace)
-
-    def get_detected_format(self) -> AbstractFormat:
-        return self._detected_format
-
-    def set_detected_format(self, content_format: AbstractFormat, inplace: bool) -> Optional[Native]:
-        if inplace:
-            self._detected_format = content_format
-            if not self.get_declared_format():
-                self.set_declared_format(content_format, inplace=True)
-        else:
-            return self.make_new(content_format=content_format)
-
-    def get_declared_format(self) -> AbstractFormat:
-        return self._declared_format
-
-    def set_declared_format(self, initial_format: AbstractFormat, inplace: bool) -> Optional[Native]:
-        if inplace:
-            self._declared_format = initial_format.copy()
-        else:
-            new = self.copy()
-            assert isinstance(new, LocalFile)
-            new.set_declared_format(initial_format, inplace=True)
-            return new
-
-    def get_content_type(self) -> ContentType:
-        # return self._content_type
-        return self.get_content_format().get_content_type()
+        super().__init__(
+            name=name,
+            content_format=content_format, struct=struct,
+            expected_count=expected_count,
+            parent=folder, context=context, verbose=verbose,
+        )
 
     def get_encoding(self) -> Optional[str]:
         content_format = self.get_content_format()

@@ -4,24 +4,22 @@ try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from interfaces import (
         ConnectorInterface, StructInterface, ColumnarInterface, RegularStream,
-        ContentType, StreamType,
+        ContentFormatInterface, ContentType, StreamType, LoggingLevel,
         ARRAY_TYPES, AUTO, Auto, AutoBool, Count, Name,
     )
     from items.flat_struct import FlatStruct
-    from loggers import logger_classes as log
-    from streams import stream_classes as sm
     from connectors import connector_classes as ct
+    from streams import stream_classes as sm
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...interfaces import (
         ConnectorInterface, StructInterface, ColumnarInterface, RegularStream,
-        ContentType, StreamType,
+        ContentFormatInterface, ContentType, StreamType, LoggingLevel,
         ARRAY_TYPES, AUTO, Auto, AutoBool, Count, Name,
     )
     from ...items.flat_struct import FlatStruct
-    from ...loggers import logger_classes as log
-    from ...streams import stream_classes as sm
     from .. import connector_classes as ct
+    from ...streams import stream_classes as sm
 
 Native = ct.LeafConnector
 Stream = Union[RegularStream, ColumnarInterface]
@@ -41,19 +39,26 @@ class Table(ct.LeafConnector):
         self.struct = struct
         super().__init__(
             name=name,
+            struct=struct,
             parent=database,
             verbose=verbose,
         )
-        if struct == AUTO:
-            struct = self.get_struct_from_database(set_struct=True)
-        if not isinstance(struct, StructInterface):
-            message = 'Struct as {} is deprecated. Use items.FlatStruct instead.'.format(type(struct))
-            self.log(msg=message, level=log.LoggingLevel.Warning)
         if reconnect and hasattr(database, 'connect'):
             database.connect(reconnect=True)
 
     def get_content_type(self) -> ContentType:
         return ContentType.TsvFile
+
+    @staticmethod
+    def _get_detected_format_by_name(name: str) -> ContentFormatInterface:
+        return ContentType.TsvFile
+
+    def _get_detected_struct(self, set_struct: bool = False, verbose: AutoBool = AUTO) -> StructInterface:
+        struct = self.get_struct_from_database(set_struct=set_struct)
+        if not isinstance(struct, StructInterface) and arg.delayed_acquire(verbose, self.is_verbose):
+            message = 'Struct as {} is deprecated. Use items.FlatStruct instead.'.format(type(struct))
+            self.log(msg=message, level=LoggingLevel.Warning)
+        return struct
 
     def get_database(self) -> ConnectorInterface:
         database = self.get_parent()
@@ -68,7 +73,7 @@ class Table(ct.LeafConnector):
     def get_columns(self) -> list:
         return self.get_struct().get_columns()
 
-    def set_struct(self, struct: GeneralizedStruct) -> Native:
+    def set_struct(self, struct: GeneralizedStruct, inplace: bool) -> Optional[Native]:
         if struct is None:
             self.struct = None
         elif isinstance(struct, StructInterface):
@@ -83,7 +88,8 @@ class Table(ct.LeafConnector):
         else:
             message = 'struct must be StructInterface or tuple with fields_description (got {})'.format(type(struct))
             raise TypeError(message)
-        return self
+        if not inplace:
+            return self
 
     def get_struct(self) -> StructInterface:
         if not self.struct:

@@ -3,17 +3,17 @@ from typing import Optional, Generator, Union
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from interfaces import (
-        ConnectorInterface, Stream,
-        StreamType, ContentType,
-        AUTO, Auto, AutoContext, AutoBool, Name,
+        ConnectorInterface, ContentFormatInterface, Stream, StructInterface,
+        ContentType, StreamType,
+        AUTO, Auto, AutoContext, AutoBool, AutoCount, Name,
     )
     from connectors.abstract.leaf_connector import LeafConnector
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...interfaces import (
-        ConnectorInterface, Stream,
-        StreamType, ContentType,
-        AUTO, Auto, AutoContext, AutoBool, Name,
+        ConnectorInterface, ContentFormatInterface, Stream, StructInterface,
+        ContentType, StreamType,
+        AUTO, Auto, AutoContext, AutoBool, AutoCount, Name,
     )
     from ..abstract.leaf_connector import LeafConnector
 
@@ -24,15 +24,18 @@ class S3Object(LeafConnector):
     def __init__(
             self,
             name: Name,
-            folder: ConnectorInterface,
+            content_format: Union[ContentFormatInterface, Auto] = AUTO,
+            struct: Union[StructInterface, Auto, None] = AUTO,
+            folder: ConnectorInterface = None,
             context: AutoContext = AUTO,
+            expected_count: AutoCount = AUTO,
             verbose: AutoBool = AUTO,
     ):
         super().__init__(
             name=name,
-            parent=folder,
-            context=context,
-            verbose=verbose,
+            content_format=content_format, struct=struct,
+            expected_count=expected_count,
+            parent=folder, context=context, verbose=verbose,
         )
 
     def get_content_type(self) -> ContentType:

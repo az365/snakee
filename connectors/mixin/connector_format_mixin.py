@@ -1,11 +1,11 @@
-from abc import ABC, abstractmethod
+from abc import ABC
 from typing import Optional, Union
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from interfaces import (
         LeafConnectorInterface, StructInterface, StructFileInterface, IterableStreamInterface,
-        ItemType, FieldType, DialectType, StreamType,
+        ItemType, FieldType, DialectType, StreamType, ContentType,
         AUTO, Auto, AutoBool, Columns, Array, ARRAY_TYPES,
     )
     from items.struct_mixin import StructMixin
@@ -15,7 +15,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils import arguments as arg
     from ...interfaces import (
         LeafConnectorInterface, StructInterface, StructFileInterface, IterableStreamInterface,
-        ItemType, FieldType, DialectType, StreamType,
+        ItemType, FieldType, DialectType, StreamType, ContentType,
         AUTO, Auto, AutoBool, Columns, Array, ARRAY_TYPES,
     )
     from ...items.struct_mixin import StructMixin
@@ -137,10 +137,6 @@ class ConnectorFormatMixin(LeafConnectorInterface, StructMixin, ABC):
             self.set_struct(struct, inplace=True)
         return struct
 
-    @staticmethod
-    def _assume_native(obj) -> Native:
-        return obj
-
     def is_gzip(self) -> bool:
         content_format = self.get_content_format()
         if isinstance(content_format, ParsedFormat):
@@ -162,22 +158,9 @@ class ConnectorFormatMixin(LeafConnectorInterface, StructMixin, ABC):
         else:
             return ItemType.Any
 
-    @abstractmethod
-    def make_new(self, *args, **kwargs) -> Native:
-        pass
+    def get_content_type(self) -> ContentType:
+        return self.get_content_format().get_content_type()
 
-    @abstractmethod
-    def get_first_line(self, close: bool = True) -> str:
-        pass
-
-    @abstractmethod
-    def get_content_format(self) -> AbstractFormat:
-        pass
-
-    @abstractmethod
-    def set_content_format(self, content_format: AbstractFormat, inplace: bool) -> Optional[Native]:
-        pass
-
-    @abstractmethod
-    def get_declared_format(self) -> AbstractFormat:
-        pass
+    @staticmethod
+    def _assume_native(connector) -> Native:
+        return connector
