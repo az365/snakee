@@ -46,15 +46,7 @@ class AppropriateInterface(LeafConnectorInterface, ABC):
         pass
 
     @abstractmethod
-    def is_verbose(self) -> bool:
-        pass
-
-    @abstractmethod
     def is_opened(self) -> bool:
-        pass
-
-    @abstractmethod
-    def is_closed(self) -> bool:
         pass
 
     @abstractmethod
@@ -93,10 +85,6 @@ class AppropriateInterface(LeafConnectorInterface, ABC):
 
     @abstractmethod
     def get_detected_struct_by_title_row(self, set_struct: bool, verbose: bool) -> StructInterface:
-        pass
-
-    @abstractmethod
-    def get_one_item(self, item_type: ItemType):
         pass
 
     @abstractmethod

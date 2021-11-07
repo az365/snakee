@@ -17,7 +17,6 @@ try:  # Assume we're a sub-module in a package.
     )
     from connectors.mixin.connector_format_mixin import ConnectorFormatMixin
     from connectors.mixin.actualize_mixin import ActualizeMixin
-    from connectors.mixin.streamable_mixin import StreamableMixin
     from streams.mixin.iterable_mixin import IterableStreamMixin
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
@@ -34,7 +33,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     )
     from ..mixin.connector_format_mixin import ConnectorFormatMixin
     from ..mixin.actualize_mixin import ActualizeMixin
-    from ..mixin.streamable_mixin import StreamableMixin
     from ...streams.mixin.iterable_mixin import IterableStreamMixin
 
 Stream = IterableStreamInterface
@@ -46,7 +44,7 @@ LOGGING_LEVEL_INFO = 20
 LOGGING_LEVEL_WARN = 30
 
 
-class LocalFile(LeafConnector, StreamableMixin, ActualizeMixin, IterableStreamMixin):
+class LocalFile(LeafConnector, ActualizeMixin):
     _default_folder: Connector = None
 
     def __init__(
@@ -371,9 +369,6 @@ class LocalFile(LeafConnector, StreamableMixin, ActualizeMixin, IterableStreamMi
         else:
             item_type = ItemType.detect(stream.get_one_item())
         return self.write_items(stream.get_items(), item_type=item_type, add_title_row=add_title_row, verbose=verbose)
-
-    def from_stream(self, stream: Stream, verbose: bool = True) -> Native:
-        return super(StreamableMixin).from_stream(stream, verbose=verbose)
 
     def to_stream(self, data: Union[Iterable, Auto, None] = AUTO, **kwargs) -> Stream:
         if 'stream_type' not in kwargs:

@@ -10,6 +10,7 @@ try:  # Assume we're a sub-module in a package.
     )
     from connectors.abstract.abstract_connector import AbstractConnector
     from connectors.mixin.connector_format_mixin import ConnectorFormatMixin
+    from connectors.mixin.streamable_mixin import StreamableMixin
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...interfaces import (
@@ -19,6 +20,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     )
     from .abstract_connector import AbstractConnector
     from ..mixin.connector_format_mixin import ConnectorFormatMixin
+    from ..mixin.streamable_mixin import StreamableMixin
 
 Native = LeafConnectorInterface
 Parent = Union[Context, ConnectorInterface]
@@ -27,7 +29,7 @@ Links = Optional[dict]
 META_MEMBER_MAPPING = dict(_data='streams', _source='parent', _declared_format='content_format')
 
 
-class LeafConnector(AbstractConnector, ConnectorFormatMixin, LeafConnectorInterface, ABC):
+class LeafConnector(AbstractConnector, ConnectorFormatMixin, StreamableMixin, LeafConnectorInterface, ABC):
     def __init__(
             self,
             name: Name,
@@ -68,7 +70,6 @@ class LeafConnector(AbstractConnector, ConnectorFormatMixin, LeafConnectorInterf
         if isinstance(content_format, ContentFormatInterface) and hasattr(content_format, 'is_first_line_title'):
             if content_format.is_first_line_title():
                 struct = self.get_detected_struct_by_title_row(set_struct=set_struct, verbose=verbose)
-                # struct = arg.delayed_acquire(struct, self.get_detected_struct_by_title_row)
                 return struct
 
     def get_content_format(self) -> ContentFormatInterface:

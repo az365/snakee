@@ -4,29 +4,25 @@ from typing import Optional, Iterable, Union
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from interfaces import (
-        IterableStreamInterface, StructInterface, Context,
+        IterableStreamInterface, StructInterface, Context, LeafConnectorInterface, StructMixinInterface,
         RegularStream, RowStream, StructStream, RecordStream, LineStream,
         ItemType, StreamType,
         Auto, AUTO, AutoBool, AutoCount, AutoName, Array, OptionalFields,
     )
     from streams.mixin.iterable_mixin import IterableStreamMixin
-    from connectors.mixin.connector_format_mixin import ConnectorFormatMixin
-    from connectors.abstract.leaf_connector import LeafConnector
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...interfaces import (
-        IterableStreamInterface, StructInterface, Context,
+        IterableStreamInterface, StructInterface, Context, LeafConnectorInterface, StructMixinInterface,
         RegularStream, RowStream, StructStream, RecordStream, LineStream,
         ItemType, StreamType,
         Auto, AUTO, AutoBool, AutoCount, AutoName, Array, OptionalFields,
     )
     from ...streams.mixin.iterable_mixin import IterableStreamMixin
-    from ..mixin.connector_format_mixin import ConnectorFormatMixin
-    from ..abstract.leaf_connector import LeafConnector
 
 Stream = Union[IterableStreamInterface, RegularStream]
 Message = Union[AutoName, Array]
-Native = Union[LeafConnector, Stream]
+Native = Union[Stream, LeafConnectorInterface]
 
 
 class StreamableMixin(IterableStreamMixin, ABC):
@@ -175,8 +171,10 @@ class StreamableMixin(IterableStreamMixin, ABC):
     ) -> StructStream:
         assert self._is_existing(), 'for get stream file must exists'
         if not arg.is_defined(struct):
-            assert isinstance(self, ConnectorFormatMixin)
-            struct = self.get_struct()
+            if isinstance(self, StructMixinInterface) or hasattr(self, 'get_struct'):
+                struct = self.get_struct()
+            else:
+                raise TypeError('for getting struct stream connector must have a struct property')
         kwargs['struct'] = struct
         return self.to_stream_type(StreamType.StructStream, step=step, verbose=verbose, **kwargs)
 

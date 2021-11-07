@@ -3,17 +3,17 @@ from typing import Optional
 
 try:  # Assume we're a sub-module in a package.
     from streams.interfaces.abstract_stream_interface import StreamInterface
+    from connectors.content_format.content_type import ContentType
     from connectors.interfaces.connector_interface import ConnectorInterface
     from connectors.interfaces.format_interface import ContentFormatInterface
-    from connectors.content_format.content_type import ContentType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...streams.interfaces.abstract_stream_interface import StreamInterface
+    from ..content_format.content_type import ContentType
     from .connector_interface import ConnectorInterface
     from .format_interface import ContentFormatInterface
-    from ..content_format.content_type import ContentType
 
 
-class LeafConnectorInterface(ConnectorInterface, ABC):
+class LeafConnectorInterface(ConnectorInterface, StreamInterface, ABC):
     @abstractmethod
     def get_content_type(self) -> ContentType:
         pass
