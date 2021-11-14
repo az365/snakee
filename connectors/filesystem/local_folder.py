@@ -1,33 +1,28 @@
+from typing import Type, Optional, Callable, Iterable, Union
 import os
-from typing import Type, Optional, Iterable, Union
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from interfaces import (
         ContextInterface, ConnectorInterface, Connector,
-        FileType, FolderType,
-        AUTO, Auto, AutoBool, AutoContext,
+        FileType, FolderType, ConnType, Class,
+        AUTO, Auto, AutoBool, AutoContext, AutoConnector,
     )
     from connectors.abstract.hierarchic_connector import HierarchicConnector
     from connectors.abstract.leaf_connector import LeafConnector
     from connectors.abstract.abstract_folder import HierarchicFolder
-    from connectors.filesystem.text_file import TextFile
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...interfaces import (
         ContextInterface, ConnectorInterface, Connector,
-        FileType, FolderType,
-        AUTO, Auto, AutoBool, AutoContext,
+        FileType, FolderType, ConnType, Class,
+        AUTO, Auto, AutoBool, AutoContext, AutoConnector,
     )
     from ..abstract.hierarchic_connector import HierarchicConnector
     from ..abstract.leaf_connector import LeafConnector
     from ..abstract.abstract_folder import HierarchicFolder
-    from .text_file import TextFile
 
-File = LeafConnector
-Parent = Union[HierarchicConnector, ConnectorInterface, Auto]
-
-PARENT_TYPES = HierarchicConnector, ConnectorInterface, ContextInterface
+Native = HierarchicFolder
 
 
 class LocalFolder(HierarchicFolder):
@@ -37,7 +32,7 @@ class LocalFolder(HierarchicFolder):
             self,
             path: str,
             path_is_relative: AutoBool = AUTO,
-            parent: Parent = AUTO,
+            parent: AutoConnector = AUTO,
             context: AutoContext = None,
             verbose: AutoBool = AUTO,
     ):
@@ -46,34 +41,28 @@ class LocalFolder(HierarchicFolder):
                 parent = context.get_local_storage()
             else:
                 parent = self.get_default_storage()
-        if arg.is_defined(parent):
-            assert isinstance(parent, PARENT_TYPES), 'got {} as {}'.format(parent, type(parent))
+        parent = self._assume_native(parent)
         self._path_is_relative = arg.acquire(path_is_relative, not arg.is_absolute_path(path))
-        super().__init__(
-            name=path,
-            parent=parent,
-            verbose=verbose,
-        )
+        super().__init__(name=path, parent=parent, verbose=verbose)
 
     @classmethod
     def get_default_storage(cls) -> Connector:
         return cls._default_storage
 
     @classmethod
-    def set_default_storage(cls, storage: Connector):
+    def set_default_storage(cls, storage: Connector) -> None:
         cls._default_storage = storage
 
     @staticmethod
     def get_default_child_type() -> FileType:
         return FileType.TextFile
 
-    def get_default_child_class(self) -> File:
+    def get_default_child_class(self) -> Class:
         child_class = self.get_default_child_type().get_class()
-        assert isinstance(child_class, File)
         return child_class
 
     @staticmethod
-    def get_child_class_by_type(type_name: Union[FolderType, FileType, str]) -> Type:
+    def get_child_class_by_type(type_name: Union[FolderType, FileType, str]) -> Class:
         try:
             conn_type = FolderType(type_name)
         except ValueError:
@@ -88,11 +77,11 @@ class LocalFolder(HierarchicFolder):
         else:
             return FileType.detect_by_name(name)
 
-    def get_child_class_by_name(self, name: str) -> Type:
+    def get_child_class_by_name(self, name: str) -> Class:
         supposed_type = self.get_type_by_name(name)
         return self.get_child_class_by_type(supposed_type)
 
-    def get_child_class_by_name_and_type(self, name: str, filetype: Union[FileType, Auto] = AUTO) -> Type:
+    def get_child_class_by_name_and_type(self, name: str, filetype: Union[FileType, Auto] = AUTO) -> Class:
         if arg.is_defined(filetype):
             return FileType(filetype).get_class()
         else:
@@ -139,7 +128,7 @@ class LocalFolder(HierarchicFolder):
                 raise TypeError
         return partitioned_local_file
 
-    def add_file(self, file: File, inplace: bool = True):
+    def add_file(self, file: LeafConnector, inplace: bool = True) -> Optional[Native]:
         assert file.is_leaf(), 'file must be an instance of *File (got {})'.format(type(file))
         return super().add_child(file, inplace=inplace)
 
@@ -232,9 +221,16 @@ class LocalFolder(HierarchicFolder):
                 kwargs['filetype'] = self.get_default_child_type()
             yield self.file(name, **kwargs)
 
-    def connect_all(self, inplace: bool = True, **kwargs) -> Union[list, HierarchicFolder]:
+    def connect_all(self, inplace: bool = True, **kwargs) -> Union[list, Native]:
         files = list(self.all_existing_files(**kwargs))
         if inplace:
             return files
         else:
             return self
+
+    @staticmethod
+    def _assume_native(obj) -> Native:
+        return obj
+
+
+ConnType.add_classes(LocalFolder)
