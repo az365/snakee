@@ -4,27 +4,25 @@ from typing import Optional, Iterable, Union
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg, mappers as ms
     from interfaces import (
-        Connector, ColumnarInterface, ColumnarStream, StructStream, StructInterface, SimpleDataInterface,
-        DialectType, StreamType,
-        AUTO, Auto, AutoContext, AutoBool, AutoCount, Count, Name, FieldName,
+        StreamInterface, ColumnarInterface, ColumnarStream, StructStream, StructInterface, SimpleDataInterface,
+        DialectType, StreamType, LoggingLevel,
+        AUTO, Auto, AutoContext, AutoBool, AutoCount, Count, Name, FieldName, Connector,
     )
-    from loggers import logger_classes as log
+    from connectors.abstract.abstract_storage import AbstractStorage
     from connectors import connector_classes as ct
-    from streams import stream_classes as sm
     from items.flat_struct import FlatStruct
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg, mappers as ms
     from ...interfaces import (
-        Connector, ColumnarInterface, ColumnarStream, StructStream, StructInterface, SimpleDataInterface,
-        DialectType, StreamType,
-        AUTO, Auto, AutoContext, AutoBool, AutoCount, Count, Name, FieldName,
+        StreamInterface, ColumnarInterface, ColumnarStream, StructStream, StructInterface, SimpleDataInterface,
+        DialectType, StreamType, LoggingLevel,
+        AUTO, Auto, AutoContext, AutoBool, AutoCount, Count, Name, FieldName, Connector,
     )
-    from ...loggers import logger_classes as log
+    from ..abstract.abstract_storage import AbstractStorage
     from .. import connector_classes as ct
-    from ...streams import stream_classes as sm
     from ...items.flat_struct import FlatStruct
 
-Native = ct.AbstractStorage
+Native = AbstractStorage
 Struct = Optional[StructInterface]
 Table = Connector
 File = ct.AbstractFile
@@ -36,7 +34,7 @@ DEFAULT_STEP = 1000
 DEFAULT_ERRORS_THRESHOLD = 0.05
 
 
-class AbstractDatabase(ct.AbstractStorage, ABC):
+class AbstractDatabase(AbstractStorage, ABC):
     def __init__(
             self, name: Name,
             host: str, port: int, db: str,
@@ -91,7 +89,7 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
 
     @classmethod
     def get_dialect_type(cls) -> DialectType:
-        dialect_type = ct.get_dialect_type(cls.__name__)
+        dialect_type = DialectType.find_instance(cls.__name__)
         assert isinstance(dialect_type, DialectType)
         return dialect_type
 
@@ -292,7 +290,7 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
         is_struct_description = isinstance(struct, StructInterface) or hasattr(struct, 'get_struct_str')
         if not is_struct_description:
             message = 'Struct as {} is deprecated, use FlatStruct instead'.format(type(struct))
-            self.log(msg=message, level=log.LoggingLevel.Warning)
+            self.log(msg=message, level=LoggingLevel.Warning)
             struct = FlatStruct(struct or [])
         input_stream = self._get_struct_stream_from_data(
             data, struct=struct,
@@ -407,7 +405,7 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
         else:
             # assert isinstance(file, ct.TextFile)
             two_lines = file.to_line_stream().take(2)
-            assert isinstance(two_lines, sm.LineStream)
+            assert isinstance(two_lines, StreamInterface)
             login, password = two_lines.get_list()[:2]
             yield login, password
 
@@ -447,7 +445,7 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
 
     @staticmethod
     def _get_struct_stream_from_data(data: Data, struct: Struct = None, **file_kwargs) -> StructStream:
-        if sm.is_stream(data):
+        if isinstance(data, StreamInterface):
             stream = data
         elif ct.is_file(data):
             stream = data.to_struct_stream()
@@ -455,10 +453,12 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
                 stream_cols = stream.get_columns()
                 struct_cols = struct.get_columns()
                 assert stream_cols == struct_cols, '{} != {}'.format(stream_cols, struct_cols)
-        elif isinstance(data, str):
-            stream = sm.RowStream.from_column_file(filename=data, **file_kwargs)
+        elif isinstance(data, Name):
+            stream_class = StreamType.RowStream.get_class()
+            stream = stream_class.from_column_file(filename=data, **file_kwargs)
         else:
-            stream = sm.AnyStream(data)
+            stream_class = StreamType.AnyStream.get_class()
+            stream = stream_class(data)
         return stream
 
     def _get_table_name_and_struct_str(
@@ -470,11 +470,11 @@ class AbstractDatabase(ct.AbstractStorage, ABC):
         if isinstance(struct, str):
             struct_str = struct
             message = 'String Struct is deprecated. Use items.FlatStruct instead.'
-            self.log(msg=message, level=log.LoggingLevel.Warning)
+            self.log(msg=message, level=LoggingLevel.Warning)
         elif isinstance(struct, (list, tuple)):
             struct_str = ', '.join(['{} {}'.format(c[0], c[1]) for c in struct])
             message = 'Tuple-description of Struct is deprecated. Use items.FlatStruct instead.'
-            self.log(msg=message, level=log.LoggingLevel.Warning)
+            self.log(msg=message, level=LoggingLevel.Warning)
         elif hasattr(struct, 'get_struct_str'):
             struct_str = struct.get_struct_str(dialect=self.get_dialect_type())
         else:
