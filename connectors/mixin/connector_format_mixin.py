@@ -60,7 +60,7 @@ class ConnectorFormatMixin(LeafConnectorInterface, StructMixin, ABC):
         return self._get_native_struct(struct)
 
     def set_struct(self, struct: Struct, inplace: bool) -> Optional[Native]:
-        struct = self._get_native_struct(struct)
+        struct = self._get_native_struct(struct, verbose=False)
         content_format = self.get_content_format()
         if inplace:
             if isinstance(content_format, (LeanFormat, ColumnarFormat)) or hasattr(content_format, 'set_struct'):
