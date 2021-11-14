@@ -4,6 +4,7 @@ import os
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg, dates as dt
+    from utils.decorators import deprecated_with_alternative
     from interfaces import (
         Context, Connector, ConnectorInterface, IterableStreamInterface, ItemType, StreamType,
         AUTO, Auto, AutoName, AutoCount, AutoBool, AutoConnector, OptionalFields,
@@ -14,6 +15,7 @@ try:  # Assume we're a sub-module in a package.
     from streams.mixin.iterable_mixin import IterableStreamMixin
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg, dates as dt
+    from ...utils.decorators import deprecated_with_alternative
     from ...interfaces import (
         Context, Connector, ConnectorInterface, IterableStreamInterface, ItemType, StreamType,
         AUTO, Auto, AutoName, AutoCount, AutoBool, AutoConnector, OptionalFields,
@@ -32,6 +34,7 @@ LOGGING_LEVEL_WARN = 30
 
 
 class AbstractFile(LeafConnector, StreamableMixin, ABC):
+    @deprecated_with_alternative('LocalFile')
     def __init__(self, name: str, folder: Connector = None, context: Context = AUTO, verbose: AutoBool = AUTO):
         if folder:
             message = 'only LocalFolder supported for *File instances (got {})'.format(type(folder))
