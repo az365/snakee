@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Union, Optional, Iterable, Any
+from typing import Optional, Iterable, Sequence, Union, Any
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg

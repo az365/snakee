@@ -1,7 +1,8 @@
-from typing import Union, Optional, Iterable
+from typing import Optional, Iterable, Sequence, Union
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
+    from items.simple_items import Class
     from base.interfaces.tree_interface import TreeInterface
     from base.interfaces.context_interface import ContextInterface
     from base.abstract.abstract_base import AbstractBaseObject
@@ -9,6 +10,7 @@ try:  # Assume we're a sub-module in a package.
     from base.abstract.contextual_data import ContextualDataWrapper
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
+    from ...items.simple_items import Class
     from ..interfaces.tree_interface import TreeInterface
     from ..interfaces.context_interface import ContextInterface
     from .abstract_base import AbstractBaseObject
@@ -25,6 +27,9 @@ META_MEMBER_MAPPING = dict(_data='children', _source='parent')
 
 
 class TreeItem(ContextualDataWrapper, TreeInterface):
+    _parent_obj_classes: Sequence = list()
+    _child_obj_classes: Sequence = list()
+
     def __init__(
             self,
             name: str,
@@ -33,6 +38,7 @@ class TreeItem(ContextualDataWrapper, TreeInterface):
             context: Context = None,
             check: bool = True,
     ):
+        self._assert_is_appropriate_parent(parent, skip_missing=True)
         if not children:
             children = dict()
         super().__init__(name=name, data=children, source=parent, context=context, check=check)
@@ -50,15 +56,20 @@ class TreeItem(ContextualDataWrapper, TreeInterface):
     def get_parent(self) -> Parent:
         return super().get_source()
 
-    def set_parent(self, parent: Parent, reset=False, inplace=True) -> Optional[TreeInterface]:
+    def set_parent(self, parent: Parent, reset: bool = False, inplace: bool = True) -> Optional[TreeInterface]:
         assert self._is_tree_item(parent), 'Expected TreeInterface, got {}'.format(type(parent))
+        msg = 'Expected one of {} instance, got {} as {}'
+        assert self._is_appropriate_parent(parent), msg.format(self.get_parent_obj_classes(), parent, type(parent))
         return self.set_source(parent, reset=reset, inplace=inplace)
 
     def get_children(self) -> dict:
         return super().get_data()
 
     def get_child(self, name: str) -> Child:
-        return self.get_children().get(name)
+        children = self.get_children()
+        msg = '{}.get_child(): dict expected, got {}'
+        assert isinstance(children, dict) or hasattr(children, 'get'), msg.format(self, children)
+        return children.get(name)
 
     def _get_name_and_child(self, name_or_child: NameOrChild) -> tuple:
         if isinstance(name_or_child, str):
@@ -174,7 +185,83 @@ class TreeItem(ContextualDataWrapper, TreeInterface):
     def __str__(self):
         str_repr = '{}({})'.format(self.__class__.__name__, self.get_str_meta())
         obj = self
-        while obj.get_parent():
+        while hasattr(obj, 'get_parent') and obj.get_parent():
             obj = obj.get_parent()
             str_repr = '{}.{}'.format(obj.__repr__(), str_repr)
         return '<{}>'.format(str_repr)
+
+    @classmethod
+    def set_parent_obj_classes(cls, classes: Sequence) -> None:
+        cls._parent_obj_classes = classes
+
+    @classmethod
+    def set_child_obj_classes(cls, classes: Sequence) -> None:
+        cls._child_obj_classes = classes
+
+    @classmethod
+    def get_parent_obj_classes(cls) -> tuple:
+        return tuple(cls._parent_obj_classes)
+
+    @classmethod
+    def get_child_obj_classes(cls) -> tuple:
+        return tuple(cls._child_obj_classes)
+
+    @classmethod
+    def get_default_parent_obj_class(cls, skip_missing: bool = False) -> Optional[Class]:
+        classes = cls.get_parent_obj_classes()
+        if classes:
+            return classes[0]
+        elif not skip_missing:
+            raise ValueError('{}.get_default_parent_obj_class(): parent classes for not set'.format(cls))
+
+    @classmethod
+    def get_default_child_obj_class(cls, skip_missing: bool = False) -> Optional[Class]:
+        classes = cls.get_child_obj_classes()
+        if classes:
+            return classes[0]
+        elif not skip_missing:
+            raise ValueError('{}.get_default_child_obj_class(): child classes for not set'.format(cls))
+
+    @classmethod
+    def _is_appropriate_parent(cls, obj, skip_missing: bool = False) -> bool:
+        if obj is None and skip_missing:
+            return True
+        classes = cls.get_parent_obj_classes()
+        if classes:
+            return isinstance(obj, classes)
+        else:
+            return True
+
+    @classmethod
+    def _is_appropriate_child(cls, obj, skip_missing: bool = False) -> bool:
+        if obj is None and skip_missing:
+            return True
+        classes = cls.get_child_obj_classes()
+        if classes:
+            return isinstance(obj, classes)
+        else:
+            return True
+
+    @classmethod
+    def _assert_is_appropriate_parent(
+            cls, obj,
+            msg: Union[str, arg.Auto] = arg.AUTO,
+            skip_missing: bool = False,
+    ) -> None:
+        if not cls._is_appropriate_parent(obj, skip_missing=skip_missing):
+            if not arg.is_defined(msg):
+                template = '{}._assert_is_appropriate_parent({}): Expected parent as {} instance, got {}'
+                msg = template.format(cls.__name__, obj, cls.get_parent_obj_classes(), type(obj))
+            raise TypeError(msg)
+
+    @classmethod
+    def _assert_is_appropriate_child(
+            cls, obj,
+            msg: Union[str, arg.Auto] = arg.AUTO,
+            skip_missing: bool = False,
+    ) -> None:
+        if not cls._is_appropriate_child(obj, skip_missing=skip_missing):
+            if not arg.is_defined(msg):
+                template = '{}._assert_is_appropriate_child({}): Expected child as {} instance, got {}'
+                msg = template.format(cls.__name__, obj, cls.get_child_obj_classes(), type(obj))
+            raise TypeError(msg)
