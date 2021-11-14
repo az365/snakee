@@ -101,6 +101,12 @@ class LeafConnector(AbstractConnector, ConnectorFormatMixin, StreamableMixin, Le
             new.set_declared_format(initial_format, inplace=True)
             return new
 
+    def get_links(self) -> dict:
+        return self.get_children()
+
+    def is_in_memory(self) -> bool:
+        return False
+
     def is_root(self) -> bool:
         return False
 

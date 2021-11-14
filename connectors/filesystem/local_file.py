@@ -90,9 +90,6 @@ class LocalFile(LeafConnector, ActualizeMixin):
     def get_children(self) -> dict:
         return self._data
 
-    def get_links(self) -> dict:
-        return self.get_children()
-
     def get_prev_modification_timestamp(self) -> Optional[float]:
         return self._modification_ts
 
@@ -220,9 +217,6 @@ class LocalFile(LeafConnector, ActualizeMixin):
     def has_data(self) -> bool:
         if self.is_existing():
             return not self.is_empty()
-        return False
-
-    def is_in_memory(self) -> bool:
         return False
 
     @staticmethod
