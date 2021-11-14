@@ -1,4 +1,4 @@
-from typing import Optional, Iterable, Generator, Union, Any
+from typing import Optional, Iterable, Union, Any
 import os
 import gzip as gz
 
@@ -6,14 +6,13 @@ try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from interfaces import (
         Context, Connector, ConnectorInterface, ContentFormatInterface, StructInterface, IterableStreamInterface,
-        ContentType, ItemType,
-        AUTO, Auto, AutoCount, AutoBool,
+        ContentType, ItemType, StreamType,
+        AUTO, Auto, AutoCount, AutoBool, AutoName, OptionalFields,
     )
     from connectors.abstract.leaf_connector import LeafConnector
     from connectors.content_format.content_classes import (
         AbstractFormat, ParsedFormat, LeanFormat,
         TextFormat, ColumnarFormat, FlatStructFormat,
-        ContentType,
     )
     from connectors.mixin.connector_format_mixin import ConnectorFormatMixin
     from connectors.mixin.actualize_mixin import ActualizeMixin
@@ -22,14 +21,13 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils import arguments as arg
     from ...interfaces import (
         Context, Connector, ConnectorInterface, ContentFormatInterface, StructInterface, IterableStreamInterface,
-        ContentType, ItemType,
-        AUTO, Auto, AutoCount, AutoBool,
+        ContentType, ItemType, StreamType,
+        AUTO, Auto, AutoCount, AutoBool, AutoName, OptionalFields,
     )
     from ..abstract.leaf_connector import LeafConnector
     from ..content_format.content_classes import (
         AbstractFormat, ParsedFormat, LeanFormat,
         TextFormat, ColumnarFormat, FlatStructFormat,
-        ContentType,
     )
     from ..mixin.connector_format_mixin import ConnectorFormatMixin
     from ..mixin.actualize_mixin import ActualizeMixin
@@ -364,14 +362,20 @@ class LocalFile(LeafConnector, ActualizeMixin):
             item_type = ItemType.detect(stream.get_one_item())
         return self.write_items(stream.get_items(), item_type=item_type, add_title_row=add_title_row, verbose=verbose)
 
-    def to_stream(self, data: Union[Iterable, Auto, None] = AUTO, **kwargs) -> Stream:
-        if 'stream_type' not in kwargs:
-            kwargs['stream_type'] = self.get_stream_type()
+    def to_stream(
+            self,
+            data: Union[Iterable, Auto] = AUTO,
+            name: AutoName = AUTO,
+            stream_type: Union[StreamType, Auto] = AUTO,
+            ex: OptionalFields = None,
+            step: AutoCount = AUTO,
+            **kwargs
+    ) -> Stream:
         if arg.is_defined(data):
             kwargs['data'] = data
-        ex = kwargs.pop('ex', None)
+        stream_type = arg.delayed_acquire(stream_type, self.get_stream_type)
         assert not ex, 'ex-argument for LocalFile.to_stream() not supported (got {})'.format(ex)
-        return self.to_stream_type(**kwargs)
+        return self.to_stream_type(stream_type=stream_type, step=step, **kwargs)
 
     def copy(self) -> Native:
         copy = self.make_new()
