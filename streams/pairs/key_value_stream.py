@@ -9,7 +9,7 @@ try:  # Assume we're a sub-module in a package.
     from streams.regular.row_stream import RowStream
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
-    from interfaces import (
+    from ...interfaces import (
         RegularStreamInterface, PairStreamInterface, StreamType,
         AUTO, Auto,
     )

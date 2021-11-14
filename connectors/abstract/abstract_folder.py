@@ -1,18 +1,17 @@
 from abc import ABC, abstractmethod
-from typing import Iterable, Callable, Union
+from typing import Optional, Callable, Iterable, Union
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
+    from interfaces import AUTO, Auto, AutoBool, AutoContext
     from connectors.abstract.hierarchic_connector import HierarchicConnector
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
+    from ...interfaces import AUTO, Auto, AutoBool, AutoContext
     from .hierarchic_connector import HierarchicConnector
 
 Native = HierarchicConnector
 AutoParent = Union[HierarchicConnector, arg.Auto]
-AutoBool = Union[bool, arg.Auto]
-
-DEFAULT_VERBOSE = True
 
 
 class AbstractFolder(HierarchicConnector, ABC):
@@ -20,14 +19,17 @@ class AbstractFolder(HierarchicConnector, ABC):
             self,
             name: str,
             parent: HierarchicConnector,
+            children: Optional[dict] = None,
+            context: AutoContext = AUTO,
             verbose: AutoBool = arg.AUTO,
     ):
         super().__init__(
             name=name,
             parent=parent,
+            children=children,
+            context=context,
+            verbose=verbose,
         )
-        self.verbose = DEFAULT_VERBOSE
-        self.set_verbose(verbose)
 
     def is_root(self) -> bool:
         return False
@@ -39,21 +41,6 @@ class AbstractFolder(HierarchicConnector, ABC):
     @staticmethod
     def is_folder() -> bool:
         return True
-
-    def is_verbose(self) -> bool:
-        return self.verbose
-
-    def set_verbose(self, verbose: AutoBool = True, parent: AutoParent = arg.AUTO) -> Native:
-        parent = arg.acquire(parent, self.get_parent())
-        if not arg.is_defined(verbose):
-            if hasattr(parent, 'is_verbose'):
-                verbose = parent.is_verbose()
-            elif hasattr(parent, 'verbose'):
-                verbose = parent.verbose
-            else:
-                verbose = DEFAULT_VERBOSE
-        self.verbose = verbose
-        return self
 
 
 class FlatFolder(AbstractFolder):

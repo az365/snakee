@@ -1,19 +1,19 @@
 from abc import ABC, abstractmethod
-from typing import Optional, NoReturn, Union, Iterable, Generator
+from typing import Optional, Iterable, Generator, Union
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from interfaces import (
+        ContentFormatInterface, ContentType, StreamType, ItemType,
         Item, Record, Row, StructRow,
-        ItemType, StreamType, ContentType,
         AUTO, Auto, AutoName, AutoCount, AutoBool, AutoConnector, OptionalFields, Array, ARRAY_TYPES,
     )
     from base.abstract.abstract_base import AbstractBaseObject
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...interfaces import (
+        ContentFormatInterface, ContentType, StreamType, ItemType,
         Item, Record, Row, StructRow,
-        ItemType, StreamType, ContentType,
         AUTO, Auto, AutoName, AutoCount, AutoBool, AutoConnector, OptionalFields, Array, ARRAY_TYPES,
     )
     from ...base.abstract.abstract_base import AbstractBaseObject
@@ -25,36 +25,16 @@ AVAILABLE_COMPRESS_METHODS = (DEFAULT_COMPRESS_METHOD, )
 META_MEMBER_MAPPING = dict(_compress_method='compress')
 
 
-class AbstractFormat(AbstractBaseObject, ABC):
-    @abstractmethod
-    def get_content_type(self) -> Optional[ContentType]:
-        pass
-
-    @abstractmethod
-    def is_text(self) -> bool:
-        pass
-
+class AbstractFormat(AbstractBaseObject, ContentFormatInterface, ABC):
     def is_binary(self) -> bool:
         return not self.is_text()
-
-    @abstractmethod
-    def cab_be_stream(self) -> bool:
-        pass
-
-    @abstractmethod
-    def get_default_stream_type(self) -> Optional[StreamType]:
-        pass
-
-    @abstractmethod
-    def get_default_item_type(self) -> Optional[ItemType]:
-        pass
 
     def copy(self):
         return self.make_new()
 
 
 class BinaryFormat(AbstractFormat):
-    def get_content_type(self) -> ContentType:
+    def get_content_type(self) -> None:
         return None
 
     def is_text(self) -> bool:
@@ -63,7 +43,7 @@ class BinaryFormat(AbstractFormat):
     def get_default_stream_type(self) -> Optional[StreamType]:
         return None  # StreamType.WrapperStream
 
-    def get_default_item_type(self) -> NoReturn:
+    def get_default_item_type(self) -> None:
         return None
 
     def cab_be_stream(self) -> bool:

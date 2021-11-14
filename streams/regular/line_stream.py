@@ -1,35 +1,32 @@
-import json
+from typing import Optional, Iterable, Union
 import gzip as gz
 
 try:
-    from streams import stream_classes as sm
-    from connectors import connector_classes as ct
-    from functions import all_functions as fs
-    from utils import (
-        arguments as arg,
-        items as it,
-    )
+    from utils import arguments as arg
     from utils.decorators import deprecated_with_alternative
+    from interfaces import StreamType, ItemType, FileType, Auto, AUTO
+    from streams import stream_classes as sm
+    from functions import item_functions as fs
 except ImportError:
-    from .. import stream_classes as sm
-    from ...connectors import connector_classes as ct
-    from ...functions import all_functions as fs
-    from ...utils import (
-        arguments as arg,
-        items as it,
-    )
+    from ...utils import arguments as arg
     from ...utils.decorators import deprecated_with_alternative
+    from ...interfaces import StreamType, ItemType, FileType, Auto, AUTO
+    from .. import stream_classes as sm
+    from ...functions import item_functions as fs
+
+Stream = sm.StreamInterface
+Native = sm.AnyStream
 
 
 class LineStream(sm.AnyStream):
     def __init__(
             self,
-            data,
-            name=arg.DEFAULT, check=True,
+            data: Iterable,
+            name=AUTO, check=True,
             count=None, less_than=None,
             source=None, context=None,
-            max_items_in_memory=arg.DEFAULT,
-            tmp_files=arg.DEFAULT,
+            max_items_in_memory=AUTO,
+            tmp_files=AUTO,
     ):
         super().__init__(
             data,
@@ -41,29 +38,23 @@ class LineStream(sm.AnyStream):
         )
 
     @staticmethod
-    def get_item_type():
-        return it.ItemType.Line
+    def get_item_type() -> ItemType:
+        return ItemType.Line
 
     @classmethod
-    def is_valid_item_type(cls, item):
+    def is_valid_item_type(cls, item) -> bool:
         return cls.get_item_type().isinstance(item)
 
-    def parse_json(self, default_value=None, to='RecordStream'):
-        if isinstance(to, str):
-            to = sm.StreamType(to)
+    def parse_json(self, default_value=None, to: Union[StreamType, str] = StreamType.RecordStream) -> Stream:
+        stream_type = StreamType.find_instance(to)
+        assert isinstance(stream_type, StreamType)
+        return self.map_to_type(fs.json_loads(default_value), stream_type=stream_type)
 
-        def json_loads(line):
-            try:
-                return json.loads(line)
-            except json.JSONDecodeError as err:
-                if default_value is not None:
-                    return default_value
-                else:
-                    raise json.JSONDecodeError(err.msg, err.doc, err.pos)
-        return self.map_to_type(
-            json_loads,
-            stream_type=to,
-        )
+    def sorted_group_by(self, *keys, values: Optional[Iterable] = None, as_pairs: bool = False) -> Stream:
+        raise NotImplementedError
+
+    def group_by(self, *keys, values: Optional[Iterable] = None, as_pairs: bool = False) -> Stream:
+        raise NotImplementedError
 
     @classmethod
     @deprecated_with_alternative('*Stream.from_file')
@@ -72,17 +63,18 @@ class LineStream(sm.AnyStream):
             filename,
             encoding=None, gzip=False,
             skip_first_line=False, max_count=None,
-            check=arg.DEFAULT,
-            expected_count=arg.DEFAULT,
+            check=AUTO,
+            expected_count=AUTO,
             verbose=False,
-            step=arg.DEFAULT,
+            step=AUTO,
     ):
-        sm_lines = ct.TextFile(
+        build_file = FileType.TextFile.get_class()
+        sm_lines = build_file(
             filename,
             encoding=encoding,
             gzip=gzip,
             expected_count=expected_count,
-            folder=ct.get_default_job_folder(),
+            # folder=ct.get_default_job_folder(),
             verbose=verbose,
         ).to_line_stream(
             check=check,
@@ -102,7 +94,7 @@ class LineStream(sm.AnyStream):
             self,
             filename,
             encoding=None, gzip=False,
-            end='\n', check=arg.DEFAULT,
+            end='\n', check=AUTO,
             verbose=True, immediately=False,
     ):
         def write_and_yield(fh, lines):
@@ -138,7 +130,7 @@ class LineStream(sm.AnyStream):
             self,
             filename,
             encoding=None, gzip=False,
-            end='\n', check=arg.DEFAULT,
+            end='\n', check=AUTO,
             verbose=True, return_stream=True
     ):
         saved_stream = self.lazy_save(

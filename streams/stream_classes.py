@@ -11,7 +11,8 @@ try:  # Assume we're a sub-module in a package.
     from utils.decorators import deprecated_with_alternative
     from interfaces import (
         StreamInterface, IterableStreamInterface, LocalStreamInterface, RegularStreamInterface, PairStreamInterface,
-        StreamBuilderInterface, ContextInterface, TemporaryLocationInterface, TemporaryFilesMaskInterface,
+        StreamBuilderInterface, ContextInterface, ConnectorInterface,
+        TemporaryLocationInterface, TemporaryFilesMaskInterface,
         StreamType, ItemType, JoinType, How, Auto, AUTO,
     )
     from streams.abstract.abstract_stream import AbstractStream
@@ -37,7 +38,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..utils.decorators import deprecated_with_alternative
     from ..interfaces import (
         StreamInterface, IterableStreamInterface, LocalStreamInterface, RegularStreamInterface, PairStreamInterface,
-        StreamBuilderInterface, ContextInterface, TemporaryLocationInterface, TemporaryFilesMaskInterface,
+        StreamBuilderInterface, ContextInterface, ConnectorInterface,
+        TemporaryLocationInterface, TemporaryFilesMaskInterface,
         StreamType, ItemType, JoinType, How, Auto, AUTO,
     )
     from .abstract.abstract_stream import AbstractStream
@@ -108,6 +110,9 @@ def get_context() -> Optional[ContextInterface]:
 def set_context(cx: ContextInterface) -> NoReturn:
     global _context
     _context = cx
+    storage = cx.get_local_storage()
+    assert isinstance(storage, ConnectorInterface)
+    TemporaryLocation.set_default_storage(storage)
 
 
 def stream(stream_type, *args, **kwargs) -> StreamInterface:

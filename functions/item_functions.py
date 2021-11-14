@@ -1,4 +1,5 @@
 from typing import Optional, Iterable, Callable
+import json
 
 try:  # Assume we're a sub-module in a package.
     from utils import (
@@ -74,4 +75,16 @@ def items_to_dict(
             value_function=value_func or value_function,
             of_lists=get_distinct or of_lists,
         )
+    return func
+
+
+def json_loads(default=None, skip_errors: bool = False):
+    def func(line: str):
+        try:
+            return json.loads(line)
+        except json.JSONDecodeError as err:
+            if default is not None:
+                return default
+            elif not skip_errors:
+                raise json.JSONDecodeError(err.msg, err.doc, err.pos)
     return func

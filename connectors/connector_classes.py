@@ -18,7 +18,7 @@ try:  # Assume we're a sub-module in a package.
     )
     from connectors.mixin.connector_format_mixin import ConnectorFormatMixin
     from connectors.mixin.actualize_mixin import ActualizeMixin
-    from connectors.mixin.stream_file_mixin import StreamFileMixin
+    from connectors.mixin.streamable_mixin import StreamableMixin
     from connectors.filesystem.local_storage import LocalStorage
     from connectors.filesystem.local_folder import LocalFolder
     from connectors.filesystem.abstract_file import AbstractFile
@@ -61,7 +61,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     )
     from .mixin.connector_format_mixin import ConnectorFormatMixin
     from .mixin.actualize_mixin import ActualizeMixin
-    from .mixin.stream_file_mixin import StreamFileMixin
+    from .mixin.streamable_mixin import StreamableMixin
     from .filesystem.local_storage import LocalStorage
     from .filesystem.local_folder import LocalFolder
     from .filesystem.abstract_file import AbstractFile
@@ -94,7 +94,7 @@ CONN_CLASSES = (
     AbstractFolder, FlatFolder, HierarchicFolder,
     AbstractStorage,
     LocalStorage,
-    LocalFolder, LocalMask, PartitionedLocalFile,
+    LocalFolder, LocalMask, LocalFile, PartitionedLocalFile,
     AbstractFile, TextFile, JsonFile, ColumnFile, CsvFile, TsvFile,
     AbstractObjectStorage, S3Storage,
     S3Bucket, S3Folder,
@@ -145,6 +145,10 @@ def get_context() -> Context:
 def set_context(cx: ContextInterface):
     global _context
     _context = cx
+    AbstractStorage.set_default_context(cx)
+    default_folder = cx.get_job_folder()
+    assert isinstance(default_folder, LocalFolder)
+    LocalFile.set_default_folder(default_folder)
 
 
 def is_conn(obj) -> bool:

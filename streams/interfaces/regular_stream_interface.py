@@ -82,9 +82,5 @@ class RegularStreamInterface(StreamInterface, ABC):
         pass
 
     @abstractmethod
-    def get_columns(self) -> Optional[Iterable]:
-        pass
-
-    @abstractmethod
     def get_dataframe(self, columns: Optional[Iterable] = None) -> DataFrame:
         pass

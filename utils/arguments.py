@@ -228,3 +228,8 @@ def safe_converter(converter, default_value=0):
             except NameError:
                 return default_value
     return func
+
+
+def get_str_from_args_kwargs(*args, **kwargs) -> str:
+    list_str_from_args_kwargs = list(args) + ['{}={}'.format(k, v) for k, v in kwargs.items()]
+    return ', '.join(map(str, list_str_from_args_kwargs))

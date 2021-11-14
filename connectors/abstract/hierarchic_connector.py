@@ -1,23 +1,29 @@
 from abc import ABC, abstractmethod
-from typing import Iterable
+from typing import Optional, Iterable
 
 try:  # Assume we're a sub-module in a package.
-    from connectors.abstract import abstract_connector as ac
+    from interfaces import AUTO, Auto, AutoBool, AutoContext, Connector, Name
+    from connectors.abstract.abstract_connector import AbstractConnector
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..abstract import abstract_connector as ac
+    from ...interfaces import AUTO, Auto, AutoBool, AutoContext, Connector, Name
+    from .abstract_connector import AbstractConnector
 
 
-class HierarchicConnector(ac.AbstractConnector, ABC):
+class HierarchicConnector(AbstractConnector, ABC):
     def __init__(
             self,
-            name,
-            parent=None,
-            children=None,
+            name: Name,
+            parent: Connector = None,
+            children: Optional[dict] = None,
+            context: AutoContext = AUTO,
+            verbose: AutoBool = AUTO,
     ):
         super().__init__(
             name=name,
             parent=parent,
             children=children,
+            context=context,
+            verbose=verbose,
         )
 
     @staticmethod
@@ -40,10 +46,10 @@ class HierarchicConnector(ac.AbstractConnector, ABC):
     def get_default_child_class():
         pass
 
-    def get_child_class_by_name(self, name):
+    def get_child_class_by_name(self, name: Name):
         return self.get_default_child_class()
 
-    def child(self, name, parent_field='parent', **kwargs):
+    def child(self, name: Name, parent_field: Name = 'parent', **kwargs) -> Connector:
         cur_child = self.get_child(name)
         if not cur_child:
             child_class = self.get_child_class_by_name(name)

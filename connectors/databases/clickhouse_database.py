@@ -1,11 +1,13 @@
 import requests
 
 try:  # Assume we're a sub-module in a package.
-    from connectors.databases import abstract_database as ad
     from utils import arguments as arg
+    from interfaces import DialectType, LoggingLevel
+    from connectors.databases import abstract_database as ad
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..databases import abstract_database as ad
     from ...utils import arguments as arg
+    from ...interfaces import DialectType, LoggingLevel
+    from ..databases import abstract_database as ad
 
 
 class ClickhouseDatabase(ad.AbstractDatabase):
@@ -15,9 +17,9 @@ class ClickhouseDatabase(ad.AbstractDatabase):
             host='localhost',
             port=8443,
             db='public',
-            user=arg.DEFAULT,
-            password=arg.DEFAULT,
-            context=arg.DEFAULT,
+            user=arg.AUTO,
+            password=arg.AUTO,
+            context=arg.AUTO,
             **kwargs
     ):
         super().__init__(
@@ -30,6 +32,10 @@ class ClickhouseDatabase(ad.AbstractDatabase):
             context=context,
             **kwargs
         )
+
+    @classmethod
+    def get_dialect_type(cls) -> DialectType:
+        return DialectType.Clickhouse
 
     def execute(self, query=ad.TEST_QUERY, get_data=ad.AUTO, commit=ad.AUTO, verbose=True):
         url = 'https://{host}:{port}/?database={db}&query={query}'.format(
@@ -55,12 +61,12 @@ class ClickhouseDatabase(ad.AbstractDatabase):
         if get_data:
             return res.text
 
-    def exists_table(self, name, verbose=arg.DEFAULT):
+    def exists_table(self, name, verbose=arg.AUTO):
         query = 'EXISTS TABLE {}'.format(name)
         answer = self.execute(query, verbose=verbose)
         return answer[0] == '1'
 
-    def describe_table(self, name, output_format=None, verbose=arg.DEFAULT):
+    def describe_table(self, name, output_format=None, verbose=arg.AUTO):
         query = 'DESCRIBE TABLE {table}'.format(table=self.get_path())
         if output_format:
             query = '{} FORMAT {}'.format(query, output_format)
@@ -70,9 +76,9 @@ class ClickhouseDatabase(ad.AbstractDatabase):
             self, table, rows, columns,
             step=ad.DEFAULT_STEP, skip_errors=False,
             expected_count=None, return_count=True,
-            verbose=arg.DEFAULT,
+            verbose=arg.AUTO,
     ):
-        verbose = arg.undefault(verbose, self.verbose)
+        verbose = arg.acquire(verbose, self.verbose)
         count = len(rows) if isinstance(rows, (list, tuple)) else expected_count
         if count == 0:
             message = 'Rows are empty, nothing to insert into {}.'.format(table)
@@ -96,8 +102,8 @@ class ClickhouseDatabase(ad.AbstractDatabase):
                 try:
                     self.execute(cur_query)
                 except requests.RequestException as e:
-                    self.log(['Error line:', str(row)], level=self.LoggingLevel.Debug, verbose=verbose)
-                    self.log([e.__class__.__name__, e], level=self.LoggingLevel.Error)
+                    self.log(['Error line:', str(row)], level=LoggingLevel.Debug, verbose=verbose)
+                    self.log([e.__class__.__name__, e], level=LoggingLevel.Error)
             else:
                 self.execute(cur_query)
             if (n + 1) % step == 0:

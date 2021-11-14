@@ -3,21 +3,21 @@ from typing import Optional, Iterable, Callable, Union
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg, algo
     from interfaces import (
-        ContextInterface, StreamInterface, ConnectorInterface, TemporaryLocationInterface, TemporaryFilesMaskInterface,
+        ContextInterface, StreamInterface, ConnectorInterface, LeafConnectorInterface,
+        TemporaryLocationInterface, TemporaryFilesMaskInterface,
         Context, Stream, Connector, TmpFiles,
         AUTO, Auto, AutoBool, Name, Source,
     )
     from connectors.filesystem.local_mask import LocalFolder, LocalMask
-    from connectors import connector_classes as ct
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg, algo
     from ...interfaces import (
-        ContextInterface, StreamInterface, ConnectorInterface, TemporaryLocationInterface, TemporaryFilesMaskInterface,
+        ContextInterface, StreamInterface, ConnectorInterface, LeafConnectorInterface,
+        TemporaryLocationInterface, TemporaryFilesMaskInterface,
         Context, Stream, Connector, TmpFiles,
         AUTO, Auto, AutoBool, Name, Source,
     )
     from .local_mask import LocalFolder, LocalMask
-    from .. import connector_classes as ct
 
 DEFAULT_FOLDER = 'tmp'
 DEFAULT_MASK = 'stream_{}_part{}.tmp'
@@ -35,16 +35,14 @@ class TemporaryLocation(LocalFolder, TemporaryLocationInterface):
             context: Context = AUTO,
             verbose: AutoBool = AUTO,
     ):
-        parent = arg.acquire(parent, ct.LocalStorage(context=context))
-        super().__init__(
-            path=path,
-            path_is_relative=path_is_relative,
-            parent=parent,
-            verbose=verbose,
-        )
         mask = mask.replace('*', '{}')
         assert arg.is_formatter(mask, 2)
         self._mask = mask
+        super().__init__(
+            path=path, path_is_relative=path_is_relative,
+            parent=parent, context=context,
+            verbose=verbose,
+        )
 
     def get_str_mask_template(self) -> Name:
         return self._mask
@@ -110,7 +108,7 @@ class TemporaryFilesMask(LocalMask, TemporaryFilesMaskInterface):
         count = 0
         files = list(self.get_files())
         for file in files:
-            assert isinstance(file, (ct.AbstractFile, ct.LocalFile)), 'LocalFile expected, got {}'.format(file)
+            assert isinstance(file, LeafConnectorInterface), 'LocalFile expected, got {}'.format(file)
             if file.is_existing():
                 count += file.remove(log=log, verbose=verbose)
             if forget:

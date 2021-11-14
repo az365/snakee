@@ -3,22 +3,20 @@ from typing import Optional, Iterable, Union
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from interfaces import (
-        ConnectorInterface, StructInterface, ColumnarInterface, RegularStream, StreamType,
-        Count, AutoBool, Auto, AUTO, ARRAY_TYPES,
+        ConnectorInterface, StructInterface, ColumnarInterface, RegularStream, ExtendedLoggerInterface,
+        ContentFormatInterface, ContentType, ItemType, StreamType, LoggingLevel,
+        ARRAY_TYPES, AUTO, Auto, AutoBool, AutoName, AutoCount, Count, Name, OptionalFields,
     )
     from items.flat_struct import FlatStruct
-    from loggers import logger_classes as log
-    from streams import stream_classes as sm
     from connectors import connector_classes as ct
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...interfaces import (
-        ConnectorInterface, StructInterface, ColumnarInterface, RegularStream, StreamType,
-        Count, AutoBool, Auto, AUTO, ARRAY_TYPES,
+        ConnectorInterface, StructInterface, ColumnarInterface, RegularStream, ExtendedLoggerInterface,
+        ContentFormatInterface, ContentType, ItemType, StreamType, LoggingLevel,
+        ARRAY_TYPES, AUTO, Auto, AutoBool, AutoName, AutoCount, Count, Name, OptionalFields,
     )
     from ...items.flat_struct import FlatStruct
-    from ...loggers import logger_classes as log
-    from ...streams import stream_classes as sm
     from .. import connector_classes as ct
 
 Native = ct.LeafConnector
@@ -29,26 +27,35 @@ GeneralizedStruct = Union[StructInterface, list, tuple, Auto, None]
 class Table(ct.LeafConnector):
     def __init__(
             self,
-            name: str,
+            name: Name,
             struct: Union[StructInterface, Auto],
             database: ConnectorInterface,
             reconnect: bool = True,
             verbose: AutoBool = AUTO,
     ):
         assert isinstance(database, ct.AbstractDatabase), '*Database expected, got {}'.format(database)
-        self.struct = struct
         super().__init__(
             name=name,
+            struct=struct,
             parent=database,
             verbose=verbose,
         )
-        if struct == AUTO:
-            struct = self.get_struct_from_database(set_struct=True)
-        if not isinstance(struct, StructInterface):
-            message = 'Struct as {} is deprecated. Use items.FlatStruct instead.'.format(type(struct))
-            self.log(msg=message, level=log.LoggingLevel.Warning)
         if reconnect and hasattr(database, 'connect'):
             database.connect(reconnect=True)
+
+    def get_content_type(self) -> ContentType:
+        return ContentType.TsvFile
+
+    @staticmethod
+    def _get_detected_format_by_name(name: str) -> ContentFormatInterface:
+        return ContentType.TsvFile
+
+    def _get_detected_struct(self, set_struct: bool = False, verbose: AutoBool = AUTO) -> StructInterface:
+        struct = self.get_struct_from_database(set_struct=set_struct)
+        if not isinstance(struct, StructInterface) and arg.delayed_acquire(verbose, self.is_verbose):
+            message = 'Struct as {} is deprecated. Use items.FlatStruct instead.'.format(type(struct))
+            self.log(msg=message, level=LoggingLevel.Warning)
+        return struct
 
     def get_database(self) -> ConnectorInterface:
         database = self.get_parent()
@@ -63,27 +70,20 @@ class Table(ct.LeafConnector):
     def get_columns(self) -> list:
         return self.get_struct().get_columns()
 
-    def set_struct(self, struct: GeneralizedStruct) -> Native:
-        if struct is None:
-            self.struct = None
-        elif isinstance(struct, StructInterface):
-            self.struct = struct
+    def set_struct(self, struct: GeneralizedStruct, inplace: bool) -> Optional[Native]:
+        if isinstance(struct, StructInterface) or struct is None:
+            pass
         elif isinstance(struct, ARRAY_TYPES):
             if max([isinstance(f, ARRAY_TYPES) for f in struct]):
-                self.struct = FlatStruct(struct)
+                struct = FlatStruct(struct)
             else:
-                self.struct = FlatStruct.get_struct_detected_by_title_row(struct)
+                struct = FlatStruct.get_struct_detected_by_title_row(struct)
         elif struct == arg.AUTO:
-            self.struct = self.get_struct_from_database()
+            struct = self.get_struct_from_database()
         else:
             message = 'struct must be StructInterface or tuple with fields_description (got {})'.format(type(struct))
             raise TypeError(message)
-        return self
-
-    def get_struct(self) -> StructInterface:
-        if not self.struct:
-            self.set_struct(struct=arg.AUTO)
-        return self.struct
+        return super().set_struct(struct, inplace=inplace)
 
     def get_struct_from_database(self, set_struct: bool = False, skip_missing: bool = False) -> StructInterface:
         struct = FlatStruct(self.describe())
@@ -93,35 +93,54 @@ class Table(ct.LeafConnector):
             self.set_struct(struct)
         return struct
 
-    def get_data(self, verbose: AutoBool = arg.AUTO):
+    def get_first_line(self, close: bool = True, verbose: bool = True) -> Optional[str]:
+        database = self.get_database()
+        assert isinstance(database, ct.AbstractDatabase)
+        iter_lines = database.select(self.get_name(), '*', count=1, verbose=verbose)
+        lines = list(iter_lines)
+        if close:
+            self.close()
+        if lines:
+            return lines[0]
+
+    def get_rows(self, verbose: AutoBool = AUTO) -> Iterable:
         database = self.get_database()
         assert isinstance(database, ct.AbstractDatabase)
         return database.select_all(self.get_name(), verbose=verbose)
 
-    def get_stream(self) -> Stream:
-        stream = sm.RowStream(
-            self.get_data(),
-            count=self.get_count(),
-            context=self.get_context(),
-        )
-        self.add_child(stream)
-        return stream
+    def get_data(self, verbose: AutoBool = AUTO) -> Iterable:
+        return self.get_rows(verbose=verbose)
 
-    def to_stream(self, stream_type: StreamType = arg.AUTO, verbose: AutoBool = arg.AUTO) -> Stream:
-        stream_type = arg.acquire(stream_type, sm.RowStream)
-        stream = self.get_stream()
-        assert isinstance(stream, sm.RowStream)
-        if not isinstance(stream_type, StreamType):
-            stream_type = StreamType.detect(stream_type)
-        if stream_type == StreamType.RowStream:
-            return stream
-        elif stream_type == StreamType.RecordStream:
-            return stream.to_record_stream(columns=self.get_columns())
-        elif stream_type == StreamType.StructStream:
-            return stream.structure(self.get_struct(), verbose=verbose)
+    def get_items(self, verbose: AutoBool = AUTO) -> Iterable:
+        return self.get_rows(verbose=verbose)
+
+    def get_items_of_type(
+            self,
+            item_type: Union[ItemType, Auto],
+            verbose: AutoBool = AUTO,
+            step: AutoCount = AUTO,
+    ) -> Iterable:
+        item_type = arg.delayed_acquire(item_type, self.get_item_type)
+        rows = self.get_rows(verbose=verbose)
+        if item_type == ItemType.Row:
+            items = rows
         else:
-            msg = 'only RowStream, RecordStream, StructStream is supported for Table connector, got {}'
-            raise ValueError(msg.format(stream_type))
+            if item_type == ItemType.StructRow:
+                row_class = ItemType.StructRow.get_class()
+                items = map(lambda i: row_class(i, self.get_struct()), rows)
+            elif item_type == ItemType.Record:
+                items = map(lambda r: {c: v for c, v in zip(r, self.get_columns())})
+            elif item_type == ItemType.Line:
+                items = map(lambda r: '\t'.join([str(v) for v in r]), rows)
+            else:
+                raise ValueError('Table.get_items_of_type(): cannot convert Rows to {}'.format(item_type))
+        if step:
+            logger = self.get_logger()
+            if isinstance(logger, ExtendedLoggerInterface):
+                count = self._get_fast_count()
+                msg = 'Downloading {} lines from {}'.format(count, self.get_name())
+                items = logger.progress(items, name=msg, count=count, step=step, context=self.get_context())
+        return items
 
     def from_stream(self, stream, **kwargs):
         assert isinstance(stream, RegularStream)
@@ -142,7 +161,7 @@ class Table(ct.LeafConnector):
         assert isinstance(database, ct.AbstractDatabase)
         return database.create_table(
             self.get_name(),
-            struct=self.struct,
+            struct=self.get_struct(),
             drop_if_exists=drop_if_exists,
             verbose=verbose,
         )

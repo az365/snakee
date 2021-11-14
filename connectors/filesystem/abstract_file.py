@@ -4,22 +4,24 @@ import os
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg, dates as dt
+    from utils.decorators import deprecated_with_alternative
     from interfaces import (
         Context, Connector, ConnectorInterface, IterableStreamInterface, ItemType, StreamType,
         AUTO, Auto, AutoName, AutoCount, AutoBool, AutoConnector, OptionalFields,
     )
     from connectors.abstract.leaf_connector import LeafConnector
-    from connectors.mixin.stream_file_mixin import StreamFileMixin
+    from connectors.mixin.streamable_mixin import StreamableMixin
     from streams.mixin.stream_builder_mixin import StreamBuilderMixin
     from streams.mixin.iterable_mixin import IterableStreamMixin
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg, dates as dt
+    from ...utils.decorators import deprecated_with_alternative
     from ...interfaces import (
         Context, Connector, ConnectorInterface, IterableStreamInterface, ItemType, StreamType,
         AUTO, Auto, AutoName, AutoCount, AutoBool, AutoConnector, OptionalFields,
     )
     from ..abstract.leaf_connector import LeafConnector
-    from ..mixin.stream_file_mixin import StreamFileMixin
+    from ..mixin.streamable_mixin import StreamableMixin
     from ...streams.mixin.stream_builder_mixin import StreamBuilderMixin
     from ...streams.mixin.iterable_mixin import IterableStreamMixin
 
@@ -31,7 +33,8 @@ LOGGING_LEVEL_INFO = 20
 LOGGING_LEVEL_WARN = 30
 
 
-class AbstractFile(LeafConnector, StreamFileMixin, ABC):
+class AbstractFile(LeafConnector, StreamableMixin, ABC):
+    @deprecated_with_alternative('LocalFile')
     def __init__(self, name: str, folder: Connector = None, context: Context = AUTO, verbose: AutoBool = AUTO):
         if folder:
             message = 'only LocalFolder supported for *File instances (got {})'.format(type(folder))

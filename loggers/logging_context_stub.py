@@ -4,30 +4,24 @@ try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from utils.decorators import singleton
     from interfaces import (
-        ContextInterface, ContextualInterface, ConnectorInterface,
+        ContextInterface, ContextualInterface,
         LoggerInterface, ExtendedLoggerInterface,
         AUTO, Auto, Name,
     )
     from base.abstract.tree_item import TreeItem
     from loggers.extended_logger import SingletonLogger
     from loggers.message_collector import SelectionMessageCollector
-    from connectors.filesystem.local_storage import LocalStorage
-    from connectors.filesystem.local_folder import LocalFolder
-    from connectors import connector_classes as ct
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
     from ..utils.decorators import singleton
     from ..interfaces import (
-        ContextInterface, ContextualInterface, ConnectorInterface,
+        ContextInterface, ContextualInterface,
         LoggerInterface, ExtendedLoggerInterface,
         AUTO, Auto, Name,
     )
     from ..base.abstract.tree_item import TreeItem
     from .extended_logger import SingletonLogger
     from .message_collector import SelectionMessageCollector
-    from ..connectors.filesystem.local_storage import LocalStorage
-    from ..connectors.filesystem.local_folder import LocalFolder
-    from ..connectors import connector_classes as ct
 
 Native = ContextInterface
 Child = ContextualInterface
@@ -101,28 +95,10 @@ class LoggingContextStub(TreeItem, ContextInterface):
             if hasattr(child, 'is_common_logger'):
                 if child.is_common_logger():
                     self.set_logger(child)
-        elif isinstance(child, LocalStorage):
-            self._local_storage = child
         if not child.get_context():
             child.set_context(self)
         if not inplace:
             return self
-
-    def get_local_storage(self, name='filesystem', create_if_not_yet=True) -> ConnectorInterface:
-        if self._local_storage:
-            if self._local_storage.get_name() == name:
-                return self._local_storage
-        if create_if_not_yet:
-            self._local_storage = LocalStorage(name, context=self)
-        return self._local_storage
-
-    def get_job_folder(self, path='tmp') -> ConnectorInterface:
-        return LocalFolder(path, parent=self.get_local_storage())
-
-    def get_tmp_folder(self, path='tmp') -> ConnectorInterface:
-        if not self._tmp_folder:
-            self._tmp_folder = ct.TemporaryLocation(path)
-        return self._tmp_folder
 
     @staticmethod
     def is_logger(obj) -> bool:
@@ -145,6 +121,15 @@ class LoggingContextStub(TreeItem, ContextInterface):
                 logger.warning(message)
         else:
             raise NotImplemented(message)
+
+    def get_local_storage(self, name='filesystem', create_if_not_yet=True):
+        self._method_stub()
+
+    def get_job_folder(self, path='tmp'):
+        self._method_stub()
+
+    def get_tmp_folder(self, path='tmp'):
+        self._method_stub()
 
     def get_stream(self, name, skip_missing=True):
         self._method_stub()

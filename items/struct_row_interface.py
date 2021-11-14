@@ -3,11 +3,11 @@ from typing import Optional, Callable, Union
 
 try:  # Assume we're a sub-module in a package.
     from base.interfaces.data_interface import SimpleDataInterface
-    from items.struct_interface import StructInterface
+    from items.struct_interface import StructInterface, StructMixinInterface
     from items.simple_items import SimpleRowInterface, SimpleRow, FieldNo, FieldName, FieldID, Value
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..base.interfaces.data_interface import SimpleDataInterface
-    from .struct_interface import StructInterface
+    from .struct_interface import StructInterface, StructMixinInterface
     from .simple_items import SimpleRowInterface, SimpleRow, FieldNo, FieldName, FieldID, Value
 
 StructRow = SimpleDataInterface
@@ -16,7 +16,7 @@ GenericRow = Union[SimpleRow, StructRow]
 DEFAULT_DELIMITER = '\t'
 
 
-class StructRowInterface(SimpleDataInterface, SimpleRowInterface, ABC):
+class StructRowInterface(SimpleDataInterface, SimpleRowInterface, StructMixinInterface, ABC):
     @abstractmethod
     def get_struct(self) -> StructInterface:
         pass

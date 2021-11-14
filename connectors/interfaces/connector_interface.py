@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Iterable, Union, NoReturn
+from typing import Optional, Iterable, Union
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
@@ -7,12 +7,14 @@ try:  # Assume we're a sub-module in a package.
     from loggers.logger_interface import LoggerInterface
     from loggers.extended_logger_interface import ExtendedLoggerInterface
     from loggers.progress_interface import ProgressInterface
+    from connectors.conn_type import ConnType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...base.interfaces.sourced_interface import SourcedInterface
     from ...loggers.logger_interface import LoggerInterface
     from ...loggers.extended_logger_interface import ExtendedLoggerInterface
     from ...loggers.progress_interface import ProgressInterface
+    from ..conn_type import ConnType
 
 Logger = Union[LoggerInterface, ExtendedLoggerInterface]
 OptionalParent = Optional[SourcedInterface]
@@ -23,6 +25,18 @@ CHUNK_SIZE = 8192
 
 
 class ConnectorInterface(SourcedInterface, ABC):
+    @abstractmethod
+    def get_conn_type(self) -> ConnType:
+        """Returns type of connector
+        as ConnType enum-object with one of possible values:
+
+        PostgresDatabase, ClickhouseDatabase, Table,
+        LocalStorage, LocalFolder, FileMask, PartitionedLocalFile, LocalFile,
+        S3Storage, S3Bucket, S3Folder, S3Object, TwinSync,
+        etc.
+        """
+        pass
+
     @abstractmethod
     def get_config_dict(self) -> dict:
         """Returns dict with connector setting for save into json-config file or object."""
@@ -156,6 +170,14 @@ class ConnectorInterface(SourcedInterface, ABC):
         pass
 
     @abstractmethod
+    def is_verbose(self) -> bool:
+        """Get verbose mode setting:
+        True value means that connector must log and show its actions,
+        False value means that connector will be silent.
+        """
+        pass
+
+    @abstractmethod
     def get_logger(self, skip_missing=True, create_if_not_yet=True) -> Logger:
         """Returns current common (default) logger.
 
@@ -166,7 +188,7 @@ class ConnectorInterface(SourcedInterface, ABC):
         pass
 
     @abstractmethod
-    def log(self, msg, level=AUTO, end=AUTO, verbose=True) -> NoReturn:
+    def log(self, msg, level=AUTO, end=AUTO, verbose=True) -> None:
         """Log message with using current common logger
 
         :param msg: any text message as str

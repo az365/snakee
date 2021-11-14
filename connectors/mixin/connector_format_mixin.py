@@ -1,22 +1,24 @@
-from abc import ABC, abstractmethod
-from typing import Optional, Iterable, Union, Type, Callable
+from abc import ABC
+from typing import Optional, Union
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from interfaces import (
         LeafConnectorInterface, StructInterface, StructFileInterface, IterableStreamInterface,
-        ItemType, FieldType, DialectType, StreamType,
+        ItemType, FieldType, DialectType, StreamType, ContentType,
         AUTO, Auto, AutoBool, Columns, Array, ARRAY_TYPES,
     )
+    from items.struct_mixin import StructMixin
     from connectors.content_format.text_format import AbstractFormat, ParsedFormat, TextFormat
     from connectors.content_format.lean_format import LeanFormat, ColumnarFormat, FlatStructFormat
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...interfaces import (
         LeafConnectorInterface, StructInterface, StructFileInterface, IterableStreamInterface,
-        ItemType, FieldType, DialectType, StreamType,
+        ItemType, FieldType, DialectType, StreamType, ContentType,
         AUTO, Auto, AutoBool, Columns, Array, ARRAY_TYPES,
     )
+    from ...items.struct_mixin import StructMixin
     from ..content_format.text_format import AbstractFormat, ParsedFormat, TextFormat
     from ..content_format.lean_format import LeanFormat, ColumnarFormat, FlatStructFormat
 
@@ -24,7 +26,7 @@ Native = Union[LeafConnectorInterface, IterableStreamInterface, StructFileInterf
 Struct = Optional[StructInterface]
 
 
-class ConnectorFormatMixin(LeafConnectorInterface, ABC):
+class ConnectorFormatMixin(LeafConnectorInterface, StructMixin, ABC):
     def get_initial_struct(self) -> Struct:
         initial_format = self.get_declared_format()
         if isinstance(initial_format, FlatStructFormat) or hasattr(initial_format, 'get_struct'):
@@ -58,7 +60,7 @@ class ConnectorFormatMixin(LeafConnectorInterface, ABC):
         return self._get_native_struct(struct)
 
     def set_struct(self, struct: Struct, inplace: bool) -> Optional[Native]:
-        struct = self._get_native_struct(struct)
+        struct = self._get_native_struct(struct, verbose=False)
         content_format = self.get_content_format()
         if inplace:
             if isinstance(content_format, (LeanFormat, ColumnarFormat)) or hasattr(content_format, 'set_struct'):
@@ -79,9 +81,6 @@ class ConnectorFormatMixin(LeafConnectorInterface, ABC):
         self.set_struct(struct, inplace=True)
         return self._assume_native(self)
 
-    def get_struct_str(self, dialect: DialectType = DialectType.Postgres) -> str:
-        return self.get_struct().get_struct_str(dialect=dialect)
-
     def reset_struct_to_initial(self, verbose: bool = True, message: Optional[str] = None) -> Native:
         if not arg.is_defined(message):
             message = self.__repr__()
@@ -89,30 +88,6 @@ class ConnectorFormatMixin(LeafConnectorInterface, ABC):
             for line in self.get_struct().get_struct_comparison_iter(self.get_initial_struct(), message=message):
                 self.log(line)
         return self.struct(self.get_initial_struct())
-
-    def add_fields(self, *fields, default_type: Type = None, inplace: bool = False) -> Optional[Native]:
-        self.get_struct().add_fields(*fields, default_type=default_type, inplace=True)
-        if not inplace:
-            return self
-
-    def remove_fields(self, *fields, inplace=True) -> Optional[Native]:
-        self.get_struct().remove_fields(*fields, inplace=True)
-        if not inplace:
-            return self
-
-    def get_columns(self) -> list:
-        return self.get_struct().get_columns()
-
-    def get_column_count(self) -> int:
-        return len(self.get_columns())
-
-    def get_types(self, dialect: DialectType = DialectType.String) -> Iterable:
-        return self.get_struct().get_types(dialect)
-
-    def set_types(self, dict_field_types: Optional[dict] = None, inplace: bool = False, **kwargs) -> Optional[Native]:
-        self.get_struct().set_types(dict_field_types=dict_field_types, inplace=True, **kwargs)
-        if not inplace:
-            return self
 
     def get_delimiter(self) -> str:
         content_format = self.get_content_format()
@@ -162,53 +137,6 @@ class ConnectorFormatMixin(LeafConnectorInterface, ABC):
             self.set_struct(struct, inplace=True)
         return struct
 
-    @classmethod
-    def _get_struct_detected_by_title_row(cls, title_row: Iterable) -> StructInterface:
-        struct_class = cls._get_struct_class()
-        detected_struct = struct_class([])
-        for name in title_row:
-            field_type = FieldType.detect_by_name(name)
-            detected_struct.append_field(name, default_type=field_type, inplace=True)
-        return detected_struct
-
-    @staticmethod
-    def _get_struct_class() -> Union[Type, Callable, StructInterface]:
-        struct_row_class = ItemType.StructRow.get_class()
-        flat_struct_class = struct_row_class([], []).get_struct().__class__
-        return flat_struct_class
-
-    @staticmethod
-    def _assume_native(obj) -> Native:
-        return obj
-
-    def _get_native_struct(self, raw_struct: Struct, verbose: AutoBool = AUTO) -> Struct:
-        verbose = arg.delayed_undefault(verbose, self.is_verbose)
-        if raw_struct is None:
-            native_struct = None
-        elif isinstance(raw_struct, StructInterface):
-            native_struct = raw_struct
-        elif hasattr(raw_struct, 'get_fields'):
-            native_struct = self._get_native_struct(raw_struct)
-        elif isinstance(raw_struct, ARRAY_TYPES):
-            if verbose:
-                msg = 'Struct as list is deprecated, use FlatStruct(StructInterface) class instead'
-                self.log(msg, level=30)
-            column_names = raw_struct
-            has_types_descriptions = [isinstance(f, ARRAY_TYPES) for f in raw_struct]
-            if max(has_types_descriptions):
-                native_struct = self._get_native_struct(raw_struct)
-            else:
-                native_struct = self._get_struct_detected_by_title_row(column_names)
-        elif raw_struct == AUTO:
-            if self.is_first_line_title():
-                native_struct = self.get_detected_struct_by_title_row(set_struct=False, verbose=verbose)
-            else:
-                native_struct = None
-        else:
-            message = 'struct must be FlatStruct(StructInterface), got {}'.format(type(raw_struct))
-            raise TypeError(message)
-        return native_struct
-
     def is_gzip(self) -> bool:
         content_format = self.get_content_format()
         if isinstance(content_format, ParsedFormat):
@@ -230,26 +158,9 @@ class ConnectorFormatMixin(LeafConnectorInterface, ABC):
         else:
             return ItemType.Any
 
-    @abstractmethod
-    def is_verbose(self) -> bool:
-        pass
+    def get_content_type(self) -> ContentType:
+        return self.get_content_format().get_content_type()
 
-    @abstractmethod
-    def make_new(self, *args, **kwargs) -> Native:
-        pass
-
-    @abstractmethod
-    def get_first_line(self, close: bool = True) -> str:
-        pass
-
-    @abstractmethod
-    def get_content_format(self) -> AbstractFormat:
-        pass
-
-    @abstractmethod
-    def set_content_format(self, content_format: AbstractFormat, inplace: bool) -> Optional[Native]:
-        pass
-
-    @abstractmethod
-    def get_declared_format(self) -> AbstractFormat:
-        pass
+    @staticmethod
+    def _assume_native(connector) -> Native:
+        return connector

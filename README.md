@@ -24,9 +24,9 @@ Snakee project code distributed [under MIT licence](https://github.com/az365/sna
  
 ### Generic abstractions 
  
-* [streams](https://github.com/az365/snakee/tree/main/streams/readme.md)
+* [context](base/context.md)
+* [connectors](connectors/readme.md)
+* [streams](streams/readme.md)
 * items 
 * fields 
-* [functions](https://github.com/az365/snakee/tree/main/functions/readme.md)
-* [connectors](https://github.com/az365/snakee/blob/main/connectors/readme.md)
-* [context](https://github.com/az365/snakee/blob/main/base/context.md)
+* [functions](functions/readme.md)

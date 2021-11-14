@@ -1,40 +1,36 @@
-from typing import Optional, Iterable, Generator, Union, Any
+from typing import Optional, Iterable, Union, Any
 import os
 import gzip as gz
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from interfaces import (
-        Context, Connector, ConnectorInterface, StructInterface, IterableStreamInterface,
-        ContentType, ItemType,
-        AUTO, Auto, AutoCount, AutoBool,
+        Context, Connector, ConnectorInterface, ContentFormatInterface, StructInterface, IterableStreamInterface,
+        ContentType, ItemType, StreamType,
+        AUTO, Auto, AutoCount, AutoBool, AutoName, OptionalFields,
     )
     from connectors.abstract.leaf_connector import LeafConnector
     from connectors.content_format.content_classes import (
         AbstractFormat, ParsedFormat, LeanFormat,
         TextFormat, ColumnarFormat, FlatStructFormat,
-        ContentType,
     )
     from connectors.mixin.connector_format_mixin import ConnectorFormatMixin
     from connectors.mixin.actualize_mixin import ActualizeMixin
-    from connectors.mixin.stream_file_mixin import StreamFileMixin
     from streams.mixin.iterable_mixin import IterableStreamMixin
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...interfaces import (
-        Context, Connector, ConnectorInterface, StructInterface, IterableStreamInterface,
-        ContentType, ItemType,
-        AUTO, Auto, AutoCount, AutoBool,
+        Context, Connector, ConnectorInterface, ContentFormatInterface, StructInterface, IterableStreamInterface,
+        ContentType, ItemType, StreamType,
+        AUTO, Auto, AutoCount, AutoBool, AutoName, OptionalFields,
     )
     from ..abstract.leaf_connector import LeafConnector
     from ..content_format.content_classes import (
         AbstractFormat, ParsedFormat, LeanFormat,
         TextFormat, ColumnarFormat, FlatStructFormat,
-        ContentType,
     )
     from ..mixin.connector_format_mixin import ConnectorFormatMixin
     from ..mixin.actualize_mixin import ActualizeMixin
-    from ..mixin.stream_file_mixin import StreamFileMixin
     from ...streams.mixin.iterable_mixin import IterableStreamMixin
 
 Stream = IterableStreamInterface
@@ -46,11 +42,13 @@ LOGGING_LEVEL_INFO = 20
 LOGGING_LEVEL_WARN = 30
 
 
-class LocalFile(LeafConnector, ConnectorFormatMixin, StreamFileMixin, ActualizeMixin, IterableStreamMixin):
+class LocalFile(LeafConnector, ActualizeMixin):
+    _default_folder: Connector = None
+
     def __init__(
             self,
             name: str,
-            content_format: Union[AbstractFormat, Auto] = AUTO,
+            content_format: Union[ContentFormatInterface, Auto] = AUTO,
             struct: Union[Struct, Auto, None] = AUTO,
             folder: Connector = None,
             context: Context = AUTO,
@@ -60,57 +58,17 @@ class LocalFile(LeafConnector, ConnectorFormatMixin, StreamFileMixin, ActualizeM
         if folder:
             message = 'only LocalFolder supported for *File instances (got {})'.format(type(folder))
             assert isinstance(folder, ConnectorInterface) or folder.is_folder(), message
-        else:
+        elif arg.is_defined(context):
             folder = context.get_job_folder()
-        self._declared_format = None
-        self._detected_format = None
+        else:
+            folder = self.get_default_folder()
         self._fileholder = None
-        self._modification_ts = None
-        self._count = expected_count
-        super().__init__(name=name, parent=folder, verbose=verbose)
-        content_format = arg.delayed_acquire(content_format, LeanFormat.detect_by_name, name)
-        assert isinstance(content_format, AbstractFormat)
-        self.set_content_format(content_format, inplace=True)
-        if struct is not None:
-            if struct == AUTO:
-                if isinstance(content_format, ColumnarFormat) or hasattr(content_format, 'is_first_line_title'):
-                    if content_format.is_first_line_title():
-                        struct = self.get_detected_struct_by_title_row()
-            if arg.is_defined(struct, check_name=False):
-                self.set_struct(struct, inplace=True)
-
-    def get_content_format(self) -> AbstractFormat:
-        return self.get_detected_format()
-
-    def set_content_format(self, content_format: AbstractFormat, inplace: bool) -> Optional[Native]:
-        return self.set_detected_format(content_format=content_format, inplace=inplace)
-
-    def get_detected_format(self) -> AbstractFormat:
-        return self._detected_format
-
-    def set_detected_format(self, content_format: AbstractFormat, inplace: bool) -> Optional[Native]:
-        if inplace:
-            self._detected_format = content_format
-            if not self.get_declared_format():
-                self.set_declared_format(content_format, inplace=True)
-        else:
-            return self.make_new(content_format=content_format)
-
-    def get_declared_format(self) -> AbstractFormat:
-        return self._declared_format
-
-    def set_declared_format(self, initial_format: AbstractFormat, inplace: bool) -> Optional[Native]:
-        if inplace:
-            self._declared_format = initial_format.copy()
-        else:
-            new = self.copy()
-            assert isinstance(new, LocalFile)
-            new.set_declared_format(initial_format, inplace=True)
-            return new
-
-    def get_content_type(self) -> ContentType:
-        # return self._content_type
-        return self.get_content_format().get_content_type()
+        super().__init__(
+            name=name,
+            content_format=content_format, struct=struct,
+            expected_count=expected_count,
+            parent=folder, context=context, verbose=verbose,
+        )
 
     def get_encoding(self) -> Optional[str]:
         content_format = self.get_content_format()
@@ -129,9 +87,6 @@ class LocalFile(LeafConnector, ConnectorFormatMixin, StreamFileMixin, ActualizeM
 
     def get_children(self) -> dict:
         return self._data
-
-    def get_links(self) -> dict:
-        return self.get_children()
 
     def get_prev_modification_timestamp(self) -> Optional[float]:
         return self._modification_ts
@@ -260,9 +215,6 @@ class LocalFile(LeafConnector, ConnectorFormatMixin, StreamFileMixin, ActualizeM
     def has_data(self) -> bool:
         if self.is_existing():
             return not self.is_empty()
-        return False
-
-    def is_in_memory(self) -> bool:
         return False
 
     @staticmethod
@@ -410,20 +362,31 @@ class LocalFile(LeafConnector, ConnectorFormatMixin, StreamFileMixin, ActualizeM
             item_type = ItemType.detect(stream.get_one_item())
         return self.write_items(stream.get_items(), item_type=item_type, add_title_row=add_title_row, verbose=verbose)
 
-    def from_stream(self, stream: Stream, verbose: bool = True) -> Native:
-        return super(StreamFileMixin).from_stream(stream, verbose=verbose)
-
-    def to_stream(self, data: Union[Iterable, Auto, None] = AUTO, **kwargs) -> Stream:
-        if 'stream_type' not in kwargs:
-            kwargs['stream_type'] = self.get_stream_type()
+    def to_stream(
+            self,
+            data: Union[Iterable, Auto] = AUTO,
+            name: AutoName = AUTO,
+            stream_type: Union[StreamType, Auto] = AUTO,
+            ex: OptionalFields = None,
+            step: AutoCount = AUTO,
+            **kwargs
+    ) -> Stream:
         if arg.is_defined(data):
             kwargs['data'] = data
-        ex = kwargs.pop('ex', None)
+        stream_type = arg.delayed_acquire(stream_type, self.get_stream_type)
         assert not ex, 'ex-argument for LocalFile.to_stream() not supported (got {})'.format(ex)
-        return self.to_stream_type(**kwargs)
+        return self.to_stream_type(stream_type=stream_type, step=step, **kwargs)
 
     def copy(self) -> Native:
         copy = self.make_new()
         copy.set_declared_format(self.get_declared_format().copy())
         copy.set_detected_format(self.get_detected_format().copy())
         return self._assume_native(copy)
+
+    @classmethod
+    def get_default_folder(cls) -> Connector:
+        return cls._default_folder
+
+    @classmethod
+    def set_default_folder(cls, folder: ConnectorInterface) -> None:
+        cls._default_folder = folder

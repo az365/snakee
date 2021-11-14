@@ -2,32 +2,35 @@ from typing import Optional, Union, Iterable, Callable
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg, selection as sf
+    from utils.decorators import deprecated_with_alternative
     from interfaces import (
-        StreamInterface, StructInterface, StructRowInterface, Row, Item, ItemType,
+        StreamInterface, StructInterface, StructRowInterface, Row, Item,
+        ItemType, LoggingLevel,
         AUTO, Auto, Source, Context, TmpFiles, Count,
     )
+    from loggers.fallback_logger import FallbackLogger
     from streams import stream_classes as sm
-    from loggers import logger_classes as log
     from functions import all_functions as fs
     from selection import selection_classes as sn
     from items.flat_struct import FlatStruct
+    from items.struct_mixin import StructMixin
     from items.struct_row import StructRow
     from items.legacy_classes import get_validation_errors as get_legacy_validation_errors
-    from utils.decorators import deprecated_with_alternative
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg, selection as sf
+    from ...utils.decorators import deprecated_with_alternative
     from ...interfaces import (
-        StreamInterface, StructInterface, StructRowInterface, Row, Item, ItemType,
+        StreamInterface, StructInterface, StructRowInterface, Row, Item, ItemType, LoggingLevel,
         AUTO, Auto, Source, Context, TmpFiles, Count,
     )
+    from ...loggers.fallback_logger import FallbackLogger
     from .. import stream_classes as sm
-    from ...loggers import logger_classes as log
     from ...functions import all_functions as fs
     from ...selection import selection_classes as sn
     from ...items.flat_struct import FlatStruct
+    from ...items.struct_mixin import StructMixin
     from ...items.struct_row import StructRow
     from ...items.legacy_classes import get_validation_errors as get_legacy_validation_errors
-    from ...utils.decorators import deprecated_with_alternative
 
 Native = Union[StreamInterface, StructRowInterface]
 Struct = StructInterface
@@ -104,18 +107,18 @@ def apply_struct_to_row(row, struct: OptStruct, skip_bad_values=False, logger=No
                         field_name, c,
                         value, field_type,
                     )
-                    logger.log(msg=message, level=log.LoggingLevel.Error.value)
+                    logger.log(msg=message, level=LoggingLevel.Error)
                 if skip_bad_values:
                     if logger:
                         message = 'Skipping bad value in row:'.format(list(zip(row, struct)))
-                        logger.log(msg=message, level=log.LoggingLevel.Debug.value)
+                        logger.log(msg=message, level=LoggingLevel.Debug)
                     new_value = None
                 else:
                     message = 'Error in row: {}...'.format(str(list(zip(row, struct)))[:80])
                     if logger:
-                        logger.log(msg=message, level=log.LoggingLevel.Warning.value)
+                        logger.log(msg=message, level=LoggingLevel.Warning)
                     else:
-                        log.get_logger().show(message)
+                        FallbackLogger().log(message)
                     raise e
             row[c] = new_value
         return row
@@ -123,7 +126,7 @@ def apply_struct_to_row(row, struct: OptStruct, skip_bad_values=False, logger=No
         raise TypeError
 
 
-class StructStream(sm.RowStream):
+class StructStream(sm.RowStream, StructMixin):
     def __init__(
             self,
             data, struct: OptStruct = None,
@@ -247,10 +250,12 @@ class StructStream(sm.RowStream):
                 if not selection_method(r, f):
                     return False
             return True
-        result = self.stream(
-            filter(filter_function, self.get_items()),
-        )
+        filtered_items = filter(filter_function, self.get_items())
+        result = self.stream(filtered_items)
         return result.to_memory() if self.is_in_memory() else result
+
+    def sorted_group_by(self, *keys, values: Optional[Iterable] = None, as_pairs: bool = False):
+        raise NotImplementedError
 
     @staticmethod
     def _assume_native(obj) -> Native:

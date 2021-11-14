@@ -4,7 +4,7 @@ from typing import Type, Optional, Iterable, Union
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from interfaces import (
-        ContextInterface, ConnectorInterface,
+        ContextInterface, ConnectorInterface, Connector,
         FileType, FolderType,
         AUTO, Auto, AutoBool, AutoContext,
     )
@@ -15,7 +15,7 @@ try:  # Assume we're a sub-module in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...interfaces import (
-        ContextInterface, ConnectorInterface,
+        ContextInterface, ConnectorInterface, Connector,
         FileType, FolderType,
         AUTO, Auto, AutoBool, AutoContext,
     )
@@ -31,6 +31,8 @@ PARENT_TYPES = HierarchicConnector, ConnectorInterface, ContextInterface
 
 
 class LocalFolder(HierarchicFolder):
+    _default_storage: Connector = None
+
     def __init__(
             self,
             path: str,
@@ -40,23 +42,26 @@ class LocalFolder(HierarchicFolder):
             verbose: AutoBool = AUTO,
     ):
         if not arg.is_defined(parent):
-            parent = self.get_default_parent()
+            if arg.is_defined(context):
+                parent = context.get_local_storage()
+            else:
+                parent = self.get_default_storage()
         if arg.is_defined(parent):
             assert isinstance(parent, PARENT_TYPES), 'got {} as {}'.format(parent, type(parent))
-        elif arg.is_defined(context):
-            parent = context.get_local_storage()
+        self._path_is_relative = arg.acquire(path_is_relative, not arg.is_absolute_path(path))
         super().__init__(
             name=path,
             parent=parent,
             verbose=verbose,
         )
-        path_is_relative = arg.acquire(path_is_relative, not arg.is_absolute_path(path))
-        self._path_is_relative = path_is_relative
 
-    @staticmethod
-    def get_default_parent(context: AutoContext = AUTO) -> Optional[HierarchicConnector]:
-        if arg.is_defined(context):
-            return context.get_local_storage()
+    @classmethod
+    def get_default_storage(cls) -> Connector:
+        return cls._default_storage
+
+    @classmethod
+    def set_default_storage(cls, storage: Connector):
+        cls._default_storage = storage
 
     @staticmethod
     def get_default_child_type() -> FileType:
