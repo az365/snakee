@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Iterable, Callable, Union, Any
+from typing import Type, Callable, Iterable, Union, Any
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
@@ -10,6 +10,7 @@ FieldName = str
 FieldNo = int
 FieldID = Union[FieldNo, FieldName]
 Value = Any
+Class = Union[Type, Callable]
 Array = Union[list, tuple]
 ARRAY_TYPES = list, tuple
 

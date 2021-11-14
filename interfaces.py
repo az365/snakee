@@ -32,7 +32,7 @@ try:  # Assume we're a sub-module in a package.
     from items.simple_items import (
         ARRAY_TYPES, ROW_SUBCLASSES, RECORD_SUBCLASSES,
         SimpleRowInterface, SimpleRow, Row, Record, Line, SimpleItem, SimpleSelectableItem,
-        FieldNo, FieldName, FieldID, Value, Array,
+        FieldNo, FieldName, FieldID, Value, Class, Array,
     )
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from .utils import arguments as arg
@@ -66,7 +66,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .items.simple_items import (
         ARRAY_TYPES, ROW_SUBCLASSES, RECORD_SUBCLASSES,
         SimpleRowInterface, SimpleRow, Row, Record, Line, SimpleItem, SimpleSelectableItem,
-        FieldNo, FieldName, FieldID, Value, Array,
+        FieldNo, FieldName, FieldID, Value, Class, Array,
     )
 
 try:  # Assume we're a sub-module in a package.
