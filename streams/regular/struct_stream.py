@@ -4,7 +4,8 @@ try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg, selection as sf
     from utils.decorators import deprecated_with_alternative
     from interfaces import (
-        StreamInterface, StructInterface, StructRowInterface, Row, Item, ItemType, LoggingLevel,
+        StreamInterface, StructInterface, StructRowInterface, Row, Item,
+        ItemType, LoggingLevel,
         AUTO, Auto, Source, Context, TmpFiles, Count,
     )
     from loggers.fallback_logger import FallbackLogger
@@ -22,7 +23,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         StreamInterface, StructInterface, StructRowInterface, Row, Item, ItemType, LoggingLevel,
         AUTO, Auto, Source, Context, TmpFiles, Count,
     )
-    from loggers.fallback_logger import FallbackLogger
+    from ...loggers.fallback_logger import FallbackLogger
     from .. import stream_classes as sm
     from ...functions import all_functions as fs
     from ...selection import selection_classes as sn
@@ -252,6 +253,9 @@ class StructStream(sm.RowStream, StructMixin):
         filtered_items = filter(filter_function, self.get_items())
         result = self.stream(filtered_items)
         return result.to_memory() if self.is_in_memory() else result
+
+    def sorted_group_by(self, *keys, values: Optional[Iterable] = None, as_pairs: bool = False):
+        raise NotImplementedError
 
     @staticmethod
     def _assume_native(obj) -> Native:
