@@ -4,34 +4,34 @@ try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from interfaces import (
         Connector, Stream,
-        FolderType, FileType, StreamType,
+        ConnType, FolderType, FileType, StreamType,
         AUTO, Auto, AutoName, AutoBool, AutoContext, OptionalFields,
     )
     from connectors.abstract.hierarchic_connector import HierarchicConnector
     from connectors.abstract.leaf_connector import LeafConnector
     from connectors.abstract.abstract_folder import HierarchicFolder
     from connectors.filesystem.local_folder import LocalFolder
-    from connectors.filesystem.abstract_file import AbstractFile
+    from connectors.filesystem.local_file import LocalFile
     from connectors.filesystem.local_mask import LocalMask
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...interfaces import (
         Connector, Stream,
-        FolderType, FileType, StreamType,
+        ConnType, FolderType, FileType, StreamType,
         AUTO, Auto, AutoName, AutoBool, AutoContext, OptionalFields,
     )
     from ..abstract.hierarchic_connector import HierarchicConnector
     from ..abstract.leaf_connector import LeafConnector
     from ..abstract.abstract_folder import HierarchicFolder
     from .local_folder import LocalFolder
-    from .abstract_file import AbstractFile
+    from .local_file import LocalFile
     from .local_mask import LocalMask
 
-Native = Union[LocalMask, AbstractFile]
+Native = Union[LocalMask, LocalFile]
 Suffix = Union[str, int, None]
 
 
-class PartitionedLocalFile(LocalMask, AbstractFile):
+class PartitionedLocalFile(LocalMask, LocalFile):
     def __init__(
             self,
             mask: str,
@@ -58,7 +58,7 @@ class PartitionedLocalFile(LocalMask, AbstractFile):
         else:
             return self.make_new(suffix=suffix)
 
-    def get_partition(self) -> AbstractFile:
+    def get_partition(self) -> LocalFile:
         return self._partition
 
     def set_partition(self, partition: LeafConnector, inplace: bool) -> Native:
@@ -136,4 +136,9 @@ FolderType.set_dict_classes(
         FolderType.LocalMask: LocalMask,
         FolderType.PartitionedLocalFile: PartitionedLocalFile,
     }
+)
+ConnType.add_classes(
+    LocalFolder,
+    LocalMask,
+    PartitionedLocalFile,
 )
