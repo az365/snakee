@@ -80,6 +80,9 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
         self._caption = caption
         return self
 
+    def is_defined(self) -> bool:
+        return bool(self.get_fields())
+
     def set_fields(self, fields: Iterable, inplace: bool) -> Optional[Native]:
         return self.set_data(data=fields, inplace=inplace, reset_dynamic_meta=False)
 
@@ -231,7 +234,7 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
     def get_columns(self) -> list:
         return [c.get_name() for c in self.get_fields()]
 
-    def get_types(self, dialect: DialectType) -> list:
+    def get_types(self, dialect: DialectType = DialectType.String) -> list:
         return [c.get_type_in(dialect) for c in self.get_fields()]
 
     def set_types(

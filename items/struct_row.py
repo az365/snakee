@@ -138,6 +138,9 @@ class StructRow(SimpleDataWrapper, StructMixin, StructRowInterface):
         struct = self.get_struct().copy()
         return StructRow(data, struct=struct, check=False)
 
+    def is_defined(self) -> bool:
+        return bool(self.get_data()) and bool(self.get_struct())
+
     @staticmethod
     def _structure_row(row: Row, struct: StructInterface) -> Row:
         assert isinstance(row, ROW_SUBCLASSES), 'Row must be list or tuple (got {})'.format(type(row))
@@ -175,6 +178,9 @@ class StructRow(SimpleDataWrapper, StructMixin, StructRowInterface):
             data=list(self.get_data()) + list(other.get_data()),
             struct=self.get_struct() + other.get_struct(),
         )
+
+    def __repr__(self):
+        return str(self)
 
     def __str__(self):
         field_names = self.get_columns()
