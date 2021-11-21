@@ -1,12 +1,13 @@
-from typing import Optional, Union, Iterable, Callable
+from typing import Optional, Callable, Iterable, Generator, Union
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg, selection as sf
     from utils.decorators import deprecated_with_alternative
+    from utils.external import pd, DataFrame, get_use_objects_for_output
     from interfaces import (
-        StreamInterface, StructInterface, StructRowInterface, Row, Item,
-        ItemType, LoggingLevel,
-        AUTO, Auto, Source, Context, TmpFiles, Count,
+        StreamInterface, StructInterface, StructRowInterface, Row, ROW_SUBCLASSES,
+        LoggingLevel, StreamType, ItemType, Item,
+        AUTO, Auto, AutoBool, Source, Context, TmpFiles, Count, Columns, AutoColumns, UniKey,
     )
     from loggers.fallback_logger import FallbackLogger
     from streams import stream_classes as sm
@@ -19,9 +20,11 @@ try:  # Assume we're a sub-module in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg, selection as sf
     from ...utils.decorators import deprecated_with_alternative
+    from ...utils.external import pd, DataFrame, get_use_objects_for_output
     from ...interfaces import (
-        StreamInterface, StructInterface, StructRowInterface, Row, Item, ItemType, LoggingLevel,
-        AUTO, Auto, Source, Context, TmpFiles, Count,
+        StreamInterface, StructInterface, StructRowInterface, Row, ROW_SUBCLASSES,
+        LoggingLevel, StreamType, ItemType, Item,
+        AUTO, Auto, AutoBool, Source, Context, TmpFiles, Count, Columns, AutoColumns, UniKey,
     )
     from ...loggers.fallback_logger import FallbackLogger
     from .. import stream_classes as sm
@@ -38,10 +41,11 @@ OptStruct = Optional[Union[Struct, Iterable]]
 
 DYNAMIC_META_FIELDS = ('count', 'struct')
 NAME_POS, TYPE_POS, HINT_POS = 0, 1, 2  # old style struct fields
+DEFAULT_EXAMPLE_COUNT = 10
 
 
 def is_row(row: Row) -> bool:
-    return isinstance(row, (list, tuple))
+    return isinstance(row, StructRow) or isinstance(row, ROW_SUBCLASSES)
 
 
 # deprecated
@@ -68,6 +72,8 @@ def is_valid(row: Row, struct: OptStruct) -> bool:
 
 def get_validation_errors(row: Row, struct: OptStruct) -> list:
     if is_row(row):
+        if isinstance(row, StructRow):
+            row = row.get_data()
         if isinstance(struct, FlatStruct):
             return struct.get_validation_errors(row)
         elif isinstance(struct, Iterable):
@@ -126,10 +132,11 @@ def apply_struct_to_row(row, struct: OptStruct, skip_bad_values=False, logger=No
         raise TypeError
 
 
-class StructStream(sm.RowStream, StructMixin):
+class StructStream(sm.RowStream, StructMixin, sm.ConvertMixin):
     def __init__(
             self,
-            data, struct: OptStruct = None,
+            data,
+            struct: OptStruct = None,
             name=arg.DEFAULT, check=True,
             count: Count = None, less_than: Count = None,
             source: Source = None, context: Context = None,
@@ -215,6 +222,38 @@ class StructStream(sm.RowStream, StructMixin):
         elif isinstance(struct, Iterable):
             return [c[0] for c in struct]
 
+    def get_items(self, item_type: Union[ItemType, Auto] = AUTO) -> Iterable:
+        if arg.is_defined(item_type):
+            return self.get_items_of_type(item_type)
+        else:
+            return self.get_stream_data()
+
+    def get_items_of_type(self, item_type: ItemType) -> Generator:
+        err_msg = 'StructStream.get_items_of_type(item_type): Expected StructRow, Row, Record, got item_type={}'
+        columns = list(self.get_columns())
+        for i in self.get_stream_data():
+            if isinstance(i, StructRow):
+                if item_type == ItemType.StructRow:
+                    yield i
+                elif item_type == ItemType.Row:
+                    yield i.get_data()
+                elif item_type == ItemType.Record:
+                    yield {k: v for k, v in zip(columns, i.get_data())}
+                else:
+                    raise TypeError(err_msg.format(item_type))
+            elif isinstance(i, ROW_SUBCLASSES):
+                if item_type == ItemType.Row:
+                    yield i
+                elif item_type == ItemType.StructRow:
+                    yield StructRow(i, self.get_struct())
+                elif item_type == ItemType.Record:
+                    yield {k: v for k, v in zip(columns, i)}
+                else:
+                    raise TypeError(err_msg.format(item_type))
+            else:
+                msg = 'StructStream.get_items_of_type(item_type={}): Expected items as Row or StructRow, got {} as {}'
+                raise TypeError(msg.format(item_type, i, type(i)))
+
     def struct_map(self, function: Callable, struct: Struct):
         return self.__class__(
             map(function, self.get_items()),
@@ -228,8 +267,9 @@ class StructStream(sm.RowStream, StructMixin):
 
     def select(self, *args, **kwargs):
         selection_description = sn.SelectionDescription.with_expressions(
-            *args, **kwargs,
-            target_item_type=self.get_item_type(), input_item_type=self.get_item_type(),
+            fields=args, expressions=kwargs,
+            input_item_type=self.get_item_type(), target_item_type=self.get_item_type(),
+            input_struct=self.get_struct(),
             logger=self.get_logger(), selection_logger=self.get_selection_logger(),
         )
         selection_function = selection_description.get_mapper()
@@ -256,6 +296,47 @@ class StructStream(sm.RowStream, StructMixin):
 
     def sorted_group_by(self, *keys, values: Optional[Iterable] = None, as_pairs: bool = False):
         raise NotImplementedError
+
+    def _get_field_getter(self, field: UniKey, item_type: Union[ItemType, Auto] = AUTO, default=None):
+        field_position = self.get_field_position(field)
+        return lambda i: i[field_position]
+
+    def get_rows(self, **kwargs) -> Generator:
+        assert not kwargs, 'StructStream.get_rows(**{}): kwargs not supported'.format(kwargs)
+        for r in self.get_stream_data():
+            if isinstance(r, ROW_SUBCLASSES):
+                yield r
+            elif isinstance(r, StructRow) or hasattr(r, 'get_data'):
+                yield r.get_data()
+            else:
+                msg = 'StructStream.get_rows(): Expected Row or StructRow, got {} as {}'
+                raise TypeError(msg.format(r, type(r)))
+
+    def get_records(self, columns: AutoColumns = AUTO) -> Generator:
+        if arg.is_defined(columns):
+            available_columns = self.get_columns()
+            for r in self.get_rows():
+                yield {k: v for k, v in zip(available_columns, r) if k in columns}
+        else:
+            yield from self.get_items_of_type(item_type=ItemType.Record)
+
+    def to_record_stream(self, *args, **kwargs) -> StreamInterface:
+        assert not args, 'StructStream.to_record_stream(): args not supported, got *{}'.format(args)
+        records = self.get_records()
+        return self.stream(records, stream_type=StreamType.RecordStream, **kwargs)
+
+    def get_demo_example(
+            self, count: Count = DEFAULT_EXAMPLE_COUNT,
+            filters: Columns = None, columns: Columns = None,
+            as_dataframe: AutoBool = AUTO,
+    ) -> Union[DataFrame, list, None]:
+        as_dataframe = arg.delayed_acquire(as_dataframe, get_use_objects_for_output)
+        sm_sample = self.filter(*filters) if filters else self
+        sm_sample = sm_sample.to_record_stream()
+        if as_dataframe and hasattr(sm_sample, 'get_dataframe'):
+            return sm_sample.get_dataframe(columns)
+        elif hasattr(sm_sample, 'get_list'):
+            return sm_sample.get_list()
 
     @staticmethod
     def _assume_native(obj) -> Native:

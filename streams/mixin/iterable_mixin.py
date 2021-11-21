@@ -65,7 +65,7 @@ class IterableStreamMixin(IterableStreamInterface, ABC):
                 items = self.get_items_of_type(item_type)
             else:
                 assert isinstance(self, RegularStreamInterface) or hasattr(self, 'get_item_type')
-                assert item_type == self.get_item_type()
+                assert item_type == self.get_item_type() or not arg.is_defined(item_type)
                 items = self.get_items()
         else:
             items = self.get_items()
@@ -96,17 +96,15 @@ class IterableStreamMixin(IterableStreamInterface, ABC):
             return self
         elif isinstance(count, int):
             if count > 0:
-                item_type = self.get_stream_type().get_item_type()
-                stream = self.stream(
-                    self._get_first_items(count, item_type=item_type),
-                    count=min(self.get_count(), count) if self.get_count() else None,
-                    less_than=min(self.get_estimated_count(), count) if self.get_estimated_count() else count,
-                )
-                return self._assume_native(stream)
+                items = self._get_first_items(count)
+                item_count = min(self.get_count(), count) if self.get_count() else None
+                less_than = min(self.get_estimated_count(), count) if self.get_estimated_count() else count
+                stream = self.stream(items, count=item_count, less_than=less_than)
             elif count < 0:
-                return self.tail(count=count)
+                stream = self.tail(count=count)
             else:  # count in (0, False)
-                return self.stream([], count=0)
+                stream = self.stream([], count=0)
+            return self._assume_native(stream)
 
     def skip(self, count: int = 1) -> Native:
         def skip_items(c):
@@ -124,15 +122,15 @@ class IterableStreamMixin(IterableStreamInterface, ABC):
             new_count = old_count - count
         elif self.get_estimated_count():
             less_than = self.get_estimated_count() - count
-        return self.stream(next_items, count=new_count, less_than=less_than)
+        stream = self.stream(next_items, count=new_count, less_than=less_than)
+        return self._assume_native(stream)
 
     def head(self, count: int = 10) -> Native:
         return self.take(count)  # alias
 
     def tail(self, count: int = 10) -> Native:
-        return self.stream(
-            self._get_last_items(count),
-        )
+        stream = self.stream(self._get_last_items(count))
+        return self._assume_native(stream)
 
     def _get_last_items(self, count: int = 10) -> list:
         items = list()
@@ -178,10 +176,6 @@ class IterableStreamMixin(IterableStreamInterface, ABC):
             meta['source'] = self.get_source()
         return stream_class(data, **meta)
 
-    def stream(self, data: Iterable, ex: OptionalFields = None, **kwargs) -> Native:
-        stream = super().stream(data, ex=ex, **kwargs)
-        return self._assume_native(stream)
-
     @staticmethod
     def _is_stream(obj) -> bool:
         return isinstance(obj, IterableStreamInterface) or (hasattr(obj, 'get_count') and hasattr(obj, 'get_items'))
@@ -215,11 +209,8 @@ class IterableStreamMixin(IterableStreamInterface, ABC):
         else:
             count = None
             less_than = None
-        return self.stream(
-            chain_records,
-            count=count,
-            less_than=less_than,
-        )
+        stream = self.stream(chain_records, count=count, less_than=less_than)
+        return self._assume_native(stream)
 
     def add_stream(self, stream: Native, before: bool = False) -> Native:
         old_count = self.get_count()
@@ -340,11 +331,12 @@ class IterableStreamMixin(IterableStreamInterface, ABC):
         return filter(function, self.get_items())
 
     def filter(self, function) -> Native:
-        return self.stream(
+        stream = self.stream(
             self._get_filtered_items(function),
             count=None,
             less_than=self.get_estimated_count(),
         )
+        return self._assume_native(stream)
 
     def _get_mapped_items(self, function: Callable, flat: bool = False) -> Iterable:
         if flat:
@@ -401,12 +393,22 @@ class IterableStreamMixin(IterableStreamInterface, ABC):
         stream = self.stream(items_with_logger)
         return self._assume_native(stream)
 
-    def get_dict(self, key, value) -> dict:
-        field_getter = fs.it.get_field_value_from_item
-        return {field_getter(key, i): field_getter(value, i) for i in self.get_items()}
+    def _get_field_getter(self, field: UniKey, item_type: Union[ItemType, Auto] = AUTO, default=None):
+        if isinstance(self, RegularStreamInterface) or hasattr(self, 'get_item_type'):
+            item_type = arg.delayed_acquire(item_type, self.get_item_type)
+        return lambda i: fs.it.get_field_value_from_item(
+            field=field, item=i, item_type=item_type,
+            default=default, logger=self.get_selection_logger(),
+        )
+
+    def get_dict(self, key: UniKey, value: UniKey) -> dict:
+        key_getter = self._get_field_getter(key)
+        value_getter = self._get_field_getter(value)
+        return {key_getter(i): value_getter(i) for i in self.get_items()}
 
     def get_demo_example(self, count: int = 3) -> Iterable:
-        yield from self.tee_stream().take(count).get_items()
+        if isinstance(self, IterableStreamInterface) or hasattr(self, 'tee_stream'):
+            yield from self.tee_stream().take(count).get_items()
 
     def show(self, *args, **kwargs):
         self.log(str(self), end='\n', verbose=True, truncate=False, force=True)
@@ -471,7 +473,10 @@ class IterableStreamMixin(IterableStreamInterface, ABC):
         return stream
 
     def get_selection_logger(self) -> SelectionLogger:
-        context = self.get_context()
+        if isinstance(self, IterableStreamInterface) or hasattr(self, 'get_context'):
+            context = self.get_context()
+        else:
+            context = None
         if context:
             return context.get_selection_logger()
         else:
