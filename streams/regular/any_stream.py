@@ -23,9 +23,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils.decorators import deprecated_with_alternative
 
 Native = Union[LocalStream, RegularStreamInterface]
-
-AutoStreamType = Union[Auto, StreamType]
 Data = Union[Auto, Iterable]
+AutoStreamType = Union[Auto, StreamType]
 
 
 class AnyStream(sm.LocalStream, sm.ConvertMixin, RegularStreamInterface):
@@ -149,10 +148,6 @@ class AnyStream(sm.LocalStream, sm.ConvertMixin, RegularStreamInterface):
     def _assume_native(stream) -> Native:
         return stream
 
-    def stream(self, data: Iterable, ex: OptionalFields = None, **kwargs) -> Native:
-        stream = self.to_stream(data, ex=ex, **kwargs)
-        return self._assume_native(stream)
-
     def to_stream(
             self,
             data: Data = AUTO,
@@ -161,13 +156,20 @@ class AnyStream(sm.LocalStream, sm.ConvertMixin, RegularStreamInterface):
             **kwargs
     ) -> Stream:
         stream_type = arg.delayed_acquire(stream_type, self.get_stream_type)
-        data = arg.delayed_acquire(data, self.get_data)
         if isinstance(stream_type, str):
             stream_class = StreamType(stream_type).get_class()
         elif isclass(stream_type):
             stream_class = stream_type
-        else:
+        elif isinstance(stream_type, StreamType) or hasattr(stream_type, 'get_class'):
             stream_class = stream_type.get_class()
+        else:
+            raise TypeError('AnyStream.to_stream(data, stream_type): expected StreamType, got {}'.format(stream_type))
+        if not arg.is_defined(data):
+            if hasattr(self, 'get_items_of_type'):
+                item_type = stream_class.get_item_type()
+                data = self.get_items_of_type(item_type)
+            else:
+                data = self.get_data()
         meta = self.get_compatible_meta(stream_class, ex=ex)
         meta.update(kwargs)
         if 'count' not in meta:

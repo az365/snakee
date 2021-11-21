@@ -331,10 +331,6 @@ class LocalStream(IterableStream, LocalStreamInterface):
             result_parts.append(sm_part)
         return result_parts
 
-    def stream(self, data: Iterable, ex: OptionalFields = None, **kwargs) -> Native:
-        stream = super().stream(data=data, ex=ex, **kwargs)
-        return self._assume_native(stream)
-
     @staticmethod
     def _assume_native(stream) -> Native:
         return stream

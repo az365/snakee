@@ -166,21 +166,6 @@ class IterableStreamInterface(StreamInterface, ABC):
         pass
 
     @abstractmethod
-    def stream(self, data: Iterable, ex: OptionalFields = None, **kwargs) -> Native:
-        """Build new stream with data provided.
-        Meta-information of initial stream will by saved by default (excluding fields from ex-argument).
-
-        :param data: link to iterable data for new stream
-        :type data: Iterable
-
-        :param ex: one field name or list of fields to exclude from transmitted meta-information
-        :type ex: list or str or None
-
-        :return: Native Stream (stream of same class)
-        """
-        pass
-
-    @abstractmethod
     def add(self, stream_or_items: Union[Native, Iterable], before=False, **kwargs) -> Native:
         pass
 

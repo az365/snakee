@@ -71,12 +71,15 @@ class ConvertMixin(IterableStream, ABC):
             save_count: bool = True,
             **kwargs
     ) -> Stream:
-        stream_type = arg.acquire(stream_type, self.get_stream_type())
-        if isinstance(stream_type, str):
-            stream_class = sm.StreamType(stream_type).get_class()
+        if arg.is_defined(stream_type):
+            if isinstance(stream_type, str):
+                stream_class = sm.StreamType(stream_type).get_class()
+            else:
+                stream_class = stream_type.get_class()
+            meta = self.get_compatible_meta(stream_class, ex=ex)
         else:
-            stream_class = stream_type.get_class()
-        meta = self.get_compatible_meta(stream_class, ex=ex)
+            stream_class = self.__class__
+            meta = self.get_meta()
         if not save_name:
             meta.pop('name')
         if not save_count:
@@ -84,7 +87,7 @@ class ConvertMixin(IterableStream, ABC):
         meta.update(kwargs)
         if 'context' not in meta:
             meta['context'] = self.get_context()
-        stream = sm.StreamType.of(stream_type).stream(data, **meta)
+        stream = stream_class(data, **meta)
         return stream
 
     def map_to_type(self, function: Callable, stream_type: AutoStreamType = AUTO) -> Stream:

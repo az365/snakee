@@ -146,7 +146,10 @@ class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
         assert isinstance(stream, Native)
         return stream
 
-    def to_stream(self) -> Native:
+    def to_stream(self, *args, **kwargs) -> Native:
+        msg = 'args and kwargs for to_stream() supported only for stream subclasses'
+        assert not args, msg
+        assert not kwargs, msg
         return self
 
     def write_to(self, connector: LeafConnector, verbose: bool = True, return_stream: bool = True) -> Optional[Native]:
@@ -169,12 +172,13 @@ class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
     def log(
             self, msg: Message, level: LoggingLevel = AUTO,
             end: str = AUTO, truncate: bool = True, force: bool = False, verbose: bool = True,
-    ):
-        logger = self.get_logger()
-        if logger:
+    ) -> Native:
+        logger = self.get_logger(skip_missing=force)
+        if isinstance(logger, ExtLogger):
             logger.log(msg=msg, level=level, end=end, truncate=truncate, verbose=verbose)
-        elif force:
-            print(msg)
+        elif logger:
+            logger.log(msg=msg, level=level)
+        return self
 
     def forget(self) -> NoReturn:
         if hasattr(self, 'close'):
@@ -203,7 +207,9 @@ class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
         pass
 
     def show(self, *args, **kwargs):
-        self.log(str(self), end='\n', verbose=True, truncate=False)
+        title = str(self)
+        self.log(title, end='\n', verbose=True, truncate=False)
         demo_example = self.get_demo_example(*args, **kwargs)
-        self.log(demo_example, verbose=False)
+        for line in demo_example:
+            self.log(line, verbose=False)
         return demo_example
