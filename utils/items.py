@@ -5,25 +5,25 @@ try:  # Assume we're a sub-module in a package.
     from items.item_type import ItemType
     from items.struct_row_interface import StructRowInterface
     from items.simple_items import (
-        STAR, ROW_SUBCLASSES, RECORD_SUBCLASSES,
         Row, Record, Line, SimpleSelectableItem,
-        FieldNo, FieldName, FieldID, Value, Array,
+        STAR, ROW_SUBCLASSES, RECORD_SUBCLASSES,
+        FieldNo, FieldName, FieldID, Value, Array, ARRAY_TYPES,
         get_field_value_from_row, get_field_value_from_record,
         merge_two_rows, merge_two_records,
     )
-    from items import legacy_classes as sc
+    from items import struct_row as sc
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from . import arguments as arg
     from ..items.item_type import ItemType
     from ..items.struct_row_interface import StructRowInterface
     from ..items.simple_items import (
-        STAR, ROW_SUBCLASSES, RECORD_SUBCLASSES,
         Row, Record, Line, SimpleSelectableItem,
-        FieldNo, FieldName, FieldID, Value, Array,
+        STAR, ROW_SUBCLASSES, RECORD_SUBCLASSES,
+        FieldNo, FieldName, FieldID, Value, Array, ARRAY_TYPES,
         get_field_value_from_row, get_field_value_from_record,
         merge_two_rows, merge_two_records,
     )
-    from ..items import legacy_classes as sc
+    from ..items import struct_row as sc
 
 SelectableItem = Union[SimpleSelectableItem, StructRowInterface]
 ConcreteItem = Union[Line, SelectableItem]
@@ -75,25 +75,40 @@ def get_fields_names_from_item(item: SelectableItem, item_type: ItemType = ItemT
 
 
 def get_field_value_from_item(
-        field: FieldID, item: ConcreteItem, item_type: ItemType = ItemType.Auto,
-        skip_errors: bool = False, logger=None, default: Value = None):
+        field: Union[FieldID, Array, Callable],
+        item: ConcreteItem, item_type: ItemType = ItemType.Auto,
+        skip_errors: bool = False, logger=None, default: Value = None,
+) -> Value:
     if field == STAR:
         return item
+    elif isinstance(field, Callable):
+        return field(item)
+    elif isinstance(field, ARRAY_TYPES):
+        list_values = get_fields_values_from_item(
+            field,
+            item=item, item_type=item_type, skip_errors=skip_errors, logger=logger, default=default
+        )
+        return tuple(list_values)
     if item_type == ItemType.Auto or not arg.is_defined(item_type):
         item_type = ItemType.detect(item, default='any')
-    if isinstance(item_type, str):
+    elif isinstance(item_type, str):
         item_type = ItemType(item_type)
-    else:
+    elif hasattr(item_type, 'get_value'):
+        item_type = ItemType(item_type.get_value())
+    elif hasattr(item_type, 'value'):
         item_type = ItemType(item_type.value)
+    else:
+        msg = 'get_field_value_from_item(item, item_type): expected item_type as ItemType, got {}'
+        raise TypeError(msg.format(item_type))
     try:
         return item_type.get_value_from_item(
-            item=item, field=field, default=default, skip_unsupported_types=skip_errors,
+            item=item, field=field,
+            default=default, skip_unsupported_types=skip_errors,
         )
     except IndexError as e:
-        pass
+        msg = '{}: Field {} does no exists in current item ({}): {}'.format('IndexError', field, e, item)
     except TypeError as e:
-        pass
-    msg = 'Field {} does no exists in current item ({})'.format(field, e)
+        msg = '{}: Field {} does no exists in current item ({}): {}'.format('TypeError', field, e, item)
     if skip_errors:
         if logger:
             logger.log(msg)
