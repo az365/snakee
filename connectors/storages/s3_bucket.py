@@ -1,18 +1,18 @@
+from typing import Optional, Iterable, Generator, Union
 import io
-from typing import Optional, Iterable, Generator, Union, Type
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
+    from utils.decorators import deprecated_with_alternative
     from utils.external import boto3
-    from interfaces import ConnectorInterface, Name
+    from interfaces import ConnType, ConnectorInterface, Class, Name
     from connectors.abstract.abstract_folder import HierarchicFolder
-    from connectors import connector_classes as ct
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
+    from ...utils.decorators import deprecated_with_alternative
     from ...utils.external import boto3
-    from ...interfaces import ConnectorInterface, Name
+    from ...interfaces import ConnType, ConnectorInterface, Class, Name
     from ..abstract.abstract_folder import HierarchicFolder
-    from .. import connector_classes as ct
 
 DEFAULT_KEYS_LIMIT = 1000
 
@@ -26,20 +26,17 @@ class S3Bucket(HierarchicFolder):
             access_key: str = arg.AUTO,
             secret_key: str = arg.AUTO,
     ):
-        assert isinstance(storage, ct.S3Storage), 'S3Storage expected, got {}'.format(storage)
         self.access_key = arg.acquire(access_key, self.get_storage().access_key)
         self.secret_key = arg.acquire(secret_key, self.get_storage().secret_key)
         self.session = None
         self.client = None
         self.resource = None
-        super().__init__(
-            name=name,
-            parent=storage,
-            verbose=verbose,
-        )
+        storage = self._assume_native(storage)
+        super().__init__(name=name, parent=storage, verbose=verbose)
 
-    def get_default_child_class(self) -> Type:
-        return ct.S3Folder
+    @staticmethod
+    def get_default_child_type() -> ConnType:
+        return ConnType.S3Folder
 
     def child(self, name: Name, **kwargs) -> ConnectorInterface:
         return super().child(name, parent_field='bucket', **kwargs)
@@ -49,8 +46,9 @@ class S3Bucket(HierarchicFolder):
 
     def object(self, name: Name, folder_name='', folder_kwargs=None, **kwargs) -> ConnectorInterface:
         folder = self.folder(folder_name, **(folder_kwargs or {}))
-        assert isinstance(folder, ct.S3Folder)
-        return folder.object(name, **kwargs)
+        self._assert_is_appropriate_child(folder)
+        if self._is_appropriate_child(folder) or hasattr(folder, 'object'):
+            return folder.object(name, **kwargs)
 
     def get_bucket_name(self) -> Name:
         return self.get_name()
@@ -150,3 +148,6 @@ class S3Bucket(HierarchicFolder):
         buffer = io.BytesIO()
         self.get_object(object_path_in_bucket).download_fileobj(buffer)
         return buffer
+
+
+ConnType.add_classes(S3Bucket)

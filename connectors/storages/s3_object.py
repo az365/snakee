@@ -4,7 +4,7 @@ try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from interfaces import (
         ConnectorInterface, ContentFormatInterface, Stream, StructInterface,
-        ContentType, StreamType,
+        ContentType, ConnType, StreamType,
         AUTO, Auto, AutoContext, AutoBool, AutoCount, Name,
     )
     from connectors.abstract.leaf_connector import LeafConnector
@@ -12,7 +12,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils import arguments as arg
     from ...interfaces import (
         ConnectorInterface, ContentFormatInterface, Stream, StructInterface,
-        ContentType, StreamType,
+        ContentType, ConnType, StreamType,
         AUTO, Auto, AutoContext, AutoBool, AutoCount, Name,
     )
     from ..abstract.leaf_connector import LeafConnector
@@ -121,3 +121,9 @@ class S3Object(LeafConnector):
     def to_stream(self, stream_type: Union[StreamType, str, Auto] = AUTO, **kwargs) -> Stream:
         stream_class = StreamType(stream_type).get_class()
         return stream_class(self.get_data(), **kwargs)
+
+    def get_count(self) -> Optional[int]:
+        pass
+
+
+ConnType.add_classes(S3Object)
