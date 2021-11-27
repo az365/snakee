@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Optional, Union
 
 try:  # Assume we're a sub-module in a package.
     from streams.interfaces.abstract_stream_interface import StreamInterface
@@ -12,6 +12,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .connector_interface import ConnectorInterface
     from .format_interface import ContentFormatInterface
 
+Native = Union[ConnectorInterface, StreamInterface]
+
 
 class LeafConnectorInterface(ConnectorInterface, StreamInterface, ABC):
     @abstractmethod
@@ -23,11 +25,27 @@ class LeafConnectorInterface(ConnectorInterface, StreamInterface, ABC):
         pass
 
     @abstractmethod
-    def set_content_format(self, content_format: ContentFormatInterface, inplace: bool) -> Optional[ConnectorInterface]:
+    def set_content_format(self, content_format: ContentFormatInterface, inplace: bool) -> Optional[Native]:
         pass
 
     @abstractmethod
     def get_declared_format(self) -> ContentFormatInterface:
+        pass
+
+    @abstractmethod
+    def set_declared_format(self, initial_format: ContentFormatInterface, inplace: bool) -> Optional[Native]:
+        pass
+
+    @abstractmethod
+    def get_detected_format(self, detect: bool = True, force: bool = False) -> ContentFormatInterface:
+        pass
+
+    @abstractmethod
+    def set_detected_format(self, content_format: ContentFormatInterface, inplace: bool) -> Optional[Native]:
+        pass
+
+    @abstractmethod
+    def reset_detected_format(self) -> Native:
         pass
 
     @abstractmethod
@@ -39,15 +57,15 @@ class LeafConnectorInterface(ConnectorInterface, StreamInterface, ABC):
         pass
 
     @abstractmethod
-    def check(self, must_exists: bool = True):
+    def check(self, must_exists: bool = True) -> Native:
         pass
 
     @abstractmethod
-    def write_stream(self, stream: StreamInterface, verbose: bool = True):
+    def write_stream(self, stream: StreamInterface, verbose: bool = True) -> Native:
         pass
 
     @abstractmethod
-    def from_stream(self, stream: StreamInterface):
+    def from_stream(self, stream: StreamInterface) -> Native:
         pass
 
     @abstractmethod

@@ -84,7 +84,7 @@ class LeafConnector(AbstractConnector, ConnectorFormatMixin, StreamableMixin, Le
                 return struct
 
     def get_content_format(self) -> ContentFormatInterface:
-        detected_format = self.get_detected_format()
+        detected_format = self.get_detected_format(detect=False)
         if arg.is_defined(detected_format):
             return detected_format
         else:
@@ -93,7 +93,9 @@ class LeafConnector(AbstractConnector, ConnectorFormatMixin, StreamableMixin, Le
     def set_content_format(self, content_format: ContentFormatInterface, inplace: bool) -> Optional[Native]:
         return self.set_declared_format(content_format, inplace=inplace)
 
-    def get_detected_format(self) -> ContentFormatInterface:
+    def get_detected_format(self, detect: bool = True, force: bool = False) -> ContentFormatInterface:
+        if force or (detect and not arg.is_defined(self._detected_format)):
+            self.reset_detected_format()
         return self._detected_format
 
     def set_detected_format(self, content_format: ContentFormatInterface, inplace: bool) -> Optional[Native]:
@@ -103,6 +105,13 @@ class LeafConnector(AbstractConnector, ConnectorFormatMixin, StreamableMixin, Le
                 self.set_declared_format(content_format, inplace=True)
         else:
             return self.make_new(content_format=content_format)
+
+    def reset_detected_format(self) -> Native:
+        content_format = self.get_declared_format().copy()
+        detected_struct = self.get_detected_struct_by_title_row()
+        detected_format = content_format.set_struct(detected_struct, inplace=False)
+        self.set_detected_format(detected_format, inplace=True)
+        return self
 
     def get_declared_format(self) -> ContentFormatInterface:
         return self._declared_format
@@ -118,7 +127,7 @@ class LeafConnector(AbstractConnector, ConnectorFormatMixin, StreamableMixin, Le
 
     def set_first_line_title(self, first_line_is_title: AutoBool) -> Native:
         declared_format = self.get_declared_format()
-        detected_format = self.get_detected_format()
+        detected_format = self.get_detected_format(detect=False)
         if hasattr(declared_format, 'set_first_line_title'):
             declared_format.set_first_line_title(first_line_is_title)
         if hasattr(detected_format, 'set_first_line_title'):
@@ -156,9 +165,10 @@ class LeafConnector(AbstractConnector, ConnectorFormatMixin, StreamableMixin, Le
     def has_hierarchy():
         return False
 
-    def check(self, must_exists=True):
+    def check(self, must_exists: bool = True) -> Native:
         if must_exists:
             assert self.is_existing(), 'object {} must exists'.format(self.get_name())
+        return self
 
     def write_stream(self, stream: Stream, verbose: bool = True):
         return self.from_stream(stream, verbose=verbose)
