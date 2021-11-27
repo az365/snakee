@@ -20,12 +20,13 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 
 DEFAULT_DELIMITER = '\t'
 POPULAR_DELIMITERS = '\t', '; ', ', ', ';', ',', ' '
+DEFAULT_IS_FIRST_LINE_TITLE = True
 
 
 class ColumnarFormat(TextFormat):
     def __init__(
             self,
-            first_line_is_title: bool = True,
+            first_line_is_title: bool = DEFAULT_IS_FIRST_LINE_TITLE,
             delimiter: str = DEFAULT_DELIMITER,
             ending: str = DEFAULT_ENDING,
             encoding: str = DEFAULT_ENCODING,
@@ -46,6 +47,10 @@ class ColumnarFormat(TextFormat):
 
     def is_first_line_title(self) -> bool:
         return self._first_line_is_title
+
+    def set_first_line_title(self, first_line_is_title: AutoBool) -> TextFormat:
+        self._first_line_is_title = arg.acquire(first_line_is_title, DEFAULT_IS_FIRST_LINE_TITLE)
+        return self
 
     def get_delimiter(self) -> str:
         return self._delimiter
@@ -169,9 +174,9 @@ class ColumnarFormat(TextFormat):
 class FlatStructFormat(ColumnarFormat):
     def __init__(
             self,
-            struct: StructInterface,
-            first_line_is_title: bool,
-            delimiter: str,
+            struct: Union[StructInterface, Auto] = AUTO,
+            first_line_is_title: bool = DEFAULT_IS_FIRST_LINE_TITLE,
+            delimiter: str = DEFAULT_DELIMITER,
             ending: str = DEFAULT_ENDING,
             encoding: str = DEFAULT_ENCODING,
             compress: Compress = None,
@@ -209,7 +214,7 @@ class FlatStructFormat(ColumnarFormat):
             struct: Union[Array, StructInterface, Auto] = AUTO,
     ) -> Union[Array, StructInterface]:
         if arg.is_defined(struct):
-            if isinstance(struct, Array):
+            if isinstance(struct, ARRAY_TYPES):
                 assert struct == self.get_struct().get_columns()
         else:
             struct = self.get_struct()
@@ -231,7 +236,9 @@ class FlatStructFormat(ColumnarFormat):
             row = [str(item.get(f)) for f in self.get_struct().get_columns()]
             return self.get_delimiter().join(row)
         if item_type == ItemType.StructRow and validate:
-            assert item.get_struct() == self.get_struct()
+            item_columns = item.get_struct().get_columns()
+            content_columns = self.get_struct().get_columns()
+            assert item_columns == content_columns, '{} != {}'.format(item_columns, content_columns)
         return super().get_formatted_item(item, item_type=item_type)
 
     def get_parsed_line(
