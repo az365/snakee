@@ -110,6 +110,7 @@ class ActualizeMixin(AppropriateInterface, ABC):
     def actualize(self) -> Native:
         self.get_modification_timestamp()
         self.get_count(force=True)
+        self.get_detected_format(force=True)
         return self
 
     def get_modification_time_str(self) -> str:
@@ -195,7 +196,11 @@ class ActualizeMixin(AppropriateInterface, ABC):
 
     def validate_fields(self, initial: bool = True) -> Native:
         if initial:
-            expected_struct = self.get_initial_struct().copy()
+            expected_struct = self.get_initial_struct()
+            if arg.is_defined(expected_struct):
+                expected_struct = expected_struct.copy()
+            else:
+                expected_struct = self.get_detected_struct_by_title_row(set_struct=True, verbose=True)
         else:
             expected_struct = self.get_struct()
         actual_struct = self.get_detected_struct_by_title_row(set_struct=False, verbose=False)
@@ -283,8 +288,9 @@ class ActualizeMixin(AppropriateInterface, ABC):
         filters = filters or list()
         if filter_kwargs and safe_filter:
             filter_kwargs = {k: v for k, v in filter_kwargs.items() if k in self.get_columns()}
-        verbose = self.is_gzip() or self.get_count(allow_slow_gzip=False) > COUNT_ITEMS_TO_LOG_COLLECT_OPERATION
-        stream_example = self.filter(*filters or [], **filter_kwargs, verbose=verbose)
+        stream_example = self.to_record_stream()
+        if filters:
+            stream_example = stream_example.filter(*filters or [], **filter_kwargs)
         item_example = stream_example.get_one_item()
         str_filters = arg.get_str_from_args_kwargs(*filters, **filter_kwargs)
         if item_example:
@@ -363,12 +369,12 @@ class ActualizeMixin(AppropriateInterface, ABC):
                 self.log('Invalid columns: {}'.format(arg.get_str_from_args_kwargs(*self.get_invalid_columns())))
             self.log('')
         struct = self.get_struct()
-        dataframe = struct.describe(
+        struct_dataframe = struct.describe(
             as_dataframe=struct_as_dataframe, example=example_item,
             logger=self.get_logger(), comment=example_comment,
         )
-        if dataframe is not None:
-            return dataframe
+        if struct_dataframe is not None:
+            return struct_dataframe
         if example_stream and count:
             return self.show_example(
                 count=count, example=example_stream,
