@@ -166,6 +166,13 @@ class IterableStreamInterface(StreamInterface, ABC):
         pass
 
     @abstractmethod
+    def copy(self) -> Native:
+        """Return full copy of stream (including copy of iterator from tee_stream() method).
+
+        :return: Native Stream (stream of same class)
+        """
+
+    @abstractmethod
     def add(self, stream_or_items: Union[Native, Iterable], before=False, **kwargs) -> Native:
         pass
 
@@ -200,14 +207,6 @@ class IterableStreamInterface(StreamInterface, ABC):
         pass
 
     @abstractmethod
-    def apply_to_data(
-            self, function: Callable,
-            to: StreamType = arg.AUTO,
-            save_count: bool = False, lazy: bool = True,
-    ) -> Stream:
-        pass
-
-    @abstractmethod
     def progress(
             self,
             expected_count: Count = arg.AUTO, step: Count = arg.AUTO,
@@ -234,14 +233,6 @@ class IterableStreamInterface(StreamInterface, ABC):
             key: Optional[str] = None,
             show: bool = False,
     ) -> Stream:
-        pass
-
-    @abstractmethod
-    def set_meta(self, **meta) -> Native:
-        pass
-
-    @abstractmethod
-    def update_meta(self, **meta) -> Native:
         pass
 
     @abstractmethod
