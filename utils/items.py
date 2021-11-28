@@ -57,7 +57,8 @@ def set_to_item_inplace(
             item += [None] * (field - cols_count + 1)
         item[field] = value
     elif item_type == ItemType.StructRow:
-        item.set_value(field, value)
+        assert isinstance(item, StructRowInterface)
+        item.set_value(field, value, update_struct=True)
     else:  # item_type == 'any' or not item_type:
         raise TypeError('type {} not supported'.format(item_type))
 
@@ -86,7 +87,9 @@ def get_field_value_from_item(
     elif isinstance(field, ARRAY_TYPES):
         list_values = get_fields_values_from_item(
             field,
-            item=item, item_type=item_type, skip_errors=skip_errors, logger=logger, default=default
+            item=item, item_type=item_type,
+            default=default,
+            skip_errors=skip_errors, logger=logger,
         )
         return tuple(list_values)
     if item_type == ItemType.Auto or not arg.is_defined(item_type):

@@ -2,10 +2,12 @@ from abc import ABC, abstractmethod
 from typing import Optional, Callable, Union
 
 try:  # Assume we're a sub-module in a package.
+    from utils import arguments as arg
     from base.interfaces.data_interface import SimpleDataInterface
     from items.struct_interface import StructInterface, StructMixinInterface
     from items.simple_items import SimpleRowInterface, SimpleRow, FieldNo, FieldName, FieldID, Value
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
+    from ..utils import arguments as arg
     from ..base.interfaces.data_interface import SimpleDataInterface
     from .struct_interface import StructInterface, StructMixinInterface
     from .simple_items import SimpleRowInterface, SimpleRow, FieldNo, FieldName, FieldID, Value
@@ -30,7 +32,28 @@ class StructRowInterface(SimpleDataInterface, SimpleRowInterface, StructMixinInt
         pass
 
     @abstractmethod
-    def set_value(self, field: FieldID, value: Value, inplace: bool = True) -> Optional[StructRow]:
+    def get_values(self, fields: SimpleRow) -> SimpleRow:
+        pass
+
+    @abstractmethod
+    def get_value(
+            self,
+            field: Union[FieldID, Callable],
+            skip_missing: bool = False,
+            logger=None,
+            default: Value = None,
+    ) -> Value:
+        pass
+
+    @abstractmethod
+    def set_value(
+            self,
+            field: FieldID,
+            value: Value,
+            field_type=arg.AUTO,
+            update_struct: bool = False,
+            inplace: bool = True,
+    ) -> Optional[StructRow]:
         pass
 
     @abstractmethod
@@ -51,20 +74,6 @@ class StructRowInterface(SimpleDataInterface, SimpleRowInterface, StructMixinInt
 
     @abstractmethod
     def get_fields_positions(self, fields: SimpleRow) -> SimpleRow:
-        pass
-
-    @abstractmethod
-    def get_value(
-            self,
-            field: Union[FieldID, Callable],
-            skip_missing: bool = False,
-            logger=None,
-            default: Value = None,
-    ) -> Value:
-        pass
-
-    @abstractmethod
-    def get_values(self, fields: SimpleRow) -> SimpleRow:
         pass
 
     @abstractmethod
