@@ -38,18 +38,25 @@ class FieldType(DynamicEnum):
     def get_dialect_types(cls) -> dict:
         return cls._dict_dialect_types
 
-    def get_type_in(self, dialect):
+    def get_type_in(self, dialect: DialectType):
         type_props = self.get_dialect_types()[self.get_value()]
         dialect_value = get_value(dialect)
-        return type_props[dialect_value]
+        type_in_dialect = type_props[dialect_value]
+        if not type_in_dialect:
+            type_in_dialect = type_props[DialectType.get_default()]
+        return type_in_dialect
 
     def get_py_type(self):
-        return self.get_type_in(dialect='py')
+        return self.get_type_in(dialect=DialectType.Python)
 
     def isinstance(self, value) -> bool:
+        if self == FieldType.Any:
+            return True
         py_type = self.get_py_type()
         if py_type == float:
             return isinstance(value, (int, float))
+        elif py_type in (list, tuple):
+            return isinstance(value, (list, tuple))
         else:
             return isinstance(value, py_type)
 
@@ -93,8 +100,12 @@ class FieldType(DynamicEnum):
                 for dialect, type_name in dict_names.items():
                     if field_type == type_name:
                         return FieldType(canonic_type)
-        if not ignore_absent:
-            raise ValueError('Unsupported field type: {}'.format(field_type))
+        str_field_type = str(field_type).split('.')[-1].lower()
+        try:
+            return FieldType(str_field_type)
+        except ValueError as e:
+            if not ignore_absent:
+                raise ValueError('Unsupported field type: {} ({})'.format(field_type, e))
 
     def get_converter(self, source, target):
         source_dialect_name = get_value(source)
