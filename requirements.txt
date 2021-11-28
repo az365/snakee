@@ -1,5 +1,5 @@
 requests
-psycopg2
+psycopg2-binary==2.8.4
 boto3
 numpy
 scipy
