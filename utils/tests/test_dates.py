@@ -1,7 +1,7 @@
 try:  # Assume we're a sub-module in a package.
-    from utils import dates as dt
+    from functions.primary import dates as dt
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from .. import dates as dt
+    from ...functions.primary import dates as dt
 
 
 def test_get_days_between():

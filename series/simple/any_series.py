@@ -3,7 +3,7 @@ from typing import Optional, Iterable, Callable
 try:  # Assume we're a sub-module in a package.
     from series.abstract_series import AbstractSeries
     from series import series_classes as sc
-    from utils import numeric as nm
+    from functions.primary import numeric as nm
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..abstract_series import AbstractSeries
     from .. import series_classes as sc

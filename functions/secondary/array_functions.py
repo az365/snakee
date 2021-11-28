@@ -4,14 +4,14 @@ try:  # Assume we're a sub-module in a package.
     from utils import (
         arguments as arg,
         mappers as ms,
-        numeric as nm,
     )
+    from functions.primary import numeric as nm
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..utils import (
+    from ...utils import (
         arguments as arg,
         mappers as ms,
-        numeric as nm,
     )
+    from ..primary import numeric as nm
 
 Array = Union[list, tuple]
 

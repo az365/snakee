@@ -9,7 +9,7 @@ try:  # Assume we're a sub-module in a package.
         raise_import_error,
     )
 except ImportError:
-    from .external import (
+    from ...utils.external import (
         np, sp, pd, plt, interpolate,
         DataFrame,
         get_use_objects_for_output,

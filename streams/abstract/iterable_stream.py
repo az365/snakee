@@ -15,7 +15,7 @@ try:  # Assume we're a sub-module in a package.
     from streams.mixin.iterable_mixin import IterableStreamMixin
     from streams.abstract.abstract_stream import AbstractStream
     from streams import stream_classes as sm
-    from functions import item_functions as fs
+    from functions.secondary import item_functions as fs
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import algo, arguments as arg
     from ...utils.external import pd, DataFrame, get_use_objects_for_output

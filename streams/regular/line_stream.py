@@ -6,7 +6,7 @@ try:
     from utils.decorators import deprecated_with_alternative
     from interfaces import StreamType, ItemType, FileType, Auto, AUTO
     from streams import stream_classes as sm
-    from functions import item_functions as fs
+    from functions.secondary import item_functions as fs
 except ImportError:
     from ...utils import arguments as arg
     from ...utils.decorators import deprecated_with_alternative

@@ -7,7 +7,8 @@ try:  # Assume we're a sub-module in a package.
         Count, Name, Columns,
         AUTO, Auto, AutoColumns,
     )
-    from utils import arguments as arg, numeric as nm, selection as sf
+    from utils import arguments as arg, selection as sf
+    from functions.primary import numeric as nm
     from utils.decorators import deprecated_with_alternative
     from streams import stream_classes as sm
     from selection import selection_classes as sn

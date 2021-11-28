@@ -1,15 +1,11 @@
 from typing import Callable, Union
 
 try:  # Assume we're a sub-module in a package.
-    from utils import (
-        numeric as nm,
-        dates as dt,
-    )
+    from functions.primary import numeric as nm
+    from functions.primary import dates as dt
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..utils import (
-        numeric as nm,
-        dates as dt,
-    )
+    from ..primary import numeric as nm
+    from ..primary import dates as dt
 
 FieldType = Union[type, str]
 

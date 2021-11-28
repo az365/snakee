@@ -2,7 +2,7 @@ from typing import Optional, Callable
 
 try:  # Assume we're a sub-module in a package.
     from series import series_classes as sc
-    from utils import numeric as nm
+    from functions.primary import numeric as nm
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from .. import series_classes as sc
     from ...utils import numeric as nm

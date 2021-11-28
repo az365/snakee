@@ -11,7 +11,7 @@ try:  # Assume we're a sub-module in a package.
     )
     from streams.abstract.iterable_stream import IterableStream
     from streams import stream_classes as sm
-    from functions import item_functions as fs, basic_functions as bf
+    from functions.secondary import basic_functions as bf, item_functions as fs
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import algo, arguments as arg
     from ...interfaces import (

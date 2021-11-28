@@ -8,7 +8,7 @@ try:  # Assume we're a sub-module in a package.
         ItemType, StreamType, ContentType,
         AUTO, Auto, AutoBool, Array, ARRAY_TYPES,
     )
-    from functions import item_functions as fs
+    from functions.secondary import item_functions as fs
     from connectors.content_format.text_format import TextFormat, Compress, DEFAULT_ENDING, DEFAULT_ENCODING
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
@@ -18,7 +18,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         ItemType, StreamType, ContentType,
         AUTO, Auto, AutoBool, Array, ARRAY_TYPES,
     )
-    from ...functions import item_functions as fs
+    from ...functions.secondary import item_functions as fs
     from .text_format import TextFormat, Compress, DEFAULT_ENDING, DEFAULT_ENCODING
 
 DEFAULT_DELIMITER = '\t'

@@ -13,7 +13,7 @@ try:  # Assume we're a sub-module in a package.
     from utils.external import pd, DataFrame, get_use_objects_for_output
     from fields import field_classes as fc
     from base.abstract.contextual_data import ContextualDataWrapper
-    from functions import item_functions as fs
+    from functions.secondary import item_functions as fs
     from utils import selection as sf
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (

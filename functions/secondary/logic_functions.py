@@ -3,7 +3,7 @@ from typing import Callable
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..utils import arguments as arg
+    from ...utils import arguments as arg
 
 
 def maybe(*conditions) -> Callable:
