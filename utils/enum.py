@@ -233,8 +233,10 @@ class ClassType(DynamicEnum):
         if builder:
             return builder(*args, **kwargs)
 
-    def isinstance(self, obj) -> bool:
-        return isinstance(obj, self.get_class())
+    def isinstance(self, obj) -> Optional[bool]:
+        native_class = self.get_class(skip_missing=True)
+        if arg.is_defined(native_class, check_name=False):
+            return isinstance(obj, native_class)
 
     @classmethod
     def detect(cls, obj, default: Union[Optional[DynamicEnum], Name] = None) -> EnumItem:
