@@ -1,4 +1,4 @@
-from typing import Type, Optional, Callable, Iterable, Union
+from typing import Optional, Iterable, Union
 import os
 
 try:  # Assume we're a sub-module in a package.
@@ -54,8 +54,8 @@ class LocalFolder(HierarchicFolder):
         cls._default_storage = storage
 
     @staticmethod
-    def get_default_child_type() -> FileType:
-        return FileType.TextFile
+    def get_default_child_type() -> ConnType:
+        return ConnType.LocalFile
 
     def get_default_child_class(self) -> Class:
         child_class = self.get_default_child_type().get_class()
@@ -99,9 +99,12 @@ class LocalFolder(HierarchicFolder):
         file = self.get_children().get(name)
         if kwargs or not file:
             filename = kwargs.pop('filename', name)
-            file_class = self.get_child_class_by_name_and_type(name, filetype)
-            assert file_class, "filetype isn't detected"
-            file = file_class(filename, folder=self, **kwargs)
+            file_class = self.get_default_child_obj_class()
+            assert file_class, "connector class isn't detected"
+            try:
+                file = file_class(filename, folder=self, **kwargs)
+            except TypeError as e:
+                raise TypeError('{}.{}'.format(file_class.__name__, e))
             self.add_child(file)
         return file
 
