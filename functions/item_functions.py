@@ -1,5 +1,6 @@
-from typing import Optional, Iterable, Callable
+from typing import Optional, Callable, Iterable, Union
 import json
+import csv
 
 try:  # Assume we're a sub-module in a package.
     from utils import (
@@ -62,13 +63,13 @@ def items_to_dict(
         key_func: Optional[Callable] = None,
         value_func: Optional[Callable] = None,
         get_distinct: bool = False,
-):
+) -> Callable:
     def func(
             items: Iterable,
             key_function: Optional[Callable] = None,
             value_function: Optional[Callable] = None,
             of_lists: bool = False,
-    ):
+    ) -> dict:
         return it.items_to_dict(
             items,
             key_function=key_func or key_function,
@@ -78,7 +79,7 @@ def items_to_dict(
     return func
 
 
-def json_loads(default=None, skip_errors: bool = False):
+def json_loads(default=None, skip_errors: bool = False) -> Callable:
     def func(line: str):
         try:
             return json.loads(line)
@@ -88,3 +89,19 @@ def json_loads(default=None, skip_errors: bool = False):
             elif not skip_errors:
                 raise json.JSONDecodeError(err.msg, err.doc, err.pos)
     return func
+
+
+def csv_loads(delimiter: Union[str, arg.Auto, None] = arg.AUTO) -> Callable:
+    reader = csv_reader(delimiter=delimiter)
+
+    def func(line: str) -> Union[list, tuple]:
+        for row in reader([line]):
+            return row
+    return func
+
+
+def csv_reader(delimiter: Union[str, arg.Auto, None] = arg.AUTO) -> Callable:
+    if arg.is_defined(delimiter):
+        return lambda a: csv.reader(a, delimiter=delimiter)
+    else:
+        return csv.reader

@@ -1,21 +1,24 @@
-import csv
 from typing import Optional, Union, Iterable, Generator, Iterator, Callable
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
+    from utils.decorators import deprecated_with_alternative
     from interfaces import (
         Item, Record, Row, StructRow, StructInterface,
         ItemType, StreamType, ContentType,
         AUTO, Auto, AutoBool, Array, ARRAY_TYPES,
     )
+    from functions import item_functions as fs
     from connectors.content_format.text_format import TextFormat, Compress, DEFAULT_ENDING, DEFAULT_ENCODING
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
+    from ...utils.decorators import deprecated_with_alternative
     from ...interfaces import (
         Item, Record, Row, StructRow, StructInterface,
         ItemType, StreamType, ContentType,
         AUTO, Auto, AutoBool, Array, ARRAY_TYPES,
     )
+    from ...functions import item_functions as fs
     from .text_format import TextFormat, Compress, DEFAULT_ENDING, DEFAULT_ENCODING
 
 DEFAULT_DELIMITER = '\t'
@@ -96,15 +99,13 @@ class ColumnarFormat(TextFormat):
         row = map(str, row)
         return self.get_delimiter().join(row)
 
+    @deprecated_with_alternative('fs.csv_reader()')
     def _get_rows_from_csv(self, lines: Iterable) -> Iterator:
-        if self.get_delimiter():
-            return csv.reader(lines, delimiter=self.get_delimiter())
-        else:
-            return csv.reader(lines)
+        return fs.csv_reader(delimiter=self.get_delimiter())(lines)
 
+    @deprecated_with_alternative('fs.csv_loads()')
     def _parse_csv_line(self, line: str) -> Row:
-        for row in self._get_rows_from_csv(lines=[line]):
-            return row
+        return fs.csv_loads(delimiter=self.get_delimiter())(line)
 
     @staticmethod
     def _get_row_converter(converters: Row) -> Callable:
@@ -119,7 +120,8 @@ class ColumnarFormat(TextFormat):
         item_type = arg.delayed_acquire(item_type, self.get_default_item_type)
         if item_type == ItemType.Line:
             return line
-        row = self._parse_csv_line(line)
+        line_parser = fs.csv_loads(delimiter=self.get_delimiter())
+        row = line_parser(line)
         if isinstance(struct, StructInterface):
             field_converters = struct.get_converters()
             row_converter = self._get_row_converter(converters=field_converters)
@@ -145,7 +147,8 @@ class ColumnarFormat(TextFormat):
     ) -> Generator:
         item_type = arg.delayed_acquire(item_type, self.get_default_item_type)
         if item_type in (ItemType.Record, ItemType.Row, ItemType.StructRow, ItemType.Any, ItemType.Auto):
-            rows = self._get_rows_from_csv(lines)
+            iter_parser = fs.csv_reader(delimiter=self.get_delimiter())
+            rows = iter_parser(lines)
             if isinstance(struct, StructInterface):
                 column_names = struct.get_columns()
                 field_converters = struct.get_converters()
