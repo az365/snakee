@@ -5,7 +5,7 @@ try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from interfaces import (
         StructInterface, Connector, LeafConnector, RegularStream, LineStream, RowStream, RecordStream, StructStream,
-        FieldType, ItemType, StreamType, FileType, DialectType,
+        FieldType, ItemType, StreamType, FileType, ConnType, DialectType,
         Field, Name, Item, Array, Columns,
         AUTO, Auto, AutoName, AutoCount, AutoBool, OptionalFields
     )
@@ -19,7 +19,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils import arguments as arg
     from ...interfaces import (
         StructInterface, Connector, LeafConnector, RegularStream, LineStream, RowStream, RecordStream, StructStream,
-        FieldType, ItemType, StreamType, FileType, DialectType,
+        FieldType, ItemType, StreamType, FileType, ConnType, DialectType,
         Field, Name, Item, Array, Columns,
         AUTO, Auto, AutoName, AutoCount, AutoBool, OptionalFields
     )
@@ -165,16 +165,6 @@ class ColumnFile(LocalFile, ColumnarMixin):
         )
         self.write_rows(rows, verbose=verbose)
 
-    def get_one_column_values(self, column: Field) -> Iterable:
-        if isinstance(column, int):
-            item_type = ItemType.Row
-        elif isinstance(column, str):
-            item_type = ItemType.Record
-        else:
-            raise ValueError('Expected column as int or str, got {}'.format(column))
-        for item in self.get_items_of_type(item_type=item_type):
-            yield item_type.get_value_from_item(item=item, field=column, skip_unsupported_types=True)
-
 
 class CsvFile(LocalFile, ColumnarMixin):
     # @deprecated_with_alternative('ConnType.get_class()')
@@ -258,4 +248,11 @@ FileType.set_dict_classes(
         FileType.CsvFile: CsvFile,
         FileType.TsvFile: TsvFile,
     }
+)
+ConnType.add_classes(
+    TextFile,
+    JsonFile,
+    ColumnFile,
+    CsvFile,
+    TsvFile,
 )

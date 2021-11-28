@@ -173,24 +173,33 @@ class StreamInterface(SourcedInterface, ABC):
         pass
 
     @abstractmethod
-    def stream(self, data: Data, **kwargs) -> Stream:
+    def stream(self, data: Data, ex: OptionalFields = None, **kwargs) -> Stream:
         """Returns modified stream with new data object (and probably changed meta information)
+        Meta-information of initial stream will be saved by default (excluding fields from ex-argument).
 
         :param data: new data object to set inside new stream
+        :type data: Iterable
+
+        :param ex: list of excluding fields
+        :type ex: list or str or None
+
         :param kwargs: changed meta information
 
-        :returns: new stream
+        :returns: new Native Stream (stream of same class)
         """
-        pass
-
-    @abstractmethod
-    def to_stream(self) -> Stream:
-        """Converts any stream-compatible object (i.e. LeafConnector) to proper stream object (of *Stream class)."""
         pass
 
     @abstractmethod
     def forget(self) -> NoReturn:
         """Closes related connection and lets SnakeeContext forget the link to this stream."""
+        pass
+
+    @abstractmethod
+    def get_context(self):
+        """Returns common SnakeeContext object.
+
+        :returns: SnakeeContext singleton instance
+        """
         pass
 
     @abstractmethod

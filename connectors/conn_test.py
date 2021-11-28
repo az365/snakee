@@ -1,15 +1,15 @@
 try:  # Assume we're a sub-module in a package.
     from context import SnakeeContext
-    from items.flat_struct import FlatStruct
+    from items.flat_struct import FlatStruct, DialectType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..context import SnakeeContext
-    from ..items.flat_struct import FlatStruct
+    from ..items.flat_struct import FlatStruct, DialectType
 
 
 def test_detect_struct_by_title_row():
     title_row = ('page_id', 'hits_count', 'conversion_rate')
     expected = 'page_id int, hits_count int, conversion_rate numeric'
-    received = FlatStruct.get_struct_detected_by_title_row(title_row).get_struct_str('pg')
+    received = FlatStruct.get_struct_detected_by_title_row(title_row).get_struct_str(DialectType.Postgres)
     assert received == expected, '{} != {}'.format(received, expected)
 
 
@@ -59,7 +59,9 @@ def test_job():
     assert job.get_outputs()['dst'].get_name() == 'test_dst_tmp.tsv'
     assert job.get_operation(op_name).has_inputs()
     job.run()
-    assert list(src.get_data()) == list(dst.get_data())
+    expected = list(src.get_items())
+    received = list(dst.get_items())
+    assert received == expected, 'expected {}, got {}'.format(expected, received)
     assert job.get_operation(op_name).is_done()
     dst.remove()
     assert not job.is_done()

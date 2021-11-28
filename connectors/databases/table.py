@@ -4,27 +4,27 @@ try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from interfaces import (
         ConnectorInterface, StructInterface, ColumnarInterface, RegularStream, ExtendedLoggerInterface,
-        ContentFormatInterface, ContentType, ItemType, StreamType, LoggingLevel,
+        ContentFormatInterface, ContentType, ConnType, ItemType, StreamType, LoggingLevel,
         ARRAY_TYPES, AUTO, Auto, AutoBool, AutoName, AutoCount, Count, Name, OptionalFields,
     )
     from items.flat_struct import FlatStruct
-    from connectors import connector_classes as ct
+    from connectors.abstract.leaf_connector import LeafConnector
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...interfaces import (
         ConnectorInterface, StructInterface, ColumnarInterface, RegularStream, ExtendedLoggerInterface,
-        ContentFormatInterface, ContentType, ItemType, StreamType, LoggingLevel,
+        ContentFormatInterface, ContentType, ConnType, ItemType, StreamType, LoggingLevel,
         ARRAY_TYPES, AUTO, Auto, AutoBool, AutoName, AutoCount, Count, Name, OptionalFields,
     )
     from ...items.flat_struct import FlatStruct
-    from .. import connector_classes as ct
+    from ..abstract.leaf_connector import LeafConnector
 
-Native = ct.LeafConnector
+Native = LeafConnector
 Stream = Union[RegularStream, ColumnarInterface]
 GeneralizedStruct = Union[StructInterface, list, tuple, Auto, None]
 
 
-class Table(ct.LeafConnector):
+class Table(LeafConnector):
     def __init__(
             self,
             name: Name,
@@ -33,7 +33,6 @@ class Table(ct.LeafConnector):
             reconnect: bool = True,
             verbose: AutoBool = AUTO,
     ):
-        assert isinstance(database, ct.AbstractDatabase), '*Database expected, got {}'.format(database)
         super().__init__(
             name=name,
             struct=struct,
@@ -59,8 +58,7 @@ class Table(ct.LeafConnector):
 
     def get_database(self) -> ConnectorInterface:
         database = self.get_parent()
-        assert isinstance(database, ct.AbstractDatabase)
-        return database
+        return self._assume_connector(database)
 
     def get_count(self, verbose: AutoBool = AUTO) -> Count:
         database = self.get_database()
@@ -95,7 +93,6 @@ class Table(ct.LeafConnector):
 
     def get_first_line(self, close: bool = True, verbose: bool = True) -> Optional[str]:
         database = self.get_database()
-        assert isinstance(database, ct.AbstractDatabase)
         iter_lines = database.select(self.get_name(), '*', count=1, verbose=verbose)
         lines = list(iter_lines)
         if close:
@@ -105,7 +102,6 @@ class Table(ct.LeafConnector):
 
     def get_rows(self, verbose: AutoBool = AUTO) -> Iterable:
         database = self.get_database()
-        assert isinstance(database, ct.AbstractDatabase)
         return database.select_all(self.get_name(), verbose=verbose)
 
     def get_data(self, verbose: AutoBool = AUTO) -> Iterable:
@@ -148,17 +144,14 @@ class Table(ct.LeafConnector):
 
     def is_existing(self) -> bool:
         database = self.get_database()
-        assert isinstance(database, ct.AbstractDatabase)
         return database.exists_table(self.get_path())
 
     def describe(self) -> Iterable:
         database = self.get_database()
-        assert isinstance(database, ct.AbstractDatabase)
         return database.describe_table(self.get_path())
 
     def create(self, drop_if_exists: bool, verbose: AutoBool = arg.AUTO):
         database = self.get_database()
-        assert isinstance(database, ct.AbstractDatabase)
         return database.create_table(
             self.get_name(),
             struct=self.get_struct(),
@@ -173,7 +166,6 @@ class Table(ct.LeafConnector):
             verbose: AutoBool = arg.AUTO,
     ):
         database = self.get_database()
-        assert isinstance(database, ct.AbstractDatabase)
         return database.safe_upload_table(
             self.get_name(),
             data=data,
@@ -184,3 +176,6 @@ class Table(ct.LeafConnector):
             max_error_rate=max_error_rate,
             verbose=verbose,
         )
+
+
+ConnType.add_classes(Table)

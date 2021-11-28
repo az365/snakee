@@ -76,9 +76,10 @@ class StreamableMixin(IterableStreamMixin, ABC):
             item_type: Union[ItemType, Auto],
             verbose: AutoBool = AUTO,
             step: AutoCount = AUTO,
+            message: AutoName = AUTO,
     ) -> Iterable:
         if hasattr(self, 'get_items_of_type'):
-            return self.get_items_of_type(item_type, verbose=verbose, step=step)
+            return self.get_items_of_type(item_type, verbose=verbose, step=step, message=message)
         else:
             raise AttributeError('for get items object must be Connector and have get_items_of_type() method')
 
@@ -88,12 +89,13 @@ class StreamableMixin(IterableStreamMixin, ABC):
             name: AutoName = AUTO,
             verbose: AutoBool = AUTO,
             step: AutoCount = AUTO,
+            message: AutoName = AUTO,
             **kwargs
     ) -> dict:
         name = arg.delayed_acquire(name, self._get_generated_stream_name)
         if not arg.is_defined(data):
             item_type = self._get_item_type()
-            data = self._get_items_of_type(item_type, verbose=verbose, step=step)
+            data = self._get_items_of_type(item_type, verbose=verbose, step=step, message=message)
         result = dict(
             data=data, name=name, source=self,
             count=self._get_fast_count(), context=self.get_context(),
@@ -124,7 +126,11 @@ class StreamableMixin(IterableStreamMixin, ABC):
         if hasattr(stream_class, 'get_item_type'):
             item_type = stream_class.get_item_type()
         else:
-            item_type = AUTO
+            stream_obj = stream_class([])
+            if hasattr(stream_obj, 'get_item_type'):
+                item_type = stream_obj.get_item_type()
+            else:
+                item_type = AUTO
         if not arg.is_defined(data):
             data = self._get_items_of_type(item_type, verbose=kwargs.get('verbose', AUTO), step=step)
         meta = self.get_compatible_meta(stream_class, name=name, ex=ex, **kwargs)
@@ -144,6 +150,8 @@ class StreamableMixin(IterableStreamMixin, ABC):
     ) -> Stream:
         stream_type = arg.delayed_acquire(stream_type, self._get_stream_type)
         item_type = self._get_item_type(stream_type)
+        if item_type == ItemType.StructRow and hasattr(self, 'get_struct') and 'struct' not in kwargs:
+            kwargs['struct'] = self.get_struct()
         data = kwargs.pop('data', None)
         if not arg.is_defined(data):
             data = self._get_items_of_type(item_type, step=step, verbose=verbose)

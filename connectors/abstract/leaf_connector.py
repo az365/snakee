@@ -27,6 +27,7 @@ Parent = Union[Context, ConnectorInterface]
 Links = Optional[dict]
 
 META_MEMBER_MAPPING = dict(_data='streams', _source='parent', _declared_format='content_format')
+TEMPORARY_PARTITION_FORMAT = ContentType.JsonFile
 
 
 class LeafConnector(AbstractConnector, ConnectorFormatMixin, StreamableMixin, LeafConnectorInterface, ABC):
@@ -35,20 +36,25 @@ class LeafConnector(AbstractConnector, ConnectorFormatMixin, StreamableMixin, Le
             name: Name,
             content_format: Union[ContentFormatInterface, Auto] = AUTO,
             struct: Union[StructInterface, Auto, None] = AUTO,
+            first_line_is_title: AutoBool = AUTO,
             parent: Parent = None,
             context: AutoContext = AUTO,
             streams: Links = None,
             expected_count: AutoCount = AUTO,
+            caption: Optional[str] = None,
             verbose: AutoBool = AUTO,
+            **kwargs
     ):
         self._declared_format = None
         self._detected_format = None
         self._modification_ts = None
         self._count = expected_count
+        self._caption = caption
         super().__init__(name=name, parent=parent, context=context, children=streams, verbose=verbose)
-        content_format = arg.delayed_acquire(content_format, self._get_detected_format_by_name, name)
+        content_format = arg.delayed_acquire(content_format, self._get_detected_format_by_name, name, **kwargs)
         assert isinstance(content_format, ContentFormatInterface)
         self.set_content_format(content_format, inplace=True)
+        self.set_first_line_title(first_line_is_title)
         if struct is not None:
             if struct == AUTO:
                 struct = self._get_detected_struct()
@@ -62,8 +68,13 @@ class LeafConnector(AbstractConnector, ConnectorFormatMixin, StreamableMixin, Le
         return meta_member_mapping
 
     @staticmethod
-    def _get_detected_format_by_name(name: str) -> ContentFormatInterface:
-        return ContentType.detect_by_name(name)
+    def _get_detected_format_by_name(name: Union[str, int], **kwargs) -> ContentFormatInterface:
+        is_temporary_partition = isinstance(name, int)
+        if is_temporary_partition:
+            content_class = TEMPORARY_PARTITION_FORMAT.get_class()
+        else:
+            content_class = ContentType.detect_by_name(name).get_class()
+        return content_class(**kwargs)
 
     def _get_detected_struct(self, set_struct: bool = False, verbose: AutoBool = AUTO) -> StructInterface:
         content_format = self.get_content_format()
@@ -73,12 +84,18 @@ class LeafConnector(AbstractConnector, ConnectorFormatMixin, StreamableMixin, Le
                 return struct
 
     def get_content_format(self) -> ContentFormatInterface:
-        return self.get_detected_format()
+        detected_format = self.get_detected_format(detect=False)
+        if arg.is_defined(detected_format):
+            return detected_format
+        else:
+            return self.get_declared_format()
 
     def set_content_format(self, content_format: ContentFormatInterface, inplace: bool) -> Optional[Native]:
-        return self.set_detected_format(content_format=content_format, inplace=inplace)
+        return self.set_declared_format(content_format, inplace=inplace)
 
-    def get_detected_format(self) -> ContentFormatInterface:
+    def get_detected_format(self, detect: bool = True, force: bool = False) -> ContentFormatInterface:
+        if force or (detect and not arg.is_defined(self._detected_format)):
+            self.reset_detected_format()
         return self._detected_format
 
     def set_detected_format(self, content_format: ContentFormatInterface, inplace: bool) -> Optional[Native]:
@@ -88,6 +105,13 @@ class LeafConnector(AbstractConnector, ConnectorFormatMixin, StreamableMixin, Le
                 self.set_declared_format(content_format, inplace=True)
         else:
             return self.make_new(content_format=content_format)
+
+    def reset_detected_format(self) -> Native:
+        content_format = self.get_declared_format().copy()
+        detected_struct = self.get_detected_struct_by_title_row()
+        detected_format = content_format.set_struct(detected_struct, inplace=False)
+        self.set_detected_format(detected_format, inplace=True)
+        return self
 
     def get_declared_format(self) -> ContentFormatInterface:
         return self._declared_format
@@ -101,8 +125,24 @@ class LeafConnector(AbstractConnector, ConnectorFormatMixin, StreamableMixin, Le
             new.set_declared_format(initial_format, inplace=True)
             return new
 
+    def set_first_line_title(self, first_line_is_title: AutoBool) -> Native:
+        declared_format = self.get_declared_format()
+        detected_format = self.get_detected_format(detect=False)
+        if hasattr(declared_format, 'set_first_line_title'):
+            declared_format.set_first_line_title(first_line_is_title)
+        if hasattr(detected_format, 'set_first_line_title'):
+            detected_format.set_first_line_title(first_line_is_title)
+        return self
+
     def get_links(self) -> dict:
         return self.get_children()
+
+    def get_caption(self) -> Optional[str]:
+        return self._caption
+
+    def set_caption(self, caption: str) -> Native:
+        self._caption = caption
+        return self
 
     def is_in_memory(self) -> bool:
         return False
@@ -125,9 +165,10 @@ class LeafConnector(AbstractConnector, ConnectorFormatMixin, StreamableMixin, Le
     def has_hierarchy():
         return False
 
-    def check(self, must_exists=True):
+    def check(self, must_exists: bool = True) -> Native:
         if must_exists:
             assert self.is_existing(), 'object {} must exists'.format(self.get_name())
+        return self
 
     def write_stream(self, stream: Stream, verbose: bool = True):
         return self.from_stream(stream, verbose=verbose)

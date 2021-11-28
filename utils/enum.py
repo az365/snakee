@@ -1,6 +1,6 @@
 from inspect import isclass
 from functools import total_ordering
-from typing import Type, Optional, Iterable, Callable, Union, NoReturn
+from typing import Optional, Callable, Iterable, Union, Type
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
@@ -9,7 +9,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 
 Name = str
 Value = Union[str, int, arg.Auto]
-Class = Callable
+Class = Union[Type, Callable]
 
 AUX_NAMES = ('name', 'value', 'is_prepared')
 
@@ -104,7 +104,7 @@ class DynamicEnum(EnumItem):
         return items
 
     @classmethod
-    def add_enum_item(cls, item: EnumItem) -> NoReturn:
+    def add_enum_item(cls, item: EnumItem) -> None:
         cls.get_enum_items(check=False).append(item)
 
     @classmethod
@@ -150,7 +150,7 @@ class DynamicEnum(EnumItem):
         return cls._enum_prepared.get(cls.get_enum_name(), False)
 
     @classmethod
-    def set_prepared(cls, value: bool = True) -> NoReturn:
+    def set_prepared(cls, value: bool = True) -> None:
         cls._enum_prepared[cls.get_enum_name()] = value
 
     @classmethod
@@ -188,20 +188,28 @@ class ClassType(DynamicEnum):
         return cls._dict_classes
 
     @classmethod
-    def set_dict_classes(cls, dict_classes: dict, skip_missing: bool = False, check: bool = True) -> NoReturn:
+    def set_dict_classes(cls, dict_classes: dict, skip_missing: bool = False, check: bool = True) -> None:
         if not cls.is_prepared():
             cls.prepare()
         cls._dict_classes = dict()
         cls.add_dict_classes(dict_classes, skip_missing=skip_missing, check=check)
 
     @classmethod
-    def add_dict_classes(cls, dict_classes: dict, skip_missing: bool = False, check: bool = True) -> NoReturn:
+    def add_dict_classes(cls, dict_classes: dict, skip_missing: bool = False, check: bool = True) -> None:
         for name, class_obj in dict_classes.items():
             if check:
                 assert isclass(class_obj), 'class expected, got {} as {}'.format(class_obj, type(class_obj))
             item = cls.convert(name, skip_missing=skip_missing, default=None)
             if item:
                 cls._dict_classes[item] = class_obj
+
+    @classmethod
+    def add_classes(cls, *args, **kwargs) -> None:
+        dict_classes = cls.get_dict_classes()
+        for c in args:
+            dict_classes[c.__name__] = c
+        for n, c in kwargs.items():
+            dict_classes[n] = c
 
     def get_class(self, default: Union[Optional[Class], Name] = None, skip_missing: bool = False) -> Class:
         dict_classes = self.get_dict_classes()
@@ -225,8 +233,10 @@ class ClassType(DynamicEnum):
         if builder:
             return builder(*args, **kwargs)
 
-    def isinstance(self, obj) -> bool:
-        return isinstance(obj, self.get_class())
+    def isinstance(self, obj) -> Optional[bool]:
+        native_class = self.get_class(skip_missing=True)
+        if arg.is_defined(native_class, check_name=False):
+            return isinstance(obj, native_class)
 
     @classmethod
     def detect(cls, obj, default: Union[Optional[DynamicEnum], Name] = None) -> EnumItem:
@@ -242,11 +252,11 @@ class ClassType(DynamicEnum):
 
 class SubclassesType(ClassType):
     @classmethod
-    def set_dict_subclasses(cls, dict_subclasses: dict, skip_missing: bool = False) -> NoReturn:
+    def set_dict_subclasses(cls, dict_subclasses: dict, skip_missing: bool = False) -> None:
         super().set_dict_classes(dict_classes=dict_subclasses, skip_missing=skip_missing, check=False)
 
     @classmethod
-    def set_dict_classes(cls, dict_classes: dict, skip_missing: bool = False, check: bool = True) -> NoReturn:
+    def set_dict_classes(cls, dict_classes: dict, skip_missing: bool = False, check: bool = True) -> None:
         dict_subclasses = dict()
         for k, v in dict_classes.items():
             if not isinstance(v, (list, tuple)):

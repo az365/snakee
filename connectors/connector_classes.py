@@ -125,6 +125,19 @@ _local_storage: Optional[LocalStorage] = None
 PostgresDatabase.cx = _context
 ConnType.set_dict_classes(DICT_CONN_CLASSES, skip_missing=True)
 
+AbstractStorage.set_parent_obj_classes([ContextInterface])
+AbstractDatabase.set_child_obj_classes([Table])
+Table.set_parent_obj_classes([AbstractDatabase, PostgresDatabase, ClickhouseDatabase])
+LocalStorage.set_child_obj_classes([LocalFolder, LocalMask, LocalFile, PartitionedLocalFile])
+LocalFolder.set_parent_obj_classes([LocalStorage, LocalFolder])
+LocalFolder.set_child_obj_classes([LocalFile, PartitionedLocalFile, LocalMask, LocalFolder, LocalStorage])
+S3Storage.set_child_obj_classes([S3Bucket])
+S3Bucket.set_parent_obj_classes([S3Storage])
+S3Bucket.set_child_obj_classes([S3Folder, S3Object])
+S3Folder.set_parent_obj_classes([S3Bucket, S3Folder])
+S3Folder.set_child_obj_classes([S3Folder, S3Object])
+S3Object.set_parent_obj_classes([S3Folder, S3Bucket])
+
 
 @deprecated_with_alternative('ConnType.get_class()')
 def get_class(conn_type: Union[ConnType, Type, str]) -> Type:
@@ -146,6 +159,7 @@ def set_context(cx: ContextInterface):
     global _context
     _context = cx
     AbstractStorage.set_default_context(cx)
+    AbstractStorage.set_parent_obj_classes([cx.__class__])
     default_folder = cx.get_job_folder()
     assert isinstance(default_folder, LocalFolder)
     LocalFile.set_default_folder(default_folder)

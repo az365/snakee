@@ -1,11 +1,11 @@
-from typing import Optional, Iterable, Callable, Union, Any
+from typing import Optional, Iterable, Callable, Union
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from interfaces import (
         FieldInterface, StructInterface,
-        FieldType, DialectType,
-        ROW_SUBCLASSES, Row, Name, Field, FieldNo, Auto, AUTO,
+        FieldType, DialectType, ItemType,
+        ROW_SUBCLASSES, Row, Name, Field, FieldNo, Value, Auto, AUTO,
     )
     from base.abstract.simple_data import SimpleDataWrapper
     from items.struct_row_interface import StructRowInterface, DEFAULT_DELIMITER
@@ -15,8 +15,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..utils import arguments as arg
     from ..interfaces import (
         FieldInterface, StructInterface,
-        FieldType, DialectType,
-        ROW_SUBCLASSES, Row, Name, Field, FieldNo, Auto, AUTO,
+        FieldType, DialectType, ItemType,
+        ROW_SUBCLASSES, Row, Name, Field, FieldNo, Value, Auto, AUTO,
     )
     from ..base.abstract.simple_data import SimpleDataWrapper
     from .struct_row_interface import StructRowInterface, DEFAULT_DELIMITER
@@ -83,7 +83,7 @@ class StructRow(SimpleDataWrapper, StructMixin, StructRowInterface):
     def set_value(
             self,
             field: Field,
-            value: Any,
+            value: Value,
             field_type: Union[FieldType, Auto] = AUTO,
             update_struct: bool = False,
             inplace: bool = True,
@@ -96,6 +96,7 @@ class StructRow(SimpleDataWrapper, StructMixin, StructRowInterface):
             if update_struct:
                 self.get_struct().append_field(field, field_type, inplace=True)
                 self.get_data().append(value)
+                field_position = self.get_field_position(field)
             else:
                 msg = 'field {} not found in {} and struct is locked (update_struct={})'
                 raise ValueError(msg.format(field, self.get_struct(), update_struct))
@@ -103,7 +104,7 @@ class StructRow(SimpleDataWrapper, StructMixin, StructRowInterface):
         if not inplace:
             return self
 
-    def get(self, field: Field, default=None) -> Any:
+    def get(self, field: Field, default=None) -> Value:
         return self.get_value(field, skip_missing=True, default=default)
 
     def get_slice(self, start: FieldNo, stop: Optional[FieldNo] = None, step: Optional[FieldNo] = None) -> Row:
@@ -137,6 +138,9 @@ class StructRow(SimpleDataWrapper, StructMixin, StructRowInterface):
         data = self.get_data().copy()
         struct = self.get_struct().copy()
         return StructRow(data, struct=struct, check=False)
+
+    def is_defined(self) -> bool:
+        return bool(self.get_data()) and bool(self.get_struct())
 
     @staticmethod
     def _structure_row(row: Row, struct: StructInterface) -> Row:
@@ -176,6 +180,9 @@ class StructRow(SimpleDataWrapper, StructMixin, StructRowInterface):
             struct=self.get_struct() + other.get_struct(),
         )
 
+    def __repr__(self):
+        return str(self)
+
     def __str__(self):
         field_names = self.get_columns()
         field_values = self.get_values(field_names)
@@ -184,3 +191,4 @@ class StructRow(SimpleDataWrapper, StructMixin, StructRowInterface):
 
 
 SchemaRow = StructRow
+ItemType.add_classes(StructRow)

@@ -1,4 +1,4 @@
-from typing import Optional, Callable, Iterable, Union, NoReturn
+from typing import Optional, Callable, Iterable, Union
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg, selection as sf, items as it
@@ -82,6 +82,21 @@ def compose_descriptions(
     yield from finish_descriptions
 
 
+def translate_names_to_columns(expression, struct: StructInterface) -> tuple:
+    if isinstance(expression, str):
+        return struct.get_field_position(expression),
+    elif isinstance(expression, Iterable):
+        processed_expression = list()
+        for e in expression:
+            if isinstance(e, Callable):
+                processed_expression.append(e)
+            else:
+                processed_expression.append(struct.get_field_position(e))
+        return tuple(processed_expression)
+    else:
+        return expression
+
+
 class SelectionDescription:
     def __init__(
             self,
@@ -103,7 +118,7 @@ class SelectionDescription:
 
     @classmethod
     def with_expressions(
-            cls, fields: list, expressions: dict,
+            cls, fields: Array, expressions: dict,
             target_item_type: ItemType = ItemType.Auto, input_item_type: ItemType = ItemType.Auto,
             input_struct=None, skip_errors=True,
             logger=None, selection_logger=AUTO,
@@ -114,6 +129,8 @@ class SelectionDescription:
             skip_errors=skip_errors,
             logger=logger, selection_logger=selection_logger,
         )
+        if input_item_type == ItemType.StructRow and input_struct:
+            descriptions = [translate_names_to_columns(i, struct=input_struct) for i in descriptions]
         return cls(
             descriptions=list(descriptions),
             target_item_type=target_item_type, input_item_type=input_item_type,
@@ -131,11 +148,11 @@ class SelectionDescription:
             self,
             logger: Union[Logger, Auto] = AUTO,
             selection_logger: Union[Logger, Auto] = AUTO,
-    ) -> NoReturn:
+    ) -> None:
         self._logger = arg.acquire(logger, getattr(logger, 'get_logger', None))
         self._selection_logger = arg.acquire(selection_logger, getattr(logger, 'get_selection_logger', None))
 
-    def set_selection_logger(self, logger: Logger) -> NoReturn:
+    def set_selection_logger(self, logger: Logger) -> None:
         self._selection_logger = logger
 
     def get_selection_logger(self) -> Logger:
@@ -151,17 +168,19 @@ class SelectionDescription:
         return self._input_struct
 
     def get_output_struct(self) -> Struct:
-        assert self.get_input_struct()
-        return FlatStruct(
-            self.get_output_field_descriptions(
-                self.get_input_struct(),
-            ),
-        )
+        input_struct = self.get_input_struct()
+        if input_struct:
+            struct_class = input_struct.__class__
+        else:
+            raise ValueError('SelectionDescription.get_output_struct(): input struct not set ({})'.format(input_struct))
+        output_fields = self.get_output_field_descriptions(input_struct)
+        output_struct = struct_class(output_fields)
+        return output_struct
 
     def has_trivial_multiple_selectors(self) -> Union[bool, Auto]:
         return self._has_trivial_multiple_selectors
 
-    def mark_trivial_multiple_selectors(self, value: bool = True) -> NoReturn:
+    def mark_trivial_multiple_selectors(self, value: bool = True) -> None:
         self._has_trivial_multiple_selectors = value
 
     def check_has_trivial_multiple_selectors(self) -> bool:
@@ -180,7 +199,7 @@ class SelectionDescription:
     def get_known_output_field_names(self) -> list:
         return self._output_field_names
 
-    def add_output_field_names(self, item_or_struct: Union[Item, Struct]) -> NoReturn:
+    def add_output_field_names(self, item_or_struct: Union[Item, Struct]) -> None:
         for d in self.get_descriptions():
             for f in d.get_output_field_names(item_or_struct):
                 if f not in self._output_field_names:
@@ -195,9 +214,9 @@ class SelectionDescription:
             return self
 
     def get_output_field_names(self, item: Optional[Item] = None) -> list:
-        if arg.is_defined(item):
+        if arg.is_defined(item, check_name=False):
             if self.check_changing_output_fields() or self.get_known_output_field_names() == AUTO:
-                self.reset_output_field_names(item)
+                self.reset_output_field_names(item, inplace=True)
         return self.get_known_output_field_names()
 
     def get_dict_output_field_types(self, struct: Union[Struct, Auto] = AUTO) -> dict:
@@ -220,7 +239,7 @@ class SelectionDescription:
             item_type=self.get_target_item_type(),
         )
 
-    def apply_inplace(self, item: Item) -> NoReturn:
+    def apply_inplace(self, item: Item) -> None:
         for d in self.get_descriptions():
             d.apply_inplace(item)
 
@@ -255,3 +274,9 @@ class SelectionDescription:
         if arg.is_defined(logger):
             self.set_selection_logger(logger)
         return self.process_item
+
+    def __repr__(self):
+        return str(self)
+
+    def __str__(self):
+        return '{}({})'.format(self.__class__.__name__, self.get_descriptions())

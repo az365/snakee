@@ -166,19 +166,11 @@ class IterableStreamInterface(StreamInterface, ABC):
         pass
 
     @abstractmethod
-    def stream(self, data: Iterable, ex: OptionalFields = None, **kwargs) -> Native:
-        """Build new stream with data provided.
-        Meta-information of initial stream will by saved by default (excluding fields from ex-argument).
-
-        :param data: link to iterable data for new stream
-        :type data: Iterable
-
-        :param ex: one field name or list of fields to exclude from transmitted meta-information
-        :type ex: list or str or None
+    def copy(self) -> Native:
+        """Return full copy of stream (including copy of iterator from tee_stream() method).
 
         :return: Native Stream (stream of same class)
         """
-        pass
 
     @abstractmethod
     def add(self, stream_or_items: Union[Native, Iterable], before=False, **kwargs) -> Native:
@@ -215,14 +207,6 @@ class IterableStreamInterface(StreamInterface, ABC):
         pass
 
     @abstractmethod
-    def apply_to_data(
-            self, function: Callable,
-            to: StreamType = arg.AUTO,
-            save_count: bool = False, lazy: bool = True,
-    ) -> Stream:
-        pass
-
-    @abstractmethod
     def progress(
             self,
             expected_count: Count = arg.AUTO, step: Count = arg.AUTO,
@@ -249,14 +233,6 @@ class IterableStreamInterface(StreamInterface, ABC):
             key: Optional[str] = None,
             show: bool = False,
     ) -> Stream:
-        pass
-
-    @abstractmethod
-    def set_meta(self, **meta) -> Native:
-        pass
-
-    @abstractmethod
-    def update_meta(self, **meta) -> Native:
         pass
 
     @abstractmethod

@@ -1,28 +1,30 @@
-from typing import Callable, Union, Any, NoReturn
+from typing import Optional, Callable, Union, Any
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from utils.enum import SubclassesType
     from utils.decorators import deprecated_with_alternative
     from fields.field_interface import FieldInterface
+    from items.struct_interface import StructInterface
     from items.struct_row_interface import StructRowInterface
     from items.simple_items import (
         STAR, ROW_SUBCLASSES, RECORD_SUBCLASSES,
         Row, Record, Line, SimpleItem, SimpleSelectableItem,
         FieldNo, FieldName, FieldID, Value, Array,
-        get_field_value_from_row, get_field_value_from_record,
+        get_field_value_from_record, get_field_value_from_row, get_field_value_from_struct_row,
     )
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
     from ..utils.enum import SubclassesType
     from ..utils.decorators import deprecated_with_alternative
     from ..fields.field_interface import FieldInterface
+    from .struct_interface import StructInterface
     from .struct_row_interface import StructRowInterface
     from .simple_items import (
         STAR, ROW_SUBCLASSES, RECORD_SUBCLASSES,
         Row, Record, Line, SimpleItem, SimpleSelectableItem,
         FieldNo, FieldName, FieldID, Value, Array,
-        get_field_value_from_row, get_field_value_from_record,
+        get_field_value_from_record, get_field_value_from_row, get_field_value_from_struct_row,
     )
 
 RegularItem = Union[SimpleItem, StructRowInterface]
@@ -68,8 +70,13 @@ class ItemType(SubclassesType):
     def get_value_from_item(
             self,
             item: RegularItem, field: Field,
+            struct: Optional[StructInterface] = None,
             default: Value = None, skip_unsupported_types: bool = False,
     ) -> Value:
+        if arg.is_defined(struct):
+            if self in (ItemType.Row, ItemType.StructRow):
+                if isinstance(field, str):
+                    field = struct.get_field_position(field)
         if self == ItemType.Auto:
             item_type = self.detect(item, default=ItemType.Any)
             assert isinstance(item_type, ItemType)
@@ -79,13 +86,13 @@ class ItemType(SubclassesType):
         elif self == ItemType.Record:
             return get_field_value_from_record(field=field, record=item, default=default, skip_missing=True)
         elif self == ItemType.StructRow:
-            return item.get_value(field, default=default, skip_missing=True)
+            return get_field_value_from_struct_row(field=field, row=item, default=default, skip_missing=False)
         elif skip_unsupported_types:
             return default
         else:
             raise TypeError('type {} not supported'.format(self.get_name()))
 
-    def set_to_item_inplace(self, field: Field, value: Any, item: Item) -> NoReturn:
+    def set_to_item_inplace(self, field: Field, value: Any, item: Item) -> None:
         if self == ItemType.Record:
             item[field] = value
         elif self == ItemType.Row:

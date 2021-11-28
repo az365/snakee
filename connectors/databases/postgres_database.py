@@ -4,12 +4,12 @@ import gc
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from utils.external import psycopg2
-    from interfaces import DialectType, LoggingLevel, Count, Array, ARRAY_TYPES
+    from interfaces import ConnType, DialectType, LoggingLevel, Count, Array, ARRAY_TYPES
     from connectors.databases.abstract_database import AbstractDatabase, TEST_QUERY, DEFAULT_STEP, DEFAULT_GROUP
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...utils.external import psycopg2
-    from ...interfaces import DialectType, LoggingLevel, Count, Array, ARRAY_TYPES
+    from ...interfaces import ConnType, DialectType, LoggingLevel, Count, Array, ARRAY_TYPES
     from ..databases.abstract_database import AbstractDatabase, TEST_QUERY, DEFAULT_STEP, DEFAULT_GROUP
 
 
@@ -183,8 +183,8 @@ class PostgresDatabase(AbstractDatabase):
                 try:
                     cur.execute(query, row)
                 except TypeError or IndexError as e:  # TypeError: not all arguments converted during string formatting
-                    self.log('Error line: {}'.format(str(row)), level=self.LoggingLevel.Debug, verbose=verbose)
-                    self.log('{}: {}'.format(e.__class__.__name__, e), level=self.LoggingLevel.Error)
+                    self.log('Error line: {}'.format(str(row)), level=LoggingLevel.Debug, verbose=verbose)
+                    self.log('{}: {}'.format(e.__class__.__name__, e), level=LoggingLevel.Error)
             if (n + 1) % step == 0:
                 if use_fast_batch_method:
                     self.execute_batch(query, records_batch, step, cursor=cur)
@@ -200,3 +200,6 @@ class PostgresDatabase(AbstractDatabase):
         progress.finish(n)
         if return_count:
             return n
+
+
+ConnType.add_classes(PostgresDatabase)

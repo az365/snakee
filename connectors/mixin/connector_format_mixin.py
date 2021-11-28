@@ -8,6 +8,7 @@ try:  # Assume we're a sub-module in a package.
         ItemType, FieldType, DialectType, StreamType, ContentType,
         AUTO, Auto, AutoBool, Columns, Array, ARRAY_TYPES,
     )
+    from functions import item_functions as fs
     from items.struct_mixin import StructMixin
     from connectors.content_format.text_format import AbstractFormat, ParsedFormat, TextFormat
     from connectors.content_format.lean_format import LeanFormat, ColumnarFormat, FlatStructFormat
@@ -18,6 +19,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         ItemType, FieldType, DialectType, StreamType, ContentType,
         AUTO, Auto, AutoBool, Columns, Array, ARRAY_TYPES,
     )
+    from ...functions import item_functions as fs
     from ...items.struct_mixin import StructMixin
     from ..content_format.text_format import AbstractFormat, ParsedFormat, TextFormat
     from ..content_format.lean_format import LeanFormat, ColumnarFormat, FlatStructFormat
@@ -84,10 +86,11 @@ class ConnectorFormatMixin(LeafConnectorInterface, StructMixin, ABC):
     def reset_struct_to_initial(self, verbose: bool = True, message: Optional[str] = None) -> Native:
         if not arg.is_defined(message):
             message = self.__repr__()
+        initial_struct = self.get_initial_struct()
         if verbose:
-            for line in self.get_struct().get_struct_comparison_iter(self.get_initial_struct(), message=message):
+            for line in self.get_struct().get_struct_comparison_iter(initial_struct, message=message):
                 self.log(line)
-        return self.struct(self.get_initial_struct())
+        return self.struct(initial_struct)
 
     def get_delimiter(self) -> str:
         content_format = self.get_content_format()
@@ -117,17 +120,12 @@ class ConnectorFormatMixin(LeafConnectorInterface, StructMixin, ABC):
     def get_title_row(self, close: bool = True) -> tuple:
         assert self.is_first_line_title(), 'For receive title row file/object must have first_line_is_title-flag'
         first_line = self.get_first_line(close=close)
-        content_format = self.get_content_format()
-        if isinstance(content_format, ColumnarFormat):
-            title_row = content_format.get_parsed_line(first_line, item_type=ItemType.Row)
-        else:
-            delimiter = ColumnarFormat.detect_delimiter_by_example_line(first_line)
-            title_row = ColumnarFormat(False, delimiter).get_parsed_line(first_line, item_type=ItemType.Row)
-        return title_row
+        line_parser = fs.csv_loads(delimiter=self.get_delimiter())
+        return line_parser(first_line)
 
     def get_detected_struct_by_title_row(self, set_struct: bool = False, verbose: AutoBool = AUTO) -> Struct:
         assert self.is_first_line_title(), 'Can detect struct by title row only if first line is a title row'
-        assert self.is_existing(), 'For detect struct by title row file/object must be existing'
+        assert self.is_existing(), 'For detect struct file/object must be existing: {}'.format(self.get_path())
         verbose = arg.acquire(verbose, self.is_verbose())
         title_row = self.get_title_row(close=True)
         struct = self._get_struct_detected_by_title_row(title_row)

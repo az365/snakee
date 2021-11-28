@@ -6,6 +6,7 @@ try:  # Assume we're a sub-module in a package.
     )
     from functions.cast_functions import DICT_CAST_TYPES, cast, date, number, percent
     from functions.numeric_functions import sign, diff, div, mult, sqrt
+    from functions.date_functions import int_to_date, date_to_int, round_date, next_date, date_range
     from functions.array_functions import (
         is_in, not_in,
         elem_no, first, second, last,
@@ -19,7 +20,8 @@ try:  # Assume we're a sub-module in a package.
     from functions.logic_functions import maybe, always, never
     from functions.item_functions import (
         composite_key, value_by_key, values_by_keys, is_in_sample,
-        same, merge_two_items, items_to_dict, json_loads,
+        same, merge_two_items, items_to_dict,
+        json_loads, csv_loads, csv_reader,
     )
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from .basic_functions import (
@@ -29,6 +31,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     )
     from .cast_functions import DICT_CAST_TYPES, cast, date, number, percent
     from .numeric_functions import sign, diff, div, mult, sqrt
+    from .date_functions import int_to_date, date_to_int, round_date, next_date, date_range
     from .array_functions import (
         is_in, not_in,
         elem_no, first, second, last,
@@ -42,5 +45,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .logic_functions import maybe, always, never
     from .item_functions import (
         composite_key, value_by_key, values_by_keys, is_in_sample,
-        same, merge_two_items, items_to_dict, json_loads,
+        same, merge_two_items, items_to_dict,
+        json_loads, csv_loads, csv_reader,
     )

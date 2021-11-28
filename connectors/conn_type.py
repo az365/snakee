@@ -8,7 +8,7 @@ class ConnType(ClassType):
     # Only concrete classes, not abstract ones
     LocalStorage = 'LocalStorage'
     LocalFolder = 'LocalFolder'
-    FileMask = 'FileMask'
+    LocalMask = 'LocalMask'
     PartitionedLocalFile = 'PartitionedLocalFile'
     LocalFile = 'LocalFile'
     TextFile = 'TextFile'

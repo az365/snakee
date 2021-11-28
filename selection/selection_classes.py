@@ -14,7 +14,7 @@ try:  # Assume we're a sub-module in a package.
         StarDescription, DropDescription,
     )
     from selection.abstract_expression import AbstractDescription, SingleFieldDescription, MultipleFieldDescription
-    from selection.selection_description import SelectionDescription
+    from selection.selection_description import SelectionDescription, translate_names_to_columns
     from utils import items as it
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import (
@@ -29,7 +29,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         TrivialDescription, AliasDescription, RegularDescription, FunctionDescription,
         StarDescription, DropDescription,
     )
-    from .selection_description import SelectionDescription
+    from .selection_description import SelectionDescription, translate_names_to_columns
 
 
 def is_expression_description(obj) -> bool:
@@ -72,7 +72,7 @@ def get_compatible_expression_tuples(expressions: dict) -> dict:
 def select(
         *fields,
         target_item_type=it.ItemType.Auto, input_item_type=it.ItemType.Auto,
-        logger=None, selection_logger=arg.DEFAULT,
+        logger=None, selection_logger=arg.AUTO,
         use_extended_method=True,
         **expressions
 ):

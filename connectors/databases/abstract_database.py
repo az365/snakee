@@ -5,27 +5,25 @@ try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg, mappers as ms
     from interfaces import (
         StreamInterface, ColumnarInterface, ColumnarStream, StructStream, StructInterface, SimpleDataInterface,
-        DialectType, StreamType, LoggingLevel,
+        LeafConnectorInterface, ConnType, StreamType, DialectType, LoggingLevel,
         AUTO, Auto, AutoContext, AutoBool, AutoCount, Count, Name, FieldName, Connector,
     )
     from connectors.abstract.abstract_storage import AbstractStorage
-    from connectors import connector_classes as ct
     from items.flat_struct import FlatStruct
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg, mappers as ms
     from ...interfaces import (
         StreamInterface, ColumnarInterface, ColumnarStream, StructStream, StructInterface, SimpleDataInterface,
-        DialectType, StreamType, LoggingLevel,
+        LeafConnectorInterface, ConnType, StreamType, DialectType, LoggingLevel,
         AUTO, Auto, AutoContext, AutoBool, AutoCount, Count, Name, FieldName, Connector,
     )
     from ..abstract.abstract_storage import AbstractStorage
-    from .. import connector_classes as ct
     from ...items.flat_struct import FlatStruct
 
 Native = AbstractStorage
 Struct = Optional[StructInterface]
 Table = Connector
-File = ct.AbstractFile
+File = LeafConnectorInterface
 Data = Union[ColumnarStream, File, Table, str, Iterable]
 
 TEST_QUERY = 'SELECT now()'
@@ -51,15 +49,11 @@ class AbstractDatabase(AbstractStorage, ABC):
         self.password = password
         self.conn_kwargs = kwargs
         self.connection = None
-        super().__init__(
-            name=name,
-            context=arg.acquire(context, ct.get_context()),
-            verbose=verbose,
-        )
+        super().__init__(name=name, context=context, verbose=verbose)
 
     @staticmethod
-    def get_default_child_class():
-        return ct.Table
+    def get_default_child_type() -> ConnType:
+        return ConnType.Table
 
     def get_tables(self) -> dict:
         return self.get_children()
@@ -71,7 +65,8 @@ class AbstractDatabase(AbstractStorage, ABC):
             assert not kwargs, 'table connection {} is already registered'.format(table_name)
         else:
             assert struct is not None, 'for create table struct must be defined'
-            table = ct.Table(table_name, struct=struct, database=self, **kwargs)
+            table_class = self.get_default_child_obj_class()
+            table = table_class(table_name, struct=struct, database=self, **kwargs)
             self.get_tables()[table_name] = table
         return table
 
@@ -116,7 +111,7 @@ class AbstractDatabase(AbstractStorage, ABC):
             self, file: File,
             get_data: AutoBool = AUTO, commit: AutoBool = AUTO, verbose: AutoBool = AUTO,
     ) -> Optional[Iterable]:
-        assert isinstance(file, ct.TextFile) or hasattr(file, 'get_items'), 'file must be TextFile, got {}'.format(file)
+        assert isinstance(file, File) or hasattr(file, 'get_items'), 'file must be LocalFile, got {}'.format(file)
         query = '\n'.join(file.get_items())
         return self.execute(query, get_data=get_data, commit=commit, verbose=verbose)
 
@@ -262,8 +257,12 @@ class AbstractDatabase(AbstractStorage, ABC):
             self, table: Union[Table, Name], stream: StructStream,
             skip_errors: bool = False, step: int = DEFAULT_STEP, verbose: AutoBool = AUTO,
     ) -> Count:
-        columns = stream.get_columns()
-        assert columns, 'columns in StructStream must be defined (got {})'.format(stream)
+        if hasattr(stream, 'get_columns'):
+            columns = stream.get_columns()
+            assert columns, 'Columns in StructStream must be defined (got {})'.format(stream)
+        else:
+            msg = '{}.insert_struct_stream(): Expected StructStream, got {} as {}'
+            raise TypeError(msg.format(self, stream, type(stream)))
         assert hasattr(stream, 'get_struct')  # isinstance(stream, StructStream)
         if hasattr(table, 'get_columns'):
             table_cols = table.get_columns()
@@ -380,7 +379,13 @@ class AbstractDatabase(AbstractStorage, ABC):
     def take_credentials_from_file(self, file: Union[File, Name], by_name: bool = False, delimiter=AUTO) -> Native:
         delimiter = arg.acquire(delimiter, '\t' if by_name else '\n')
         if isinstance(file, str):
-            file = ct.get_default_job_folder().file(name=file)
+            context = self.get_context()
+            if context:
+                folder = context.get_job_folder()
+            else:
+                storage = ConnType.LocalStorage.get_class()
+                folder = storage().folder('')
+            file = folder.file(name=file)
         parsed_file = self._parse_credentials_file(file, delimiter=delimiter)
         if by_name:
             database_name = self.get_name()
@@ -395,19 +400,20 @@ class AbstractDatabase(AbstractStorage, ABC):
             self.set_credentials(*credentials)
         return self
 
-    @staticmethod
-    def _parse_credentials_file(file: File, delimiter='\n') -> Iterable:
-        assert isinstance(file, ct.TextFile) or hasattr(file, 'to_line_stream')
-        has_columns = delimiter != '\n'
-        if has_columns:
-            for item in file.to_line_stream().get_items():
-                yield item.split(delimiter)
+    @classmethod
+    def _parse_credentials_file(cls, file: File, delimiter='\n') -> Iterable:
+        if isinstance(file, File) or hasattr(file, 'to_line_stream'):
+            has_columns = delimiter != '\n'
+            if has_columns:
+                for item in file.to_line_stream().get_items():
+                    yield item.split(delimiter)
+            else:
+                two_lines = file.to_line_stream().take(2)
+                assert isinstance(two_lines, StreamInterface) or hasattr(two_lines, 'get_list')
+                login, password = two_lines.get_list()[:2]
+                yield login, password
         else:
-            # assert isinstance(file, ct.TextFile)
-            two_lines = file.to_line_stream().take(2)
-            assert isinstance(two_lines, StreamInterface)
-            login, password = two_lines.get_list()[:2]
-            yield login, password
+            raise TypeError('{}._parse_credentials_file(): LocalFile expected, got {}'.format(cls.__name__, file))
 
     @staticmethod
     def _get_compact_query_view(query: str) -> str:
@@ -420,8 +426,9 @@ class AbstractDatabase(AbstractStorage, ABC):
         else:
             return str(table)
 
-    @staticmethod
+    @classmethod
     def _get_table_name_and_struct(
+            cls,
             table: Union[Table, Name],
             expected_struct: Struct = None,
             check_struct: bool = True,
@@ -429,7 +436,7 @@ class AbstractDatabase(AbstractStorage, ABC):
         if isinstance(table, Name):
             table_name = table
             table_struct = expected_struct
-        elif isinstance(table, ct.Table):
+        elif cls._assert_is_appropriate_child(table) or hasattr(table, 'get_name'):
             table_name = table.get_name()
             if hasattr(table, 'get_struct'):
                 table_struct = table.get_struct()
@@ -447,7 +454,7 @@ class AbstractDatabase(AbstractStorage, ABC):
     def _get_struct_stream_from_data(data: Data, struct: Struct = None, **file_kwargs) -> StructStream:
         if isinstance(data, StreamInterface):
             stream = data
-        elif ct.is_file(data):
+        elif isinstance(data, File) or hasattr(data, 'to_struct_stream'):
             stream = data.to_struct_stream()
             if struct:
                 stream_cols = stream.get_columns()

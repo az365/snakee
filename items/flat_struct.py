@@ -80,6 +80,9 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
         self._caption = caption
         return self
 
+    def is_defined(self) -> bool:
+        return bool(self.get_fields())
+
     def set_fields(self, fields: Iterable, inplace: bool) -> Optional[Native]:
         return self.set_data(data=fields, inplace=inplace, reset_dynamic_meta=False)
 
@@ -231,7 +234,7 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
     def get_columns(self) -> list:
         return [c.get_name() for c in self.get_fields()]
 
-    def get_types(self, dialect: DialectType) -> list:
+    def get_types(self, dialect: DialectType = DialectType.String) -> list:
         return [c.get_type_in(dialect) for c in self.get_fields()]
 
     def set_types(
@@ -308,6 +311,8 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
         return True
 
     def get_validation_errors(self, row: Union[Iterable, StructInterface]) -> list:
+        if isinstance(row, StructRowInterface) or hasattr(row, 'get_data'):
+            row = row.get_data()
         validation_errors = list()
         for value, field_description in zip(row, self.get_fields_descriptions()):
             assert isinstance(field_description, FieldInterface)
@@ -379,7 +384,7 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
             if warning:
                 caption = '[{}] {}'.format(warning, f_updated.get_caption() or '')
                 f_updated = f_updated.set_caption(caption, inplace=False)
-            updated_struct.append_field(f_updated)
+            updated_struct.append_field(f_updated, exclude_duplicates=ignore_moved)
             if f_name in remaining_struct.get_field_names():
                 remaining_struct.remove_fields(f_name, inplace=True)
 
@@ -393,7 +398,7 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
                 warning = 'MISSING_IN_FILE'
             caption = '[{}] {}'.format(warning, f_expected.get_caption() or '')
             f_updated = f_expected.set_valid(is_valid, inplace=False).set_caption(caption, inplace=False)
-            updated_struct.append_field(f_updated)
+            updated_struct.append_field(f_updated, exclude_duplicates=ignore_moved)
         self.set_fields(updated_struct.get_fields(), inplace=True)
         return self
 

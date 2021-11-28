@@ -1,11 +1,13 @@
 from abc import ABC, abstractmethod
-from typing import Union, Optional, Iterable, Any
+from typing import Optional, Iterable, Sequence, Union, Any
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
+    from items.simple_items import Class
     from base.interfaces.data_interface import ContextualDataInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
+    from ...items.simple_items import Class
     from ..interfaces.data_interface import ContextualDataInterface
 
 Parent = Optional[Union[ContextualDataInterface, Any]]
@@ -67,4 +69,34 @@ class TreeInterface(ContextualDataInterface, ABC):
 
     @abstractmethod
     def set_context(self, context, reset=False):
+        pass
+
+    @classmethod
+    @abstractmethod
+    def set_parent_obj_classes(cls, classes: Sequence):
+        pass
+
+    @classmethod
+    @abstractmethod
+    def set_child_obj_classes(cls, classes: Sequence):
+        pass
+
+    @classmethod
+    @abstractmethod
+    def get_parent_obj_classes(cls) -> Sequence:
+        pass
+
+    @classmethod
+    @abstractmethod
+    def get_child_obj_classes(cls) -> Sequence:
+        pass
+
+    @classmethod
+    @abstractmethod
+    def get_default_parent_obj_class(cls) -> Optional[Class]:
+        pass
+
+    @classmethod
+    @abstractmethod
+    def get_default_child_obj_class(cls) -> Optional[Class]:
         pass
