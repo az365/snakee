@@ -3,16 +3,15 @@ from datetime import date, timedelta, datetime
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
+    from utils.enum import DynamicEnum
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from . import arguments as arg
+    from .enum import DynamicEnum
 
 PyDate = date
 IsoDate = str
 GostDate = str
 Date = Union[PyDate, IsoDate, GostDate]
-
-DATE_SCALES = ('day', 'week', 'year')
-ERR_TIME_SCALE = 'Expected time-scale {}, got {}'.format(' or '.join(DATE_SCALES), '{}')
 
 DAYS_IN_YEAR = 365
 MONTHS_IN_YEAR = 12
@@ -23,6 +22,42 @@ WEEKS_IN_YEAR = 52
 
 SECONDS_IN_MINUTE = 60
 MINUTES_IN_HOUR = 60
+
+DATE_SCALES = ('day', 'week', 'year')  # deprecated
+ERR_TIME_SCALE = 'Expected time-scale {}, got {}'.format(' or '.join(DATE_SCALES), '{}')  # deprecated
+
+
+class DateScale(DynamicEnum):
+    Day = 'day'
+    Week = 'week'
+    Month = 'month'
+    Year = 'year'
+
+    @classmethod
+    def get_err_msg(cls, scale='{}', available_scales=arg.AUTO):
+        list_available_scales = arg.acquire(available_scales, cls._enum_items)
+        if arg.is_defined(list_available_scales):
+            str_available_scales = ' or '.join(list_available_scales)
+        else:
+            str_available_scales = '{}'
+        return 'Expected time-scale {}, got {}'.format(str_available_scales, scale)
+
+    @classmethod
+    def convert(cls, scale, default=arg.AUTO, skip_missing=False):
+        if isinstance(scale, str):
+            if scale.startswith('d'):  # daily, day, days
+                return DateScale.Day
+            elif scale.startswith('w'):  # weekly, week, weeks
+                return DateScale.Week
+            elif scale.startswith('y'):  # yearly, year, years
+                return DateScale.Year
+            elif not skip_missing:
+                # raise ValueError(ERR_TIME_SCALE.format(scale))
+                raise ValueError(cls.get_err_msg(scale))
+        return super().convert(scale, default=default, skip_missing=skip_missing)
+
+
+DateScale.prepare()
 
 _min_year = 2010
 
@@ -139,6 +174,21 @@ def get_monday_date(d: Date, as_iso_date: Optional[bool] = None) -> Date:
         as_iso_date = is_iso_date(d)
     monday_date = cur_date + timedelta(days=-cur_date.weekday())
     return to_date(monday_date, as_iso_date)
+
+
+def get_year_first_date(d: [Date, int], as_iso_date: bool = True) -> Date:
+    if isinstance(d, int):
+        if d > 1900:
+            return get_date_from_year(d, as_iso_date=as_iso_date)
+        else:
+            return get_date_from_year_and_month(year=d, month=1, as_iso_date=as_iso_date)
+    else:  # isinstance(d, Date)
+        year_no = get_year_from_date(d, decimal=False)
+        iso_date = '{}-01-01'.format(year_no)
+        if as_iso_date:
+            return iso_date
+        else:
+            return get_date(iso_date)
 
 
 def get_year_start_monday(year: int, as_iso_date: bool = True) -> Date:
@@ -321,9 +371,14 @@ def get_day_abs_from_date(d: Date, min_date: Union[Date, arg.Auto] = arg.AUTO) -
 
 def get_month_abs_from_date(d: Date) -> int:
     month = get_month_from_date(d)
+    delta_year = get_year_abs_from_date(d)
+    return delta_year * MONTHS_IN_YEAR + month
+
+
+def get_year_abs_from_date(d: Date) -> int:
     year = get_year_from_date(d)
     delta_year = year - get_min_year()
-    return delta_year * MONTHS_IN_YEAR + month
+    return delta_year
 
 
 def get_week_abs_from_year_and_week(
@@ -371,15 +426,18 @@ def get_week_from_week_abs(week_abs: int) -> int:
     return week_abs - delta_year * WEEKS_IN_YEAR
 
 
-def get_int_from_date(d: Date, scale: str) -> int:
-    if scale == 'day':
+def get_int_from_date(d: Date, scale: Union[DateScale, str]) -> int:
+    scale = DateScale.convert(scale)
+    if scale == DateScale.Day:
         return get_day_abs_from_date(d)
-    elif scale == 'week':
+    elif scale == DateScale.Week:
         return get_week_abs_from_date(d)
-    elif scale == 'month':
+    elif scale == DateScale.Month:
         return get_month_abs_from_date(d)
+    elif scale == DateScale.Year:
+        return get_year_abs_from_date(d)
     else:
-        raise ValueError(ERR_TIME_SCALE.format(scale))
+        raise ValueError(DateScale.get_err_msg(scale))
 
 
 def get_date_from_week_abs(
@@ -438,29 +496,33 @@ def get_year_decimal_from_date(d: Date) -> float:
     return get_year_from_date(d, decimal=True)
 
 
-def get_date_from_numeric(numeric: int, from_scale: str = 'days') -> Date:
-    if from_scale.startswith('da'):  # daily, day, days
+def get_date_from_numeric(numeric: int, from_scale: Union[DateScale, str] = DateScale.Day) -> Date:
+    scale = DateScale.convert(from_scale)
+    if scale == DateScale.Day:
         func = get_date_from_day_abs
-    elif from_scale.startswith('week'):
+    elif scale == DateScale.Week:
         func = get_date_from_week_abs
-    elif from_scale.startswith('year'):
+    elif scale == DateScale.Month:
+        func = get_date_from_month_abs
+    elif scale == DateScale.Year:
         func = get_date_from_year
     else:
-        raise ValueError('only {} time scales supported (got {})'.format(','.join(DATE_SCALES), from_scale))
+        raise ValueError(DateScale.get_err_msg(scale))
     return func(numeric)
 
 
-def get_days_in_scale(scale: str) -> int:
-    if scale == 'day':
+def get_days_in_scale(scale: Union[DateScale, str]) -> int:
+    scale = DateScale.convert(scale)
+    if scale == DateScale.Day:
         return 1
-    elif scale == 'week':
+    elif scale == DateScale.Week:
         return DAYS_IN_WEEK
-    elif scale == 'month':
+    elif scale == DateScale.Month:
         return MAX_DAYS_IN_MONTH
-    elif scale == 'year':
+    elif scale == DateScale.Year:
         return DAYS_IN_YEAR
     else:
-        raise ValueError(ERR_TIME_SCALE.format(scale))
+        raise ValueError(DateScale.get_err_msg(scale))
 
 
 def get_formatted_datetime(dt: datetime) -> str:
