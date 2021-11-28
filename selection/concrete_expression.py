@@ -47,12 +47,12 @@ class AliasDescription(SingleFieldDescription):
             target_item_type: ItemType, input_item_type: ItemType = ItemType.Auto,
             skip_errors=False, logger=None, default=None,
     ):
+        self._source_field = source
         super().__init__(
             alias,
             target_item_type=target_item_type, input_item_type=input_item_type,
             skip_errors=skip_errors, logger=logger, default=default,
         )
-        self._source_field = source
 
     def get_function(self) -> Callable:
         return lambda i: i
@@ -64,7 +64,7 @@ class AliasDescription(SingleFieldDescription):
         return arg.get_name(self.get_source_field())
 
     def get_input_field_names(self) -> list:
-        yield [self.get_source_name()]
+        return [self.get_source_name()]
 
     def get_value_from_item(self, item: Field) -> Value:
         return it.get_field_value_from_item(
@@ -75,6 +75,11 @@ class AliasDescription(SingleFieldDescription):
 
     def get_output_field_types(self, struct) -> list:
         return [struct.get_field_description(f).get_type() for f in self.get_input_field_names()]
+
+    def __str__(self):
+        source = self.get_source_name()
+        alias = self.get_target_field_name()
+        return '{alias}={source}'.format(alias=alias, source=source)
 
 
 class RegularDescription(SingleFieldDescription):

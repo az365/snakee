@@ -5,18 +5,18 @@ try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from interfaces import (
         Item, Record, Row, StructRow,
-        ItemType, StreamType, FileType,
+        ItemType, StreamType, ContentType,
         ARRAY_TYPES, AUTO, Auto,
     )
-    from connectors.content_format.abstract_format import AbstractFormat, ParsedFormat, ContentType, Compress
+    from connectors.content_format.abstract_format import AbstractFormat, ParsedFormat, Compress
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...interfaces import (
         Item, Record, Row, StructRow,
-        ItemType, StreamType, FileType,
+        ItemType, StreamType, ContentType,
         ARRAY_TYPES, AUTO, Auto,
     )
-    from .abstract_format import AbstractFormat, ParsedFormat, ContentType, Compress
+    from .abstract_format import AbstractFormat, ParsedFormat, Compress
 
 DEFAULT_ENDING = '\n'
 DEFAULT_ENCODING = 'utf8'
@@ -82,6 +82,9 @@ class TextFormat(ParsedFormat):
         else:
             msg = 'item_type {} is not supported for {}.parse_lines()'
             raise ValueError(msg.format(item_type, self.__class__.__name__))
+
+    def __repr__(self):
+        return super().__repr__().replace('\t', '\\t').replace('\n', '\\n')
 
 
 class JsonFormat(TextFormat):

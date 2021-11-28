@@ -9,7 +9,7 @@ try:  # Assume we're a sub-module in a package.
     )
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg, items as it
-    from interfaces import (
+    from ..interfaces import (
         StructRowInterface, StructInterface, LoggerInterface,
         ItemType, Item, Row, Record, UniKey, Field, Name, Value, Array,
     )
@@ -71,6 +71,15 @@ class AbstractDescription(ABC):
     @abstractmethod
     def apply_inplace(self, item: Item) -> None:
         pass
+
+    def __repr__(self):
+        return str(self)
+
+    def __str__(self):
+        inputs = ', '.join(map(str, self.get_input_field_names()))
+        outputs = ', '.join(map(str, self.get_output_field_names()))
+        func = self.get_function().__name__
+        return '{outputs}={func}({inputs})'.format(outputs=outputs, func=func, inputs=inputs)
 
 
 class SingleFieldDescription(AbstractDescription, ABC):
