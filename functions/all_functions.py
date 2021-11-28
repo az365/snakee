@@ -6,6 +6,7 @@ try:  # Assume we're a sub-module in a package.
     )
     from functions.cast_functions import DICT_CAST_TYPES, cast, date, number, percent
     from functions.numeric_functions import sign, diff, div, mult, sqrt
+    from functions.date_functions import int_to_date, date_to_int, round_date, next_date, date_range
     from functions.array_functions import (
         is_in, not_in,
         elem_no, first, second, last,
@@ -30,6 +31,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     )
     from .cast_functions import DICT_CAST_TYPES, cast, date, number, percent
     from .numeric_functions import sign, diff, div, mult, sqrt
+    from .date_functions import int_to_date, date_to_int, round_date, next_date, date_range
     from .array_functions import (
         is_in, not_in,
         elem_no, first, second, last,
