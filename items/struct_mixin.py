@@ -54,7 +54,7 @@ class StructMixin(StructMixinInterface, ABC):
     def get_field_position(self, field: Field) -> Optional[FieldNo]:
         if isinstance(field, FieldNo):
             return field
-        else:
+        else:  # isinstance(field, FieldName)
             field_name = arg.get_name(field)
             return self.get_struct().get_field_position(field_name)
 
@@ -68,7 +68,7 @@ class StructMixin(StructMixinInterface, ABC):
         for name in title_row:
             field_type = FieldType.detect_by_name(name)
             # struct.append_field(AdvancedField(name, field_type))
-            detected_struct.append_field(name, default_type=field_type, inplace=True)
+            detected_struct.append_field(name, default_type=field_type, exclude_duplicates=False, inplace=True)
         return detected_struct
 
     @staticmethod

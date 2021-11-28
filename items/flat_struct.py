@@ -382,7 +382,7 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
             if warning:
                 caption = '[{}] {}'.format(warning, f_updated.get_caption() or '')
                 f_updated = f_updated.set_caption(caption, inplace=False)
-            updated_struct.append_field(f_updated)
+            updated_struct.append_field(f_updated, exclude_duplicates=ignore_moved)
             if f_name in remaining_struct.get_field_names():
                 remaining_struct.remove_fields(f_name, inplace=True)
 
@@ -396,7 +396,7 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
                 warning = 'MISSING_IN_FILE'
             caption = '[{}] {}'.format(warning, f_expected.get_caption() or '')
             f_updated = f_expected.set_valid(is_valid, inplace=False).set_caption(caption, inplace=False)
-            updated_struct.append_field(f_updated)
+            updated_struct.append_field(f_updated, exclude_duplicates=ignore_moved)
         self.set_fields(updated_struct.get_fields(), inplace=True)
         return self
 
