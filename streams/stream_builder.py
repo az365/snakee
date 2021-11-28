@@ -32,8 +32,15 @@ class StreamBuilder(StreamBuilderInterface):
             stream_type = cls._get_dict_classes('stream(stream_type=AUTO)').get(item_type)
         return cls._get_stream_types().of(stream_type).stream(data, **kwargs)
 
+    @staticmethod
+    def is_same_stream_type(*iter_streams) -> bool:
+        iter_streams = arg.update(iter_streams)
+        stream_types = [i.get_stream_type() for i in iter_streams]
+        return len(set(stream_types)) == 1
+
     @classmethod
     def stack(cls, *iter_streams, how: How = 'vertical', name=AUTO, context=None, **kwargs):
+        assert cls.is_same_stream_type(iter_streams), 'concat(): streams must have same type: {}'.format(iter_streams)
         iter_streams = arg.update(iter_streams)
         result = None
         for cur_stream in iter_streams:
