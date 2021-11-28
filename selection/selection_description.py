@@ -82,6 +82,21 @@ def compose_descriptions(
     yield from finish_descriptions
 
 
+def translate_names_to_columns(expression, struct: StructInterface) -> tuple:
+    if isinstance(expression, str):
+        return struct.get_field_position(expression),
+    elif isinstance(expression, Iterable):
+        processed_expression = list()
+        for e in expression:
+            if isinstance(e, Callable):
+                processed_expression.append(e)
+            else:
+                processed_expression.append(struct.get_field_position(e))
+        return tuple(processed_expression)
+    else:
+        return expression
+
+
 class SelectionDescription:
     def __init__(
             self,
@@ -114,6 +129,8 @@ class SelectionDescription:
             skip_errors=skip_errors,
             logger=logger, selection_logger=selection_logger,
         )
+        if input_item_type == ItemType.StructRow and input_struct:
+            descriptions = [translate_names_to_columns(i, struct=input_struct) for i in descriptions]
         return cls(
             descriptions=list(descriptions),
             target_item_type=target_item_type, input_item_type=input_item_type,
@@ -257,3 +274,9 @@ class SelectionDescription:
         if arg.is_defined(logger):
             self.set_selection_logger(logger)
         return self.process_item
+
+    def __repr__(self):
+        return str(self)
+
+    def __str__(self):
+        return '{}({})'.format(self.__class__.__name__, self.get_descriptions())

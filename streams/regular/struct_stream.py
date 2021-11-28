@@ -6,7 +6,7 @@ try:  # Assume we're a sub-module in a package.
     from utils.external import pd, DataFrame, get_use_objects_for_output
     from interfaces import (
         StreamInterface, StructInterface, StructRowInterface, Row, ROW_SUBCLASSES,
-        LoggingLevel, StreamType, ItemType, Item,
+        LoggerInterface, LoggingLevel, StreamType, ItemType, Item, How, JoinType,
         AUTO, Auto, AutoBool, Source, Context, TmpFiles, Count, Columns, AutoColumns, UniKey,
     )
     from loggers.fallback_logger import FallbackLogger
@@ -23,7 +23,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils.external import pd, DataFrame, get_use_objects_for_output
     from ...interfaces import (
         StreamInterface, StructInterface, StructRowInterface, Row, ROW_SUBCLASSES,
-        LoggingLevel, StreamType, ItemType, Item,
+        LoggerInterface, LoggingLevel, StreamType, ItemType, Item, How, JoinType,
         AUTO, Auto, AutoBool, Source, Context, TmpFiles, Count, Columns, AutoColumns, UniKey,
     )
     from ...loggers.fallback_logger import FallbackLogger
@@ -168,7 +168,8 @@ class StructStream(sm.RowStream, StructMixin, sm.ConvertMixin):
         return super().is_valid_item_type(item)
 
     def _is_valid_item(self, item) -> bool:
-        return is_valid(item, struct=self.get_struct())
+        validation_errors = get_validation_errors(item, struct=self.get_struct())
+        return not validation_errors
 
     def _get_validated_items(self, items, struct=arg.DEFAULT, skip_errors=False, context=arg.NOT_USED):
         if struct == arg.DEFAULT:
@@ -267,7 +268,7 @@ class StructStream(sm.RowStream, StructMixin, sm.ConvertMixin):
 
     def select(self, *args, **kwargs):
         selection_description = sn.SelectionDescription.with_expressions(
-            fields=args, expressions=kwargs,
+            fields=arg.get_names(args, or_callable=True), expressions=kwargs,
             input_item_type=self.get_item_type(), target_item_type=self.get_item_type(),
             input_struct=self.get_struct(),
             logger=self.get_logger(), selection_logger=self.get_selection_logger(),
@@ -283,6 +284,7 @@ class StructStream(sm.RowStream, StructMixin, sm.ConvertMixin):
         primitives = (str, int, float, bool)
         expressions_list = [(k, fs.equal(v) if isinstance(v, primitives) else v) for k, v in expressions.items()]
         expressions_list = list(fields) + expressions_list
+        expressions_list = [sn.translate_names_to_columns(e, struct=self.get_struct()) for e in expressions_list]
         selection_method = sf.value_from_struct_row
 
         def filter_function(r):
@@ -296,6 +298,18 @@ class StructStream(sm.RowStream, StructMixin, sm.ConvertMixin):
 
     def sorted_group_by(self, *keys, values: Optional[Iterable] = None, as_pairs: bool = False):
         raise NotImplementedError
+
+    def map_side_join(
+            self,
+            right: StreamInterface,
+            key: UniKey,
+            how: How = JoinType.Left,
+            right_is_uniq: bool = True,
+    ) -> StreamInterface:
+        if right.get_stream_type() != StreamType.RecordStream:
+            right = right.to_record_stream()
+        stream = self.to_record_stream().map_side_join(right, key=key, how=how, right_is_uniq=right_is_uniq)
+        return stream
 
     def _get_field_getter(self, field: UniKey, item_type: Union[ItemType, Auto] = AUTO, default=None):
         field_position = self.get_field_position(field)
