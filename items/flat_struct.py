@@ -311,6 +311,8 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
         return True
 
     def get_validation_errors(self, row: Union[Iterable, StructInterface]) -> list:
+        if isinstance(row, StructRowInterface) or hasattr(row, 'get_data'):
+            row = row.get_data()
         validation_errors = list()
         for value, field_description in zip(row, self.get_fields_descriptions()):
             assert isinstance(field_description, FieldInterface)
