@@ -59,6 +59,18 @@ def is_record(item: Item) -> bool:
     return isinstance(item, RECORD_SUBCLASSES)
 
 
+def get_field_value_from_struct_row(
+        field: Union[FieldID, Callable], row: Union[Row, Any],
+        default: Value = None, skip_missing: bool = True,
+        struct=None,
+) -> Value:
+    if hasattr(row, 'get_value'):
+        return row.get_value(field, default=default, skip_missing=True)
+    if struct and isinstance(field, str):
+        column = struct.get_field_position(field)
+    return get_field_value_from_row(column, row, default=default, skip_missing=skip_missing)
+
+
 def get_field_value_from_row(
         column: Union[FieldNo, Callable], row: Row,
         default: Value = None, skip_missing: bool = True,
