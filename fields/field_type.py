@@ -3,13 +3,13 @@ import json
 
 try:  # Assume we're a sub-module in a package.
     from utils.arguments import any_to_bool, safe_converter, get_value
-    from utils.enum import DynamicEnum
     from utils.decorators import deprecated_with_alternative
+    from base.enum import DynamicEnum
     from connectors.databases.dialect_type import DialectType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils.arguments import any_to_bool, safe_converter, get_value
-    from ..utils.enum import DynamicEnum
     from ..utils.decorators import deprecated_with_alternative
+    from ..base.enum import DynamicEnum
     from ..connectors.databases.dialect_type import DialectType
 
 

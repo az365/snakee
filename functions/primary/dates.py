@@ -3,10 +3,10 @@ from datetime import date, timedelta, datetime
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
-    from utils.enum import DynamicEnum
+    from base.enum import DynamicEnum
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
-    from ...utils.enum import DynamicEnum
+    from ...base.enum import DynamicEnum
 
 PyDate = date
 IsoDate = str

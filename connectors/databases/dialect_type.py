@@ -3,12 +3,12 @@ from inspect import isclass
 
 try:  # Assume we're a sub-module in a package.
     from utils.arguments import get_name
-    from utils.enum import DynamicEnum, EnumItem
     from utils.decorators import deprecated, deprecated_with_alternative
+    from base.enum import DynamicEnum, EnumItem
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils.arguments import get_name
-    from ...utils.enum import DynamicEnum, EnumItem
     from ...utils.decorators import deprecated, deprecated_with_alternative
+    from ...base.enum import DynamicEnum, EnumItem
 
 
 class DialectType(DynamicEnum):
