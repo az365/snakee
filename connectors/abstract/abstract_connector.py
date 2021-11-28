@@ -38,8 +38,8 @@ class AbstractConnector(TreeItem, ConnectorInterface, ABC):
     ):
         self._verbose = DEFAULT_VERBOSE
         super().__init__(name=name, parent=parent, children=children)
-        self.set_verbose(verbose)
         self.set_context(context)
+        self.set_verbose(verbose)
 
     def get_conn_type(self) -> ConnType:
         conn_type = ConnType.detect(self)
@@ -62,15 +62,13 @@ class AbstractConnector(TreeItem, ConnectorInterface, ABC):
         return self
 
     def set_context(self, context: AutoContext, reset: bool = False, inplace: bool = True) -> Optional[Native]:
-        if arg.is_defined(context):
+        if context:
             parent = self.get_parent()
             if arg.is_defined(parent):
                 parent.set_context(context, reset=False, inplace=True)
-            else:
+            elif arg.is_defined(context):
                 self.set_parent(context, reset=False, inplace=True)
-            if not inplace:
-                return self
-        else:
+        if not inplace:
             return self
 
     def get_storage(self) -> Connector:
@@ -107,7 +105,9 @@ class AbstractConnector(TreeItem, ConnectorInterface, ABC):
 
     def get_new_progress(self, name: str, count: Optional[int] = None, context: AutoContext = arg.AUTO):
         logger = self.get_logger()
-        if hasattr(logger, 'get_new_progress'):
+        if arg.is_defined(context) and not arg.is_defined(logger):
+            logger = context.get_logger()
+        if isinstance(logger, ExtendedLoggerInterface) or hasattr(logger, 'get_new_progress'):
             return logger.get_new_progress(name, count=count, context=context)
 
     def get_path_prefix(self) -> str:
