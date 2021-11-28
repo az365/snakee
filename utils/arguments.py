@@ -3,7 +3,7 @@ from random import randint
 from typing import Optional, Callable, Iterable, Iterator, Generator, Union, Any
 
 NOT_USED = None
-_AUTO_VALUE = 'Auto'
+_AUTO_VALUE = 'AUTO'
 DEFAULT_VALUE = _AUTO_VALUE
 DEFAULT_RANDOM_LEN = 4
 STR_FALSE_SYNONYMS = ('False', 'false', 'None', 'none', 'no', '0', '')
@@ -65,9 +65,9 @@ def simple_acquire(current, default):
         return current
 
 
-def delayed_acquire(current, func, *args, **kwargs):
+def delayed_acquire(current, func: Callable, *args, **kwargs):
     if current == AUTO:
-        assert isinstance(func, Callable)
+        assert isinstance(func, Callable), 'Expected callable, got {} as {}'.format(func, type(func))
         return apply(func, *args, **kwargs)
     else:
         return current
@@ -130,9 +130,9 @@ def get_name(obj, or_callable: bool = True) -> Union[str, int, Callable]:
         return str(obj)
 
 
-def get_names(iterable: Union[Iterable, Any, None]) -> Union[list, Any]:
+def get_names(iterable: Union[Iterable, Any, None], or_callable: bool = True) -> Union[list, Any]:
     if isinstance(iterable, Iterable) and not isinstance(iterable, str):
-        return [get_name(i) for i in iterable]
+        return [get_name(i, or_callable=or_callable) for i in iterable]
     else:
         return iterable
 
@@ -209,14 +209,14 @@ def is_formatter(string: str, count=None) -> bool:
             return min([is_mask(string, count, placeholder=s) for s in '{}'])
 
 
-def any_to_bool(value):
+def any_to_bool(value) -> bool:
     if isinstance(value, str):
         return value not in STR_FALSE_SYNONYMS
     else:
         return bool(value)
 
 
-def safe_converter(converter, default_value=0):
+def safe_converter(converter: Callable, default_value: Any = 0, eval_allowed: bool = False) -> Callable:
     def func(value):
         if value is None or value == '':
             return default_value
@@ -227,6 +227,15 @@ def safe_converter(converter, default_value=0):
                 return default_value
             except NameError:
                 return default_value
+            except TypeError as e:
+                converter_name = converter.__name__
+                if converter_name == 'eval':
+                    if eval_allowed:
+                        return eval(str(value))
+                    else:
+                        return value
+                else:
+                    raise TypeError('{}: {}({})'.format(e, converter_name, value))
     return func
 
 
