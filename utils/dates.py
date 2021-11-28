@@ -12,6 +12,8 @@ GostDate = str
 Date = Union[PyDate, IsoDate, GostDate]
 
 DATE_SCALES = ('day', 'week', 'year')
+ERR_TIME_SCALE = 'Expected time-scale {}, got {}'.format(' or '.join(DATE_SCALES), '{}')
+
 DAYS_IN_YEAR = 365
 MONTHS_IN_YEAR = 12
 MEAN_DAYS_IN_MONTH = DAYS_IN_YEAR / MONTHS_IN_YEAR
@@ -195,6 +197,29 @@ def get_next_week_date(d: Date, step: int = 1, round_to_monday: bool = False) ->
         return dt
 
 
+def get_next_day_date(d: Date, step: int = 1) -> Date:
+    day_abs = get_day_abs_from_date(d)
+    day_abs += step
+    return get_date_from_day_abs(day_abs, as_iso_date=is_iso_date(d))
+
+
+def get_days_range(
+        date_min: Date, date_max: Date, step: int = 1,
+        including_right: bool = True, as_day_abs: bool = False,
+) -> list:
+    days_range = list()
+    cur_date = date_min
+    while cur_date < date_max:
+        days_range.append(cur_date)
+        cur_date = get_next_day_date(cur_date, step=step)
+    if including_right and cur_date == date_max:
+        days_range.append(cur_date)
+    if as_day_abs:
+        return [get_day_abs_from_date(d) for d in days_range]
+    else:
+        return days_range
+
+
 def get_weeks_range(
         date_min: Date, date_max: Date, step: int = 1,
         round_to_monday: bool = False, including_right: bool = True, as_week_abs: bool = False,
@@ -265,6 +290,11 @@ def get_yearly_dates(date_init: Date, date_min: Date, date_max: Date, step: int 
     return yearly_dates
 
 
+def get_date_from_year_and_month(year: int, month: int, as_iso_date: bool = True) -> Date:
+    iso_date = '{}-{:02}-01'.format(year, month)
+    return to_date(iso_date, as_iso_date=as_iso_date)
+
+
 def get_date_from_year_and_week(year: int, week: int, as_iso_date: bool = True) -> Date:
     year_start_monday = get_year_start_monday(year, as_iso_date=False)
     delta_days = week * DAYS_IN_WEEK
@@ -287,6 +317,13 @@ def get_year_and_week_from_date(d: Date) -> tuple:
 def get_day_abs_from_date(d: Date, min_date: Union[Date, arg.Auto] = arg.AUTO) -> int:
     min_date = arg.delayed_acquire(min_date, get_year_start_monday, get_min_year())
     return get_days_between(min_date, d)
+
+
+def get_month_abs_from_date(d: Date) -> int:
+    month = get_month_from_date(d)
+    year = get_year_from_date(d)
+    delta_year = year - get_min_year()
+    return delta_year * MONTHS_IN_YEAR + month
 
 
 def get_week_abs_from_year_and_week(
@@ -334,6 +371,17 @@ def get_week_from_week_abs(week_abs: int) -> int:
     return week_abs - delta_year * WEEKS_IN_YEAR
 
 
+def get_int_from_date(d: Date, scale: str) -> int:
+    if scale == 'day':
+        return get_day_abs_from_date(d)
+    elif scale == 'week':
+        return get_week_abs_from_date(d)
+    elif scale == 'month':
+        return get_month_abs_from_date(d)
+    else:
+        raise ValueError(ERR_TIME_SCALE.format(scale))
+
+
 def get_date_from_week_abs(
         week_abs: int,
         min_year: Union[int, arg.Auto] = arg.AUTO,
@@ -351,6 +399,22 @@ def get_date_from_day_abs(
 ) -> Date:
     min_date = arg.delayed_acquire(min_date, get_year_start_monday, get_min_year(), as_iso_date=as_iso_date)
     cur_date = get_shifted_date(min_date, days=day_abs)
+    return cur_date
+
+
+def get_date_from_month_abs(
+        month_abs: int,
+        min_date: Union[Date, arg.Auto] = arg.AUTO,
+        as_iso_date: bool = True,
+) -> Date:
+    if arg.is_defined(min_date):
+        min_year = get_year_from_date(min_date)
+    else:
+        min_year = get_min_year()
+    year_delta = int((month_abs - 1) / MONTHS_IN_YEAR)
+    year_no = min_year + year_delta
+    month_no = month_abs - year_delta * MONTHS_IN_YEAR
+    cur_date = get_date_from_year_and_month(year=year_no, month=month_no, as_iso_date=as_iso_date)
     return cur_date
 
 
@@ -384,6 +448,19 @@ def get_date_from_numeric(numeric: int, from_scale: str = 'days') -> Date:
     else:
         raise ValueError('only {} time scales supported (got {})'.format(','.join(DATE_SCALES), from_scale))
     return func(numeric)
+
+
+def get_days_in_scale(scale: str) -> int:
+    if scale == 'day':
+        return 1
+    elif scale == 'week':
+        return DAYS_IN_WEEK
+    elif scale == 'month':
+        return MAX_DAYS_IN_MONTH
+    elif scale == 'year':
+        return DAYS_IN_YEAR
+    else:
+        raise ValueError(ERR_TIME_SCALE.format(scale))
 
 
 def get_formatted_datetime(dt: datetime) -> str:
