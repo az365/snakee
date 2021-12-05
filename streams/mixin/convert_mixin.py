@@ -1,9 +1,9 @@
 from abc import ABC
-from typing import Optional, Iterable, Callable, Union, Any
-import pandas as pd
+from typing import Optional, Iterable, Callable, Union
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
+    from utils.external import pd, DataFrame
     from interfaces import (
         Stream, RegularStream, LineStream, RowStream, RecordStream, KeyValueStream, StructStream,
         StreamType,
@@ -12,9 +12,9 @@ try:  # Assume we're a sub-module in a package.
     )
     from functions import all_functions as fs
     from streams.abstract.iterable_stream import IterableStream
-    from streams import stream_classes as sm
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
+    from ...utils.external import pd, DataFrame
     from ...interfaces import (
         Stream, RegularStream, LineStream, RowStream, RecordStream, KeyValueStream, StructStream,
         StreamType,
@@ -23,7 +23,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     )
     from ...functions import all_functions as fs
     from ..abstract.iterable_stream import IterableStream
-    from .. import stream_classes as sm
 
 Native = RegularStream
 AnyStream = Stream
@@ -34,11 +33,12 @@ OptionalArguments = Optional[Union[str, Iterable]]
 class ConvertMixin(IterableStream, ABC):
     def get_rows(self, columns: Columns = AUTO) -> Iterable:
         if columns == AUTO:
-            if sm.StreamType.RecordStream.isinstance(self):
+            if StreamType.RecordStream.isinstance(self):
                 for r in self.get_items():
                     yield [r.get(c) for c in columns]
             else:
-                return sm.RowStream._get_typing_validated_items(self.get_items())
+                row_stream_class = StreamType.RowStream.get_class()
+                return row_stream_class._get_typing_validated_items(self.get_items())
         else:
             return self._get_mapped_items(fs.composite_key(columns))
 
@@ -48,8 +48,13 @@ class ConvertMixin(IterableStream, ABC):
         else:
             return self._get_mapped_items(lambda i: dict(zip(columns, fs.composite_key(columns)(i))))
 
-    def get_dataframe(self) -> pd.DataFrame:
-        return pd.DataFrame(self.get_data())
+    def get_dataframe(self, columns: Optional[Iterable] = None) -> DataFrame:
+        if columns and hasattr(self, 'select'):
+            data = self.select(*columns).get_data()
+        else:
+            data = self.get_data()
+        if DataFrame:
+            return DataFrame(data)
 
     def stream(
             self,
@@ -62,7 +67,7 @@ class ConvertMixin(IterableStream, ABC):
     ) -> Stream:
         if arg.is_defined(stream_type):
             if isinstance(stream_type, str):
-                stream_class = sm.StreamType(stream_type).get_class()
+                stream_class = StreamType(stream_type).get_class()
             else:
                 stream_class = stream_type.get_class()
             meta = self.get_compatible_meta(stream_class, ex=ex)
@@ -94,7 +99,7 @@ class ConvertMixin(IterableStream, ABC):
     def map_to_records(self, function: Callable) -> RecordStream:
         stream = self.map_to_type(
             function,
-            stream_type=sm.StreamType.RecordStream,
+            stream_type=StreamType.RecordStream,
         )
         return self._assume_native(stream)
 
@@ -102,13 +107,13 @@ class ConvertMixin(IterableStream, ABC):
     def map_to_any(self, function: Callable) -> AnyStream:
         return self.map_to_type(
             function,
-            stream_type=sm.StreamType.AnyStream,
+            stream_type=StreamType.AnyStream,
         )
 
     def to_any_stream(self) -> AnyStream:
         return self.stream(
             self.get_items(),
-            stream_type=sm.StreamType.AnyStream,
+            stream_type=StreamType.AnyStream,
         )
 
     def to_line_stream(
@@ -120,8 +125,8 @@ class ConvertMixin(IterableStream, ABC):
         stream_type = self.get_stream_type()
         delimiter = arg.acquire(delimiter, '\t' if stream_type == StreamType.RowStream else None)
         stream = self
-        if stream.get_stream_type() == sm.StreamType.RecordStream:
-            assert isinstance(stream, sm.RecordStream)
+        if stream.get_stream_type() == StreamType.RecordStream:
+            assert isinstance(stream, RegularStream) or hasattr(stream, 'get_columns'), 'got {}'.format(stream)
             columns = arg.acquire(columns, stream.get_columns, delayed=True)
             add_title_row = arg.acquire(add_title_row, True)
             stream = stream.to_row_stream(columns=columns, add_title_row=add_title_row)
@@ -131,7 +136,7 @@ class ConvertMixin(IterableStream, ABC):
             func = str
         stream = self.stream(
             stream._get_mapped_items(func),
-            stream_type=sm.StreamType.LineStream,
+            stream_type=StreamType.LineStream,
         )
         return self._assume_native(stream)
 
@@ -150,7 +155,7 @@ class ConvertMixin(IterableStream, ABC):
             columns = kwargs.pop('columns')
             assert not args
             items = self.get_records(columns)
-        elif self.get_stream_type() == sm.StreamType.RecordStream:
+        elif self.get_stream_type() == StreamType.RecordStream:
             return self
         elif kwargs:  # and not args
             assert not args
@@ -170,7 +175,7 @@ class ConvertMixin(IterableStream, ABC):
                 items = self._get_mapped_items(lambda i: dict(item=i))
         stream = self.stream(
             items,
-            stream_type=sm.StreamType.RecordStream,
+            stream_type=StreamType.RecordStream,
         )
         return self._assume_native(stream)
 
@@ -181,16 +186,16 @@ class ConvertMixin(IterableStream, ABC):
         elif args:
             if callable(args[0]):
                 function, args = args[0], args[1:]
-            elif self.get_stream_type() in (sm.StreamType.LineStream, sm.StreamType.AnyStream):
+            elif self.get_stream_type() in (StreamType.LineStream, StreamType.AnyStream):
                 delimiter, args = args[0], args[1:]
-        elif self.get_stream_type() == sm.StreamType.RecordStream:
+        elif self.get_stream_type() == StreamType.RecordStream:
             add_title_row = kwargs.pop('add_title_row', None)
             columns = arg.update(args, kwargs.pop('columns', None))
-            assert isinstance(self, sm.RecordStream)
+            assert isinstance(self, RecordStream)
             if not columns:
                 columns = self.get_columns()
             function = self.get_rows(columns=columns, add_title_row=add_title_row)
-        elif 'delimiter' in kwargs and self.get_stream_type() in (sm.StreamType.LineStream, sm.StreamType.AnyStream):
+        elif 'delimiter' in kwargs and self.get_stream_type() in (StreamType.LineStream, StreamType.AnyStream):
             delimiter = kwargs.pop('delimiter')
         elif args:
             assert not kwargs
@@ -202,10 +207,8 @@ class ConvertMixin(IterableStream, ABC):
             items = csv_reader(self.get_items())
         else:
             items = self.get_items()
-        return self.stream(
-            items,
-            stream_type=sm.StreamType.RowStream,
-        )
+        stream = self.stream(items, stream_type=StreamType.RowStream)
+        return self._assume_native(stream)
 
     def to_key_value_stream(self, key: Callable = fs.first(), value: Callable = fs.second()) -> KeyValueStream:
         if isinstance(key, (list, tuple)):
@@ -214,20 +217,20 @@ class ConvertMixin(IterableStream, ABC):
             value = fs.composite_key(value)
         stream = self.stream(
             self._get_mapped_items(lambda i: (key(i), value(i))),
-            stream_type=sm.StreamType.KeyValueStream,
+            stream_type=StreamType.KeyValueStream,
         )
         return self._assume_native(stream)
 
     # @deprecated_with_alternative('ConvertMixin.to_key_value_stream()')
     def to_pairs(self, *args, **kwargs) -> KeyValueStream:
-        if sm.StreamType.LineStream:
+        if StreamType.LineStream:
             return self.to_row_stream(*args, **kwargs).to_key_value_stream()
         else:
             return self.to_key_value_stream(*args, **kwargs)
 
     def to_stream(self, stream_type: AutoStreamType = AUTO, *args, **kwargs) -> Stream:
         stream_type = arg.acquire(stream_type, self.get_stream_type())
-        method_suffix = sm.StreamType.of(stream_type).get_method_suffix()
+        method_suffix = StreamType.of(stream_type).get_method_suffix()
         method_name = 'to_{}'.format(method_suffix)
         stream_method = self.__getattribute__(method_name)
         return stream_method(stream_type, *args, **kwargs)
