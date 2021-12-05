@@ -12,7 +12,7 @@ except ImportError:
     from ...utils.decorators import deprecated_with_alternative
     from ...interfaces import StreamType, ItemType, FileType, Auto, AUTO
     from .. import stream_classes as sm
-    from ...functions import item_functions as fs
+    from ...functions.secondary import item_functions as fs
 
 Stream = sm.StreamInterface
 Native = sm.AnyStream

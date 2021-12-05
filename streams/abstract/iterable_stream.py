@@ -29,7 +29,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..mixin.iterable_mixin import IterableStreamMixin
     from .abstract_stream import AbstractStream
     from .. import stream_classes as sm
-    from ...functions import item_functions as fs
+    from ...functions.secondary import item_functions as fs
 
 Native = IterableStreamInterface
 

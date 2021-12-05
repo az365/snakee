@@ -21,7 +21,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         Source, ExtLogger, SelectionLogger, LoggingLevel,
         AUTO, Auto, AutoName, AutoCount, Count, OptionalFields, UniKey,
     )
-    from ...functions import item_functions as fs
+    from ...functions.secondary import item_functions as fs
 
 Native = IterableStreamInterface
 Data = Union[Auto, Iterable]

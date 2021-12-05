@@ -22,7 +22,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     )
     from .iterable_stream import IterableStream
     from .. import stream_classes as sm
-    from ...functions import item_functions as fs, basic_functions as bf
+    from ...functions.secondary import item_functions as fs, basic_functions as bf
 
 Native = LocalStreamInterface
 TmpMask = Union[TemporaryFilesMaskInterface, Auto]
