@@ -9,9 +9,9 @@ try:  # Assume we're a sub-module in a package.
         Array, Count, FieldID, UniKey,
         AUTO, Auto, AutoBool, AutoCount, AutoName, OptionalFields,
     )
-    from streams.abstract.iterable_stream import IterableStream
-    from streams import stream_classes as sm
     from functions.secondary import basic_functions as bf, item_functions as fs
+    from streams.abstract.iterable_stream import IterableStream, MAX_ITEMS_IN_MEMORY
+    from streams import stream_classes as sm
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import algo, arguments as arg
     from ...interfaces import (
@@ -20,9 +20,9 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         Array, Count, FieldID, UniKey,
         AUTO, Auto, AutoBool, AutoCount, AutoName, OptionalFields,
     )
-    from .iterable_stream import IterableStream
+    from ...functions.secondary import basic_functions as bf, item_functions as fs
+    from .iterable_stream import IterableStream, MAX_ITEMS_IN_MEMORY
     from .. import stream_classes as sm
-    from ...functions.secondary import item_functions as fs, basic_functions as bf
 
 Native = LocalStreamInterface
 TmpMask = Union[TemporaryFilesMaskInterface, Auto]
@@ -40,12 +40,14 @@ class LocalStream(IterableStream, LocalStreamInterface):
             tmp_files: TmpMask = AUTO,
     ):
         count = arg.get_optional_len(data, count)
-        less_than = less_than or count
-        self.max_items_in_memory = arg.acquire(max_items_in_memory, sm.MAX_ITEMS_IN_MEMORY)
+        if count and arg.is_defined(count) and not arg.is_defined(less_than):
+            less_than = count
+        self._tmp_files = None
         super().__init__(
             data=data, name=name, check=check,
             source=source, context=context,
             count=count, less_than=less_than,
+            max_items_in_memory=max_items_in_memory,
         )
         self._tmp_files = arg.delayed_acquire(tmp_files, sm.get_tmp_mask, self.get_name())
 
@@ -59,7 +61,7 @@ class LocalStream(IterableStream, LocalStreamInterface):
             return self.make_new(self.get_data()).limit_items_in_memory(count)
 
     def limit_items_in_memory(self, count: AutoCount) -> Native:
-        count = arg.acquire(count, sm.MAX_ITEMS_IN_MEMORY)
+        count = arg.acquire(count, MAX_ITEMS_IN_MEMORY)
         self.max_items_in_memory = count
         return self
 
