@@ -1,4 +1,5 @@
 from typing import Optional, Callable, Iterable, Union
+import sys
 import json
 import csv
 
@@ -14,6 +15,14 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         selection as sf,
         items as it,
     )
+
+max_int = sys.maxsize
+while True:  # To prevent _csv.Error: field larger than field limit (131072)
+    try:  # decrease the max_int value by factor 10 as long as the OverflowError occurs.
+        csv.field_size_limit(max_int)
+        break
+    except OverflowError:
+        max_int = int(max_int / 10)
 
 
 def composite_key(*functions) -> Callable:
@@ -79,6 +88,10 @@ def items_to_dict(
     return func
 
 
+def json_dumps(*args, **kwargs) -> Callable:
+    return lambda a: json.dumps(a, *args, **kwargs)
+
+
 def json_loads(default=None, skip_errors: bool = False) -> Callable:
     def func(line: str):
         try:
@@ -100,8 +113,8 @@ def csv_loads(delimiter: Union[str, arg.Auto, None] = arg.AUTO) -> Callable:
     return func
 
 
-def csv_reader(delimiter: Union[str, arg.Auto, None] = arg.AUTO) -> Callable:
+def csv_reader(delimiter: Union[str, arg.Auto, None] = arg.AUTO, *args, **kwargs) -> Callable:
     if arg.is_defined(delimiter):
-        return lambda a: csv.reader(a, delimiter=delimiter)
+        return lambda a: csv.reader(a, delimiter=delimiter, *args, **kwargs)
     else:
         return csv.reader

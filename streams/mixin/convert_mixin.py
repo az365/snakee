@@ -1,8 +1,5 @@
 from abc import ABC
 from typing import Optional, Iterable, Callable, Union, Any
-import sys
-import json
-import csv
 import pandas as pd
 
 try:  # Assume we're a sub-module in a package.
@@ -32,14 +29,6 @@ Native = RegularStream
 AnyStream = Stream
 AutoStreamType = Union[Auto, StreamType]
 OptionalArguments = Optional[Union[str, Iterable]]
-
-max_int = sys.maxsize
-while True:  # To prevent _csv.Error: field larger than field limit (131072)
-    try:  # decrease the max_int value by factor 10 as long as the OverflowError occurs.
-        csv.field_size_limit(max_int)
-        break
-    except OverflowError:
-        max_int = int(max_int / 10)
 
 
 class ConvertMixin(IterableStream, ABC):
@@ -146,10 +135,10 @@ class ConvertMixin(IterableStream, ABC):
         )
         return self._assume_native(stream)
 
-    def to_json(self) -> LineStream:
+    def to_json(self, *args, **kwargs) -> LineStream:
         stream = self.stream(
-            self._get_mapped_items(json.dumps),
-            stream_type=sm.StreamType.LineStream,
+            self._get_mapped_items(fs.json_dumps(*args, **kwargs)),
+            stream_type=StreamType.LineStream,
         )
         return self._assume_native(stream)
 
@@ -209,7 +198,8 @@ class ConvertMixin(IterableStream, ABC):
         if function:
             items = self._get_mapped_items(lambda i: function(i, *args, **kwargs))
         elif delimiter:
-            items = csv.reader(self.get_items(), *args, delimiter=delimiter, **kwargs)
+            csv_reader = fs.csv_reader(delimiter=delimiter, *args, **kwargs)
+            items = csv_reader(self.get_items())
         else:
             items = self.get_items()
         return self.stream(
