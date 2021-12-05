@@ -1,4 +1,4 @@
-from typing import Optional, Union, Iterable, NoReturn
+from typing import Optional, Iterable, Union
 
 try:  # Assume we're a sub-module in a package.
     from interfaces import (
@@ -23,7 +23,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..base.abstract.simple_data import SimpleDataWrapper
     from ..fields.advanced_field import AdvancedField
     from ..selection.abstract_expression import AbstractDescription
-    from ..functions import array_functions as fs
+    from ..functions.secondary import array_functions as fs
 
 Native = StructInterface
 Group = Union[Native, Iterable]
@@ -96,11 +96,14 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
         self._data = list(fields)
         return self
 
-    def set_field_no(self, no: int, field: Field, inplace: bool) -> NoReturn:
+    def set_field_no(self, no: int, field: Field, inplace: bool) -> Optional[Native]:
         if inplace:
             self.get_data()[no] = field
         else:
-            raise NotImplementedError
+            struct = self.copy()
+            assert isinstance(struct, StructInterface)
+            struct.set_field_no(no=no, field=field, inplace=True)
+            return struct
 
     @staticmethod
     def _is_field(field):
