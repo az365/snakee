@@ -41,7 +41,7 @@ class FieldType(DynamicEnum):
     def get_type_in(self, dialect: DialectType):
         type_props = self.get_dialect_types()[self.get_value()]
         dialect_value = get_value(dialect)
-        type_in_dialect = type_props[dialect_value]
+        type_in_dialect = type_props.get(dialect_value)
         if not type_in_dialect:
             type_in_dialect = type_props[DialectType.get_default()]
         return type_in_dialect
