@@ -2,11 +2,11 @@ from abc import abstractmethod
 from typing import Iterable, Callable, Optional, Union
 
 try:  # Assume we're a sub-module in a package.
-    from series import series_classes as sc
     from functions.primary import dates as dt
+    from series import series_classes as sc
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
+    from ...functions.primary import dates as dt
     from .. import series_classes as sc
-    from ...utils import dates as dt
 
 NativeInterface = sc.SortedSeries
 DateNumericInterface = NativeInterface

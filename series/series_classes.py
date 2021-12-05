@@ -21,7 +21,4 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..series.pairs.sorted_key_value_series import SortedKeyValueSeries
     from ..series.pairs.sorted_numeric_key_value_series import SortedNumericKeyValueSeries
     from ..series.pairs.date_numeric_series import DateNumericSeries
-    from ..utils import (
-        numeric as nm,
-        dates as dt,
-    )
+    from ..functions.primary import numeric as nm, dates as dt

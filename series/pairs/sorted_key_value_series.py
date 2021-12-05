@@ -3,10 +3,7 @@ try:  # Assume we're a sub-module in a package.
     from functions.primary import numeric as nm, dates as dt
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from .. import series_classes as sc
-    from ...utils import (
-        numeric as nm,
-        dates as dt,
-    )
+    from ...functions.primary import numeric as nm, dates as dt
 
 
 class SortedKeyValueSeries(sc.KeyValueSeries, sc.SortedSeries):

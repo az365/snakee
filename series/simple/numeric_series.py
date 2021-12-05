@@ -1,11 +1,11 @@
 from typing import Optional, Callable
 
 try:  # Assume we're a sub-module in a package.
-    from series import series_classes as sc
     from functions.primary import numeric as nm
+    from series import series_classes as sc
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
+    from ...functions.primary import numeric as nm
     from .. import series_classes as sc
-    from ...utils import numeric as nm
 
 Native = sc.AnySeries
 
