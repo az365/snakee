@@ -3,31 +3,33 @@ from inspect import isclass
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg, items as it, selection as sf
+    from utils.decorators import deprecated_with_alternative
     from interfaces import (
         Stream, LocalStream, RegularStreamInterface, Context, Connector, TmpFiles,
         StreamType, ItemType,
         AUTO, Auto, Name, Count, Source, Array, ARRAY_TYPES, OptionalFields,
     )
-    from streams import stream_classes as sm
     from selection import selection_classes as sn
-    from utils.decorators import deprecated_with_alternative
+    from streams.abstract.local_stream import LocalStream
+    from streams.mixin.convert_mixin import ConvertMixin
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg, items as it, selection as sf
+    from ...utils.decorators import deprecated_with_alternative
     from ...interfaces import (
         Stream, LocalStream, RegularStreamInterface, Context, Connector, TmpFiles,
         StreamType, ItemType,
         AUTO, Auto, Name, Count, Source, Array, ARRAY_TYPES, OptionalFields,
     )
-    from .. import stream_classes as sm
     from ...selection import selection_classes as sn
-    from ...utils.decorators import deprecated_with_alternative
+    from ..abstract.local_stream import LocalStream
+    from ..mixin.convert_mixin import ConvertMixin
 
 Native = Union[LocalStream, RegularStreamInterface]
 Data = Union[Auto, Iterable]
 AutoStreamType = Union[Auto, StreamType]
 
 
-class AnyStream(sm.LocalStream, sm.ConvertMixin, RegularStreamInterface):
+class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
     def __init__(
             self, data, name: Name = AUTO,
             count: Count = None, less_than: Count = None,
@@ -109,10 +111,8 @@ class AnyStream(sm.LocalStream, sm.ConvertMixin, RegularStreamInterface):
         new_props_keys = stream_class([]).get_meta().keys()
         props = {k: v for k, v in self.get_meta().items() if k in new_props_keys}
         props.pop('count')
-        return stream_class(
-            self.get_mapped_items(function=function, flat=True),
-            **props
-        )
+        items = self._get_mapped_items(function=function, flat=True)
+        return stream_class(items, **props)
 
     @deprecated_with_alternative('map()')
     def native_map(self, function: Callable) -> Native:
@@ -135,10 +135,10 @@ class AnyStream(sm.LocalStream, sm.ConvertMixin, RegularStreamInterface):
         )
 
     def sorted_group_by(self, *keys, values: Optional[Iterable] = None, as_pairs: bool = False) -> Stream:
-        raise NotImplemented
+        raise NotImplementedError
 
     def group_by(self, *keys, values: Optional[Iterable] = None, as_pairs: bool = False) -> Stream:
-        raise NotImplemented
+        raise NotImplementedError
 
     @staticmethod
     def _assume_stream(stream) -> Stream:
@@ -182,19 +182,13 @@ class AnyStream(sm.LocalStream, sm.ConvertMixin, RegularStreamInterface):
     @classmethod
     @deprecated_with_alternative('connectors.filesystem.local_file.JsonFile.to_stream()')
     def from_json_file(
-            cls,
-            filename,
-            encoding=None, gzip=False,
+            cls, filename, encoding=None,
             skip_first_line=False, max_count=None,
-            check=AUTO,
-            verbose=False,
+            check=AUTO, verbose=False,
     ) -> Stream:
-        return sm.LineStream.from_text_file(
-            filename,
-            encoding=encoding, gzip=gzip,
+        line_stream_class = StreamType.LineStream.get_class()
+        return line_stream_class.from_text_file(
+            filename, encoding=encoding,
             skip_first_line=skip_first_line, max_count=max_count,
-            check=check,
-            verbose=verbose,
-        ).parse_json(
-            to=cls.__name__,
-        )
+            check=check, verbose=verbose,
+        ).parse_json(to=cls.__name__)
