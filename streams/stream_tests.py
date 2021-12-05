@@ -227,8 +227,9 @@ def test_save_and_read():
     received_1 = sm.LineStream.from_text_file(
         EXAMPLE_FILENAME
     ).get_list()
-    assert received_0 == expected, 'test case 0: lazy_save()'
-    assert received_1 == expected, 'test case 1: secondary fileholder'
+    assert received_0 == expected, 'test case 0: lazy_save(), {} != {}'.format(received_0, expected)
+    assert received_1 == expected, 'test case 1: secondary fileholder, {} != {}'.format(received_1, expected)
+
     sm.AnyStream(
         EXAMPLE_INT_SEQUENCE,
     ).to_line_stream(
@@ -238,24 +239,7 @@ def test_save_and_read():
     received_2 = sm.LineStream.from_text_file(
         EXAMPLE_FILENAME,
     ).get_list()
-    assert received_2 == expected, 'test case 2: to_text_file()'
-    sm.AnyStream(
-        EXAMPLE_INT_SEQUENCE,
-    ).to_row_stream(
-        function=lambda i: [i],
-    ).to_column_file(
-        EXAMPLE_FILENAME,
-        gzip=True,
-    )
-    # received_3 = sm.RowStream.from_column_file(
-    #     EXAMPLE_FILENAME,
-    #     gzip=True,
-    # ).select(
-    #     (str, 0),
-    # ).map_to_any(
-    #     lambda r: r[0],
-    # ).get_list()
-    # assert received_3 == expected, 'test case 3: gzip'
+    assert received_2 == expected, 'test case 2: to_text_file(), {} != {}'.format(received_2, expected)
 
 
 def test_add():
