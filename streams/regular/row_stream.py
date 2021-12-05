@@ -3,41 +3,43 @@ from typing import Optional, Callable, Iterable, Generator, Union
 try:  # Assume we're a sub-module in a package.
     from interfaces import (
         Stream, RegularStream, StructStream, StructInterface,
-        Context, Connector, TmpFiles, ItemType,
-        Count, Name, Columns,
-        AUTO, Auto, AutoColumns,
+        Context, Connector, TmpFiles, ItemType, StreamType,
+        Name, Count, Columns,
+        AUTO, Auto, AutoCount, AutoColumns,
     )
     from utils import arguments as arg, selection as sf
-    from functions.primary import numeric as nm
     from utils.decorators import deprecated_with_alternative
-    from streams import stream_classes as sm
+    from functions.primary import numeric as nm
     from selection import selection_classes as sn
+    from streams.mixin.columnar_mixin import ColumnarMixin
+    from streams.regular.any_stream import AnyStream
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         Stream, RegularStream, StructStream, StructInterface,
-        Context, Connector, TmpFiles, ItemType,
-        Count, Name, Columns,
-        AUTO, Auto, AutoColumns,
+        Context, Connector, TmpFiles, ItemType, StreamType,
+        Name, Count, Columns,
+        AUTO, Auto, AutoCount, AutoColumns,
     )
     from ...utils import arguments as arg, selection as sf
-    from ...functions.primary import numeric as nm
     from ...utils.decorators import deprecated_with_alternative
+    from ...functions.primary import numeric as nm
     from ...selection import selection_classes as sn
-    from .. import stream_classes as sm
+    from ..mixin.columnar_mixin import ColumnarMixin
+    from .any_stream import AnyStream
 
 Native = RegularStream
 
 DEFAULT_EXAMPLE_COUNT = 10
 
 
-class RowStream(sm.AnyStream, sm.ColumnarMixin):
+class RowStream(AnyStream, ColumnarMixin):
     def __init__(
             self,
             data: Iterable,
             name: Name = AUTO, check: bool = True,
             count: Count = None, less_than: Count = None,
             source: Connector = None, context: Context = None,
-            max_items_in_memory: Count = sm.MAX_ITEMS_IN_MEMORY,
+            max_items_in_memory: AutoCount = AUTO,
             tmp_files: Union[TmpFiles, Auto] = AUTO,
     ):
         super().__init__(
@@ -93,7 +95,7 @@ class RowStream(sm.AnyStream, sm.ColumnarMixin):
         return self.native_map(select_function)
 
     def sorted_group_by(self, *keys, values: Optional[Iterable] = None, as_pairs: bool = False) -> Stream:
-        raise NotImplemented
+        raise NotImplementedError
 
     def group_by(self, *keys, values: Optional[Iterable] = None, as_pairs: bool = False) -> Stream:
         return self.sort(*keys).sorted_group_by(*keys, values=values, as_pairs=as_pairs)
@@ -105,9 +107,10 @@ class RowStream(sm.AnyStream, sm.ColumnarMixin):
             return nm.DataFrame(self.get_data())
 
     def to_line_stream(self, delimiter: str = '\t', columns: AutoColumns = AUTO, add_title_row=False) -> Stream:
-        stream = self.select(columns) if arg.is_defined(columns) else self
-        lines = map(lambda r: '\t'.join([str(c) for c in r]), stream.get_items())
-        return sm.LineStream(lines, count=self.get_count())
+        input_stream = self.select(columns) if arg.is_defined(columns) else self
+        lines = map(lambda r: '\t'.join([str(c) for c in r]), input_stream.get_items())
+        line_stream_class = StreamType.LineStream.get_class()
+        return line_stream_class(lines, count=self.get_count())
 
     def get_records(self, columns: AutoColumns = AUTO) -> Generator:
         if columns == AUTO:
@@ -126,15 +129,13 @@ class RowStream(sm.AnyStream, sm.ColumnarMixin):
             skip_bad_values: bool = False,
             verbose: bool = True,
     ) -> StructStream:
-        return sm.StructStream(
-            self.get_items(),
-            **self.get_compatible_meta(sm.StreamType.StructStream),
-        ).structure(
-            struct=struct,
-            skip_bad_rows=skip_bad_rows,
-            skip_bad_values=skip_bad_values,
-            verbose=verbose,
-        )
+        struct_stream_class = StreamType.StructStream.get_class()
+        stream = struct_stream_class([], struct, **self.get_meta())
+        data = stream.get_struct_rows(self.get_items())
+        stream = stream.add_items(data)
+        if self.is_in_memory():
+            stream = stream.collect()
+        return stream
 
     @classmethod
     @deprecated_with_alternative('connectors.ColumnFile()')
@@ -147,7 +148,8 @@ class RowStream(sm.AnyStream, sm.ColumnarMixin):
             check=AUTO,
             verbose=False,
     ):
-        stream = sm.LineStream.from_text_file(
+        line_stream_class = StreamType.LineStream.get_class()
+        stream = line_stream_class.from_text_file(
             filename,
             encoding=encoding, gzip=gzip,
             skip_first_line=skip_first_line, max_count=max_count,
