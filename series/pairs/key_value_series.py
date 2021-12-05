@@ -230,3 +230,12 @@ class KeyValueSeries(sc.AnySeries):
 
     def plot(self, fmt='-'):
         nm.plot(self.get_keys(), self.get_values(), fmt=fmt)
+
+    def __repr__(self):
+        count, keys, values = self.get_count(), self.get_keys(), self.get_values()
+        if count > 3:
+            keys = keys[:2] + ['...'] + keys[-1:]
+            values = values[:2] + ['...'] + values[-1:]
+        keys = ', '.join(map(str, keys))
+        values = ', '.join(map(str, values))
+        return "{}(count={}, keys={}, values={})".format(self.__class__.__name__, count, keys, values)

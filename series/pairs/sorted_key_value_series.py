@@ -116,3 +116,15 @@ class SortedKeyValueSeries(sc.KeyValueSeries, sc.SortedSeries):
 
     def span(self, first_key, last_key):
         return self.filter_keys(lambda k: first_key <= k <= last_key)
+
+    def __repr__(self):
+        count, keys, values = self.get_count(), self.get_keys(), self.get_values()
+        if count == 0:
+            return '{}(0)'.format(self.__class__.__name__)
+        elif count == 1:
+            keys = keys[0]
+            values = values[0]
+        else:
+            keys = '{}..{}'.format(keys[0], keys[-1])
+            values = '{}..{}'.format(values[0], values[-1])
+        return '{}({}, {}, {})'.format(self.__class__.__name__, count, keys, values)
