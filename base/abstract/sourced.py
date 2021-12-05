@@ -1,18 +1,18 @@
 from abc import ABC
-from typing import Optional, NoReturn
+from typing import Optional
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
-    from base.abstract.named import AbstractNamed
+    from loggers.logger_interface import LoggerInterface
     from base.interfaces.context_interface import ContextInterface
     from base.interfaces.sourced_interface import SourcedInterface
-    from loggers.logger_interface import LoggerInterface
+    from base.abstract.named import AbstractNamed
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
-    from .named import AbstractNamed
+    from ...loggers.logger_interface import LoggerInterface
     from ..interfaces.context_interface import ContextInterface
     from ..interfaces.sourced_interface import SourcedInterface
-    from ...loggers.logger_interface import LoggerInterface
+    from .named import AbstractNamed
 
 Source = Optional[AbstractNamed]
 Logger = Optional[LoggerInterface]
@@ -21,10 +21,10 @@ SPECIFIC_MEMBERS = ('_source', )
 
 
 class Sourced(AbstractNamed, SourcedInterface, ABC):
-    def __init__(self, name: str = arg.DEFAULT, source: Optional[SourcedInterface] = None, check: bool = True):
-        name = arg.undefault(name, arg.get_generated_name(self._get_default_name_prefix()))
-        super().__init__(name=name)
+    def __init__(self, name: str = arg.AUTO, source: Optional[SourcedInterface] = None, check: bool = True):
+        name = arg.acquire(name, arg.get_generated_name(self._get_default_name_prefix()))
         self._source = source
+        super().__init__(name=name)
         if arg.is_defined(source):
             self.register(check=check)
 
@@ -53,7 +53,7 @@ class Sourced(AbstractNamed, SourcedInterface, ABC):
             sourced_obj.register()
             return sourced_obj
 
-    def register(self, check=True):
+    def register(self, check: bool = True) -> SourcedInterface:
         source = self.get_source()
         assert arg.is_defined(source), 'source for register must be defined'
         known_child = source.get_child(self.get_name())
@@ -64,8 +64,9 @@ class Sourced(AbstractNamed, SourcedInterface, ABC):
                 )
         else:
             source.add_child(self)
+        return self
 
-    def get_logger(self, skip_missing=False) -> Logger:
+    def get_logger(self, skip_missing: bool = False) -> Logger:
         source = self.get_source()
         if source:
             if hasattr(source, 'get_logger'):
@@ -76,4 +77,4 @@ class Sourced(AbstractNamed, SourcedInterface, ABC):
     def log(self, *args, **kwargs):
         logger = self.get_logger()
         if logger:
-            logger.log(*args, **kwargs)
+            return logger.log(*args, **kwargs)
