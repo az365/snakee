@@ -3,15 +3,19 @@ from typing import Iterable, Callable, Optional, Union
 
 try:  # Assume we're a sub-module in a package.
     from functions.primary import dates as dt
+    from series.simple.any_series import AnySeries
+    from series.simple.sorted_series import SortedSeries
     from series import series_classes as sc
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...functions.primary import dates as dt
+    from .any_series import AnySeries
+    from .sorted_series import SortedSeries
     from .. import series_classes as sc
 
-NativeInterface = sc.SortedSeries
-DateNumericInterface = NativeInterface
-SortedNumeric = sc.SortedNumericSeries
-Series = sc.AnySeries
+NativeInterface = SortedSeries
+DateNumericInterface = NativeInterface  # sc.DateNumericSeries
+SortedNumeric = NativeInterface  # sc.SortedNumericSeries
+Series = AnySeries
 
 DEFAULT_NUMERIC = False
 DEFAULT_SORTED = True
@@ -41,6 +45,10 @@ class DateSeriesInterface(NativeInterface):
 
     @abstractmethod
     def to_weeks(self) -> SortedNumeric:
+        pass
+
+    @abstractmethod
+    def to_months(self) -> SortedNumeric:
         pass
 
     @abstractmethod
@@ -148,6 +156,10 @@ class DateSeriesInterface(NativeInterface):
         pass
 
     @abstractmethod
+    def interpolate_to_months(self) -> NativeInterface:
+        pass
+
+    @abstractmethod
     def find_base_date(
             self, date: dt.Date,
             max_distance: int = dt.MAX_DAYS_IN_MONTH, return_increment: bool = False,
@@ -226,6 +238,9 @@ class DateSeries(DateSeriesInterface, sc.SortedSeries):
 
     def to_weeks(self) -> SortedNumeric:
         return self.map_dates(dt.get_week_abs_from_date).assume_numeric()
+
+    def to_months(self) -> SortedNumeric:
+        return self.map_dates(dt.get_month_abs_from_date).assume_numeric()
 
     def to_years(self) -> SortedNumeric:
         return self.map_dates(lambda d: dt.get_year_from_date(d, decimal=True)).assume_numeric()
@@ -361,6 +376,10 @@ class DateSeries(DateSeriesInterface, sc.SortedSeries):
     def interpolate_to_weeks(self) -> Native:
         monday_dates = dt.get_weeks_range(self.get_first_date(), self.get_last_date())
         return self.new(monday_dates)
+
+    def interpolate_to_months(self) -> Native:
+        monthly_dates = dt.get_months_range(self.get_first_date(), self.get_last_date())
+        return self.new(monthly_dates)
 
     def find_base_date(
             self, date: dt.Date,

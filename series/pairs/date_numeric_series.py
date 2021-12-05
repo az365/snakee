@@ -130,6 +130,10 @@ class DateNumericSeries(sc.SortedNumericKeyValueSeries, sc.DateSeries):
         monday_dates = dt.get_weeks_range(self.get_first_date(), self.get_last_date())
         return self.interpolate(monday_dates, how=how, *args, **kwargs)
 
+    def interpolate_to_months(self, how='spline', *args, **kwargs):
+        monthly_dates = dt.get_months_range(self.get_first_date(), self.get_last_date())
+        return self.interpolate(monthly_dates, how=how, *args, **kwargs)
+
     def apply_window_series_function(
             self,
             window_days_count,
