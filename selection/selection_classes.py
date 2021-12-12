@@ -1,11 +1,8 @@
 from typing import Iterable, Callable, Union
 
 try:  # Assume we're a sub-module in a package.
-    from utils import (
-        arguments as arg,
-        items as it,
-        selection as sf,
-    )
+    from utils import arguments as arg, selection as sf
+    from items.item_type import ItemType
     from selection.abstract_expression import (
         AbstractDescription, SingleFieldDescription, MultipleFieldDescription, TrivialMultipleDescription,
     )
@@ -15,13 +12,9 @@ try:  # Assume we're a sub-module in a package.
     )
     from selection.abstract_expression import AbstractDescription, SingleFieldDescription, MultipleFieldDescription
     from selection.selection_description import SelectionDescription, translate_names_to_columns
-    from utils import items as it
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..utils import (
-        arguments as arg,
-        items as it,
-        selection as sf,
-    )
+    from ..utils import arguments as arg, selection as sf
+    from ..items.item_type import ItemType
     from .abstract_expression import (
         AbstractDescription, SingleFieldDescription, MultipleFieldDescription, TrivialMultipleDescription,
     )
@@ -71,7 +64,7 @@ def get_compatible_expression_tuples(expressions: dict) -> dict:
 
 def select(
         *fields,
-        target_item_type=it.ItemType.Auto, input_item_type=it.ItemType.Auto,
+        target_item_type=ItemType.Auto, input_item_type=ItemType.Auto,
         logger=None, selection_logger=arg.AUTO,
         use_extended_method=True,
         **expressions

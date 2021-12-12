@@ -12,10 +12,10 @@ try:  # Assume we're a sub-module in a package.
         merge_two_rows, merge_two_records,
     )
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from . import arguments as arg
-    from ..items.item_type import ItemType
-    from ..items.struct_row_interface import StructRowInterface
-    from ..items.simple_items import (
+    from ...utils import arguments as arg
+    from ...items.item_type import ItemType
+    from ...items.struct_row_interface import StructRowInterface
+    from ...items.simple_items import (
         Row, Record, Line, SimpleSelectableItem,
         STAR, ROW_SUBCLASSES, RECORD_SUBCLASSES,
         FieldNo, FieldName, FieldID, Value, Array, ARRAY_TYPES,

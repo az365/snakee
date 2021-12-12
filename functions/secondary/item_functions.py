@@ -4,17 +4,11 @@ import json
 import csv
 
 try:  # Assume we're a sub-module in a package.
-    from utils import (
-        arguments as arg,
-        selection as sf,
-        items as it,
-    )
+    from utils import arguments as arg, selection as sf
+    from functions.primary import items as it
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import (
-        arguments as arg,
-        selection as sf,
-        items as it,
-    )
+    from ...utils import arguments as arg, selection as sf
+    from ..primary import items as it
 
 max_int = sys.maxsize
 while True:  # To prevent _csv.Error: field larger than field limit (131072)

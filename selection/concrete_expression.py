@@ -1,12 +1,14 @@
 from typing import Optional, Callable, Iterable, Union
 
 try:  # Assume we're a sub-module in a package.
-    from utils import arguments as arg, items as it, selection as sf
+    from utils import arguments as arg, selection as sf
     from interfaces import ItemType, StructInterface, Item, Name, Field, Value, Array
+    from functions.primary import items as it
     from selection.abstract_expression import SingleFieldDescription, TrivialMultipleDescription
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..utils import arguments as arg, items as it, selection as sf
+    from ..utils import arguments as arg, selection as sf
     from ..interfaces import ItemType, StructInterface, Item, Name, Field, Value, Array
+    from ..functions.primary import items as it
     from .abstract_expression import SingleFieldDescription, TrivialMultipleDescription
 
 GIVE_SAME_FIELD_FOR_FUNCTION_DESCRIPTION = False
