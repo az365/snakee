@@ -1,19 +1,15 @@
 from typing import Optional, Union, Callable, Iterable, Any
 
 try:  # Assume we're a sub-module in a package.
-    from utils import (
-        arguments as arg,
-        mappers as ms,
-    )
+    from utils import arguments as arg
     from items.item_type import ItemType
     from functions.primary import numeric as nm
+    from functions.primary import grouping as gr
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import (
-        arguments as arg,
-        mappers as ms,
-    )
+    from ...utils import arguments as arg
     from ...items.item_type import ItemType
     from ..primary import numeric as nm
+    from ..primary import grouping as gr
 
 Array = Union[list, tuple]
 
@@ -98,7 +94,7 @@ def fold_lists(
         detected_type = item_type
         if not arg.is_defined(detected_type):
             detected_type = ItemType.detect(item)
-        return ms.fold_lists(item, keys, values, skip_missing=skip_missing, item_type=detected_type)
+        return gr.fold_lists(item, keys, values, skip_missing=skip_missing, item_type=detected_type)
     return func
 
 
@@ -106,7 +102,7 @@ def unfold_lists(fields, number_field='n', default_value=0) -> Callable:
     fields = arg.get_names(fields)
 
     def func(record: dict) -> Iterable:
-        yield from ms.unfold_lists(record, fields=fields, number_field=number_field, default_value=default_value)
+        yield from gr.unfold_lists(record, fields=fields, number_field=number_field, default_value=default_value)
     return func
 
 

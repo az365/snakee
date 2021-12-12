@@ -1,7 +1,7 @@
 from typing import Optional, Iterable, Callable, Union
 
 try:  # Assume we're a sub-module in a package.
-    from utils import arguments as arg, mappers as ms, selection as sf
+    from utils import arguments as arg, selection as sf
     from utils.decorators import deprecated_with_alternative
     from utils.external import pd, DataFrame, get_use_objects_for_output
     from interfaces import (
@@ -15,7 +15,7 @@ try:  # Assume we're a sub-module in a package.
     from functions import all_functions as fs
     from selection import selection_classes as sn
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg, mappers as ms, selection as sf
+    from ...utils import arguments as arg, selection as sf
     from ...utils.decorators import deprecated_with_alternative
     from ...utils.external import pd, DataFrame, get_use_objects_for_output
     from ...interfaces import (
@@ -183,21 +183,19 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
         keys = arg.get_names(keys, or_callable=True)
         values = arg.get_names(values)
         key_function = self._get_key_function(keys)
-        groups = self._get_groups(key_function, as_pairs=as_pairs)
+        iter_groups = self._get_groups(key_function, as_pairs=as_pairs)
         if as_pairs:
-            sm_groups = sm.KeyValueStream(groups, value_stream_type=StreamType.RowStream)
+            stream_groups = sm.KeyValueStream(iter_groups, value_stream_type=StreamType.RowStream)
         else:
-            sm_groups = sm.RowStream(groups, check=False)
+            stream_groups = sm.RowStream(iter_groups, check=False)
         if values:
-            sm_groups = sm_groups.map_to_type(
-                lambda r: ms.fold_lists(r, keys, values, skip_missing=skip_missing),
-                stream_type=StreamType.RecordStream,
-            )
+            fold_mapper = fs.fold_lists(keys=keys, values=values, skip_missing=skip_missing)
+            stream_groups = stream_groups.map_to_type(fold_mapper, stream_type=StreamType.RecordStream)
         if self.is_in_memory():
-            return sm_groups.to_memory()
+            return stream_groups.to_memory()
         else:
-            sm_groups.set_estimated_count(self.get_count() or self.get_estimated_count())
-            return sm_groups
+            stream_groups.set_estimated_count(self.get_count() or self.get_estimated_count())
+            return stream_groups
 
     def group_by(
             self, *keys, values: Columns = None,
