@@ -47,7 +47,9 @@ class StreamType(ClassType):
 
     @classmethod
     def detect(cls, obj, default=arg.AUTO) -> ClassType:
-        if isinstance(obj, str):
+        if isinstance(obj, StreamType):
+            return obj
+        elif isinstance(obj, str):
             name = obj
         elif inspect.isclass(obj):
             name = obj.__name__
