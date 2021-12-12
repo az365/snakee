@@ -2,7 +2,7 @@ try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from utils.decorators import deprecated_with_alternative
     from connectors.content_format.abstract_format import AbstractFormat, BinaryFormat, CompressibleFormat, ParsedFormat
-    from connectors.content_format.text_format import TextFormat, JsonFormat
+    from connectors.content_format.text_format import TextFormat, JsonFormat, DEFAULT_ENDING, DEFAULT_ENCODING
     from connectors.content_format.columnar_format import ColumnarFormat, FlatStructFormat
     from connectors.content_format.lean_format import LeanFormat
     from connectors.content_format.content_type import ContentType
@@ -10,10 +10,12 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils import arguments as arg
     from ...utils.decorators import deprecated_with_alternative
     from .abstract_format import AbstractFormat, BinaryFormat, CompressibleFormat, ParsedFormat
-    from .text_format import TextFormat, JsonFormat
+    from .text_format import TextFormat, JsonFormat, DEFAULT_ENDING, DEFAULT_ENCODING
     from .columnar_format import ColumnarFormat, FlatStructFormat
     from .lean_format import LeanFormat
     from .content_type import ContentType
+
+DEFAULT_DELIMITER = ','
 
 
 class CsvFormat(FlatStructFormat):
@@ -22,9 +24,9 @@ class CsvFormat(FlatStructFormat):
             self,
             struct=arg.AUTO,
             first_line_is_title: bool = True,
-            delimiter: str = ',',
-            ending: str = '\n',
-            encoding: str = 'utf8',
+            delimiter: str = DEFAULT_DELIMITER,
+            ending: str = DEFAULT_ENDING,
+            encoding: str = DEFAULT_ENCODING,
             compress=None,
     ):
         super().__init__(
