@@ -1,4 +1,4 @@
-from typing import Optional, Union, Iterable, Generator, Iterator, Callable
+from typing import Optional, Union, Iterable, Generator, Callable
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
@@ -98,14 +98,6 @@ class ColumnarFormat(TextFormat):
             raise ValueError('item_type {} not supported for ColumnarFormat'.format(item_type))
         row = map(str, row)
         return self.get_delimiter().join(row)
-
-    @deprecated_with_alternative('fs.csv_reader()')
-    def _get_rows_from_csv(self, lines: Iterable) -> Iterator:
-        return fs.csv_reader(delimiter=self.get_delimiter())(lines)
-
-    @deprecated_with_alternative('fs.csv_loads()')
-    def _parse_csv_line(self, line: str) -> Row:
-        return fs.csv_loads(delimiter=self.get_delimiter())(line)
 
     @staticmethod
     def _get_row_converter(converters: Row) -> Callable:
@@ -207,10 +199,10 @@ class FlatStructFormat(ColumnarFormat):
             return self.make_new(struct=struct)
 
     def get_default_stream_type(self) -> StreamType:
-        return StreamType.StructStream
+        return StreamType.RecordStream
 
     def get_default_item_type(self) -> ItemType:
-        return ItemType.StructRow
+        return ItemType.Record
 
     def _get_validated_struct(
             self,
