@@ -110,11 +110,71 @@ class RowStream(AnyStream, ColumnarMixin):
         )
         return self.native_map(select_function)
 
-    def sorted_group_by(self, *keys, values: Optional[Iterable] = None, as_pairs: bool = False) -> Stream:
-        raise NotImplementedError
+    def _get_groups(self, key_function: Callable, as_pairs: bool) -> Iterable:
+        accumulated = list()
+        prev_k = None
+        for r in self.get_items():
+            k = key_function(r)
+            if (k != prev_k) and accumulated:
+                yield (prev_k, accumulated) if as_pairs else accumulated
+                accumulated = list()
+            prev_k = k
+            accumulated.append(r)
+        yield (prev_k, accumulated) if as_pairs else accumulated
 
-    def group_by(self, *keys, values: Optional[Iterable] = None, as_pairs: bool = False) -> Stream:
-        return self.sort(*keys).sorted_group_by(*keys, values=values, as_pairs=as_pairs)
+    def sorted_group_by(
+            self,
+            *keys,
+            values: Optional[Iterable] = None,
+            as_pairs: bool = False,
+            output_struct: Optional[StructInterface] = None,
+            skip_missing: bool = True,  # tmp
+    ) -> Stream:
+        keys = arg.update(keys)
+        key_function = self._get_key_function(keys, take_hash=False)
+        output_keys = [self._get_field_getter(f) for f in keys]
+        groups = self._get_groups(key_function, as_pairs=as_pairs)
+        if as_pairs:
+            stream_builder = StreamType.KeyValueStream.get_class()
+            stream_groups = stream_builder(groups, value_stream_type=self.get_stream_type())
+        else:
+            stream_builder = StreamType.RowStream.get_class()
+            stream_groups = stream_builder(groups, check=False)
+        if values:
+            item_type = self.get_item_type()
+            values = [self._get_field_getter(f, item_type=item_type) for f in values]
+            fold_func = fs.fold_lists(keys=output_keys, values=values, skip_missing=skip_missing, item_type=item_type)
+            stream_type = StreamType.RowStream if output_struct else self.get_stream_type()
+            stream_groups = stream_groups.map_to_type(fold_func, stream_type=stream_type)
+            if output_struct:
+                stream_groups = stream_groups.structure(output_struct)
+        if self.is_in_memory():
+            return stream_groups.to_memory()
+        else:
+            stream_groups.set_estimated_count(self.get_count() or self.get_estimated_count(), inplace=True)
+            return stream_groups
+
+    def group_by(
+            self,
+            *keys,
+            values: Optional[Iterable] = None,
+            as_pairs: bool = False,
+            take_hash: bool = True,
+            step: AutoCount = AUTO,
+            verbose: bool = True
+    ) -> Stream:
+        if as_pairs:
+            key_for_sort = keys
+        else:
+            key_for_sort = self._get_key_function(keys, take_hash=take_hash)
+        return self.sort(
+            key_for_sort,
+            step=step,
+        ).sorted_group_by(
+            *keys,
+            values=values,
+            as_pairs=as_pairs,
+        )
 
     def get_dataframe(self, columns: Columns = None):
         if columns:

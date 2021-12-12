@@ -339,8 +339,29 @@ class StructStream(sm.RowStream, StructMixin, sm.ConvertMixin):
         result = self.stream(filtered_items)
         return result.to_memory() if self.is_in_memory() else result
 
-    def sorted_group_by(self, *keys, values: Optional[Iterable] = None, as_pairs: bool = False):
-        raise NotImplementedError
+    def sorted_group_by(
+            self,
+            *keys,
+            values: Optional[Iterable] = None,
+            as_pairs: bool = False,
+    ) -> StreamInterface:
+        if as_pairs:
+            return super().sorted_group_by(*keys, values=values, as_pairs=True)
+        else:
+            output_struct = FlatStruct([])
+            for f in list(keys) + list(values):
+                if isinstance(f, ARRAY_TYPES):
+                    field_name = arg.get_name(f[0])
+                else:
+                    field_name = arg.get_name(f)
+                if f in values:
+                    field_type = FieldType.Tuple
+                elif isinstance(f, FieldInterface) or hasattr(f, 'get_type'):
+                    field_type = f.get_type()
+                else:
+                    field_type = arg.AUTO
+                output_struct.append_field(field_name, field_type)
+            return super().sorted_group_by(*keys, values=values, as_pairs=False, output_struct=output_struct)
 
     def map_side_join(
             self,
