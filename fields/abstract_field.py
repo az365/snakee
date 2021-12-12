@@ -14,8 +14,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 class AbstractField(SimpleDataWrapper, FieldInterface, ABC):
     def __init__(self, name: str, field_type: FieldType = FieldType.Any, properties=None):
         field_type = arg.acquire(field_type, FieldType.detect_by_name, field_name=name)
-        field_type = FieldType.get_canonic_type(field_type)
-        assert isinstance(field_type, FieldType)
+        field_type = FieldType.get_canonic_type(field_type, ignore_missing=True)
+        assert isinstance(field_type, FieldType), 'Expected FieldType, got {}'.format(field_type)
         self._type = field_type
         super().__init__(name=name, data=properties)
 

@@ -85,7 +85,9 @@ class FieldType(DynamicEnum):
         return FieldType(field_type_name)
 
     @classmethod
-    def get_canonic_type(cls, field_type, ignore_absent: bool = False):
+    def get_canonic_type(cls, field_type, ignore_missing: bool = False, default='any'):
+        if ignore_missing and field_type is None:
+            field_type = default
         if isinstance(field_type, FieldType):
             return field_type
         elif field_type in FieldType.__dict__.values():
@@ -104,7 +106,9 @@ class FieldType(DynamicEnum):
         try:
             return FieldType(str_field_type)
         except ValueError as e:
-            if not ignore_absent:
+            if ignore_missing:
+                return FieldType(default)
+            else:
                 raise ValueError('Unsupported field type: {} ({})'.format(field_type, e))
 
     def get_converter(self, source, target):
@@ -164,8 +168,8 @@ FieldType._dict_heuristic_suffix_to_type = {
 
 
 @deprecated_with_alternative('FieldType.get_canonic_type()')
-def get_canonic_type(field_type, ignore_absent: bool = False) -> FieldType:
-    field_type = FieldType.get_canonic_type(field_type, ignore_absent=ignore_absent)
+def get_canonic_type(field_type, ignore_missing: bool = False) -> FieldType:
+    field_type = FieldType.get_canonic_type(field_type, ignore_missing=ignore_missing)
     assert isinstance(field_type, FieldType)
     return field_type
 
