@@ -2,7 +2,6 @@ from typing import Optional, NoReturn
 from datetime import datetime
 from random import randint
 
-MAX_ITEMS_IN_MEMORY = 5000000
 TMP_FILES_TEMPLATE = 'stream_{}.tmp'
 TMP_FILES_ENCODING = 'utf8'
 
@@ -16,7 +15,7 @@ try:  # Assume we're a sub-module in a package.
         StreamType, ItemType, JoinType, How, Auto, AUTO,
     )
     from streams.abstract.abstract_stream import AbstractStream
-    from streams.abstract.iterable_stream import IterableStream
+    from streams.abstract.iterable_stream import IterableStream, MAX_ITEMS_IN_MEMORY
     from streams.abstract.local_stream import LocalStream
     from streams.abstract.wrapper_stream import WrapperStream
     from streams.mixin.columnar_mixin import ColumnarMixin
@@ -43,7 +42,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         StreamType, ItemType, JoinType, How, Auto, AUTO,
     )
     from .abstract.abstract_stream import AbstractStream
-    from .abstract.iterable_stream import IterableStream
+    from .abstract.iterable_stream import IterableStream, MAX_ITEMS_IN_MEMORY
     from .abstract.local_stream import LocalStream
     from .abstract.wrapper_stream import WrapperStream
     from .mixin.columnar_mixin import ColumnarMixin

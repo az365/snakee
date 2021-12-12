@@ -64,10 +64,20 @@ def get_field_value_from_struct_row(
         default: Value = None, skip_missing: bool = True,
         struct=None,
 ) -> Value:
-    if hasattr(row, 'get_value'):
+    if isinstance(field, Callable):
+        func = field
+        return func(row)
+    elif hasattr(field, 'get_function'):
+        func = field.get_function()
+        return func(row)
+    elif hasattr(row, 'get_value'):
         return row.get_value(field, default=default, skip_missing=True)
-    if struct and isinstance(field, str):
+    elif isinstance(field, int):
+        column = field
+    elif struct and isinstance(field, str):
         column = struct.get_field_position(field)
+    else:
+        raise TypeError('Expected Field, Column or Callable, got {}'.format(field))
     return get_field_value_from_row(column, row, default=default, skip_missing=skip_missing)
 
 

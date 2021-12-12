@@ -100,7 +100,16 @@ class LocalFolder(HierarchicFolder):
         if kwargs or not file:
             filename = kwargs.pop('filename', name)
             file_class = self.get_default_child_obj_class()
-            assert file_class, "connector class isn't detected"
+            assert file_class, "connector class or type name aren't detected"
+            if arg.is_defined(filetype):
+                content_format = kwargs.get('content_format')
+                msg = 'Only one of arguments allowed: filetype (got {}) or content_format (got {})'
+                assert not content_format, msg.format(filetype, content_format)
+                if isinstance(filetype, FileType):  # tmp fix
+                    content_format = filetype.get_value()
+                else:
+                    content_format = filetype
+                kwargs['content_format'] = content_format
             try:
                 file = file_class(filename, folder=self, **kwargs)
             except TypeError as e:

@@ -1,16 +1,9 @@
 try:  # Assume we're a sub-module in a package.
     from series import series_classes as sc
-    from utils import (
-        numeric as nm,
-        dates as dt,
-    )
+    from functions.primary import numeric as nm, dates as dt
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from .. import series_classes as sc
-    from ...utils import (
-        numeric as nm,
-        dates as dt,
-    )
-
+    from ...functions.primary import numeric as nm, dates as dt
 
 WINDOW_WEEKLY_DEFAULT = (-7, 0, 7)
 
@@ -136,6 +129,10 @@ class DateNumericSeries(sc.SortedNumericKeyValueSeries, sc.DateSeries):
     def interpolate_to_weeks(self, how='spline', *args, **kwargs):
         monday_dates = dt.get_weeks_range(self.get_first_date(), self.get_last_date())
         return self.interpolate(monday_dates, how=how, *args, **kwargs)
+
+    def interpolate_to_months(self, how='spline', *args, **kwargs):
+        monthly_dates = dt.get_months_range(self.get_first_date(), self.get_last_date())
+        return self.interpolate(monthly_dates, how=how, *args, **kwargs)
 
     def apply_window_series_function(
             self,

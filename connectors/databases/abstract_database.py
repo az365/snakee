@@ -433,7 +433,7 @@ class AbstractDatabase(AbstractStorage, ABC):
             expected_struct: Struct = None,
             check_struct: bool = True,
     ) -> tuple:
-        if isinstance(table, Name):
+        if isinstance(table, str):
             table_name = table
             table_struct = expected_struct
         elif cls._assert_is_appropriate_child(table) or hasattr(table, 'get_name'):
@@ -460,7 +460,7 @@ class AbstractDatabase(AbstractStorage, ABC):
                 stream_cols = stream.get_columns()
                 struct_cols = struct.get_columns()
                 assert stream_cols == struct_cols, '{} != {}'.format(stream_cols, struct_cols)
-        elif isinstance(data, Name):
+        elif isinstance(data, str):
             stream_class = StreamType.RowStream.get_class()
             stream = stream_class.from_column_file(filename=data, **file_kwargs)
         else:

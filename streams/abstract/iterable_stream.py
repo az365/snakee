@@ -12,10 +12,9 @@ try:  # Assume we're a sub-module in a package.
         Stream, Source, ExtLogger, SelectionLogger, Context, Connector, LeafConnector,
         AUTO, Auto, AutoName, AutoCount, Count, OptionalFields, Message, Array, UniKey,
     )
+    from functions.secondary import item_functions as fs
     from streams.mixin.iterable_mixin import IterableStreamMixin
     from streams.abstract.abstract_stream import AbstractStream
-    from streams import stream_classes as sm
-    from functions import item_functions as fs
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import algo, arguments as arg
     from ...utils.external import pd, DataFrame, get_use_objects_for_output
@@ -26,14 +25,14 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         Stream, Source, ExtLogger, SelectionLogger, Context, Connector, LeafConnector,
         AUTO, AutoName, AutoCount, Count, OptionalFields, Message, Array, UniKey,
     )
+    from ...functions.secondary import item_functions as fs
     from ..mixin.iterable_mixin import IterableStreamMixin
     from .abstract_stream import AbstractStream
-    from .. import stream_classes as sm
-    from ...functions import item_functions as fs
 
 Native = IterableStreamInterface
 
 DYNAMIC_META_FIELDS = ('count', 'less_than')
+MAX_ITEMS_IN_MEMORY = 5000000
 
 
 class IterableStream(AbstractStream, IterableStreamMixin):
@@ -49,7 +48,7 @@ class IterableStream(AbstractStream, IterableStreamMixin):
         self._count = count
         self._less_than = less_than or count
         self.check = check
-        self.max_items_in_memory = arg.acquire(max_items_in_memory, sm.MAX_ITEMS_IN_MEMORY)
+        self.max_items_in_memory = arg.acquire(max_items_in_memory, MAX_ITEMS_IN_MEMORY)
         super().__init__(
             data=self._get_typing_validated_items(data, context=context) if check else data,
             name=name,

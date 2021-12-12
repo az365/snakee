@@ -1,9 +1,9 @@
 from typing import Callable, Union
 
 try:  # Assume we're a sub-module in a package.
-    from utils import dates as dt
+    from functions.primary import dates as dt
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..utils import dates as dt
+    from ..primary import dates as dt
 
 Scale = Union[dt.DateScale, str]
 

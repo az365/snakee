@@ -1,19 +1,19 @@
-from typing import Union, Optional, Callable, Iterable, Any
+from typing import Optional, Callable, Iterable
 
 try:  # Assume we're a sub-module in a package.
     from utils import (
         arguments as arg,
         mappers as ms,
-        numeric as nm,
     )
-    from functions import basic_functions as bf
-    from functions import array_functions as af
+    from functions.primary import numeric as nm
+    from functions.secondary import array_functions as af
+    from functions.secondary import basic_functions as bf
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..utils import (
+    from ...utils import (
         arguments as arg,
         mappers as ms,
-        numeric as nm,
     )
+    from ..primary import numeric as nm
     from . import basic_functions as bf
     from . import array_functions as af
 

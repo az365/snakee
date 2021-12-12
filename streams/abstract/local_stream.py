@@ -9,9 +9,9 @@ try:  # Assume we're a sub-module in a package.
         Array, Count, FieldID, UniKey,
         AUTO, Auto, AutoBool, AutoCount, AutoName, OptionalFields,
     )
-    from streams.abstract.iterable_stream import IterableStream
+    from functions.secondary import basic_functions as bf, item_functions as fs
+    from streams.abstract.iterable_stream import IterableStream, MAX_ITEMS_IN_MEMORY
     from streams import stream_classes as sm
-    from functions import item_functions as fs, basic_functions as bf
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import algo, arguments as arg
     from ...interfaces import (
@@ -20,9 +20,9 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         Array, Count, FieldID, UniKey,
         AUTO, Auto, AutoBool, AutoCount, AutoName, OptionalFields,
     )
-    from .iterable_stream import IterableStream
+    from ...functions.secondary import basic_functions as bf, item_functions as fs
+    from .iterable_stream import IterableStream, MAX_ITEMS_IN_MEMORY
     from .. import stream_classes as sm
-    from ...functions import item_functions as fs, basic_functions as bf
 
 Native = LocalStreamInterface
 TmpMask = Union[TemporaryFilesMaskInterface, Auto]
@@ -40,12 +40,14 @@ class LocalStream(IterableStream, LocalStreamInterface):
             tmp_files: TmpMask = AUTO,
     ):
         count = arg.get_optional_len(data, count)
-        less_than = less_than or count
-        self.max_items_in_memory = arg.acquire(max_items_in_memory, sm.MAX_ITEMS_IN_MEMORY)
+        if count and arg.is_defined(count) and not arg.is_defined(less_than):
+            less_than = count
+        self._tmp_files = None
         super().__init__(
             data=data, name=name, check=check,
             source=source, context=context,
             count=count, less_than=less_than,
+            max_items_in_memory=max_items_in_memory,
         )
         self._tmp_files = arg.delayed_acquire(tmp_files, sm.get_tmp_mask, self.get_name())
 
@@ -59,7 +61,7 @@ class LocalStream(IterableStream, LocalStreamInterface):
             return self.make_new(self.get_data()).limit_items_in_memory(count)
 
     def limit_items_in_memory(self, count: AutoCount) -> Native:
-        count = arg.acquire(count, sm.MAX_ITEMS_IN_MEMORY)
+        count = arg.acquire(count, MAX_ITEMS_IN_MEMORY)
         self.max_items_in_memory = count
         return self
 
@@ -94,9 +96,8 @@ class LocalStream(IterableStream, LocalStreamInterface):
         return result
 
     def to_iter(self) -> Native:
-        return self.stream(
-            self.get_iter(),
-        )
+        stream = self.stream(self.get_iter())
+        return self._assume_native(stream)
 
     def can_be_in_memory(self, step: AutoCount = AUTO) -> bool:
         step = arg.acquire(step, self.max_items_in_memory)
@@ -111,11 +112,9 @@ class LocalStream(IterableStream, LocalStreamInterface):
 
     def to_memory(self) -> Native:
         items_as_list_in_memory = self.get_list()
-        return self.stream(
-            items_as_list_in_memory,
-            count=len(items_as_list_in_memory),
-            check=False,
-        )
+        count = len(items_as_list_in_memory)
+        stream = self.stream(items_as_list_in_memory, count=count, check=False)
+        return self._assume_native(stream)
 
     def collect(self, inplace: bool = False, log: AutoBool = AUTO) -> Native:
         if inplace:
@@ -145,9 +144,9 @@ class LocalStream(IterableStream, LocalStreamInterface):
 
     def copy(self) -> Native:
         if self.is_in_memory():
-            return self.stream(
-                self.get_list().copy(),
-            )
+            items = self.get_list().copy()
+            stream = self.stream(items)
+            return self._assume_native(stream)
         else:  # is iterable generator
             return self._assume_native(super().copy())
 
@@ -186,11 +185,8 @@ class LocalStream(IterableStream, LocalStreamInterface):
         if self.is_in_memory():
             filtered_items = list(filtered_items)
             count = len(filtered_items)
-            return self.stream(
-                filtered_items,
-                count=count,
-                less_than=count,
-            )
+            stream = self.stream(filtered_items, count=count, less_than=count)
+            return self._assume_native(stream)
         else:
             stream = super().filter(function)
             return self._assume_native(stream)
@@ -213,7 +209,8 @@ class LocalStream(IterableStream, LocalStreamInterface):
         )
         self.log('Sorting has been finished.', end='\r', verbose=verbose)
         self._count = len(sorted_items)
-        return self.stream(sorted_items)
+        stream = self.stream(sorted_items)
+        return self._assume_native(stream)
 
     def disk_sort(
             self,
@@ -233,15 +230,14 @@ class LocalStream(IterableStream, LocalStreamInterface):
         iterables = [f.get_iter() for f in stream_parts]
         counts = [f.get_count() or 0 for f in stream_parts]
         self.log('Merging {} parts... '.format(len(iterables)), verbose=verbose)
-        return self.stream(
-            algo.merge_iter(
-                iterables,
-                key_function=key_function,
-                reverse=reverse,
-                post_action=self.get_tmp_files().remove_all,
-            ),
-            count=sum(counts),
+        items = algo.merge_iter(
+            iterables,
+            key_function=key_function,
+            reverse=reverse,
+            post_action=self.get_tmp_files().remove_all,
         )
+        stream = self.stream(items, count=sum(counts))
+        return self._assume_native(stream)
 
     def sort(self, *keys, reverse: bool = False, step: AutoCount = AUTO, verbose: AutoBool = True) -> Native:
         keys = arg.update(keys)
@@ -274,10 +270,8 @@ class LocalStream(IterableStream, LocalStreamInterface):
             order_function=bf.is_ordered(reverse=sorting_is_reversed, including=True),
             how=how,
         )
-        return self.stream(
-            list(joined_items) if self.is_in_memory() else joined_items,
-            **self.get_static_meta()
-        )
+        stream = self.stream(list(joined_items) if self.is_in_memory() else joined_items, **self.get_static_meta())
+        return self._assume_native(stream)
 
     def join(
             self,

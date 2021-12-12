@@ -4,14 +4,16 @@ try:  # Assume we're a sub-module in a package.
     from utils import (
         arguments as arg,
         mappers as ms,
-        numeric as nm,
     )
+    from items.item_type import ItemType
+    from functions.primary import numeric as nm
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..utils import (
+    from ...utils import (
         arguments as arg,
         mappers as ms,
-        numeric as nm,
     )
+    from ...items.item_type import ItemType
+    from ..primary import numeric as nm
 
 Array = Union[list, tuple]
 
@@ -84,6 +86,20 @@ def second() -> Callable:
 
 def last() -> Callable:
     return elem_no(-1)
+
+
+def fold_lists(
+        values: Array,
+        keys: Optional[Array] = None,
+        skip_missing: bool = False,
+        item_type: ItemType = ItemType.Auto,
+) -> Callable:
+    def func(item) -> Union[dict, tuple]:
+        detected_type = item_type
+        if not arg.is_defined(detected_type):
+            detected_type = ItemType.detect(item)
+        return ms.fold_lists(item, keys, values, skip_missing=skip_missing, item_type=detected_type)
+    return func
 
 
 def unfold_lists(fields, number_field='n', default_value=0) -> Callable:

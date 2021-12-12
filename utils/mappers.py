@@ -1,5 +1,13 @@
+from typing import Callable, Union
 import csv
 import re
+
+try:  # Assume we're a submodule in a package.
+    from utils import arguments as arg
+    from items.item_type import ItemType
+except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
+    from ..utils import arguments as arg
+    from ..items.item_type import ItemType
 
 RE_LETTERS = re.compile('[^a-zа-я ]')
 
@@ -121,7 +129,43 @@ def get_first_values(records, fields):
     return dict_first_values
 
 
-def fold_lists(list_records, key_fields, list_fields, skip_missing=False):
+def fold_rows(list_rows, key_columns, list_columns, skip_missing=False) -> tuple:
+    if list_rows:
+        row_out = list()
+        first_row = list_rows[0]
+        for c in key_columns:
+            if isinstance(c, Callable):
+                row_out.append(c(first_row))
+            elif isinstance(c, int):
+                try:
+                    row_out.append(first_row[c])
+                except IndexError:
+                    if skip_missing:
+                        row_out.append(None)
+                    else:
+                        raise IndexError('fold_rows(): first row has no column {}: {}'.format(c, first_row))
+            else:
+                raise TypeError('fold_rows(): expected function or column number, got {}'.format(c))
+        for c_in in list_columns:
+            row_out.append(list())
+            c_out = len(row_out) - 1
+            for r_in in list_rows:
+                if isinstance(c_in, Callable):
+                    row_out[c_out].append(c_in(c_in))
+                elif isinstance(c_in, int):
+                    try:
+                        row_out[c_out].append(r_in[c_in])
+                    except IndexError:
+                        if skip_missing:
+                            row_out[c_out].append(None)
+                        else:
+                            raise IndexError('fold_rows(): row has no column {}: {}'.format(c_in, r_in))
+                else:
+                    raise TypeError('fold_rows(): expected function or column number, got {}'.format(c_in))
+        return tuple(row_out)
+
+
+def fold_records(list_records, key_fields, list_fields, skip_missing=False) -> dict:
     rec_out = dict()
     for f in key_fields:
         if hasattr(f, 'get_name'):
@@ -136,6 +180,21 @@ def fold_lists(list_records, key_fields, list_fields, skip_missing=False):
             f = f.get_name()
         rec_out[f] = [r.get(f) for r in list_records]
     return rec_out
+
+
+def fold_lists(list_items: Union[list, tuple], key_fields, list_fields, skip_missing=False, item_type=None):
+    if list_items:
+        if not arg.is_defined(item_type):
+            first_item = list_items[0]
+            item_type = ItemType.detect(first_item)
+        if item_type == ItemType.Record:
+            return fold_records(list_items, key_fields, list_fields, skip_missing=skip_missing)
+        elif item_type in (ItemType.Row, ItemType.StructRow):
+            return fold_rows(list_items, key_fields, list_fields, skip_missing=skip_missing)
+        else:
+            raise ValueError('fold_lists(): expected Record, Row or StructRow, got {}'.format(item_type))
+    elif not skip_missing:
+        raise ValueError('fold_lists(): list_items must be non-empty')
 
 
 def unfold_lists(record, fields, number_field='n', default_value=0):

@@ -1,9 +1,9 @@
 from typing import Callable
 
 try:  # Assume we're a sub-module in a package.
-    from utils import numeric as nm
+    from functions.primary import numeric as nm
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..utils import numeric as nm
+    from ..primary import numeric as nm
 
 ZERO_VALUES = (None, 'None', '', '-', 0)
 

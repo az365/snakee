@@ -5,7 +5,8 @@ try:  # Assume we're a sub-module in a package.
     from utils.decorators import deprecated_with_alternative
     from utils.external import pd, DataFrame, get_use_objects_for_output
     from interfaces import (
-        Stream, RegularStream, RowStream, KeyValueStream, StructStream, FieldInterface, ItemType, StreamType,
+        Stream, RegularStream, RowStream, KeyValueStream, StructStream, FieldInterface,
+        ItemType, StreamType,
         Context, Connector, AutoConnector, LeafConnectorInterface, TmpFiles,
         Count, Name, Field, Columns, Array, ARRAY_TYPES,
         AUTO, Auto, AutoCount, AutoName, AutoBool,
@@ -18,7 +19,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils.decorators import deprecated_with_alternative
     from ...utils.external import pd, DataFrame, get_use_objects_for_output
     from ...interfaces import (
-        Stream, RegularStream, RowStream, KeyValueStream, StructStream, FieldInterface, ItemType, StreamType,
+        Stream, RegularStream, RowStream, KeyValueStream, StructStream, FieldInterface,
+        ItemType, StreamType,
         Context, Connector, AutoConnector, LeafConnectorInterface, TmpFiles,
         Count, Name, Field, Columns, Array, ARRAY_TYPES,
         AUTO, Auto, AutoCount, AutoName, AutoBool,
@@ -31,20 +33,6 @@ Native = RegularStream
 
 DEFAULT_EXAMPLE_COUNT = 10
 DEFAULT_ANALYZE_COUNT = 100
-
-
-def get_key_function(descriptions: Array, take_hash: bool = False) -> Callable:
-    descriptions = arg.get_names(descriptions)
-    if len(descriptions) == 0:
-        raise ValueError('key must be defined')
-    elif len(descriptions) == 1:
-        key_function = fs.partial(sf.value_from_record, descriptions[0])
-    else:
-        key_function = fs.partial(sf.tuple_from_record, descriptions)
-    if take_hash:
-        return lambda r: hash(key_function(r))
-    else:
-        return key_function
 
 
 class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
@@ -69,6 +57,19 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
     @staticmethod
     def get_item_type() -> ItemType:
         return ItemType.Record
+
+    def _get_key_function(self, descriptions: Array, take_hash: bool = False) -> Callable:
+        descriptions = arg.get_names(descriptions)
+        if len(descriptions) == 0:
+            raise ValueError('key must be defined')
+        elif len(descriptions) == 1:
+            key_function = fs.partial(sf.value_from_record, descriptions[0])
+        else:
+            key_function = fs.partial(sf.tuple_from_record, descriptions)
+        if take_hash:
+            return lambda r: hash(key_function(r))
+        else:
+            return key_function
 
     def get_one_column_values(self, column: Field, as_list: bool = False) -> Iterable:
         column = arg.get_name(column)
@@ -115,14 +116,13 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
             )
 
     def select(self, *fields, use_extended_method: bool = False, **expressions) -> Native:
-        stream = self.map(
-            sn.select(
-                *fields, **expressions,
-                target_item_type=ItemType.Record, input_item_type=ItemType.Record,
-                logger=self.get_logger(), selection_logger=self.get_selection_logger(),
-                use_extended_method=use_extended_method,
-            )
+        selection_mapper = sn.select(
+            *fields, **expressions,
+            target_item_type=ItemType.Record, input_item_type=ItemType.Record,
+            logger=self.get_logger(), selection_logger=self.get_selection_logger(),
+            use_extended_method=use_extended_method,
         )
+        stream = self.map(selection_mapper)
         return self._assume_native(stream)
 
     def filter(self, *fields, **expressions) -> Native:
@@ -164,8 +164,8 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
         yield (prev_k, accumulated) if as_pairs else accumulated
 
     def sort(self, *keys, reverse: bool = False, step: AutoCount = AUTO, verbose: bool = True) -> Native:
-        key_function = get_key_function(keys)
-        step = arg.acquire(step, self.max_items_in_memory)
+        key_function = self._get_key_function(keys)
+        step = arg.delayed_acquire(step, self.get_limit_items_in_memory)
         if self.can_be_in_memory(step=step):
             stream = self.memory_sort(key_function, reverse, verbose=verbose)
         else:
@@ -173,13 +173,16 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
         return self._assume_native(stream)
 
     def sorted_group_by(
-            self, *keys, values: Columns = None,
-            as_pairs: bool = False, skip_missing: bool = False,
+            self,
+            *keys,
+            values: Columns = None,
+            as_pairs: bool = False,
+            skip_missing: bool = False,
     ) -> Stream:
         keys = arg.update(keys)
-        keys = arg.get_names(keys)
+        keys = arg.get_names(keys, or_callable=True)
         values = arg.get_names(values)
-        key_function = get_key_function(keys)
+        key_function = self._get_key_function(keys)
         groups = self._get_groups(key_function, as_pairs=as_pairs)
         if as_pairs:
             sm_groups = sm.KeyValueStream(groups, value_stream_type=StreamType.RowStream)
@@ -205,11 +208,11 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
         values = arg.get_names(values)
         if hasattr(keys[0], 'get_field_names'):  # if isinstance(keys[0], FieldGroup)
             keys = keys[0].get_field_names()
-        step = arg.acquire(step, self.max_items_in_memory)
+        step = arg.delayed_acquire(step, self.get_limit_items_in_memory)
         if as_pairs:
             key_for_sort = keys
         else:
-            key_for_sort = get_key_function(keys, take_hash=take_hash)
+            key_for_sort = self._get_key_function(keys, take_hash=take_hash)
         sorted_stream = self.sort(
             key_for_sort,
             step=step,
@@ -232,7 +235,7 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
     def _get_uniq_records(self, *keys) -> Iterable:
         keys = arg.update(keys)
         key_fields = arg.get_names(keys)
-        key_function = get_key_function(key_fields)
+        key_function = self._get_key_function(key_fields)
         prev_value = AUTO
         for r in self.get_records():
             value = key_function(r)
@@ -245,7 +248,8 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
             stream = self.sort(*keys)
         else:
             stream = self
-        return self.stream(stream._get_uniq_records(*keys), count=None)
+        result = self.stream(stream._get_uniq_records(*keys), count=None)
+        return self._assume_native(result)
 
     def get_dataframe(self, columns: Columns = None) -> DataFrame:
         if pd and get_use_objects_for_output():
@@ -296,12 +300,13 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
             if less_than:
                 less_than += 1
         rows = self.get_rows(columns=columns, add_title_row=add_title_row)  # tmp for debug
-        return self.stream(
+        stream = self.stream(
             rows,
             stream_type=StreamType.RowStream,
             count=count,
             less_than=less_than,
         )
+        return self._assume_native(stream)
 
     def get_key_value_pairs(self, key: Field, value: Field, **kwargs) -> Iterable:
         for i in self.get_records():
@@ -321,7 +326,8 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
         return self._assume_pairs(stream)
 
     def to_file(self, file: Connector, verbose: bool = True, return_stream: bool = True) -> Native:
-        assert isinstance(file, LeafConnectorInterface) or hasattr(file, 'write_stream')
+        if not (isinstance(file, LeafConnectorInterface) or hasattr(file, 'write_stream')):
+            raise TypeError('Expected TsvFile, got {} as {}'.format(file, type(file)))
         meta = self.get_meta()
         if not file.is_gzip():
             meta.pop('count')

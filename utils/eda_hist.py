@@ -3,17 +3,17 @@ from typing import Iterable, Union
 try:  # Assume we're a sub-module in a package.
     from utils import (
         arguments as arg,
-        numeric as nm,
         mappers as ms,
     )
+    from functions.primary import numeric as nm
     from streams import stream_classes as sm
     from functions import all_functions as fs
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from . import (
         arguments as arg,
-        numeric as nm,
         mappers as ms,
     )
+    from ..functions.primary import numeric as nm
     from ..streams import stream_classes as sm
     from ..functions import all_functions as fs
 
@@ -22,7 +22,7 @@ Stream = Union[sm.LocalStream, sm.ColumnarMixin]
 Data = Union[Stream, Iterable]
 
 
-def get_hist_records(stream: Stream, fields: Iterable, in_memory=arg.DEFAULT, logger=arg.DEFAULT, msg=None) -> Iterable:
+def get_hist_records(stream: Stream, fields: Iterable, in_memory=arg.AUTO, logger=arg.AUTO, msg=None) -> Iterable:
     if arg.is_defined(logger):
         logger.log(msg if msg else 'calc hist in memory...')
     dict_hist = {f: dict() for f in fields}
@@ -38,11 +38,11 @@ def get_hist_records(stream: Stream, fields: Iterable, in_memory=arg.DEFAULT, lo
             yield dict(field=f, value=v, count=c)
 
 
-def hist(data: Data, *fields, in_memory=arg.DEFAULT, step=1000000, logger=arg.DEFAULT, msg=None) -> Stream:
+def hist(data: Data, *fields, in_memory=arg.AUTO, step=1000000, logger=arg.AUTO, msg=None) -> Stream:
     stream = _stream(data)
     total_count = stream.get_count()
-    in_memory = arg.undefault(in_memory, stream.is_in_memory())
-    logger = arg.undefault(logger, stream.get_logger, delayed=True)
+    in_memory = arg.acquire(in_memory, stream.is_in_memory())
+    logger = arg.acquire(logger, stream.get_logger, delayed=True)
     # if in_memory:
     if in_memory or len(fields) > 1:
         stream = stream.stream(
@@ -56,6 +56,9 @@ def hist(data: Data, *fields, in_memory=arg.DEFAULT, step=1000000, logger=arg.DE
             logger.log('Calc hist for field {}...'.format(f))
         stream = stream.to_stream(
             stream_type='RecordStream',
+            columns=fields,
+        ).select(
+            f,
         ).group_by(
             f,
             values=['-'],

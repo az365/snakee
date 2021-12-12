@@ -12,7 +12,7 @@ try:  # Assume we're a sub-module in a package.
         Source, ExtLogger, SelectionLogger, LoggingLevel,
         AUTO, Auto, AutoName, AutoCount, Count, OptionalFields, UniKey,
     )
-    from functions import item_functions as fs
+    from functions.secondary import item_functions as fs
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import algo, arguments as arg
     from ...utils.external import pd, DataFrame, get_use_objects_for_output
@@ -21,7 +21,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         Source, ExtLogger, SelectionLogger, LoggingLevel,
         AUTO, Auto, AutoName, AutoCount, Count, OptionalFields, UniKey,
     )
-    from ...functions import item_functions as fs
+    from ...functions.secondary import item_functions as fs
 
 Native = IterableStreamInterface
 Data = Union[Auto, Iterable]

@@ -1,11 +1,11 @@
-from typing import Optional, Iterable
+from typing import Optional, Callable, Iterable
 
 try:  # Assume we're a sub-module in a package.
     from series import series_classes as sc
-    from utils import numeric as nm
+    from functions.primary import numeric as nm
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from .. import series_classes as sc
-    from ...utils import numeric as nm
+    from ...functions.primary import numeric as nm
 
 Native = sc.AnySeries
 
@@ -40,7 +40,7 @@ class KeyValueSeries(sc.AnySeries):
         return DATA_MEMBER_NAMES
 
     @classmethod
-    def from_items(cls, items: Iterable):
+    def from_items(cls, items: Iterable) -> Native:
         series = cls()
         for k, v in items:
             series.get_keys().append(k)
@@ -48,16 +48,16 @@ class KeyValueSeries(sc.AnySeries):
         return series
 
     @classmethod
-    def from_dict(cls, my_dict):
+    def from_dict(cls, my_dict) -> Native:
         series = cls()
         for k in sorted(my_dict):
             series.append_pair(k, my_dict[k], inplace=True)
         return series.assume_sorted()
 
-    def key_series(self):
+    def key_series(self) -> Native:
         return sc.AnySeries(self.get_keys())
 
-    def value_series(self):
+    def value_series(self) -> Native:
         return sc.AnySeries(self.get_values())
 
     def get_value_by_key(self, key, default=None):
@@ -75,10 +75,10 @@ class KeyValueSeries(sc.AnySeries):
                 values=self.get_values(),
             )
 
-    def get_items(self):
+    def get_items(self) -> Iterable:
         return zip(self.get_keys(), self.get_values())
 
-    def set_items(self, items: Iterable, inplace: bool):
+    def set_items(self, items: Iterable, inplace: bool) -> Optional[Native]:
         if inplace:
             keys, values = self._split_keys_and_values(items)
             self.set_keys(keys, inplace=True)
@@ -95,7 +95,7 @@ class KeyValueSeries(sc.AnySeries):
             values.append(v)
         return keys, values
 
-    def get_dict(self):
+    def get_dict(self) -> dict:
         return dict(self.get_items())
 
     def get_arg_min(self):
@@ -116,12 +116,12 @@ class KeyValueSeries(sc.AnySeries):
                 key_for_max_value = k
         return key_for_max_value
 
-    def append(self, item, inplace):
+    def append(self, item, inplace: bool) -> Optional[Native]:
         assert len(item) == 2, 'Len of pair mus be 2 (got {})'.format(item)
         key, value = item
         return self.append_pair(key, value, inplace)
 
-    def append_pair(self, key, value, inplace):
+    def append_pair(self, key, value, inplace: bool) -> Optional[Native]:
         if inplace:
             self.get_keys().append(key)
             self.get_values().append(value)
@@ -131,66 +131,70 @@ class KeyValueSeries(sc.AnySeries):
             new.get_values().append(value)
             return new
 
-    def add(self, key_value_series, to_the_begin=False):
-        assert isinstance(key_value_series, (KeyValueSeries, sc.KeyValueSeries, sc.DateNumericSeries))
+    def add(self, key_value_series, to_the_begin: bool = False, inplace: bool = False) -> Optional[Native]:
+        appropriate_classes = KeyValueSeries, sc.KeyValueSeries, sc.DateNumericSeries
+        is_appropriate = isinstance(key_value_series, appropriate_classes)
+        assert is_appropriate, 'expected {}, got {}'.format(appropriate_classes, key_value_series)
         if to_the_begin:
             keys = key_value_series.get_keys() + self.get_keys()
             values = key_value_series.get_values() + self.get_values()
         else:
             keys = self.get_keys() + key_value_series.get_keys()
             values = self.get_values() + key_value_series.get_values()
-        return self.new(
-            keys=keys,
-            values=values,
-            save_meta=True,
-        )
+        if inplace:
+            self.set_keys(keys, inplace=True)
+            self.set_values(keys, inplace=True)
+        else:
+            return self.new(
+                keys=keys,
+                values=values,
+                save_meta=True,
+            )
 
-    def filter_pairs(self, function):
+    def filter_pairs(self, function: Callable, inplace: bool = False) -> Optional[Native]:
         keys, values = list(), list()
         for k, v in self.get_items():
             if function(k, v):
                 keys.append(k)
                 values.append(v)
-        return self.new(
-            keys=keys,
-            values=values,
-        )
+        if inplace:
+            self.set_keys(keys)
+            self.set_values(values)
+        else:
+            return self.new(
+                keys=keys,
+                values=values,
+            )
 
-    def filter_keys(self, function):
-        return self.filter_pairs(lambda k, v: function(k))
+    def filter_keys(self, function: Callable, inplace: bool = False) -> Optional[Native]:
+        return self.filter_pairs(lambda k, v: function(k), inplace=inplace)
 
-    def filter_values(self, function):
-        return self.filter_pairs(lambda k, v: function(v))
+    def filter_values(self, function: Callable, inplace: bool = False) -> Optional[Native]:
+        return self.filter_pairs(lambda k, v: function(v), inplace=inplace)
 
-    def filter_values_defined(self):
-        return self.filter_values(nm.is_defined)
+    def filter_values_defined(self, inplace: bool = False) -> Optional[Native]:
+        return self.filter_values(nm.is_defined, inplace=inplace)
 
-    def filter_keys_defined(self):
-        return self.filter_keys(nm.is_defined)
+    def filter_keys_defined(self, inplace: bool = False):
+        return self.filter_keys(nm.is_defined, inplace=inplace)
 
-    def filter_keys_between(self, key_min, key_max):
-        return self.filter_keys(lambda k: key_min <= k <= key_max)
+    def filter_keys_between(self, key_min, key_max, inplace: bool = False):
+        return self.filter_keys(lambda k: key_min <= k <= key_max, inplace=inplace)
 
-    def map_keys(self, function, sorting_changed=False):
-        return self.set_keys(
-            self.key_series().map(function),
-            inplace=False,
-        )
+    def map_keys(self, function: Callable, sorting_changed: bool = False, inplace: bool = False):
+        keys = self.key_series().map(function)
+        return self.set_keys(keys, inplace=inplace)
 
     def assume_date_numeric(self):
-        return sc.DateNumericSeries(
-            **self.get_props()
-        )
+        return sc.DateNumericSeries(**self.get_props())
 
     def assume_sorted(self):
-        return sc.SortedKeyValueSeries(
-            **self.get_props()
-        )
+        return sc.SortedKeyValueSeries(**self.get_props())
 
-    def is_sorted(self, check=True):
+    def is_sorted(self, check: bool = True) -> bool:
         return self.key_series().is_sorted(check=check)
 
-    def sort_by_keys(self, reverse=False, inplace=False):
+    def sort_by_keys(self, reverse: bool = False, inplace: bool = False) -> Optional[Native]:
         if inplace:
             items = sorted(zip(self.get_keys(), self.get_values()), reverse=reverse)
             self.set_keys([k for k, v in items], inplace=True)
@@ -204,13 +208,13 @@ class KeyValueSeries(sc.AnySeries):
             else:
                 return result.assume_sorted()
 
-    def group_by_keys(self):
+    def group_by_keys(self) -> Native:
         dict_groups = dict()
         for k, v in self.get_items():
             dict_groups[k] = dict_groups.get(k, []) + [v]
         return __class__().from_dict(dict_groups)
 
-    def sum_by_keys(self):
+    def sum_by_keys(self) -> Native:
         return self.group_by_keys().map(sum)
 
     def mean_by_keys(self):
@@ -219,10 +223,10 @@ class KeyValueSeries(sc.AnySeries):
         )
 
     @staticmethod
-    def get_names():
+    def get_names() -> tuple:
         return 'key', 'value'
 
-    def get_dataframe(self):
+    def get_dataframe(self) -> nm.DataFrame:
         return nm.get_dataframe(
             data=self.get_list(),
             columns=self.get_names(),
@@ -230,3 +234,12 @@ class KeyValueSeries(sc.AnySeries):
 
     def plot(self, fmt='-'):
         nm.plot(self.get_keys(), self.get_values(), fmt=fmt)
+
+    def __repr__(self):
+        count, keys, values = self.get_count(), self.get_keys(), self.get_values()
+        if count > 3:
+            keys = keys[:2] + ['...'] + keys[-1:]
+            values = values[:2] + ['...'] + values[-1:]
+        keys = ', '.join(map(str, keys))
+        values = ', '.join(map(str, values))
+        return "{}(count={}, keys={}, values={})".format(self.__class__.__name__, count, keys, values)

@@ -177,5 +177,24 @@ class Table(LeafConnector):
             verbose=verbose,
         )
 
+    def is_empty(self) -> bool:
+        count = self.get_count()
+        return not count
+
+    def select(self, *columns, **expressions) -> Stream:
+        columns = arg.update(columns)
+        if not expressions:
+            is_simple_fields = min([isinstance(c, str) for c in columns])
+            if is_simple_fields:
+                return self.get_database().select(table=self, fields=columns)
+        stream = self.to_struct_stream().select(*columns, **expressions)
+        return self._assume_stream(stream)
+
+    def copy(self) -> Native:
+        copy = self.make_new()
+        copy.set_declared_format(self.get_declared_format().copy(), inplace=True)
+        copy.set_detected_format(self.get_detected_format().copy(), inplace=True)
+        return copy
+
 
 ConnType.add_classes(Table)

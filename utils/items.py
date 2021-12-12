@@ -57,8 +57,19 @@ def set_to_item_inplace(
             item += [None] * (field - cols_count + 1)
         item[field] = value
     elif item_type == ItemType.StructRow:
-        assert isinstance(item, StructRowInterface)
-        item.set_value(field, value, update_struct=True)
+        if isinstance(item, StructRowInterface):
+            item.set_value(field, value, update_struct=True)
+        elif isinstance(item, ROW_SUBCLASSES):
+            assert isinstance(field, int), 'Expected column number as int, got {}'.format(field)
+            cur_item_len = len(item)
+            need_extend = field >= cur_item_len
+            if need_extend:
+                if isinstance(item, tuple):
+                    item = list(item)
+                item += [None] * (field + 1 - cur_item_len)
+            item[field] = value
+        else:
+            raise TypeError('Expected Row or StructRow, got {}'.format(item))
     else:  # item_type == 'any' or not item_type:
         raise TypeError('type {} not supported'.format(item_type))
 

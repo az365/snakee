@@ -3,13 +3,13 @@ import json
 
 try:  # Assume we're a sub-module in a package.
     from utils.arguments import any_to_bool, safe_converter, get_value
-    from utils.enum import DynamicEnum
     from utils.decorators import deprecated_with_alternative
+    from base.enum import DynamicEnum
     from connectors.databases.dialect_type import DialectType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils.arguments import any_to_bool, safe_converter, get_value
-    from ..utils.enum import DynamicEnum
     from ..utils.decorators import deprecated_with_alternative
+    from ..base.enum import DynamicEnum
     from ..connectors.databases.dialect_type import DialectType
 
 
@@ -41,7 +41,7 @@ class FieldType(DynamicEnum):
     def get_type_in(self, dialect: DialectType):
         type_props = self.get_dialect_types()[self.get_value()]
         dialect_value = get_value(dialect)
-        type_in_dialect = type_props[dialect_value]
+        type_in_dialect = type_props.get(dialect_value)
         if not type_in_dialect:
             type_in_dialect = type_props[DialectType.get_default()]
         return type_in_dialect
@@ -85,7 +85,9 @@ class FieldType(DynamicEnum):
         return FieldType(field_type_name)
 
     @classmethod
-    def get_canonic_type(cls, field_type, ignore_absent: bool = False):
+    def get_canonic_type(cls, field_type, ignore_missing: bool = False, default='any'):
+        if ignore_missing and field_type is None:
+            field_type = default
         if isinstance(field_type, FieldType):
             return field_type
         elif field_type in FieldType.__dict__.values():
@@ -104,7 +106,9 @@ class FieldType(DynamicEnum):
         try:
             return FieldType(str_field_type)
         except ValueError as e:
-            if not ignore_absent:
+            if ignore_missing:
+                return FieldType(default)
+            else:
                 raise ValueError('Unsupported field type: {} ({})'.format(field_type, e))
 
     def get_converter(self, source, target):
@@ -164,8 +168,8 @@ FieldType._dict_heuristic_suffix_to_type = {
 
 
 @deprecated_with_alternative('FieldType.get_canonic_type()')
-def get_canonic_type(field_type, ignore_absent: bool = False) -> FieldType:
-    field_type = FieldType.get_canonic_type(field_type, ignore_absent=ignore_absent)
+def get_canonic_type(field_type, ignore_missing: bool = False) -> FieldType:
+    field_type = FieldType.get_canonic_type(field_type, ignore_missing=ignore_missing)
     assert isinstance(field_type, FieldType)
     return field_type
 

@@ -2,17 +2,19 @@ from abc import ABC, abstractmethod
 from typing import Optional, Iterable, Union
 
 try:  # Assume we're a sub-module in a package.
-    from utils import arguments as arg, dates as dt
+    from utils import arguments as arg
     from interfaces import (
         LeafConnectorInterface, StructInterface, Stream, ItemType,
         AUTO, Auto, AutoCount, AutoBool, Columns, Array,
     )
+    from functions.primary import dates as dt
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg, dates as dt
+    from ...utils import arguments as arg
     from ...interfaces import (
         LeafConnectorInterface, StructInterface, Stream, ItemType,
         AUTO, Auto, AutoCount, AutoBool, Columns, Array,
     )
+    from ...functions.primary import dates as dt
 
 Native = LeafConnectorInterface
 

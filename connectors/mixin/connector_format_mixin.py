@@ -8,7 +8,7 @@ try:  # Assume we're a sub-module in a package.
         ItemType, FieldType, DialectType, StreamType, ContentType,
         AUTO, Auto, AutoBool, Columns, Array, ARRAY_TYPES,
     )
-    from functions import item_functions as fs
+    from functions.secondary import item_functions as fs
     from items.struct_mixin import StructMixin
     from connectors.content_format.text_format import AbstractFormat, ParsedFormat, TextFormat
     from connectors.content_format.lean_format import LeanFormat, ColumnarFormat, FlatStructFormat
@@ -19,7 +19,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         ItemType, FieldType, DialectType, StreamType, ContentType,
         AUTO, Auto, AutoBool, Columns, Array, ARRAY_TYPES,
     )
-    from ...functions import item_functions as fs
+    from ...functions.secondary import item_functions as fs
     from ...items.struct_mixin import StructMixin
     from ..content_format.text_format import AbstractFormat, ParsedFormat, TextFormat
     from ..content_format.lean_format import LeanFormat, ColumnarFormat, FlatStructFormat
