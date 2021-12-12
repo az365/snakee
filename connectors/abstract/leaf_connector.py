@@ -5,7 +5,7 @@ try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from interfaces import (
         ConnectorInterface, LeafConnectorInterface, Context, Stream,
-        ContentFormatInterface, ContentType,
+        ContentFormatInterface, ContentType, FileType,
         AUTO, Auto, AutoBool, AutoCount, AutoConnector, AutoContext, Name, StructInterface,
     )
     from connectors.abstract.abstract_connector import AbstractConnector
@@ -15,7 +15,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils import arguments as arg
     from ...interfaces import (
         ConnectorInterface, LeafConnectorInterface, Context, Stream,
-        ContentFormatInterface, ContentType,
+        ContentFormatInterface, ContentType, FileType,
         AUTO, Auto, AutoBool, AutoCount, AutoConnector, AutoContext, Name, StructInterface,
     )
     from .abstract_connector import AbstractConnector
@@ -34,7 +34,7 @@ class LeafConnector(AbstractConnector, ConnectorFormatMixin, StreamableMixin, Le
     def __init__(
             self,
             name: Name,
-            content_format: Union[ContentFormatInterface, Auto] = AUTO,
+            content_format: Union[ContentFormatInterface, ContentType, Auto] = AUTO,
             struct: Union[StructInterface, Auto, None] = AUTO,
             first_line_is_title: AutoBool = AUTO,
             parent: Parent = None,
@@ -52,7 +52,14 @@ class LeafConnector(AbstractConnector, ConnectorFormatMixin, StreamableMixin, Le
         self._caption = caption
         super().__init__(name=name, parent=parent, context=context, children=streams, verbose=verbose)
         content_format = arg.delayed_acquire(content_format, self._get_detected_format_by_name, name, **kwargs)
-        assert isinstance(content_format, ContentFormatInterface)
+        if isinstance(content_format, FileType):
+            content_format = content_format.get_value()
+        if isinstance(content_format, str):
+            content_format = ContentType(content_format)  # ContentType.detect(content_format) ?
+        if isinstance(content_format, ContentType):  # tmp fix
+            content_class = content_format.get_class()
+            content_format = content_class(**kwargs)
+        assert isinstance(content_format, ContentFormatInterface), 'Expect ContentFormat, got {}'.format(content_format)
         self.set_content_format(content_format, inplace=True)
         self.set_first_line_title(first_line_is_title)
         if struct is not None:
@@ -73,7 +80,9 @@ class LeafConnector(AbstractConnector, ConnectorFormatMixin, StreamableMixin, Le
         if is_temporary_partition:
             content_class = TEMPORARY_PARTITION_FORMAT.get_class()
         else:
-            content_class = ContentType.detect_by_name(name).get_class()
+            content_type = ContentType.detect_by_name(name)
+            assert content_type, 'Can not detect content type by name: {}'.format(name)
+            content_class = content_type.get_class()
         return content_class(**kwargs)
 
     def _get_detected_struct(self, set_struct: bool = False, verbose: AutoBool = AUTO) -> StructInterface:
