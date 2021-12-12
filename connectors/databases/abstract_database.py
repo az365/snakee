@@ -2,21 +2,23 @@ from abc import ABC, abstractmethod
 from typing import Optional, Iterable, Union
 
 try:  # Assume we're a sub-module in a package.
-    from utils import arguments as arg, mappers as ms
+    from utils import arguments as arg
     from interfaces import (
         StreamInterface, ColumnarInterface, ColumnarStream, StructStream, StructInterface, SimpleDataInterface,
         LeafConnectorInterface, ConnType, StreamType, DialectType, LoggingLevel,
         AUTO, Auto, AutoContext, AutoBool, AutoCount, Count, Name, FieldName, Connector,
     )
+    from functions.primary import text as tx
     from connectors.abstract.abstract_storage import AbstractStorage
     from items.flat_struct import FlatStruct
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg, mappers as ms
+    from ...utils import arguments as arg
     from ...interfaces import (
         StreamInterface, ColumnarInterface, ColumnarStream, StructStream, StructInterface, SimpleDataInterface,
         LeafConnectorInterface, ConnType, StreamType, DialectType, LoggingLevel,
         AUTO, Auto, AutoContext, AutoBool, AutoCount, Count, Name, FieldName, Connector,
     )
+    from ...functions.primary import text as tx
     from ..abstract.abstract_storage import AbstractStorage
     from ...items.flat_struct import FlatStruct
 
@@ -417,7 +419,7 @@ class AbstractDatabase(AbstractStorage, ABC):
 
     @staticmethod
     def _get_compact_query_view(query: str) -> str:
-        return ms.remove_extra_spaces(query)
+        return tx.remove_extra_spaces(query)
 
     @staticmethod
     def _get_table_name(table: Union[Table, Name]) -> str:

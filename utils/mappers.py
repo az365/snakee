@@ -1,20 +1,20 @@
 from typing import Callable, Union
-import csv
-import re
 
 try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
+    from utils.decorators import deprecated_with_alternative
     from items.item_type import ItemType
+    from functions.primary import text as tx
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
+    from ..utils.decorators import deprecated_with_alternative
     from ..items.item_type import ItemType
+    from ..functions.primary import text as tx
 
-RE_LETTERS = re.compile('[^a-zа-я ]')
 
-
+@deprecated_with_alternative('functions.primary.text.split_csv_row()')
 def split_csv_row(line, delimiter=None):
-    for row in csv.reader([line], delimiter) if delimiter else csv.reader([line]):
-        return row
+    return tx.split_csv_row(line, delimiter=delimiter)
 
 
 def apply_dict_to_field(record, field, dict_to_apply, default=None):
@@ -82,25 +82,14 @@ def get_histograms(records, fields=tuple(), max_values=25, ignore_none=False):
         yield k, v
 
 
+@deprecated_with_alternative('functions.primary.text.remove_extra_spaces()')
 def remove_extra_spaces(text):
-    if '\n' in text:
-        text = text.replace('\n', ' ')
-    while '  ' in text:
-        text = text.replace('  ', ' ')
-    if text.startswith(' '):
-        text = text[1:]
-    if text.endswith(' '):
-        text = text[:-1]
-    return text
+    return tx.remove_extra_spaces(text)
 
 
+@deprecated_with_alternative('functions.primary.text.norm_text()')
 def norm_text(text):
-    if text is not None:
-        text = str(text).lower().replace('\t', ' ')
-        text = text.replace('ё', 'е')
-        text = RE_LETTERS.sub('', text)
-        text = remove_extra_spaces(text)
-        return text
+    return tx.norm_text(text)
 
 
 def sum_by_keys(records, keys, counters):

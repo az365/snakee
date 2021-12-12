@@ -1,16 +1,9 @@
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from streams import stream_classes as sm
     from utils import mappers as ms
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...streams import stream_classes as sm
     from .. import mappers as ms
-
-
-def test_norm_text():
-    example = '\t Абв 123 Gb\n'
-    expected = 'абв gb'
-    received = ms.norm_text(example)
-    assert received == expected
 
 
 def test_calc_histogram():
@@ -74,7 +67,6 @@ def test_get_first_values():
 
 def main():
     test_calc_histogram()
-    test_norm_text()
     test_sum_by_keys()
     test_get_first_values()
 
