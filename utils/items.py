@@ -1,4 +1,4 @@
-from typing import Optional, Iterable, Callable, Union, Any, NoReturn
+from typing import Optional, Iterable, Callable, Union, Any
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
@@ -11,7 +11,6 @@ try:  # Assume we're a sub-module in a package.
         get_field_value_from_row, get_field_value_from_record,
         merge_two_rows, merge_two_records,
     )
-    from items import struct_row as sc
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from . import arguments as arg
     from ..items.item_type import ItemType
@@ -23,26 +22,15 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         get_field_value_from_row, get_field_value_from_record,
         merge_two_rows, merge_two_records,
     )
-    from ..items import struct_row as sc
 
 SelectableItem = Union[SimpleSelectableItem, StructRowInterface]
 ConcreteItem = Union[Line, SelectableItem]
-
-ItemType.prepare()
-ItemType.set_dict_classes(
-    {
-        ItemType.Line: [Line],
-        ItemType.Row: ROW_SUBCLASSES,
-        ItemType.Record: RECORD_SUBCLASSES,
-        ItemType.StructRow: [sc.StructRow, StructRowInterface],
-    }
-)
 
 
 def set_to_item_inplace(
         field: FieldID, value: Value,
         item: SelectableItem, item_type: ItemType = ItemType.Auto,
-) -> NoReturn:
+) -> None:
     item_type = arg.delayed_acquire(item_type, ItemType.detect, item, default=ItemType.Any)
     if not isinstance(item_type, ItemType):
         if hasattr(item_type, 'value'):
