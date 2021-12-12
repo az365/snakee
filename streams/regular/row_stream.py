@@ -4,12 +4,13 @@ try:  # Assume we're a sub-module in a package.
     from interfaces import (
         Stream, RegularStream, StructStream, StructInterface,
         Context, Connector, TmpFiles, ItemType, StreamType,
-        Name, Count, Columns,
+        Name, Count, Columns, Array, ARRAY_TYPES,
         AUTO, Auto, AutoCount, AutoColumns,
     )
     from utils import arguments as arg, selection as sf
     from utils.decorators import deprecated_with_alternative
     from functions.primary import numeric as nm
+    from functions import all_functions as fs
     from selection import selection_classes as sn
     from streams.mixin.columnar_mixin import ColumnarMixin
     from streams.regular.any_stream import AnyStream
@@ -17,12 +18,13 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...interfaces import (
         Stream, RegularStream, StructStream, StructInterface,
         Context, Connector, TmpFiles, ItemType, StreamType,
-        Name, Count, Columns,
+        Name, Count, Columns, Array, ARRAY_TYPES,
         AUTO, Auto, AutoCount, AutoColumns,
     )
     from ...utils import arguments as arg, selection as sf
     from ...utils.decorators import deprecated_with_alternative
     from ...functions.primary import numeric as nm
+    from ...functions import all_functions as fs
     from ...selection import selection_classes as sn
     from ..mixin.columnar_mixin import ColumnarMixin
     from .any_stream import AnyStream
@@ -55,6 +57,19 @@ class RowStream(AnyStream, ColumnarMixin):
     def get_item_type() -> ItemType:
         return ItemType.Row
 
+    def _get_key_function(self, descriptions: Array, take_hash: bool = False) -> Callable:
+        descriptions = arg.get_names(descriptions)
+        if len(descriptions) == 0:
+            raise ValueError('key must be defined')
+        elif len(descriptions) == 1:
+            key_function = fs.partial(sf.value_from_row, descriptions[0])
+        else:
+            key_function = fs.partial(sf.row_from_row, descriptions)
+        if take_hash:
+            return lambda r: hash(key_function(r))
+        else:
+            return key_function
+
     def get_column_count(self, take: Count = DEFAULT_EXAMPLE_COUNT, get_max: bool = True, get_min: bool = False) -> int:
         if self.is_in_memory() and (get_max or get_min):
             example_stream = self.take(take)
@@ -76,7 +91,8 @@ class RowStream(AnyStream, ColumnarMixin):
         return list(range(count))
 
     def get_one_column_values(self, column) -> Iterable:
-        return self.select([column]).get_items()
+        for row in self.select(column).get_items():
+            yield row[0]
 
     @staticmethod
     def _get_selection_method(extended: bool = True) -> Callable:

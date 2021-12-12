@@ -1,13 +1,14 @@
 from typing import Optional, Callable, Iterable, Generator, Union
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from utils import arguments as arg, selection as sf
     from utils.decorators import deprecated_with_alternative
     from utils.external import pd, DataFrame, get_use_objects_for_output
     from interfaces import (
-        StreamInterface, StructInterface, StructRowInterface, Row, ROW_SUBCLASSES,
-        LoggerInterface, LoggingLevel, StreamType, ItemType, Item, How, JoinType,
-        AUTO, Auto, AutoBool, Source, Context, TmpFiles, Count, Columns, AutoColumns, UniKey,
+        LoggerInterface, StreamInterface, FieldInterface, StructInterface, StructRowInterface,
+        LoggingLevel, StreamType, FieldType, ItemType, JoinType, How,
+        Field, FieldName, FieldNo, UniKey, Item, Row, ROW_SUBCLASSES,
+        AUTO, Auto, AutoBool, Source, Context, TmpFiles, Count, Columns, AutoColumns, Array, ARRAY_TYPES,
     )
     from loggers.fallback_logger import FallbackLogger
     from streams import stream_classes as sm
@@ -22,9 +23,10 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils.decorators import deprecated_with_alternative
     from ...utils.external import pd, DataFrame, get_use_objects_for_output
     from ...interfaces import (
-        StreamInterface, StructInterface, StructRowInterface, Row, ROW_SUBCLASSES,
-        LoggerInterface, LoggingLevel, StreamType, ItemType, Item, How, JoinType,
-        AUTO, Auto, AutoBool, Source, Context, TmpFiles, Count, Columns, AutoColumns, UniKey,
+        LoggerInterface, StreamInterface, FieldInterface, StructInterface, StructRowInterface,
+        LoggingLevel, StreamType, FieldType, ItemType, JoinType, How,
+        Field, FieldName, FieldNo, UniKey, Item, Row, ROW_SUBCLASSES,
+        AUTO, Auto, AutoBool, Source, Context, TmpFiles, Count, Columns, AutoColumns, Array, ARRAY_TYPES,
     )
     from ...loggers.fallback_logger import FallbackLogger
     from .. import stream_classes as sm
@@ -37,7 +39,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 
 Native = Union[StreamInterface, StructRowInterface]
 Struct = StructInterface
-OptStruct = Optional[Union[Struct, Iterable]]
+OptStruct = Union[Struct, Iterable, None]
 
 DYNAMIC_META_FIELDS = ('count', 'struct')
 NAME_POS, TYPE_POS, HINT_POS = 0, 1, 2  # old style struct fields
@@ -162,6 +164,47 @@ class StructStream(sm.RowStream, StructMixin, sm.ConvertMixin):
     @staticmethod
     def get_item_type() -> ItemType:
         return ItemType.StructRow
+
+    def get_field_getter(self, field: Field) -> Callable:
+        if isinstance(field, Callable):
+            func = field
+        elif isinstance(field, sn.AbstractDescription) or hasattr(field, 'get_functions'):
+            func = field.get_function()
+        else:  # isinstance(field, Field):
+            if isinstance(field, FieldNo):  # int
+                field_no = field
+            else:
+                if isinstance(field, FieldName):
+                    field_name = field
+                else:  # if isinstance(field, FieldInterface):
+                    field_name = arg.get_name(field)
+                field_no = self.get_field_position(field_name)
+            func = fs.partial(lambda r, n: r[n], field_no)
+        return func
+
+    def _get_key_function(self, descriptions: Array, take_hash: bool = False) -> Callable:
+        descriptions = arg.get_names(descriptions, or_callable=True)
+        if len(descriptions) == 0:
+            raise ValueError('key must be defined')
+        elif len(descriptions) == 1:
+            desc = descriptions[0]
+            key_function = self.get_field_getter(desc)
+        else:
+            if isinstance(descriptions[0], Callable):
+                func = descriptions[0]
+                fields = descriptions[1:]
+            elif isinstance(descriptions[-1], Callable):
+                func = descriptions[-1]
+                fields = descriptions[:-1]
+            else:
+                func = tuple
+                fields = descriptions
+            arg_getters = [self.get_field_getter(f) for f in fields]
+            key_function = lambda r: func([f(r) for f in arg_getters])
+        if take_hash:
+            return lambda r: hash(key_function(r))
+        else:
+            return key_function
 
     @classmethod
     def is_valid_item_type(cls, item: Item) -> bool:
