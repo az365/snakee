@@ -48,7 +48,7 @@ class KeyValueSeries(sc.AnySeries):
         return series
 
     @classmethod
-    def from_dict(cls, my_dict) -> Native:
+    def from_dict(cls, my_dict: dict) -> Native:
         series = cls()
         for k in sorted(my_dict):
             series.append_pair(k, my_dict[k], inplace=True)
@@ -143,7 +143,7 @@ class KeyValueSeries(sc.AnySeries):
             values = self.get_values() + key_value_series.get_values()
         if inplace:
             self.set_keys(keys, inplace=True)
-            self.set_values(keys, inplace=True)
+            self.set_values(values, inplace=True)
         else:
             return self.new(
                 keys=keys,
