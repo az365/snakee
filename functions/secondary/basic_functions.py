@@ -1,4 +1,4 @@
-from typing import Callable, Union, Any
+from typing import Callable, Iterable, Union, Any
 
 try:  # Assume we're a submodule in a package.
     from functions.primary import numeric as nm
@@ -83,13 +83,32 @@ def safe_more_than(other: Any, including: bool = False) -> Callable:
     def func(value) -> bool:
         first, second = value, other
         if type(first) != type(second):
-            if not (isinstance(first, (int, float)) and isinstance(second, (int, float))):
+            first_is_numeric = isinstance(first, nm.NUMERIC_TYPES)
+            second_is_numeric = isinstance(second, nm.NUMERIC_TYPES)
+            if first_is_numeric:
+                if second_is_numeric:
+                    first = float(first)
+                    second = float(second)
+                else:  # second is not numeric
+                    return True
+            elif second_is_numeric:
+                return False
+            else:
                 first = str(type(first))
                 second = str(type(second))
-        if including:
-            return first >= second
-        else:
-            return first > second
+        try:
+            if including:
+                return first >= second
+            else:
+                return first > second
+        except TypeError as e:
+            if isinstance(first, Iterable) and isinstance(second, Iterable):
+                for f, s in zip(first, second):
+                    if safe_more_than(s, including=including)(f):
+                        return True
+                return False
+            else:
+                raise TypeError('{}: {} vs {}'.format(e, first, second))
     return func
 
 
