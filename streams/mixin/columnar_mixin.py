@@ -15,6 +15,7 @@ try:  # Assume we're a sub-module in a package.
     from base.abstract.contextual_data import ContextualDataWrapper
     from functions.secondary import item_functions as fs
     from utils import selection as sf
+    from streams.mixin.iterable_mixin import IterableStreamMixin
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         Context, LoggerInterface,
@@ -27,17 +28,18 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils.external import pd, DataFrame, get_use_objects_for_output
     from ...fields import field_classes as fc
     from ...base.abstract.contextual_data import ContextualDataWrapper
-    from ...functions import item_functions as fs
+    from ...functions.secondary import item_functions as fs
     from ...utils import selection as sf
+    from .iterable_mixin import IterableStreamMixin
 
-Native = ColumnarInterface
+Native = Union[RegularStreamInterface, ColumnarInterface]
 Struct = Optional[StructInterface]
 
 SAFE_COUNT_ITEMS_IN_MEMORY = 10000
 EXAMPLE_STR_LEN = 12
 
 
-class ColumnarMixin(ContextualDataWrapper, ColumnarInterface, ABC):
+class ColumnarMixin(ContextualDataWrapper, IterableStreamMixin, ColumnarInterface, ABC):
     @classmethod
     def is_valid_item(cls, item: Item) -> bool:
         return cls.get_item_type().isinstance(item)
@@ -74,6 +76,12 @@ class ColumnarMixin(ContextualDataWrapper, ColumnarInterface, ABC):
     def get_column_count(self) -> int:
         return len(list(self.get_columns()))
 
+    def select(self, *args, **kwargs) -> Stream:
+        stream = self.to_stream()
+        assert isinstance(stream, RegularStreamInterface) or hasattr(stream, 'select')
+        stream = stream.select(*args, **kwargs)
+        return self._assume_native(stream)
+
     def _get_filtered_items(
             self,
             *args,
@@ -93,7 +101,8 @@ class ColumnarMixin(ContextualDataWrapper, ColumnarInterface, ABC):
 
     def filter(self, *args, item_type: ItemType = ItemType.Auto, skip_errors: bool = False, **kwargs) -> Native:
         item_type = arg.delayed_acquire(item_type, self.get_item_type)
-        stream_type = StreamType.detect(item_type)
+        stream_type = self.get_stream_type()
+        assert isinstance(stream_type, StreamType), 'Expected StreamType, got {}'.format(stream_type)
         filtered_items = self._get_filtered_items(*args, item_type=item_type, skip_errors=skip_errors, **kwargs)
         stream = self.to_stream(data=filtered_items, stream_type=stream_type)
         return self._assume_native(stream)
@@ -109,10 +118,9 @@ class ColumnarMixin(ContextualDataWrapper, ColumnarInterface, ABC):
         return self._assume_native(stream)
 
     def map_to(self, function: Callable, stream_type: StreamType) -> Stream:
-        return self.stream(
-            map(function, self.get_items()),
-            stream_type=stream_type,
-        )
+        items = map(function, self.get_items())
+        stream = self.stream(items, stream_type=stream_type)
+        return self._assume_native(stream)
 
     def map(self, function: Callable) -> Native:
         stream = self.stream(
@@ -302,7 +310,6 @@ class ColumnarMixin(ContextualDataWrapper, ColumnarInterface, ABC):
             for line in self.get_str_headers():
                 self.log(line)
         example = self.example(*filters, **filter_kwargs, count=count)
-        assert isinstance(example, ColumnarMixin)
         if hasattr(self, 'get_struct'):
             expected_struct = self.get_struct()
             source_str = 'native'

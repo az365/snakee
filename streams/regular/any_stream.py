@@ -2,24 +2,28 @@ from typing import Union, Iterable, Callable, Optional
 from inspect import isclass
 
 try:  # Assume we're a sub-module in a package.
-    from utils import arguments as arg, items as it, selection as sf
+    from utils import arguments as arg, selection as sf
     from utils.decorators import deprecated_with_alternative
     from interfaces import (
         Stream, LocalStream, RegularStreamInterface, Context, Connector, TmpFiles,
         StreamType, ItemType,
-        AUTO, Auto, Name, Count, Source, Array, ARRAY_TYPES, OptionalFields,
+        Name, Count, Columns, OptionalFields, Source, Array, ARRAY_TYPES,
+        AUTO, Auto, AutoCount,
     )
+    from functions.primary import items as it
     from selection import selection_classes as sn
     from streams.abstract.local_stream import LocalStream
     from streams.mixin.convert_mixin import ConvertMixin
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg, items as it, selection as sf
+    from ...utils import arguments as arg, selection as sf
     from ...utils.decorators import deprecated_with_alternative
     from ...interfaces import (
         Stream, LocalStream, RegularStreamInterface, Context, Connector, TmpFiles,
         StreamType, ItemType,
-        AUTO, Auto, Name, Count, Source, Array, ARRAY_TYPES, OptionalFields,
+        Name, Count, Columns, OptionalFields, Source, Array, ARRAY_TYPES,
+        AUTO, Auto, AutoCount,
     )
+    from ...functions.primary import items as it
     from ...selection import selection_classes as sn
     from ..abstract.local_stream import LocalStream
     from ..mixin.convert_mixin import ConvertMixin
@@ -104,10 +108,10 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
         return self._assume_native(stream)
 
     def flat_map(self, function: Callable, to: AutoStreamType = AUTO) -> Stream:
-        if not arg.is_defined(to):
-            stream_class = self.__class__
-        else:
+        if arg.is_defined(to):
             stream_class = StreamType.detect(to).get_class()
+        else:
+            stream_class = self.__class__
         new_props_keys = stream_class([]).get_meta().keys()
         props = {k: v for k, v in self.get_meta().items() if k in new_props_keys}
         props.pop('count')
@@ -116,9 +120,9 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
 
     @deprecated_with_alternative('map()')
     def native_map(self, function: Callable) -> Native:
-        return self.stream(
-            map(function, self.get_items()),
-        )
+        items = map(function, self.get_items())
+        stream = self.stream(items)
+        return self._assume_native(stream)
 
     def apply_to_data(
             self,

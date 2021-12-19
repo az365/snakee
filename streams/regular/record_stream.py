@@ -1,7 +1,7 @@
 from typing import Optional, Iterable, Callable, Union
 
 try:  # Assume we're a sub-module in a package.
-    from utils import arguments as arg, mappers as ms, selection as sf
+    from utils import arguments as arg, selection as sf
     from utils.decorators import deprecated_with_alternative
     from utils.external import pd, DataFrame, get_use_objects_for_output
     from interfaces import (
@@ -15,7 +15,7 @@ try:  # Assume we're a sub-module in a package.
     from functions import all_functions as fs
     from selection import selection_classes as sn
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg, mappers as ms, selection as sf
+    from ...utils import arguments as arg, selection as sf
     from ...utils.decorators import deprecated_with_alternative
     from ...utils.external import pd, DataFrame, get_use_objects_for_output
     from ...interfaces import (
@@ -183,21 +183,20 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
         keys = arg.get_names(keys, or_callable=True)
         values = arg.get_names(values)
         key_function = self._get_key_function(keys)
-        groups = self._get_groups(key_function, as_pairs=as_pairs)
+        iter_groups = self._get_groups(key_function, as_pairs=as_pairs)
         if as_pairs:
-            sm_groups = sm.KeyValueStream(groups, value_stream_type=StreamType.RowStream)
+            stream_groups = sm.KeyValueStream(iter_groups, value_stream_type=StreamType.RowStream)
         else:
-            sm_groups = sm.RowStream(groups, check=False)
+            stream_groups = sm.RowStream(iter_groups, check=False)
         if values:
-            sm_groups = sm_groups.map_to_type(
-                lambda r: ms.fold_lists(r, keys, values, skip_missing=skip_missing),
-                stream_type=StreamType.RecordStream,
-            )
+            item_type = self.get_item_type()  # ItemType.Record
+            fold_mapper = fs.fold_lists(keys=keys, values=values, skip_missing=skip_missing, item_type=item_type)
+            stream_groups = stream_groups.map_to_type(fold_mapper, stream_type=StreamType.RecordStream)
         if self.is_in_memory():
-            return sm_groups.to_memory()
+            return stream_groups.to_memory()
         else:
-            sm_groups.set_estimated_count(self.get_count() or self.get_estimated_count())
-            return sm_groups
+            stream_groups.set_estimated_count(self.get_count() or self.get_estimated_count())
+            return stream_groups
 
     def group_by(
             self, *keys, values: Columns = None,
@@ -341,15 +340,11 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
 
     def to_column_file(
             self, filename: str, columns: Union[Iterable, Auto] = AUTO,
-            add_title_row=True, gzip=False,
-            delimiter='\t', encoding=AUTO,
-            check=True, verbose=True,
-            return_stream=True,
+            add_title_row=True, delimiter='\t', encoding=AUTO,
+            check=True, verbose=True, return_stream=True,
     ) -> Optional[Native]:
         encoding = arg.delayed_acquire(encoding, self.get_encoding)
         meta = self.get_meta()
-        if not gzip:
-            meta.pop('count')
         sm_csv_file = self.to_row_stream(
             columns=columns,
             add_title_row=add_title_row,
@@ -358,7 +353,6 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
         ).to_text_file(
             filename,
             encoding=encoding,
-            gzip=gzip,
             check=check,
             verbose=verbose,
             return_stream=return_stream,
@@ -377,25 +371,15 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
     @classmethod
     def from_column_file(
             cls,
-            filename,
-            columns,
-            delimiter='\t',
-            skip_first_line=True,
-            encoding=AUTO,
-            gzip=False,
-            check=AUTO,
-            expected_count=AUTO,
-            verbose=True,
+            filename, columns, delimiter='\t',
+            skip_first_line=True, encoding=AUTO, check=AUTO,
+            expected_count=AUTO, verbose=True,
     ) -> Native:
         encoding = arg.acquire(encoding, sm.TMP_FILES_ENCODING)
         return sm.LineStream.from_text_file(
-            filename,
-            skip_first_line=skip_first_line,
-            encoding=encoding,
-            gzip=gzip,
-            check=check,
-            expected_count=expected_count,
-            verbose=verbose,
+            filename, skip_first_line=skip_first_line,
+            encoding=encoding, check=check,
+            expected_count=expected_count, verbose=verbose,
         ).to_row_stream(
             delimiter=delimiter,
         ).to_record_stream(
@@ -404,22 +388,13 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
 
     @classmethod
     def from_json_file(
-            cls,
-            filename,
-            encoding=None,
-            gzip=False,
-            default_value=None,
-            max_count=None,
-            check=True,
-            verbose=False,
+            cls, filename, encoding=None,
+            default_value=None, max_count=None,
+            check=True, verbose=False,
     ) -> Native:
         parsed_stream = sm.LineStream.from_text_file(
-            filename,
-            encoding=encoding,
-            gzip=gzip,
-            max_count=max_count,
-            check=check,
-            verbose=verbose,
+            filename, encoding=encoding,
+            max_count=max_count, check=check, verbose=verbose,
         ).parse_json(
             default_value=default_value,
             to=StreamType.RecordStream,

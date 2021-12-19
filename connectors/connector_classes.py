@@ -1,6 +1,6 @@
 from typing import Type, Optional, Union
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from interfaces import (
         ConnectorInterface, ContextInterface, Context,
         TemporaryLocationInterface, TemporaryFilesMaskInterface,
@@ -21,7 +21,6 @@ try:  # Assume we're a sub-module in a package.
     from connectors.mixin.streamable_mixin import StreamableMixin
     from connectors.filesystem.local_storage import LocalStorage
     from connectors.filesystem.local_folder import LocalFolder
-    from connectors.filesystem.abstract_file import AbstractFile
     from connectors.filesystem.local_file import LocalFile
     from connectors.filesystem.text_file import TextFile, JsonFile
     from connectors.filesystem.column_file import ColumnFile, CsvFile, TsvFile
@@ -64,7 +63,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .mixin.streamable_mixin import StreamableMixin
     from .filesystem.local_storage import LocalStorage
     from .filesystem.local_folder import LocalFolder
-    from .filesystem.abstract_file import AbstractFile
     from .filesystem.local_file import LocalFile
     from .filesystem.text_file import TextFile, JsonFile
     from .filesystem.column_file import ColumnFile, CsvFile, TsvFile
@@ -95,7 +93,7 @@ CONN_CLASSES = (
     AbstractStorage,
     LocalStorage,
     LocalFolder, LocalMask, LocalFile, PartitionedLocalFile,
-    AbstractFile, TextFile, JsonFile, ColumnFile, CsvFile, TsvFile,
+    TextFile, JsonFile, ColumnFile, CsvFile, TsvFile,
     AbstractObjectStorage, S3Storage,
     S3Bucket, S3Folder,
     S3Object,
@@ -171,7 +169,7 @@ def is_conn(obj) -> bool:
 
 
 def is_file(obj) -> bool:
-    if isinstance(obj, AbstractFile) or obj.__class__.__name__ in FILE_CLASS_NAMES:
+    if isinstance(obj, LocalFile) or obj.__class__.__name__ in FILE_CLASS_NAMES:
         return True
     elif hasattr(obj, 'is_file'):
         return obj.is_file()

@@ -64,7 +64,7 @@ class LeafConnector(AbstractConnector, ConnectorFormatMixin, StreamableMixin, Le
         self.set_first_line_title(first_line_is_title)
         if struct is not None:
             if struct == AUTO:
-                struct = self._get_detected_struct()
+                struct = self._get_detected_struct(use_declared_types=False)
             if arg.is_defined(struct, check_name=False):
                 self.set_struct(struct, inplace=True)
 
@@ -85,11 +85,20 @@ class LeafConnector(AbstractConnector, ConnectorFormatMixin, StreamableMixin, Le
             content_class = content_type.get_class()
         return content_class(**kwargs)
 
-    def _get_detected_struct(self, set_struct: bool = False, verbose: AutoBool = AUTO) -> StructInterface:
+    def _get_detected_struct(
+            self,
+            set_struct: bool = False,
+            use_declared_types: bool = False,
+            verbose: AutoBool = AUTO,
+    ) -> Optional[StructInterface]:
         content_format = self.get_content_format()
         if isinstance(content_format, ContentFormatInterface) and hasattr(content_format, 'is_first_line_title'):
             if content_format.is_first_line_title():
-                struct = self.get_detected_struct_by_title_row(set_struct=set_struct, verbose=verbose)
+                struct = self.get_detected_struct_by_title_row(
+                    set_struct=set_struct,
+                    use_declared_types=use_declared_types,
+                    verbose=verbose,
+                )
                 return struct
 
     def get_content_format(self) -> ContentFormatInterface:
@@ -115,9 +124,9 @@ class LeafConnector(AbstractConnector, ConnectorFormatMixin, StreamableMixin, Le
         else:
             return self.make_new(content_format=content_format)
 
-    def reset_detected_format(self) -> Native:
+    def reset_detected_format(self, use_declared_types: bool = True) -> Native:
         content_format = self.get_declared_format().copy()
-        detected_struct = self.get_detected_struct_by_title_row()
+        detected_struct = self.get_detected_struct_by_title_row(set_struct=False, use_declared_types=use_declared_types)
         detected_format = content_format.set_struct(detected_struct, inplace=False)
         self.set_detected_format(detected_format, inplace=True)
         return self

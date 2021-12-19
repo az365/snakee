@@ -1,6 +1,6 @@
-from typing import Callable
+from typing import Callable, Iterable, Union, Any
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from functions.primary import numeric as nm
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..primary import numeric as nm
@@ -9,56 +9,56 @@ ZERO_VALUES = (None, 'None', '', '-', 0)
 
 
 def partial(function, *args, **kwargs) -> Callable:
-    def new_func(item):
+    def new_func(item: Any) -> Any:
         return function(item, *args, **kwargs)
     return new_func
 
 
-def const(value) -> Callable:
-    def func(_):
+def const(value: Any) -> Callable:
+    def func(_) -> Any:
         return value
     return func
 
 
 def defined() -> Callable:
-    def func(value) -> bool:
+    def func(value: Any) -> bool:
         return value is not None
     return func
 
 
 def is_none() -> Callable:
-    def func(value) -> bool:
+    def func(value: Any) -> bool:
         return nm.is_none(value)
     return func
 
 
 def not_none() -> Callable:
-    def func(value) -> bool:
+    def func(value: Any) -> bool:
         return nm.is_defined(value)
     return func
 
 
 def nonzero(zero_values=ZERO_VALUES) -> Callable:
-    def func(value) -> bool:
+    def func(value: Any) -> bool:
         if nm.is_defined(value):
             return value not in zero_values
     return func
 
 
-def equal(other) -> Callable:
-    def func(value) -> bool:
+def equal(other: Any) -> Callable:
+    def func(value: Any) -> bool:
         return value == other
     return func
 
 
-def not_equal(other) -> Callable:
+def not_equal(other: Any) -> Callable:
     def func(value) -> bool:
         return value != other
     return func
 
 
-def less_than(other, including=False) -> Callable:
-    def func(value) -> bool:
+def less_than(other: Any, including: bool = False) -> Callable:
+    def func(value: Any) -> bool:
         if including:
             return value <= other
         else:
@@ -66,8 +66,8 @@ def less_than(other, including=False) -> Callable:
     return func
 
 
-def more_than(other, including=False) -> Callable:
-    def func(value) -> bool:
+def more_than(other: Any, including: bool = False) -> Callable:
+    def func(value: Any) -> bool:
         if including:
             return value >= other
         else:
@@ -75,21 +75,40 @@ def more_than(other, including=False) -> Callable:
     return func
 
 
-def at_least(number) -> Callable:
+def at_least(number: Any) -> Callable:
     return more_than(number, including=True)
 
 
-def safe_more_than(other, including=False) -> Callable:
+def safe_more_than(other: Any, including: bool = False) -> Callable:
     def func(value) -> bool:
         first, second = value, other
         if type(first) != type(second):
-            if not (isinstance(first, (int, float)) and isinstance(second, (int, float))):
+            first_is_numeric = isinstance(first, nm.NUMERIC_TYPES)
+            second_is_numeric = isinstance(second, nm.NUMERIC_TYPES)
+            if first_is_numeric:
+                if second_is_numeric:
+                    first = float(first)
+                    second = float(second)
+                else:  # second is not numeric
+                    return True
+            elif second_is_numeric:
+                return False
+            else:
                 first = str(type(first))
                 second = str(type(second))
-        if including:
-            return first >= second
-        else:
-            return first > second
+        try:
+            if including:
+                return first >= second
+            else:
+                return first > second
+        except TypeError as e:
+            if isinstance(first, Iterable) and isinstance(second, Iterable):
+                for f, s in zip(first, second):
+                    if safe_more_than(s, including=including)(f):
+                        return True
+                return False
+            else:
+                raise TypeError('{}: {} vs {}'.format(e, first, second))
     return func
 
 
@@ -124,4 +143,13 @@ def not_between(min_value, max_value, including=False) -> Callable:
 def apply_dict(dictionary, default=None) -> Callable:
     def func(key):
         return dictionary.get(key, default)
+    return func
+
+
+def acquire(default=None, zero_values: Union[list, tuple] = ZERO_VALUES) -> Callable:
+    def func(*values):
+        for v in values:
+            if v not in zero_values:
+                return v
+        return default
     return func

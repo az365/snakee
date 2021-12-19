@@ -1,24 +1,25 @@
 from typing import Optional, Union, Callable, Iterable, Any
 
 try:  # Assume we're a sub-module in a package.
-    from utils import (
-        arguments as arg,
-        mappers as ms,
-    )
+    from utils import arguments as arg
     from items.item_type import ItemType
     from functions.primary import numeric as nm
+    from functions.primary import grouping as gr
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import (
-        arguments as arg,
-        mappers as ms,
-    )
+    from ...utils import arguments as arg
     from ...items.item_type import ItemType
     from ..primary import numeric as nm
+    from ..primary import grouping as gr
 
 Array = Union[list, tuple]
 
 
-def is_in(*list_values) -> Callable:
+def is_in(*list_values, or_none: bool = False) -> Callable:
+    if list_values == (None, ) or not list_values:
+        if or_none:
+            return lambda v: True
+        else:
+            return lambda v: False
     list_values = arg.update(list_values)
 
     def func(value: Any) -> bool:
@@ -66,7 +67,7 @@ def distinct() -> Callable:
     return uniq()
 
 
-def elem_no(position: int, default=None) -> Callable:
+def elem_no(position: int, default: Any = None) -> Callable:
     def func(array: Array):
         elem_count = len(array)
         if isinstance(array, (list, tuple)) and -elem_count <= position < elem_count:
@@ -98,15 +99,16 @@ def fold_lists(
         detected_type = item_type
         if not arg.is_defined(detected_type):
             detected_type = ItemType.detect(item)
-        return ms.fold_lists(item, keys, values, skip_missing=skip_missing, item_type=detected_type)
+        return gr.fold_lists(item, keys, values, skip_missing=skip_missing, item_type=detected_type)
     return func
 
 
-def unfold_lists(fields, number_field='n', default_value=0) -> Callable:
+def unfold_lists(*fields, number_field: str = 'n', default_value: Any = 0) -> Callable:
+    fields = arg.update(fields)
     fields = arg.get_names(fields)
 
     def func(record: dict) -> Iterable:
-        yield from ms.unfold_lists(record, fields=fields, number_field=number_field, default_value=default_value)
+        yield from gr.unfold_lists(record, fields=fields, number_field=number_field, default_value=default_value)
     return func
 
 
@@ -199,7 +201,7 @@ def mean(round_digits: Optional[int] = None, default: Any = None, safe: bool = T
     return func
 
 
-def top(count: int = 10, output_values: bool = False) -> Callable:
+def top(cnt: int = 10, output_values: bool = False) -> Callable:
     def func(keys, values=None) -> list:
         if values:
             pairs = sorted(zip(keys, values), key=lambda i: i[1], reverse=True)
@@ -208,7 +210,7 @@ def top(count: int = 10, output_values: bool = False) -> Callable:
             for k in keys:
                 dict_counts[k] = dict_counts.get(k, 0)
             pairs = sorted(dict_counts.items())
-        top_n = pairs[:count]
+        top_n = pairs[:cnt]
         if output_values:
             return top_n
         else:

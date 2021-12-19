@@ -82,18 +82,6 @@ class LocalFile(LeafConnector, ActualizeMixin):
             **kwargs,
         )
 
-    def get_encoding(self) -> Optional[str]:
-        content_format = self.get_content_format()
-        if hasattr(content_format, 'get_encoding'):
-            return content_format.get_encoding()
-
-    def get_ending(self) -> str:
-        content_format = self.get_content_format()
-        if hasattr(content_format, 'get_ending'):
-            return content_format.get_ending()
-        else:
-            return TextFormat().get_ending()
-
     def get_folder(self) -> Union[Connector, Any]:
         return self.get_parent()
 
@@ -186,6 +174,8 @@ class LocalFile(LeafConnector, ActualizeMixin):
             closed_count = 1
         else:
             closed_count = 0
+        if self.is_gzip():
+            self.set_fileholder(None)
         return closed_count
 
     def open(self, mode: str = 'r', allow_reopen: bool = False) -> Native:
@@ -261,7 +251,7 @@ class LocalFile(LeafConnector, ActualizeMixin):
     def get_next_lines(self, count: Optional[int] = None, skip_first: bool = False, close: bool = False) -> Iterable:
         is_opened = self.is_opened()
         if is_opened is not None:
-            assert is_opened, 'For LocalFIle.get_next_lines() file must be opened: {}'.format(self)
+            assert is_opened, 'For LocalFile.get_next_lines() file must be opened: {}'.format(self)
         encoding = self.get_encoding()
         ending = self.get_ending()
         iter_lines = self.get_fileholder()
@@ -400,12 +390,6 @@ class LocalFile(LeafConnector, ActualizeMixin):
     @classmethod
     def set_default_folder(cls, folder: ConnectorInterface) -> None:
         cls._default_folder = folder
-
-    def select(self, *args, **kwargs) -> Stream:
-        stream = self.to_stream()
-        assert isinstance(stream, RegularStreamInterface) or hasattr(stream, 'select')
-        stream = stream.select(*args, **kwargs)
-        return self._assume_stream(stream)
 
     def _get_field_getter(self, field: UniKey, item_type: Union[ItemType, Auto] = AUTO, default=None):
         if self.get_struct():

@@ -5,7 +5,7 @@ try:  # Assume we're a sub-module in a package.
     from interfaces import (
         FieldInterface, StructInterface,
         FieldType, DialectType, ItemType,
-        ROW_SUBCLASSES, Row, Name, Field, FieldNo, Value, Auto, AUTO,
+        RECORD_SUBCLASSES, ROW_SUBCLASSES, Row, Line, Name, Field, FieldNo, Value, Auto, AUTO,
     )
     from base.abstract.simple_data import SimpleDataWrapper
     from items.struct_row_interface import StructRowInterface, DEFAULT_DELIMITER
@@ -16,7 +16,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..interfaces import (
         FieldInterface, StructInterface,
         FieldType, DialectType, ItemType,
-        ROW_SUBCLASSES, Row, Name, Field, FieldNo, Value, Auto, AUTO,
+        RECORD_SUBCLASSES, ROW_SUBCLASSES, Row, Line, Name, Field, FieldNo, Value, Auto, AUTO,
     )
     from ..base.abstract.simple_data import SimpleDataWrapper
     from .struct_row_interface import StructRowInterface, DEFAULT_DELIMITER
@@ -190,5 +190,13 @@ class StructRow(SimpleDataWrapper, StructMixin, StructRowInterface):
         return '{}({})'.format(self.__class__.__name__, ', '.join(field_strings))
 
 
-SchemaRow = StructRow
+ItemType.prepare()
 ItemType.add_classes(StructRow)
+ItemType.set_dict_classes(
+    {
+        ItemType.Line: [Line],
+        ItemType.Row: ROW_SUBCLASSES,
+        ItemType.Record: RECORD_SUBCLASSES,
+        ItemType.StructRow: [StructRow, StructRowInterface],
+    }
+)

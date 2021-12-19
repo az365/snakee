@@ -43,8 +43,8 @@ class StructMixin(StructMixinInterface, ABC):
     def get_column_count(self) -> int:
         return len(self.get_columns())
 
-    def get_types(self, dialect: DialectType = DialectType.String) -> Iterable:
-        return self.get_struct().get_types(dialect)
+    def get_types(self, dialect: DialectType = DialectType.String, as_list: bool = True) -> Iterable:
+        return self.get_struct().get_types(dialect, as_list=as_list)
 
     def set_types(self, dict_field_types: Optional[dict] = None, inplace: bool = False, **kwargs):
         self.get_struct().set_types(dict_field_types=dict_field_types, inplace=True, **kwargs)
@@ -62,12 +62,16 @@ class StructMixin(StructMixinInterface, ABC):
         return [self.get_field_position(f) for f in fields]
 
     @classmethod
-    def _get_struct_detected_by_title_row(cls, title_row: Iterable) -> StructInterface:
+    def _get_struct_detected_by_title_row(cls, title_row: Iterable, types: Optional[dict] = None) -> StructInterface:
         struct_class = cls._get_struct_class()
+        if not arg.is_defined(types):
+            types = dict()
         detected_struct = struct_class([])
         for name in title_row:
-            field_type = FieldType.detect_by_name(name)
-            # struct.append_field(AdvancedField(name, field_type))
+            if name in types:
+                field_type = FieldType.convert(types[name])
+            else:
+                field_type = FieldType.detect_by_name(name)
             detected_struct.append_field(name, default_type=field_type, exclude_duplicates=False, inplace=True)
         return detected_struct
 

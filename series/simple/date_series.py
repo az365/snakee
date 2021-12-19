@@ -171,7 +171,7 @@ Native = DateSeriesInterface
 DateNumeric = Native
 
 
-class DateSeries(DateSeriesInterface, sc.SortedSeries):
+class DateSeries(DateSeriesInterface, SortedSeries):
     def __init__(
             self,
             values: Optional[list] = None,
@@ -264,7 +264,7 @@ class DateSeries(DateSeriesInterface, sc.SortedSeries):
         return [self.get_first_date(), self.get_last_date()]
 
     def get_mutual_border_dates(self, other: Native) -> list:
-        assert isinstance(other, (sc.DateSeries, sc.DateNumericSeries))
+        assert isinstance(other, (DateSeries, sc.DateSeries, DateNumericInterface, sc.DateNumericSeries)), other
         first_date = max(self.get_first_date(), other.get_first_date())
         last_date = min(self.get_last_date(), other.get_last_date())
         if first_date < last_date:
@@ -385,7 +385,7 @@ class DateSeries(DateSeriesInterface, sc.SortedSeries):
             self, date: dt.Date,
             max_distance: int = dt.MAX_DAYS_IN_MONTH, return_increment: bool = False,
     ) -> Union[dt.Date, Optional[tuple]]:
-        candidates = sc.DateSeries(
+        candidates = DateSeries(
             dt.get_yearly_dates(date, self.get_first_date(), self.get_last_date()),
         )
         if not candidates.has_items():

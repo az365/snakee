@@ -45,6 +45,11 @@ class StreamInterface(SourcedInterface, ABC):
         pass
 
     @abstractmethod
+    def get_one_item(self):
+        """Returns first item from stream for example."""
+        pass
+
+    @abstractmethod
     def get_items(self) -> Iterable:
         """Returns iterable items.
 
@@ -166,7 +171,7 @@ class StreamInterface(SourcedInterface, ABC):
     def get_static_meta(self, ex: OptionalFields = None) -> dict:
         """Extract static meta information (independent of data or items count).
 
-        :param ex: list of excluding fields
+        :param ex: one field name or list of fields to exclude from transmitted meta-information
 
         :returns: dict of meta fields and its values
         """
@@ -180,12 +185,20 @@ class StreamInterface(SourcedInterface, ABC):
         :param data: new data object to set inside new stream
         :type data: Iterable
 
-        :param ex: list of excluding fields
+        :param ex: one field name or list of fields to exclude from transmitted meta-information
         :type ex: list or str or None
 
         :param kwargs: changed meta information
 
         :returns: new Native Stream (stream of same class)
+        """
+        pass
+
+    @abstractmethod
+    def copy(self):
+        """Return full copy of stream (including copy of iterator from tee_stream() method).
+
+        :return: Native Stream (stream of same class)
         """
         pass
 

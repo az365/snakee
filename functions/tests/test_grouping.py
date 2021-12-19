@@ -1,16 +1,9 @@
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from streams import stream_classes as sm
-    from utils import mappers as ms
+    from functions.primary import grouping as gr
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...streams import stream_classes as sm
-    from .. import mappers as ms
-
-
-def test_norm_text():
-    example = '\t Абв 123 Gb\n'
-    expected = 'абв gb'
-    received = ms.norm_text(example)
-    assert received == expected
+    from ..primary import grouping as gr
 
 
 def test_calc_histogram():
@@ -36,7 +29,7 @@ def test_calc_histogram():
         y=('y', int),
         z=('z', int),
     ).apply_to_data(
-        lambda a: ms.get_histograms(a, fields=['x', 'y']),
+        lambda a: gr.get_histograms(a, fields=['x', 'y']),
         # to=sm.AnyStream,
     ).get_list()
     assert received == expected
@@ -52,7 +45,7 @@ def test_sum_by_keys():
     received = sm.AnyStream(
         example,
     ).apply_to_data(
-        lambda a: ms.sum_by_keys(
+        lambda a: gr.sum_by_keys(
             a,
             keys=('b', 'a'),
             counters=('h', ),
@@ -65,7 +58,7 @@ def test_get_first_values():
     fields = ['a', 'b', 'c', 'd']
     example = [{'a': 1, 'b': 2}, {'b': 3, 'c': 4}]
     expected = {'a': 1, 'b': 2, 'c': 4}
-    received = ms.get_first_values(
+    received = gr.get_first_values(
         example,
         fields,
     )
@@ -74,7 +67,6 @@ def test_get_first_values():
 
 def main():
     test_calc_histogram()
-    test_norm_text()
     test_sum_by_keys()
     test_get_first_values()
 

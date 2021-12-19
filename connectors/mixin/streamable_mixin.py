@@ -10,6 +10,7 @@ try:  # Assume we're a sub-module in a package.
         Auto, AUTO, AutoBool, AutoCount, AutoName, Array, OptionalFields,
     )
     from streams.mixin.iterable_mixin import IterableStreamMixin
+    from streams.mixin.columnar_mixin import ColumnarMixin
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...interfaces import (
@@ -19,13 +20,14 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         Auto, AUTO, AutoBool, AutoCount, AutoName, Array, OptionalFields,
     )
     from ...streams.mixin.iterable_mixin import IterableStreamMixin
+    from ...streams.mixin.columnar_mixin import ColumnarMixin
 
 Stream = Union[IterableStreamInterface, RegularStream]
 Message = Union[AutoName, Array]
 Native = Union[Stream, LeafConnectorInterface]
 
 
-class StreamableMixin(IterableStreamMixin, ABC):
+class StreamableMixin(ColumnarMixin, ABC):
     @staticmethod
     def get_default_item_type() -> ItemType:
         return ItemType.Any
@@ -146,6 +148,7 @@ class StreamableMixin(IterableStreamMixin, ABC):
             stream_type: StreamType,
             step: AutoCount = AUTO,
             verbose: AutoBool = AUTO,
+            message: Union[str, arg.Auto, None] = AUTO,
             **kwargs,
     ) -> Stream:
         stream_type = arg.delayed_acquire(stream_type, self._get_stream_type)
@@ -154,7 +157,7 @@ class StreamableMixin(IterableStreamMixin, ABC):
             kwargs['struct'] = self.get_struct()
         data = kwargs.pop('data', None)
         if not arg.is_defined(data):
-            data = self._get_items_of_type(item_type, step=step, verbose=verbose)
+            data = self._get_items_of_type(item_type, step=step, verbose=verbose, message=message)
         stream_kwargs = self.get_stream_kwargs(data=data, step=step, verbose=verbose, **kwargs)
         return stream_type.stream(**stream_kwargs)
 
@@ -164,7 +167,7 @@ class StreamableMixin(IterableStreamMixin, ABC):
     def to_line_stream(self, step: AutoCount = AUTO, verbose: AutoBool = AUTO, **kwargs) -> LineStream:
         return self.to_stream_type(StreamType.LineStream, step=step, verbose=verbose, **kwargs)
 
-    def to_record_stream(self, step: AutoCount = AUTO, verbose: AutoBool = AUTO, **kwargs) -> RowStream:
+    def to_record_stream(self, step: AutoCount = AUTO, verbose: AutoBool = AUTO, **kwargs) -> RecordStream:
         return self.to_stream_type(StreamType.RecordStream, step=step, verbose=verbose, **kwargs)
 
     def to_row_stream(self, step: AutoCount = AUTO, verbose: AutoBool = AUTO, **kwargs) -> RowStream:

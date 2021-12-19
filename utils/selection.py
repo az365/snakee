@@ -1,17 +1,11 @@
 from typing import Callable, Union, Any
 
 try:  # Assume we're a sub-module in a package.
-    from utils import (
-        algo,
-        arguments as arg,
-        items as it,
-    )
+    from utils import algo, arguments as arg
+    from functions.primary import items as it
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from . import (
-        algo,
-        arguments as arg,
-        items as it,
-    )
+    from . import algo, arguments as arg
+    from ..functions.primary import items as it
 
 Description = Union[Callable, list, tuple]
 
