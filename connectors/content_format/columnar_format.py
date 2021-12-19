@@ -21,9 +21,9 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...functions.secondary import item_functions as fs
     from .text_format import TextFormat, Compress, DEFAULT_ENDING, DEFAULT_ENCODING
 
+DEFAULT_IS_FIRST_LINE_TITLE = True
 DEFAULT_DELIMITER = '\t'
 POPULAR_DELIMITERS = '\t', '; ', ', ', ';', ',', ' '
-DEFAULT_IS_FIRST_LINE_TITLE = True
 
 
 class ColumnarFormat(TextFormat):
@@ -208,7 +208,7 @@ class FlatStructFormat(ColumnarFormat):
             self,
             struct: Union[Array, StructInterface, Auto] = AUTO,
     ) -> Union[Array, StructInterface]:
-        if arg.is_defined(struct):
+        if arg.is_defined(struct, check_name=False):
             if isinstance(struct, ARRAY_TYPES):
                 assert struct == self.get_struct().get_columns()
         else:
