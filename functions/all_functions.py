@@ -1,8 +1,8 @@
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from functions.secondary.basic_functions import (
         partial, const, defined, is_none, not_none, nonzero, equal, not_equal,
         at_least, more_than, safe_more_than, less_than, between, not_between, is_ordered,
-        apply_dict,
+        apply_dict, acquire,
     )
     from functions.secondary.cast_functions import DICT_CAST_TYPES, cast, date, number, percent
     from functions.secondary.numeric_functions import sign, diff, div, mult, sqrt
@@ -27,7 +27,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .secondary.basic_functions import (
         partial, const, defined, is_none, not_none, nonzero, equal, not_equal,
         at_least, more_than, safe_more_than, less_than, between, not_between, is_ordered,
-        apply_dict,
+        apply_dict, acquire,
     )
     from .secondary.cast_functions import DICT_CAST_TYPES, cast, date, number, percent
     from .secondary.numeric_functions import sign, diff, div, mult, sqrt
