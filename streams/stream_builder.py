@@ -40,8 +40,8 @@ class StreamBuilder(StreamBuilderInterface):
 
     @classmethod
     def stack(cls, *iter_streams, how: How = 'vertical', name=AUTO, context=None, **kwargs):
-        assert cls.is_same_stream_type(iter_streams), 'concat(): streams must have same type: {}'.format(iter_streams)
         iter_streams = arg.update(iter_streams)
+        assert cls.is_same_stream_type(iter_streams), 'concat(): streams must have same type: {}'.format(iter_streams)
         result = None
         for cur_stream in iter_streams:
             assert isinstance(cur_stream, StreamInterface)
