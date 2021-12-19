@@ -14,6 +14,7 @@ PyDate = date
 IsoDate = str
 GostDate = str
 Date = Union[PyDate, IsoDate, GostDate]
+AutoBool = Union[bool, arg.Auto]
 
 DAYS_IN_YEAR = 365
 MONTHS_IN_YEAR = 12
@@ -111,7 +112,7 @@ def from_gost_format(d: GostDate, as_iso_date: bool = False) -> Date:
 
 
 def to_gost_format(d: Date) -> GostDate:
-    d = to_date(d)
+    d = get_py_date(d)
     return '{:02}.{:02}.{:04}'.format(d.day, d.month, d.year)
 
 
@@ -119,7 +120,7 @@ def raise_date_type_error(d):
     raise TypeError('Argument must be date in iso-format as str or python date (got {})'.format(type(d)))
 
 
-def get_date(d: Date) -> PyDate:
+def get_py_date(d: Date) -> PyDate:
     if isinstance(d, date):
         return d
     elif is_iso_date(d):
@@ -130,14 +131,25 @@ def get_date(d: Date) -> PyDate:
         raise_date_type_error(d)
 
 
-def to_date(d: Date, as_iso_date: bool = False) -> Date:
+def get_iso_date(d: Date) -> IsoDate:
+    if is_py_date(d):
+        return d.isoformat()
+    elif is_iso_date(d):
+        return d[:10]
+    elif is_gost_date(d):
+        return from_gost_format(d, as_iso_date=True)
+
+
+def get_date(d: Date, as_iso_date: bool = False) -> Date:
     if as_iso_date:
-        if is_iso_date(d):
-            return d[:10]
-        else:
-            return d.isoformat()
+        return get_iso_date(d)
     else:
-        return get_date(d)
+        return get_py_date(d)
+
+
+@deprecated_with_alternative('get_date()')
+def to_date(d: Date, as_iso_date: bool = False) -> Date:
+    return get_date(d, as_iso_date=as_iso_date)
 
 
 def get_shifted_date(d: Date, *args, **kwargs):
@@ -146,38 +158,38 @@ def get_shifted_date(d: Date, *args, **kwargs):
     cur_date = get_date(d)
     shifted_date = cur_date + shift
     if as_iso_date:
-        return to_date(shifted_date, as_iso_date=as_iso_date)
+        return get_iso_date(shifted_date)
     else:
         return shifted_date
 
 
 def get_month_from_date(d: Date) -> int:
-    if is_iso_date(d):
-        return date.fromisoformat(d).month
-    elif isinstance(d, date):
-        return d.month
-    else:
-        raise_date_type_error(d)
+    d = get_py_date(d)
+    return d.month
 
 
-def get_month_first_date(d: Date) -> Date:
-    if is_iso_date(d):
+def get_month_first_date(d: Date, as_iso_date: AutoBool = arg.AUTO) -> Date:
+    as_iso_date = arg.delayed_acquire(as_iso_date, is_iso_date, d)
+    if as_iso_date:
+        if not is_iso_date(d):
+            d = to_date(as_iso_date=True)
         return d[:8] + '01'
-    elif isinstance(d, PyDate):
-        return date(d.year, d.month, 1)
     else:
-        raise_date_type_error(d)
+        if not is_py_date(d):
+            d = get_py_date(d)
+        return PyDate(d.year, d.month, 1)
 
 
-def get_monday_date(d: Date, as_iso_date: Optional[bool] = None) -> Date:
+def get_monday_date(d: Date, as_iso_date: AutoBool = arg.AUTO) -> Date:
     cur_date = get_date(d)
-    if as_iso_date is None:
+    if not arg.is_defined(as_iso_date):
         as_iso_date = is_iso_date(d)
     monday_date = cur_date + timedelta(days=-cur_date.weekday())
     return to_date(monday_date, as_iso_date)
 
 
-def get_year_first_date(d: [Date, int], as_iso_date: bool = True) -> Date:
+def get_year_first_date(d: [Date, int], as_iso_date: AutoBool = True) -> Date:
+    as_iso_date = arg.delayed_acquire(as_iso_date, is_iso_date, d)
     if isinstance(d, int):
         if d > 1900:
             return get_date_from_year(d, as_iso_date=as_iso_date)
@@ -192,8 +204,12 @@ def get_year_first_date(d: [Date, int], as_iso_date: bool = True) -> Date:
             return get_date(iso_date)
 
 
-def get_year_start_monday(year: int, as_iso_date: bool = True) -> Date:
-    year_start_date = date(year, 1, 1)
+def get_year_start_monday(year: Union[int, Date], as_iso_date: AutoBool = True) -> Date:
+    as_iso_date = arg.delayed_acquire(as_iso_date, is_iso_date, year)
+    if isinstance(year, int):
+        year_start_date = PyDate(year=year, month=1, day=1)
+    else:
+        year_start_date = get_year_first_date(year, as_iso_date=as_iso_date)
     year_start_monday = year_start_date + timedelta(days=-year_start_date.weekday())
     return to_date(year_start_monday, as_iso_date)
 
