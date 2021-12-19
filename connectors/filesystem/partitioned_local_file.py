@@ -52,7 +52,7 @@ class PartitionedLocalFile(LocalMask, LocalFile):
         if inplace:
             self._suffix = suffix
             partition = self.file(suffix)
-            assert isinstance(partition, AbstractFile)
+            assert isinstance(partition, LocalFile), 'LocalFile expected, got {}'.format(partition)
             self.set_partition(partition, inplace=True)
             return self
         else:
@@ -93,7 +93,7 @@ class PartitionedLocalFile(LocalMask, LocalFile):
     def get_items_count(self, allow_reopen=True, allow_slow_gzip=True, force=False) -> Optional[int]:
         partition = self.get_partition()
         if partition:
-            if isinstance(partition, AbstractFile) or hasattr(partition, 'get_count'):
+            if isinstance(partition, LocalFile) or hasattr(partition, 'get_count'):
                 return partition.get_count(allow_reopen=allow_reopen, allow_slow_gzip=allow_slow_gzip, force=force)
         else:
             count = 0
