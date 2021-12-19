@@ -126,8 +126,22 @@ class LegacyStruct(StructInterface):
     def get_columns(self):
         return [c.get_name() for c in self.fields_descriptions]
 
-    def get_types(self, dialect):
-        return [c.get_type_in(dialect) for c in self.fields_descriptions]
+    def get_list_types(self, dialect: Optional[DialectType] = DialectType.String) -> list:
+        if arg.is_defined(dialect):
+            return [f.get_type_in(dialect) for f in self.get_fields()]
+        else:
+            return [f.get_type() for f in self.get_fields()]
+
+    def get_dict_types(self, dialect: Optional[DialectType]) -> dict:
+        names = map(lambda f: arg.get_name(f), self.get_fields())
+        types = self.get_list_types(dialect)
+        return dict(zip(names, types))
+
+    def get_types(self, dialect: DialectType = DialectType.String, as_list: bool = True) -> Union[list, dict]:
+        if as_list:
+            return self.get_list_types(dialect)
+        else:
+            return self.get_dict_types(dialect)
 
     def set_types(self, dict_field_types=None, inplace=False, **kwargs):
         for field_name, field_type in list((dict_field_types or {}).items()) + list(kwargs.items()):

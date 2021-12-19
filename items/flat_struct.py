@@ -237,8 +237,22 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
     def get_columns(self) -> list:
         return [c.get_name() for c in self.get_fields()]
 
-    def get_types(self, dialect: DialectType = DialectType.String) -> list:
-        return [c.get_type_in(dialect) for c in self.get_fields()]
+    def get_list_types(self, dialect: Union[DialectType, Auto] = DialectType.String) -> list:
+        if arg.is_defined(dialect):
+            return [f.get_type_in(dialect) for f in self.get_fields()]
+        else:
+            return [f.get_type() for f in self.get_fields()]
+
+    def get_dict_types(self, dialect: Union[DialectType, Auto]) -> dict:
+        names = map(lambda f: arg.get_name(f), self.get_fields())
+        types = self.get_list_types(dialect)
+        return dict(zip(names, types))
+
+    def get_types(self, dialect: DialectType = DialectType.String, as_list: bool = True) -> Union[list, dict]:
+        if as_list:
+            return self.get_list_types(dialect)
+        else:
+            return self.get_dict_types(dialect)
 
     def set_types(
             self,
@@ -308,7 +322,7 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
         return True
 
     def is_valid_row(self, row: Union[Iterable, StructRowInterface]) -> bool:
-        for value, field_type in zip(row, self.get_types('py')):
+        for value, field_type in zip(row, self.get_list_types(DialectType.Python)):
             if not isinstance(value, field_type):
                 return False
         return True
