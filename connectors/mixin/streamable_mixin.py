@@ -148,6 +148,7 @@ class StreamableMixin(ColumnarMixin, ABC):
             stream_type: StreamType,
             step: AutoCount = AUTO,
             verbose: AutoBool = AUTO,
+            message: Union[str, arg.Auto, None] = AUTO,
             **kwargs,
     ) -> Stream:
         stream_type = arg.delayed_acquire(stream_type, self._get_stream_type)
@@ -156,7 +157,7 @@ class StreamableMixin(ColumnarMixin, ABC):
             kwargs['struct'] = self.get_struct()
         data = kwargs.pop('data', None)
         if not arg.is_defined(data):
-            data = self._get_items_of_type(item_type, step=step, verbose=verbose)
+            data = self._get_items_of_type(item_type, step=step, verbose=verbose, message=message)
         stream_kwargs = self.get_stream_kwargs(data=data, step=step, verbose=verbose, **kwargs)
         return stream_type.stream(**stream_kwargs)
 
@@ -166,7 +167,7 @@ class StreamableMixin(ColumnarMixin, ABC):
     def to_line_stream(self, step: AutoCount = AUTO, verbose: AutoBool = AUTO, **kwargs) -> LineStream:
         return self.to_stream_type(StreamType.LineStream, step=step, verbose=verbose, **kwargs)
 
-    def to_record_stream(self, step: AutoCount = AUTO, verbose: AutoBool = AUTO, **kwargs) -> RowStream:
+    def to_record_stream(self, step: AutoCount = AUTO, verbose: AutoBool = AUTO, **kwargs) -> RecordStream:
         return self.to_stream_type(StreamType.RecordStream, step=step, verbose=verbose, **kwargs)
 
     def to_row_stream(self, step: AutoCount = AUTO, verbose: AutoBool = AUTO, **kwargs) -> RowStream:
