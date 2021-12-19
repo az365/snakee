@@ -66,9 +66,9 @@ class SortedNumericKeyValueSeries(sc.SortedKeyValueSeries, sc.SortedNumericSerie
             **self._get_data_member_dict()
         )
 
-    def to_dates(self, as_iso_date=False, from_scale='days'):
+    def to_dates(self, as_iso_date=False, scale=dt.DateScale.Day):
         return self.map_keys(
-            function=lambda d: dt.get_date_from_numeric(d, from_scale=from_scale),
+            function=lambda d: dt.get_date_from_int(d, scale=scale, as_iso_date=as_iso_date),
             sorting_changed=False,
         ).assume_dates()
 

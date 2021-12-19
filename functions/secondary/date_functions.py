@@ -15,17 +15,7 @@ def date(as_iso_date: bool = True) -> Callable:
 
 
 def int_to_date(scale: Scale, as_iso_date: bool = True) -> Callable:
-    scale = dt.DateScale.convert(scale)
-    if scale == dt.DateScale.Day:
-        return lambda d: dt.get_date_from_day_abs(d, as_iso_date=as_iso_date)
-    elif scale == dt.DateScale.Week:
-        return lambda d: dt.get_date_from_week_abs(d, as_iso_date=as_iso_date)
-    elif scale == dt.DateScale.Month:
-        return lambda d: dt.get_date_from_month_abs(d, as_iso_date=as_iso_date)
-    elif scale == dt.DateScale.Year:
-        return lambda d: dt.get_date_from_year_and_month(year=d, month=1, as_iso_date=as_iso_date)
-    else:
-        raise ValueError(dt.DateScale.get_err_msg(scale))
+    return lambda d: dt.get_date_from_int(d, scale=scale, as_iso_date=as_iso_date)
 
 
 def date_to_int(scale: Scale) -> Callable:
