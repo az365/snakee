@@ -123,12 +123,22 @@ class ConnectorFormatMixin(LeafConnectorInterface, StructMixin, ABC):
         line_parser = fs.csv_loads(delimiter=self.get_delimiter())
         return line_parser(first_line)
 
-    def get_detected_struct_by_title_row(self, set_struct: bool = False, verbose: AutoBool = AUTO) -> Struct:
+    def get_detected_struct_by_title_row(
+            self,
+            set_struct: bool = False,
+            use_declared_types: bool = True,
+            verbose: AutoBool = AUTO,
+    ) -> Struct:
         assert self.is_first_line_title(), 'Can detect struct by title row only if first line is a title row'
         assert self.is_existing(), 'For detect struct file/object must be existing: {}'.format(self.get_path())
         verbose = arg.acquire(verbose, self.is_verbose())
         title_row = self.get_title_row(close=True)
-        struct = self._get_struct_detected_by_title_row(title_row)
+        declared_types = dict()
+        if use_declared_types:
+            declared_struct = self.get_struct()
+            if hasattr(declared_struct, 'get_dict_types'):
+                declared_types = declared_struct.get_dict_types()
+        struct = self._get_struct_detected_by_title_row(title_row, types=declared_types)
         message = 'Struct for {} detected by title row: {}'.format(self.get_name(), struct.get_struct_str(None))
         self.log(message, end='\n', verbose=verbose)
         if set_struct:
