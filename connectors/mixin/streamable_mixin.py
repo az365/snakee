@@ -10,6 +10,7 @@ try:  # Assume we're a sub-module in a package.
         Auto, AUTO, AutoBool, AutoCount, AutoName, Array, OptionalFields,
     )
     from streams.mixin.iterable_mixin import IterableStreamMixin
+    from streams.mixin.columnar_mixin import ColumnarMixin
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...interfaces import (
@@ -19,13 +20,14 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         Auto, AUTO, AutoBool, AutoCount, AutoName, Array, OptionalFields,
     )
     from ...streams.mixin.iterable_mixin import IterableStreamMixin
+    from ...streams.mixin.columnar_mixin import ColumnarMixin
 
 Stream = Union[IterableStreamInterface, RegularStream]
 Message = Union[AutoName, Array]
 Native = Union[Stream, LeafConnectorInterface]
 
 
-class StreamableMixin(IterableStreamMixin, ABC):
+class StreamableMixin(ColumnarMixin, ABC):
     @staticmethod
     def get_default_item_type() -> ItemType:
         return ItemType.Any
