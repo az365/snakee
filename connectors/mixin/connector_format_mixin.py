@@ -110,6 +110,18 @@ class ConnectorFormatMixin(LeafConnectorInterface, StructMixin, ABC):
             content_format = ColumnarFormat(delimiter=delimiter, **content_format.get_props())
             return self.set_content_format(content_format, inplace=inplace)
 
+    def get_encoding(self) -> Optional[str]:
+        content_format = self.get_content_format()
+        if isinstance(content_format, TextFormat) or hasattr(content_format, 'get_encoding'):
+            return content_format.get_encoding()
+
+    def get_ending(self) -> str:
+        content_format = self.get_content_format()
+        if isinstance(content_format, TextFormat) or hasattr(content_format, 'get_ending'):
+            return content_format.get_ending()
+        else:
+            return TextFormat().get_ending()
+
     def is_first_line_title(self) -> bool:
         content_format = self.get_content_format()
         if isinstance(content_format, ColumnarFormat) or hasattr(content_format, 'is_first_line_title'):
