@@ -391,12 +391,6 @@ class LocalFile(LeafConnector, ActualizeMixin):
     def set_default_folder(cls, folder: ConnectorInterface) -> None:
         cls._default_folder = folder
 
-    def select(self, *args, **kwargs) -> Stream:
-        stream = self.to_stream()
-        assert isinstance(stream, RegularStreamInterface) or hasattr(stream, 'select')
-        stream = stream.select(*args, **kwargs)
-        return self._assume_stream(stream)
-
     def _get_field_getter(self, field: UniKey, item_type: Union[ItemType, Auto] = AUTO, default=None):
         if self.get_struct():
             if isinstance(field, ARRAY_TYPES):

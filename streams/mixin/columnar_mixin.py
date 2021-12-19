@@ -76,6 +76,12 @@ class ColumnarMixin(ContextualDataWrapper, IterableStreamMixin, ColumnarInterfac
     def get_column_count(self) -> int:
         return len(list(self.get_columns()))
 
+    def select(self, *args, **kwargs) -> Stream:
+        stream = self.to_stream()
+        assert isinstance(stream, RegularStreamInterface) or hasattr(stream, 'select')
+        stream = stream.select(*args, **kwargs)
+        return self._assume_native(stream)
+
     def _get_filtered_items(
             self,
             *args,
@@ -95,7 +101,8 @@ class ColumnarMixin(ContextualDataWrapper, IterableStreamMixin, ColumnarInterfac
 
     def filter(self, *args, item_type: ItemType = ItemType.Auto, skip_errors: bool = False, **kwargs) -> Native:
         item_type = arg.delayed_acquire(item_type, self.get_item_type)
-        stream_type = StreamType.detect(item_type)
+        stream_type = self.get_stream_type()
+        assert isinstance(stream_type, StreamType), 'Expected StreamType, got {}'.format(stream_type)
         filtered_items = self._get_filtered_items(*args, item_type=item_type, skip_errors=skip_errors, **kwargs)
         stream = self.to_stream(data=filtered_items, stream_type=stream_type)
         return self._assume_native(stream)
