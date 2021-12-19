@@ -5,18 +5,18 @@ try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from utils.external import DataFrame
     from utils.algo import JoinType
-    from streams.stream_type import StreamType
-    from streams.interfaces.abstract_stream_interface import StreamInterface
     from base.interfaces.context_interface import ContextInterface
     from loggers.selection_logger_interface import SelectionLoggerInterface
+    from streams.interfaces.abstract_stream_interface import StreamInterface
+    from streams.stream_type import StreamType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...utils.external import DataFrame
     from ...utils.algo import JoinType
-    from ..stream_type import StreamType
-    from ..interfaces.abstract_stream_interface import StreamInterface
     from ...base.interfaces.context_interface import ContextInterface
     from ...loggers.selection_logger_interface import SelectionLoggerInterface
+    from ..interfaces.abstract_stream_interface import StreamInterface
+    from ..stream_type import StreamType
 
 Native = StreamInterface
 Stream = StreamInterface
@@ -106,11 +106,6 @@ class IterableStreamInterface(StreamInterface, ABC):
         pass
 
     @abstractmethod
-    def get_one_item(self):
-        """Returns first item from stream for example."""
-        pass
-
-    @abstractmethod
     def take(self, count: int = 1) -> Native:
         """Return stream containing first N items.
         Alias for head()
@@ -164,13 +159,6 @@ class IterableStreamInterface(StreamInterface, ABC):
         :return: Native Stream (stream of same class)
         """
         pass
-
-    @abstractmethod
-    def copy(self) -> Native:
-        """Return full copy of stream (including copy of iterator from tee_stream() method).
-
-        :return: Native Stream (stream of same class)
-        """
 
     @abstractmethod
     def add(self, stream_or_items: Union[Native, Iterable], before=False, **kwargs) -> Native:
