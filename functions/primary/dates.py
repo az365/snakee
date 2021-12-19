@@ -214,6 +214,21 @@ def get_year_start_monday(year: Union[int, Date], as_iso_date: AutoBool = True) 
     return to_date(year_start_monday, as_iso_date)
 
 
+def get_rounded_date(d: Date, scale: DateScale, as_iso_date: AutoBool = arg.AUTO) -> Date:
+    scale = DateScale.convert(scale)
+    as_iso_date = arg.delayed_acquire(as_iso_date, is_iso_date, d)
+    if scale == DateScale.Day:
+        return to_date(d, as_iso_date=as_iso_date)
+    elif scale == DateScale.Week:
+        return get_monday_date(d, as_iso_date=as_iso_date)
+    elif scale == DateScale.Month:
+        return get_month_first_date(d, as_iso_date=as_iso_date)
+    elif scale == DateScale.Year:
+        return get_year_first_date(d, as_iso_date=as_iso_date)
+    else:
+        raise ValueError(DateScale.get_err_msg(scale))
+
+
 def get_next_year_date(d: Date, step: int = 1, round_to_monday: bool = False) -> Date:
     is_iso_format = is_iso_date(d)
     if is_iso_format:
@@ -270,6 +285,20 @@ def get_next_day_date(d: Date, step: int = 1) -> Date:
     return get_date_from_day_abs(day_abs, as_iso_date=is_iso_date(d))
 
 
+def get_next_date(d, scale: DateScale, *args, **kwargs) -> Date:
+    scale = DateScale.convert(scale)
+    if scale == DateScale.Day:
+        return get_next_day_date(d, *args, **kwargs)
+    elif scale == DateScale.Week:
+        return get_next_week_date(d, *args, **kwargs)
+    elif scale == DateScale.Month:
+        return get_next_month_date(d, *args, **kwargs)
+    elif scale == DateScale.Year:
+        return get_next_year_date(d, *args, **kwargs)
+    else:
+        raise ValueError(DateScale.get_err_msg(scale))
+
+
 def get_days_range(
         date_min: Date, date_max: Date, step: int = 1,
         including_right: bool = True, as_day_abs: bool = False,
@@ -309,7 +338,7 @@ def get_weeks_range(
         return weeks_range
 
 
-def get_months_range(date_min: Date, date_max: Date, step: int = 1):
+def get_months_range(date_min: Date, date_max: Date, step: int = 1) -> list:
     months_range = list()
     cur_date = get_month_first_date(date_min)
     if cur_date < date_min:
@@ -318,6 +347,32 @@ def get_months_range(date_min: Date, date_max: Date, step: int = 1):
         months_range.append(cur_date)
         cur_date = get_next_month_date(cur_date, step=step)
     return months_range
+
+
+def get_years_range(year_min: Union[int, Date], year_max: Union[int, Date], step: int = 1) -> list:
+    years_range = list()
+    cur_date = get_year_first_date(year_min)
+    max_date = get_year_first_date(year_max)
+    while cur_date <= max_date:
+        years_range.append(cur_date)
+        cur_date = get_next_year_date(cur_date, step=step)
+    return years_range
+
+
+def get_dates_range(date_min: Date, date_max: Date, scale: DateScale, step: int = 1, *args, **kwargs) -> list:
+    scale = DateScale.convert(scale)
+    if scale == DateScale.Day:
+        return get_days_range(date_min, date_max, step=step, *args, **kwargs)
+    elif scale == DateScale.Week:
+        return get_weeks_range(date_min, date_max, step=step, *args, **kwargs)
+    elif scale == DateScale.Month:
+        assert not (args or kwargs), arg.get_str_from_args_kwargs(*args, **kwargs)
+        return get_months_range(date_min, date_max, step=step)
+    elif scale == DateScale.Year:
+        assert not (args or kwargs), arg.get_str_from_args_kwargs(*args, **kwargs)
+        return get_years_range(date_min, date_max, step=1)
+    else:
+        raise ValueError(DateScale.get_err_msg(scale))
 
 
 def get_months_between(a: Date, b: Date, round_to_months: int = False, take_abs: bool = False) -> int:
@@ -343,6 +398,18 @@ def get_days_between(a: Date, b: Date, take_abs: bool = False) -> int:
     date_b = get_date(b)
     days = (date_b - date_a).days
     return abs(days) if take_abs else days
+
+
+def get_int_between(a: Date, b: Date, scale: DateScale, rounded: bool = True, take_abs: bool = False) -> int:
+    scale = DateScale.convert(scale)
+    if scale == DateScale.Day:
+        return get_days_between(a, b, take_abs=take_abs)
+    elif scale == DateScale.Week:
+        return get_weeks_between(a, b, round_to_mondays=rounded, take_abs=take_abs)
+    elif scale == DateScale.Month:
+        return get_months_between(a, b, round_to_months=rounded, take_abs=take_abs)
+    else:
+        raise ValueError(DateScale.get_err_msg(scale))
 
 
 def get_yearly_dates(date_init: Date, date_min: Date, date_max: Date, step: int = 1) -> list:
