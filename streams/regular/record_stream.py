@@ -189,7 +189,8 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
         else:
             stream_groups = sm.RowStream(iter_groups, check=False)
         if values:
-            fold_mapper = fs.fold_lists(keys=keys, values=values, skip_missing=skip_missing)
+            item_type = self.get_item_type()  # ItemType.Record
+            fold_mapper = fs.fold_lists(keys=keys, values=values, skip_missing=skip_missing, item_type=item_type)
             stream_groups = stream_groups.map_to_type(fold_mapper, stream_type=StreamType.RecordStream)
         if self.is_in_memory():
             return stream_groups.to_memory()
