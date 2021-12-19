@@ -303,7 +303,12 @@ class ActualizeMixin(AppropriateInterface, ABC):
         else:
             message = '[EXAMPLE_NOT_FOUND] Example with this filters not found: {}'.format(str_filters)
             stream_example = None
-            item_example = self.get_one_item(ItemType.Record)
+            if hasattr(self, 'get_one_record'):
+                item_example = self.get_one_record()
+            elif hasattr(self, 'get_one_item'):
+                item_example = self.get_one_item()
+            else:
+                item_example = dict()
         if item_example:
             if EXAMPLE_STR_LEN:
                 for k, v in item_example.items():
