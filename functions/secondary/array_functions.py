@@ -14,7 +14,12 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 Array = Union[list, tuple]
 
 
-def is_in(*list_values) -> Callable:
+def is_in(*list_values, or_none: bool = False) -> Callable:
+    if list_values == (None, ) or not list_values:
+        if or_none:
+            return lambda v: True
+        else:
+            return lambda v: False
     list_values = arg.update(list_values)
 
     def func(value: Any) -> bool:
@@ -62,7 +67,7 @@ def distinct() -> Callable:
     return uniq()
 
 
-def elem_no(position: int, default=None) -> Callable:
+def elem_no(position: int, default: Any = None) -> Callable:
     def func(array: Array):
         elem_count = len(array)
         if isinstance(array, (list, tuple)) and -elem_count <= position < elem_count:
@@ -98,7 +103,8 @@ def fold_lists(
     return func
 
 
-def unfold_lists(fields, number_field='n', default_value=0) -> Callable:
+def unfold_lists(*fields, number_field: str = 'n', default_value: Any = 0) -> Callable:
+    fields = arg.update(fields)
     fields = arg.get_names(fields)
 
     def func(record: dict) -> Iterable:
@@ -195,7 +201,7 @@ def mean(round_digits: Optional[int] = None, default: Any = None, safe: bool = T
     return func
 
 
-def top(count: int = 10, output_values: bool = False) -> Callable:
+def top(cnt: int = 10, output_values: bool = False) -> Callable:
     def func(keys, values=None) -> list:
         if values:
             pairs = sorted(zip(keys, values), key=lambda i: i[1], reverse=True)
@@ -204,7 +210,7 @@ def top(count: int = 10, output_values: bool = False) -> Callable:
             for k in keys:
                 dict_counts[k] = dict_counts.get(k, 0)
             pairs = sorted(dict_counts.items())
-        top_n = pairs[:count]
+        top_n = pairs[:cnt]
         if output_values:
             return top_n
         else:
