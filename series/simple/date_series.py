@@ -221,7 +221,7 @@ class DateSeries(DateSeriesInterface, SortedSeries):
 
     def get_dates(self, as_date_type: bool = False) -> list:
         if as_date_type:
-            return self.map_values(dt.to_date).get_values()
+            return self.map_values(dt.get_date).get_values()
         else:
             return self.get_values()
 
@@ -230,7 +230,7 @@ class DateSeries(DateSeriesInterface, SortedSeries):
 
     def to_dates(self, as_iso_date: bool = False) -> Native:
         return self.map_dates(
-            lambda i: dt.to_date(i, as_iso_date=as_iso_date),
+            lambda i: dt.get_date(i, as_iso_date=as_iso_date),
         )
 
     def to_days(self) -> SortedNumeric:
