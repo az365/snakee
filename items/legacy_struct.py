@@ -123,25 +123,28 @@ class LegacyStruct(StructInterface):
     def __str__(self):
         return '<{}({})>'.format(self.__class__.__name__, self.get_struct_str())
 
+    def get_column_count(self) -> int:
+        return len(self.get_columns())
+
     def get_columns(self):
         return [c.get_name() for c in self.fields_descriptions]
 
-    def get_list_types(self, dialect: Optional[DialectType] = DialectType.String) -> list:
+    def get_types_list(self, dialect: Optional[DialectType] = DialectType.String) -> list:
         if arg.is_defined(dialect):
             return [f.get_type_in(dialect) for f in self.get_fields()]
         else:
             return [f.get_type() for f in self.get_fields()]
 
-    def get_dict_types(self, dialect: Optional[DialectType]) -> dict:
+    def get_types_dict(self, dialect: Union[DialectType, arg.Auto, None] = arg.AUTO) -> dict:
         names = map(lambda f: arg.get_name(f), self.get_fields())
-        types = self.get_list_types(dialect)
+        types = self.get_types_list(dialect)
         return dict(zip(names, types))
 
     def get_types(self, dialect: DialectType = DialectType.String, as_list: bool = True) -> Union[list, dict]:
         if as_list:
-            return self.get_list_types(dialect)
+            return self.get_types_list(dialect)
         else:
-            return self.get_dict_types(dialect)
+            return self.get_types_dict(dialect)
 
     def set_types(self, dict_field_types=None, inplace=False, **kwargs):
         for field_name, field_type in list((dict_field_types or {}).items()) + list(kwargs.items()):

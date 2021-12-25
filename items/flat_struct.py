@@ -1,6 +1,6 @@
 from typing import Optional, Iterable, Union
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from interfaces import (
         StructInterface, StructRowInterface, FieldInterface, SelectionLoggerInterface, ExtLogger,
         FieldType, DialectType,
@@ -237,22 +237,22 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
     def get_columns(self) -> list:
         return [c.get_name() for c in self.get_fields()]
 
-    def get_list_types(self, dialect: Union[DialectType, Auto] = DialectType.String) -> list:
+    def get_types_list(self, dialect: Union[DialectType, Auto] = DialectType.String) -> list:
         if arg.is_defined(dialect):
             return [f.get_type_in(dialect) for f in self.get_fields()]
         else:
             return [f.get_type() for f in self.get_fields()]
 
-    def get_dict_types(self, dialect: Union[DialectType, Auto]) -> dict:
+    def get_types_dict(self, dialect: Union[DialectType, Auto] = AUTO) -> dict:
         names = map(lambda f: arg.get_name(f), self.get_fields())
-        types = self.get_list_types(dialect)
+        types = self.get_types_list(dialect)
         return dict(zip(names, types))
 
     def get_types(self, dialect: DialectType = DialectType.String, as_list: bool = True) -> Union[list, dict]:
         if as_list:
-            return self.get_list_types(dialect)
+            return self.get_types_list(dialect)
         else:
-            return self.get_dict_types(dialect)
+            return self.get_types_dict(dialect)
 
     def set_types(
             self,
@@ -322,7 +322,7 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
         return True
 
     def is_valid_row(self, row: Union[Iterable, StructRowInterface]) -> bool:
-        for value, field_type in zip(row, self.get_list_types(DialectType.Python)):
+        for value, field_type in zip(row, self.get_types_list(DialectType.Python)):
             if not isinstance(value, field_type):
                 return False
         return True

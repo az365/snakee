@@ -43,6 +43,12 @@ class StructMixin(StructMixinInterface, ABC):
     def get_column_count(self) -> int:
         return len(self.get_columns())
 
+    def get_types_list(self, dialect: DialectType = DialectType.String) -> list:
+        return self.get_struct().get_types_list(dialect)
+
+    def get_types_dict(self, dialect: DialectType = DialectType.String) -> dict:
+        return self.get_struct().get_types_dict(dialect)
+
     def get_types(self, dialect: DialectType = DialectType.String, as_list: bool = True) -> Iterable:
         return self.get_struct().get_types(dialect, as_list=as_list)
 
