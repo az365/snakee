@@ -1,6 +1,7 @@
 from typing import Optional, Iterable, Sequence, Union
+from inspect import isclass
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
     from items.simple_items import Class
     from base.interfaces.tree_interface import TreeInterface
@@ -222,25 +223,37 @@ class TreeItem(ContextualDataWrapper, TreeInterface):
         elif not skip_missing:
             raise ValueError('{}.get_default_child_obj_class(): child classes for not set'.format(cls))
 
-    @classmethod
-    def _is_appropriate_parent(cls, obj, skip_missing: bool = False) -> bool:
+    @staticmethod
+    def _is_appropriate_class(
+            obj, expected_classes: Union[list, tuple],
+            skip_missing: bool = False, by_name: bool = True,
+    ) -> bool:
         if obj is None and skip_missing:
             return True
-        classes = cls.get_parent_obj_classes()
-        if classes:
-            return isinstance(obj, classes)
+        if expected_classes:
+            if isinstance(obj, expected_classes):
+                return True
+            elif by_name:  # safe mode
+                if isclass(obj):
+                    obj_class = obj
+                else:
+                    obj_class = obj.__class__
+                for c in expected_classes:
+                    if obj_class.__name__ == c.__name__:
+                        return True
+            return False
         else:
             return True
 
     @classmethod
-    def _is_appropriate_child(cls, obj, skip_missing: bool = False) -> bool:
-        if obj is None and skip_missing:
-            return True
+    def _is_appropriate_parent(cls, obj, skip_missing: bool = False, by_name: bool = True) -> bool:
+        classes = cls.get_parent_obj_classes()
+        return cls._is_appropriate_class(obj, classes, skip_missing=skip_missing, by_name=by_name)
+
+    @classmethod
+    def _is_appropriate_child(cls, obj, skip_missing: bool = False, by_name: bool = True) -> bool:
         classes = cls.get_child_obj_classes()
-        if classes:
-            return isinstance(obj, classes)
-        else:
-            return True
+        return cls._is_appropriate_class(obj, classes, skip_missing=skip_missing, by_name=by_name)
 
     @classmethod
     def _assert_is_appropriate_parent(
@@ -251,7 +264,8 @@ class TreeItem(ContextualDataWrapper, TreeInterface):
         if not cls._is_appropriate_parent(obj, skip_missing=skip_missing):
             if not arg.is_defined(msg):
                 template = '{}._assert_is_appropriate_parent({}): Expected parent as {} instance, got {}'
-                msg = template.format(cls.__name__, obj, cls.get_parent_obj_classes(), type(obj))
+                expected_class_names = [c.__name__ for c in cls.get_parent_obj_classes()]
+                msg = template.format(cls.__name__, obj, ', '.join(expected_class_names), type(obj))
             raise TypeError(msg)
 
     @classmethod
@@ -263,5 +277,6 @@ class TreeItem(ContextualDataWrapper, TreeInterface):
         if not cls._is_appropriate_child(obj, skip_missing=skip_missing):
             if not arg.is_defined(msg):
                 template = '{}._assert_is_appropriate_child({}): Expected child as {} instance, got {}'
-                msg = template.format(cls.__name__, obj, cls.get_child_obj_classes(), type(obj))
+                expected_class_names = [c.__name__ for c in cls.get_child_obj_classes()]
+                msg = template.format(cls.__name__, obj, ', '.join(expected_class_names), type(obj))
             raise TypeError(msg)
