@@ -112,7 +112,7 @@ class ActualizeMixin(AppropriateInterface, ABC):
     def actualize(self) -> Native:
         self.get_modification_timestamp()
         self.get_count(force=True)
-        self.get_detected_format(force=True)
+        self.get_detected_format(force=True, skip_missing=True)
         return self
 
     def get_modification_time_str(self) -> str:

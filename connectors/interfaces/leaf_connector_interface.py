@@ -51,7 +51,12 @@ class LeafConnectorInterface(ConnectorInterface, StreamInterface, ABC):
         pass
 
     @abstractmethod
-    def get_detected_format(self, detect: bool = True, force: bool = False) -> ContentFormatInterface:
+    def get_detected_format(
+            self,
+            detect: bool = True,
+            force: bool = False,
+            skip_missing: bool = True,
+    ) -> ContentFormatInterface:
         """Getting detected ContentFormat.
         Detected format describe actual format of stored data object.
         Declared can be different of detected, it will be applied with next object update.
