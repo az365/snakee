@@ -1,6 +1,6 @@
 from typing import Union
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from interfaces import StructInterface, FieldType
     from fields.abstract_field import AbstractField
     from fields import field_classes as fc
@@ -20,6 +20,8 @@ class SimpleField(AbstractField):
         elif isinstance(other, AbstractField):
             return fc.FlatStruct([self, other])
         elif isinstance(other, StructInterface):
-            return other.append_field(self, before=True)
+            struct = other.append_field(self, before=True, inplace=False)
+            assert isinstance(struct, StructInterface), struct
+            return struct
         else:
             raise TypeError('Expected other as field or struct, got {} as {}'.format(other, type(other)))
