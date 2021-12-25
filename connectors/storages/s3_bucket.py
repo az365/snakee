@@ -1,7 +1,7 @@
 from typing import Optional, Iterable, Generator, Union
 import io
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
     from utils.decorators import deprecated_with_alternative
     from utils.external import boto3
@@ -15,6 +15,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..abstract.abstract_folder import HierarchicFolder
 
 DEFAULT_KEYS_LIMIT = 1000
+COVERT_PROPS = 'access_key', 'secret_key'
 
 
 class S3Bucket(HierarchicFolder):
@@ -148,6 +149,10 @@ class S3Bucket(HierarchicFolder):
         buffer = io.BytesIO()
         self.get_object(object_path_in_bucket).download_fileobj(buffer)
         return buffer
+
+    @staticmethod
+    def _get_covert_props() -> tuple:
+        return COVERT_PROPS
 
 
 ConnType.add_classes(S3Bucket)

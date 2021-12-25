@@ -1,7 +1,7 @@
 from abc import ABC
 from typing import Union, Optional, Iterable
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
     from base.interfaces.base_interface import BaseInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -45,7 +45,6 @@ class AbstractBaseObject(BaseInterface, ABC):
             else:
                 key_meta.append(str(value))
         return key_meta
-        # return tuple(map(lambda f: self.__dict__.get(f), self._get_key_meta_fields()))
 
     @classmethod
     def _get_meta_field_by_member_name(cls, name):
@@ -151,18 +150,25 @@ class AbstractBaseObject(BaseInterface, ABC):
                 compatible_meta[k] = v
         return compatible_meta
 
+    @staticmethod
+    def _get_covert_props() -> tuple:
+        return tuple()
+
     def _get_meta_args(self) -> list:
         return [self.__dict__[k] for k in self._get_key_member_names()]
 
-    def _get_meta_kwargs(self) -> dict:
+    def _get_meta_kwargs(self, except_covert: bool = False) -> dict:
         meta_kwargs = self.get_meta().copy()
         for f in self._get_key_member_names():
             meta_kwargs.pop(self._get_meta_field_by_member_name(f), None)
+        if except_covert:
+            for f in self._get_covert_props():
+                meta_kwargs[f] = '***'
         return meta_kwargs
 
     def get_str_meta(self):
         args_str = [i.__repr__() for i in self._get_meta_args()]
-        kwargs_str = ['{}={}'.format(k, v) for k, v in self._get_meta_kwargs().items()]
+        kwargs_str = ['{}={}'.format(k, v) for k, v in self._get_meta_kwargs(except_covert=True).items()]
         return ', '.join(args_str + kwargs_str)
 
     def make_new(self, *args, ex: OptionalFields = None, **kwargs):

@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Optional, Iterable, Union
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
     from interfaces import (
         StreamInterface, ColumnarInterface, ColumnarStream, StructStream, StructInterface, SimpleDataInterface,
@@ -32,6 +32,7 @@ TEST_QUERY = 'SELECT now()'
 DEFAULT_GROUP = 'PUBLIC'
 DEFAULT_STEP = 1000
 DEFAULT_ERRORS_THRESHOLD = 0.05
+COVERT_PROPS = ('password',)
 
 
 class AbstractDatabase(AbstractStorage, ABC):
@@ -489,3 +490,7 @@ class AbstractDatabase(AbstractStorage, ABC):
         else:
             raise TypeError('struct must be an instance of StructInterface or list[tuple]')
         return table_name, struct_str
+
+    @staticmethod
+    def _get_covert_props() -> tuple:
+        return COVERT_PROPS
