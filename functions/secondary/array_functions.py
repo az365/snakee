@@ -1,6 +1,6 @@
 from typing import Optional, Union, Callable, Iterable, Any
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
     from items.item_type import ItemType
     from functions.primary import numeric as nm
@@ -104,7 +104,9 @@ def fold_lists(
 
 
 def unfold_lists(*fields, number_field: str = 'n', default_value: Any = 0) -> Callable:
-    fields = arg.update(fields)
+    if len(fields) == 1:
+        if isinstance(fields, Iterable) and not isinstance(fields, str):
+            fields = fields[0]
     fields = arg.get_names(fields)
 
     def func(record: dict) -> Iterable:
