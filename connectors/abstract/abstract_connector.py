@@ -46,6 +46,9 @@ class AbstractConnector(TreeItem, ConnectorInterface, ABC):
         if isinstance(conn_type, ConnType):
             return conn_type
 
+    def get_type(self) -> ConnType:
+        return self.get_conn_type()
+
     def is_verbose(self) -> bool:
         return self._verbose
 
@@ -155,6 +158,9 @@ class AbstractConnector(TreeItem, ConnectorInterface, ABC):
         context = self.get_context()
         if context:
             context.forget_conn(self)
+
+    def is_existing(self) -> Optional[bool]:
+        return None
 
     @staticmethod
     def _assume_connector(connector) -> ConnectorInterface:
