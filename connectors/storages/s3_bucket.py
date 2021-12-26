@@ -14,6 +14,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...interfaces import ConnType, ConnectorInterface, Class, Name
     from ..abstract.abstract_folder import HierarchicFolder
 
+Response = dict
+
 DEFAULT_KEYS_LIMIT = 1000
 COVERT_PROPS = 'access_key', 'secret_key'
 
@@ -176,6 +178,15 @@ class S3Bucket(HierarchicFolder):
         self.get_object(object_path_in_bucket).download_fileobj(buffer)
         return buffer
 
+    def create(self, if_not_yet: bool = False, inplace: bool = False) -> Union[ConnectorInterface, Response]:
+        if self.is_existing() and not if_not_yet:
+            raise ValueError('Bucket {} already existing'.format(self))
+        response = self.get_client().create_bucket(Bucket=self.get_bucket_name())
+        if inplace:
+            return response
+        else:
+            return self
+
     def is_existing(self) -> bool:
         resource = self.get_resource()
         try:
@@ -183,6 +194,41 @@ class S3Bucket(HierarchicFolder):
             return True
         except boto_core_client.ClientError:
             return False
+
+    def get_existing_prefixes(self, prefix: Optional[str] = None) -> list:
+        return self.get_existing_object_props(prefix=prefix).get('CommonPrefixes', [])
+
+    def get_existing_object_props(self, prefix: Optional[str] = None, **kwargs) -> Response:
+        current_bucket_name = self.get_bucket_name()
+        if 'Bucket' in kwargs:
+            kwargs_bucket_name = kwargs['Bucket']
+            assert kwargs_bucket_name == current_bucket_name, '{} != {}'.format(kwargs_bucket_name, current_bucket_name)
+        else:
+            kwargs['Bucket'] = current_bucket_name
+        if prefix:
+            if 'Prefix' in kwargs:
+                kwargs_prefix = kwargs['Prefix']
+                assert prefix == kwargs_prefix, '{} != {}'.format(prefix, kwargs_prefix)
+            kwargs['Prefix'] = prefix
+        return self.get_client().list_objects(**kwargs)
+
+    def get_existing_object_names(self, prefix: Optional[str] = None) -> Generator:
+        for object_props in self.get_existing_object_props(prefix=prefix).get('Contents', []):
+            name = object_props.get('Key')
+            if name:
+                yield name
+
+    def list_existing_names(self, prefix: Optional[str] = None) -> list:
+        return list(self.get_existing_object_names(prefix=prefix))
+
+    def get_existing_folder_names(self, prefix: Optional[str] = None) -> Generator:
+        for prefix_props in self.get_existing_prefixes(prefix=prefix):
+            name = prefix_props.get('Prefix')
+            if name:
+                yield name
+
+    def list_existing_folder_names(self, prefix: Optional[str] = None) -> list:
+        return list(self.get_existing_folder_names(prefix=prefix))
 
     @staticmethod
     def _get_covert_props() -> tuple:
