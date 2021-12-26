@@ -1,7 +1,7 @@
 from abc import ABC
 from typing import Optional, Union
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
     from interfaces import (
         ConnectorInterface, LeafConnectorInterface, Context, Stream,
@@ -201,3 +201,9 @@ class LeafConnector(AbstractConnector, ConnectorFormatMixin, StreamableMixin, Le
 
     def write_stream(self, stream: Stream, verbose: bool = True):
         return self.from_stream(stream, verbose=verbose)
+
+    def copy(self) -> Native:
+        copy = self.make_new()
+        copy.set_declared_format(self.get_declared_format().copy(), inplace=True)
+        copy.set_detected_format(self.get_detected_format().copy(), inplace=True)
+        return copy
