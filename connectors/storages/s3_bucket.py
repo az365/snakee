@@ -27,13 +27,25 @@ class S3Bucket(HierarchicFolder):
             access_key: str = arg.AUTO,
             secret_key: str = arg.AUTO,
     ):
-        self.access_key = arg.acquire(access_key, self.get_storage().access_key)
-        self.secret_key = arg.acquire(secret_key, self.get_storage().secret_key)
-        self.session = None
-        self.client = None
-        self.resource = None
+        assert '_' not in name, 'Symbol "_" is not allowed for bucket name, use "-" instead'
+        self._session = None
+        self._client = None
+        self._resource = None
+        self._access_key = None
+        self._secret_key = None
         storage = self._assume_native(storage)
         super().__init__(name=name, parent=storage, verbose=verbose)
+        if arg.is_defined(access_key):
+            self.set_access_key(access_key)
+        elif access_key == arg.AUTO and hasattr(storage, 'get_access_key'):
+            self.set_access_key(storage.get_access_key())
+        if arg.is_defined(secret_key):
+            self.set_secret_key(secret_key)
+        elif secret_key == arg.AUTO and hasattr(storage, 'get_secret_key'):
+            self.set_secret_key(storage.get_secret_key)
+
+    def get_conn_type(self) -> ConnType:
+        return ConnType.S3Bucket
 
     @staticmethod
     def get_default_child_type() -> ConnType:
@@ -51,48 +63,62 @@ class S3Bucket(HierarchicFolder):
         if self._is_appropriate_child(folder) or hasattr(folder, 'object'):
             return folder.object(name, **kwargs)
 
+    def get_access_key(self) -> Optional[str]:
+        return self._access_key
+
+    def set_access_key(self, access_key: str):
+        self._access_key = access_key
+        return self
+
+    def get_secret_key(self) -> Optional[str]:
+        return self._secret_key
+
+    def set_secret_key(self, secret_key: str):
+        self._secret_key = secret_key
+        return self
+
     def get_bucket_name(self) -> Name:
         return self.get_name()
 
     def get_session(self, props: Optional[dict] = None):
-        if not self.session:
+        if not self._session:
             self.reset_session(props)
-        return self.session
+        return self._session
 
     def reset_session(self, props: Optional[dict] = None, inplace: bool = True):
         if not boto3:
             raise ImportError('boto3 must be installed (pip install boto3)')
         if not props:
             props = dict(
-                aws_access_key_id=self.access_key,
-                aws_secret_access_key=self.secret_key,
+                aws_access_key_id=self.get_access_key(),
+                aws_secret_access_key=self.get_secret_key(),
             )
         session = boto3.session.Session(**props)
-        self.session = session
+        self._session = session
         return session if inplace else self
 
     def get_client(self, props: Optional[dict] = None):
-        if not self.client:
+        if not self._client:
             self.reset_client(props)
-        return self.client
+        return self._client
 
     def reset_client(self, props: Optional[dict] = None, inplace: bool = True):
         if not props:
             props = self.get_storage().get_resource_properties()
         client = self.get_session().client(**props)
-        self.client = client
+        self._client = client
         return client if inplace else self
 
     def get_resource(self, props: Optional[dict] = None):
-        if not self.resource:
+        if not self._resource:
             self.reset_resource(props)
-        return self.resource
+        return self._resource
 
     def reset_resource(self, props: Optional[dict] = None, inplace: bool = True):
         if not props:
             props = self.get_storage().get_resource_properties()
         resource = self.get_session().resource(**props)
-        self.resource = resource
+        self._resource = resource
         return resource if inplace else self
 
     def list_objects(
