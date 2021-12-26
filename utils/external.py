@@ -28,10 +28,12 @@ try:  # Assume psycopg2 installed
 except ImportError:
     psycopg2 = None
 
-try:  # Assume psycopg2 installed
+try:  # Assume boto3 installed
     import boto3
+    import botocore.client as boto_core_client
 except ImportError:
     boto3 = None
+    boto_core_client = None
 
 
 class FallbackFake:

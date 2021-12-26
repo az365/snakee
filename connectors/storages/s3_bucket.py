@@ -4,13 +4,13 @@ import io
 try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
     from utils.decorators import deprecated_with_alternative
-    from utils.external import boto3
+    from utils.external import boto3, boto_core_client
     from interfaces import ConnType, ConnectorInterface, Class, Name
     from connectors.abstract.abstract_folder import HierarchicFolder
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...utils.decorators import deprecated_with_alternative
-    from ...utils.external import boto3
+    from ...utils.external import boto3, boto_core_client
     from ...interfaces import ConnType, ConnectorInterface, Class, Name
     from ..abstract.abstract_folder import HierarchicFolder
 
@@ -149,6 +149,14 @@ class S3Bucket(HierarchicFolder):
         buffer = io.BytesIO()
         self.get_object(object_path_in_bucket).download_fileobj(buffer)
         return buffer
+
+    def is_existing(self) -> bool:
+        resource = self.get_resource()
+        try:
+            resource.meta.client.head_bucket(Bucket=self.get_bucket_name())
+            return True
+        except boto_core_client.ClientError:
+            return False
 
     @staticmethod
     def _get_covert_props() -> tuple:
