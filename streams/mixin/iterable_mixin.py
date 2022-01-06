@@ -393,14 +393,6 @@ class IterableStreamMixin(IterableStreamInterface, ABC):
         stream = self.stream(items_with_logger)
         return self._assume_native(stream)
 
-    def _get_field_getter(self, field: UniKey, item_type: Union[ItemType, Auto] = AUTO, default=None):
-        if isinstance(self, RegularStreamInterface) or hasattr(self, 'get_item_type'):
-            item_type = arg.delayed_acquire(item_type, self.get_item_type)
-        return lambda i: fs.it.get_field_value_from_item(
-            field=field, item=i, item_type=item_type,
-            default=default, logger=self.get_selection_logger(),
-        )
-
     def get_dict(self, key: UniKey, value: UniKey) -> dict:
         key_getter = self._get_field_getter(key)
         value_getter = self._get_field_getter(value)
@@ -438,11 +430,6 @@ class IterableStreamMixin(IterableStreamInterface, ABC):
             raise TypeError('property name must be function, meta-field or attribute name')
         return value
 
-    def print(self, stream_function: Union[Callable, str] = 'get_count', *args, **kwargs) -> Native:
-        value = self._get_property(stream_function, *args, **kwargs)
-        self.log(value, end='\n', verbose=True)
-        return self
-
     def submit(
             self,
             external_object: Union[list, dict, Callable] = print,
@@ -468,6 +455,11 @@ class IterableStreamMixin(IterableStreamInterface, ABC):
             raise TypeError('external_object must be callable, list or dict')
         return self
 
+    def print(self, stream_function: Union[Callable, str] = 'get_count', *args, **kwargs) -> Native:
+        value = self._get_property(stream_function, *args, **kwargs)
+        self.log(value, end='\n', verbose=True)
+        return self
+
     @staticmethod
     def _assume_native(stream) -> Native:
         return stream
@@ -483,14 +475,3 @@ class IterableStreamMixin(IterableStreamInterface, ABC):
             logger = self.get_logger()
             if isinstance(logger, ExtLogger) or hasattr(logger, 'get_selection_logger'):
                 return logger.get_selection_logger()
-            # return log.get_selection_logger()
-
-    def get_dataframe(self, columns: Optional[Iterable] = None) -> DataFrame:
-        if pd and get_use_objects_for_output():
-            if columns:
-                dataframe = DataFrame(self.get_items(), columns=columns)
-                columns = arg.get_names(columns)
-                dataframe = dataframe[columns]
-            else:
-                dataframe = DataFrame(self.get_items())
-            return dataframe

@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Optional, Union, Callable, Iterable, Iterator, NoReturn
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
     from utils.external import DataFrame
     from utils.algo import JoinType
@@ -202,7 +202,7 @@ class IterableStreamInterface(StreamInterface, ABC):
     ) -> Native:
         """Shows customizable progress-bar on output, writes logs of progress into file, if file added to logger.
 
-        :param expected_count: allows to provide expected count of items in stream, when it's known
+        :param expected_count: allows providing expected count of items in stream, when it's known
         :param step: how often show update (lower values can make process more slow), 10000 by default
         :param message: custom message to show in progress-bar
         :return: same stream
@@ -221,12 +221,4 @@ class IterableStreamInterface(StreamInterface, ABC):
             key: Optional[str] = None,
             show: bool = False,
     ) -> Stream:
-        pass
-
-    @abstractmethod
-    def get_selection_logger(self) -> SelectionLoggerInterface:
-        pass
-
-    @abstractmethod
-    def get_dataframe(self, columns: Optional[Iterable] = None) -> DataFrame:
         pass
