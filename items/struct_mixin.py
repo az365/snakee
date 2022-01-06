@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Optional, Iterable, Union, Type, Callable
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
     from interfaces import (
         StructInterface, StructMixinInterface,
@@ -46,7 +46,7 @@ class StructMixin(StructMixinInterface, ABC):
     def get_types_list(self, dialect: DialectType = DialectType.String) -> list:
         return self.get_struct().get_types_list(dialect)
 
-    def get_types_dict(self, dialect: DialectType = DialectType.String) -> dict:
+    def get_types_dict(self, dialect: Union[DialectType, arg.Auto, None] = AUTO) -> dict:
         return self.get_struct().get_types_dict(dialect)
 
     def get_types(self, dialect: DialectType = DialectType.String, as_list: bool = True) -> Iterable:
