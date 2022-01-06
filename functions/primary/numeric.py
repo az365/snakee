@@ -1,7 +1,7 @@
 import math
 from typing import Optional, Union, Iterable
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from utils.external import (
         np, sp, pd, plt, interpolate,
         DataFrame,
@@ -18,9 +18,11 @@ except ImportError:
 
 if np:
     OptionalFloat = Union[float, np.ndarray, None]
+    NumericTypes = Union[int, float, np.ndarray]
     NUMERIC_TYPES = (int, float, np.number)
 else:
     OptionalFloat = Optional[float]
+    NumericTypes = Union[int, float]
     NUMERIC_TYPES = (int, float)
 
 _min = min
@@ -67,7 +69,7 @@ def diff(c, v, take_abs=False, default=None) -> OptionalFloat:
             return result
 
 
-def div(x: float, y: float, default=None) -> Optional[float]:
+def div(x: NumericTypes, y: NumericTypes, default: OptionalFloat = None) -> OptionalFloat:
     if y:
         return (x or 0) / y
     else:
@@ -134,6 +136,15 @@ def sqrt(value: float, default=None) -> OptionalFloat:
             return math.sqrt(value)
     else:
         return default
+
+
+def round_to(value: NumericTypes, step: NumericTypes, exclude_negative: bool = False) -> NumericTypes:
+    value_type = type(step)
+    if value < 0 and exclude_negative:
+        return 0
+    else:
+        value = int(value / step) * step
+        return value_type(value)
 
 
 def is_local_extremum(x_left, x_center, x_right, local_max=True, local_min=True) -> bool:

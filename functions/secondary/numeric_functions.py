@@ -1,6 +1,6 @@
-from typing import Optional, Callable
+from typing import Optional, Callable, Union
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from functions.primary import numeric as nm
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..primary import numeric as nm
@@ -15,6 +15,10 @@ def sign() -> Callable:
         else:
             return -1
     return func
+
+
+def round_to(step: Union[int, float], exclude_negative: bool = False) -> Callable:
+    return lambda v: nm.round_to(v, step=step, exclude_negative=exclude_negative)
 
 
 def diff(constant: Optional[float] = None, take_abs: bool = False, default: Optional[float] = None) -> Callable:
