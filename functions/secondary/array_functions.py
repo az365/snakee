@@ -68,7 +68,7 @@ def distinct() -> Callable:
 
 
 def elem_no(position: int, default: Any = None) -> Callable:
-    def func(array: Array):
+    def func(array: Array) -> Any:
         elem_count = len(array)
         if isinstance(array, (list, tuple)) and -elem_count <= position < elem_count:
             return array[position]
@@ -77,16 +77,32 @@ def elem_no(position: int, default: Any = None) -> Callable:
     return func
 
 
-def first() -> Callable:
-    return elem_no(0)
+def subsequence(start: int = 0, end: Optional[int] = None):
+    def func(array: Array) -> Array:
+        if end is None:
+            finish = len(array)
+        else:
+            finish = end
+        return array[start: finish]
+    return func
+
+
+def first(cnt: Optional[int] = None) -> Callable:
+    if cnt is None:
+        return elem_no(0)
+    else:
+        return subsequence(0, cnt)
 
 
 def second() -> Callable:
     return elem_no(1)
 
 
-def last() -> Callable:
-    return elem_no(-1)
+def last(cnt: Optional[int] = None) -> Callable:
+    if cnt is None:
+        return elem_no(-1)
+    else:
+        return subsequence(0, cnt)
 
 
 def fold_lists(

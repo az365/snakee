@@ -9,7 +9,7 @@ try:  # Assume we're a submodule in a package.
     from functions.secondary.date_functions import int_to_date, date_to_int, round_date, next_date, date_range
     from functions.secondary.array_functions import (
         is_in, not_in,
-        elem_no, first, second, last,
+        elem_no, subsequence, first, second, last,
         distinct, uniq, count_uniq, count,
         compare_lists, list_minus,
         values_not_none, defined_values, nonzero_values, numeric_values, shift_right,
@@ -34,7 +34,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .secondary.date_functions import int_to_date, date_to_int, round_date, next_date, date_range
     from .secondary.array_functions import (
         is_in, not_in,
-        elem_no, first, second, last,
+        elem_no, subsequence, first, second, last,
         distinct, uniq, count_uniq, count,
         compare_lists, list_minus,
         values_not_none, defined_values, nonzero_values, numeric_values, shift_right,
