@@ -1,7 +1,7 @@
-from typing import Union, Iterable, Callable, Optional
+from typing import Union, Iterable, Generator, Callable, Optional
 from inspect import isclass
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from utils import arguments as arg, selection as sf
     from utils.decorators import deprecated_with_alternative
     from interfaces import (
@@ -138,11 +138,83 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
             ex=self._get_dynamic_meta_fields() if dynamic else None,
         )
 
-    def sorted_group_by(self, *keys, values: Optional[Iterable] = None, as_pairs: bool = False) -> Stream:
-        raise NotImplementedError
+    @staticmethod
+    def _get_tuple_function(*functions) -> Callable:
+        return lambda r: tuple([f(r) for f in functions])
 
-    def group_by(self, *keys, values: Optional[Iterable] = None, as_pairs: bool = False) -> Stream:
-        raise NotImplementedError
+    def _get_key_function(self, functions: Array, take_hash: bool = False) -> Callable:
+        if functions:
+            msg = 'Expected Sequence[Callable], got {}'
+            assert min([isinstance(f, Callable) for f in functions]), msg.format(functions)
+        if len(functions) == 0:
+            raise ValueError('key must be defined')
+        elif len(functions) == 1:
+            key_function = functions[0]
+        else:
+            key_function = self._get_tuple_function(functions)
+        if take_hash:
+            return lambda r: hash(key_function(r))
+        else:
+            return key_function
+
+    def _get_groups(self, key_function: Callable, as_pairs: bool) -> Generator:
+        accumulated = list()
+        prev_k = None
+        for r in self.get_items():
+            k = key_function(r)
+            if (k != prev_k) and accumulated:
+                yield (prev_k, accumulated) if as_pairs else accumulated
+                accumulated = list()
+            prev_k = k
+            accumulated.append(r)
+        if as_pairs:
+            yield prev_k, accumulated
+        else:
+            yield accumulated
+
+    def sorted_group_by(
+            self,
+            *keys,
+            values: Optional[Iterable] = None,
+            as_pairs: bool = False,
+            take_hash: bool = False,
+    ) -> Stream:
+        assert not values, 'For AnyStream.sorted_group_by() values option not supported'
+        key_function = self._get_key_function(keys, take_hash=take_hash)
+        iter_groups = self._get_groups(key_function, as_pairs=as_pairs)
+        if as_pairs:
+            stream_builder = StreamType.KeyValueStream.get_class()
+            stream_groups = stream_builder(iter_groups, value_stream_type=self.get_stream_type())
+        else:
+            stream_builder = StreamType.RowStream.get_class()
+            stream_groups = stream_builder(iter_groups, check=False)
+        if self.is_in_memory():
+            return stream_groups.to_memory()
+        else:
+            stream_groups.set_estimated_count(self.get_count() or self.get_estimated_count(), inplace=True)
+            return stream_groups
+
+    def group_by(
+            self,
+            *keys,
+            values: Optional[Iterable] = None,
+            as_pairs: bool = False,
+            take_hash: bool = True,
+            step: AutoCount = AUTO,
+            verbose: bool = True,
+    ) -> Stream:
+        if as_pairs:
+            key_for_sort = keys
+        else:
+            key_for_sort = self._get_key_function(keys, take_hash=take_hash)
+        return self.sort(
+            key_for_sort,
+            step=step,
+        ).sorted_group_by(
+            *keys,
+            values=values,
+            as_pairs=as_pairs,
+        )
 
     @staticmethod
     def _assume_stream(stream) -> Stream:
