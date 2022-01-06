@@ -1,6 +1,6 @@
 from typing import Optional, Generator, Union
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
     from interfaces import (
         ConnectorInterface, ContentFormatInterface, Stream, StructInterface,
@@ -129,7 +129,7 @@ class S3Object(LeafConnector):
         content_format = self.get_content_format()
         for i in stream.get_items():
             if hasattr(content_format, 'get_formatted_item'):
-                line = content_format.get_formatted_item
+                line = content_format.get_formatted_item(i)
             else:
                 line = str(i)
             yield line
@@ -142,7 +142,7 @@ class S3Object(LeafConnector):
         if is_done:
             return self
         else:
-            return ValueError(response)
+            raise ValueError(response)
 
     def to_stream(self, stream_type: Union[StreamType, str, Auto] = AUTO, **kwargs) -> Stream:
         stream_class = StreamType(stream_type).get_class()
