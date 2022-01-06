@@ -1,6 +1,6 @@
 from typing import Optional, Callable, Iterable, Generator, Union
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from interfaces import (
         Stream, RegularStream, StructStream, StructInterface,
         Context, Connector, TmpFiles, ItemType, StreamType,
@@ -110,18 +110,6 @@ class RowStream(AnyStream, ColumnarMixin):
         )
         return self.native_map(select_function)
 
-    def _get_groups(self, key_function: Callable, as_pairs: bool) -> Iterable:
-        accumulated = list()
-        prev_k = None
-        for r in self.get_items():
-            k = key_function(r)
-            if (k != prev_k) and accumulated:
-                yield (prev_k, accumulated) if as_pairs else accumulated
-                accumulated = list()
-            prev_k = k
-            accumulated.append(r)
-        yield (prev_k, accumulated) if as_pairs else accumulated
-
     def sorted_group_by(
             self,
             *keys,
@@ -153,28 +141,6 @@ class RowStream(AnyStream, ColumnarMixin):
         else:
             stream_groups.set_estimated_count(self.get_count() or self.get_estimated_count(), inplace=True)
             return stream_groups
-
-    def group_by(
-            self,
-            *keys,
-            values: Optional[Iterable] = None,
-            as_pairs: bool = False,
-            take_hash: bool = True,
-            step: AutoCount = AUTO,
-            verbose: bool = True
-    ) -> Stream:
-        if as_pairs:
-            key_for_sort = keys
-        else:
-            key_for_sort = self._get_key_function(keys, take_hash=take_hash)
-        return self.sort(
-            key_for_sort,
-            step=step,
-        ).sorted_group_by(
-            *keys,
-            values=values,
-            as_pairs=as_pairs,
-        )
 
     def get_dataframe(self, columns: Columns = None):
         if columns:

@@ -1,6 +1,6 @@
 from typing import Optional, Iterable, Callable, Union
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from utils import arguments as arg, selection as sf
     from utils.decorators import deprecated_with_alternative
     from utils.external import pd, DataFrame, get_use_objects_for_output
@@ -151,18 +151,6 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
             stream = stream.to_memory()
         return stream
 
-    def _get_groups(self, key_function: Callable, as_pairs: bool) -> Iterable:
-        accumulated = list()
-        prev_k = None
-        for r in self.get_items():
-            k = key_function(r)
-            if (k != prev_k) and accumulated:
-                yield (prev_k, accumulated) if as_pairs else accumulated
-                accumulated = list()
-            prev_k = k
-            accumulated.append(r)
-        yield (prev_k, accumulated) if as_pairs else accumulated
-
     def sort(self, *keys, reverse: bool = False, step: AutoCount = AUTO, verbose: bool = True) -> Native:
         key_function = self._get_key_function(keys)
         step = arg.delayed_acquire(step, self.get_limit_items_in_memory)
@@ -199,8 +187,13 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
             return stream_groups
 
     def group_by(
-            self, *keys, values: Columns = None,
-            step: AutoCount = AUTO, as_pairs: bool = False, take_hash: bool = True, verbose: bool = True,
+            self,
+            *keys,
+            values: Columns = None,
+            as_pairs: bool = False,
+            take_hash: bool = True,
+            step: AutoCount = AUTO,
+            verbose: bool = True,
     ) -> Stream:
         keys = arg.update(keys)
         keys = arg.get_names(keys)

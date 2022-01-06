@@ -1,6 +1,6 @@
 from typing import Optional, Generator, Union
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
     from interfaces import (
         ConnectorInterface, ContentFormatInterface, Stream, StructInterface,
@@ -17,7 +17,10 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     )
     from ..abstract.leaf_connector import LeafConnector
 
+Response = dict
+
 DEFAULT_STORAGE_CLASS = 'COLD'
+HTTP_OK = 200
 
 
 class S3Object(LeafConnector):
@@ -63,7 +66,7 @@ class S3Object(LeafConnector):
     def get_buffer(self):
         return self.get_folder().get_buffer(self.get_object_path_in_bucket())
 
-    def get_object_response(self):
+    def get_object_response(self) -> Response:
         return self.get_bucket().get_client().get_object(
             Bucket=self.get_bucket().get_name(),
             Key=self.get_object_path_in_bucket(),
@@ -89,7 +92,7 @@ class S3Object(LeafConnector):
     def get_data(self) -> Generator:
         return self.get_lines()
 
-    def put_object(self, data, storage_class=DEFAULT_STORAGE_CLASS):
+    def put_object(self, data, storage_class=DEFAULT_STORAGE_CLASS) -> Response:
         return self.get_client().put_object(
             Bucket=self.get_bucket_name(),
             Key=self.get_object_path_in_bucket(),
@@ -97,7 +100,7 @@ class S3Object(LeafConnector):
             StorageClass=storage_class,
         )
 
-    def upload_file(self, file: Union[LeafConnector, str], extra_args={}):
+    def upload_file(self, file: Union[LeafConnector, str], extra_args={}) -> Response:
         if isinstance(file, str):
             filename = file
         elif isinstance(file, LeafConnector):
@@ -113,17 +116,43 @@ class S3Object(LeafConnector):
         )
 
     def is_existing(self) -> bool:
-        return self.get_object_path_in_bucket() in self.get_bucket().list_object_names()
+        bucket = self.get_bucket()
+        if bucket.is_existing():
+            if hasattr(bucket, 'list_object_names'):  # isinstance(bucket, S3Bucket)
+                return self.get_object_path_in_bucket() in bucket.list_object_names()
+            else:
+                raise TypeError('Expected bucket as S3Bucket, got {}'.format(bucket))
+        else:
+            return False
 
-    def from_stream(self, stream: Stream, storage_class=DEFAULT_STORAGE_CLASS, verbose: bool = True):
-        return self.put_object(data=stream.get_items(), storage_class=storage_class)
+    def _get_lines_from_stream(self, stream: Stream) -> Generator:
+        content_format = self.get_content_format()
+        for i in stream.get_items():
+            if hasattr(content_format, 'get_formatted_item'):
+                line = content_format.get_formatted_item(i)
+            else:
+                line = str(i)
+            yield line
+
+    def from_stream(self, stream: Stream, storage_class=DEFAULT_STORAGE_CLASS, encoding='utf8', verbose: bool = True):
+        lines = self._get_lines_from_stream(stream)
+        data = bytes('\n'.join(lines), encoding=encoding)
+        response = self.put_object(data=data, storage_class=storage_class)
+        is_done = response.get('ResponseMetadata').get('HTTPStatusCode') == HTTP_OK
+        if is_done:
+            return self
+        else:
+            raise ValueError(response)
 
     def to_stream(self, stream_type: Union[StreamType, str, Auto] = AUTO, **kwargs) -> Stream:
         stream_class = StreamType(stream_type).get_class()
         return stream_class(self.get_data(), **kwargs)
 
     def get_count(self) -> Optional[int]:
-        pass
+        return None  # not available property
+
+    def is_empty(self) -> bool:
+        return None  # not available property
 
 
 ConnType.add_classes(S3Object)

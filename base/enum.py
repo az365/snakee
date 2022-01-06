@@ -2,7 +2,7 @@ from inspect import isclass
 from functools import total_ordering
 from typing import Optional, Callable, Iterable, Union, Type
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
@@ -143,7 +143,12 @@ class DynamicEnum(EnumItem):
             obj.__init__(*args[1:], **kwargs)
             return obj
         else:
-            return cls.convert(*args[1:], **kwargs)
+            try:
+                return cls.convert(*args[1:], **kwargs)
+            except ValueError as e:
+                str_args = arg.get_str_from_args_kwargs(*args, **kwargs)
+                msg = '{}({}): {}'.format(cls.__name__, str_args, e)
+                raise ValueError(msg)
 
     @classmethod
     def is_prepared(cls) -> bool:
@@ -233,10 +238,13 @@ class ClassType(DynamicEnum):
         if builder:
             return builder(*args, **kwargs)
 
-    def isinstance(self, obj) -> Optional[bool]:
-        native_class = self.get_class(skip_missing=True)
-        if native_class:
-            return isinstance(obj, native_class)
+    def isinstance(self, obj, by_type: bool = True) -> Optional[bool]:
+        if by_type and hasattr(obj, 'get_type'):
+            return obj.get_type() == self
+        else:
+            native_class = self.get_class(skip_missing=True)
+            if native_class:
+                return isinstance(obj, native_class)
 
     @classmethod
     def detect(cls, obj, default: Union[Optional[DynamicEnum], Name] = None) -> EnumItem:

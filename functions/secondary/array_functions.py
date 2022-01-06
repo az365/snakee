@@ -1,6 +1,6 @@
 from typing import Optional, Union, Callable, Iterable, Any
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
     from items.item_type import ItemType
     from functions.primary import numeric as nm
@@ -68,7 +68,7 @@ def distinct() -> Callable:
 
 
 def elem_no(position: int, default: Any = None) -> Callable:
-    def func(array: Array):
+    def func(array: Array) -> Any:
         elem_count = len(array)
         if isinstance(array, (list, tuple)) and -elem_count <= position < elem_count:
             return array[position]
@@ -77,16 +77,32 @@ def elem_no(position: int, default: Any = None) -> Callable:
     return func
 
 
-def first() -> Callable:
-    return elem_no(0)
+def subsequence(start: int = 0, end: Optional[int] = None):
+    def func(array: Array) -> Array:
+        if end is None:
+            finish = len(array)
+        else:
+            finish = end
+        return array[start: finish]
+    return func
+
+
+def first(cnt: Optional[int] = None) -> Callable:
+    if cnt is None:
+        return elem_no(0)
+    else:
+        return subsequence(0, cnt)
 
 
 def second() -> Callable:
     return elem_no(1)
 
 
-def last() -> Callable:
-    return elem_no(-1)
+def last(cnt: Optional[int] = None) -> Callable:
+    if cnt is None:
+        return elem_no(-1)
+    else:
+        return subsequence(0, cnt)
 
 
 def fold_lists(
@@ -104,7 +120,9 @@ def fold_lists(
 
 
 def unfold_lists(*fields, number_field: str = 'n', default_value: Any = 0) -> Callable:
-    fields = arg.update(fields)
+    if len(fields) == 1:
+        if isinstance(fields, Iterable) and not isinstance(fields, str):
+            fields = fields[0]
     fields = arg.get_names(fields)
 
     def func(record: dict) -> Iterable:

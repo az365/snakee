@@ -1,12 +1,12 @@
-from typing import Optional, Iterable, Union
+from typing import Iterable, Union
 
-try:
+try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
     from utils.decorators import deprecated_with_alternative
     from interfaces import Stream, StreamInterface, StreamType, ItemType, FileType, Auto, AUTO
     from functions.secondary import item_functions as fs
     from streams.regular.any_stream import AnyStream
-except ImportError:
+except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...utils.decorators import deprecated_with_alternative
     from ...interfaces import Stream, StreamInterface, StreamType, ItemType, FileType, Auto, AUTO
@@ -45,12 +45,6 @@ class LineStream(AnyStream):
         stream_type = StreamType.find_instance(to)
         assert isinstance(stream_type, StreamType)
         return self.map_to_type(fs.json_loads(default_value), stream_type=stream_type)
-
-    def sorted_group_by(self, *keys, values: Optional[Iterable] = None, as_pairs: bool = False) -> Stream:
-        raise NotImplementedError
-
-    def group_by(self, *keys, values: Optional[Iterable] = None, as_pairs: bool = False) -> Stream:
-        raise NotImplementedError
 
     def get_demo_example(self, count: int = 3) -> list:
         demo_example = super().get_demo_example(count=count)

@@ -4,14 +4,14 @@ from typing import Optional, Iterable, Union
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from base.interfaces.sourced_interface import SourcedInterface
-    from loggers.logger_interface import LoggerInterface
+    from loggers.logger_interface import LoggerInterface, LoggingLevel
     from loggers.extended_logger_interface import ExtendedLoggerInterface
     from loggers.progress_interface import ProgressInterface
     from connectors.conn_type import ConnType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...base.interfaces.sourced_interface import SourcedInterface
-    from ...loggers.logger_interface import LoggerInterface
+    from ...loggers.logger_interface import LoggerInterface, LoggingLevel
     from ...loggers.extended_logger_interface import ExtendedLoggerInterface
     from ...loggers.progress_interface import ProgressInterface
     from ..conn_type import ConnType
@@ -99,7 +99,7 @@ class ConnectorInterface(SourcedInterface, ABC):
         pass
 
     @abstractmethod
-    def forget_child(self, child_or_name: Union[SourcedInterface, str], skip_errors=False):
+    def forget_child(self, child_or_name: Union[SourcedInterface, str], skip_errors: bool = False):
         """Closes related connection(s) and lets SnakeeContext forget the link to this connector."""
         pass
 
@@ -114,7 +114,7 @@ class ConnectorInterface(SourcedInterface, ABC):
         pass
 
     @abstractmethod
-    def set_context(self, context, reset=False):
+    def set_context(self, context, reset: bool = False):
         """Using for provide context object to connector after initialization."""
         pass
 
@@ -165,9 +165,16 @@ class ConnectorInterface(SourcedInterface, ABC):
     @abstractmethod
     def is_root(self) -> bool:
         """Check is this object is the root of current connectors hierarchy,
-        it means that this root node has not parent in tree graph.
+        it means that this root node has no parent in tree graph.
         """
         pass
+
+    @abstractmethod
+    def is_existing(self) -> Optional[bool]:
+        """Check is this object existing in storage.
+
+        :return: bool (if checked) or None (if not appropriate)
+        """
 
     @abstractmethod
     def is_verbose(self) -> bool:
@@ -178,7 +185,7 @@ class ConnectorInterface(SourcedInterface, ABC):
         pass
 
     @abstractmethod
-    def get_logger(self, skip_missing=True, create_if_not_yet=True) -> Logger:
+    def get_logger(self, skip_missing: bool = True, create_if_not_yet: bool = True) -> Logger:
         """Returns current common (default) logger.
 
         :param skip_missing: do not raise errors if common logger is not available or not set.
@@ -188,7 +195,13 @@ class ConnectorInterface(SourcedInterface, ABC):
         pass
 
     @abstractmethod
-    def log(self, msg, level=AUTO, end=AUTO, verbose=True) -> None:
+    def log(
+            self,
+            msg: str,
+            level: Union[LoggingLevel, int, arg.Auto] = AUTO,
+            end: Union[str, arg.Auto] = AUTO,
+            verbose: bool = True,
+    ) -> None:
         """Log message with using current common logger
 
         :param msg: any text message as str
@@ -200,7 +213,7 @@ class ConnectorInterface(SourcedInterface, ABC):
         pass
 
     @abstractmethod
-    def get_new_progress(self, name, count=None, context=AUTO) -> ProgressInterface:
+    def get_new_progress(self, name, count: Optional[int] = None, context=AUTO) -> ProgressInterface:
         """Initialize new progress-bar using ExtendedLogger
 
         :param name: name of Progress object corresponding title message for progress-bar

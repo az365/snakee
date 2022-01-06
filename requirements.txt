@@ -1,6 +1,7 @@
 requests
 psycopg2-binary==2.8.4
 boto3
+botocore
 numpy
 scipy
 pandas

@@ -2,7 +2,7 @@ from typing import Optional, Iterable, Generator, Union, Any
 import os
 import gzip as gz
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
     from interfaces import (
         Context, Connector, ConnectorInterface, ContentFormatInterface, StructInterface,
@@ -376,12 +376,6 @@ class LocalFile(LeafConnector, ActualizeMixin):
         stream_type = arg.delayed_acquire(stream_type, self.get_stream_type)
         assert not ex, 'ex-argument for LocalFile.to_stream() not supported (got {})'.format(ex)
         return self.to_stream_type(stream_type=stream_type, step=step, **kwargs)
-
-    def copy(self) -> Native:
-        copy = self.make_new()
-        copy.set_declared_format(self.get_declared_format().copy(), inplace=True)
-        copy.set_detected_format(self.get_detected_format().copy(), inplace=True)
-        return self._assume_native(copy)
 
     @classmethod
     def get_default_folder(cls) -> Connector:

@@ -1,6 +1,6 @@
 from typing import Optional, Iterable, Union
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
     from interfaces import (
         ConnectorInterface, StructInterface, ColumnarInterface, RegularStream, ExtendedLoggerInterface,
@@ -189,12 +189,6 @@ class Table(LeafConnector):
                 return self.get_database().select(table=self, fields=columns)
         stream = self.to_struct_stream().select(*columns, **expressions)
         return self._assume_stream(stream)
-
-    def copy(self) -> Native:
-        copy = self.make_new()
-        copy.set_declared_format(self.get_declared_format().copy(), inplace=True)
-        copy.set_detected_format(self.get_detected_format().copy(), inplace=True)
-        return copy
 
 
 ConnType.add_classes(Table)

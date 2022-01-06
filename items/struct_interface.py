@@ -27,7 +27,11 @@ class StructMixinInterface(ABC):
         pass
 
     @abstractmethod
-    def get_types(self, dialect: DialectType = DialectType.String, as_list: bool = True) -> Iterable:
+    def get_types_list(self, dialect: DialectType = DialectType.String) -> list:
+        pass
+
+    @abstractmethod
+    def get_types_dict(self, dialect: DialectType = DialectType.String) -> dict:
         pass
 
     @abstractmethod

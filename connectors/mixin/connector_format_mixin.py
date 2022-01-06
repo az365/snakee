@@ -147,9 +147,11 @@ class ConnectorFormatMixin(LeafConnectorInterface, StructMixin, ABC):
         title_row = self.get_title_row(close=True)
         declared_types = dict()
         if use_declared_types:
-            declared_struct = self.get_struct()
-            if hasattr(declared_struct, 'get_dict_types'):
-                declared_types = declared_struct.get_dict_types()
+            declared_format = self.get_declared_format()
+            if isinstance(declared_format, FlatStructFormat) or hasattr(declared_format, 'get_struct'):
+                declared_struct = declared_format.get_struct()
+                if isinstance(declared_struct, StructInterface) or hasattr(declared_struct, 'get_types_dict'):
+                    declared_types = declared_struct.get_types_dict()
         struct = self._get_struct_detected_by_title_row(title_row, types=declared_types)
         message = 'Struct for {} detected by title row: {}'.format(self.get_name(), struct.get_struct_str(None))
         self.log(message, end='\n', verbose=verbose)

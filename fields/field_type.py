@@ -1,16 +1,18 @@
 from inspect import isclass
 import json
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from utils.arguments import any_to_bool, safe_converter, get_value
     from utils.decorators import deprecated_with_alternative
     from base.enum import DynamicEnum
     from connectors.databases.dialect_type import DialectType
+    from functions.primary import numeric as nm
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils.arguments import any_to_bool, safe_converter, get_value
     from ..utils.decorators import deprecated_with_alternative
     from ..base.enum import DynamicEnum
     from ..connectors.databases.dialect_type import DialectType
+    from ..functions.primary import numeric as nm
 
 
 class FieldType(DynamicEnum):
@@ -54,7 +56,7 @@ class FieldType(DynamicEnum):
             return True
         py_type = self.get_py_type()
         if py_type == float:
-            return isinstance(value, (int, float))
+            return nm.is_numeric(value)
         elif py_type in (list, tuple):
             return isinstance(value, (list, tuple))
         else:
@@ -161,6 +163,8 @@ FieldType._dict_heuristic_suffix_to_type = {
     'coef': FieldType.Float,
     'abs': FieldType.Float,
     'rel': FieldType.Float,
+    'pos': FieldType.Int,
+    'no': FieldType.Int,
     'is': FieldType.Bool,
     'has': FieldType.Bool,
     None: FieldType.Str,

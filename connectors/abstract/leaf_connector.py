@@ -1,7 +1,7 @@
 from abc import ABC
 from typing import Optional, Union
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
     from interfaces import (
         ConnectorInterface, LeafConnectorInterface, Context, Stream,
@@ -111,9 +111,14 @@ class LeafConnector(AbstractConnector, ConnectorFormatMixin, StreamableMixin, Le
     def set_content_format(self, content_format: ContentFormatInterface, inplace: bool) -> Optional[Native]:
         return self.set_declared_format(content_format, inplace=inplace)
 
-    def get_detected_format(self, detect: bool = True, force: bool = False) -> ContentFormatInterface:
+    def get_detected_format(
+            self,
+            detect: bool = True,
+            force: bool = False,
+            skip_missing: bool = True,
+    ) -> ContentFormatInterface:
         if force or (detect and not arg.is_defined(self._detected_format)):
-            self.reset_detected_format()
+            self.reset_detected_format(use_declared_types=True, skip_missing=skip_missing)
         return self._detected_format
 
     def set_detected_format(self, content_format: ContentFormatInterface, inplace: bool) -> Optional[Native]:
@@ -124,11 +129,17 @@ class LeafConnector(AbstractConnector, ConnectorFormatMixin, StreamableMixin, Le
         else:
             return self.make_new(content_format=content_format)
 
-    def reset_detected_format(self, use_declared_types: bool = True) -> Native:
-        content_format = self.get_declared_format().copy()
-        detected_struct = self.get_detected_struct_by_title_row(set_struct=False, use_declared_types=use_declared_types)
-        detected_format = content_format.set_struct(detected_struct, inplace=False)
-        self.set_detected_format(detected_format, inplace=True)
+    def reset_detected_format(self, use_declared_types: bool = True, skip_missing: bool = False) -> Native:
+        if self.is_existing():
+            content_format = self.get_declared_format().copy()
+            detected_struct = self.get_detected_struct_by_title_row(
+                set_struct=False,
+                use_declared_types=use_declared_types,
+            )
+            detected_format = content_format.set_struct(detected_struct, inplace=False)
+            self.set_detected_format(detected_format, inplace=True)
+        elif not skip_missing:
+            raise ValueError('LeafConnector.reset_detected_format(): Data object not found: {}'.format(self))
         return self
 
     def get_declared_format(self) -> ContentFormatInterface:
@@ -190,3 +201,9 @@ class LeafConnector(AbstractConnector, ConnectorFormatMixin, StreamableMixin, Le
 
     def write_stream(self, stream: Stream, verbose: bool = True):
         return self.from_stream(stream, verbose=verbose)
+
+    def copy(self) -> Native:
+        copy = self.make_new()
+        copy.set_declared_format(self.get_declared_format().copy(), inplace=True)
+        copy.set_detected_format(self.get_detected_format().copy(), inplace=True)
+        return copy
