@@ -11,43 +11,106 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .data_interface import SimpleDataInterface
 
 Native = SimpleDataInterface
-OptionalFields = Optional[Union[str, Iterable]]
+OptionalFields = Union[str, Iterable, None]
 Item = Any
 
 
 class IterableInterface(SimpleDataInterface, ABC):
     @abstractmethod
     def is_in_memory(self) -> Optional[bool]:
-        """Checks is the data of stream in RAM or in external iterator.
+        """Checks is the data of iterable object is in RAM or in external iterator.
 
-        :return: True if stream has data as Sequence in memory, False if it has an iterator
+        :return: True if object has data as Sequence in memory, False if it has an iterator
+        """
+        pass
+
+    @abstractmethod
+    def to_memory(self) -> Native:
+        """Accumulate data from internal Iterator/Generator (probably from external stream) to list in memory.
+        Alias of collect(inplace=False) method.
+
+        :return: Native (object of same class)
         """
         pass
 
     @abstractmethod
     def collect(self, inplace: bool = False, **kwargs) -> Native:
+        """Accumulate data from internal Iterator/Generator (probably from external stream) to list in memory.
+        Alias of to_memory() method.
+
+        :param inplace: apply transform inplace seems change current object, otherwise build new object (outplace)
+        :type inplace: bool
+
+        :return: Native (object of same class)
+        """
         pass
 
     @abstractmethod
     def get_count(self) -> Optional[int]:
+        """Returns factual count of items if current object has Sequence in memory,
+        otherwise try to get expected count from meta-information.
+
+        :return: string with one or two numbers (expected and/or estimated count of items)
+        """
         pass
 
     @abstractmethod
     def get_str_count(self, default: str = '(iter)') -> str:
-        """Returns string with general information about expected or estimated count of items in stream.
+        """Returns string with general information about
+        factual, expected or estimated (from meta-information) count of items in iterable object.
+
+        :param default: default string to output for case when object is Iterator/Generator and count is not known.
+        :type default: str
+
+        :return: string with one or two numbers (expected and/or estimated count of items)
         """
         pass
 
     @abstractmethod
     def make_new(self, *args, count: Optional[int] = None, ex: OptionalFields = None, **kwargs) -> Native:
-        pass
+        """Build new object of same class with new iterable data.
+        Set actual count into meta-information if this class supports count-property.
+        Set additional meta-information (if kwargs-argument provided)
+        or exclude some meta-fields (if ex-argument provided).
+
+        New iterable must be given in first positional argument (items=*args[0]).
+
+        :param count: count of items to return
+        :type count: int
+
+        :param ex: expected items count or None (if not known)
+        :type ex: OptionalFields = Union[str, Iterable, None]
+
+        :return: new Native (object of same class)
+        """
+        return super().make_new(*args, ex=ex, **kwargs)  # pass
 
     @abstractmethod
     def is_empty(self) -> Optional[bool]:
+        """Checks is object having any items.
+
+        :return: Ture of False if object is Sequence, None if object is Iterator/Generator and count is not known.
+        """
+        pass
+
+    @abstractmethod
+    def has_items(self) -> Optional[bool]:
+        """Checks is object having any items.
+
+        :return: Ture of False if object is Sequence, None if object is Iterator/Generator and count is not known.
+        """
+        pass
+
+    @abstractmethod
+    def set_items(self, items: Iterable, inplace: bool, count: Optional[int] = None) -> Optional[Native]:
         pass
 
     @abstractmethod
     def get_items(self) -> Iterable:
+        pass
+
+    @abstractmethod
+    def get_list(self) -> list:
         pass
 
     @abstractmethod
@@ -67,52 +130,68 @@ class IterableInterface(SimpleDataInterface, ABC):
         pass
 
     @abstractmethod
-    def get_one_item(self) -> Item:
+    def get_one_item(self) -> Optional[Item]:
+        """Returns first available item from Iterable object.
+
+        :return: Any (first) Item if available or None if Iterator is finished.
+        """
         pass
 
     @abstractmethod
-    def take(self, count: Union[int, bool] = 1) -> Native:
-        """Return stream containing first N items.
+    def take(self, count: Union[int, bool] = 1, inplace: bool = False) -> Optional[Native]:
+        """Return transformed iterable object (stream, series, ...) containing first N items.
         Alias for head().
 
         :param count: count of items to return
         :type count: int
 
-        :return: Native Stream (stream of same class)
+        :param inplace: apply transform inplace seems change current object, otherwise build new object (outplace)
+        :type inplace: bool
+
+        :return: Native (object of same class) if inplace=True, or None if inplace=False
         """
         pass
 
     @abstractmethod
-    def skip(self, count: int = 1) -> Native:
-        """Return stream with items except first N items.
+    def skip(self, count: int = 1, inplace: bool = False) -> Optional[Native]:
+        """Return transformed iterable object (stream, series, ...) with items except first N items.
 
         :param count: count of items to skip
         :type count: int
 
-        :return: Native Stream (stream of same class)
+        :param inplace: apply transform inplace seems change current object, otherwise build new object (outplace)
+        :type inplace: bool
+
+        :return: Native (object of same class) if inplace=True, or None if inplace=False
         """
         pass
 
     @abstractmethod
-    def head(self, count: int = 10) -> Native:
-        """Return stream containing first N items.
+    def head(self, count: int = 10, inplace: bool = False) -> Optional[Native]:
+        """Return transformed iterable object (stream, series, ...) containing first N items.
         Alias for take()
 
         :param count: count of items to return
         :type count: int
 
-        :return: Native Stream (stream of same class)
+        :param inplace: apply transform inplace seems change current object, otherwise build new object (outplace)
+        :type inplace: bool
+
+        :return: Native (object of same class) if inplace=True, or None if inplace=False
         """
         pass
 
     @abstractmethod
-    def tail(self, count: int = 10) -> Native:
-        """Return stream containing last N items from current stream.
+    def tail(self, count: int = 10, inplace: bool = False) -> Optional[Native]:
+        """Return transformed iterable object (stream, series, ...) containing last N items from current stream.
 
         :param count: count of items to return
         :type count: int
 
-        :return: Native Stream (stream of same class)
+        :param inplace: apply transform inplace seems change current object, otherwise build new object (outplace)
+        :type inplace: bool
+
+        :return: Native (object of same class) if inplace=True, or None if inplace=False
         """
         pass
 
@@ -121,8 +200,12 @@ class IterableInterface(SimpleDataInterface, ABC):
         """Receive and skip all items from data source.
         Can be used for case when data source must be sure that all data has been transmitted successfully.
 
-        :return: Native Stream (stream of same class)
+        :return: Native (object of same class)
         """
+        pass
+
+    @abstractmethod
+    def get_tee_clones(self, count: int = 2) -> list:
         pass
 
     @abstractmethod
@@ -130,11 +213,17 @@ class IterableInterface(SimpleDataInterface, ABC):
         pass
 
     @abstractmethod
-    def add(self, obj_or_items: Union[Native, Iterable], before: bool = False, **kwargs) -> Native:
+    def add(
+            self,
+            obj_or_items: Union[Native, Iterable],
+            before: bool = False,
+            inplace: bool = False,
+            **kwargs
+    ) -> Native:
         pass
 
     @abstractmethod
-    def add_items(self, items: Iterable, before: bool = False) -> Native:
+    def add_items(self, items: Iterable, before: bool = False, inplace: bool = False) -> Optional[Native]:
         pass
 
     @abstractmethod
@@ -162,15 +251,15 @@ class IterableInterface(SimpleDataInterface, ABC):
         pass
 
     @abstractmethod
-    def filter(self, function: Callable) -> Native:
+    def filter(self, function: Callable, inplace: bool = False) -> Optional[Native]:
         pass
 
     @abstractmethod
-    def map(self, function: Callable) -> Native:
+    def map(self, function: Callable, inplace: bool = False) -> Optional[Native]:
         pass
 
     @abstractmethod
-    def flat_map(self, function: Callable) -> Native:
+    def flat_map(self, function: Callable, inplace: bool = False) -> Optional[Native]:
         pass
 
     @abstractmethod
@@ -180,7 +269,8 @@ class IterableInterface(SimpleDataInterface, ABC):
             key,
             how: Union[JoinType, str] = JoinType.Left,
             right_is_uniq: bool = True,
-    ) -> Native:
+            inplace: bool = False,
+    ) -> Optional[Native]:
         pass
 
     @abstractmethod

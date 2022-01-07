@@ -5,14 +5,12 @@ from datetime import datetime
 
 try:  # Assume we're a submodule in a package.
     from utils import algo, arguments as arg
-    from utils.algo import JoinType
     from functions.secondary import item_functions as fs
-    from base.interfaces.iterable_interface import IterableInterface, OptionalFields
+    from base.interfaces.iterable_interface import IterableInterface, OptionalFields, Item, JoinType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import algo, arguments as arg
-    from ...utils.algo import JoinType
     from ...functions.secondary import item_functions as fs
-    from ..interfaces.iterable_interface import IterableInterface, OptionalFields
+    from ..interfaces.iterable_interface import IterableInterface, OptionalFields, Item, JoinType
 
 Native = IterableInterface
 How = Union[JoinType, str]
@@ -74,6 +72,8 @@ class IterableMixin(IterableInterface, ABC):
         items = self.get_items()
         if isinstance(items, Sized):
             return len(items)
+        elif hasattr(super(), 'get_count'):
+            return super().get_count()
 
     def get_str_count(self, default: str = '(iter)') -> str:
         count = self.get_count()
@@ -96,11 +96,16 @@ class IterableMixin(IterableInterface, ABC):
         else:
             return count > 0
 
-    def set_items(self, items: Iterable, inplace: bool) -> Optional[Native]:
+    def set_items(self, items: Iterable, inplace: bool, count: Optional[int] = None) -> Optional[Native]:
         if inplace:
             self.set_data(items, inplace=True)
+            if arg.is_defined(count):
+                self._set_count(count, inplace=True)
         else:
-            return self.make_new(items)
+            if arg.is_defined(count):
+                return self.make_new(items, count=count)
+            else:
+                return self.make_new(items)
 
     def get_items(self) -> Iterable:
         return self.get_data()
@@ -114,7 +119,7 @@ class IterableMixin(IterableInterface, ABC):
     def __iter__(self):
         return self.get_iter()
 
-    def get_one_item(self):
+    def get_one_item(self) -> Item:
         if self.is_sequence() and self.has_items():
             return self.get_list()[0]
         for i in self.get_iter():
@@ -156,7 +161,7 @@ class IterableMixin(IterableInterface, ABC):
             items.append(i)
         return items
 
-    def take(self, count: Union[int, bool] = 1) -> Native:
+    def take(self, count: Union[int, bool] = 1, inplace: bool = False) -> Optional[Native]:  ###
         if (count and isinstance(count, bool)) or not arg.is_defined(count):  # True, None, AUTO
             return self
         elif isinstance(count, int):
@@ -166,34 +171,35 @@ class IterableMixin(IterableInterface, ABC):
                 items = self._get_last_items(-count)
             else:  # count in (0, False)
                 items = list()
-            kwargs = dict()
+            result_count = None
             if self.is_in_memory():
                 if not arg.is_in_memory(items):
                     items = list(items)
                 if self._has_count_attribute():
-                    kwargs['count'] = len(items)
-            return self.make_new(items, **kwargs)
+                    result_count = len(items)
+            return self.set_items(items, count=result_count, inplace=inplace)
         else:
             raise TypeError('Expected count as int or boolean, got {}'.format(count))
 
-    def skip(self, count: int = 1) -> Native:
+    def skip(self, count: int = 1, inplace: bool = False) -> Optional[Native]:
         if self.get_count() and count >= self.get_count():
-            next_items = list()
+            items = list()
         else:
-            next_items = self.get_items()[count:] if self.is_in_memory() else self._get_second_items(count)
-        kwargs = dict()
+            items = self.get_items()[count:] if self.is_in_memory() else self._get_second_items(count)
+        result_count = None
         if self._has_count_attribute():
             old_count = self.get_count()
             if old_count:
-                new_count = old_count - count
-                kwargs['count'] = new_count
-        return self.make_new(next_items, **kwargs)
+                result_count = old_count - count
+                if result_count < 0:
+                    result_count = 0
+        return self.set_items(items, count=result_count, inplace=inplace)
 
-    def head(self, count: int = 10) -> Native:
-        return self.take(count)  # alias
+    def head(self, count: int = 10, inplace: bool = False) -> Optional[Native]:
+        return self.take(count, inplace=inplace)
 
-    def tail(self, count: int = 10) -> Native:
-        return self.take(-count)
+    def tail(self, count: int = 10, inplace: bool = False) -> Optional[Native]:
+        return self.take(-count, inplace=inplace)
 
     def pass_items(self) -> Native:
         for _ in self.get_iter():
@@ -210,13 +216,13 @@ class IterableMixin(IterableInterface, ABC):
         self.set_items(primary_items, inplace=True)
         return tee_items
 
-    def copy(self) -> Native:
+    def copy(self, **kwargs) -> Native:
         items = self.get_items()
         if hasattr(items, 'copy'):
             items = items.copy()
         else:
             items = self._get_tee_items()
-        return self.make_new(items)
+        return self.make_new(items, **kwargs)
 
     def make_new(self, *args, count: Optional[int] = None, ex: OptionalFields = None, **kwargs) -> Native:
         if args:
@@ -236,34 +242,37 @@ class IterableMixin(IterableInterface, ABC):
         if hasattr(self.__init__, '__annotations__'):
             return 'count' in self.__init__.__annotations__
 
-    def add(self, obj_or_items: Union[Native, Iterable], before: bool = False, **kwargs) -> Native:
+    def add(
+            self,
+            obj_or_items: Union[Native, Iterable],
+            before: bool = False,
+            inplace: bool = False,
+            **kwargs
+    ) -> Native:
         if isinstance(obj_or_items, Iterable):
             items = obj_or_items
         elif hasattr(obj_or_items, 'get_items'):
             items = obj_or_items.get_items()
         else:
             raise TypeError('Expected Iterable or IterableMixin, got {}'.format(self))
-        return self.add_items(items, before=before)
+        return self.add_items(items, before=before, inplace=inplace)
 
-    def add_items(self, items: Iterable, before: bool = False) -> Native:
+    def add_items(self, items: Iterable, before: bool = False, inplace: bool = False) -> Optional[Native]:
         old_items = self.get_items()
         new_items = items
         if before:
             chain_items = chain(new_items, old_items)
         else:
             chain_items = chain(old_items, new_items)
-        kwargs = dict()
+        result_count = None
         if isinstance(items, Sized) and isinstance(items, ARRAY_TYPES):
             old_count = self.get_count()
-            try:
-                new_count = len(items)
-            except TypeError as e:
-                raise TypeError('{}: {}'.format(e, items))
             if old_count is not None:
-                kwargs['count'] = old_count + new_count
+                add_count = len(items)
+                result_count = old_count + add_count
         if self.is_in_memory() and arg.is_in_memory(items):
             chain_items = list(chain_items)
-        return self.make_new(chain_items, **kwargs)
+        return self.set_items(chain_items, count=result_count, inplace=inplace)
 
     def split_by_pos(self, pos: int) -> tuple:
         first_stream, second_stream = self.get_tee_clones(2)
@@ -292,13 +301,13 @@ class IterableMixin(IterableInterface, ABC):
     def split_by_numeric(self, func: Callable, count: int) -> list:
         return [
             f.filter(lambda i, n=n: func(i) == n)
-            for n, f in enumerate(self.tee_streams(count))
+            for n, f in enumerate(self.get_tee_clones(count))
         ]
 
     def split_by_boolean(self, func: Callable) -> list:
         return self.split_by_numeric(lambda f: int(bool(func(f))), count=2)
 
-    def split(self, by: Union[int, list, tuple, Callable], count: Optional[int] = None) -> Iterable:  # +
+    def split(self, by: Union[int, list, tuple, Callable], count: Optional[int] = None) -> Union[list, tuple]:
         if isinstance(by, int):
             return self.split_by_pos(by)
         elif isinstance(by, ARRAY_TYPES):
@@ -309,10 +318,10 @@ class IterableMixin(IterableInterface, ABC):
             else:
                 return self.split_by_boolean(by)
         else:
-            raise TypeError('split(by): by-argument must be int, list, tuple or function, {} received'.format(type(by)))
+            raise TypeError('split(by): by-argument must be int, list, tuple or function, got {}'.format(by))
 
     @staticmethod
-    def _get_next_items(items: Iterable, step: int):
+    def _get_next_items(items: Iterable, step: int) -> list:
         output_items = list()
         for n, i in enumerate(items):
             output_items.append(i)
@@ -324,15 +333,15 @@ class IterableMixin(IterableInterface, ABC):
         iterable = self.get_iter()
         items = self._get_next_items(iterable, step=step)
         while items:
-            yield self.stream(items, count=len(items))
+            yield self.make_new(items)
             items = self._get_next_items(iterable, step=step)
 
     def _get_filtered_items(self, function: Callable) -> Iterable:
         return filter(function, self.get_items())
 
-    def filter(self, function: Callable) -> Native:
+    def filter(self, function: Callable, inplace: bool = False) -> Optional[Native]:
         items = self._get_filtered_items(function)
-        return self.make_new(items)
+        return self.set_items(items, inplace=inplace)
 
     def _get_mapped_items(self, function: Callable, flat: bool = False) -> Iterable:
         if flat:
@@ -341,15 +350,31 @@ class IterableMixin(IterableInterface, ABC):
         else:
             yield from map(function, self.get_items())
 
-    def map(self, function: Callable) -> Native:
-        items = self._get_mapped_items(function, flat=False)
-        return self.make_new(items)
+    def _apply_map_inplace(self, function: Callable) -> None:
+        items = self.get_items()
+        assert isinstance(items, list), 'expected list, got {}'.format(items)
+        for k, v in enumerate(items):
+            items[k] = function(v)
 
-    def flat_map(self, function: Callable) -> Native:
+    def map(self, function: Callable, inplace: bool = False) -> Optional[Native]:
+        if inplace and isinstance(self.get_items(), list):
+            self._apply_map_inplace(function)
+        else:
+            items = self._get_mapped_items(function, flat=False)
+            return self.set_items(items, count=self.get_count(), inplace=inplace)
+
+    def flat_map(self, function: Callable, inplace: bool = False) -> Optional[Native]:
         items = self._get_mapped_items(function, flat=True)
-        return self.make_new(items)
+        return self.set_items(items, inplace=inplace)
 
-    def map_side_join(self, right: Native, key, how: How = JoinType.Left, right_is_uniq: bool = True) -> Native:
+    def map_side_join(
+            self,
+            right: Native,
+            key,
+            how: How = JoinType.Left,
+            right_is_uniq: bool = True,
+            inplace: bool = False,
+    ) -> Native:
         key = arg.get_names(key)
         keys = arg.update([key])
         if not isinstance(how, JoinType):
@@ -365,7 +390,7 @@ class IterableMixin(IterableInterface, ABC):
         )
         if self.is_in_memory():
             joined_items = list(joined_items)
-        return self.make_new(joined_items)
+        return self.set_items(joined_items, inplace=inplace)
 
     def get_dict(self, key: Callable, value: Callable) -> dict:
         assert isinstance(key, Callable)
@@ -423,7 +448,7 @@ class IterableMixin(IterableInterface, ABC):
         elif show:
             print(value)
 
-        if callable(external_object):
+        if isinstance(external_object, Callable):
             external_object(value)
         elif isinstance(external_object, list):
             external_object.append(value)

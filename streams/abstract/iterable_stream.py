@@ -241,8 +241,8 @@ class IterableStream(AbstractStream, IterableMixin, IterableStreamInterface):
     def next(self):
         return next(self.get_iter())
 
-    def add_items(self, items: Iterable, before: bool = False) -> Native:
-        stream = super().add_items(items, before=before)
+    def add_items(self, items: Iterable, before: bool = False, inplace: bool = False) -> Optional[Native]:
+        stream = super().add_items(items, before=before, inplace=inplace)  # IterableMixin
         estimated_count = self.get_estimated_count()
         if isinstance(items, Sized) and estimated_count is not None and not stream.get_count():
             added_count = len(items)
@@ -251,7 +251,10 @@ class IterableStream(AbstractStream, IterableMixin, IterableStreamInterface):
                 exact_count += added_count
             if estimated_count:
                 estimated_count += added_count
-            stream = stream.update_meta(count=exact_count, less_than=estimated_count)
+            if inplace:
+                self.update_meta(count=exact_count, less_than=estimated_count, inplace=True)
+            else:
+                stream = stream.update_meta(count=exact_count, less_than=estimated_count)
         return self._assume_native(stream)
 
     def add_stream(self, stream: Native, before: bool = False) -> Native:
@@ -293,11 +296,21 @@ class IterableStream(AbstractStream, IterableMixin, IterableStreamInterface):
             less_than=self.get_estimated_count(),
         )
 
-    def map_side_join(self, right: Native, key: UniKey, how: How = JoinType.Left, right_is_uniq: bool = True) -> Native:
-        stream = super().map_side_join(right, key=key, how=how, right_is_uniq=right_is_uniq)
+    def map_side_join(
+            self,
+            right: Native,
+            key: UniKey,
+            how: How = JoinType.Left,
+            right_is_uniq: bool = True,
+            inplace: bool = False,
+    ) -> Native:
+        stream = super().map_side_join(right, key=key, how=how, right_is_uniq=right_is_uniq, inplace=inplace)
         meta = self.get_static_meta()
-        stream = stream.set_meta(**meta)
-        return self._assume_native(stream)
+        if inplace:
+            self.set_meta(**meta, inplace=False)
+        else:
+            stream = stream.set_meta(**meta, inplace=False)
+            return self._assume_native(stream)
 
     def progress(
             self,
