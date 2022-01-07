@@ -1,66 +1,112 @@
 from abc import ABC
-from typing import Optional, Callable, Iterable, Generator, Union, Any
-from inspect import isclass
+from typing import Optional, Callable, Iterable, Generator, Iterator, Sequence, Sized, Union, Any
 from itertools import chain, tee
 from datetime import datetime
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from utils import algo, arguments as arg
-    from utils.external import pd, DataFrame, get_use_objects_for_output
-    from interfaces import (
-        IterableStreamInterface, RegularStreamInterface, Stream, StreamType, ItemType, JoinType, How,
-        Source, ExtLogger, SelectionLogger, LoggingLevel,
-        AUTO, Auto, AutoName, AutoCount, Count, OptionalFields, UniKey,
-    )
+    from utils.algo import JoinType
     from functions.secondary import item_functions as fs
+    from streams.interfaces.iterable_interface import IterableInterface, OptionalFields
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import algo, arguments as arg
-    from ...utils.external import pd, DataFrame, get_use_objects_for_output
-    from ...interfaces import (
-        IterableStreamInterface, RegularStreamInterface, Stream, StreamType, ItemType, JoinType, How,
-        Source, ExtLogger, SelectionLogger, LoggingLevel,
-        AUTO, Auto, AutoName, AutoCount, Count, OptionalFields, UniKey,
-    )
+    from ...utils.algo import JoinType
     from ...functions.secondary import item_functions as fs
+    from ...streams.interfaces.iterable_interface import IterableInterface, OptionalFields
 
-Native = IterableStreamInterface
-Data = Union[Auto, Iterable]
-AutoStreamType = Union[Auto, StreamType]
+Native = IterableInterface
+How = Union[JoinType, str]
+
+ARRAY_TYPES = list, tuple
 
 
-class IterableStreamMixin(IterableStreamInterface, ABC):
-    def get_str_count(self) -> str:
-        if self.get_count():
-            return '{}'.format(self.get_count())
-        elif self.get_estimated_count():
-            return '<={}'.format(self.get_estimated_count())
+class IterableStreamMixin(IterableInterface, ABC):
+    def is_sequence(self) -> bool:
+        return isinstance(self.get_items(), Sequence)
+
+    def is_iter(self) -> bool:
+        return isinstance(self.get_items(), (Generator, Iterator))
+
+    def is_in_memory(self) -> Optional[bool]:
+        if self.is_sequence():
+            return True
+        elif self.is_iter():
+            return False
+        elif isinstance(self, (dict, set)):
+            return True
         else:
-            return '(unknown count)'
+            return None  # don't know
 
-    def enumerate(self, native: bool = False) -> Union[Native, Stream]:
-        props = self.get_meta()
-        if native:
-            target_class = self.__class__
+    def to_memory(self) -> Native:
+        if self.is_in_memory():
+            return self
         else:
-            target_class = StreamType.KeyValueStream.get_class()
-            props['value_stream_type'] = self.get_stream_type()
-        return target_class(
-            self._get_enumerated_items(),
-            **props
-        )
+            items = list(self.get_items())
+            return self.make_new(items)
 
-    def _get_enumerated_items(self, item_type: Union[ItemType, Auto] = AUTO) -> Iterable:
-        if arg.is_defined(item_type) and item_type not in (ItemType.Any, ItemType.Auto):
-            if hasattr(self, 'get_items_of_type'):
-                items = self.get_items_of_type(item_type)
+    def collect(self, inplace: bool = False, **kwargs) -> Native:
+        if inplace:
+            self._collect_inplace(**kwargs)
+            return self
+        else:
+            return self.to_memory()
+
+    def _collect_inplace(self, **kwargs) -> None:
+        items = self.get_list()
+        self.set_data(items, inplace=True)
+        self._set_count(len(items), inplace=True, skip_missing=True)
+
+    def _set_count(self, count: int, inplace: bool, skip_missing: bool = True) -> Optional[Native]:
+        if hasattr(self, 'set_count'):
+            if 'inplace' in self.set_count.__annotations__:
+                result = self.set_count(count, inplace=inplace)
             else:
-                assert isinstance(self, RegularStreamInterface) or hasattr(self, 'get_item_type')
-                assert item_type == self.get_item_type() or not arg.is_defined(item_type)
-                items = self.get_items()
+                result = self.set_count(count)
+        elif skip_missing:
+            result = None
         else:
-            items = self.get_items()
-        for n, i in enumerate(items):
-            yield n, i
+            raise AttributeError('Object {} has no attribute set_count()'.format(self))
+        if not (inplace or result):
+            result = self
+        return result
+
+    def get_count(self) -> Optional[int]:
+        items = self.get_items()
+        if isinstance(items, Sized):
+            return len(items)
+
+    def get_str_count(self, default: str = '(iter)') -> str:
+        count = self.get_count()
+        if count is None:
+            return default
+        else:
+            return str(count)
+
+    def is_empty(self) -> Optional[bool]:
+        count = self.get_count()
+        if count is None:
+            return None
+        else:
+            return count == 0
+
+    def has_items(self) -> Optional[bool]:
+        count = self.get_count()
+        if count is None:
+            return None
+        else:
+            return count > 0
+
+    def set_items(self, items: Iterable, inplace: bool) -> Optional[Native]:
+        if inplace:
+            self.set_data(items, inplace=True)
+        else:
+            return self.make_new(items)
+
+    def get_items(self) -> Iterable:
+        return self.get_data()
+
+    def get_list(self) -> list:
+        return list(self.get_items())
 
     def get_iter(self) -> Generator:
         yield from self.get_items()
@@ -69,60 +115,40 @@ class IterableStreamMixin(IterableStreamInterface, ABC):
         return self.get_iter()
 
     def get_one_item(self):
+        if self.is_sequence() and self.has_items():
+            return self.get_list()[0]
         for i in self.get_iter():
             return i
 
     def get_description(self) -> str:
         return '{} items'.format(self.get_str_count())
 
-    def _get_first_items(self, count: int = 1, item_type: Union[ItemType, Auto] = AUTO) -> Iterable:
+    def _get_enumerated_items(self, item_type=arg.AUTO) -> Generator:
+        if item_type == 'Any' or item_type == 'Any' or not arg.is_defined(item_type):
+            items = self.get_items()
+        elif hasattr(self, 'get_items_of_type'):
+            items = self.get_items_of_type(item_type)
+        else:
+            items = self.get_items()
+            if hasattr(self, 'get_item_type'):
+                received_item_type = self.get_item_type()
+                assert item_type == received_item_type, '{} != {}'.format(item_type, received_item_type)
+        for n, i in enumerate(items):
+            yield n, i
+
+    def _get_first_items(self, count: int = 1, item_type=arg.AUTO) -> Generator:
         for n, i in self._get_enumerated_items(item_type=item_type):
             yield i
             if n + 1 >= count:
                 break
 
-    def take(self, count: Union[int, bool] = 1) -> Native:
-        if (count and isinstance(count, bool)) or not arg.is_defined(count):  # True, None, AUTO
-            return self
-        elif isinstance(count, int):
-            if count > 0:
-                items = self._get_first_items(count)
-                item_count = min(self.get_count(), count) if self.get_count() else None
-                less_than = min(self.get_estimated_count(), count) if self.get_estimated_count() else count
-                stream = self.stream(items, count=item_count, less_than=less_than)
-            elif count < 0:
-                stream = self.tail(count=count)
-            else:  # count in (0, False)
-                stream = self.stream([], count=0)
-            return self._assume_native(stream)
-
-    def skip(self, count: int = 1) -> Native:
-        def skip_items(c):
-            for n, i in self._get_enumerated_items():
-                if n >= c:
-                    yield i
-        if self.get_count() and count >= self.get_count():
-            next_items = list()
-        else:
-            next_items = self.get_items()[count:] if self.is_in_memory() else skip_items(count)
-        less_than = None
-        new_count = None
-        old_count = self.get_count()
-        if old_count:
-            new_count = old_count - count
-        elif self.get_estimated_count():
-            less_than = self.get_estimated_count() - count
-        stream = self.stream(next_items, count=new_count, less_than=less_than)
-        return self._assume_native(stream)
-
-    def head(self, count: int = 10) -> Native:
-        return self.take(count)  # alias
-
-    def tail(self, count: int = 10) -> Native:
-        stream = self.stream(self._get_last_items(count))
-        return self._assume_native(stream)
+    def _get_second_items(self, skip: int = 1) -> Generator:
+        for n, i in self._get_enumerated_items():
+            if n >= skip:
+                yield i
 
     def _get_last_items(self, count: int = 10) -> list:
+        count = abs(count)
         items = list()
         for i in self.get_items():
             if len(items) >= count:
@@ -130,170 +156,154 @@ class IterableStreamMixin(IterableStreamInterface, ABC):
             items.append(i)
         return items
 
+    def take(self, count: Union[int, bool] = 1) -> Native:
+        if (count and isinstance(count, bool)) or not arg.is_defined(count):  # True, None, AUTO
+            return self
+        elif isinstance(count, int):
+            if count > 0:
+                items = self._get_first_items(count)
+            elif count < 0:
+                items = self._get_last_items(-count)
+            else:  # count in (0, False)
+                items = list()
+            kwargs = dict()
+            if self.is_in_memory():
+                if not arg.is_in_memory(items):
+                    items = list(items)
+                if self._has_count_attribute():
+                    kwargs['count'] = len(items)
+            return self.make_new(items, **kwargs)
+        else:
+            raise TypeError('Expected count as int or boolean, got {}'.format(count))
+
+    def skip(self, count: int = 1) -> Native:
+        if self.get_count() and count >= self.get_count():
+            next_items = list()
+        else:
+            next_items = self.get_items()[count:] if self.is_in_memory() else self._get_second_items(count)
+        kwargs = dict()
+        if self._has_count_attribute():
+            old_count = self.get_count()
+            if old_count:
+                new_count = old_count - count
+                kwargs['count'] = new_count
+        return self.make_new(next_items, **kwargs)
+
+    def head(self, count: int = 10) -> Native:
+        return self.take(count)  # alias
+
+    def tail(self, count: int = 10) -> Native:
+        return self.take(-count)
+
     def pass_items(self) -> Native:
-        try:
-            for _ in self.get_iter():
-                pass
-        except BaseException as e:
-            msg = 'Error while trying to close stream: {}'.format(e)
-            self.log(msg=msg, level=LoggingLevel.Warning)
+        for _ in self.get_iter():
+            pass
         return self
 
-    def tee_streams(self, n: int = 2) -> list:
-        tee_iterators = tee(self.get_items(), n)
-        return [self.stream(t) for t in tee_iterators]
+    def get_tee_clones(self, count: int = 2) -> list:
+        tee_iterators = tee(self.get_items(), count)
+        return [self.make_new(t) for t in tee_iterators]
 
-    def to_stream(
-            self,
-            data: Data = AUTO,
-            stream_type: AutoStreamType = AUTO,
-            ex: OptionalFields = None,
-            **kwargs
-    ) -> Stream:
-        stream_type = arg.delayed_acquire(stream_type, self.get_stream_type)
-        if isinstance(stream_type, str):
-            stream_class = StreamType(stream_type).get_class()
-        elif isclass(stream_type):
-            stream_class = stream_type
+    def _get_tee_items(self) -> Iterable:
+        two_iterators = tee(self.get_items(), 2)
+        primary_items, tee_items = two_iterators
+        self.set_items(primary_items, inplace=True)
+        return tee_items
+
+    def copy(self) -> Native:
+        items = self.get_items()
+        if hasattr(items, 'copy'):
+            items = items.copy()
         else:
-            stream_class = stream_type.get_class()
-        data = arg.delayed_acquire(data, self.get_data)
-        meta = self.get_compatible_meta(stream_class, ex=ex)
-        meta.update(kwargs)
-        if 'count' not in meta:
-            meta['count'] = self.get_count()
-        if 'source' not in meta:
-            meta['source'] = self.get_source()
-        return stream_class(data, **meta)
+            items = self._get_tee_items()
+        return self.make_new(items)
 
-    @staticmethod
-    def _is_stream(obj) -> bool:
-        return isinstance(obj, IterableStreamInterface) or (hasattr(obj, 'get_count') and hasattr(obj, 'get_items'))
-
-    def add(self, stream_or_items: Union[Stream, Iterable], before: bool = False, **kwargs) -> Native:
-        if self._is_stream(stream_or_items):
-            return self.add_stream(
-                self._assume_native(stream_or_items),
-                before=before,
-            )
+    def make_new(self, *args, count: Optional[int] = None, ex: OptionalFields = None, **kwargs) -> Native:
+        if args:
+            assert len(args) == 1, 'Expected one position argument (items), got *{}'.format(args)
+            items = args[0]
+        elif 'items' in kwargs:
+            items = kwargs['items']
         else:
-            return self.add_items(
-                stream_or_items,
-                before=before,
-            )
+            raise AttributeError('items is mandatory argument for IterableMixin.make_new()')
+        if self._has_count_attribute():
+            if count is None and isinstance(items, ARRAY_TYPES):
+                count = len(items)
+            kwargs['count'] = count
+        return super().make_new(items, ex=ex, **kwargs)
+
+    def _has_count_attribute(self) -> bool:
+        if hasattr(self.__init__, '__annotations__'):
+            return 'count' in self.__init__.__annotations__
+
+    def add(self, obj_or_items: Union[Native, Iterable], before: bool = False, **kwargs) -> Native:
+        if isinstance(obj_or_items, Iterable):
+            items = obj_or_items
+        elif hasattr(obj_or_items, 'get_items'):
+            items = obj_or_items.get_items()
+        else:
+            raise TypeError('Expected Iterable or IterableMixin, got {}'.format(self))
+        return self.add_items(items, before=before)
 
     def add_items(self, items: Iterable, before: bool = False) -> Native:
         old_items = self.get_items()
         new_items = items
         if before:
-            chain_records = chain(new_items, old_items)
+            chain_items = chain(new_items, old_items)
         else:
-            chain_records = chain(old_items, new_items)
-        if isinstance(items, (list, tuple)):
-            count = self.get_count()
-            if count:
-                count += len(items)
-            less_than = self.get_estimated_count()
-            if less_than:
-                less_than += len(items)
-        else:
-            count = None
-            less_than = None
-        stream = self.stream(chain_records, count=count, less_than=less_than)
-        return self._assume_native(stream)
-
-    def add_stream(self, stream: Native, before: bool = False) -> Native:
-        old_count = self.get_count()
-        new_count = stream.get_count()
-        if old_count is not None and new_count is not None:
-            total_count = new_count + old_count
-        else:
-            total_count = None
-        stream = self.add_items(
-            stream.get_items(),
-            before=before,
-        ).update_meta(
-            count=total_count,
-        )
-        return self._assume_native(stream)
-
-    def count_to_items(self) -> Native:
-        return self.add_items(
-            [self.get_count()],
-            before=True,
-        )
-
-    def separate_count(self) -> tuple:
-        return (
-            self.get_count(),
-            self,
-        )
-
-    def separate_first(self) -> tuple:
-        items = self.get_iter()
-        count = self.get_count()
-        if count:
-            count -= 1
-        less_than = self.get_estimated_count()
-        if less_than:
-            less_than -= 1
-        title_item = next(items)
-        data_stream = self.stream(items, count=count, less_than=less_than)
-        return title_item, data_stream
+            chain_items = chain(old_items, new_items)
+        kwargs = dict()
+        if isinstance(items, Sized) and isinstance(items, ARRAY_TYPES):
+            old_count = self.get_count()
+            try:
+                new_count = len(items)
+            except TypeError as e:
+                raise TypeError('{}: {}'.format(e, items))
+            if old_count is not None:
+                kwargs['count'] = old_count + new_count
+        if self.is_in_memory() and arg.is_in_memory(items):
+            chain_items = list(chain_items)
+        return self.make_new(chain_items, **kwargs)
 
     def split_by_pos(self, pos: int) -> tuple:
-        first_stream, second_stream = self.tee_streams(2)
-        return (
-            first_stream.take(pos),
-            second_stream.skip(pos),
-        )
+        first_stream, second_stream = self.get_tee_clones(2)
+        return first_stream.take(pos), second_stream.skip(pos)
 
     def split_by_list_pos(self, list_pos: Union[list, tuple]) -> list:
+        list_pos = sorted(list_pos)
         count_limits = len(list_pos)
-        cloned_streams = self.tee_streams(count_limits + 1)
-        filtered_streams = list()
+        tee_clones = self.get_tee_clones(count_limits + 1)
+        filtered_clones = list()
         prev_pos = 0
         for n, cur_pos in enumerate(list_pos):
             count_items = cur_pos - prev_pos
-            cur_stream = cloned_streams[n].skip(
-                prev_pos,
-            ).take(
-                count_items,
-            ).update_meta(
-                count=count_items,
-            )
-            filtered_streams.append(
-                cur_stream
-            )
+            cur_clone = tee_clones[n].skip(prev_pos).take(count_items)
+            if self._has_count_attribute() and hasattr(cur_clone, 'set_count'):
+                if 'inplace' in cur_clone.set_count.__annotations__:
+                    cur_clone.set_count(count_items, inplace=True)
+                else:
+                    cur_clone.set_count(count_items)
+            filtered_clones.append(cur_clone)
             prev_pos = cur_pos
-        filtered_streams.append(
-            cloned_streams[-1].skip(
-                list_pos[-1],
-            )
-        )
-        return filtered_streams
+        last_clone = tee_clones[-1].skip(list_pos[-1])
+        filtered_clones.append(last_clone)
+        return filtered_clones
 
     def split_by_numeric(self, func: Callable, count: int) -> list:
         return [
-            f.filter(
-                lambda i, n=n: func(i) == n,
-            ) for n, f in enumerate(
-                self.tee_streams(count),
-            )
+            f.filter(lambda i, n=n: func(i) == n)
+            for n, f in enumerate(self.tee_streams(count))
         ]
 
     def split_by_boolean(self, func: Callable) -> list:
-        return self.split_by_numeric(
-            func=lambda f: int(bool(func(f))),
-            count=2,
-        )
+        return self.split_by_numeric(lambda f: int(bool(func(f))), count=2)
 
-    def split(self, by: Union[int, list, tuple, Callable], count: Count = None) -> Iterable:
+    def split(self, by: Union[int, list, tuple, Callable], count: Optional[int] = None) -> Iterable:  # +
         if isinstance(by, int):
             return self.split_by_pos(by)
-        elif isinstance(by, (list, tuple)):
+        elif isinstance(by, ARRAY_TYPES):
             return self.split_by_list_pos(by)
-        elif callable(by):
+        elif isinstance(by, Callable):
             if count:
                 return self.split_by_numeric(by, count)
             else:
@@ -302,7 +312,7 @@ class IterableStreamMixin(IterableStreamInterface, ABC):
             raise TypeError('split(by): by-argument must be int, list, tuple or function, {} received'.format(type(by)))
 
     @staticmethod
-    def _get_split_items(items: Iterable, step: int):
+    def _get_next_items(items: Iterable, step: int):
         output_items = list()
         for n, i in enumerate(items):
             output_items.append(i)
@@ -310,23 +320,19 @@ class IterableStreamMixin(IterableStreamInterface, ABC):
                 break
         return output_items
 
-    def split_to_iter_by_step(self, step: int) -> Iterable:
+    def split_to_iter_by_step(self, step: int) -> Generator:
         iterable = self.get_iter()
-        items = self._get_split_items(iterable, step=step)
+        items = self._get_next_items(iterable, step=step)
         while items:
             yield self.stream(items, count=len(items))
-            items = self._get_split_items(iterable, step=step)
+            items = self._get_next_items(iterable, step=step)
 
     def _get_filtered_items(self, function: Callable) -> Iterable:
         return filter(function, self.get_items())
 
-    def filter(self, function) -> Native:
-        stream = self.stream(
-            self._get_filtered_items(function),
-            count=None,
-            less_than=self.get_estimated_count(),
-        )
-        return self._assume_native(stream)
+    def filter(self, function: Callable) -> Native:
+        items = self._get_filtered_items(function)
+        return self.make_new(items)
 
     def _get_mapped_items(self, function: Callable, flat: bool = False) -> Iterable:
         if flat:
@@ -337,15 +343,13 @@ class IterableStreamMixin(IterableStreamInterface, ABC):
 
     def map(self, function: Callable) -> Native:
         items = self._get_mapped_items(function, flat=False)
-        stream = self.stream(items)
-        return self._assume_native(stream)
+        return self.make_new(items)
 
     def flat_map(self, function: Callable) -> Native:
         items = self._get_mapped_items(function, flat=True)
-        stream = self.stream(items)
-        return self._assume_native(stream)
+        return self.make_new(items)
 
-    def map_side_join(self, right: Native, key: UniKey, how: How = JoinType.Left, right_is_uniq: bool = True) -> Native:
+    def map_side_join(self, right: Native, key, how: How = JoinType.Left, right_is_uniq: bool = True) -> Native:
         key = arg.get_names(key)
         keys = arg.update([key])
         if not isinstance(how, JoinType):
@@ -359,47 +363,31 @@ class IterableStreamMixin(IterableStreamInterface, ABC):
             how=how,
             uniq_right=right_is_uniq,
         )
-        stream = self.stream(
-            list(joined_items) if self.is_in_memory() else joined_items,
-        ).set_meta(
-            **self.get_static_meta()
-        )
-        return self._assume_native(stream)
+        if self.is_in_memory():
+            joined_items = list(joined_items)
+        return self.make_new(joined_items)
 
-    def progress(
-            self,
-            expected_count: AutoCount = AUTO,
-            step: AutoCount = AUTO,
-            message: str = 'Progress',
-    ) -> Native:
-        count = arg.acquire(expected_count, self.get_count()) or self.get_estimated_count()
-        logger = self.get_logger()
-        if isinstance(logger, ExtLogger):
-            items_with_logger = logger.progress(self.get_items(), name=message, count=count, step=step)
-        else:
-            if logger:
-                logger.log(msg=message, level=LoggingLevel.Info)
-            items_with_logger = self.get_items()
-        stream = self.stream(items_with_logger)
-        return self._assume_native(stream)
-
-    def get_dict(self, key: UniKey, value: UniKey) -> dict:
-        key_getter = self._get_field_getter(key)
-        value_getter = self._get_field_getter(value)
-        return {key_getter(i): value_getter(i) for i in self.get_items()}
+    def get_dict(self, key: Callable, value: Callable) -> dict:
+        assert isinstance(key, Callable)
+        assert isinstance(value, Callable)
+        return {key(i): value(i) for i in self.get_items()}
 
     def get_demo_example(self, count: int = 3) -> Iterable:
-        if isinstance(self, IterableStreamInterface) or hasattr(self, 'tee_stream'):
-            yield from self.tee_stream().take(count).get_items()
+        yield from self.copy().take(count).get_items()
 
     def show(self, *args, **kwargs):
-        self.log(str(self), end='\n', verbose=True, truncate=False, force=True)
+        if hasattr(self, 'log'):
+            self.log(str(self), end='\n', verbose=True, truncate=False, force=True)
+        else:
+            print(self)
         demo_example = self.get_demo_example(*args, **kwargs)
         if isinstance(demo_example, Iterable):
             demo_example = [str(i) for i in demo_example]
-            for example_item in demo_example:
-                msg = 'example: {}'.format(example_item)
-                self.log(msg=msg, level=LoggingLevel.Info, verbose=False)
+            if hasattr(self, 'log'):
+                for example_item in demo_example:
+                    msg = 'example: {}'.format(example_item)
+                    logging_level_info = 20
+                    self.log(msg=msg, level=logging_level_info, verbose=False)
             return '\n'.join(demo_example)
         else:
             return demo_example
@@ -413,7 +401,8 @@ class IterableStreamMixin(IterableStreamInterface, ABC):
                 value = meta.get(name)
             else:
                 try:
-                    value = self.__getattribute__(name)(*args, **kwargs)
+                    getter = self.__getattribute__(name)
+                    value = getter(*args, **kwargs)
                 except AttributeError:
                     value = None
         else:
@@ -449,19 +438,3 @@ class IterableStreamMixin(IterableStreamInterface, ABC):
         value = self._get_property(stream_function, *args, **kwargs)
         self.log(value, end='\n', verbose=True)
         return self
-
-    @staticmethod
-    def _assume_native(stream) -> Native:
-        return stream
-
-    def get_selection_logger(self) -> SelectionLogger:
-        if isinstance(self, IterableStreamInterface) or hasattr(self, 'get_context'):
-            context = self.get_context()
-        else:
-            context = None
-        if context:
-            return context.get_selection_logger()
-        else:
-            logger = self.get_logger()
-            if isinstance(logger, ExtLogger) or hasattr(logger, 'get_selection_logger'):
-                return logger.get_selection_logger()
