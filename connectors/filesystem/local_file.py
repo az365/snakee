@@ -17,7 +17,6 @@ try:  # Assume we're a submodule in a package.
     from connectors.abstract.leaf_connector import LeafConnector
     from connectors.mixin.connector_format_mixin import ConnectorFormatMixin
     from connectors.mixin.actualize_mixin import ActualizeMixin
-    from streams.mixin.iterable_mixin import IterableStreamMixin
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...interfaces import (
@@ -33,7 +32,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..abstract.leaf_connector import LeafConnector
     from ..mixin.connector_format_mixin import ConnectorFormatMixin
     from ..mixin.actualize_mixin import ActualizeMixin
-    from ...streams.mixin.iterable_mixin import IterableStreamMixin
 
 Stream = IterableStreamInterface
 Struct = Optional[StructInterface]

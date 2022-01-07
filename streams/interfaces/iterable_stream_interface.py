@@ -3,11 +3,11 @@ from typing import Optional, Union
 
 try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
-    from streams.interfaces.iterable_interface import IterableInterface
+    from base.interfaces.iterable_interface import IterableInterface
     from streams.interfaces.abstract_stream_interface import StreamInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
-    from ..interfaces.iterable_interface import IterableInterface
+    from ...base.interfaces.iterable_interface import IterableInterface
     from ..interfaces.abstract_stream_interface import StreamInterface
 
 Native = StreamInterface

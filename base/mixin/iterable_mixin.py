@@ -7,12 +7,12 @@ try:  # Assume we're a submodule in a package.
     from utils import algo, arguments as arg
     from utils.algo import JoinType
     from functions.secondary import item_functions as fs
-    from streams.interfaces.iterable_interface import IterableInterface, OptionalFields
+    from base.interfaces.iterable_interface import IterableInterface, OptionalFields
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import algo, arguments as arg
     from ...utils.algo import JoinType
     from ...functions.secondary import item_functions as fs
-    from ...streams.interfaces.iterable_interface import IterableInterface, OptionalFields
+    from ..interfaces.iterable_interface import IterableInterface, OptionalFields
 
 Native = IterableInterface
 How = Union[JoinType, str]
@@ -20,7 +20,7 @@ How = Union[JoinType, str]
 ARRAY_TYPES = list, tuple
 
 
-class IterableStreamMixin(IterableInterface, ABC):
+class IterableMixin(IterableInterface, ABC):
     def is_sequence(self) -> bool:
         return isinstance(self.get_items(), Sequence)
 
@@ -418,7 +418,10 @@ class IterableStreamMixin(IterableInterface, ABC):
         value = self._get_property(stream_function)
         if key is not None:
             value = {key: value}
-        self.log(value, verbose=show)
+        if hasattr(self, 'log'):
+            self.log(value, verbose=show)
+        elif show:
+            print(value)
 
         if callable(external_object):
             external_object(value)
@@ -436,5 +439,8 @@ class IterableStreamMixin(IterableInterface, ABC):
 
     def print(self, stream_function: Union[Callable, str] = 'get_count', *args, **kwargs) -> Native:
         value = self._get_property(stream_function, *args, **kwargs)
-        self.log(value, end='\n', verbose=True)
+        if hasattr(self, 'log'):
+            self.log(value, end='\n', verbose=True)
+        else:
+            print(value)
         return self

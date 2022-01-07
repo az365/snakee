@@ -20,7 +20,6 @@ try:  # Assume we're a sub-module in a package.
     from streams.abstract.wrapper_stream import WrapperStream
     from streams.mixin.columnar_mixin import ColumnarMixin
     from streams.mixin.convert_mixin import ConvertMixin
-    from streams.mixin.iterable_mixin import IterableStreamMixin
     from streams.regular.any_stream import AnyStream
     from streams.regular.line_stream import LineStream
     from streams.regular.row_stream import RowStream
@@ -47,7 +46,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .abstract.wrapper_stream import WrapperStream
     from .mixin.columnar_mixin import ColumnarMixin
     from .mixin.convert_mixin import ConvertMixin
-    from .mixin.iterable_mixin import IterableStreamMixin
     from .regular.any_stream import AnyStream
     from .regular.line_stream import LineStream
     from .regular.row_stream import RowStream

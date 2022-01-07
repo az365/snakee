@@ -11,9 +11,8 @@ try:  # Assume we're a submodule in a package.
         Stream, Source, ExtLogger, SelectionLogger, Context, Connector, LeafConnector,
         AUTO, Auto, AutoName, AutoCount, Count, OptionalFields, Message, Array, UniKey,
     )
+    from base.mixin.iterable_mixin import IterableMixin
     from functions.secondary import item_functions as fs
-    from streams.interfaces.iterable_stream_interface import IterableStreamInterface
-    from streams.mixin.iterable_mixin import IterableStreamMixin
     from streams.abstract.abstract_stream import AbstractStream
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import algo, arguments as arg
@@ -25,9 +24,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         Stream, Source, ExtLogger, SelectionLogger, Context, Connector, LeafConnector,
         AUTO, AutoName, AutoCount, Count, OptionalFields, Message, Array, UniKey,
     )
+    from ...base.mixin.iterable_mixin import IterableMixin
     from ...functions.secondary import item_functions as fs
-    from ..interfaces.iterable_stream_interface import IterableStreamInterface
-    from ..mixin.iterable_mixin import IterableStreamMixin
     from .abstract_stream import AbstractStream
 
 Native = IterableStreamInterface
@@ -36,7 +34,7 @@ DYNAMIC_META_FIELDS = ('count', 'less_than')
 MAX_ITEMS_IN_MEMORY = 5000000
 
 
-class IterableStream(AbstractStream, IterableStreamMixin, IterableStreamInterface):
+class IterableStream(AbstractStream, IterableMixin, IterableStreamInterface):
     def __init__(
             self,
             data: Iterable,

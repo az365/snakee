@@ -1,9 +1,11 @@
 from typing import Optional, Callable, Union, Any
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
     from base.interfaces.base_interface import BaseInterface  # ROOT
     from base.interfaces.sourced_interface import SourcedInterface  # inherits Base[Interface]
+    from base.interfaces.data_interface import SimpleDataInterface  # inherits Base[Interface]
+    from base.interfaces.iterable_interface import IterableInterface  # inherits SimpleDataInterface
     from streams.interfaces.abstract_stream_interface import StreamInterface  # inherits Sourced
     from streams.interfaces.iterable_stream_interface import IterableStreamInterface  # inherits Stream
     from streams.interfaces.local_stream_interface import LocalStreamInterface  # inherits IterableStream
@@ -13,7 +15,6 @@ try:  # Assume we're a sub-module in a package.
     from streams.interfaces.stream_builder_interface import StreamBuilderInterface  # inherits Stream
     from base.interfaces.context_interface import ContextInterface  # inherits Base; uses Stream, Logger, ExtendedLog..
     from base.interfaces.contextual_interface import ContextualInterface  # inherits Sourced; uses Base, Context
-    from base.interfaces.data_interface import SimpleDataInterface  # inherits BaseInterface
     from base.interfaces.data_interface import ContextualDataInterface  # inherits SimpleData, Contextual
     from base.interfaces.tree_interface import TreeInterface  # inherits ContextualData
     from fields.field_interface import FieldInterface  # inherits SimpleData
@@ -30,7 +31,7 @@ try:  # Assume we're a sub-module in a package.
     from items.struct_interface import StructInterface, StructMixinInterface  # ROOT
     from items.struct_row_interface import StructRowInterface  # inherits SimpleData; uses StructInterface
     from items.simple_items import (
-        ARRAY_TYPES, ROW_SUBCLASSES, RECORD_SUBCLASSES,
+        ARRAY_TYPES, ROW_SUBCLASSES, RECORD_SUBCLASSES, LINE_SUBCLASSES,
         SimpleRowInterface, SimpleRow, Row, Record, Line, SimpleItem, SimpleSelectableItem,
         FieldNo, FieldName, FieldID, Value, Class, Array,
     )
@@ -38,6 +39,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .utils import arguments as arg
     from .base.interfaces.base_interface import BaseInterface  # ROOT
     from .base.interfaces.sourced_interface import SourcedInterface  # inherits Base[Interface]
+    from .base.interfaces.data_interface import SimpleDataInterface  # inherits Base[Interface]
+    from .base.interfaces.iterable_interface import IterableInterface  # inherits SimpleDataInterface
     from .streams.interfaces.abstract_stream_interface import StreamInterface  # inherits Sourced
     from .streams.interfaces.iterable_stream_interface import IterableStreamInterface  # inherits Stream
     from .streams.interfaces.local_stream_interface import LocalStreamInterface  # inherits IterableStream
@@ -47,7 +50,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .streams.interfaces.stream_builder_interface import StreamBuilderInterface  # inherits Stream
     from .base.interfaces.context_interface import ContextInterface  # inherits Base; uses Stream, Logger, ExtendedLog..
     from .base.interfaces.contextual_interface import ContextualInterface  # inherits Sourced; uses Base, Context
-    from .base.interfaces.data_interface import SimpleDataInterface  # inherits BaseInterface
     from .base.interfaces.data_interface import ContextualDataInterface  # inherits SimpleData, Contextual
     from .base.interfaces.tree_interface import TreeInterface  # inherits ContextualData
     from .fields.field_interface import FieldInterface  # inherits SimpleData
@@ -64,7 +66,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .items.struct_interface import StructInterface, StructMixinInterface  # ROOT
     from .items.struct_row_interface import StructRowInterface  # inherits SimpleData; uses StructInterface
     from .items.simple_items import (
-        ARRAY_TYPES, ROW_SUBCLASSES, RECORD_SUBCLASSES,
+        ARRAY_TYPES, ROW_SUBCLASSES, RECORD_SUBCLASSES, LINE_SUBCLASSES,
         SimpleRowInterface, SimpleRow, Row, Record, Line, SimpleItem, SimpleSelectableItem,
         FieldNo, FieldName, FieldID, Value, Class, Array,
     )

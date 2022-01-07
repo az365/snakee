@@ -8,7 +8,7 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...utils.algo import JoinType
-    from ...base.interfaces.data_interface import SimpleDataInterface
+    from .data_interface import SimpleDataInterface
 
 Native = SimpleDataInterface
 OptionalFields = Optional[Union[str, Iterable]]
