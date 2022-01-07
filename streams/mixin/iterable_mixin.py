@@ -29,16 +29,6 @@ AutoStreamType = Union[Auto, StreamType]
 
 
 class IterableStreamMixin(IterableStreamInterface, ABC):
-    def get_expected_count(self) -> Count:
-        return self.get_count()
-
-    def get_estimated_count(self) -> Count:
-        count = self.get_count()
-        if not count:
-            if hasattr(self, 'get_less_than'):
-                count = self.get_less_than()
-        return count
-
     def get_str_count(self) -> str:
         if self.get_count():
             return '{}'.format(self.get_count())

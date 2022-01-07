@@ -1,7 +1,7 @@
 from abc import ABC
 from typing import Optional, Iterable, Union
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
     from interfaces import (
         IterableStreamInterface, StructInterface, Context, LeafConnectorInterface, StructMixinInterface,
@@ -9,7 +9,6 @@ try:  # Assume we're a sub-module in a package.
         ItemType, StreamType,
         Auto, AUTO, AutoBool, AutoCount, AutoName, Array, OptionalFields,
     )
-    from streams.mixin.iterable_mixin import IterableStreamMixin
     from streams.mixin.columnar_mixin import ColumnarMixin
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
@@ -19,7 +18,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         ItemType, StreamType,
         Auto, AUTO, AutoBool, AutoCount, AutoName, Array, OptionalFields,
     )
-    from ...streams.mixin.iterable_mixin import IterableStreamMixin
     from ...streams.mixin.columnar_mixin import ColumnarMixin
 
 Stream = Union[IterableStreamInterface, RegularStream]
@@ -67,11 +65,21 @@ class StreamableMixin(ColumnarMixin, ABC):
     def _get_generated_stream_name(self) -> str:
         return arg.get_generated_name('{}:stream'.format(self.get_name()), include_random=True, include_datetime=False)
 
-    def _get_fast_count(self):
+    def _get_fast_count(self) -> Optional[int]:
         if hasattr(self, 'is_gzip'):
             return self.get_count(allow_slow_gzip=False)
         else:
             return self.get_count()
+
+    def get_estimated_count(self) -> Optional[int]:
+        count = None
+        if hasattr(self, 'get_expected_count'):
+            count = self.get_expected_count()
+        if hasattr(self, 'get_less_than') and not count:
+            count = self.get_less_than()
+        if not count:
+            count = self._get_fast_count()
+        return count
 
     def _get_items_of_type(
             self,
