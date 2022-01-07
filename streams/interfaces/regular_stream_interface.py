@@ -1,24 +1,24 @@
 from abc import ABC, abstractmethod
 from typing import Optional, Iterable, Callable, Union
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
     from utils.external import DataFrame
     from items.item_type import ItemType
     from streams.stream_type import StreamType
-    from streams.interfaces.abstract_stream_interface import StreamInterface
+    from streams.interfaces.iterable_stream_interface import IterableStreamInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...utils.external import DataFrame
     from ...items.item_type import ItemType
     from ..stream_type import StreamType
-    from .abstract_stream_interface import StreamInterface
+    from ..interfaces.iterable_stream_interface import IterableStreamInterface
 
-Stream = StreamInterface
+Stream = IterableStreamInterface
 OptionalFields = Optional[Union[Iterable, str]]
 
 
-class RegularStreamInterface(StreamInterface, ABC):
+class RegularStreamInterface(IterableStreamInterface, ABC):
     @staticmethod
     def get_item_type() -> ItemType:
         """Returns ItemType object, representing expected type of iterable data
@@ -32,10 +32,6 @@ class RegularStreamInterface(StreamInterface, ABC):
         pass
 
     @abstractmethod
-    def map(self, func: Callable) -> Stream:
-        pass
-
-    @abstractmethod
     def map_to(self, function: Callable, stream_type: StreamType) -> Stream:
         pass
 
@@ -44,28 +40,28 @@ class RegularStreamInterface(StreamInterface, ABC):
         pass
 
     @abstractmethod
-    def filter(self, *functions) -> Stream:
-        pass
-
-    @abstractmethod
     def select(self, *columns, **expressions) -> Stream:
         pass
 
     @abstractmethod
-    def apply_to_data(
-            self, function: Callable, *args,
-            save_count: bool = False, lazy: bool = True,
-            stream_type: StreamType = arg.AUTO,
-            **kwargs
+    def sorted_group_by(
+            self,
+            *keys,
+            values: Optional[Iterable] = None,
+            as_pairs: bool = False,
     ) -> Stream:
         pass
 
     @abstractmethod
-    def sorted_group_by(self, *keys, values: Optional[Iterable] = None, as_pairs: bool = False) -> Stream:
-        pass
-
-    @abstractmethod
-    def group_by(self, *keys, values: Optional[Iterable] = None, as_pairs: bool = False) -> Stream:
+    def group_by(
+            self,
+            *keys,
+            values: Optional[Iterable] = None,
+            as_pairs: bool = False,
+            take_hash: bool = True,
+            step: Union[int, arg.Auto] = arg.AUTO,
+            verbose: bool = True,
+    ) -> Stream:
         pass
 
     @abstractmethod
