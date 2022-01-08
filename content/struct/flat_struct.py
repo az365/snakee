@@ -10,7 +10,7 @@ try:  # Assume we're a submodule in a package.
     from utils.external import pd, get_use_objects_for_output, DataFrame
     from base.abstract.simple_data import SimpleDataWrapper
     from content.fields.advanced_field import AdvancedField
-    from selection.abstract_expression import AbstractDescription
+    from content.selection.abstract_expression import AbstractDescription
     from functions.secondary import array_functions as fs
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
@@ -22,7 +22,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils.external import pd, get_use_objects_for_output, DataFrame
     from ...base.abstract.simple_data import SimpleDataWrapper
     from ...content.fields.advanced_field import AdvancedField
-    from ...selection.abstract_expression import AbstractDescription
+    from ..selection.abstract_expression import AbstractDescription
     from ...functions.secondary import array_functions as fs
 
 Native = StructInterface

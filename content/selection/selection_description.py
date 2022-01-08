@@ -1,6 +1,6 @@
 from typing import Optional, Callable, Iterable, Union
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from utils import arguments as arg, selection as sf
     from interfaces import (
         StructInterface, StructRowInterface, LoggerInterface,
@@ -9,16 +9,16 @@ try:  # Assume we're a sub-module in a package.
     )
     from content.fields.simple_field import SimpleField
     from functions.primary import items as it
-    from selection import selection_classes as sn
+    from content.selection import selection_classes as sn
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..utils import arguments as arg, selection as sf
-    from ..interfaces import (
+    from ...utils import arguments as arg, selection as sf
+    from ...interfaces import (
         StructInterface, StructRowInterface, LoggerInterface,
         ItemType, Item, Row, Record, Field, Name, Array, ARRAY_TYPES,
         AUTO, Auto
     )
     from ..fields.simple_field import SimpleField
-    from ..functions.primary import items as it
+    from ...functions.primary import items as it
     from . import selection_classes as sn
 
 Logger = Optional[LoggerInterface]

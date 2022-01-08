@@ -9,12 +9,12 @@ try:  # Assume we're a sub-module in a package.
     )
     from functions.primary import items as it
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..utils import arguments as arg
-    from ..interfaces import (
+    from ...utils import arguments as arg
+    from ...interfaces import (
         StructRowInterface, StructInterface, LoggerInterface,
         ItemType, Item, Row, Record, UniKey, Field, Name, Value, Array,
     )
-    from ..functions.primary import items as it
+    from ...functions.primary import items as it
 
 
 class AbstractDescription(ABC):

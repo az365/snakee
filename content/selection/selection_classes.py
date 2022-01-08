@@ -3,18 +3,18 @@ from typing import Iterable, Callable, Union
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg, selection as sf
     from content.items.item_type import ItemType
-    from selection.abstract_expression import (
+    from content.selection.abstract_expression import (
         AbstractDescription, SingleFieldDescription, MultipleFieldDescription, TrivialMultipleDescription,
     )
-    from selection.concrete_expression import (
+    from content.selection.concrete_expression import (
         TrivialDescription, AliasDescription, RegularDescription, FunctionDescription,
         StarDescription, DropDescription,
     )
-    from selection.abstract_expression import AbstractDescription, SingleFieldDescription, MultipleFieldDescription
-    from selection.selection_description import SelectionDescription, translate_names_to_columns
+    from content.selection.abstract_expression import AbstractDescription, SingleFieldDescription, MultipleFieldDescription
+    from content.selection.selection_description import SelectionDescription, translate_names_to_columns
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..utils import arguments as arg, selection as sf
-    from ..content.items.item_type import ItemType
+    from ...utils import arguments as arg, selection as sf
+    from ...content.items.item_type import ItemType
     from .abstract_expression import (
         AbstractDescription, SingleFieldDescription, MultipleFieldDescription, TrivialMultipleDescription,
     )

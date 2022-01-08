@@ -7,8 +7,8 @@ try:  # Assume we're a submodule in a package.
     from content.struct.flat_struct import FlatStruct
     from content.fields.abstract_field import AbstractField
     from content.fields.advanced_field import AdvancedField
-    from selection.abstract_expression import AbstractDescription
-    from selection import concrete_expression as ce
+    from content.selection.abstract_expression import AbstractDescription
+    from content.selection import concrete_expression as ce
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...interfaces import StructInterface, FieldInterface, SelectionLoggerInterface, Auto, AUTO
