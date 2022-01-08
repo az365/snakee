@@ -6,13 +6,13 @@ try:  # Assume we're a submodule in a package.
         ItemType, FieldType, Field, FieldInterface, StructInterface, ExtLogger, SelectionLogger,
         AutoBool, Auto, AUTO, ARRAY_TYPES,
     )
-    from fields.abstract_field import AbstractField
+    from content.fields.abstract_field import AbstractField
     from content.struct import flat_struct as fc
     from selection import abstract_expression as ae
     from selection import concrete_expression as ce
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..utils import arguments as arg
-    from ..interfaces import (
+    from ...utils import arguments as arg
+    from ...interfaces import (
         ItemType, FieldType, Field, FieldInterface, StructInterface, ExtLogger, SelectionLogger,
         AutoBool, Auto, AUTO, ARRAY_TYPES,
     )

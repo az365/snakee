@@ -22,8 +22,8 @@ class LegacyStruct(StructInterface):
 
     def _import_workaround(self):
         # Temporary workaround for cyclic import dependencies
-        try:  # Assume we're a sub-module in a package.
-            from fields.legacy_field import LegacyField
+        try:  # Assume we're a submodule in a package.
+            from content.fields.legacy_field import LegacyField
         except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
             from ..fields.legacy_field import LegacyField
         self.FieldClass = LegacyField

@@ -6,9 +6,9 @@ try:  # Assume we're a sub-module in a package.
     from interfaces import FieldInterface, FieldType, DialectType
     from base.abstract.simple_data import SimpleDataWrapper
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..utils import arguments as arg
-    from ..interfaces import FieldInterface, FieldType, DialectType
-    from ..base.abstract.simple_data import SimpleDataWrapper
+    from ...utils import arguments as arg
+    from ...interfaces import FieldInterface, FieldType, DialectType
+    from ...base.abstract.simple_data import SimpleDataWrapper
 
 
 class AbstractField(SimpleDataWrapper, FieldInterface, ABC):

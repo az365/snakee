@@ -3,13 +3,13 @@ from typing import Iterable, Union
 try:  # Assume we're a sub-module in a package.
     from utils.arguments import any_to_bool, safe_converter
     from interfaces import StructInterface, StructRowInterface, StructRow, FieldType
-    from fields.legacy_field import LegacyField
+    from content.fields.legacy_field import LegacyField
     from content.struct.legacy_struct import LegacyStruct
     from content.struct.struct_row import StructRow
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils.arguments import any_to_bool, safe_converter
     from ...interfaces import StructInterface, StructRowInterface, StructRow, FieldType
-    from ...fields.legacy_field import LegacyField
+    from ..fields.legacy_field import LegacyField
     from .legacy_struct import LegacyStruct
     from .struct_row import StructRow
 

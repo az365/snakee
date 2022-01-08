@@ -7,7 +7,7 @@ try:  # Assume we're a sub-module in a package.
         ItemType, Item, Row, Record, Field, Name, Array, ARRAY_TYPES,
         AUTO, Auto
     )
-    from fields.simple_field import SimpleField
+    from content.fields.simple_field import SimpleField
     from functions.primary import items as it
     from selection import selection_classes as sn
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.

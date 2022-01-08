@@ -1,19 +1,19 @@
 from typing import Optional, Union, Any
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
     from interfaces import StructInterface, FieldInterface, SelectionLoggerInterface, Auto, AUTO
-    from fields.field_type import FieldType
+    from content.fields.field_type import FieldType
     from content.struct.flat_struct import FlatStruct
-    from fields.abstract_field import AbstractField
-    from fields.advanced_field import AdvancedField
+    from content.fields.abstract_field import AbstractField
+    from content.fields.advanced_field import AdvancedField
     from selection.abstract_expression import AbstractDescription
     from selection import concrete_expression as ce
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..utils import arguments as arg
-    from ..interfaces import StructInterface, FieldInterface, SelectionLoggerInterface, Auto, AUTO
+    from ...utils import arguments as arg
+    from ...interfaces import StructInterface, FieldInterface, SelectionLoggerInterface, Auto, AUTO
     from .field_type import FieldType
-    from ..content.struct.flat_struct import FlatStruct
+    from ..struct.flat_struct import FlatStruct
     from .abstract_field import AbstractField
     from .advanced_field import AdvancedField
     from ..selection.abstract_expression import AbstractDescription

@@ -5,12 +5,12 @@ try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from interfaces import ContextInterface, ConnType
     from streams.abstract.wrapper_stream import WrapperStream
-    from fields.abstract_field import AbstractField
+    from content.fields.abstract_field import AbstractField
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...interfaces import ContextInterface, ConnType
     from ..abstract.wrapper_stream import WrapperStream
-    from ...fields.abstract_field import AbstractField
+    from ...content.fields.abstract_field import AbstractField
 
 Native = WrapperStream
 Context = Union[ContextInterface, arg.Auto, None]

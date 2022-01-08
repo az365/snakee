@@ -17,7 +17,7 @@ try:  # Assume we're a submodule in a package.
     from base.interfaces.contextual_interface import ContextualInterface  # inherits Sourced; uses Base, Context
     from base.interfaces.data_interface import ContextualDataInterface  # inherits SimpleData, Contextual
     from base.interfaces.tree_interface import TreeInterface  # inherits ContextualData
-    from fields.field_interface import FieldInterface  # inherits SimpleData
+    from content.fields.field_interface import FieldInterface  # inherits SimpleData
     from loggers.extended_logger_interface import LoggerInterface  # ROOT
     from loggers.extended_logger_interface import ExtendedLoggerInterface  # inherits Sourced, Logger; uses Base
     from loggers.selection_logger_interface import SelectionLoggerInterface  # inherits Extended, uses DetailedMessage
@@ -52,7 +52,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .base.interfaces.contextual_interface import ContextualInterface  # inherits Sourced; uses Base, Context
     from .base.interfaces.data_interface import ContextualDataInterface  # inherits SimpleData, Contextual
     from .base.interfaces.tree_interface import TreeInterface  # inherits ContextualData
-    from .fields.field_interface import FieldInterface  # inherits SimpleData
+    from .content.fields.field_interface import FieldInterface  # inherits SimpleData
     from .loggers.extended_logger_interface import LoggerInterface  # ROOT
     from .loggers.extended_logger_interface import ExtendedLoggerInterface  # inherits Sourced, Logger; uses Base
     from .loggers.selection_logger_interface import SelectionLoggerInterface  # inherits Extended, uses DetailedMessage
@@ -81,7 +81,7 @@ try:  # Assume we're a submodule in a package.
     from connectors.filesystem.file_type import FileType  # inherits ClassType(DynamicEnum)
     from connectors.conn_type import ConnType  # inherits ClassType(DynamicEnum)
     from streams.stream_type import StreamType  # inherits ClassType(DynamicEnum)
-    from fields.field_type import FieldType  # inherits DynamicEnum
+    from content.fields.field_type import FieldType  # inherits DynamicEnum
     from content.items.item_type import ItemType  # inherits SubclassesType(ClassType)
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from .utils.algo import JoinType  # standard Enum
@@ -93,7 +93,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .connectors.filesystem.file_type import FileType  # inherits ClassType(DynamicEnum)
     from .connectors.conn_type import ConnType  # inherits ClassType(DynamicEnum)
     from .streams.stream_type import StreamType  # inherits ClassType(DynamicEnum)
-    from .fields.field_type import FieldType  # inherits DynamicEnum
+    from .content.fields.field_type import FieldType  # inherits DynamicEnum
     from .content.items.item_type import ItemType  # inherits SubclassesType(ClassType)
 
 AUTO = arg.AUTO

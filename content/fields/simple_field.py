@@ -2,10 +2,10 @@ from typing import Union
 
 try:  # Assume we're a submodule in a package.
     from interfaces import StructInterface, FieldType
-    from fields.abstract_field import AbstractField
-    from fields import field_classes as fc
+    from content.fields.abstract_field import AbstractField
+    from content.fields import field_classes as fc
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..interfaces import StructInterface, FieldType
+    from ...interfaces import StructInterface, FieldType
     from .abstract_field import AbstractField
     from . import field_classes as fc
 

@@ -11,7 +11,7 @@ try:  # Assume we're a submodule in a package.
     )
     from utils import algo, arguments as arg
     from utils.external import pd, DataFrame, get_use_objects_for_output
-    from fields import field_classes as fc
+    from content.fields import field_classes as fc
     from base.abstract.contextual_data import ContextualDataWrapper
     from base.mixin.iterable_mixin import IterableMixin
     from functions.secondary import item_functions as fs
@@ -26,7 +26,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     )
     from ...utils import algo, arguments as arg
     from ...utils.external import pd, DataFrame, get_use_objects_for_output
-    from ...fields import field_classes as fc
+    from ...content.fields import field_classes as fc
     from ...base.abstract.contextual_data import ContextualDataWrapper
     from ...base.mixin.iterable_mixin import IterableMixin
     from ...functions.secondary import item_functions as fs

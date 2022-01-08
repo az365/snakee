@@ -1,9 +1,9 @@
 try:
-    from fields import field_classes as fc
+    from content.fields import field_classes as fc
     from selection import concrete_expression as ce
 except ImportError:
     from . import field_classes as fc
-    from ..selection import concrete_expression as ce
+    from ...selection import concrete_expression as ce
 
 
 def test_add_fields():

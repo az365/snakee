@@ -1,10 +1,10 @@
 from typing import Optional, Callable, Union, Any
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
     from utils.decorators import deprecated_with_alternative
     from base.enum import SubclassesType
-    from fields.field_interface import FieldInterface
+    from content.fields.field_interface import FieldInterface
     from content.struct.struct_interface import StructInterface
     from content.struct.struct_row_interface import StructRowInterface
     from content.items.simple_items import (
@@ -17,7 +17,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils import arguments as arg
     from ...utils.decorators import deprecated_with_alternative
     from ...base.enum import SubclassesType
-    from ...fields.field_interface import FieldInterface
+    from ..fields.field_interface import FieldInterface
     from ..struct.struct_interface import StructInterface
     from ..struct.struct_row_interface import StructRowInterface
     from .simple_items import (

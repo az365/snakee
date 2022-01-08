@@ -1,14 +1,14 @@
 from abc import ABC, abstractmethod
 from typing import Callable
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
-    from fields.field_type import FieldType
+    from content.fields.field_type import FieldType
     from base.interfaces.data_interface import SimpleDataInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..utils import arguments as arg
+    from ...utils import arguments as arg
     from .field_type import FieldType
-    from ..base.interfaces.data_interface import SimpleDataInterface
+    from ...base.interfaces.data_interface import SimpleDataInterface
 
 
 class FieldInterface(SimpleDataInterface, ABC):
