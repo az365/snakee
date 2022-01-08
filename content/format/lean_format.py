@@ -1,11 +1,11 @@
 from typing import Union
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
     from interfaces import Item, ItemType, StreamType, FileType, ContentType, StructInterface, Auto, AUTO
-    from connectors.content_format.abstract_format import ParsedFormat, Compress
-    from connectors.content_format.text_format import TextFormat, JsonFormat
-    from connectors.content_format.columnar_format import ColumnarFormat, FlatStructFormat
+    from content.format.abstract_format import ParsedFormat, Compress
+    from content.format.text_format import TextFormat, JsonFormat
+    from content.format.columnar_format import ColumnarFormat, FlatStructFormat
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...interfaces import Item, ItemType, StreamType, FileType, ContentType, StructInterface, Auto, AUTO

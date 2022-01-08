@@ -71,12 +71,12 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         FieldNo, FieldName, FieldID, Value, Class, Array,
     )
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from utils.algo import JoinType  # standard Enum
     from loggers.extended_logger_interface import LoggingLevel  # standard Enum
     from loggers.progress_interface import OperationStatus  # standard Enum
     from connectors.databases.dialect_type import DialectType  # inherits DynamicEnum
-    from connectors.content_format.content_type import ContentType  # inherits ClassType(DynamicEnum)
+    from content.format.content_type import ContentType  # inherits ClassType(DynamicEnum)
     from connectors.filesystem.folder_type import FolderType  # inherits ClassType(DynamicEnum)
     from connectors.filesystem.file_type import FileType  # inherits ClassType(DynamicEnum)
     from connectors.conn_type import ConnType  # inherits ClassType(DynamicEnum)
@@ -88,7 +88,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .loggers.extended_logger_interface import LoggingLevel  # standard Enum
     from .loggers.progress_interface import OperationStatus  # standard Enum
     from .connectors.databases.dialect_type import DialectType  # inherits DynamicEnum
-    from .connectors.content_format.content_type import ContentType  # inherits ClassType(DynamicEnum)
+    from .content.format.content_type import ContentType  # inherits ClassType(DynamicEnum)
     from .connectors.filesystem.folder_type import FolderType  # inherits ClassType(DynamicEnum)
     from .connectors.filesystem.file_type import FileType  # inherits ClassType(DynamicEnum)
     from .connectors.conn_type import ConnType  # inherits ClassType(DynamicEnum)

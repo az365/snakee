@@ -1,14 +1,14 @@
 import json
 from typing import Union
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
     from interfaces import (
         Item, Record, Row, StructRow,
         ItemType, StreamType, ContentType,
         ARRAY_TYPES, AUTO, Auto,
     )
-    from connectors.content_format.abstract_format import AbstractFormat, ParsedFormat, Compress
+    from content.format.abstract_format import AbstractFormat, ParsedFormat, Compress
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...interfaces import (

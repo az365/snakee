@@ -1,11 +1,11 @@
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
     from utils.decorators import deprecated_with_alternative
-    from connectors.content_format.abstract_format import AbstractFormat, BinaryFormat, CompressibleFormat, ParsedFormat
-    from connectors.content_format.text_format import TextFormat, JsonFormat, DEFAULT_ENDING, DEFAULT_ENCODING
-    from connectors.content_format.columnar_format import ColumnarFormat, FlatStructFormat
-    from connectors.content_format.lean_format import LeanFormat
-    from connectors.content_format.content_type import ContentType
+    from content.format.abstract_format import AbstractFormat, BinaryFormat, CompressibleFormat, ParsedFormat
+    from content.format.text_format import TextFormat, JsonFormat, DEFAULT_ENDING, DEFAULT_ENCODING
+    from content.format.columnar_format import ColumnarFormat, FlatStructFormat
+    from content.format.lean_format import LeanFormat
+    from content.format.content_type import ContentType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...utils.decorators import deprecated_with_alternative

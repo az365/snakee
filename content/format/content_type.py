@@ -1,6 +1,6 @@
 from typing import Optional
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from base.enum import ClassType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.enum import ClassType

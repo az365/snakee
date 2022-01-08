@@ -10,7 +10,7 @@ try:  # Assume we're a submodule in a package.
         ContentType, ConnType, ItemType, StreamType,
         AUTO, Auto, AutoCount, AutoBool, AutoName, OptionalFields, UniKey, Array, ARRAY_TYPES,
     )
-    from connectors.content_format.content_classes import (
+    from content.format.content_classes import (
         AbstractFormat, ParsedFormat, LeanFormat,
         TextFormat, ColumnarFormat, FlatStructFormat,
     )
@@ -25,7 +25,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         ContentType, ConnType, ItemType, StreamType,
         AUTO, Auto, AutoCount, AutoBool, AutoName, OptionalFields, UniKey, Array, ARRAY_TYPES,
     )
-    from ..content_format.content_classes import (
+    from ...content.format.content_classes import (
         AbstractFormat, ParsedFormat, LeanFormat,
         TextFormat, ColumnarFormat, FlatStructFormat,
     )
