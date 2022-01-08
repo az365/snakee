@@ -4,11 +4,13 @@ from typing import Optional, Iterable, Union, Any
 try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
     from base.abstract.simple_data import SimpleDataWrapper
+    from base.mixin.iterable_mixin import IterableMixin, IterableInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
     from ..base.abstract.simple_data import SimpleDataWrapper
+    from ..base.mixin.iterable_mixin import IterableMixin, IterableInterface
 
-Native = SimpleDataWrapper
+Native = Union[SimpleDataWrapper, IterableMixin, IterableInterface]
 Item = Any
 
 ARRAY_TYPES = list, tuple
@@ -16,7 +18,7 @@ META_MEMBER_MAPPING = dict(_data='values')
 DEFAULT_NAME = '-'
 
 
-class AbstractSeries(SimpleDataWrapper, ABC):
+class AbstractSeries(IterableMixin, SimpleDataWrapper, ABC):
     def __init__(
             self,
             values: Iterable,
@@ -57,11 +59,8 @@ class AbstractSeries(SimpleDataWrapper, ABC):
             )
         return new
 
-    def copy(self):
-        return self.__class__(
-            validate=False,
-            **self.get_props()
-        )
+    def copy(self, validate: bool = False, **kwargs) -> Native:
+        return super().copy(validate=validate, **kwargs)
 
     def get_props(self, ex=None, check: bool = True) -> dict:
         return super().get_props(ex=ex, check=check)
@@ -73,15 +72,8 @@ class AbstractSeries(SimpleDataWrapper, ABC):
     def get_items(self) -> list:
         pass
 
-    def set_values(self, values: Iterable, inplace: bool):
-        if not isinstance(values, ARRAY_TYPES):
-            values = list(values)
-        if inplace:
-            self.set_data(values, inplace=True)
-        else:
-            new = self.copy()
-            new.set_data(values, inplace=True)
-            return new
+    def set_values(self, values: Iterable, inplace: bool, validate: bool = False) -> Native:
+        return self.set_data(list(values), reset_dynamic_meta=True, validate=validate, inplace=inplace) or self
 
     def __iter__(self):
         yield from self.get_items()
