@@ -12,6 +12,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 Native = Union[sc.SortedKeyValueSeries, sc.SortedNumericSeries]
 Series = sc.AnySeries
 OptNum = Optional[nm.NumericTypes]
+Name = Optional[str]
 
 DYNAMIC_META_FIELDS = 'cached_spline',
 
@@ -21,13 +22,15 @@ class SortedNumericKeyValueSeries(sc.SortedKeyValueSeries, sc.SortedNumericSerie
             self,
             keys: Optional[Iterable] = None,
             values: Optional[Iterable] = None,
+            set_closure: bool = False,
             validate: bool = False,
             sort_items: bool = True,
-            name: Optional[str] = None,
+            name: Name = None,
     ):
         super().__init__(
             keys=keys,
             values=values,
+            set_closure=set_closure,
             validate=validate,
             sort_items=sort_items,
             name=name,
@@ -62,11 +65,11 @@ class SortedNumericKeyValueSeries(sc.SortedKeyValueSeries, sc.SortedNumericSerie
         else:
             return super().set_meta(**dict_meta, inplace=inplace)
 
-    def key_series(self) -> Series:
-        return sc.SortedNumericSeries(self.get_keys())
+    def key_series(self, set_closure: bool = False, name: Name = None) -> Series:
+        return sc.SortedNumericSeries(self.get_keys(), set_closure=set_closure, validate=False, name=name)
 
-    def value_series(self) -> Series:
-        return sc.NumericSeries(self.get_values())
+    def value_series(self, set_closure: bool = False, name: Name = None) -> Series:
+        return sc.NumericSeries(self.get_values(), set_closure=set_closure, validate=False, name=name)
 
     def get_numeric_keys(self) -> Iterable:
         return self.get_keys()
@@ -74,17 +77,26 @@ class SortedNumericKeyValueSeries(sc.SortedKeyValueSeries, sc.SortedNumericSerie
     def assume_numeric(self, validate: bool = False) -> Native:
         return self.validate() if validate else self
 
-    def assume_not_numeric(self, validate: bool = False) -> Native:
+    def assume_not_numeric(self, validate: bool = False, set_closure: bool = False) -> Native:
         return sc.SortedKeyValueSeries(
+            **self._get_data_member_dict(),
             validate=validate,
-            **self._get_data_member_dict()
+            set_closure=set_closure,
         )
 
-    def to_dates(self, as_iso_date: bool = False, scale: dt.DateScale = dt.DateScale.Day) -> Series:
+    def to_dates(
+            self,
+            as_iso_date: bool = False,
+            scale: dt.DateScale = dt.DateScale.Day,
+            set_closure: bool = False,
+            inplace: bool = False,
+    ) -> Series:
         result = self.map_keys(
             function=lambda d: dt.get_date_from_int(d, scale=scale, as_iso_date=as_iso_date),
             sorting_changed=False,
-        ).assume_dates()
+            inplace=inplace,
+        ) or self
+        result = result.assume_dates(set_closure=set_closure, validate=False)
         return self._assume_native(result)
 
     def get_range_len(self) -> int:
@@ -92,14 +104,17 @@ class SortedNumericKeyValueSeries(sc.SortedKeyValueSeries, sc.SortedNumericSerie
             *self.key_series().get_borders()
         )
 
-    def distance(self, v: Union[Native, nm.NumericTypes], take_abs: bool = True) -> Union[Native, nm.NumericTypes]:
-        return self.key_series().distance(v, take_abs)
+    def distance(
+            self,
+            v: Union[Native, nm.NumericTypes],
+            take_abs: bool = True,
+            inplace: bool = False,
+    ) -> Union[Native, nm.NumericTypes]:
+        return self.key_series(set_closure=True).distance(v, take_abs, inplace=inplace) or self
 
     def get_nearest_key(self, key: nm.NumericTypes) -> nm.NumericTypes:
-        return self.key_series().get_nearest_value(
-            key,
-            distance_func=self.get_distance_func(),
-        )
+        distance_func = self.get_distance_func()
+        return self.key_series(set_closure=True).get_nearest_value(key, distance_func=distance_func)
 
     def get_nearest_item(self, key: nm.NumericTypes) -> tuple:
         nearest_key = self.get_nearest_key(key)
@@ -120,16 +135,19 @@ class SortedNumericKeyValueSeries(sc.SortedKeyValueSeries, sc.SortedNumericSerie
             [(d, self.get_value_by_key(d)) for d in nearest_keys],
         )
 
-    def derivative(self, extend: bool = False, default: nm.NumericTypes = 0) -> Native:
-        dx = self.key_series().derivative(extend=extend)
-        dy = self.value_series().derivative(extend=extend)
-        derivative = dy.divide(dx, default=default)
-        result = self.new(
-            keys=self.get_numeric_keys(),
-            values=derivative.get_values(),
-            sort_items=False, validate=False, save_meta=True,
-        )
-        return self._assume_native(result)
+    def derivative(self, extend: bool = False, default: nm.NumericTypes = 0, inplace: bool = False) -> Native:
+        dx = self.key_series(set_closure=True).derivative(extend=extend, default=default)  # not inplace, key used later
+        dy = self.value_series(set_closure=True).derivative(extend=extend, default=default, inplace=inplace)
+        derivative = dy.divide(dx, default=default, inplace=inplace) or dy
+        keys = self.get_numeric_keys()
+        values = derivative.get_values()
+        if inplace:
+            derivative.set_keys(keys, inplace=True, set_closure=True, sort_items=False)
+            derivative.set_values(values, inplace=True, set_closure=True)
+            return derivative
+        else:
+            result = self.new(keys=keys, values=values, sort_items=False, validate=False, save_meta=True)
+            return self._assume_native(result)
 
     def get_spline_function(self, from_cache: bool = True, to_cache: bool = True) -> Callable:
         if from_cache and self.cached_spline:

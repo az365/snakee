@@ -9,6 +9,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 
 Native = sc.DateSeries
 Series = sc.AnySeries
+Name = Optional[str]
 Date = dt.Date
 Numeric = nm.NumericTypes
 Window = Union[list, tuple]
@@ -23,18 +24,20 @@ class DateNumericSeries(sc.SortedNumericKeyValueSeries, sc.DateSeries):
             self,
             keys: Optional[list] = None,
             values: Optional[list] = None,
+            set_closure: bool = False,
             validate: bool = False,
             sort_items: bool = True,
-            name: Optional[str] = None,
+            name: Name = None,
     ):
+        self.cached_yoy = None
         super().__init__(
-            keys=keys or [],
-            values=values or [],
+            keys=keys,
+            values=values,
+            set_closure=set_closure,
             sort_items=sort_items,
             validate=validate,
             name=name,
         )
-        self.cached_yoy = None
 
     @staticmethod
     def _get_dynamic_meta_fields() -> tuple:
@@ -63,37 +66,46 @@ class DateNumericSeries(sc.SortedNumericKeyValueSeries, sc.DateSeries):
         else:
             return self.get_keys()
 
-    def set_dates(self, dates: Iterable) -> Series:
-        result = self.new(
-            keys=dates,
-            values=self.get_values(),
-            save_meta=True,
-            sort_items=False,
-            validate=False,
-        )
+    def set_dates(self, dates: Iterable, inplace: bool = False, set_closure: bool = False) -> Series:
+        if inplace:
+            result = self.set_keys(dates, inplace=True, set_closure=set_closure) or self
+        else:
+            result = self.new(
+                keys=dates,
+                values=self.get_values(),
+                set_closure=set_closure,
+                save_meta=True,
+                sort_items=False,
+                validate=False,
+            )
         return self._assume_native(result)
 
-    def filter_dates(self, function: Callable) -> Series:
-        return self.filter_keys(function)
+    def filter_dates(self, function: Callable, inplace: bool = False) -> Series:
+        return self.filter_keys(function, inplace=inplace) or self
 
-    def get_numeric_keys(self) -> list:
-        return self.to_days().get_keys()
+    def get_numeric_keys(self, inplace: bool = False) -> list:
+        sorted_numeric_series = self.to_days(inplace=inplace) or self
+        return sorted_numeric_series.get_keys()
 
-    def numeric_key_series(self) -> Series:
-        return self.to_days().key_series()
+    def numeric_key_series(self, inplace: bool = False) -> Series:
+        sorted_numeric_series = self.to_days(inplace=inplace) or self
+        return sorted_numeric_series.key_series(set_closure=True)
 
-    def key_series(self) -> Series:
-        return self.date_series()
-
-    def value_series(self) -> Series:
-        series = super().value_series().assume_numeric()
+    def key_series(self, set_closure: bool = False, name: Name = None) -> Series:
+        series = self.date_series(set_closure=set_closure)
         return self._assume_native(series)
 
-    def round_to_weeks(self) -> Series:
-        return self.map_dates(dt.get_monday_date).mean_by_keys()
+    def value_series(self, set_closure: bool = False, name: Name = None) -> Series:
+        series = super().value_series(set_closure=set_closure, name=name).assume_numeric(validate=False)
+        return self._assume_native(series)
 
-    def round_to_months(self) -> Series:
-        return self.map_dates(dt.get_month_first_date).mean_by_keys()
+    def round_to_weeks(self, inplace: bool = False) -> Native:
+        series = self.map_dates(dt.get_monday_date, inplace=inplace) or self
+        return series.mean_by_keys()
+
+    def round_to_months(self, inplace: bool = False) -> Native:
+        series = self.map_dates(dt.get_month_first_date, inplace=inplace) or self
+        return series.mean_by_keys()
 
     def get_segment(self, date: Date) -> Series:
         nearest_dates = [i for i in self.get_two_nearest_dates(date) if i]
@@ -141,7 +153,8 @@ class DateNumericSeries(sc.SortedNumericKeyValueSeries, sc.DateSeries):
             if yearly_dates:
                 yearly_primary = self.interpolate(yearly_dates, how=internal)
                 yearly_benchmark = weight_benchmark.interpolate(yearly_dates, how=internal)
-                weight = yearly_benchmark.divide(yearly_primary).get_mean()
+                norm_benchmark = yearly_benchmark.divide(yearly_primary)
+                weight = norm_benchmark.get_mean()
                 pre_interpolated_value = self.get_interpolated_value(d, how=internal)
                 weighted_value = pre_interpolated_value * weight
                 result.append_pair(d, weighted_value, inplace=True)
@@ -207,15 +220,16 @@ class DateNumericSeries(sc.SortedNumericKeyValueSeries, sc.DateSeries):
         return result
 
     def smooth_linear_by_days(self, window_days_list: Window = WINDOW_WEEKLY_DEFAULT) -> Native:
-        return self.apply_interpolated_window_series_function(
+        result = self.apply_interpolated_window_series_function(
             window_days_list=window_days_list,
             function=lambda s: s.get_mean(),
             input_as_list=False,
             for_full_window_only=False,
         )
+        return self._assume_native(result)
 
     def math(self, series: Series, function: Callable, interpolation_kwargs: dict = {'how': 'linear'}) -> Series:
-        assert isinstance(series, (DateNumericSeries, sc.DateNumericSeries))
+        assert isinstance(series, (DateNumericSeries, sc.DateNumericSeries)), 'got {}'.format(series)
         result = self.new(save_meta=True)
         for d, v in self.get_items():
             if v is not None:
@@ -283,13 +297,9 @@ class DateNumericSeries(sc.SortedNumericKeyValueSeries, sc.DateSeries):
         extrapolation_method = self.__getattribute__(method_name)
         return extrapolation_method(*args, **kwargs)
 
-    def derivative(self, extend: bool = False, default: Numeric = 0) -> Series:
-        series = self.new(
-            keys=self.get_keys(),
-            values=self.value_series().derivative(extend=extend, default=default).get_values(),
-            sort_items=False, validate=False, save_meta=True,
-        )
-        return self._assume_native(series)
+    def derivative(self, extend: bool = False, default: Numeric = 0, inplace: bool = False) -> Series:
+        derivative = self.value_series(set_closure=True).derivative(extend=extend, default=default)
+        return self.set_values(derivative.get_values(), inplace=inplace, set_closure=True, validate=False)
 
     @staticmethod
     def get_names() -> tuple:

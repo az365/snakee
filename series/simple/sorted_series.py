@@ -16,17 +16,14 @@ class SortedSeries(sc.AnySeries):
     def __init__(
             self,
             values: Optional[Iterable] = None,
+            set_closure: bool = False,
             validate: bool = True,
             sort_items: bool = False,
             name: Optional[str] = None,
     ):
         if sort_items:
             values = sorted(values)
-        super().__init__(
-            values=values,
-            validate=validate,
-            name=name,
-        )
+        super().__init__(values=values, set_closure=set_closure, validate=validate, name=name)
 
     def get_errors(self) -> Generator:
         yield from super().get_errors()

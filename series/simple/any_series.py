@@ -1,4 +1,4 @@
-from typing import Optional, Callable, Iterable, Generator, Any
+from typing import Optional, Callable, Iterable, Generator, Sized, Union, Any
 
 try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
@@ -22,14 +22,11 @@ class AnySeries(AbstractSeries):
     def __init__(
             self,
             values: Iterable,
+            set_closure: bool = False,
             validate: bool = False,
             name: Optional[str] = None,
     ):
-        super().__init__(
-            values=values,
-            validate=validate,
-            name=name,
-        )
+        super().__init__(values=values, set_closure=set_closure, validate=validate, name=name)
 
     @classmethod
     def _get_meta_member_names(cls) -> list:
@@ -46,8 +43,10 @@ class AnySeries(AbstractSeries):
     def get_items(self) -> list:
         return self.get_values()
 
-    def set_items(self, items: Iterable, inplace: bool) -> Optional[Native]:
-        return self.set_values(items, inplace=inplace)
+    def set_items(self, items: Iterable, inplace: bool, validate: bool = False, count: Optional[int] = None) -> Native:
+        if arg.is_defined(count) and isinstance(items, Sized):
+            assert count == len(items), '{} != len({})'.format(count, items)
+        return self.set_values(items, inplace=inplace, validate=validate) or self
 
     def has_items(self) -> bool:
         return bool(self.get_values())
@@ -58,17 +57,23 @@ class AnySeries(AbstractSeries):
     def get_range_numbers(self) -> Iterable:
         return range(self.get_count())
 
-    def set_count(self, count: int, default: Any = None):
+    def set_count(self, count: int, default: Any = None, inplace: bool = False) -> Native:
         if count > self.get_count():
             additional_values = [default] * (self.get_count() - count)
-            return self.add(additional_values)
+            return self.add(additional_values, inplace=inplace)
         else:
-            return self.slice(0, count)
+            return self.slice(0, count, inplace=inplace)
 
-    def drop_item_no(self, no: int) -> Native:
-        return self.slice(0, no).add(
-            self.slice(no + 1, self.get_count()),
-        )
+    def drop_item_no(self, no: int, inplace: bool = False) -> Native:
+        if inplace:
+            if no < self.get_count():
+                self.get_values().pop(no)
+            return self
+        else:
+            series = self.slice(0, no).add(
+                self.slice(no + 1, self.get_count()),
+            )
+            return self._assume_native(series)
 
     def get_item_no(self, no: int, extend: bool = False, default: Any = None) -> Any:
         if extend:
@@ -90,7 +95,7 @@ class AnySeries(AbstractSeries):
         items = self.get_items_from_to(n_start, n_end)
         return self.set_items(items, inplace=inplace)
 
-    def crop(self, left_count: int, right_count: int) -> Native:
+    def crop(self, left_count: int, right_count: int, inplace: bool = False) -> Native:
         return self.slice(
             n_start=left_count,
             n_end=self.get_count() - right_count,
@@ -100,49 +105,50 @@ class AnySeries(AbstractSeries):
         items = self.get_items_no(numbers, extend=extend, default=default)
         return self.set_items(items, inplace=inplace)
 
-    def extend(self, series: Native, default: Any = None) -> Native:
+    def extend(self, series: Native, default: Any = None, inplace: bool = False) -> Native:
         count = series.get_count()
         if self.get_count() < count:
-            return self.set_count(count, default)
+            return self.set_count(count, default, inplace=inplace)
         else:
             return self
 
-    def intersect(self, series):
+    def intersect(self, series: Native, inplace: bool = False) -> Native:
         count = series.get_count()
         if self.get_count() > count:
-            return self.set_count(count)
+            return self.set_count(count, inplace=inplace)
         else:
             return self
 
-    def shift(self, distance):
-        return self.shift_value_positions(distance)
+    def shift(self, distance: int, inplace: bool = False) -> Native:
+        return self.shift_value_positions(distance, inplace=inplace)
 
-    def shift_values(self, diff):
-        assert isinstance(diff, (int, float))
-        return self.map_values(lambda v: v + diff)
+    def shift_values(self, diff: nm.NumericTypes, inplace: bool = False):
+        assert isinstance(diff, nm.NUMERIC_TYPES)
+        return self.map_values(lambda v: v + diff, inplace=inplace) or self
 
-    def shift_value_positions(self, distance, default=None):
+    def shift_value_positions(self, distance: int, default: Optional[Any] = None, inplace: bool = False) -> Native:
         if distance > 0:
-            return self.__class__(
-                values=[default] * distance + self.get_values()
-            )
+            values = [default] * distance + self.get_values()
+            result = self.set_values(values, inplace=inplace)
         else:
-            return self.slice(n_start=-distance, n_end=self.get_count())
+            result = self.slice(n_start=-distance, n_end=self.get_count(), inplace=inplace) or self
+        return self._assume_native(result)
 
-    def append(self, value, inplace):
+    def append(self, value: Any, inplace: bool) -> Native:
         if inplace:
             self.get_values().append(value)
+            return self
         else:
             new = self.copy()
             new.append(value, inplace=True)
-            return new
+            return self._assume_native(new)
 
-    def preface(self, value, inplace=False):
+    def preface(self, value: Any, inplace: bool = False) -> Native:
         return self.insert(
             pos=0,
             value=value,
             inplace=inplace,
-        )
+        ) or self
 
     def insert(self, pos: int, value: Any, inplace: bool = False) -> Native:
         if inplace:
@@ -152,12 +158,19 @@ class AnySeries(AbstractSeries):
             new.insert(pos, value, inplace=True)
             return new
 
-    def add(self, series, to_the_begin: bool = False, inplace: bool = False):
-        if to_the_begin:
-            values = series.get_values() + self.get_values()
+    def add(
+            self,
+            obj_or_items: Union[Native, Iterable],
+            before: bool = False,
+            inplace: bool = False,
+            **kwargs
+    ) -> Native:
+        if hasattr(obj_or_items, 'get_values'):
+            added_values = obj_or_items.get_values()
         else:
-            values = self.get_values() + series.get_values()
-        return self.set_values(values=values, inplace=inplace)
+            added_values = obj_or_items
+        result = super().add(added_values, before=before, inplace=inplace, **kwargs)
+        return self._assume_native(result) or self
 
     def filter(self, function: Callable, inplace: bool = False) -> Native:
         filtered_items = filter(function, self.get_items())
@@ -182,45 +195,48 @@ class AnySeries(AbstractSeries):
     def _get_mapped_items(function: Callable, *values) -> Iterable:
         return map(function, *values)
 
-    def map(self, function: Callable, inplace: bool = False) -> Native:
+    def map(self, function: Callable, inplace: bool = False, validate: bool = False) -> Native:
         items = self._get_mapped_items(function, self.get_items())
-        return self.set_items(items, inplace=inplace)
+        return self.set_items(items, inplace=inplace, validate=validate)
 
     def map_values(self, function: Callable, inplace: bool = False) -> Native:
         mapped_values = self._get_mapped_items(function, self.get_values())
-        return self.set_values(mapped_values, inplace=inplace)
+        result = self.set_values(mapped_values, inplace=inplace)
+        return self._assume_native(result)
 
     def map_zip_values(self, function: Callable, *series, inplace: bool = False) -> Native:
         series_values = [s.get_values() for s in series]
         mapped_values = self._get_mapped_items(function, self.get_values(), *series_values)
         return self.set_values(mapped_values, inplace=inplace) or self
 
-    def map_extend_zip_values(self, function: Callable, *series) -> Native:
+    def map_extend_zip_values(self, function: Callable, inplace: bool = False, *series) -> Native:
         count = max([s.get_count() for s in [self] + list(series)])
         extended_series = [s.set_count(count, inplace=inplace) for s in series]
         return self.set_count(
-            count,
+            count, inplace=inplace,
         ).map_zip_values(
-            function, *extended_series,
-        )
+            function, *extended_series, inplace=inplace,
+        ) or self
 
     def map_optionally_extend_zip_values(
             self,
             function: Callable,
             extend: bool,
             *series,
+            inplace: bool = False,
     ) -> Native:
         if extend:
-            return self.map_extend_zip_values(function, *series)
+            return self.map_extend_zip_values(function, *series, inplace=inplace)
         else:
-            return self.map_zip_values(function, *series)
+            return self.map_zip_values(function, *series, inplace=inplace)
 
-    def apply(self, function: Callable) -> Native:
-        return self.apply_to_values(function)
+    def apply(self, function: Callable, inplace: bool = False) -> Native:
+        return self.apply_to_values(function, inplace=inplace)
 
     def apply_to_values(self, function: Callable, inplace: bool = False) -> Native:
         values = function(self.get_values())
-        return self.set_values(values, inplace=inplace)
+        series = self.set_values(values, inplace=inplace)
+        return self._assume_native(series)
 
     def assume_numeric(self, validate: bool = False) -> Series:
         return sc.NumericSeries(
@@ -228,13 +244,15 @@ class AnySeries(AbstractSeries):
             validate=validate,
         )
 
-    def to_numeric(self) -> Native:
-        return self.map_values(float).assume_numeric()
+    def to_numeric(self, inplace: bool = False) -> Native:
+        series = self.map_values(float, inplace=inplace) or self
+        return series.assume_numeric()
 
-    def assume_dates(self, validate: bool = False) -> Native:
+    def assume_dates(self, validate: bool = False, set_closure: bool = False) -> Native:
         return sc.DateSeries(
             self.get_values(),
             validate=validate,
+            set_closure=set_closure,
         )
 
     def to_dates(self, as_iso_date: bool = False) -> Native:
@@ -256,14 +274,20 @@ class AnySeries(AbstractSeries):
             validate=False,
         )
 
-    def sort(self) -> Native:
-        return sc.SortedSeries(
-            self.get_values(),
-            sort_items=True,
-            validate=False,
-        )
+    def sort(self, inplace: bool = False) -> Native:
+        values = self.get_values()
+        if inplace:
+            values = sorted(values)
+            result = self.set_values(values, inplace=False, validate=False)
+            return self._assume_native(result) or self
+        else:
+            return sc.SortedSeries(
+                values,
+                sort_items=True,
+                validate=False,
+            )
 
-    def is_sorted(self, check=True) -> Native:
+    def is_sorted(self, check=True) -> bool:
         if check:
             prev = None
             for v in self.get_values():
@@ -287,3 +311,7 @@ class AnySeries(AbstractSeries):
 
     def get_dataframe(self) -> nm.DataFrame:
         return nm.get_dataframe(self.get_values(), columns=self.get_names())
+
+    @staticmethod
+    def _assume_native(series) -> Native:
+        return series

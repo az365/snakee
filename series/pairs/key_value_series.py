@@ -1,4 +1,4 @@
-from typing import Optional, Callable, Iterable, Generator, Any
+from typing import Optional, Callable, Iterable, Generator, Union, Any
 
 try:  # Assume we're a submodule in a package.
     from series import series_classes as sc
@@ -9,7 +9,13 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 
 Native = sc.AnySeries
 
-DATA_MEMBER_NAMES = 'keys', '_data'
+if nm.np:  # numpy installed
+    Mutable = Union[list, nm.np.ndarray]
+    MUTABLE = list, nm.np.ndarray
+else:
+    Mutable = list
+    MUTABLE = list
+DATA_MEMBER_NAMES = '_keys', '_data'
 META_MEMBER_MAPPING = dict(_data='values')
 
 
@@ -18,18 +24,12 @@ class KeyValueSeries(sc.AnySeries):
             self,
             keys: Optional[Iterable] = None,
             values: Optional[Iterable] = None,
+            set_closure: bool = False,
             validate: bool = True,
             name: Optional[str] = None,
     ):
-        if keys:
-            self.keys = list(keys)
-        else:
-            self.keys = list()
-        super().__init__(
-            values=values,
-            validate=validate,
-            name=name,
-        )
+        self._keys = self._get_optional_copy(keys, role='keys', set_closure=set_closure)
+        super().__init__(values=values, set_closure=set_closure, validate=validate, name=name)
 
     def get_errors(self) -> Generator:
         yield from super().get_errors()
@@ -64,32 +64,35 @@ class KeyValueSeries(sc.AnySeries):
             series.append_pair(k, my_dict[k], inplace=True)
         return series.assume_sorted()
 
-    def key_series(self) -> Native:
-        return sc.AnySeries(self.get_keys())
+    def key_series(self, set_closure: bool = False) -> Native:
+        return sc.AnySeries(self.get_keys(), set_closure=set_closure)
 
-    def value_series(self) -> Native:
-        return sc.AnySeries(self.get_values())
+    def value_series(self, set_closure: bool = False, name: Optional[str] = None) -> Native:
+        return sc.AnySeries(self.get_values(), set_closure=set_closure, validate=False, name=name)
 
-    def get_value_by_key(self, key: Any, default=None):
+    def get_value_by_key(self, key: Any, default: Any = None):
         return self.get_dict().get(key, default)
 
     def get_keys(self) -> list:
-        return self.keys
+        return self._keys
 
-    def set_keys(self, keys: Iterable, inplace: bool) -> Optional[Native]:
+    def set_keys(self, keys: Iterable, inplace: bool, set_closure: bool = False) -> Optional[Native]:
         if inplace:
-            self.keys = list(keys)
+            keys = self._get_optional_copy(keys, role='keys', set_closure=set_closure)
+            self._keys = keys
         else:
             result = self.new(keys=keys, values=self.get_values())
             return self._assume_native(result)
 
-    def set_values(self, values: Iterable, inplace: bool, validate: bool = False) -> Native:
+    def set_values(self, values: Iterable, inplace: bool, set_closure: bool = False, validate: bool = False) -> Native:
         if inplace:
-            data = dict(keys=self.get_keys(), data=list(values))
+            return super().set_values(values, set_closure=set_closure, inplace=True) or self
         else:
-            data = dict(data=self.get_keys(), values=list(values))
-        result = self.set_data(**data, reset_dynamic_meta=True, validate=validate, inplace=inplace)
-        return result or self
+            return self.set_data(
+                self.get_keys(), values=values,
+                reset_dynamic_meta=True, validate=validate,
+                set_closure=set_closure, inplace=False,
+            )
 
     def get_items(self) -> Iterable:
         return zip(self.get_keys(), self.get_values())
@@ -148,11 +151,11 @@ class KeyValueSeries(sc.AnySeries):
             new.get_values().append(value)
             return self._assume_native(new)
 
-    def add(self, key_value_series: Native, to_the_begin: bool = False, inplace: bool = False) -> Optional[Native]:
+    def add(self, key_value_series: Native, before: bool = False, inplace: bool = False, **kwargs) -> Optional[Native]:
         appropriate_classes = KeyValueSeries, sc.KeyValueSeries, sc.DateNumericSeries
         is_appropriate = isinstance(key_value_series, appropriate_classes)
         assert is_appropriate, 'expected {}, got {}'.format(appropriate_classes, key_value_series)
-        if to_the_begin:
+        if before:
             keys = key_value_series.get_keys() + self.get_keys()
             values = key_value_series.get_values() + self.get_values()
         else:
@@ -166,6 +169,7 @@ class KeyValueSeries(sc.AnySeries):
                 keys=keys,
                 values=values,
                 save_meta=True,
+                **kwargs,
             )
             return self._assume_native(result)
 

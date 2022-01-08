@@ -23,16 +23,11 @@ class NumericSeries(sc.AnySeries):
     def __init__(
             self,
             values: Optional[Iterable] = None,
+            set_closure: bool = False,
             validate: bool = False,
             name: Optional = None,
     ):
-        if values is None:
-            values = list()
-        super().__init__(
-            values=values,
-            validate=validate,
-            name=name,
-        )
+        super().__init__(values=values, set_closure=set_closure, validate=validate, name=name)
 
     @staticmethod
     def get_distance_func() -> Callable:
@@ -66,36 +61,47 @@ class NumericSeries(sc.AnySeries):
         else:
             return default
 
-    def norm(self, rate: OptNumeric = None, default: OptNumeric = None) -> Native:
+    def norm(self, rate: OptNumeric = None, default: OptNumeric = None, inplace: bool = False) -> Native:
         if rate is None:
             rate = self.get_mean()
-        return self.map_values(lambda v: v / rate if rate else default)
+        return self.map_values(lambda v: v / rate if rate else default, inplace=inplace) or self
 
-    def divide(self, series: Native, default: OptNumeric = None, extend: bool = False) -> Native:
-        return self.map_optionally_extend_zip_values(
-            lambda x, y: x / y if y else default,
+    def divide(self, series: Native, default: OptNumeric = None, extend: bool = False, inplace: bool = False) -> Native:
+        result = self.map_optionally_extend_zip_values(
+            lambda x, y: (x / y) if y else default,
             extend,
             series,
+            inplace=inplace,
         )
+        return self._assume_native(result)
 
-    def subtract(self, series: Native, default: Any = None, extend: bool = False) -> Native:
+    def subtract(self, series: Native, default: Any = None, extend: bool = False, inplace: bool = False) -> Native:
         result = self.map_optionally_extend_zip_values(
             lambda x, y: x - y if x is not None and y is not None else default,
             extend,
             series,
+            inplace=inplace,
         )
         return self._assume_native(result)
 
-    def derivative(self, extend: bool = False, default: NumericValue = 0) -> Native:
+    def derivative(self, extend: bool = False, default: NumericValue = 0, inplace: bool = False) -> Native:
         if extend:
-            return self.preface(None).subtract(
+            return self.preface(
+                None, inplace=inplace,
+            ).subtract(
                 self,
                 extend=True,
                 default=default,
-            ).crop(0, 1)
+                inplace=inplace,
+            ).crop(
+                0, 1, inplace=inplace,
+            ) or self
         else:
-            return self.slice(0, -1).subtract(
-                self.shift(-1)
+            return self.slice(
+                0, -1, inplace=inplace,
+            ).subtract(
+                self.shift(-1),
+                inplace=inplace,
             )
 
     def get_sliding_window(
@@ -128,28 +134,35 @@ class NumericSeries(sc.AnySeries):
             inplace: bool = False,
     ) -> Native:
         values = map(function, self.get_sliding_window(window, extend=extend, default=default, as_series=as_series))
-        return self._assume_native(self.set_values(values, inplace=inplace))
+        result = self.set_values(values, inplace=inplace)
+        return self._assume_native(result) or self
 
-    def mark_local_extremums(self, local_min: bool = True, local_max: bool = True) -> Native:
+    def mark_local_extremes(self, local_min: bool = True, local_max: bool = True, inplace: bool = False) -> Native:
         return self.apply_window_func(
             lambda a: nm.is_local_extremum(*a, local_min=local_min, local_max=local_max),
             window=WINDOW_DEFAULT,
             extend=True,
             default=False,
+            inplace=inplace,
         )
 
-    def mark_local_max(self) -> Native:
-        return self.mark_local_extremums(local_min=False, local_max=True)
+    def mark_local_max(self, inplace: bool = False) -> Native:
+        return self.mark_local_extremes(local_min=False, local_max=True, inplace=inplace)
 
     def mark_local_min(self) -> Native:
-        return self.mark_local_extremums(local_min=True, local_max=False)
+        return self.mark_local_extremes(local_min=True, local_max=False)
 
-    def deviation_from_neighbors(self, window: Window = WINDOW_NEIGHBORS, rel: bool = False) -> Native:
-        smoothed_series = self.smooth(window=window)
-        deviation = self.subtract(smoothed_series)
-        if rel:
-            deviation = deviation.divide(smoothed_series, default=0)
-        return deviation
+    def deviation_from_neighbors(
+            self,
+            window: Window = WINDOW_NEIGHBORS,
+            relative: bool = False,
+            inplace: bool = False,
+    ) -> Native:
+        smoothed_series = self.smooth(window=window, inplace=False)
+        deviation = self.subtract(smoothed_series, inplace=inplace) or self
+        if relative:
+            deviation = deviation.divide(smoothed_series, default=0, inplace=inplace)
+        return deviation or self
 
     # @deprecated
     def smooth_simple_linear(self, window_len: int = 3, exclude_center: bool = False) -> Native:
@@ -161,7 +174,7 @@ class NumericSeries(sc.AnySeries):
             if is_edge:
                 result.append(self.get_item_no(n), inplace=True)
             else:
-                sub_series = self.slice(n - center, n + center + 1)
+                sub_series = self.slice(n - center, n + center + 1, inplace=False)
                 if exclude_center:
                     sub_series = sub_series.drop_item_no(center)
                 result.append(sub_series.get_mean(), inplace=True)
@@ -178,11 +191,11 @@ class NumericSeries(sc.AnySeries):
             series = series.smooth(**kwargs)
         return series
 
-    def smooth_linear(self, window: Window = WINDOW_DEFAULT) -> Native:
+    def smooth_linear(self, window: Window = WINDOW_DEFAULT, inplace: bool = False) -> Native:
         return self.apply_window_func(
             lambda s: s.get_mean(),
             window=window, extend=True, default=None,
-            as_series=True,
+            as_series=True, inplace=inplace,
         )
 
     def smooth_spikes(
@@ -192,18 +205,22 @@ class NumericSeries(sc.AnySeries):
             local_min: bool = False,
             local_max: bool = True,
             whitelist: Optional[Native] = None,
+            inplace: bool = False,
     ) -> Native:
-        spikes = self.mark_spikes(threshold, local_min=local_min, local_max=local_max)
+        spikes = self.mark_spikes(threshold, local_min=local_min, local_max=local_max, inplace=inplace) or self
         if whitelist:
             spikes = spikes.map_zip_values(
                 lambda a, b: a and not b,
                 whitelist,
-            )
-        return self.map_zip_values(
+                inplace=inplace,
+            ) or spikes
+        series = self.map_zip_values(
             lambda v, t, s: s if t else v,
             spikes,
-            self.smooth(window=window),
-        )
+            self.smooth(window=window, inplace=False),
+            inplace=inplace,
+        ) or self
+        return self._assume_native(series)
 
     def mark_spikes(
             self,
@@ -211,16 +228,19 @@ class NumericSeries(sc.AnySeries):
             window: Window = WINDOW_NEIGHBORS,
             local_min: bool = False,
             local_max: bool = True,
+            inplace: bool = False,
     ):
-        deviation = self.deviation_from_neighbors(window=window, rel=True)
+        deviation = self.deviation_from_neighbors(window=window, relative=True, inplace=False)
         if local_min or local_max:
             deviation = deviation.map_zip_values(
                 lambda x, m: x if m else None,
-                self.mark_local_extremums(local_min=local_min, local_max=local_max),
-            )
+                self.mark_local_extremes(local_min=local_min, local_max=local_max),
+                inplace=inplace,
+            ) or deviation
         spikes = deviation.map_values(
             lambda x: abs(x or 0) > threshold,
-        )
+            inplace=inplace,
+        ) or deviation
         return spikes
 
     def plot(self, fmt: str = '-') -> None:

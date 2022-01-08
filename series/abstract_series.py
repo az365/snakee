@@ -3,16 +3,24 @@ from typing import Optional, Iterable, Union, Any
 
 try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
+    from utils.external import np
     from base.abstract.simple_data import SimpleDataWrapper
     from base.mixin.iterable_mixin import IterableMixin, IterableInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
+    from ..utils.external import np
     from ..base.abstract.simple_data import SimpleDataWrapper
     from ..base.mixin.iterable_mixin import IterableMixin, IterableInterface
 
 Native = Union[SimpleDataWrapper, IterableMixin, IterableInterface]
 Item = Any
 
+if np:  # numpy installed
+    Mutable = Union[list, np.ndarray]
+    MUTABLE = list, np.ndarray
+else:
+    Mutable = list
+    MUTABLE = list
 ARRAY_TYPES = list, tuple
 META_MEMBER_MAPPING = dict(_data='values')
 DEFAULT_NAME = '-'
@@ -22,15 +30,26 @@ class AbstractSeries(IterableMixin, SimpleDataWrapper, ABC):
     def __init__(
             self,
             values: Iterable,
+            set_closure: bool = False,
             validate: bool = False,
             name: Optional[str] = None,
     ):
-        super().__init__(
-            data=list(values),
-            name=name or DEFAULT_NAME,
-        )
+        values = self._get_optional_copy(values, role='values', set_closure=set_closure)
+        super().__init__(data=values, name=name or DEFAULT_NAME)
         if validate:
             self.validate()
+
+    @staticmethod
+    def _get_optional_copy(array: Iterable, set_closure: bool = False, role: str = 'array') -> Mutable:
+        if set_closure:  # data-attributes (keys, values) will be set by closure-link
+            if isinstance(array, AbstractSeries) or hasattr(array, 'get_values'):
+                array = array.get_values()
+            assert isinstance(array, MUTABLE), 'Can set closure for mutable {} only, got {}'.format(role, type(array))
+        elif array is None:
+            array = list()
+        else:  # data-attribute (keys, values) will be set by value copy
+            array = list(array)
+        return array
 
     @abstractmethod
     def _get_meta_member_names(self):
@@ -72,8 +91,9 @@ class AbstractSeries(IterableMixin, SimpleDataWrapper, ABC):
     def get_items(self) -> list:
         pass
 
-    def set_values(self, values: Iterable, inplace: bool, validate: bool = False) -> Native:
-        return self.set_data(list(values), reset_dynamic_meta=True, validate=validate, inplace=inplace) or self
+    def set_values(self, values: Iterable, inplace: bool, set_closure: bool = False, validate: bool = False) -> Native:
+        values = self._get_optional_copy(values, role='values', set_closure=set_closure)
+        return self.set_data(values, reset_dynamic_meta=True, validate=validate, inplace=inplace) or self
 
     def __iter__(self):
         yield from self.get_items()

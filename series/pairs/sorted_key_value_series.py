@@ -9,6 +9,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 
 Series = sc.AnySeries
 Native = Union[sc.KeyValueSeries, sc.SortedSeries]
+Name = Optional[str]
 
 
 class SortedKeyValueSeries(sc.KeyValueSeries, sc.SortedSeries):
@@ -16,16 +17,12 @@ class SortedKeyValueSeries(sc.KeyValueSeries, sc.SortedSeries):
             self,
             keys: Optional[Iterable] = None,
             values: Optional[Iterable] = None,
+            set_closure: bool = False,
             validate: bool = False,
             sort_items: bool = True,
             name: Optional[str] = None,
     ):
-        super().__init__(
-            keys=keys,
-            values=values,
-            validate=False,
-            name=name,
-        )
+        super().__init__(keys=keys, values=values, set_closure=set_closure, validate=False, name=name)
         if sort_items:
             self.sort_by_keys(inplace=True)
         if validate:
@@ -40,8 +37,8 @@ class SortedKeyValueSeries(sc.KeyValueSeries, sc.SortedSeries):
     def _get_meta_member_names(cls) -> list:
         return list(super()._get_meta_member_names()) + ['cached_spline']
 
-    def key_series(self) -> Series:
-        return sc.SortedSeries(self.get_keys())
+    def key_series(self, set_closure: bool = False, name: Name = None) -> Series:
+        return sc.SortedSeries(self.get_keys(), set_closure=set_closure, validate=False, sort_items=False, name=name)
 
     def has_key_in_range(self, key: Any):
         return self.get_first_key() <= key <= self.get_last_key()
@@ -78,20 +75,22 @@ class SortedKeyValueSeries(sc.KeyValueSeries, sc.SortedSeries):
             **self._get_data_member_dict()
         )
 
-    def assume_dates(self, validate: bool = False) -> Native:
+    def assume_dates(self, validate: bool = False, set_closure: bool = False) -> Native:
         return sc.DateNumericSeries(
+            **self._get_data_member_dict(),
             validate=validate,
-            **self._get_data_member_dict()
+            set_closure=set_closure,
         )
 
-    def assume_numeric(self, validate: bool = False) -> Native:
+    def assume_numeric(self, validate: bool = False, set_closure: bool = False) -> Native:
         return sc.SortedNumericKeyValueSeries(
+            **self._get_data_member_dict(),
             validate=validate,
-            **self._get_data_member_dict()
+            set_closure=set_closure,
         )
 
-    def to_numeric(self, sort_items: bool = True) -> Native:
-        series = self.map_keys_and_values(float, float, sorting_changed=False)
+    def to_numeric(self, sort_items: bool = True, inplace: bool = False) -> Native:
+        series = self.map_keys_and_values(float, float, sorting_changed=False, inplace=inplace) or self
         if sort_items:
             series = series.sort()
         return series.assert_numeric()
@@ -105,11 +104,12 @@ class SortedKeyValueSeries(sc.KeyValueSeries, sc.SortedSeries):
         )
         return self._assume_native(series)
 
-    def map_keys(self, function: Callable, sorting_changed: bool = True) -> Native:
-        result = self.set_keys(
-            self.key_series().map(function),
-            inplace=False,
-        )
+    def map_keys(self, function: Callable, sorting_changed: bool = True, inplace: bool = True) -> Native:
+        key_series = self.key_series(set_closure=True).map(function, inplace=inplace, validate=False)
+        if inplace:
+            result = self
+        else:
+            result = self.set_keys(key_series, inplace=False)  # set_closure=True ?
         if sorting_changed:
             result = result.assume_unsorted()
         return self._assume_native(result)
@@ -119,16 +119,18 @@ class SortedKeyValueSeries(sc.KeyValueSeries, sc.SortedSeries):
             key_function: Callable,
             value_function: Callable,
             sorting_changed: bool = False,
+            inplace: bool = False,
     ) -> Native:
-        result = self.map_keys(key_function, sorting_changed).map_values(value_function)
+        result = self.map_values(value_function, inplace=inplace) or self
+        result = result.map_keys(key_function, sorting_changed, inplace=inplace) or self
         return self._assume_native(result)
 
-    def exclude(self, first_key: Any, last_key: Any) -> Native:
-        result = self.filter_keys(lambda k: k < first_key or k > last_key)
+    def exclude(self, first_key: Any, last_key: Any, inplace: bool = False) -> Native:
+        result = self.filter_keys(lambda k: k < first_key or k > last_key, inplace=inplace) or self
         return self._assume_native(result)
 
-    def span(self, first_key: Any, last_key: Any) -> Native:
-        result = self.filter_keys(lambda k: first_key <= k <= last_key)
+    def span(self, first_key: Any, last_key: Any, inplace: bool = False) -> Native:
+        result = self.filter_keys(lambda k: first_key <= k <= last_key, inplace=inplace) or self
         return self._assume_native(result)
 
     def __repr__(self):
