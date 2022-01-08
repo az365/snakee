@@ -1,19 +1,29 @@
-try:  # Assume we're a sub-module in a package.
-    from series import series_classes as sc
+from typing import Optional, Callable, Iterable, Generator, Union
+
+try:  # Assume we're a submodule in a package.
+    from utils import arguments as arg
     from functions.primary import numeric as nm, dates as dt
+    from series import series_classes as sc
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from .. import series_classes as sc
+    from ...utils import arguments as arg
     from ...functions.primary import numeric as nm, dates as dt
+    from .. import series_classes as sc
+
+Native = Union[sc.SortedKeyValueSeries, sc.SortedNumericSeries]
+Series = sc.AnySeries
+OptNum = Optional[nm.NumericTypes]
+
+DYNAMIC_META_FIELDS = 'cached_spline',
 
 
 class SortedNumericKeyValueSeries(sc.SortedKeyValueSeries, sc.SortedNumericSeries):
     def __init__(
             self,
-            keys=[],
-            values=[],
-            validate=False,
-            sort_items=True,
-            name=None,
+            keys: Optional[Iterable] = None,
+            values: Optional[Iterable] = None,
+            validate: bool = False,
+            sort_items: bool = True,
+            name: Optional[str] = None,
     ):
         super().__init__(
             keys=keys,
@@ -24,7 +34,7 @@ class SortedNumericKeyValueSeries(sc.SortedKeyValueSeries, sc.SortedNumericSerie
         )
         self.cached_spline = None
 
-    def get_errors(self):
+    def get_errors(self) -> Generator:
         yield from super().get_errors()
         if not self.key_series().assume_numeric().has_valid_items():
             yield 'Keys of {} must be int of float'.format(self.get_class_name())
@@ -32,65 +42,70 @@ class SortedNumericKeyValueSeries(sc.SortedKeyValueSeries, sc.SortedNumericSerie
             yield 'Values of {} must be int of float'.format(self.get_class_name())
 
     @staticmethod
-    def get_distance_func():
+    def get_distance_func() -> Callable:
         return sc.NumericSeries.get_distance_func()
 
     @classmethod
-    def _get_meta_member_names(cls):
+    def _get_meta_member_names(cls) -> list:
         return list(super()._get_meta_member_names()) + ['cached_spline']
 
-    def set_meta(self, inplace=False, **dict_meta):
+    @staticmethod
+    def _get_dynamic_meta_fields() -> tuple:
+        return DYNAMIC_META_FIELDS
+
+    def set_meta(self, inplace: bool = False, **dict_meta) -> Native:
         if inplace:
             for k, v in dict_meta.items():
-                if hasattr(v, 'copy') and k != 'cached_spline':
+                if hasattr(v, 'copy') and k not in DYNAMIC_META_FIELDS:
                     v = v.copy()
                 self.__dict__[k] = v
         else:
             return super().set_meta(**dict_meta, inplace=inplace)
 
-    def key_series(self):
+    def key_series(self) -> Series:
         return sc.SortedNumericSeries(self.get_keys())
 
-    def value_series(self):
+    def value_series(self) -> Series:
         return sc.NumericSeries(self.get_values())
 
-    def get_numeric_keys(self):
+    def get_numeric_keys(self) -> Iterable:
         return self.get_keys()
 
-    def assume_numeric(self, validate=False):
+    def assume_numeric(self, validate: bool = False) -> Native:
         return self.validate() if validate else self
 
-    def assume_not_numeric(self, validate=False):
+    def assume_not_numeric(self, validate: bool = False) -> Native:
         return sc.SortedKeyValueSeries(
             validate=validate,
             **self._get_data_member_dict()
         )
 
-    def to_dates(self, as_iso_date=False, scale=dt.DateScale.Day):
-        return self.map_keys(
+    def to_dates(self, as_iso_date: bool = False, scale: dt.DateScale = dt.DateScale.Day) -> Series:
+        result = self.map_keys(
             function=lambda d: dt.get_date_from_int(d, scale=scale, as_iso_date=as_iso_date),
             sorting_changed=False,
         ).assume_dates()
+        return self._assume_native(result)
 
-    def get_range_len(self):
+    def get_range_len(self) -> int:
         return self.get_distance_func()(
             *self.key_series().get_borders()
         )
 
-    def distance(self, v, take_abs=True):
+    def distance(self, v: Union[Native, nm.NumericTypes], take_abs: bool = True) -> Union[Native, nm.NumericTypes]:
         return self.key_series().distance(v, take_abs)
 
-    def get_nearest_key(self, key):
+    def get_nearest_key(self, key: nm.NumericTypes) -> nm.NumericTypes:
         return self.key_series().get_nearest_value(
             key,
             distance_func=self.get_distance_func(),
         )
 
-    def get_nearest_item(self, key):
+    def get_nearest_item(self, key: nm.NumericTypes) -> tuple:
         nearest_key = self.get_nearest_key(key)
         return nearest_key, self.get_value_by_key(nearest_key)
 
-    def get_two_nearest_keys(self, key):
+    def get_two_nearest_keys(self, key: nm.NumericTypes) -> tuple:
         if self.get_count() < 2:
             return None
         else:
@@ -99,23 +114,24 @@ class SortedNumericKeyValueSeries(sc.SortedKeyValueSeries, sc.SortedNumericSerie
             date_b = distance_series.filter_values(lambda v: v >= 0).get_arg_min()
             return date_a, date_b
 
-    def get_segment(self, key):
+    def get_segment(self, key: nm.NumericTypes) -> Native:
         nearest_keys = [i for i in self.get_two_nearest_keys(key) if i]
         return self.new().from_items(
             [(d, self.get_value_by_key(d)) for d in nearest_keys],
         )
 
-    def derivative(self, extend=False, default=0):
+    def derivative(self, extend: bool = False, default: nm.NumericTypes = 0) -> Native:
         dx = self.key_series().derivative(extend=extend)
         dy = self.value_series().derivative(extend=extend)
         derivative = dy.divide(dx, default=default)
-        return self.new(
+        result = self.new(
             keys=self.get_numeric_keys(),
             values=derivative.get_values(),
             sort_items=False, validate=False, save_meta=True,
         )
+        return self._assume_native(result)
 
-    def get_spline_function(self, from_cache=True, to_cache=True):
+    def get_spline_function(self, from_cache: bool = True, to_cache: bool = True) -> Callable:
         if from_cache and self.cached_spline:
             spline_function = self.cached_spline
         else:
@@ -127,14 +143,14 @@ class SortedNumericKeyValueSeries(sc.SortedKeyValueSeries, sc.SortedNumericSerie
                 self.cached_spline = spline_function
         return spline_function
 
-    def get_spline_interpolated_value(self, key, default=None):
+    def get_spline_interpolated_value(self, key: nm.NumericTypes, default: OptNum = None) -> OptNum:
         if self.has_key_in_range(key):
             spline_function = self.get_spline_function(from_cache=True, to_cache=True)
             return float(spline_function(key))
         else:
             return default
 
-    def get_linear_interpolated_value(self, key, near_for_outside=True):
+    def get_linear_interpolated_value(self, key: nm.NumericTypes, near_for_outside: bool = True) -> OptNum:
         segment = self.get_segment(key)
         if segment.get_count() == 1:
             if near_for_outside:
@@ -146,33 +162,37 @@ class SortedNumericKeyValueSeries(sc.SortedKeyValueSeries, sc.SortedNumericSerie
             interpolated_value = value_a + (value_b - value_a) * distance_days / segment_days
             return interpolated_value
 
-    def get_interpolated_value(self, key, how='linear', *args, **kwargs):
+    def get_interpolated_value(self, key: nm.NumericTypes, how: str = 'linear', *args, **kwargs) -> nm.NumericTypes:
         method_name = 'get_{}_interpolated_value'.format(how)
         interpolation_method = self.__getattribute__(method_name)
         return interpolation_method(key, *args, **kwargs)
 
-    def interpolate(self, keys, how='linear', *args, **kwargs):
+    def interpolate(self, keys: Iterable, how: str = 'linear', *args, **kwargs) -> Native:
         method_name = '{}_interpolation'.format(how)
         interpolation_method = self.__getattribute__(method_name)
         return interpolation_method(keys, *args, **kwargs)
 
-    def linear_interpolation(self, keys, near_for_outside=True):
+    def linear_interpolation(self, keys: Iterable, near_for_outside: bool = True) -> Native:
         result = self.new(save_meta=True)
         for k in keys:
             result.append_pair(k, self.get_linear_interpolated_value(k, near_for_outside), inplace=True)
-        return result
+        return self._assume_native(result)
 
-    def spline_interpolation(self, keys):
+    def spline_interpolation(self, keys: Iterable) -> Native:
         spline_function = self.get_spline_function(from_cache=True, to_cache=True)
         result = self.new(
             keys=keys,
             values=spline_function(list(keys)),
             save_meta=True,
         )
-        return result
+        return self._assume_native(result)
 
-    def get_value_by_key(self, key, *args, interpolate='linear', **kwargs):
+    def get_value_by_key(self, key: nm.NumericTypes, *args, interpolate: str = 'linear', **kwargs) -> nm.NumericTypes:
         value = self.get_dict().get(key)
         if value is None:
             value = self.get_interpolated_value(key, how=interpolate, *args, **kwargs)
         return value
+
+    @staticmethod
+    def _assume_native(series) -> Native:
+        return series

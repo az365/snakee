@@ -1,7 +1,7 @@
 from abc import abstractmethod
-from typing import Iterable, Callable, Optional, Union
+from typing import Optional, Callable, Iterable, Generator, Union
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from functions.primary import dates as dt
     from series.simple.any_series import AnySeries
     from series.simple.sorted_series import SortedSeries
@@ -174,10 +174,10 @@ DateNumeric = Native
 class DateSeries(DateSeriesInterface, SortedSeries):
     def __init__(
             self,
-            values: Optional[list] = None,
+            values: Optional[Iterable] = None,
             validate: bool = True,
             sort_items: bool = False,
-            name=None,
+            name: Optional[str] = None,
     ):
         super().__init__(
             values=values or list(),
@@ -188,14 +188,22 @@ class DateSeries(DateSeriesInterface, SortedSeries):
 
     def get_errors(self) -> Iterable:
         yield from super().get_errors()
-        if not self._has_valid_dates():
-            yield 'Values of {} must be python-dates or iso-dates'.format(self.get_class_name())
+        for i in self._get_invalid_examples():
+            yield 'Values of {} must be python-dates or iso-dates, got {}, ...'.format(self.__class__.__name__, i)
 
     def _has_valid_dates(self) -> bool:
         for d in self.get_dates():
             if not self._is_valid_date(d):
                 return False
         return True
+
+    def _get_invalid_examples(self) -> Generator:
+        invalid_types = set()
+        for d in self.get_dates():
+            if not self._is_valid_date(d):
+                t = type(d)
+                if t not in invalid_types:
+                    yield d
 
     @staticmethod
     def _is_valid_date(date) -> bool:
@@ -344,11 +352,9 @@ class DateSeries(DateSeriesInterface, SortedSeries):
         return distance_series
 
     def distance_for_date(self, date: dt.Date, take_abs: bool = True) -> DateNumeric:
-        return sc.DateNumericSeries(
-            self.get_dates(),
-            self.date_series().map(lambda d: self.get_distance_func()(date, d, take_abs)),
-            sort_items=False, validate=False,
-        )
+        dates = self.get_dates()
+        values = self.date_series().map(lambda d: self.get_distance_func()(date, d, take_abs))
+        return sc.DateNumericSeries(dates, values, sort_items=False, validate=False)
 
     def get_distance_for_nearest_date(self, date: dt.Date, take_abs: bool = True) -> int:
         nearest_date = self.get_nearest_date(date)

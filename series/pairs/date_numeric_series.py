@@ -1,32 +1,46 @@
-try:  # Assume we're a sub-module in a package.
+from typing import Optional, Callable, Iterable, Generator, Union, NoReturn
+
+try:  # Assume we're a submodule in a package.
     from series import series_classes as sc
     from functions.primary import numeric as nm, dates as dt
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from .. import series_classes as sc
     from ...functions.primary import numeric as nm, dates as dt
 
-WINDOW_WEEKLY_DEFAULT = (-7, 0, 7)
+Native = sc.DateSeries
+Series = sc.AnySeries
+Date = dt.Date
+Numeric = nm.NumericTypes
+Window = Union[list, tuple]
+InterpolationType = str
+
+DYNAMIC_META_FIELDS = 'cached_yoy', 'cached_spline'
+WINDOW_WEEKLY_DEFAULT = -dt.DAYS_IN_WEEK, 0, dt.DAYS_IN_WEEK  # (-7, 0, 7)
 
 
 class DateNumericSeries(sc.SortedNumericKeyValueSeries, sc.DateSeries):
     def __init__(
             self,
-            keys=[],
-            values=[],
-            validate=False,
-            sort_items=True,
-            name=None,
+            keys: Optional[list] = None,
+            values: Optional[list] = None,
+            validate: bool = False,
+            sort_items: bool = True,
+            name: Optional[str] = None,
     ):
         super().__init__(
-            keys=keys,
-            values=values,
+            keys=keys or [],
+            values=values or [],
             sort_items=sort_items,
             validate=validate,
             name=name,
         )
         self.cached_yoy = None
 
-    def get_errors(self):
+    @staticmethod
+    def _get_dynamic_meta_fields() -> tuple:
+        return DYNAMIC_META_FIELDS
+
+    def get_errors(self) -> Generator:
         yield from self.assume_not_numeric().get_errors()
         if not self.date_series().is_valid():
             yield 'Keys of {} must be sorted dates'.format(self.get_class_name())
@@ -34,61 +48,62 @@ class DateNumericSeries(sc.SortedNumericKeyValueSeries, sc.DateSeries):
             yield 'Values of {} must be numeric'.format(self.get_class_name())
 
     @staticmethod
-    def get_distance_func():
+    def get_distance_func() -> Callable:
         return sc.DateSeries.get_distance_func()
 
-    def assume_numeric(self, validate=False):
+    def assume_numeric(self, validate: bool = False) -> Series:
         return sc.SortedNumericKeyValueSeries(
             validate=validate,
-            **self._get_data_member_dict()
+            **self._get_data_member_dict(),
         )
 
-    def get_dates(self, as_date_type=None):
+    def get_dates(self, as_date_type: Optional[bool] = None) -> list:
         if as_date_type:
             return self.date_series().map(dt.to_date).get_values()
         else:
             return self.get_keys()
 
-    def set_dates(self, dates):
-        return self.new(
+    def set_dates(self, dates: Iterable) -> Series:
+        result = self.new(
             keys=dates,
             values=self.get_values(),
             save_meta=True,
             sort_items=False,
             validate=False,
         )
+        return self._assume_native(result)
 
-    def filter_dates(self, function):
+    def filter_dates(self, function: Callable) -> Series:
         return self.filter_keys(function)
 
-    def get_numeric_keys(self):
+    def get_numeric_keys(self) -> list:
         return self.to_days().get_keys()
 
-    def numeric_key_series(self):
+    def numeric_key_series(self) -> Series:
         return self.to_days().key_series()
 
-    def key_series(self):
+    def key_series(self) -> Series:
         return self.date_series()
 
-    def value_series(self):
-        return super().value_series().assume_numeric()
+    def value_series(self) -> Series:
+        series = super().value_series().assume_numeric()
+        return self._assume_native(series)
 
-    def round_to_weeks(self):
+    def round_to_weeks(self) -> Series:
         return self.map_dates(dt.get_monday_date).mean_by_keys()
 
-    def round_to_months(self):
+    def round_to_months(self) -> Series:
         return self.map_dates(dt.get_month_first_date).mean_by_keys()
 
-    def get_segment(self, date):
+    def get_segment(self, date: Date) -> Series:
         nearest_dates = [i for i in self.get_two_nearest_dates(date) if i]
-        return self.new().from_items(
-            [(d, self.get_value_by_key(d)) for d in nearest_dates],
-        )
+        items = [(d, self.get_value_by_key(d)) for d in nearest_dates]
+        return self.new().from_items(items)
 
-    def get_nearest_value(self, value, distance_func=None):
+    def get_nearest_value(self, value: Numeric, distance_func: Optional[Callable] = None) -> Numeric:
         return self.value_series().sort().get_nearest_value(value, distance_func)
 
-    def get_interpolated_value(self, date, how='linear', *args, **kwargs):
+    def get_interpolated_value(self, date: Date, how: InterpolationType = 'linear', *args, **kwargs) -> Numeric:
         method_name = 'get_{}_interpolated_value'.format(how)
         requires_numeric_keys = how in ('linear', 'spline')
         if requires_numeric_keys:
@@ -100,7 +115,7 @@ class DateNumericSeries(sc.SortedNumericKeyValueSeries, sc.DateSeries):
             interpolation_method = self.__getattribute__(method_name)
             return interpolation_method(date, *args, **kwargs)
 
-    def interpolate(self, dates, how='linear', *args, **kwargs):
+    def interpolate(self, dates: Iterable, how: InterpolationType = 'linear', *args, **kwargs) -> Series:
         method_name = '{}_interpolation'.format(how)
         requires_numeric_keys = how in ('linear', 'spline')
         if requires_numeric_keys:
@@ -111,7 +126,12 @@ class DateNumericSeries(sc.SortedNumericKeyValueSeries, sc.DateSeries):
             interpolation_method = self.__getattribute__(method_name)
             return interpolation_method(dates, *args, **kwargs)
 
-    def weighted_interpolation(self, dates, weight_benchmark, internal='linear'):
+    def weighted_interpolation(
+            self,
+            dates: Iterable,
+            weight_benchmark: Series,
+            internal: InterpolationType = 'linear',
+    ) -> Series:
         assert isinstance(weight_benchmark, (DateNumericSeries, sc.DateNumericSeries))
         list_dates = dates.get_dates() if isinstance(dates, (sc.DateNumericSeries, sc.DateNumericSeries)) else dates
         border_dates = self.get_mutual_border_dates(weight_benchmark)
@@ -122,25 +142,26 @@ class DateNumericSeries(sc.SortedNumericKeyValueSeries, sc.DateSeries):
                 yearly_primary = self.interpolate(yearly_dates, how=internal)
                 yearly_benchmark = weight_benchmark.interpolate(yearly_dates, how=internal)
                 weight = yearly_benchmark.divide(yearly_primary).get_mean()
-                interpolated_value = self.get_interpolated_value(d, how=internal) * weight
-                result.append_pair(d, interpolated_value, inplace=True)
-        return result
+                pre_interpolated_value = self.get_interpolated_value(d, how=internal)
+                weighted_value = pre_interpolated_value * weight
+                result.append_pair(d, weighted_value, inplace=True)
+        return self._assume_native(result)
 
-    def interpolate_to_weeks(self, how='spline', *args, **kwargs):
+    def interpolate_to_weeks(self, how: InterpolationType = 'spline', *args, **kwargs) -> Series:
         monday_dates = dt.get_weeks_range(self.get_first_date(), self.get_last_date())
         return self.interpolate(monday_dates, how=how, *args, **kwargs)
 
-    def interpolate_to_months(self, how='spline', *args, **kwargs):
+    def interpolate_to_months(self, how: InterpolationType = 'spline', *args, **kwargs) -> Series:
         monthly_dates = dt.get_months_range(self.get_first_date(), self.get_last_date())
         return self.interpolate(monthly_dates, how=how, *args, **kwargs)
 
     def apply_window_series_function(
             self,
-            window_days_count,
-            function,
-            input_as_dict=False,
-            for_full_window_only=False,
-    ):
+            window_days_count: int,
+            function: Callable,
+            input_as_dict: bool = False,
+            for_full_window_only: bool = False,
+    ) -> Series:
         half_window_days = window_days_count / 2
         int_half_window_days = int(half_window_days)
         window_days_is_even = half_window_days == int_half_window_days
@@ -159,14 +180,14 @@ class DateNumericSeries(sc.SortedNumericKeyValueSeries, sc.DateSeries):
             if input_as_dict:
                 window = window.get_dict()
             result.append_pair(center_date, function(window), inplace=True)
-        return result
+        return self._assume_native(result)
 
     def apply_interpolated_window_series_function(
             self,
-            window_days_list,
-            function,
-            input_as_list=False,
-            for_full_window_only=False,
+            window_days_list: list,
+            function: Callable,
+            input_as_list: bool = False,
+            for_full_window_only: bool = False,
     ):
         result = self.new(save_meta=True)
         left_days = min(window_days_list)
@@ -185,7 +206,7 @@ class DateNumericSeries(sc.SortedNumericKeyValueSeries, sc.DateSeries):
                 result.append_pair(d, function(window), inplace=True)
         return result
 
-    def smooth_linear_by_days(self, window_days_list=WINDOW_WEEKLY_DEFAULT):
+    def smooth_linear_by_days(self, window_days_list: Window = WINDOW_WEEKLY_DEFAULT) -> Native:
         return self.apply_interpolated_window_series_function(
             window_days_list=window_days_list,
             function=lambda s: s.get_mean(),
@@ -193,7 +214,7 @@ class DateNumericSeries(sc.SortedNumericKeyValueSeries, sc.DateSeries):
             for_full_window_only=False,
         )
 
-    def math(self, series, function, interpolation_kwargs={'how': 'linear'}):
+    def math(self, series: Series, function: Callable, interpolation_kwargs: dict = {'how': 'linear'}) -> Series:
         assert isinstance(series, (DateNumericSeries, sc.DateNumericSeries))
         result = self.new(save_meta=True)
         for d, v in self.get_items():
@@ -203,7 +224,7 @@ class DateNumericSeries(sc.SortedNumericKeyValueSeries, sc.DateSeries):
                     result.append_pair(d, function(v, v0), inplace=True)
         return result
 
-    def yoy(self, interpolation_kwargs={'how': 'linear', 'near_for_outside': False}):
+    def yoy(self, interpolation_kwargs: dict = {'how': 'linear', 'near_for_outside': False}) -> Series:
         yearly_shifted = self.yearly_shift()
         return self.math(
             yearly_shifted,
@@ -211,7 +232,7 @@ class DateNumericSeries(sc.SortedNumericKeyValueSeries, sc.DateSeries):
             interpolation_kwargs=interpolation_kwargs,
         )
 
-    def get_yoy_for_date(self, date, interpolation_kwargs={'how': 'linear'}):
+    def get_yoy_for_date(self, date: Date, interpolation_kwargs: dict = {'how': 'linear'}) -> Numeric:
         if not self.cached_yoy:
             self.cached_yoy = self.yoy(interpolation_kwargs=interpolation_kwargs)
         if date in self.cached_yoy:
@@ -224,10 +245,13 @@ class DateNumericSeries(sc.SortedNumericKeyValueSeries, sc.DateSeries):
             return self.get_interpolated_value(date, **interpolation_kwargs)
 
     def extrapolate_by_yoy(
-            self, dates,
-            yoy=None, max_distance=dt.MAX_DAYS_IN_MONTH,
-            yoy_smooth_kwargs=None, interpolation_kwargs={'how': 'linear'},
-    ):
+            self,
+            dates: Iterable,
+            yoy: Optional[Series] = None,
+            max_distance: int = dt.MAX_DAYS_IN_MONTH,
+            yoy_smooth_kwargs: Optional[dict] = None,
+            interpolation_kwargs: dict = {'how': 'linear'},
+    ) -> Series:
         if not yoy:
             yoy = self.yoy()
         if yoy_smooth_kwargs is not None:
@@ -249,26 +273,27 @@ class DateNumericSeries(sc.SortedNumericKeyValueSeries, sc.DateSeries):
                 coefficient = (1 + cur_yoy) ** increment
                 cur_value = base_value * coefficient
             result.append_pair(d, cur_value, inplace=True)
-        return result
+        return self._assume_native(result)
 
-    def extrapolate_by_stl(self, dates):
+    def extrapolate_by_stl(self, dates: Iterable) -> NoReturn:
         raise NotImplemented
 
-    def extrapolate(self, how='by_yoy', *args, **kwargs):
+    def extrapolate(self, how: InterpolationType = 'by_yoy', *args, **kwargs) -> Series:
         method_name = 'extrapolate_{}'.format(how)
         extrapolation_method = self.__getattribute__(method_name)
         return extrapolation_method(*args, **kwargs)
 
-    def derivative(self, extend=False, default=0):
-        return self.new(
+    def derivative(self, extend: bool = False, default: Numeric = 0) -> Series:
+        series = self.new(
             keys=self.get_keys(),
             values=self.value_series().derivative(extend=extend, default=default).get_values(),
             sort_items=False, validate=False, save_meta=True,
         )
+        return self._assume_native(series)
 
     @staticmethod
-    def get_names():
-        return ['date', 'value']
+    def get_names() -> tuple:
+        return 'date', 'value'
 
-    def plot(self, fmt='-'):
+    def plot(self, fmt: str = '-') -> None:
         nm.plot(self.get_keys(), self.get_values(), fmt=fmt)
