@@ -5,21 +5,21 @@ try:  # Assume we're a sub-module in a package.
     from utils.decorators import deprecated_with_alternative
     from base.enum import SubclassesType
     from fields.field_interface import FieldInterface
-    from items.struct_interface import StructInterface
-    from items.struct_row_interface import StructRowInterface
-    from items.simple_items import (
+    from content.struct.struct_interface import StructInterface
+    from content.struct.struct_row_interface import StructRowInterface
+    from content.items.simple_items import (
         STAR, ROW_SUBCLASSES, RECORD_SUBCLASSES,
         Row, Record, Line, SimpleItem, SimpleSelectableItem,
         FieldNo, FieldName, FieldID, Value, Array,
         get_field_value_from_record, get_field_value_from_row, get_field_value_from_struct_row,
     )
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..utils import arguments as arg
-    from ..utils.decorators import deprecated_with_alternative
-    from ..base.enum import SubclassesType
-    from ..fields.field_interface import FieldInterface
-    from .struct_interface import StructInterface
-    from .struct_row_interface import StructRowInterface
+    from ...utils import arguments as arg
+    from ...utils.decorators import deprecated_with_alternative
+    from ...base.enum import SubclassesType
+    from ...fields.field_interface import FieldInterface
+    from ..struct.struct_interface import StructInterface
+    from ..struct.struct_row_interface import StructRowInterface
     from .simple_items import (
         STAR, ROW_SUBCLASSES, RECORD_SUBCLASSES,
         Row, Record, Line, SimpleItem, SimpleSelectableItem,

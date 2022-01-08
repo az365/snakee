@@ -1,16 +1,16 @@
 from abc import ABC, abstractmethod
 from typing import Optional, Callable, Union
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
     from base.interfaces.data_interface import SimpleDataInterface
-    from items.struct_interface import StructInterface, StructMixinInterface
-    from items.simple_items import SimpleRowInterface, SimpleRow, FieldNo, FieldName, FieldID, Value
+    from content.struct.struct_interface import StructInterface, StructMixinInterface
+    from content.items.simple_items import SimpleRowInterface, SimpleRow, FieldNo, FieldName, FieldID, Value
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..utils import arguments as arg
-    from ..base.interfaces.data_interface import SimpleDataInterface
+    from ...utils import arguments as arg
+    from ...base.interfaces.data_interface import SimpleDataInterface
     from .struct_interface import StructInterface, StructMixinInterface
-    from .simple_items import SimpleRowInterface, SimpleRow, FieldNo, FieldName, FieldID, Value
+    from ..items.simple_items import SimpleRowInterface, SimpleRow, FieldNo, FieldName, FieldID, Value
 
 StructRow = SimpleDataInterface
 GenericRow = Union[SimpleRow, StructRow]

@@ -13,17 +13,17 @@ try:  # Assume we're a submodule in a package.
     from selection.abstract_expression import AbstractDescription
     from functions.secondary import array_functions as fs
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..interfaces import (
+    from ...interfaces import (
         StructInterface, StructRowInterface, FieldInterface, SelectionLoggerInterface, ExtLogger,
         FieldType, DialectType,
         AUTO, Auto, Name, Array, ARRAY_TYPES,
     )
-    from ..utils import arguments as arg
-    from ..utils.external import pd, get_use_objects_for_output, DataFrame
-    from ..base.abstract.simple_data import SimpleDataWrapper
-    from ..fields.advanced_field import AdvancedField
-    from ..selection.abstract_expression import AbstractDescription
-    from ..functions.secondary import array_functions as fs
+    from ...utils import arguments as arg
+    from ...utils.external import pd, get_use_objects_for_output, DataFrame
+    from ...base.abstract.simple_data import SimpleDataWrapper
+    from ...fields.advanced_field import AdvancedField
+    from ...selection.abstract_expression import AbstractDescription
+    from ...functions.secondary import array_functions as fs
 
 Native = StructInterface
 Group = Union[Native, Iterable]

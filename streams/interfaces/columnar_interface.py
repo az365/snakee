@@ -8,8 +8,8 @@ try:  # Assume we're a submodule in a package.
     from streams.interfaces.abstract_stream_interface import StreamInterface
     from streams.interfaces.regular_stream_interface import RegularStreamInterface
     from streams.stream_type import StreamType
-    from items.struct_interface import StructInterface
-    from items.item_type import ItemType, Item, FieldID
+    from content.struct.struct_interface import StructInterface
+    from content.items.item_type import ItemType, Item, FieldID
     from base.interfaces.context_interface import ContextInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
@@ -18,8 +18,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .abstract_stream_interface import StreamInterface
     from .regular_stream_interface import RegularStreamInterface
     from ..stream_type import StreamType
-    from ...items.struct_interface import StructInterface
-    from ...items.item_type import ItemType, Item, FieldID
+    from ...content.struct.struct_interface import StructInterface
+    from ...content.items.item_type import ItemType, Item, FieldID
     from ...base.interfaces.context_interface import ContextInterface
 
 Native = RegularStreamInterface

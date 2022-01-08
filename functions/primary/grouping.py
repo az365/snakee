@@ -2,12 +2,12 @@ from typing import Optional, Callable, Iterable, Generator, Union
 
 try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
-    from items.simple_items import Record, Row, Array, FieldName, Value
-    from items.item_type import ItemType
+    from content.items.simple_items import Record, Row, Array, FieldName, Value
+    from content.items.item_type import ItemType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
-    from ...items.simple_items import Record, Row, Array, FieldName, Value
-    from ...items.item_type import ItemType
+    from ...content.items.simple_items import Record, Row, Array, FieldName, Value
+    from ...content.items.item_type import ItemType
 
 
 def transpose_records_list(records_list: Iterable) -> Record:

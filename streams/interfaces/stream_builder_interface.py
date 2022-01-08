@@ -3,12 +3,12 @@ from typing import Iterable, Union
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
-    from items.item_type import ItemType
+    from content.items.item_type import ItemType
     from streams.stream_type import StreamType
     from streams.interfaces.abstract_stream_interface import StreamInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
-    from ...items.item_type import ItemType
+    from ...content.items.item_type import ItemType
     from ..stream_type import StreamType
     from .abstract_stream_interface import StreamInterface
 

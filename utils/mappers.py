@@ -1,12 +1,12 @@
 try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
     from utils.decorators import deprecated, deprecated_with_alternative
-    from items.item_type import ItemType
+    from content.items.item_type import ItemType
     from functions.primary import text as tx, grouping as gr
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
     from ..utils.decorators import deprecated, deprecated_with_alternative
-    from ..items.item_type import ItemType
+    from ..content.items.item_type import ItemType
     from ..functions.primary import text as tx, grouping as gr
 
 

@@ -9,8 +9,8 @@ try:  # Assume we're a submodule in a package.
         AUTO, Auto, AutoBool, Row, Array, ARRAY_TYPES,
     )
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..utils import arguments as arg
-    from ..interfaces import (
+    from ...utils import arguments as arg
+    from ...interfaces import (
         StructInterface, StructMixinInterface,
         ItemType, DialectType, FieldType, Field, FieldName, FieldNo,
         AUTO, Auto, AutoBool, Row, Array, ARRAY_TYPES,

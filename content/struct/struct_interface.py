@@ -1,16 +1,16 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Iterable, Union, Type
+from typing import Optional, Union, Type
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from connectors.databases.dialect_type import DialectType
     from fields.field_interface import FieldInterface
-    from items.simple_items import FieldNo, FieldName, FieldID
+    from content.items.simple_items import FieldNo, FieldName, FieldID
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..utils import arguments as arg
-    from ..connectors.databases.dialect_type import DialectType
-    from ..fields.field_interface import FieldInterface
-    from .simple_items import FieldNo, FieldName, FieldID
+    from ...utils import arguments as arg
+    from ...connectors.databases.dialect_type import DialectType
+    from ...fields.field_interface import FieldInterface
+    from ..items.simple_items import FieldNo, FieldName, FieldID
 
 Field = Union[FieldID, FieldInterface]
 Array = Union[list, tuple]

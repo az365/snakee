@@ -8,17 +8,17 @@ try:  # Assume we're a sub-module in a package.
         RECORD_SUBCLASSES, ROW_SUBCLASSES, Row, Line, Name, Field, FieldNo, Value, Auto, AUTO,
     )
     from base.abstract.simple_data import SimpleDataWrapper
-    from items.struct_row_interface import StructRowInterface, DEFAULT_DELIMITER
-    from items.flat_struct import FlatStruct
-    from items.struct_mixin import StructMixin
+    from content.struct.struct_row_interface import StructRowInterface, DEFAULT_DELIMITER
+    from content.struct.flat_struct import FlatStruct
+    from content.struct.struct_mixin import StructMixin
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..utils import arguments as arg
-    from ..interfaces import (
+    from ...utils import arguments as arg
+    from ...interfaces import (
         FieldInterface, StructInterface,
         FieldType, DialectType, ItemType,
         RECORD_SUBCLASSES, ROW_SUBCLASSES, Row, Line, Name, Field, FieldNo, Value, Auto, AUTO,
     )
-    from ..base.abstract.simple_data import SimpleDataWrapper
+    from ...base.abstract.simple_data import SimpleDataWrapper
     from .struct_row_interface import StructRowInterface, DEFAULT_DELIMITER
     from .flat_struct import FlatStruct
     from .struct_mixin import StructMixin

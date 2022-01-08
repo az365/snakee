@@ -4,13 +4,13 @@ from typing import Optional, Union
 try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
     from base.interfaces.base_interface import BaseInterface
-    from items.item_type import ItemType
+    from content.items.item_type import ItemType
     from streams.stream_type import StreamType
     from content.format.content_type import ContentType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...base.interfaces.base_interface import BaseInterface
-    from ...items.item_type import ItemType
+    from ...content.items.item_type import ItemType
     from ...streams.stream_type import StreamType
     from ...content.format.content_type import ContentType
 

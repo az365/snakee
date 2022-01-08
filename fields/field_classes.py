@@ -4,7 +4,7 @@ try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from interfaces import StructInterface, FieldInterface, SelectionLoggerInterface, Auto, AUTO
     from fields.field_type import FieldType
-    from items.flat_struct import FlatStruct
+    from content.struct.flat_struct import FlatStruct
     from fields.abstract_field import AbstractField
     from fields.advanced_field import AdvancedField
     from selection.abstract_expression import AbstractDescription
@@ -13,7 +13,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..utils import arguments as arg
     from ..interfaces import StructInterface, FieldInterface, SelectionLoggerInterface, Auto, AUTO
     from .field_type import FieldType
-    from ..items.flat_struct import FlatStruct
+    from ..content.struct.flat_struct import FlatStruct
     from .abstract_field import AbstractField
     from .advanced_field import AdvancedField
     from ..selection.abstract_expression import AbstractDescription

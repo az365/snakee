@@ -1,13 +1,13 @@
 from typing import Optional, Union, Iterable
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
     from utils.decorators import deprecated_with_alternative
     from interfaces import StructInterface, FieldInterface, DialectType, FieldType, Field, Name, Array, ARRAY_TYPES
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..utils import arguments as arg
-    from ..utils.decorators import deprecated_with_alternative
-    from ..interfaces import StructInterface, FieldInterface, DialectType, FieldType, Field, Name, Array, ARRAY_TYPES
+    from ...utils import arguments as arg
+    from ...utils.decorators import deprecated_with_alternative
+    from ...interfaces import StructInterface, FieldInterface, DialectType, FieldType, Field, Name, Array, ARRAY_TYPES
 
 
 class LegacyStruct(StructInterface):

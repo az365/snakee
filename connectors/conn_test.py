@@ -1,9 +1,9 @@
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from context import SnakeeContext
-    from items.flat_struct import FlatStruct, DialectType
+    from content.struct.flat_struct import FlatStruct, DialectType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..context import SnakeeContext
-    from ..items.flat_struct import FlatStruct, DialectType
+    from ..content.struct.flat_struct import FlatStruct, DialectType
 
 
 def test_detect_struct_by_title_row():

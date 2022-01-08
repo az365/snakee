@@ -9,7 +9,7 @@ try:  # Assume we're a sub-module in a package.
         AUTO, Auto, AutoBool, Columns, Array, ARRAY_TYPES,
     )
     from functions.secondary import item_functions as fs
-    from items.struct_mixin import StructMixin
+    from content.struct.struct_mixin import StructMixin
     from content.format.text_format import AbstractFormat, ParsedFormat, TextFormat
     from content.format.lean_format import LeanFormat, ColumnarFormat, FlatStructFormat
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -20,7 +20,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         AUTO, Auto, AutoBool, Columns, Array, ARRAY_TYPES,
     )
     from ...functions.secondary import item_functions as fs
-    from ...items.struct_mixin import StructMixin
+    from ...content.struct.struct_mixin import StructMixin
     from ...content.format.text_format import AbstractFormat, ParsedFormat, TextFormat
     from ...content.format.lean_format import LeanFormat, ColumnarFormat, FlatStructFormat
 

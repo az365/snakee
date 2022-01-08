@@ -14,10 +14,10 @@ try:  # Assume we're a submodule in a package.
     from streams import stream_classes as sm
     from functions.secondary import all_secondary_functions as fs
     from selection import selection_classes as sn
-    from items.flat_struct import FlatStruct
-    from items.struct_mixin import StructMixin
-    from items.struct_row import StructRow
-    from items.legacy_classes import get_validation_errors as get_legacy_validation_errors
+    from content.struct.flat_struct import FlatStruct
+    from content.struct.struct_mixin import StructMixin
+    from content.struct.struct_row import StructRow
+    from content.struct.legacy_classes import get_validation_errors as get_legacy_validation_errors
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg, selection as sf
     from ...utils.decorators import deprecated_with_alternative
@@ -32,10 +32,10 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .. import stream_classes as sm
     from ...functions.secondary import all_secondary_functions as fs
     from ...selection import selection_classes as sn
-    from ...items.flat_struct import FlatStruct
-    from ...items.struct_mixin import StructMixin
-    from ...items.struct_row import StructRow
-    from ...items.legacy_classes import get_validation_errors as get_legacy_validation_errors
+    from ...content.struct.flat_struct import FlatStruct
+    from ...content.struct.struct_mixin import StructMixin
+    from ...content.struct.struct_row import StructRow
+    from ...content.struct.legacy_classes import get_validation_errors as get_legacy_validation_errors
 
 Native = Union[StreamInterface, StructRowInterface]
 Struct = StructInterface

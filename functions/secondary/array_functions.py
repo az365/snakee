@@ -2,12 +2,12 @@ from typing import Optional, Union, Callable, Iterable, Any
 
 try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
-    from items.item_type import ItemType
+    from content.items.item_type import ItemType
     from functions.primary import numeric as nm
     from functions.primary import grouping as gr
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
-    from ...items.item_type import ItemType
+    from ...content.items.item_type import ItemType
     from ..primary import numeric as nm
     from ..primary import grouping as gr
 

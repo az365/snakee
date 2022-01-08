@@ -28,9 +28,9 @@ try:  # Assume we're a submodule in a package.
     from connectors.interfaces.struct_file_interface import StructFileInterface  # inherits LeafConnectorInterface
     from connectors.interfaces.temporary_interface import TemporaryLocationInterface  # inherits Connector
     from connectors.interfaces.temporary_interface import TemporaryFilesMaskInterface  # inherits Connector
-    from items.struct_interface import StructInterface, StructMixinInterface  # ROOT
-    from items.struct_row_interface import StructRowInterface  # inherits SimpleData; uses StructInterface
-    from items.simple_items import (
+    from content.struct.struct_interface import StructInterface, StructMixinInterface  # ROOT
+    from content.struct.struct_row_interface import StructRowInterface  # inherits SimpleData; uses StructInterface
+    from content.items.simple_items import (
         ARRAY_TYPES, ROW_SUBCLASSES, RECORD_SUBCLASSES, LINE_SUBCLASSES,
         SimpleRowInterface, SimpleRow, Row, Record, Line, SimpleItem, SimpleSelectableItem,
         FieldNo, FieldName, FieldID, Value, Class, Array,
@@ -63,9 +63,9 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .connectors.interfaces.struct_file_interface import StructFileInterface  # inherits LeafConnectorInterface
     from .connectors.interfaces.temporary_interface import TemporaryLocationInterface  # inherits Connector
     from .connectors.interfaces.temporary_interface import TemporaryFilesMaskInterface  # inherits Connector
-    from .items.struct_interface import StructInterface, StructMixinInterface  # ROOT
-    from .items.struct_row_interface import StructRowInterface  # inherits SimpleData; uses StructInterface
-    from .items.simple_items import (
+    from .content.struct.struct_interface import StructInterface, StructMixinInterface  # ROOT
+    from .content.struct.struct_row_interface import StructRowInterface  # inherits SimpleData; uses StructInterface
+    from .content.items.simple_items import (
         ARRAY_TYPES, ROW_SUBCLASSES, RECORD_SUBCLASSES, LINE_SUBCLASSES,
         SimpleRowInterface, SimpleRow, Row, Record, Line, SimpleItem, SimpleSelectableItem,
         FieldNo, FieldName, FieldID, Value, Class, Array,
@@ -82,7 +82,7 @@ try:  # Assume we're a submodule in a package.
     from connectors.conn_type import ConnType  # inherits ClassType(DynamicEnum)
     from streams.stream_type import StreamType  # inherits ClassType(DynamicEnum)
     from fields.field_type import FieldType  # inherits DynamicEnum
-    from items.item_type import ItemType  # inherits SubclassesType(ClassType)
+    from content.items.item_type import ItemType  # inherits SubclassesType(ClassType)
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from .utils.algo import JoinType  # standard Enum
     from .loggers.extended_logger_interface import LoggingLevel  # standard Enum
@@ -94,7 +94,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .connectors.conn_type import ConnType  # inherits ClassType(DynamicEnum)
     from .streams.stream_type import StreamType  # inherits ClassType(DynamicEnum)
     from .fields.field_type import FieldType  # inherits DynamicEnum
-    from .items.item_type import ItemType  # inherits SubclassesType(ClassType)
+    from .content.items.item_type import ItemType  # inherits SubclassesType(ClassType)
 
 AUTO = arg.AUTO
 Auto = arg.Auto

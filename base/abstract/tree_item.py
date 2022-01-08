@@ -3,7 +3,7 @@ from inspect import isclass
 
 try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
-    from items.simple_items import Class
+    from content.items.simple_items import Class
     from base.interfaces.tree_interface import TreeInterface
     from base.interfaces.context_interface import ContextInterface
     from base.abstract.abstract_base import AbstractBaseObject
@@ -11,7 +11,7 @@ try:  # Assume we're a submodule in a package.
     from base.abstract.contextual_data import ContextualDataWrapper
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
-    from ...items.simple_items import Class
+    from ...content.items.simple_items import Class
     from ..interfaces.tree_interface import TreeInterface
     from ..interfaces.context_interface import ContextInterface
     from .abstract_base import AbstractBaseObject

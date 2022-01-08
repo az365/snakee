@@ -1,13 +1,13 @@
 from typing import Optional, Union, Iterable, Callable, Any
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
     from interfaces import (
         ItemType, FieldType, Field, FieldInterface, StructInterface, ExtLogger, SelectionLogger,
         AutoBool, Auto, AUTO, ARRAY_TYPES,
     )
     from fields.abstract_field import AbstractField
-    from items import flat_struct as fc
+    from content.struct import flat_struct as fc
     from selection import abstract_expression as ae
     from selection import concrete_expression as ce
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -17,7 +17,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         AutoBool, Auto, AUTO, ARRAY_TYPES,
     )
     from .abstract_field import AbstractField
-    from ..items import flat_struct as fc
+    from ..struct import flat_struct as fc
     from ..selection import abstract_expression as ae
     from ..selection import concrete_expression as ce
 
