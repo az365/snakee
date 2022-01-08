@@ -3,11 +3,13 @@ from typing import Optional, Callable, Iterable, Generator, Union, Any
 try:  # Assume we're a submodule in a package.
     from series import series_classes as sc
     from functions.primary import numeric as nm
+    from series.interfaces.key_value_series_interface import KeyValueSeriesInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from .. import series_classes as sc
     from ...functions.primary import numeric as nm
+    from ..interfaces.key_value_series_interface import KeyValueSeriesInterface
 
-Native = sc.AnySeries
+Native = Union[sc.AnySeries, KeyValueSeriesInterface]
 
 if nm.np:  # numpy installed
     Mutable = Union[list, nm.np.ndarray]
@@ -19,7 +21,7 @@ DATA_MEMBER_NAMES = '_keys', '_data'
 META_MEMBER_MAPPING = dict(_data='values')
 
 
-class KeyValueSeries(sc.AnySeries):
+class KeyValueSeries(sc.AnySeries, KeyValueSeriesInterface):
     def __init__(
             self,
             keys: Optional[Iterable] = None,

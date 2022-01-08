@@ -1,15 +1,16 @@
 from typing import Optional, Callable, Iterable, Generator, Union, NoReturn
 
 try:  # Assume we're a submodule in a package.
+    from series.interfaces.any_series_interface import AnySeriesInterface, Name
     from series import series_classes as sc
     from functions.primary import numeric as nm, dates as dt
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
+    from ..interfaces.any_series_interface import AnySeriesInterface, Name
     from .. import series_classes as sc
     from ...functions.primary import numeric as nm, dates as dt
 
-Native = sc.DateSeries
-Series = sc.AnySeries
-Name = Optional[str]
+Native = Union[sc.DateSeries, sc.SortedNumericKeyValueSeries]
+Series = AnySeriesInterface
 Date = dt.Date
 Numeric = nm.NumericTypes
 Window = Union[list, tuple]
@@ -54,10 +55,10 @@ class DateNumericSeries(sc.SortedNumericKeyValueSeries, sc.DateSeries):
     def get_distance_func() -> Callable:
         return sc.DateSeries.get_distance_func()
 
-    def assume_numeric(self, validate: bool = False) -> Series:
+    def assume_numeric(self, validate: bool = False, set_closure: bool = False) -> Series:
         return sc.SortedNumericKeyValueSeries(
-            validate=validate,
             **self._get_data_member_dict(),
+            validate=validate, set_closure=set_closure,
         )
 
     def get_dates(self, as_date_type: Optional[bool] = None) -> list:
@@ -158,7 +159,7 @@ class DateNumericSeries(sc.SortedNumericKeyValueSeries, sc.DateSeries):
                 pre_interpolated_value = self.get_interpolated_value(d, how=internal)
                 weighted_value = pre_interpolated_value * weight
                 result.append_pair(d, weighted_value, inplace=True)
-        return self._assume_native(result)
+        return self._assume_series(result)
 
     def interpolate_to_weeks(self, how: InterpolationType = 'spline', *args, **kwargs) -> Series:
         monday_dates = dt.get_weeks_range(self.get_first_date(), self.get_last_date())
@@ -299,7 +300,8 @@ class DateNumericSeries(sc.SortedNumericKeyValueSeries, sc.DateSeries):
 
     def derivative(self, extend: bool = False, default: Numeric = 0, inplace: bool = False) -> Series:
         derivative = self.value_series(set_closure=True).derivative(extend=extend, default=default)
-        return self.set_values(derivative.get_values(), inplace=inplace, set_closure=True, validate=False)
+        result = self.set_values(derivative.get_values(), inplace=inplace, set_closure=True, validate=False) or self
+        return self._assume_series(result)
 
     @staticmethod
     def get_names() -> tuple:
@@ -307,3 +309,11 @@ class DateNumericSeries(sc.SortedNumericKeyValueSeries, sc.DateSeries):
 
     def plot(self, fmt: str = '-') -> None:
         nm.plot(self.get_keys(), self.get_values(), fmt=fmt)
+
+    @staticmethod
+    def _assume_series(series) -> Series:
+        return series
+
+    @staticmethod
+    def _assume_native(series) -> Native:
+        return series

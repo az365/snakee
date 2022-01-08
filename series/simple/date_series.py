@@ -1,178 +1,33 @@
-from abc import abstractmethod
 from typing import Optional, Callable, Iterable, Generator, Union
 
 try:  # Assume we're a submodule in a package.
     from functions.primary import dates as dt
+    from series.interfaces.any_series_interface import AnySeriesInterface
+    from series.interfaces.date_series_interface import DateSeriesInterface
+    from series.interfaces.key_value_series_interface import KeyValueSeriesInterface
     from series.simple.any_series import AnySeries
     from series.simple.sorted_series import SortedSeries
     from series import series_classes as sc
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...functions.primary import dates as dt
+    from ..interfaces.any_series_interface import AnySeriesInterface
+    from ..interfaces.date_series_interface import DateSeriesInterface
+    from ..interfaces.key_value_series_interface import KeyValueSeriesInterface
     from .any_series import AnySeries
     from .sorted_series import SortedSeries
     from .. import series_classes as sc
 
-NativeInterface = SortedSeries
-DateNumeric = NativeInterface  # sc.DateNumericSeries
-SortedNumeric = NativeInterface  # sc.SortedNumericSeries
-Series = AnySeries
+Native = DateSeriesInterface
+Series = AnySeriesInterface
+SortedNumeric = KeyValueSeriesInterface  # SortedNumericSeriesInterface
+DateNumeric = Union[DateSeriesInterface, KeyValueSeriesInterface]  # DateNumericSeriesInterface
 Name = Optional[str]
 
 DEFAULT_NUMERIC = False
 DEFAULT_SORTED = True
 
 
-class DateSeriesInterface(NativeInterface):
-    @staticmethod
-    @abstractmethod
-    def get_distance_func() -> Callable:
-        return dt.get_days_between
-
-    @abstractmethod
-    def is_dates(self, check: bool = False) -> bool:
-        pass
-
-    @abstractmethod
-    def get_dates(self, as_date_type: bool = False) -> list:
-        pass
-
-    @abstractmethod
-    def set_dates(self, dates: Iterable) -> NativeInterface:
-        pass
-
-    @abstractmethod
-    def to_days(self) -> SortedNumeric:
-        pass
-
-    @abstractmethod
-    def to_weeks(self) -> SortedNumeric:
-        pass
-
-    @abstractmethod
-    def to_months(self) -> SortedNumeric:
-        pass
-
-    @abstractmethod
-    def to_years(self) -> SortedNumeric:
-        pass
-
-    @abstractmethod
-    def date_series(self) -> NativeInterface:
-        pass
-
-    @abstractmethod
-    def get_first_date(self) -> dt.Date:
-        pass
-
-    @abstractmethod
-    def get_last_date(self) -> dt.Date:
-        pass
-
-    @abstractmethod
-    def get_border_dates(self) -> list:
-        pass
-
-    @abstractmethod
-    def get_mutual_border_dates(self, other: NativeInterface) -> list:
-        pass
-
-    @abstractmethod
-    def border_dates(self, other: Optional[NativeInterface] = None) -> NativeInterface:
-        pass
-
-    @abstractmethod
-    def get_range_len(self) -> int:
-        pass
-
-    @abstractmethod
-    def has_date_in_range(self, date: dt.Date) -> bool:
-        pass
-
-    @abstractmethod
-    def map_dates(self, function: Callable) -> NativeInterface:
-        pass
-
-    @abstractmethod
-    def filter_dates(self, function: Callable) -> NativeInterface:
-        pass
-
-    @abstractmethod
-    def exclude(self, first_date: dt.Date, last_date: dt.Date) -> NativeInterface:
-        pass
-
-    @abstractmethod
-    def period(self, first_date: dt.Date, last_date: dt.Date) -> NativeInterface:
-        pass
-
-    @abstractmethod
-    def first_year(self) -> NativeInterface:
-        pass
-
-    @abstractmethod
-    def last_year(self) -> NativeInterface:
-        pass
-
-    @abstractmethod
-    def shift_dates(self, distance: int) -> NativeInterface:
-        pass
-
-    @abstractmethod
-    def yearly_shift(self) -> NativeInterface:
-        pass
-
-    @abstractmethod
-    def round_to_weeks(self) -> NativeInterface:
-        pass
-
-    @abstractmethod
-    def round_to_months(self) -> NativeInterface:
-        pass
-
-    @abstractmethod
-    def distance(self, d: dt.Date, take_abs: bool = True) -> DateNumeric:
-        pass
-
-    @abstractmethod
-    def distance_for_date(self, date: dt.Date, take_abs: bool = True) -> DateNumeric:
-        pass
-
-    @abstractmethod
-    def get_distance_for_nearest_date(self, date: dt.Date, take_abs: bool = True) -> int:
-        pass
-
-    @abstractmethod
-    def get_nearest_date(self, date: dt.Date, distance_func: Optional[Callable] = None) -> dt.Date:
-        pass
-
-    @abstractmethod
-    def get_two_nearest_dates(self, date: dt.Date) -> Optional[tuple]:
-        pass
-
-    @abstractmethod
-    def get_segment(self, date: dt.Date) -> NativeInterface:
-        pass
-
-    @abstractmethod
-    def interpolate_to_weeks(self) -> NativeInterface:
-        pass
-
-    @abstractmethod
-    def interpolate_to_months(self) -> NativeInterface:
-        pass
-
-    @abstractmethod
-    def find_base_date(
-            self, date: dt.Date,
-            max_distance: int = dt.MAX_DAYS_IN_MONTH, return_increment: bool = False,
-    ) -> Union[dt.Date, tuple]:
-        pass
-
-
-Native = DateSeriesInterface
-DateNumeric = Native
-
-
-class DateSeries(DateSeriesInterface, SortedSeries):
+class DateSeries(SortedSeries, DateSeriesInterface):
     def __init__(
             self,
             values: Optional[Iterable] = None,
@@ -213,7 +68,7 @@ class DateSeries(DateSeriesInterface, SortedSeries):
         return dt.is_date(date, also_gost_format=False)
 
     @staticmethod
-    def _is_native(series: Series) -> bool:
+    def _is_native(series) -> bool:
         return isinstance(series, (DateSeries, sc.DateSeries))
 
     @staticmethod
@@ -246,16 +101,20 @@ class DateSeries(DateSeriesInterface, SortedSeries):
         )
 
     def to_days(self, inplace: bool = False) -> SortedNumeric:
-        return self.map_dates(dt.get_day_abs_from_date, inplace=inplace).assume_numeric()
+        series = self.map_dates(dt.get_day_abs_from_date, inplace=inplace) or self
+        return self._assume_sorted_numeric(series.assume_numeric())
 
     def to_weeks(self, inplace: bool = False) -> SortedNumeric:
-        return self.map_dates(dt.get_week_abs_from_date, inplace=inplace).assume_numeric()
+        series = self.map_dates(dt.get_week_abs_from_date, inplace=inplace) or self
+        return self._assume_sorted_numeric(series.assume_numeric())
 
     def to_months(self, inplace: bool = False) -> SortedNumeric:
-        return self.map_dates(dt.get_month_abs_from_date, inplace=inplace).assume_numeric()
+        series = self.map_dates(dt.get_month_abs_from_date, inplace=inplace) or self
+        return self._assume_sorted_numeric(series.assume_numeric())
 
     def to_years(self, decimal: bool = True, inplace: bool = False) -> SortedNumeric:
-        return self.map_dates(lambda d: dt.get_year_from_date(d, decimal=decimal), inplace=inplace).assume_numeric()
+        series = self.map_dates(lambda d: dt.get_year_from_date(d, decimal=decimal), inplace=inplace) or self
+        return self._assume_sorted_numeric(series.assume_numeric())
 
     def date_series(self, inplace: bool = False, set_closure: bool = False) -> Native:
         if inplace:
@@ -372,10 +231,9 @@ class DateSeries(DateSeriesInterface, SortedSeries):
         return self.get_distance_func()(date, nearest_date, take_abs)
 
     def get_nearest_date(self, date: dt.Date, distance_func: Optional[Callable] = None) -> dt.Date:
-        return self.date_series().get_nearest_value(
-            date,
-            distance_func=distance_func or self.get_distance_func(),
-        )
+        if distance_func is None:
+            distance_func = self.get_distance_func()
+        return self.date_series().get_nearest_value(date, distance_func=distance_func)
 
     def get_two_nearest_dates(self, date: dt.Date) -> Optional[tuple]:
         if self.get_count() < 2:
@@ -422,3 +280,11 @@ class DateSeries(DateSeriesInterface, SortedSeries):
             return base_date, increment
         else:
             return base_date
+
+    @staticmethod
+    def _assume_native(series) -> Native:
+        return series
+
+    @staticmethod
+    def _assume_sorted_numeric(series) -> SortedNumeric:
+        return series

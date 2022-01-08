@@ -1,15 +1,19 @@
 from typing import Optional, Callable, Iterable, Generator, Union, Any
 
 try:  # Assume we're a submodule in a package.
+    from series.interfaces.any_series_interface import AnySeriesInterface, Name
+    from series.interfaces.key_value_series_interface import KeyValueSeriesInterface
     from series import series_classes as sc
     from functions.primary import numeric as nm, dates as dt
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
+    from ..interfaces.any_series_interface import AnySeriesInterface, Name
+    from ..interfaces.key_value_series_interface import KeyValueSeriesInterface
     from .. import series_classes as sc
     from ...functions.primary import numeric as nm, dates as dt
 
-Series = sc.AnySeries
 Native = Union[sc.KeyValueSeries, sc.SortedSeries]
-Name = Optional[str]
+Series = AnySeriesInterface
+KeyValue = KeyValueSeriesInterface
 
 
 class SortedKeyValueSeries(sc.KeyValueSeries, sc.SortedSeries):
@@ -70,7 +74,7 @@ class SortedKeyValueSeries(sc.KeyValueSeries, sc.SortedSeries):
     def assume_sorted(self) -> Native:
         return self
 
-    def assume_unsorted(self) -> Series:
+    def assume_unsorted(self) -> KeyValue:
         return sc.KeyValueSeries(
             **self._get_data_member_dict()
         )

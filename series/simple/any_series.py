@@ -3,11 +3,13 @@ from typing import Optional, Callable, Iterable, Generator, Sized, Union, Any
 try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
     from functions.primary import numeric as nm
+    from series.interfaces.any_series_interface import AnySeriesInterface
     from series.abstract_series import AbstractSeries
     from series import series_classes as sc
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...functions.primary import numeric as nm
+    from ..interfaces.any_series_interface import AnySeriesInterface
     from ..abstract_series import AbstractSeries
     from .. import series_classes as sc
 
@@ -18,7 +20,7 @@ DEFAULT_NUMERIC = False
 DEFAULT_SORTED = False
 
 
-class AnySeries(AbstractSeries):
+class AnySeries(AbstractSeries, AnySeriesInterface):
     def __init__(
             self,
             values: Iterable,
@@ -99,6 +101,7 @@ class AnySeries(AbstractSeries):
         return self.slice(
             n_start=left_count,
             n_end=self.get_count() - right_count,
+            inplace=inplace,
         )
 
     def items_no(self, numbers: Iterable, extend: bool = False, default: Any = None, inplace: bool = False) -> Native:
@@ -174,11 +177,12 @@ class AnySeries(AbstractSeries):
 
     def filter(self, function: Callable, inplace: bool = False) -> Native:
         filtered_items = filter(function, self.get_items())
-        return self.set_items(filtered_items, inplace=inplace)
+        return self.set_items(filtered_items, inplace=inplace) or self
 
     def filter_values(self, function: Callable, inplace: bool = False) -> Native:
         filtered_values = [v for v in self.get_values() if function(v)]
-        return self.set_values(filtered_values, inplace=inplace)
+        result = self.set_values(filtered_values, inplace=inplace) or self
+        return self._assume_native(result)
 
     def filter_values_defined(self) -> Native:
         return self.filter_values(nm.is_defined)
@@ -256,13 +260,14 @@ class AnySeries(AbstractSeries):
         )
 
     def to_dates(self, as_iso_date: bool = False) -> Native:
-        return sc.DateSeries(
+        series = sc.DateSeries(
             self.get_values(),
             validate=False,
             sort_items=False,
         ).to_dates(
             as_iso_date=as_iso_date,
         )
+        return self._assume_native(series)
 
     def assume_unsorted(self) -> Native:
         return self
