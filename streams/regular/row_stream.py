@@ -10,7 +10,7 @@ try:  # Assume we're a submodule in a package.
     from utils import arguments as arg, selection as sf
     from utils.decorators import deprecated_with_alternative
     from functions.primary import numeric as nm
-    from functions import all_functions as fs
+    from functions.secondary import all_secondary_functions as fs
     from selection import selection_classes as sn
     from streams.mixin.columnar_mixin import ColumnarMixin
     from streams.regular.any_stream import AnyStream
@@ -24,7 +24,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils import arguments as arg, selection as sf
     from ...utils.decorators import deprecated_with_alternative
     from ...functions.primary import numeric as nm
-    from ...functions import all_functions as fs
+    from ...functions.secondary import all_secondary_functions as fs
     from ...selection import selection_classes as sn
     from ..mixin.columnar_mixin import ColumnarMixin
     from .any_stream import AnyStream

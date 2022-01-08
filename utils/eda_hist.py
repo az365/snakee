@@ -7,7 +7,7 @@ try:  # Assume we're a sub-module in a package.
     )
     from functions.primary import numeric as nm
     from streams import stream_classes as sm
-    from functions import all_functions as fs
+    from functions.secondary import all_secondary_functions as fs
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from . import (
         arguments as arg,
@@ -15,7 +15,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     )
     from ..functions.primary import numeric as nm
     from ..streams import stream_classes as sm
-    from ..functions import all_functions as fs
+    from ..functions.secondary import all_secondary_functions as fs
 
 StreamType = sm.StreamType
 Stream = Union[sm.LocalStream, sm.ColumnarMixin]

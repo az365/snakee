@@ -12,7 +12,7 @@ try:  # Assume we're a submodule in a package.
     )
     from loggers.fallback_logger import FallbackLogger
     from streams import stream_classes as sm
-    from functions import all_functions as fs
+    from functions.secondary import all_secondary_functions as fs
     from selection import selection_classes as sn
     from items.flat_struct import FlatStruct
     from items.struct_mixin import StructMixin
@@ -30,7 +30,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     )
     from ...loggers.fallback_logger import FallbackLogger
     from .. import stream_classes as sm
-    from ...functions import all_functions as fs
+    from ...functions.secondary import all_secondary_functions as fs
     from ...selection import selection_classes as sn
     from ...items.flat_struct import FlatStruct
     from ...items.struct_mixin import StructMixin

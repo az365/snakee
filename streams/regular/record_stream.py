@@ -12,7 +12,7 @@ try:  # Assume we're a submodule in a package.
         AUTO, Auto, AutoCount, AutoName, AutoBool,
     )
     from streams import stream_classes as sm
-    from functions import all_functions as fs
+    from functions.secondary import all_secondary_functions as fs
     from selection import selection_classes as sn
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg, selection as sf
@@ -26,7 +26,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         AUTO, Auto, AutoCount, AutoName, AutoBool,
     )
     from .. import stream_classes as sm
-    from ...functions import all_functions as fs
+    from ...functions.secondary import all_secondary_functions as fs
     from ...selection import selection_classes as sn
 
 Native = RegularStream
