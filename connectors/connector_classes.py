@@ -11,11 +11,6 @@ try:  # Assume we're a submodule in a package.
     from connectors.abstract.hierarchic_connector import HierarchicConnector
     from connectors.abstract.abstract_folder import AbstractFolder, FlatFolder, HierarchicFolder
     from connectors.abstract.abstract_storage import AbstractStorage
-    from connectors.content_format.content_classes import (
-        AbstractFormat, BinaryFormat, ParsedFormat, LeanFormat,
-        TextFormat, JsonFormat, ColumnarFormat, FlatStructFormat,
-        ContentType,
-    )
     from connectors.mixin.connector_format_mixin import ConnectorFormatMixin
     from connectors.mixin.actualize_mixin import ActualizeMixin
     from connectors.mixin.streamable_mixin import StreamableMixin
@@ -40,6 +35,11 @@ try:  # Assume we're a submodule in a package.
     from connectors.operations.twin_sync import TwinSync
     from connectors.operations.multi_sync import MultiSync
     from connectors.operations.job import Job
+    from content.format.content_classes import (
+        AbstractFormat, BinaryFormat, ParsedFormat, LeanFormat,
+        TextFormat, JsonFormat, ColumnarFormat, FlatStructFormat,
+        ContentType,
+    )
     from loggers import logger_classes as log
     from utils.decorators import deprecated_with_alternative
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -53,11 +53,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .abstract.hierarchic_connector import HierarchicConnector
     from .abstract.abstract_folder import AbstractFolder, FlatFolder, HierarchicFolder
     from .abstract.abstract_storage import AbstractStorage
-    from .content_format.content_classes import (
-        AbstractFormat, BinaryFormat, ParsedFormat, LeanFormat,
-        TextFormat, JsonFormat, ColumnarFormat, FlatStructFormat,
-        ContentType,
-    )
     from .mixin.connector_format_mixin import ConnectorFormatMixin
     from .mixin.actualize_mixin import ActualizeMixin
     from .mixin.streamable_mixin import StreamableMixin
@@ -82,6 +77,11 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .operations.twin_sync import TwinSync
     from .operations.multi_sync import MultiSync
     from .operations.job import Job
+    from ..content.format.content_classes import (
+        AbstractFormat, BinaryFormat, ParsedFormat, LeanFormat,
+        TextFormat, JsonFormat, ColumnarFormat, FlatStructFormat,
+        ContentType,
+    )
     from ..loggers import logger_classes as log
     from ..utils.decorators import deprecated_with_alternative
 

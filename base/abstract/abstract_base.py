@@ -116,13 +116,16 @@ class AbstractBaseObject(BaseInterface, ABC):
         else:
             return self.__class__(*self._get_data_member_items(), **meta)
 
-    def update_meta(self, **meta):
+    def update_meta(self, inplace: bool = False, **meta):
         current_meta = self.get_meta()
         current_meta.update(meta)
-        return self.__class__(
-            *self._get_data_member_items(),
-            **current_meta
-        )
+        if inplace:
+            self.set_inplace(**current_meta)
+        else:
+            return self.__class__(
+                *self._get_data_member_items(),
+                **current_meta
+            )
 
     def fill_meta(self, check=True, **meta):
         old_meta = self.get_meta()

@@ -1,12 +1,24 @@
+from typing import Optional, Callable, Iterable, Iterator, Generator, Sized, Union, Any
 from datetime import datetime
 from random import randint
-from typing import Optional, Callable, Iterable, Iterator, Generator, Union, Any
+
+try:  # Assume we're a submodule in a package.
+    from functions.primary.text import (
+        str_to_bool,
+        is_absolute_path, is_mask, is_formatter,
+        get_str_from_args_kwargs, get_str_from_annotation,
+    )
+except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
+    from ..functions.primary.text import (
+        str_to_bool,
+        is_absolute_path, is_mask, is_formatter,
+        get_str_from_args_kwargs, get_str_from_annotation,
+    )
 
 NOT_USED = None
 _AUTO_VALUE = 'AUTO'
 DEFAULT_VALUE = _AUTO_VALUE
 DEFAULT_RANDOM_LEN = 4
-STR_FALSE_SYNONYMS = ('False', 'false', 'None', 'none', 'no', '0', '')
 
 
 class Auto:
@@ -159,14 +171,10 @@ def is_in_memory(obj) -> bool:
 
 
 def get_optional_len(obj: Iterable, default=None) -> Optional[int]:
-    if isinstance(obj, (tuple, list, set)):
+    if isinstance(obj, Sized):
         return len(obj)
     else:
         return default
-
-
-def is_absolute_path(path: str) -> bool:
-    return path.startswith('/') or path.startswith('\\') or ':' in path
 
 
 def is_defined(obj, check_name: bool = True) -> bool:
@@ -191,27 +199,9 @@ def is_defined(obj, check_name: bool = True) -> bool:
     return result
 
 
-def is_mask(string: str, count=None, placeholder: str = '*') -> bool:
-    if isinstance(string, str):
-        if count:
-            return len(string.split(placeholder)) == count + 1
-        else:
-            return len(string.split(placeholder)) > 1
-
-
-def is_formatter(string: str, count=None) -> bool:
-    if isinstance(string, str):
-        if count:
-            # return min([len(string.split(s)) == count + 1 for s in '{}'])
-            return min([is_mask(string, count, placeholder=s) for s in '{}'])
-        else:
-            # return min([len(string.split(s)) > 1 for s in '{}'])
-            return min([is_mask(string, count, placeholder=s) for s in '{}'])
-
-
 def any_to_bool(value) -> bool:
     if isinstance(value, str):
-        return value not in STR_FALSE_SYNONYMS
+        return str_to_bool(value)
     else:
         return bool(value)
 
@@ -237,8 +227,3 @@ def safe_converter(converter: Callable, default_value: Any = 0, eval_allowed: bo
                 else:
                     raise TypeError('{}: {}({})'.format(e, converter_name, value))
     return func
-
-
-def get_str_from_args_kwargs(*args, **kwargs) -> str:
-    list_str_from_args_kwargs = list(args) + ['{}={}'.format(k, v) for k, v in kwargs.items()]
-    return ', '.join(map(str, list_str_from_args_kwargs))

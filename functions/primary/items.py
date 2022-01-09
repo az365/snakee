@@ -2,9 +2,9 @@ from typing import Optional, Iterable, Callable, Union, Any
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
-    from items.item_type import ItemType
-    from items.struct_row_interface import StructRowInterface
-    from items.simple_items import (
+    from content.items.item_type import ItemType
+    from content.struct.struct_row_interface import StructRowInterface
+    from content.items.simple_items import (
         Row, Record, Line, SimpleSelectableItem,
         STAR, ROW_SUBCLASSES, RECORD_SUBCLASSES,
         FieldNo, FieldName, FieldID, Value, Array, ARRAY_TYPES,
@@ -13,9 +13,9 @@ try:  # Assume we're a sub-module in a package.
     )
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
-    from ...items.item_type import ItemType
-    from ...items.struct_row_interface import StructRowInterface
-    from ...items.simple_items import (
+    from ...content.items.item_type import ItemType
+    from ...content.struct.struct_row_interface import StructRowInterface
+    from ...content.items.simple_items import (
         Row, Record, Line, SimpleSelectableItem,
         STAR, ROW_SUBCLASSES, RECORD_SUBCLASSES,
         FieldNo, FieldName, FieldID, Value, Array, ARRAY_TYPES,

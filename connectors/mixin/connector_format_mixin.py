@@ -9,9 +9,9 @@ try:  # Assume we're a sub-module in a package.
         AUTO, Auto, AutoBool, Columns, Array, ARRAY_TYPES,
     )
     from functions.secondary import item_functions as fs
-    from items.struct_mixin import StructMixin
-    from connectors.content_format.text_format import AbstractFormat, ParsedFormat, TextFormat
-    from connectors.content_format.lean_format import LeanFormat, ColumnarFormat, FlatStructFormat
+    from content.struct.struct_mixin import StructMixin
+    from content.format.text_format import AbstractFormat, ParsedFormat, TextFormat
+    from content.format.lean_format import LeanFormat, ColumnarFormat, FlatStructFormat
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...interfaces import (
@@ -20,9 +20,9 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         AUTO, Auto, AutoBool, Columns, Array, ARRAY_TYPES,
     )
     from ...functions.secondary import item_functions as fs
-    from ...items.struct_mixin import StructMixin
-    from ..content_format.text_format import AbstractFormat, ParsedFormat, TextFormat
-    from ..content_format.lean_format import LeanFormat, ColumnarFormat, FlatStructFormat
+    from ...content.struct.struct_mixin import StructMixin
+    from ...content.format.text_format import AbstractFormat, ParsedFormat, TextFormat
+    from ...content.format.lean_format import LeanFormat, ColumnarFormat, FlatStructFormat
 
 Native = Union[LeafConnectorInterface, IterableStreamInterface, StructFileInterface]
 Struct = Optional[StructInterface]

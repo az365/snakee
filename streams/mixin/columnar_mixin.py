@@ -1,9 +1,9 @@
 from abc import ABC
 from typing import Union, Iterable, Generator, Callable, Optional
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from interfaces import (
-        Context, LoggerInterface,
+        Context, LoggerInterface, SelectionLogger, ExtLogger,
         Stream, RegularStream, RegularStreamInterface, StructStream, StructInterface, ColumnarInterface,
         StreamType, ItemType, JoinType, How,
         Count, UniKey, Item, Array, Columns, OptionalFields,
@@ -11,14 +11,14 @@ try:  # Assume we're a sub-module in a package.
     )
     from utils import algo, arguments as arg
     from utils.external import pd, DataFrame, get_use_objects_for_output
-    from fields import field_classes as fc
+    from content.fields import field_classes as fc
     from base.abstract.contextual_data import ContextualDataWrapper
+    from base.mixin.iterable_mixin import IterableMixin
     from functions.secondary import item_functions as fs
     from utils import selection as sf
-    from streams.mixin.iterable_mixin import IterableStreamMixin
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
-        Context, LoggerInterface,
+        Context, LoggerInterface, SelectionLogger, ExtLogger,
         Stream, RegularStream, RegularStreamInterface, StructStream, StructInterface, ColumnarInterface,
         StreamType, ItemType, JoinType, How,
         Count, UniKey, Item, Array, Columns, OptionalFields,
@@ -26,11 +26,11 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     )
     from ...utils import algo, arguments as arg
     from ...utils.external import pd, DataFrame, get_use_objects_for_output
-    from ...fields import field_classes as fc
+    from ...content.fields import field_classes as fc
     from ...base.abstract.contextual_data import ContextualDataWrapper
+    from ...base.mixin.iterable_mixin import IterableMixin
     from ...functions.secondary import item_functions as fs
     from ...utils import selection as sf
-    from .iterable_mixin import IterableStreamMixin
 
 Native = Union[RegularStreamInterface, ColumnarInterface]
 Struct = Optional[StructInterface]
@@ -39,7 +39,7 @@ SAFE_COUNT_ITEMS_IN_MEMORY = 10000
 EXAMPLE_STR_LEN = 12
 
 
-class ColumnarMixin(ContextualDataWrapper, IterableStreamMixin, ColumnarInterface, ABC):
+class ColumnarMixin(ContextualDataWrapper, IterableMixin, ColumnarInterface, ABC):
     @classmethod
     def is_valid_item(cls, item: Item) -> bool:
         return cls.get_item_type().isinstance(item)
@@ -162,6 +162,18 @@ class ColumnarMixin(ContextualDataWrapper, IterableStreamMixin, ColumnarInterfac
     def apply_to_stream(self, function: Callable, *args, **kwargs) -> Stream:
         return function(self, *args, **kwargs)
 
+    def get_selection_logger(self) -> SelectionLogger:
+        if isinstance(self, ContextualDataWrapper) or hasattr(self, 'get_context'):
+            context = self.get_context()
+        else:
+            context = None
+        if context:
+            return context.get_selection_logger()
+        else:
+            logger = self.get_logger()
+            if isinstance(logger, ExtLogger) or hasattr(logger, 'get_selection_logger'):
+                return logger.get_selection_logger()
+
     @staticmethod
     def _assume_native(stream) -> Native:
         return stream
@@ -235,10 +247,27 @@ class ColumnarMixin(ContextualDataWrapper, IterableStreamMixin, ColumnarInterfac
             return default
 
     def get_dataframe(self, columns: Optional[Iterable] = None) -> DataFrame:
-        df = DataFrame(self.get_data())
-        if df and columns:
-            df = df[columns]
-        return df
+        if pd and get_use_objects_for_output():
+            if columns:
+                dataframe = DataFrame(self.get_items(), columns=columns)
+                columns = arg.get_names(columns)
+                dataframe = dataframe[columns]
+            else:
+                dataframe = DataFrame(self.get_items())
+            return dataframe
+
+    def _get_field_getter(self, field: UniKey, item_type: Union[ItemType, Auto] = AUTO, default=None):
+        if isinstance(self, RegularStreamInterface) or hasattr(self, 'get_item_type'):
+            item_type = arg.delayed_acquire(item_type, self.get_item_type)
+        return lambda i: fs.it.get_field_value_from_item(
+            field=field, item=i, item_type=item_type,
+            default=default, logger=self.get_selection_logger(),
+        )
+
+    def get_dict(self, key: UniKey, value: UniKey) -> dict:
+        key_getter = self._get_field_getter(key)
+        value_getter = self._get_field_getter(value)
+        return {key_getter(i): value_getter(i) for i in self.get_items()}
 
     def get_str_description(self) -> str:
         return '{} rows, {} columns: {}'.format(
@@ -271,7 +300,7 @@ class ColumnarMixin(ContextualDataWrapper, IterableStreamMixin, ColumnarInterfac
             example = self.filter(*filters, **filter_kwargs).take(count)
         elif use_tee and hasattr(self, 'tee_stream'):
             assert hasattr(self, 'tee_stream')
-            example = self.tee_stream().take(count)
+            example = self.copy().take(count)
         else:  # keep safe items in iterator
             example = self.take(1)
         return self._assume_native(example)

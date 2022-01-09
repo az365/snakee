@@ -1,17 +1,17 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Iterable, Iterator, Union
+from typing import Optional, Iterable, Union
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
     from connectors.interfaces.leaf_connector_interface import LeafConnectorInterface
-    from items.struct_interface import StructInterface
-    from items.item_type import ItemType
+    from content.struct.struct_interface import StructInterface
+    from content.items.item_type import ItemType
     from streams.stream_type import StreamType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ..interfaces.leaf_connector_interface import LeafConnectorInterface
-    from ...items.struct_interface import StructInterface
-    from ...items.item_type import ItemType
+    from ...content.struct.struct_interface import StructInterface
+    from ...content.items.item_type import ItemType
     from ...streams.stream_type import StreamType
 
 Native = LeafConnectorInterface

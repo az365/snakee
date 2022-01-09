@@ -10,14 +10,13 @@ try:  # Assume we're a submodule in a package.
         ContentType, ConnType, ItemType, StreamType,
         AUTO, Auto, AutoCount, AutoBool, AutoName, OptionalFields, UniKey, Array, ARRAY_TYPES,
     )
-    from connectors.content_format.content_classes import (
+    from content.format.content_classes import (
         AbstractFormat, ParsedFormat, LeanFormat,
         TextFormat, ColumnarFormat, FlatStructFormat,
     )
     from connectors.abstract.leaf_connector import LeafConnector
     from connectors.mixin.connector_format_mixin import ConnectorFormatMixin
     from connectors.mixin.actualize_mixin import ActualizeMixin
-    from streams.mixin.iterable_mixin import IterableStreamMixin
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...interfaces import (
@@ -26,14 +25,13 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         ContentType, ConnType, ItemType, StreamType,
         AUTO, Auto, AutoCount, AutoBool, AutoName, OptionalFields, UniKey, Array, ARRAY_TYPES,
     )
-    from ..content_format.content_classes import (
+    from ...content.format.content_classes import (
         AbstractFormat, ParsedFormat, LeanFormat,
         TextFormat, ColumnarFormat, FlatStructFormat,
     )
     from ..abstract.leaf_connector import LeafConnector
     from ..mixin.connector_format_mixin import ConnectorFormatMixin
     from ..mixin.actualize_mixin import ActualizeMixin
-    from ...streams.mixin.iterable_mixin import IterableStreamMixin
 
 Stream = IterableStreamInterface
 Struct = Optional[StructInterface]

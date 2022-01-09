@@ -1,7 +1,7 @@
 from abc import ABC
 from typing import Optional, Iterable, Callable, Union
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
     from utils.external import pd, DataFrame
     from interfaces import (
@@ -10,7 +10,7 @@ try:  # Assume we're a sub-module in a package.
         Array, Columns, OptionalFields,
         AUTO, Auto,
     )
-    from functions import all_functions as fs
+    from functions.secondary import all_secondary_functions as fs
     from streams.abstract.iterable_stream import IterableStream
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
@@ -21,7 +21,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         Array, Columns, OptionalFields,
         AUTO, Auto,
     )
-    from ...functions import all_functions as fs
+    from ...functions.secondary import all_secondary_functions as fs
     from ..abstract.iterable_stream import IterableStream
 
 Native = RegularStream

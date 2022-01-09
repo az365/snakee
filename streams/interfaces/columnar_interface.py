@@ -1,15 +1,15 @@
 from abc import ABC, abstractmethod
 from typing import Optional, Iterable, Callable, Union
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
     from utils.external import DataFrame
     from utils.algo import JoinType
     from streams.interfaces.abstract_stream_interface import StreamInterface
     from streams.interfaces.regular_stream_interface import RegularStreamInterface
     from streams.stream_type import StreamType
-    from items.struct_interface import StructInterface
-    from items.item_type import ItemType, Item, FieldID
+    from content.struct.struct_interface import StructInterface
+    from content.items.item_type import ItemType, Item, FieldID
     from base.interfaces.context_interface import ContextInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
@@ -18,8 +18,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .abstract_stream_interface import StreamInterface
     from .regular_stream_interface import RegularStreamInterface
     from ..stream_type import StreamType
-    from ...items.struct_interface import StructInterface
-    from ...items.item_type import ItemType, Item, FieldID
+    from ...content.struct.struct_interface import StructInterface
+    from ...content.items.item_type import ItemType, Item, FieldID
     from ...base.interfaces.context_interface import ContextInterface
 
 Native = RegularStreamInterface
@@ -50,7 +50,7 @@ class ColumnarInterface(RegularStreamInterface, ABC):
     @classmethod
     @abstractmethod
     def get_validated(cls, items: Iterable, skip_errors: bool = False, context: Context = None) -> Iterable:
-        """Returns same items after validation by is_valid_item() method.
+        """Returns same items after validation by _is_valid_item() method.
 
         :param items: items to validate
         :param skip_errors: if `True` this function will return only validated items,
@@ -97,6 +97,12 @@ class ColumnarInterface(RegularStreamInterface, ABC):
 
     @abstractmethod
     def filter(self, *args, item_type: ItemType = ItemType.Auto, skip_errors: bool = False, **kwargs) -> Native:
+        """Filter items by listed fields or values of provided functions applied on each item.
+
+        :param item_type: expected item_type (for retrieve every filtering value correctly)
+        :param skip_errors: ignore errors while calculating filtering values
+        :returns: stream of the same type
+        """
         pass
 
     @abstractmethod
@@ -109,6 +115,11 @@ class ColumnarInterface(RegularStreamInterface, ABC):
 
     @abstractmethod
     def map(self, function: Callable) -> Native:
+        """Apply function to each item in stream.
+
+        :param function: py-function that should be applied to any item (it must return an item of same type)
+        :returns: stream of same type
+        """
         pass
 
     @abstractmethod
@@ -131,10 +142,6 @@ class ColumnarInterface(RegularStreamInterface, ABC):
 
     @abstractmethod
     def apply_to_stream(self, function: Callable, *args, **kwargs) -> Native:
-        pass
-
-    @staticmethod
-    def _assume_native(stream) -> Native:
         pass
 
     @abstractmethod
@@ -162,7 +169,26 @@ class ColumnarInterface(RegularStreamInterface, ABC):
     ) -> Struct:
         pass
 
+    @abstractmethod
     def get_dataframe(self, columns: Optional[Columns] = None) -> DataFrame:
+        """Converts full stream data to Pandas DataFrame.
+        Can use subset of columns and define order of columns (if columns-argument provided).
+        Pandas must be installed, otherwise raise exception.
+
+        :param columns: list of required fields (columns) or None (take all columns in arbitrary orders).
+        :returns: Pandas DataFrame
+        """
+        pass
+
+    @abstractmethod
+    def get_dict(self, key: UniKey, value: UniKey) -> dict:
+        """Aggregate stream data into python dictionary.
+        Using key and value arguments for get key and value from each item of stream.
+
+        :param key: field, struct or function for get key from each item.
+        :param value: field, struct or function for get value from each item.
+        :returns: dict
+        """
         pass
 
     @abstractmethod

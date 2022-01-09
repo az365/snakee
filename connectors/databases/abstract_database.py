@@ -9,8 +9,8 @@ try:  # Assume we're a submodule in a package.
         AUTO, Auto, AutoContext, AutoBool, AutoCount, Count, Name, FieldName, Connector,
     )
     from functions.primary import text as tx
+    from content.struct.flat_struct import FlatStruct
     from connectors.abstract.abstract_storage import AbstractStorage
-    from items.flat_struct import FlatStruct
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...interfaces import (
@@ -19,8 +19,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         AUTO, Auto, AutoContext, AutoBool, AutoCount, Count, Name, FieldName, Connector,
     )
     from ...functions.primary import text as tx
+    from ...content.struct.flat_struct import FlatStruct
     from ..abstract.abstract_storage import AbstractStorage
-    from ...items.flat_struct import FlatStruct
 
 Native = AbstractStorage
 Struct = Optional[StructInterface]

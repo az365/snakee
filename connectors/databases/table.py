@@ -7,7 +7,7 @@ try:  # Assume we're a submodule in a package.
         ContentFormatInterface, ContentType, ConnType, ItemType, StreamType, LoggingLevel,
         ARRAY_TYPES, AUTO, Auto, AutoBool, AutoName, AutoCount, Count, Name, OptionalFields,
     )
-    from items.flat_struct import FlatStruct
+    from content.struct.flat_struct import FlatStruct
     from connectors.abstract.leaf_connector import LeafConnector
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
@@ -16,7 +16,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         ContentFormatInterface, ContentType, ConnType, ItemType, StreamType, LoggingLevel,
         ARRAY_TYPES, AUTO, Auto, AutoBool, AutoName, AutoCount, Count, Name, OptionalFields,
     )
-    from ...items.flat_struct import FlatStruct
+    from ...content.struct.flat_struct import FlatStruct
     from ..abstract.leaf_connector import LeafConnector
 
 Native = LeafConnector
