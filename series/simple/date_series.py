@@ -2,26 +2,25 @@ from typing import Optional, Callable, Iterable, Generator, Union
 
 try:  # Assume we're a submodule in a package.
     from functions.primary import dates as dt
-    from series.interfaces.any_series_interface import AnySeriesInterface
+    from series.series_type import SeriesType
+    from series.interfaces.any_series_interface import AnySeriesInterface, Name
     from series.interfaces.date_series_interface import DateSeriesInterface
     from series.interfaces.key_value_series_interface import KeyValueSeriesInterface
-    from series.simple.any_series import AnySeries
     from series.simple.sorted_series import SortedSeries
-    from series import series_classes as sc
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...functions.primary import dates as dt
-    from ..interfaces.any_series_interface import AnySeriesInterface
+    from ..series_type import SeriesType
+    from ..interfaces.any_series_interface import AnySeriesInterface, Name
     from ..interfaces.date_series_interface import DateSeriesInterface
     from ..interfaces.key_value_series_interface import KeyValueSeriesInterface
-    from .any_series import AnySeries
     from .sorted_series import SortedSeries
-    from .. import series_classes as sc
 
 Native = DateSeriesInterface
-Series = AnySeriesInterface
 SortedNumeric = KeyValueSeriesInterface  # SortedNumericSeriesInterface
-DateNumeric = Union[DateSeriesInterface, KeyValueSeriesInterface]  # DateNumericSeriesInterface
-Name = Optional[str]
+DateNumericSeriesInterface = KeyValueSeriesInterface  # DateNumericSeriesInterface
+DateNumeric = Union[DateSeriesInterface, KeyValueSeriesInterface, DateNumericSeriesInterface]
+Series = Union[AnySeriesInterface, DateSeriesInterface, KeyValueSeriesInterface]
+Date = dt.Date
 
 DEFAULT_NUMERIC = False
 DEFAULT_SORTED = True
@@ -43,6 +42,9 @@ class DateSeries(SortedSeries, DateSeriesInterface):
             sort_items=sort_items,
             name=name,
         )
+
+    def get_series_type(self) -> SeriesType:
+        return SeriesType.DateSeries
 
     def get_errors(self) -> Iterable:
         yield from super().get_errors()
@@ -69,7 +71,7 @@ class DateSeries(SortedSeries, DateSeriesInterface):
 
     @staticmethod
     def _is_native(series) -> bool:
-        return isinstance(series, (DateSeries, sc.DateSeries))
+        return isinstance(series, (DateSeries, DateSeriesInterface))
 
     @staticmethod
     def get_distance_func() -> Callable:
@@ -122,11 +124,11 @@ class DateSeries(SortedSeries, DateSeriesInterface):
         else:
             return DateSeries(self.get_dates(), set_closure=set_closure, sort_items=False, validate=False)
 
-    def get_first_date(self) -> dt.Date:
+    def get_first_date(self) -> Date:
         if self.has_items():
             return self.get_dates()[0]
 
-    def get_last_date(self) -> dt.Date:
+    def get_last_date(self) -> Date:
         if self.has_items():
             return self.get_dates()[-1]
 
@@ -134,7 +136,7 @@ class DateSeries(SortedSeries, DateSeriesInterface):
         return [self.get_first_date(), self.get_last_date()]
 
     def get_mutual_border_dates(self, other: Native) -> list:
-        assert isinstance(other, (DateSeries, sc.DateSeries, DateNumeric, sc.DateNumericSeries)), other
+        assert isinstance(other, (DateSeries, DateSeriesInterface, DateNumeric, DateNumericSeriesInterface)), other
         first_date = max(self.get_first_date(), other.get_first_date())
         last_date = min(self.get_last_date(), other.get_last_date())
         if first_date < last_date:
@@ -151,7 +153,7 @@ class DateSeries(SortedSeries, DateSeriesInterface):
             *self.get_border_dates()
         )
 
-    def has_date_in_range(self, date: dt.Date) -> bool:
+    def has_date_in_range(self, date: Date) -> bool:
         return self.get_first_date() <= date <= self.get_last_date()
 
     def map_dates(self, function: Callable, inplace: bool = False) -> Native:
@@ -162,10 +164,10 @@ class DateSeries(SortedSeries, DateSeriesInterface):
         result = self.filter(function, inplace=inplace)
         return self._assume_native(result) or self
 
-    def exclude(self, first_date: dt.Date, last_date: dt.Date, inplace: bool = False) -> Native:
+    def exclude(self, first_date: Date, last_date: Date, inplace: bool = False) -> Native:
         return self.filter_dates(lambda d: d < first_date or d > last_date, inplace=inplace) or self
 
-    def period(self, first_date: dt.Date, last_date: dt.Date, inplace: bool = False) -> Native:
+    def period(self, first_date: Date, last_date: Date, inplace: bool = False) -> Native:
         return self.filter_dates(lambda d: first_date <= d <= last_date, inplace=inplace) or self
 
     def crop(self, left_days: int, right_days: int, inplace: bool = False) -> Native:
@@ -198,7 +200,7 @@ class DateSeries(SortedSeries, DateSeriesInterface):
     def round_to_months(self, inplace: bool = False) -> Native:
         return self.map_dates(dt.get_month_first_date, inplace=inplace).uniq(inplace=inplace)
 
-    def distance(self, d: [Native, dt.Date], take_abs: bool = True, inplace: bool = False) -> DateNumeric:
+    def distance(self, d: [Native, Date], take_abs: bool = True, inplace: bool = False) -> DateNumeric:
         if dt.is_date(d):
             distance_series = self.distance_for_date(d, take_abs=take_abs)
         elif self._is_native(d):
@@ -209,14 +211,15 @@ class DateSeries(SortedSeries, DateSeriesInterface):
             if inplace:
                 distance_series = distances
             else:
-                distance_series = sc.DateNumericSeries(self.get_dates(), distances, sort_items=False, validate=False)
+                series_class = SeriesType.DateNumericSeries.get_class()
+                distance_series = series_class(self.get_dates(), distances, sort_items=False, validate=False)
         else:
             raise TypeError('d-argument for distance-method must be date or DateSeries (got {}: {})'.format(type(d), d))
         return distance_series
 
     def distance_for_date(
             self,
-            date: dt.Date,
+            date: Date,
             take_abs: bool = True,
             set_closure: bool = False,
             name: Name = None,
@@ -224,18 +227,19 @@ class DateSeries(SortedSeries, DateSeriesInterface):
         f = self.get_distance_func()
         dates = self.get_dates()
         values = self.date_series(set_closure=set_closure).map(lambda d: f(date, d, take_abs), inplace=not set_closure)
-        return sc.DateNumericSeries(dates, values, sort_items=False, validate=False, set_closure=set_closure)
+        series_class = SeriesType.DateNumericSeries.get_class()
+        return series_class(dates, values, sort_items=False, validate=False, set_closure=set_closure)
 
-    def get_distance_for_nearest_date(self, date: dt.Date, take_abs: bool = True) -> int:
+    def get_distance_for_nearest_date(self, date: Date, take_abs: bool = True) -> int:
         nearest_date = self.get_nearest_date(date)
         return self.get_distance_func()(date, nearest_date, take_abs)
 
-    def get_nearest_date(self, date: dt.Date, distance_func: Optional[Callable] = None) -> dt.Date:
+    def get_nearest_date(self, date: Date, distance_func: Optional[Callable] = None) -> Date:
         if distance_func is None:
             distance_func = self.get_distance_func()
         return self.date_series().get_nearest_value(date, distance_func=distance_func)
 
-    def get_two_nearest_dates(self, date: dt.Date) -> Optional[tuple]:
+    def get_two_nearest_dates(self, date: Date) -> Optional[tuple]:
         if self.get_count() < 2:
             return None
         else:
@@ -244,7 +248,7 @@ class DateSeries(SortedSeries, DateSeriesInterface):
             date_b = distance_series.filter_values(lambda v: v >= 0).get_arg_min()
             return date_a, date_b
 
-    def get_segment(self, date: dt.Date, inplace: bool = False) -> Native:
+    def get_segment(self, date: Date, inplace: bool = False) -> Native:
         nearest_dates = [i for i in self.get_two_nearest_dates(date) if i]
         return self.set_dates(nearest_dates, inplace=inplace) or self
 
@@ -258,9 +262,9 @@ class DateSeries(SortedSeries, DateSeriesInterface):
         # return self.new(monthly_dates)
 
     def find_base_date(
-            self, date: dt.Date,
+            self, date: Date,
             max_distance: int = dt.MAX_DAYS_IN_MONTH, return_increment: bool = False,
-    ) -> Union[dt.Date, Optional[tuple]]:
+    ) -> Union[Date, tuple, None]:
         candidates = DateSeries(
             dt.get_yearly_dates(date, self.get_first_date(), self.get_last_date()),
         )
@@ -288,3 +292,6 @@ class DateSeries(SortedSeries, DateSeriesInterface):
     @staticmethod
     def _assume_sorted_numeric(series) -> SortedNumeric:
         return series
+
+
+SeriesType.add_classes(SortedSeries, DateSeries)

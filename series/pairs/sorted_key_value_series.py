@@ -1,22 +1,29 @@
 from typing import Optional, Callable, Iterable, Generator, Union, Any
 
 try:  # Assume we're a submodule in a package.
-    from series.interfaces.any_series_interface import AnySeriesInterface, Name
-    from series.interfaces.key_value_series_interface import KeyValueSeriesInterface
-    from series import series_classes as sc
     from functions.primary import numeric as nm, dates as dt
+    from series.series_type import SeriesType
+    from series.interfaces.any_series_interface import AnySeriesInterface, Name
+    from series.interfaces.date_series_interface import DateSeriesInterface
+    from series.interfaces.key_value_series_interface import KeyValueSeriesInterface
+    from series.simple.sorted_series import SortedSeries
+    from series.pairs.key_value_series import KeyValueSeries
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..interfaces.any_series_interface import AnySeriesInterface, Name
-    from ..interfaces.key_value_series_interface import KeyValueSeriesInterface
-    from .. import series_classes as sc
     from ...functions.primary import numeric as nm, dates as dt
+    from ..series_type import SeriesType
+    from ..interfaces.any_series_interface import AnySeriesInterface, Name
+    from ..interfaces.date_series_interface import DateSeriesInterface
+    from ..interfaces.key_value_series_interface import KeyValueSeriesInterface
+    from ..simple.sorted_series import SortedSeries
+    from .key_value_series import KeyValueSeries
 
-Native = Union[sc.KeyValueSeries, sc.SortedSeries]
-Series = AnySeriesInterface
-KeyValue = KeyValueSeriesInterface
+Native = Union[KeyValueSeries, SortedSeries]
+SortedNumeric = KeyValueSeriesInterface  # SortedNumericSeriesInterface
+DateNumeric = Union[DateSeriesInterface, SortedNumeric] # DateNumericSeriesInterface
+Series = Union[Native, AnySeriesInterface, KeyValueSeriesInterface]
 
 
-class SortedKeyValueSeries(sc.KeyValueSeries, sc.SortedSeries):
+class SortedKeyValueSeries(KeyValueSeries, SortedSeries):
     def __init__(
             self,
             keys: Optional[Iterable] = None,
@@ -41,8 +48,9 @@ class SortedKeyValueSeries(sc.KeyValueSeries, sc.SortedSeries):
     def _get_meta_member_names(cls) -> list:
         return list(super()._get_meta_member_names()) + ['cached_spline']
 
-    def key_series(self, set_closure: bool = False, name: Name = None) -> Series:
-        return sc.SortedSeries(self.get_keys(), set_closure=set_closure, validate=False, sort_items=False, name=name)
+    def key_series(self, set_closure: bool = False, name: Name = None) -> SortedSeries:
+        series_class = SeriesType.SortedSeries.get_class()
+        return series_class(self.get_keys(), set_closure=set_closure, validate=False, sort_items=False, name=name)
 
     def has_key_in_range(self, key: Any):
         return self.get_first_key() <= key <= self.get_last_key()
@@ -65,7 +73,7 @@ class SortedKeyValueSeries(sc.KeyValueSeries, sc.SortedSeries):
         return [self.get_first_key(), self.get_last_key()]
 
     def get_mutual_border_keys(self, other: Native) -> list:
-        assert isinstance(other, sc.SortedKeyValueSeries)
+        assert isinstance(other, (SortedKeyValueSeries, SeriesType.SortedKeyValueSeries.get_class())), other
         first_key = max(self.get_first_key(), other.get_first_key())
         last_key = min(self.get_last_key(), other.get_last_key())
         if first_key < last_key:
@@ -74,24 +82,17 @@ class SortedKeyValueSeries(sc.KeyValueSeries, sc.SortedSeries):
     def assume_sorted(self) -> Native:
         return self
 
-    def assume_unsorted(self) -> KeyValue:
-        return sc.KeyValueSeries(
-            **self._get_data_member_dict()
-        )
+    def assume_unsorted(self) -> KeyValueSeries:
+        series_class = SeriesType.KeyValueSeries.get_class()
+        return series_class(**self._get_data_member_dict())
 
-    def assume_dates(self, validate: bool = False, set_closure: bool = False) -> Native:
-        return sc.DateNumericSeries(
-            **self._get_data_member_dict(),
-            validate=validate,
-            set_closure=set_closure,
-        )
+    def assume_dates(self, validate: bool = False, set_closure: bool = False) -> DateNumeric:
+        series_class = SeriesType.DateNumericSeries.get_class()
+        return series_class(**self._get_data_member_dict(), validate=validate, set_closure=set_closure)
 
-    def assume_numeric(self, validate: bool = False, set_closure: bool = False) -> Native:
-        return sc.SortedNumericKeyValueSeries(
-            **self._get_data_member_dict(),
-            validate=validate,
-            set_closure=set_closure,
-        )
+    def assume_numeric(self, validate: bool = False, set_closure: bool = False) -> SortedNumeric:
+        series_class = SeriesType.SortedNumericKeyValueSeries
+        return series_class(**self._get_data_member_dict(), validate=validate, set_closure=set_closure)
 
     def to_numeric(self, sort_items: bool = True, inplace: bool = False) -> Native:
         series = self.map_keys_and_values(float, float, sorting_changed=False, inplace=inplace) or self
@@ -152,3 +153,6 @@ class SortedKeyValueSeries(sc.KeyValueSeries, sc.SortedSeries):
     @staticmethod
     def _assume_native(series) -> Native:
         return series
+
+
+SeriesType.add_classes(SortedSeries, KeyValueSeries, SortedKeyValueSeries)

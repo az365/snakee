@@ -2,12 +2,14 @@ from typing import Optional, Callable, Iterable, Generator, Union, Any
 
 try:  # Assume we're a submodule in a package.
     from functions.primary import numeric as nm
-    from series import series_classes as sc
+    from series.series_type import SeriesType
+    from series.simple.any_series import AnySeries
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...functions.primary import numeric as nm
-    from .. import series_classes as sc
+    from ..series_type import SeriesType
+    from .any_series import AnySeries
 
-Native = sc.AnySeries
+Native = AnySeries
 NumericValue = nm.NumericTypes
 OptNumeric = Optional[NumericValue]
 Window = Union[list, tuple]
@@ -19,7 +21,7 @@ WINDOW_WO_CENTER = -2, -1, 0, 1, 2
 WINDOW_NEIGHBORS = -1, 0
 
 
-class NumericSeries(sc.AnySeries):
+class NumericSeries(AnySeries):
     def __init__(
             self,
             values: Optional[Iterable] = None,
@@ -28,6 +30,9 @@ class NumericSeries(sc.AnySeries):
             name: Optional = None,
     ):
         super().__init__(values=values, set_closure=set_closure, validate=validate, name=name)
+
+    def get_series_type(self) -> SeriesType:
+        return SeriesType.NumericSeries
 
     @staticmethod
     def get_distance_func() -> Callable:
@@ -249,3 +254,6 @@ class NumericSeries(sc.AnySeries):
     @staticmethod
     def _assume_native(series) -> Native:
         return series
+
+
+SeriesType.add_classes(AnySeries, NumericSeries)

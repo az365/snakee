@@ -4,17 +4,22 @@ try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
     from functions.primary import numeric as nm
     from series.interfaces.any_series_interface import AnySeriesInterface
+    from series.interfaces.date_series_interface import DateSeriesInterface
+    from series.interfaces.key_value_series_interface import KeyValueSeriesInterface
     from series.abstract_series import AbstractSeries
-    from series import series_classes as sc
+    from series.series_type import SeriesType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...functions.primary import numeric as nm
     from ..interfaces.any_series_interface import AnySeriesInterface
+    from ..interfaces.date_series_interface import DateSeriesInterface
+    from ..interfaces.key_value_series_interface import KeyValueSeriesInterface
     from ..abstract_series import AbstractSeries
-    from .. import series_classes as sc
+    from ..series_type import SeriesType
 
-Native = AbstractSeries
-Series = AbstractSeries
+Native = AnySeriesInterface
+Sorted = AnySeriesInterface
+Series = Union[AnySeriesInterface, DateSeriesInterface, KeyValueSeriesInterface]
 
 DEFAULT_NUMERIC = False
 DEFAULT_SORTED = False
@@ -29,6 +34,9 @@ class AnySeries(AbstractSeries, AnySeriesInterface):
             name: Optional[str] = None,
     ):
         super().__init__(values=values, set_closure=set_closure, validate=validate, name=name)
+
+    def get_series_type(self) -> SeriesType:
+        return SeriesType.AnySeries
 
     @classmethod
     def _get_meta_member_names(cls) -> list:
@@ -159,7 +167,7 @@ class AnySeries(AbstractSeries, AnySeriesInterface):
         else:
             new = self.copy()
             new.insert(pos, value, inplace=True)
-            return new
+            return self._assume_native(new)
 
     def add(
             self,
@@ -243,54 +251,38 @@ class AnySeries(AbstractSeries, AnySeriesInterface):
         return self._assume_native(series)
 
     def assume_numeric(self, validate: bool = False) -> Series:
-        return sc.NumericSeries(
-            self.get_values(),
-            validate=validate,
-        )
+        series_class = SeriesType.NumericSeries.get_class()
+        return series_class(self.get_values(), validate=validate)
 
     def to_numeric(self, inplace: bool = False) -> Native:
         series = self.map_values(float, inplace=inplace) or self
         return series.assume_numeric()
 
     def assume_dates(self, validate: bool = False, set_closure: bool = False) -> Native:
-        return sc.DateSeries(
-            self.get_values(),
-            validate=validate,
-            set_closure=set_closure,
-        )
+        series_class = SeriesType.DateSeries.get_class()
+        return series_class(self.get_values(), validate=validate, set_closure=set_closure)
 
     def to_dates(self, as_iso_date: bool = False) -> Native:
-        series = sc.DateSeries(
-            self.get_values(),
-            validate=False,
-            sort_items=False,
-        ).to_dates(
-            as_iso_date=as_iso_date,
-        )
+        series_class = SeriesType.DateSeries
+        series = series_class(self.get_values(), validate=False, sort_items=False).to_dates(as_iso_date=as_iso_date)
         return self._assume_native(series)
 
     def assume_unsorted(self) -> Native:
         return self
 
-    def assume_sorted(self) -> Native:
-        return sc.SortedSeries(
-            self.get_values(),
-            sort_items=False,
-            validate=False,
-        )
+    def assume_sorted(self) -> Sorted:
+        series_class = SeriesType.SortedSeries.get_class()
+        return series_class(self.get_values(), sort_items=False, validate=False)
 
-    def sort(self, inplace: bool = False) -> Native:
+    def sort(self, inplace: bool = False) -> Sorted:
         values = self.get_values()
         if inplace:
             values = sorted(values)
             result = self.set_values(values, inplace=False, validate=False)
             return self._assume_native(result) or self
         else:
-            return sc.SortedSeries(
-                values,
-                sort_items=True,
-                validate=False,
-            )
+            series_class = SeriesType.SortedSeries.get_class()
+            return series_class(values, sort_items=True, validate=False)
 
     def is_sorted(self, check=True) -> bool:
         if check:
@@ -320,3 +312,6 @@ class AnySeries(AbstractSeries, AnySeriesInterface):
     @staticmethod
     def _assume_native(series) -> Native:
         return series
+
+
+SeriesType.add_classes(AnySeries)

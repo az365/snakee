@@ -6,11 +6,13 @@ try:  # Assume we're a submodule in a package.
     from utils.external import np
     from base.abstract.simple_data import SimpleDataWrapper
     from base.mixin.iterable_mixin import IterableMixin, IterableInterface
+    from series.series_type import SeriesType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
     from ..utils.external import np
     from ..base.abstract.simple_data import SimpleDataWrapper
     from ..base.mixin.iterable_mixin import IterableMixin, IterableInterface
+    from .series_type import SeriesType
 
 Native = Union[SimpleDataWrapper, IterableMixin, IterableInterface]
 Item = Any
@@ -64,6 +66,14 @@ class AbstractSeries(IterableMixin, SimpleDataWrapper, ABC):
             self._get_meta_field_by_member_name(f): self.__dict__[f]
             for f in self._get_data_member_names()
         }
+
+    def get_series_type(self) -> SeriesType:
+        series_type = SeriesType.detect(self)
+        assert isinstance(series_type, SeriesType), 'SeriesType({}) not supported'.format(series_type)
+        return series_type
+
+    def get_type(self) -> SeriesType:
+        return self.get_series_type()
 
     # @deprecated_with_alternative('__class__.__name__')
     def get_class_name(self) -> str:

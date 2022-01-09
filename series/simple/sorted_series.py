@@ -1,18 +1,26 @@
-from typing import Optional, Callable, Iterable, Generator, Any
+from typing import Optional, Callable, Iterable, Generator, Union, Any
 
 try:  # Assume we're a submodule in a package.
-    from series import series_classes as sc
+    from series.series_type import SeriesType
+    from series.interfaces.date_series_interface import DateSeriesInterface
+    from series.interfaces.key_value_series_interface import KeyValueSeriesInterface
+    from series.simple.any_series import AnySeries
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from .. import series_classes as sc
+    from ..series_type import SeriesType
+    from ..interfaces.date_series_interface import DateSeriesInterface
+    from ..interfaces.key_value_series_interface import KeyValueSeriesInterface
+    from .any_series import AnySeries
 
-Native = sc.AnySeries
-Series = sc.AnySeries
+Native = AnySeries
+SortedNumeric = AnySeries  # SortedNumericSeriesInterface
+SortedKeyValue = KeyValueSeriesInterface  # SortedKeyValueSeriesInterface
+Series = Union[Native, DateSeriesInterface, KeyValueSeriesInterface]
 
 DEFAULT_NUMERIC = False
 DEFAULT_SORTED = True
 
 
-class SortedSeries(sc.AnySeries):
+class SortedSeries(AnySeries):
     def __init__(
             self,
             values: Optional[Iterable] = None,
@@ -24,6 +32,9 @@ class SortedSeries(sc.AnySeries):
         if sort_items:
             values = sorted(values)
         super().__init__(values=values, set_closure=set_closure, validate=validate, name=name)
+
+    def get_series_type(self) -> SeriesType:
+        return SeriesType.SortedSeries
 
     def get_errors(self) -> Generator:
         yield from super().get_errors()
@@ -39,17 +50,16 @@ class SortedSeries(sc.AnySeries):
     def copy(self) -> Native:
         return self.new(validate=False)
 
-    def assume_numeric(self, validate: bool = False) -> Series:
-        return sc.SortedNumericSeries(
-            validate=validate,
-            **self._get_data_member_dict()
-        )
+    def assume_numeric(self, validate: bool = False) -> SortedNumeric:
+        series_class = SeriesType.SortedNumericSeries.get_class()
+        return series_class(**self._get_data_member_dict(), validate=validate)
 
     def assume_sorted(self) -> Native:
         return self
 
     def assume_unsorted(self) -> Series:
-        return sc.AnySeries(**self._get_data_member_dict())
+        series_class = SeriesType.AnySeries.get_class()
+        return series_class(**self._get_data_member_dict())
 
     def uniq(self) -> Native:
         series = self.new(save_meta=True)
@@ -110,7 +120,7 @@ class SortedSeries(sc.AnySeries):
         return self.get_first_item(), self.get_last_item()
 
     def get_mutual_borders(self, other: Native) -> list:
-        assert isinstance(other, (sc.SortedSeries, sc.SortedKeyValueSeries))
+        assert isinstance(other, (SortedSeries, SortedKeyValue))
         first_item = max(self.get_first_item(), other.get_first_item())
         last_item = min(self.get_last_item(), other.get_last_item())
         if first_item < last_item:
@@ -126,3 +136,6 @@ class SortedSeries(sc.AnySeries):
     @staticmethod
     def _assume_native(series) -> Native:
         return series
+
+
+SeriesType.add_classes(AnySeries, SortedSeries)

@@ -6,6 +6,9 @@ try:  # Assume we're a submodule in a package.
     from base.interfaces.sourced_interface import SourcedInterface  # inherits Base[Interface]
     from base.interfaces.data_interface import SimpleDataInterface  # inherits Base[Interface]
     from base.interfaces.iterable_interface import IterableInterface  # inherits SimpleDataInterface
+    from series.interfaces.any_series_interface import AnySeriesInterface  # Inherits IterableInterface
+    from series.interfaces.date_series_interface import DateSeriesInterface  # Inherits AnySeriesInterface
+    from series.interfaces.key_value_series_interface import KeyValueSeriesInterface  # Inherits DateSeriesInterface
     from streams.interfaces.abstract_stream_interface import StreamInterface  # inherits Sourced
     from streams.interfaces.iterable_stream_interface import IterableStreamInterface  # inherits Stream
     from streams.interfaces.local_stream_interface import LocalStreamInterface  # inherits IterableStream
@@ -41,6 +44,9 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .base.interfaces.sourced_interface import SourcedInterface  # inherits Base[Interface]
     from .base.interfaces.data_interface import SimpleDataInterface  # inherits Base[Interface]
     from .base.interfaces.iterable_interface import IterableInterface  # inherits SimpleDataInterface
+    from .series.interfaces.any_series_interface import AnySeriesInterface  # Inherits IterableInterface
+    from .series.interfaces.date_series_interface import DateSeriesInterface  # Inherits AnySeriesInterface
+    from .series.interfaces.key_value_series_interface import KeyValueSeriesInterface  # Inherits DateSeriesInterface
     from .streams.interfaces.abstract_stream_interface import StreamInterface  # inherits Sourced
     from .streams.interfaces.iterable_stream_interface import IterableStreamInterface  # inherits Stream
     from .streams.interfaces.local_stream_interface import LocalStreamInterface  # inherits IterableStream
@@ -83,6 +89,7 @@ try:  # Assume we're a submodule in a package.
     from streams.stream_type import StreamType  # inherits ClassType(DynamicEnum)
     from content.fields.field_type import FieldType  # inherits DynamicEnum
     from content.items.item_type import ItemType  # inherits SubclassesType(ClassType)
+    from series.series_type import SeriesType  # inherits ClassType(DynamicEnum)
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from .utils.algo import JoinType  # standard Enum
     from .loggers.extended_logger_interface import LoggingLevel  # standard Enum
@@ -95,6 +102,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .streams.stream_type import StreamType  # inherits ClassType(DynamicEnum)
     from .content.fields.field_type import FieldType  # inherits DynamicEnum
     from .content.items.item_type import ItemType  # inherits SubclassesType(ClassType)
+    from .series.series_type import SeriesType  # inherits ClassType(DynamicEnum)
 
 AUTO = arg.AUTO
 Auto = arg.Auto

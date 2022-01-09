@@ -1,27 +1,25 @@
 from typing import Optional, Callable, Iterable, Generator, Union, Any
 
 try:  # Assume we're a submodule in a package.
-    from series import series_classes as sc
     from functions.primary import numeric as nm
-    from series.interfaces.key_value_series_interface import KeyValueSeriesInterface
+    from series.series_type import SeriesType
+    from series.interfaces.key_value_series_interface import KeyValueSeriesInterface, Mutable, MUTABLE
+    from series.simple.any_series import AnySeries
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from .. import series_classes as sc
     from ...functions.primary import numeric as nm
-    from ..interfaces.key_value_series_interface import KeyValueSeriesInterface
+    from ..series_type import SeriesType
+    from ..interfaces.key_value_series_interface import KeyValueSeriesInterface, Mutable, MUTABLE
+    from ..simple.any_series import AnySeries
 
-Native = Union[sc.AnySeries, KeyValueSeriesInterface]
+Native = Union[AnySeries, KeyValueSeriesInterface]
+Sorted = KeyValueSeriesInterface  # SortedKeyValueSeriesInterface
+DateNumeric = KeyValueSeriesInterface  # DateNumericSeriesInterface
 
-if nm.np:  # numpy installed
-    Mutable = Union[list, nm.np.ndarray]
-    MUTABLE = list, nm.np.ndarray
-else:
-    Mutable = list
-    MUTABLE = list
 DATA_MEMBER_NAMES = '_keys', '_data'
 META_MEMBER_MAPPING = dict(_data='values')
 
 
-class KeyValueSeries(sc.AnySeries, KeyValueSeriesInterface):
+class KeyValueSeries(AnySeries, KeyValueSeriesInterface):
     def __init__(
             self,
             keys: Optional[Iterable] = None,
@@ -66,11 +64,13 @@ class KeyValueSeries(sc.AnySeries, KeyValueSeriesInterface):
             series.append_pair(k, my_dict[k], inplace=True)
         return series.assume_sorted()
 
-    def key_series(self, set_closure: bool = False) -> Native:
-        return sc.AnySeries(self.get_keys(), set_closure=set_closure)
+    def key_series(self, set_closure: bool = False) -> AnySeries:
+        series_class = SeriesType.AnySeries.get_class()
+        return series_class(self.get_keys(), set_closure=set_closure)
 
-    def value_series(self, set_closure: bool = False, name: Optional[str] = None) -> Native:
-        return sc.AnySeries(self.get_values(), set_closure=set_closure, validate=False, name=name)
+    def value_series(self, set_closure: bool = False, name: Optional[str] = None) -> AnySeries:
+        series_class = SeriesType.AnySeries.get_class()
+        return series_class(self.get_values(), set_closure=set_closure, validate=False, name=name)
 
     def get_value_by_key(self, key: Any, default: Any = None):
         return self.get_dict().get(key, default)
@@ -154,7 +154,7 @@ class KeyValueSeries(sc.AnySeries, KeyValueSeriesInterface):
             return self._assume_native(new)
 
     def add(self, key_value_series: Native, before: bool = False, inplace: bool = False, **kwargs) -> Optional[Native]:
-        appropriate_classes = KeyValueSeries, sc.KeyValueSeries, sc.DateNumericSeries
+        appropriate_classes = KeyValueSeries, KeyValueSeriesInterface
         is_appropriate = isinstance(key_value_series, appropriate_classes)
         assert is_appropriate, 'expected {}, got {}'.format(appropriate_classes, key_value_series)
         if before:
@@ -182,13 +182,10 @@ class KeyValueSeries(sc.AnySeries, KeyValueSeriesInterface):
                 keys.append(k)
                 values.append(v)
         if inplace:
-            self.set_keys(keys)
-            self.set_values(values)
+            self.set_keys(keys, inplace=True)
+            self.set_values(values, inplace=True)
         else:
-            result = self.new(
-                keys=keys,
-                values=values,
-            )
+            result = self.new(keys=keys, values=values)
             return self._assume_native(result)
 
     def filter_keys(self, function: Callable, inplace: bool = False) -> Native:
@@ -210,11 +207,13 @@ class KeyValueSeries(sc.AnySeries, KeyValueSeriesInterface):
         keys = self.key_series().map(function)
         return self.set_keys(keys, inplace=inplace)
 
-    def assume_date_numeric(self) -> Native:
-        return sc.DateNumericSeries(**self.get_props())
+    def assume_date_numeric(self) -> DateNumeric:
+        series_class = SeriesType.DateNumericSeries.get_class()
+        return series_class(**self.get_props())
 
-    def assume_sorted(self) -> Native:
-        return sc.SortedKeyValueSeries(**self.get_props())
+    def assume_sorted(self) -> Sorted:
+        series_class = SeriesType.SortedKeyValueSeries.get_class()
+        return series_class(**self.get_props())
 
     def is_sorted(self, check: bool = True) -> bool:
         return self.key_series().is_sorted(check=check)
@@ -244,10 +243,12 @@ class KeyValueSeries(sc.AnySeries, KeyValueSeriesInterface):
         result = self.group_by_keys().map(sum)
         return self._assume_native(result)
 
-    def mean_by_keys(self):
-        return self.group_by_keys().map(
-            lambda a: sc.AnySeries(a).filter_values_defined().get_mean(),
+    def mean_by_keys(self) -> Native:
+        series_class = SeriesType.AnySeries.get_class()
+        result = self.group_by_keys().map(
+            lambda a: series_class(a).filter_values_defined().get_mean(),
         )
+        return self._assume_native(result)
 
     @staticmethod
     def get_names() -> tuple:
@@ -271,3 +272,6 @@ class KeyValueSeries(sc.AnySeries, KeyValueSeriesInterface):
     @staticmethod
     def _assume_native(series) -> Native:
         return series
+
+
+SeriesType.add_classes(AnySeries, KeyValueSeries)

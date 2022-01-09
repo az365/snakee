@@ -1,4 +1,5 @@
 try:  # Assume we're a submodule in a package.
+    from series.series_type import SeriesType
     from series.abstract_series import AbstractSeries
     from series.interfaces.any_series_interface import AnySeriesInterface
     from series.interfaces.date_series_interface import DateSeriesInterface
@@ -14,6 +15,7 @@ try:  # Assume we're a submodule in a package.
     from series.pairs.date_numeric_series import DateNumericSeries
     from functions.primary import numeric as nm, dates as dt
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
+    from .series_type import SeriesType
     from .abstract_series import AbstractSeries
     from .interfaces.any_series_interface import AnySeriesInterface
     from .interfaces.date_series_interface import DateSeriesInterface
@@ -28,3 +30,17 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .pairs.sorted_numeric_key_value_series import SortedNumericKeyValueSeries
     from .pairs.date_numeric_series import DateNumericSeries
     from ..functions.primary import numeric as nm, dates as dt
+
+DICT_SERIES_CLASSES = dict(
+    AnySeries=AnySeries,
+    SortedSeries=SortedSeries,
+    DateSeries=DateSeries,
+    NumericSeries=NumericSeries,
+    SortedNumericSeries=SortedNumericSeries,
+    KeyValueSeries=KeyValueSeries,
+    SortedKeyValueSeries=SortedKeyValueSeries,
+    SortedNumericKeyValueSeries=SortedNumericKeyValueSeries,
+    DateNumericSeries=DateNumericSeries,
+)
+
+SeriesType.set_dict_classes(DICT_SERIES_CLASSES)
