@@ -56,7 +56,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .wrappers.sql_stream import SqlStream
     from .stream_builder import StreamBuilder
     from ..connectors.filesystem.temporary_files import TemporaryLocation
-    from ..content.items import struct_row as sr
+    from ..content.struct import struct_row as sr
 
 STREAM_CLASSES = (
     AbstractStream, IterableStream,
