@@ -159,39 +159,11 @@ class IterableStream(AbstractStream, IterableMixin, IterableStreamInterface):
             props['value_stream_type'] = self.get_stream_type()
         return target_class(self._get_enumerated_items(), **props)
 
-    def take(self, count: Union[int, bool] = 1) -> Native:
-        if (count and isinstance(count, bool)) or not arg.is_defined(count):  # True, None, AUTO
-            return self
-        elif isinstance(count, int):
-            if count > 0:
-                items = self._get_first_items(count)
-                item_count = min(self.get_count(), count) if self.get_count() else None
-                less_than = min(self.get_estimated_count(), count) if self.get_estimated_count() else count
-                stream = self.stream(items, count=item_count, less_than=less_than)
-            elif count < 0:
-                stream = self.tail(count=count)
-            else:  # count in (0, False)
-                stream = self.stream([], count=0)
-            return self._assume_native(stream)
+    def take(self, count: Union[int, bool] = 1, inplace: bool = False) -> Native:
+        return self._assume_native(super().take(count, inplace=inplace))
 
-    def skip(self, count: int = 1) -> Native:
-        def skip_items(c):
-            for n, i in self._get_enumerated_items():
-                if n >= c:
-                    yield i
-        if self.get_count() and count >= self.get_count():
-            next_items = list()
-        else:
-            next_items = self.get_items()[count:] if self.is_in_memory() else skip_items(count)
-        less_than = None
-        new_count = None
-        old_count = self.get_count()
-        if old_count:
-            new_count = old_count - count
-        elif self.get_estimated_count():
-            less_than = self.get_estimated_count() - count
-        stream = self.stream(next_items, count=new_count, less_than=less_than)
-        return self._assume_native(stream)
+    def skip(self, count: int = 1, inplace: bool = False) -> Native:
+        return self._assume_native(super().skip(count, inplace=inplace))
 
     def pass_items(self) -> Native:
         try:
