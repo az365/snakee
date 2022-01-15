@@ -4,13 +4,13 @@ from typing import Optional, Union
 try:  # Assume we're a submodule in a package.
     from streams.interfaces.abstract_stream_interface import StreamInterface
     from content.format.content_type import ContentType
+    from content.format.format_interface import ContentFormatInterface
     from connectors.interfaces.connector_interface import ConnectorInterface
-    from connectors.interfaces.format_interface import ContentFormatInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...streams.interfaces.abstract_stream_interface import StreamInterface
     from ...content.format.content_type import ContentType
+    from ...content.format.format_interface import ContentFormatInterface
     from .connector_interface import ConnectorInterface
-    from .format_interface import ContentFormatInterface
 
 Native = Union[ConnectorInterface, StreamInterface]
 
