@@ -65,6 +65,12 @@ class Table(LeafConnector):
         assert isinstance(database, ct.AbstractDatabase)
         return database.select_count(self.get_name(), verbose=verbose)
 
+    def get_expected_count(self, actual: bool = False) -> Optional[int]:
+        if actual:
+            return self.get_count()
+        else:
+            return None
+
     def get_columns(self) -> list:
         return self.get_struct().get_columns()
 
