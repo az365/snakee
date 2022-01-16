@@ -5,18 +5,25 @@ try:  # Assume we're a submodule in a package.
     # from base.interfaces.iterable_interface import IterableInterface
     from functions.primary import dates as dt
     from series.interfaces.any_series_interface import AnySeriesInterface
+    from series.interfaces.numeric_series_interface import NumericSeriesInterface
+    from series.interfaces.sorted_series_interface import SortedSeriesInterface
+    from series.interfaces.key_value_series_interface import KeyValueSeriesInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     # from ...base.interfaces.iterable_interface import IterableInterface
     from ...functions.primary import dates as dt
     from .any_series_interface import AnySeriesInterface
+    from .numeric_series_interface import NumericSeriesInterface
+    from .sorted_series_interface import SortedSeriesInterface
+    from .key_value_series_interface import KeyValueSeriesInterface
 
-Native = AnySeriesInterface
+Native = SortedSeriesInterface
 SeriesInterface = AnySeriesInterface
-SortedNumeric = AnySeriesInterface
-DateNumeric = AnySeriesInterface
+SortedNumeric = Union[SortedSeriesInterface, NumericSeriesInterface]
+DateNumeric = Union[Native, KeyValueSeriesInterface, NumericSeriesInterface]
+Date = dt.Date
 
 
-class DateSeriesInterface(AnySeriesInterface, ABC):
+class DateSeriesInterface(SortedSeriesInterface, ABC):
     @staticmethod
     @abstractmethod
     def get_distance_func() -> Callable:

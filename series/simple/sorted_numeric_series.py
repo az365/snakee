@@ -5,6 +5,7 @@ try:  # Assume we're a submodule in a package.
     from series.series_type import SeriesType
     from series.interfaces.any_series_interface import AnySeriesInterface
     from series.interfaces.date_series_interface import DateSeriesInterface
+    from series.interfaces.sorted_numeric_series_interface import SortedNumericSeriesInterface, NumericValue
     from series.interfaces.key_value_series_interface import KeyValueSeriesInterface
     from series.simple.sorted_series import SortedSeries
     from series.simple.numeric_series import NumericSeries
@@ -13,13 +14,12 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..series_type import SeriesType
     from ..interfaces.any_series_interface import AnySeriesInterface
     from ..interfaces.date_series_interface import DateSeriesInterface
+    from ..interfaces.sorted_numeric_series_interface import SortedNumericSeriesInterface, NumericValue
     from ..interfaces.key_value_series_interface import KeyValueSeriesInterface
     from .sorted_series import SortedSeries
     from .numeric_series import NumericSeries
 
-Native = Union[SortedSeries, NumericSeries]
-Series = Union[Native, AnySeriesInterface, DateSeriesInterface, KeyValueSeriesInterface]
-NumericValue = nm.NumericTypes
+Native = Union[SortedSeries, NumericSeries, SortedNumericSeriesInterface]
 
 DEFAULT_NUMERIC = True
 DEFAULT_SORTED = True
