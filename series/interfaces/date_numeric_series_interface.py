@@ -2,14 +2,16 @@ from abc import ABC, abstractmethod
 from typing import Optional, Callable, Iterable, Union
 
 try:  # Assume we're a submodule in a package.
-    from functions.primary import dates as dt
+    from utils.arguments import Auto, AUTO
+    from functions.primary.dates import DateScale, DAYS_IN_WEEK, MAX_DAYS_IN_MONTH
     from series.interfaces.any_series_interface import AnySeriesInterface, Name
     from series.interfaces.date_series_interface import DateSeriesInterface, Date
     from series.interfaces.numeric_series_interface import NumericSeriesInterface, NumericValue
     from series.interfaces.sorted_numeric_series_interface import SortedNumericSeriesInterface
     from series.interfaces.sorted_numeric_key_value_series_interface import SortedNumericKeyValueSeriesInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...functions.primary import dates as dt
+    from ...utils.arguments import Auto, AUTO
+    from ...functions.primary.dates import DateScale, DAYS_IN_WEEK, MAX_DAYS_IN_MONTH
     from .any_series_interface import AnySeriesInterface, Name
     from .date_series_interface import DateSeriesInterface, Date
     from .numeric_series_interface import NumericSeriesInterface, NumericValue
@@ -18,10 +20,11 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 
 Native = Union[SortedNumericKeyValueSeriesInterface, DateSeriesInterface]
 Series = Union[Native, AnySeriesInterface]
+AutoBool = Union[Auto, bool]
 InterpolationType = str
 Window = Union[list, tuple]
 
-WINDOW_WEEKLY_DEFAULT = -dt.DAYS_IN_WEEK, 0, dt.DAYS_IN_WEEK  # (-7, 0, 7)
+WINDOW_WEEKLY_DEFAULT = -DAYS_IN_WEEK, 0, DAYS_IN_WEEK  # (-7, 0, 7)
 DEFAULT_INTERPOLATION_KWARGS = ('how', 'linear'),
 DEFAULT_YOY_KWARGS = ('how', 'linear'), ('near_for_outside', False)
 
@@ -52,11 +55,7 @@ class DateNumericSeriesInterface(SortedNumericKeyValueSeriesInterface, DateSerie
         pass
 
     @abstractmethod
-    def round_to_weeks(self, inplace: bool = False) -> Native:
-        pass
-
-    @abstractmethod
-    def round_to_months(self, inplace: bool = False) -> Native:
+    def round_to(self, scale: DateScale, as_iso_date: AutoBool = AUTO, inplace: bool = False) -> Native:
         pass
 
     @abstractmethod
@@ -73,11 +72,7 @@ class DateNumericSeriesInterface(SortedNumericKeyValueSeriesInterface, DateSerie
         pass
 
     @abstractmethod
-    def interpolate_to_weeks(self, how: InterpolationType = 'spline', *args, **kwargs) -> Native:
-        pass
-
-    @abstractmethod
-    def interpolate_to_months(self, how: InterpolationType = 'spline', *args, **kwargs) -> Native:
+    def interpolate_to_scale(self, scale: DateScale, how: InterpolationType = 'spline', *args, **kwargs) -> Series:
         pass
 
     @abstractmethod
@@ -133,7 +128,7 @@ class DateNumericSeriesInterface(SortedNumericKeyValueSeriesInterface, DateSerie
             self,
             dates: Iterable,
             yoy: Optional[Series] = None,
-            max_distance: int = dt.MAX_DAYS_IN_MONTH,
+            max_distance: int = MAX_DAYS_IN_MONTH,
             yoy_smooth_kwargs: Optional[dict] = None,
             interpolation_kwargs: Union[dict, tuple] = DEFAULT_INTERPOLATION_KWARGS,
     ) -> Native:

@@ -2,22 +2,28 @@ from typing import Optional, Callable, Iterable, Generator, Union, NoReturn
 
 try:  # Assume we're a submodule in a package.
     from functions.primary import numeric as nm, dates as dt
+    from functions.secondary.date_functions import round_date, date_range
     from series.series_type import SeriesType
     from series.interfaces.key_value_series_interface import KeyValueSeriesInterface
     from series.interfaces.date_numeric_series_interface import (
         DateNumericSeriesInterface, Series,
-        Name, NumericValue, InterpolationType, Window, WINDOW_WEEKLY_DEFAULT,
+        Name, NumericValue, AutoBool, AUTO,
+        DateScale, MAX_DAYS_IN_MONTH,
+        InterpolationType, Window, WINDOW_WEEKLY_DEFAULT,
         DEFAULT_INTERPOLATION_KWARGS, DEFAULT_YOY_KWARGS,
     )
     from series.simple.date_series import DateSeries, Date
     from series.pairs.sorted_numeric_key_value_series import SortedNumericKeyValueSeries
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...functions.primary import numeric as nm, dates as dt
+    from ...functions.secondary.date_functions import round_date, date_range
     from ..series_type import SeriesType
     from ..interfaces.key_value_series_interface import KeyValueSeriesInterface
     from ..interfaces.date_numeric_series_interface import (
         DateNumericSeriesInterface, Series,
-        Name, NumericValue, InterpolationType, Window, WINDOW_WEEKLY_DEFAULT,
+        Name, NumericValue, AutoBool, AUTO,
+        DateScale, MAX_DAYS_IN_MONTH,
+        InterpolationType, Window, WINDOW_WEEKLY_DEFAULT,
         DEFAULT_INTERPOLATION_KWARGS, DEFAULT_YOY_KWARGS,
     )
     from ..simple.date_series import DateSeries, Date
@@ -69,7 +75,7 @@ class DateNumericSeries(SortedNumericKeyValueSeries, DateSeries, DateNumericSeri
 
     def get_dates(self, as_date_type: Optional[bool] = None) -> list:
         if as_date_type:
-            return self.date_series().map(dt.to_date).get_values()
+            return self.date_series().map(dt.get_date).get_values()
         else:
             return self.get_keys()
 
@@ -106,13 +112,18 @@ class DateNumericSeries(SortedNumericKeyValueSeries, DateSeries, DateNumericSeri
         series = super().value_series(set_closure=set_closure, name=name).assume_numeric(validate=False)
         return self._assume_native(series)
 
-    def round_to_weeks(self, inplace: bool = False) -> Native:
-        series = self.map_dates(dt.get_monday_date, inplace=inplace) or self
+    def round_to(self, scale: DateScale, as_iso_date: AutoBool = AUTO, inplace: bool = False) -> Native:
+        func = round_date(scale, as_iso_date=as_iso_date)
+        series = self.map_dates(func, inplace=inplace) or self
         return self._assume_native(series.mean_by_keys())
 
+    # @deprecated_with_alternative('round_to(scale=DateScale.Week)')
+    def round_to_weeks(self, inplace: bool = False) -> Native:
+        return self.round_to(DateScale.Week, inplace=inplace)
+
+    # @deprecated_with_alternative('round_to(scale=DateScale.Month)')
     def round_to_months(self, inplace: bool = False) -> Native:
-        series = self.map_dates(dt.get_month_first_date, inplace=inplace) or self
-        return self._assume_native(series.mean_by_keys())
+        return self.round_to(DateScale.Month, inplace=inplace)
 
     def get_segment(self, date: Date) -> Series:
         nearest_dates = [i for i in self.get_two_nearest_dates(date) if i]
@@ -168,13 +179,18 @@ class DateNumericSeries(SortedNumericKeyValueSeries, DateSeries, DateNumericSeri
                 result.append_pair(d, weighted_value, inplace=True)
         return self._assume_series(result)
 
-    def interpolate_to_weeks(self, how: InterpolationType = 'spline', *args, **kwargs) -> Series:
-        monday_dates = dt.get_weeks_range(self.get_first_date(), self.get_last_date())
-        return self.interpolate(monday_dates, how=how, *args, **kwargs)
+    def interpolate_to_scale(self, scale: DateScale, how: InterpolationType = 'spline', *args, **kwargs) -> Series:
+        func = date_range(scale=scale)
+        dates = func(self.get_first_date(), self.get_last_date())
+        return self.interpolate(dates, how=how, *args, **kwargs)
 
+    # @deprecated_with_alternative('interpolate_to_scale(scale=DateScale.Week)')
+    def interpolate_to_weeks(self, how: InterpolationType = 'spline', *args, **kwargs) -> Series:
+        return self.interpolate_to_scale(scale=DateScale.Week, how=how, *args, **kwargs)
+
+    # @deprecated_with_alternative('interpolate_to_scale(scale=DateScale.Month)')
     def interpolate_to_months(self, how: InterpolationType = 'spline', *args, **kwargs) -> Series:
-        monthly_dates = dt.get_months_range(self.get_first_date(), self.get_last_date())
-        return self.interpolate(monthly_dates, how=how, *args, **kwargs)
+        return self.interpolate_to_scale(scale=DateScale.Month, how=how, *args, **kwargs)
 
     def apply_window_series_function(
             self,
@@ -288,7 +304,7 @@ class DateNumericSeries(SortedNumericKeyValueSeries, DateSeries, DateNumericSeri
             self,
             dates: Iterable,
             yoy: Optional[Series] = None,
-            max_distance: int = dt.MAX_DAYS_IN_MONTH,
+            max_distance: int = MAX_DAYS_IN_MONTH,
             yoy_smooth_kwargs: Optional[dict] = None,
             interpolation_kwargs: Union[dict, tuple] = DEFAULT_INTERPOLATION_KWARGS,
     ) -> Series:
