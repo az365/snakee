@@ -20,7 +20,7 @@ class MessageCollector(ExtendedLogger):
     def __init__(
             self,
             name=DEFAULT_MESSAGE_COLLECTOR_NAME,
-            level=arg.DEFAULT, formatter=arg.DEFAULT, max_line_len=arg.DEFAULT,
+            level=arg.AUTO, formatter=arg.AUTO, max_line_len=arg.AUTO,
             context=None,
             max_keys=None, max_items=None,
     ):
@@ -64,13 +64,13 @@ class MessageCollector(ExtendedLogger):
             details = message.get_detail_values()
             self.get_examples(key).append(details)
 
-    def log(self, msg, level=arg.DEFAULT, logger=None, end=arg.DEFAULT, verbose=False, truncate=False) -> NoReturn:
-        level = arg.undefault(level, LoggingLevel.Debug)
+    def log(self, msg, level=arg.AUTO, logger=None, end=arg.AUTO, verbose=False, truncate=False, **kwargs) -> NoReturn:
+        level = arg.acquire(level, LoggingLevel.Debug)
         if isinstance(msg, str):
             msg = DetailedMessage(message=msg)
         self.add_message(msg)
         if logger or verbose:
-            super().log(msg, level, logger, end, verbose, truncate)
+            super().log(msg, level, logger, end, verbose, truncate, **kwargs)
 
     def __str__(self):
         return '{}: {}'.format(
@@ -82,7 +82,7 @@ class SelectionMessageCollector(MessageCollector, SelectionLoggerInterface):
     def __init__(
             self,
             name=SELECTION_LOGGER_NAME,
-            level=arg.DEFAULT, formatter=arg.DEFAULT, max_line_len=arg.DEFAULT,
+            level=arg.AUTO, formatter=arg.AUTO, max_line_len=arg.AUTO,
             context=None,
             max_keys=10, max_items=5, ok_key='ok',
     ):

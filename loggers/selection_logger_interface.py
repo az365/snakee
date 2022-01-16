@@ -1,8 +1,7 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Iterable, NoReturn
+from typing import Optional, Iterable
 
-
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
     from loggers.extended_logger_interface import ExtendedLoggerInterface
     from loggers.detailed_message import DetailedMessage, SelectionError
@@ -40,7 +39,7 @@ class SelectionLoggerInterface(ExtendedLoggerInterface, ABC):
         pass
 
     @abstractmethod
-    def add_message(self, message: DetailedMessage, key_as_str: bool = True) -> NoReturn:
+    def add_message(self, message: DetailedMessage, key_as_str: bool = True) -> None:
         pass
 
     @abstractmethod
@@ -68,11 +67,11 @@ class SelectionLoggerInterface(ExtendedLoggerInterface, ABC):
         pass
 
     @abstractmethod
-    def log_selection_error(self, func, in_fields: list, in_values: list, in_record: dict, message: str) -> NoReturn:
+    def log_selection_error(self, func, in_fields: list, in_values: list, in_record: dict, message: str) -> None:
         pass
 
     @abstractmethod
-    def show_error(self, message: SelectionError) -> NoReturn:
+    def show_error(self, message: SelectionError) -> None:
         pass
 
     @abstractmethod

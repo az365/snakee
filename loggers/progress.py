@@ -1,4 +1,4 @@
-from typing import Optional, Union, Iterable, NoReturn
+from typing import Optional, Union, Generator
 from datetime import timedelta, datetime
 
 try:  # Assume we're a sub-module in a package.
@@ -81,7 +81,7 @@ class Progress(TreeItem, ProgressInterface):
             self.add_child(selection_logger)
         return selection_logger
 
-    def reset_selection_logger(self, name=arg.AUTO, **kwargs) -> NoReturn:
+    def reset_selection_logger(self, name=arg.AUTO, **kwargs) -> None:
         logger = self.get_logger()
         logger.reset_selection_logger(name, **kwargs)
 
@@ -90,7 +90,7 @@ class Progress(TreeItem, ProgressInterface):
         assert isinstance(logger, ExtendedLoggerInterface)
         return logger
 
-    def log(self, msg, level=arg.AUTO, end=arg.AUTO, verbose=arg.AUTO) -> NoReturn:
+    def log(self, msg, level=arg.AUTO, end=arg.AUTO, verbose=arg.AUTO) -> None:
         logger = self.get_logger()
         if logger is not None:
             logger.log(
@@ -99,7 +99,7 @@ class Progress(TreeItem, ProgressInterface):
                 verbose=arg.acquire(verbose, self.verbose),
             )
 
-    def log_selection_batch(self, level=arg.AUTO, reset_after=True) -> NoReturn:
+    def log_selection_batch(self, level=arg.AUTO, reset_after=True) -> None:
         selection_logger = self.get_selection_logger()
         if selection_logger:
             if selection_logger.has_errors():
@@ -228,7 +228,7 @@ class Progress(TreeItem, ProgressInterface):
         if log_selection_batch:
             self.log_selection_batch()
 
-    def iterate(self, items, name=None, expected_count=None, step=arg.AUTO, log_selection_batch=True) -> Iterable:
+    def iterate(self, items, name=None, expected_count=None, step=arg.AUTO, log_selection_batch=True) -> Generator:
         if arg.is_defined(name):
             self.set_name(name, inplace=True)
         if isinstance(items, (set, list, tuple)):
