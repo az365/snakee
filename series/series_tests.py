@@ -1,4 +1,4 @@
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from series import series_classes as sc
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from . import series_classes as sc
@@ -53,15 +53,12 @@ def test_get_interpolated_value():
 
 
 def test_interpolate():
+    weight_benchmark = [('2020-{:02}-01'.format(m), m) for m in range(1, 13)] + [('2021-01-01', 13)]
     data = ['2020-01-01', '2021-01-01', '2022-01-01'], [10, 130, 10], ['2021-04-01', '2021-07-01', '2021-10-01']
     cases = (
-        {'how': 'linear'}, {'how': 'spline'},
-        {
-            'how': 'weighted',
-            'weight_benchmark': sc.DateNumericSeries.from_items(
-                [('2020-{:02}-01'.format(m), m) for m in range(1, 13)] + [('2021-01-01', 13)],
-            ),
-        },
+        dict(how='linear'),
+        dict(how='spline'),
+        dict(how='weighted', weight_benchmark=sc.DateNumericSeries.from_items(weight_benchmark)),
     )
     expected = [[100, 70, 40], [100, 70, 40], [10, 7, 4]]
     received = []
