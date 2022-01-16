@@ -3,15 +3,17 @@ from typing import Optional, Iterable, Union
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
+    from utils.decorators import deprecated_with_alternative
     from interfaces import (
-        LeafConnectorInterface, StructInterface, Stream, ItemType,
+        LeafConnectorInterface, StructInterface, Stream, RecordStream, ItemType,
         AUTO, Auto, AutoCount, AutoBool, Columns, Array,
     )
     from functions.primary import dates as dt
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
+    from ...utils.decorators import deprecated_with_alternative
     from ...interfaces import (
-        LeafConnectorInterface, StructInterface, Stream, ItemType,
+        LeafConnectorInterface, StructInterface, Stream, RecordStream, ItemType,
         AUTO, Auto, AutoCount, AutoBool, Columns, Array,
     )
     from ...functions.primary import dates as dt
@@ -98,21 +100,26 @@ class AppropriateInterface(LeafConnectorInterface, ABC):
         pass
 
     @abstractmethod
-    def to_record_stream(self) -> Stream:
+    def to_record_stream(self, message: Optional[str] = None) -> RecordStream:
         pass
 
 
 class ActualizeMixin(AppropriateInterface, ABC):
-    def is_changed_by_another(self) -> bool:
+    def is_outdated(self) -> bool:
         return not self.is_actual()
+
+    @deprecated_with_alternative('is_outdated()')
+    def is_changed_by_another(self) -> bool:
+        return self.is_outdated()
 
     def is_actual(self) -> bool:
         return self.get_modification_timestamp() == self.get_prev_modification_timestamp()
 
-    def actualize(self) -> Native:
+    def actualize(self, if_outdated: bool = False) -> Native:
         self.get_modification_timestamp()
-        self.get_count(force=True)
-        self.get_detected_format(force=True, skip_missing=True)
+        if self.is_outdated() or not if_outdated:
+            self.get_count(force=True)
+            self.get_detected_format(force=True, skip_missing=True)
         return self
 
     def get_modification_time_str(self) -> str:
@@ -187,7 +194,7 @@ class ActualizeMixin(AppropriateInterface, ABC):
         return count
 
     def get_count(self, allow_reopen: bool = True, allow_slow_gzip: bool = True, force: bool = False) -> Optional[int]:
-        must_recount = force or self.is_changed_by_another() or not arg.is_defined(self.get_prev_lines_count())
+        must_recount = force or self.is_outdated() or not arg.is_defined(self.get_prev_lines_count())
         if self.is_existing() and must_recount:
             count = self.get_actual_lines_count(allow_reopen=allow_reopen, allow_slow_gzip=allow_slow_gzip)
             self.set_count(count)
@@ -321,11 +328,6 @@ class ActualizeMixin(AppropriateInterface, ABC):
             message = '[EMPTY_DATA] There are no valid records in stream_dataset {}'.format(self.__repr__())
         return item_example, stream_example, message
 
-    def show(self, count: int = 10, filters: Columns = None, columns: Columns = AUTO, recount: bool = False, **kwargs):
-        if recount:
-            self.actualize()
-        return self.to_record_stream().show(count=count, filters=filters or list(), columns=columns)
-
     def show_example(
             self, count: int = 10,
             example: Optional[Stream] = None,
@@ -347,6 +349,25 @@ class ActualizeMixin(AppropriateInterface, ABC):
                 for line in example:
                     self.log(line)
 
+    def show(
+            self,
+            count: int = 10,
+            message: Optional[str] = None,
+            filters: Columns = None,
+            columns: Columns = None,
+            actualize: AutoBool = AUTO,
+            as_dataframe: AutoBool = AUTO,
+            **kwargs
+    ):
+        if actualize == AUTO:
+            self.actualize(if_outdated=True)
+        elif actualize:
+            self.actualize(if_outdated=False)
+        return self.to_record_stream(message=message).show(
+            count=count, as_dataframe=as_dataframe,
+            filters=filters or list(), columns=columns,
+        )
+
     def describe(
             self, *filter_args,
             count: Optional[int] = 10,
@@ -354,6 +375,7 @@ class ActualizeMixin(AppropriateInterface, ABC):
             show_header: bool = True,
             struct_as_dataframe: bool = False,
             safe_filter: bool = True,
+            actualize: AutoBool = AUTO,
             **filter_kwargs
     ):
         if show_header:
@@ -361,7 +383,8 @@ class ActualizeMixin(AppropriateInterface, ABC):
                 self.log(line)
         example_item, example_stream, example_comment = dict(), None, ''
         if self.is_existing():
-            self.actualize()
+            if arg.acquire(actualize, not self.is_actual()):
+                self.actualize()
             if self.is_empty():
                 message = '[EMPTY] file is empty, expected {} columns:'.format(self.get_column_count())
             else:
