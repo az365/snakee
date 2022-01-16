@@ -1,24 +1,19 @@
-from typing import Optional, Callable, Iterable, Generator, Union, Any
+from typing import Optional, Callable, Iterable, Generator, Any
 
 try:  # Assume we're a submodule in a package.
     from series.series_type import SeriesType
-    from series.interfaces.date_series_interface import DateSeriesInterface
-    from series.interfaces.key_value_series_interface import KeyValueSeriesInterface
-    from series.interfaces.numeric_series_interface import NumericSeriesInterface
     from series.interfaces.sorted_series_interface import SortedSeriesInterface
+    from series.interfaces.sorted_numeric_series_interface import SortedNumericSeriesInterface
+    from series.interfaces.sorted_key_value_series_interface import SortedKeyValueSeriesInterface, Name
     from series.simple.any_series import AnySeries
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..series_type import SeriesType
-    from ..interfaces.date_series_interface import DateSeriesInterface
-    from ..interfaces.key_value_series_interface import KeyValueSeriesInterface
-    from ..interfaces.numeric_series_interface import NumericSeriesInterface
     from ..interfaces.sorted_series_interface import SortedSeriesInterface
+    from ..interfaces.sorted_numeric_series_interface import SortedNumericSeriesInterface
+    from ..interfaces.sorted_key_value_series_interface import SortedKeyValueSeriesInterface, Name
     from .any_series import AnySeries
 
 Native = SortedSeriesInterface
-SortedNumeric = Union[SortedSeriesInterface, NumericSeriesInterface]  # SortedNumericSeriesInterface
-SortedKeyValue = Union[SortedSeriesInterface, KeyValueSeriesInterface]  # SortedKeyValueSeriesInterface
-Series = Union[Native, DateSeriesInterface, KeyValueSeriesInterface]
 
 DEFAULT_NUMERIC = False
 DEFAULT_SORTED = True
@@ -31,7 +26,7 @@ class SortedSeries(AnySeries, SortedSeriesInterface):
             set_closure: bool = False,
             validate: bool = True,
             sort_items: bool = False,
-            name: Optional[str] = None,
+            name: Name = None,
     ):
         if sort_items:
             values = sorted(values)
@@ -55,14 +50,14 @@ class SortedSeries(AnySeries, SortedSeriesInterface):
         series = self.new(validate=validate, **kwargs)
         return self._assume_native(series)
 
-    def assume_numeric(self, validate: bool = False) -> SortedNumeric:
+    def assume_numeric(self, validate: bool = False) -> SortedNumericSeriesInterface:
         series_class = SeriesType.SortedNumericSeries.get_class()
         return series_class(**self._get_data_member_dict(), validate=validate)
 
     def assume_sorted(self) -> Native:
         return self
 
-    def assume_unsorted(self) -> Series:
+    def assume_unsorted(self) -> AnySeries:
         series_class = SeriesType.AnySeries.get_class()
         return series_class(**self._get_data_member_dict())
 
@@ -130,7 +125,7 @@ class SortedSeries(AnySeries, SortedSeriesInterface):
         return self.get_first_item(), self.get_last_item()
 
     def get_mutual_borders(self, other: Native) -> list:
-        assert isinstance(other, (SortedSeries, SortedKeyValue))
+        assert isinstance(other, (SortedSeries, SortedSeriesInterface, SortedKeyValueSeriesInterface))
         first_item = max(self.get_first_item(), other.get_first_item())
         last_item = min(self.get_last_item(), other.get_last_item())
         if first_item < last_item:

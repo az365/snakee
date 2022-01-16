@@ -4,7 +4,9 @@ try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
     from functions.primary import numeric as nm
     from series.interfaces.any_series_interface import AnySeriesInterface
+    from series.interfaces.sorted_series_interface import SortedSeriesInterface
     from series.interfaces.date_series_interface import DateSeriesInterface
+    from series.interfaces.numeric_series_interface import NumericSeriesInterface
     from series.interfaces.key_value_series_interface import KeyValueSeriesInterface
     from series.abstract_series import AbstractSeries
     from series.series_type import SeriesType
@@ -12,14 +14,14 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils import arguments as arg
     from ...functions.primary import numeric as nm
     from ..interfaces.any_series_interface import AnySeriesInterface
+    from ..interfaces.sorted_series_interface import SortedSeriesInterface
     from ..interfaces.date_series_interface import DateSeriesInterface
+    from ..interfaces.numeric_series_interface import NumericSeriesInterface
     from ..interfaces.key_value_series_interface import KeyValueSeriesInterface
     from ..abstract_series import AbstractSeries
     from ..series_type import SeriesType
 
 Native = AnySeriesInterface
-Sorted = AnySeriesInterface
-Series = Union[AnySeriesInterface, DateSeriesInterface, KeyValueSeriesInterface]
 
 DEFAULT_NUMERIC = False
 DEFAULT_SORTED = False
@@ -150,7 +152,7 @@ class AnySeries(AbstractSeries, AnySeriesInterface):
             self.get_values().append(value)
             return self
         else:
-            new = self.copy()
+            new = self._assume_native(self.copy())
             new.append(value, inplace=True)
             return self._assume_native(new)
 
@@ -165,7 +167,7 @@ class AnySeries(AbstractSeries, AnySeriesInterface):
         if inplace:
             self.get_values().insert(pos, value)
         else:
-            new = self.copy()
+            new = self._assume_native(self.copy())
             new.insert(pos, value, inplace=True)
             return self._assume_native(new)
 
@@ -250,7 +252,7 @@ class AnySeries(AbstractSeries, AnySeriesInterface):
         series = self.set_values(values, inplace=inplace)
         return self._assume_native(series)
 
-    def assume_numeric(self, validate: bool = False) -> Series:
+    def assume_numeric(self, validate: bool = False) -> NumericSeriesInterface:
         series_class = SeriesType.NumericSeries.get_class()
         return series_class(self.get_values(), validate=validate)
 
@@ -263,23 +265,23 @@ class AnySeries(AbstractSeries, AnySeriesInterface):
         return series_class(self.get_values(), validate=validate, set_closure=set_closure)
 
     def to_dates(self, as_iso_date: bool = False) -> Native:
-        series_class = SeriesType.DateSeries
+        series_class = SeriesType.DateSeries.get_class()
         series = series_class(self.get_values(), validate=False, sort_items=False).to_dates(as_iso_date=as_iso_date)
         return self._assume_native(series)
 
     def assume_unsorted(self) -> Native:
         return self
 
-    def assume_sorted(self) -> Sorted:
+    def assume_sorted(self) -> SortedSeriesInterface:
         series_class = SeriesType.SortedSeries.get_class()
         return series_class(self.get_values(), sort_items=False, validate=False)
 
-    def sort(self, inplace: bool = False) -> Sorted:
+    def sort(self, inplace: bool = False) -> SortedSeriesInterface:
         values = self.get_values()
         if inplace:
             values = sorted(values)
             result = self.set_values(values, inplace=False, validate=False)
-            return self._assume_native(result) or self
+            return self._assume_sorted(result) or self
         else:
             series_class = SeriesType.SortedSeries.get_class()
             return series_class(values, sort_items=True, validate=False)
@@ -311,6 +313,10 @@ class AnySeries(AbstractSeries, AnySeriesInterface):
 
     @staticmethod
     def _assume_native(series) -> Native:
+        return series
+
+    @staticmethod
+    def _assume_sorted(series) -> SortedSeriesInterface:
         return series
 
 

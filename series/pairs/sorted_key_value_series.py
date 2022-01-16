@@ -1,29 +1,26 @@
-from typing import Optional, Callable, Iterable, Generator, Union, Any
+from typing import Optional, Callable, Iterable, Generator, Any
 
 try:  # Assume we're a submodule in a package.
     from functions.primary import numeric as nm, dates as dt
     from series.series_type import SeriesType
-    from series.interfaces.any_series_interface import AnySeriesInterface, Name
-    from series.interfaces.date_series_interface import DateSeriesInterface
-    from series.interfaces.key_value_series_interface import KeyValueSeriesInterface
+    from series.interfaces.sorted_key_value_series_interface import SortedKeyValueSeriesInterface, Name
+    from series.interfaces.sorted_numeric_key_value_series_interface import SortedNumericKeyValueSeriesInterface
+    from series.interfaces.date_numeric_series_interface import DateNumericSeriesInterface
     from series.simple.sorted_series import SortedSeries
     from series.pairs.key_value_series import KeyValueSeries
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...functions.primary import numeric as nm, dates as dt
     from ..series_type import SeriesType
-    from ..interfaces.any_series_interface import AnySeriesInterface, Name
-    from ..interfaces.date_series_interface import DateSeriesInterface
-    from ..interfaces.key_value_series_interface import KeyValueSeriesInterface
+    from ..interfaces.sorted_key_value_series_interface import SortedKeyValueSeriesInterface, Name
+    from ..interfaces.sorted_numeric_key_value_series_interface import SortedNumericKeyValueSeriesInterface
+    from ..interfaces.date_numeric_series_interface import DateNumericSeriesInterface
     from ..simple.sorted_series import SortedSeries
     from .key_value_series import KeyValueSeries
 
-Native = Union[KeyValueSeries, SortedSeries]
-SortedNumeric = KeyValueSeriesInterface  # SortedNumericSeriesInterface
-DateNumeric = Union[DateSeriesInterface, SortedNumeric] # DateNumericSeriesInterface
-Series = Union[Native, AnySeriesInterface, KeyValueSeriesInterface]
+Native = SortedKeyValueSeriesInterface
 
 
-class SortedKeyValueSeries(KeyValueSeries, SortedSeries):
+class SortedKeyValueSeries(KeyValueSeries, SortedSeries, SortedKeyValueSeriesInterface):
     def __init__(
             self,
             keys: Optional[Iterable] = None,
@@ -31,7 +28,7 @@ class SortedKeyValueSeries(KeyValueSeries, SortedSeries):
             set_closure: bool = False,
             validate: bool = False,
             sort_items: bool = True,
-            name: Optional[str] = None,
+            name: Name = None,
     ):
         super().__init__(keys=keys, values=values, set_closure=set_closure, validate=False, name=name)
         if sort_items:
@@ -86,11 +83,11 @@ class SortedKeyValueSeries(KeyValueSeries, SortedSeries):
         series_class = SeriesType.KeyValueSeries.get_class()
         return series_class(**self._get_data_member_dict())
 
-    def assume_dates(self, validate: bool = False, set_closure: bool = False) -> DateNumeric:
+    def assume_dates(self, validate: bool = False, set_closure: bool = False) -> DateNumericSeriesInterface:
         series_class = SeriesType.DateNumericSeries.get_class()
         return series_class(**self._get_data_member_dict(), validate=validate, set_closure=set_closure)
 
-    def assume_numeric(self, validate: bool = False, set_closure: bool = False) -> SortedNumeric:
+    def assume_numeric(self, validate: bool = False, set_closure: bool = False) -> SortedNumericKeyValueSeriesInterface:
         series_class = SeriesType.SortedNumericKeyValueSeries
         return series_class(**self._get_data_member_dict(), validate=validate, set_closure=set_closure)
 

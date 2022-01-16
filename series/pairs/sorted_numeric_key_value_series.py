@@ -1,35 +1,30 @@
 from typing import Optional, Callable, Iterable, Generator, Union
 
 try:  # Assume we're a submodule in a package.
-    from utils import arguments as arg
     from functions.primary import numeric as nm, dates as dt
     from series.series_type import SeriesType
-    from series.interfaces.any_series_interface import AnySeriesInterface, Name, NumericTypes
-    from series.interfaces.date_series_interface import DateSeriesInterface
+    from series.interfaces.numeric_series_interface import NumericSeriesInterface, NumericValue, OptNumeric
     from series.interfaces.key_value_series_interface import KeyValueSeriesInterface
+    from series.interfaces.sorted_numeric_key_value_series_interface import SortedNumericKeyValueSeriesInterface, Name
+    from series.interfaces.date_numeric_series_interface import DateNumericSeriesInterface
     from series.simple.sorted_numeric_series import SortedNumericSeries
     from series.pairs.sorted_key_value_series import SortedKeyValueSeries
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
     from ...functions.primary import numeric as nm, dates as dt
     from ..series_type import SeriesType
-    from ..interfaces.any_series_interface import AnySeriesInterface, Name, NumericTypes
-    from ..interfaces.date_series_interface import DateSeriesInterface
+    from ..interfaces.numeric_series_interface import NumericSeriesInterface, NumericValue, OptNumeric
     from ..interfaces.key_value_series_interface import KeyValueSeriesInterface
+    from ..interfaces.sorted_numeric_key_value_series_interface import SortedNumericKeyValueSeriesInterface, Name
+    from ..interfaces.date_numeric_series_interface import DateNumericSeriesInterface
     from ..simple.sorted_numeric_series import SortedNumericSeries
     from .sorted_key_value_series import SortedKeyValueSeries
 
-Series = AnySeriesInterface
-Sorted = Union[SortedKeyValueSeries, SortedNumericSeries]
-Native = Sorted  # SortedNumericKeyValueSeriesInterface
-NumericSeriesInterface = SortedNumericSeries  # NumericSeriesInterface
-DateNumeric = Union[Native, Sorted, Series, DateSeriesInterface, KeyValueSeriesInterface]
-OptNum = Optional[NumericTypes]
+Native = SortedNumericKeyValueSeriesInterface
 
 DYNAMIC_META_FIELDS = 'cached_spline',
 
 
-class SortedNumericKeyValueSeries(SortedKeyValueSeries, SortedNumericSeries):
+class SortedNumericKeyValueSeries(SortedKeyValueSeries, SortedNumericSeries, SortedNumericKeyValueSeriesInterface):
     def __init__(
             self,
             keys: Optional[Iterable] = None,
@@ -105,7 +100,7 @@ class SortedNumericKeyValueSeries(SortedKeyValueSeries, SortedNumericSeries):
             scale: dt.DateScale = dt.DateScale.Day,
             set_closure: bool = False,
             inplace: bool = False,
-    ) -> DateNumeric:
+    ) -> DateNumericSeriesInterface:
         result = self.map_keys(
             function=lambda d: dt.get_date_from_int(d, scale=scale, as_iso_date=as_iso_date),
             sorting_changed=False,
@@ -121,21 +116,21 @@ class SortedNumericKeyValueSeries(SortedKeyValueSeries, SortedNumericSeries):
 
     def distance(
             self,
-            v: Union[Native, NumericTypes],
+            v: Union[Native, NumericValue],
             take_abs: bool = True,
             inplace: bool = False,
-    ) -> Union[Native, NumericTypes]:
+    ) -> Union[Native, NumericValue]:
         return self.key_series(set_closure=True).distance(v, take_abs, inplace=inplace) or self
 
-    def get_nearest_key(self, key: NumericTypes) -> NumericTypes:
+    def get_nearest_key(self, key: NumericValue) -> NumericValue:
         distance_func = self.get_distance_func()
         return self.key_series(set_closure=True).get_nearest_value(key, distance_func=distance_func)
 
-    def get_nearest_item(self, key: NumericTypes) -> tuple:
+    def get_nearest_item(self, key: NumericValue) -> tuple:
         nearest_key = self.get_nearest_key(key)
         return nearest_key, self.get_value_by_key(nearest_key)
 
-    def get_two_nearest_keys(self, key: NumericTypes) -> Optional[tuple]:
+    def get_two_nearest_keys(self, key: NumericValue) -> Optional[tuple]:
         if self.get_count() < 2:
             return None
         else:
@@ -144,13 +139,13 @@ class SortedNumericKeyValueSeries(SortedKeyValueSeries, SortedNumericSeries):
             date_b = distance_series.filter_values(lambda v: v >= 0).get_arg_min()
             return date_a, date_b
 
-    def get_segment(self, key: NumericTypes) -> Native:
+    def get_segment(self, key: NumericValue) -> Native:
         nearest_keys = [i for i in self.get_two_nearest_keys(key) if i]
         return self.new().from_items(
             [(d, self.get_value_by_key(d)) for d in nearest_keys],
         )
 
-    def derivative(self, extend: bool = False, default: NumericTypes = 0, inplace: bool = False) -> Native:
+    def derivative(self, extend: bool = False, default: NumericValue = 0, inplace: bool = False) -> Native:
         dx = self.key_series(set_closure=True).derivative(extend=extend, default=default)  # not inplace, key used later
         dy = self.value_series(set_closure=True).derivative(extend=extend, default=default, inplace=inplace)
         derivative = dy.divide(dx, default=default, inplace=inplace) or dy
@@ -176,14 +171,14 @@ class SortedNumericKeyValueSeries(SortedKeyValueSeries, SortedNumericSeries):
                 self.cached_spline = spline_function
         return spline_function
 
-    def get_spline_interpolated_value(self, key: NumericTypes, default: OptNum = None) -> OptNum:
+    def get_spline_interpolated_value(self, key: NumericValue, default: OptNumeric = None) -> OptNumeric:
         if self.has_key_in_range(key):
             spline_function = self.get_spline_function(from_cache=True, to_cache=True)
             return float(spline_function(key))
         else:
             return default
 
-    def get_linear_interpolated_value(self, key: NumericTypes, near_for_outside: bool = True) -> OptNum:
+    def get_linear_interpolated_value(self, key: NumericValue, near_for_outside: bool = True) -> OptNumeric:
         segment = self.get_segment(key)
         if segment.get_count() == 1:
             if near_for_outside:
@@ -195,7 +190,7 @@ class SortedNumericKeyValueSeries(SortedKeyValueSeries, SortedNumericSeries):
             interpolated_value = value_a + (value_b - value_a) * distance_days / segment_days
             return interpolated_value
 
-    def get_interpolated_value(self, key: NumericTypes, how: str = 'linear', *args, **kwargs) -> NumericTypes:
+    def get_interpolated_value(self, key: NumericValue, how: str = 'linear', *args, **kwargs) -> NumericValue:
         method_name = 'get_{}_interpolated_value'.format(how)
         interpolation_method = self.__getattribute__(method_name)
         return interpolation_method(key, *args, **kwargs)
@@ -220,7 +215,7 @@ class SortedNumericKeyValueSeries(SortedKeyValueSeries, SortedNumericSeries):
         )
         return self._assume_native(result)
 
-    def get_value_by_key(self, key: NumericTypes, *args, interpolate: str = 'linear', **kwargs) -> NumericTypes:
+    def get_value_by_key(self, key: NumericValue, *args, interpolate: str = 'linear', **kwargs) -> NumericValue:
         value = self.get_dict().get(key)
         if value is None:
             value = self.get_interpolated_value(key, how=interpolate, *args, **kwargs)

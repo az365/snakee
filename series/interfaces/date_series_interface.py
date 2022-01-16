@@ -2,14 +2,12 @@ from abc import ABC, abstractmethod
 from typing import Callable, Iterable, Optional, Union
 
 try:  # Assume we're a submodule in a package.
-    # from base.interfaces.iterable_interface import IterableInterface
     from functions.primary import dates as dt
     from series.interfaces.any_series_interface import AnySeriesInterface
     from series.interfaces.numeric_series_interface import NumericSeriesInterface
     from series.interfaces.sorted_series_interface import SortedSeriesInterface
     from series.interfaces.key_value_series_interface import KeyValueSeriesInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    # from ...base.interfaces.iterable_interface import IterableInterface
     from ...functions.primary import dates as dt
     from .any_series_interface import AnySeriesInterface
     from .numeric_series_interface import NumericSeriesInterface
@@ -34,7 +32,7 @@ class DateSeriesInterface(SortedSeriesInterface, ABC):
         pass
 
     @abstractmethod
-    def get_dates(self, as_date_type: bool = False) -> list:
+    def get_dates(self, as_date_type: Optional[bool] = False) -> list:
         pass
 
     @abstractmethod

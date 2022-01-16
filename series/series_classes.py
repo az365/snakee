@@ -7,6 +7,9 @@ try:  # Assume we're a submodule in a package.
     from series.interfaces.sorted_numeric_series_interface import SortedNumericSeriesInterface
     from series.interfaces.date_series_interface import DateSeriesInterface
     from series.interfaces.key_value_series_interface import KeyValueSeriesInterface
+    from series.interfaces.sorted_key_value_series_interface import SortedKeyValueSeriesInterface
+    from series.interfaces.sorted_numeric_key_value_series_interface import SortedNumericKeyValueSeriesInterface
+    from series.interfaces.date_numeric_series_interface import DateNumericSeriesInterface
     from series.simple.any_series import AnySeries
     from series.simple.numeric_series import NumericSeries
     from series.simple.sorted_series import SortedSeries
@@ -26,6 +29,9 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .interfaces.sorted_numeric_series_interface import SortedNumericSeriesInterface
     from .interfaces.date_series_interface import DateSeriesInterface
     from .interfaces.key_value_series_interface import KeyValueSeriesInterface
+    from .interfaces.sorted_key_value_series_interface import SortedKeyValueSeriesInterface
+    from .interfaces.sorted_numeric_key_value_series_interface import SortedNumericKeyValueSeriesInterface
+    from .interfaces.date_numeric_series_interface import DateNumericSeriesInterface
     from .simple.any_series import AnySeries
     from .simple.numeric_series import NumericSeries
     from .simple.sorted_series import SortedSeries
