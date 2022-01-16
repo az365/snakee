@@ -22,6 +22,8 @@ InterpolationType = str
 Window = Union[list, tuple]
 
 WINDOW_WEEKLY_DEFAULT = -dt.DAYS_IN_WEEK, 0, dt.DAYS_IN_WEEK  # (-7, 0, 7)
+DEFAULT_INTERPOLATION_KWARGS = ('how', 'linear'),
+DEFAULT_YOY_KWARGS = ('how', 'linear'), ('near_for_outside', False)
 
 
 class DateNumericSeriesInterface(SortedNumericKeyValueSeriesInterface, DateSeriesInterface, ABC):
@@ -103,15 +105,27 @@ class DateNumericSeriesInterface(SortedNumericKeyValueSeriesInterface, DateSerie
         pass
 
     @abstractmethod
-    def math(self, series: Series, function: Callable, interpolation_kwargs: dict = {'how': 'linear'}) -> Native:
+    def math(
+            self,
+            series: Series,
+            function: Callable,
+            interpolation_kwargs: Union[dict, tuple] = DEFAULT_INTERPOLATION_KWARGS,
+    ) -> Native:
         pass
 
     @abstractmethod
-    def yoy(self, interpolation_kwargs: dict = {'how': 'linear', 'near_for_outside': False}) -> Native:
+    def yoy(
+            self,
+            interpolation_kwargs: Union[dict, tuple] = DEFAULT_YOY_KWARGS,
+    ) -> Native:
         pass
 
     @abstractmethod
-    def get_yoy_for_date(self, date: Date, interpolation_kwargs: dict = {'how': 'linear'}) -> NumericValue:
+    def get_yoy_for_date(
+            self,
+            date: Date,
+            interpolation_kwargs: Union[dict, tuple] = DEFAULT_INTERPOLATION_KWARGS,
+    ) -> NumericValue:
         pass
 
     @abstractmethod
@@ -121,7 +135,7 @@ class DateNumericSeriesInterface(SortedNumericKeyValueSeriesInterface, DateSerie
             yoy: Optional[Series] = None,
             max_distance: int = dt.MAX_DAYS_IN_MONTH,
             yoy_smooth_kwargs: Optional[dict] = None,
-            interpolation_kwargs: dict = {'how': 'linear'},
+            interpolation_kwargs: Union[dict, tuple] = DEFAULT_INTERPOLATION_KWARGS,
     ) -> Native:
         pass
 
