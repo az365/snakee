@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Union, NoReturn
+from typing import Union, Optional
 
 
 class LoggingLevel(Enum):
@@ -13,25 +13,25 @@ class LoggingLevel(Enum):
 
 class LoggerInterface(ABC):
     @abstractmethod
-    def log(self, msg: str, level: Union[LoggingLevel, int], *args, **kwargs) -> NoReturn:
+    def log(self, msg: str, level: Union[LoggingLevel, int], *args, **kwargs) -> None:
         pass
 
     @abstractmethod
-    def debug(self, msg: str) -> NoReturn:
+    def debug(self, msg: str) -> None:
         pass
 
     @abstractmethod
-    def info(self, msg: str) -> NoReturn:
+    def info(self, msg: str) -> None:
         pass
 
     @abstractmethod
-    def warning(self, msg: str) -> NoReturn:
+    def warning(self, msg: str, category: Optional[Warning] = None, stacklevel: int = 2) -> None:
         pass
 
     @abstractmethod
-    def error(self, msg: str) -> NoReturn:
+    def error(self, msg: str) -> None:
         pass
 
     @abstractmethod
-    def critical(self, msg: str) -> NoReturn:
+    def critical(self, msg: str) -> None:
         pass

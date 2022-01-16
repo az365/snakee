@@ -1,33 +1,32 @@
-from typing import Optional, Callable, Iterable, Generator, Union, Any
+from typing import Optional, Callable, Iterable, Generator, Any
 
 try:  # Assume we're a submodule in a package.
     from series.series_type import SeriesType
-    from series.interfaces.date_series_interface import DateSeriesInterface
-    from series.interfaces.key_value_series_interface import KeyValueSeriesInterface
+    from series.interfaces.sorted_series_interface import SortedSeriesInterface
+    from series.interfaces.sorted_numeric_series_interface import SortedNumericSeriesInterface
+    from series.interfaces.sorted_key_value_series_interface import SortedKeyValueSeriesInterface, Name
     from series.simple.any_series import AnySeries
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..series_type import SeriesType
-    from ..interfaces.date_series_interface import DateSeriesInterface
-    from ..interfaces.key_value_series_interface import KeyValueSeriesInterface
+    from ..interfaces.sorted_series_interface import SortedSeriesInterface
+    from ..interfaces.sorted_numeric_series_interface import SortedNumericSeriesInterface
+    from ..interfaces.sorted_key_value_series_interface import SortedKeyValueSeriesInterface, Name
     from .any_series import AnySeries
 
-Native = AnySeries
-SortedNumeric = AnySeries  # SortedNumericSeriesInterface
-SortedKeyValue = KeyValueSeriesInterface  # SortedKeyValueSeriesInterface
-Series = Union[Native, DateSeriesInterface, KeyValueSeriesInterface]
+Native = SortedSeriesInterface
 
 DEFAULT_NUMERIC = False
 DEFAULT_SORTED = True
 
 
-class SortedSeries(AnySeries):
+class SortedSeries(AnySeries, SortedSeriesInterface):
     def __init__(
             self,
             values: Optional[Iterable] = None,
             set_closure: bool = False,
             validate: bool = True,
             sort_items: bool = False,
-            name: Optional[str] = None,
+            name: Name = None,
     ):
         if sort_items:
             values = sorted(values)
@@ -47,22 +46,24 @@ class SortedSeries(AnySeries):
         else:
             return DEFAULT_SORTED
 
-    def copy(self) -> Native:
-        return self.new(validate=False)
+    def copy(self, validate: bool = False, **kwargs) -> Native:
+        series = self.new(validate=validate, **kwargs)
+        return self._assume_native(series)
 
-    def assume_numeric(self, validate: bool = False) -> SortedNumeric:
+    def assume_numeric(self, validate: bool = False) -> SortedNumericSeriesInterface:
         series_class = SeriesType.SortedNumericSeries.get_class()
         return series_class(**self._get_data_member_dict(), validate=validate)
 
     def assume_sorted(self) -> Native:
         return self
 
-    def assume_unsorted(self) -> Series:
+    def assume_unsorted(self) -> AnySeries:
         series_class = SeriesType.AnySeries.get_class()
         return series_class(**self._get_data_member_dict())
 
     def uniq(self) -> Native:
         series = self.new(save_meta=True)
+        series = self._assume_native(series)
         prev = None
         for item in self.get_items():
             if prev is None or item != prev:
@@ -71,7 +72,7 @@ class SortedSeries(AnySeries):
                 prev = item.copy()
             else:
                 prev = item
-        return series
+        return self._assume_native(series)
 
     def get_nearest_value(self, value: Any, distance_func: Callable) -> Any:
         if self.get_count() == 0:
@@ -79,6 +80,7 @@ class SortedSeries(AnySeries):
         elif self.get_count() == 1:
             return self.get_first_value()
         else:
+            cur_value = None
             prev_value = None
             prev_distance = None
             for cur_value in self.get_values():
@@ -96,11 +98,14 @@ class SortedSeries(AnySeries):
     def get_two_nearest_values(self, value: Any) -> Optional[tuple]:
         if self.get_count() < 2:
             return None
-        else:
+        elif hasattr(self, 'distance'):  # isinstance(self, (DateSeries, SortedNumericSeries)):
             distance_series = self.distance(value, take_abs=False)
             date_a = distance_series.filter_values(lambda v: v < 0).get_arg_max()
             date_b = distance_series.filter_values(lambda v: v >= 0).get_arg_min()
             return date_a, date_b
+        else:
+            msg = 'get_two_nearest_values() method available for DateSeries, SortedNumericSeries only, got {}'
+            raise TypeError(msg.format(self))
 
     def get_first_value(self) -> Any:
         if self.get_count():
@@ -120,7 +125,7 @@ class SortedSeries(AnySeries):
         return self.get_first_item(), self.get_last_item()
 
     def get_mutual_borders(self, other: Native) -> list:
-        assert isinstance(other, (SortedSeries, SortedKeyValue))
+        assert isinstance(other, (SortedSeries, SortedSeriesInterface, SortedKeyValueSeriesInterface))
         first_item = max(self.get_first_item(), other.get_first_item())
         last_item = min(self.get_last_item(), other.get_last_item())
         if first_item < last_item:

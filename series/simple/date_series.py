@@ -2,25 +2,30 @@ from typing import Optional, Callable, Iterable, Generator, Union
 
 try:  # Assume we're a submodule in a package.
     from functions.primary import dates as dt
+    from functions.secondary.date_functions import date_to_int, round_date, date_range
     from series.series_type import SeriesType
-    from series.interfaces.any_series_interface import AnySeriesInterface, Name
-    from series.interfaces.date_series_interface import DateSeriesInterface
-    from series.interfaces.key_value_series_interface import KeyValueSeriesInterface
+    from series.interfaces.sorted_numeric_series_interface import SortedNumericSeriesInterface
+    from series.interfaces.date_series_interface import (
+        DateSeriesInterface,
+        DateScale, Date, MAX_DAYS_IN_MONTH,
+        AutoBool, AUTO,
+    )
+    from series.interfaces.date_numeric_series_interface import DateNumericSeriesInterface, Name
     from series.simple.sorted_series import SortedSeries
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...functions.primary import dates as dt
+    from ...functions.secondary.date_functions import date_to_int, round_date, date_range
     from ..series_type import SeriesType
-    from ..interfaces.any_series_interface import AnySeriesInterface, Name
-    from ..interfaces.date_series_interface import DateSeriesInterface
-    from ..interfaces.key_value_series_interface import KeyValueSeriesInterface
+    from ..interfaces.sorted_numeric_series_interface import SortedNumericSeriesInterface
+    from ..interfaces.date_series_interface import (
+        DateSeriesInterface,
+        DateScale, Date, MAX_DAYS_IN_MONTH,
+        AutoBool, AUTO,
+    )
+    from ..interfaces.date_numeric_series_interface import DateNumericSeriesInterface, Name
     from .sorted_series import SortedSeries
 
 Native = DateSeriesInterface
-SortedNumeric = KeyValueSeriesInterface  # SortedNumericSeriesInterface
-DateNumericSeriesInterface = KeyValueSeriesInterface  # DateNumericSeriesInterface
-DateNumeric = Union[DateSeriesInterface, KeyValueSeriesInterface, DateNumericSeriesInterface]
-Series = Union[AnySeriesInterface, DateSeriesInterface, KeyValueSeriesInterface]
-Date = dt.Date
 
 DEFAULT_NUMERIC = False
 DEFAULT_SORTED = True
@@ -33,7 +38,7 @@ class DateSeries(SortedSeries, DateSeriesInterface):
             set_closure: bool = False,
             validate: bool = True,
             sort_items: bool = False,
-            name: Optional[str] = None,
+            name: Name = None,
     ):
         super().__init__(
             values=values,
@@ -102,19 +107,23 @@ class DateSeries(SortedSeries, DateSeriesInterface):
             lambda i: dt.get_date(i, as_iso_date=as_iso_date),
         )
 
-    def to_days(self, inplace: bool = False) -> SortedNumeric:
-        series = self.map_dates(dt.get_day_abs_from_date, inplace=inplace) or self
+    def to_int(self, scale: DateScale, inplace: bool = False) -> SortedNumericSeriesInterface:
+        series = self.map_dates(date_to_int(scale=scale), inplace=inplace) or self
         return self._assume_sorted_numeric(series.assume_numeric())
 
-    def to_weeks(self, inplace: bool = False) -> SortedNumeric:
-        series = self.map_dates(dt.get_week_abs_from_date, inplace=inplace) or self
-        return self._assume_sorted_numeric(series.assume_numeric())
+    # @deprecated_with_alternative('to_int(scale=DateScale.Day)')
+    def to_days(self, inplace: bool = False) -> SortedNumericSeriesInterface:
+        return self.to_int(scale=DateScale.Day, inplace=inplace)
 
-    def to_months(self, inplace: bool = False) -> SortedNumeric:
-        series = self.map_dates(dt.get_month_abs_from_date, inplace=inplace) or self
-        return self._assume_sorted_numeric(series.assume_numeric())
+    # @deprecated_with_alternative('to_int(scale=DateScale.Week)')
+    def to_weeks(self, inplace: bool = False) -> SortedNumericSeriesInterface:
+        return self.to_int(scale=DateScale.Week, inplace=inplace)
 
-    def to_years(self, decimal: bool = True, inplace: bool = False) -> SortedNumeric:
+    # @deprecated_with_alternative('to_int(scale=DateScale.Month)')
+    def to_months(self, inplace: bool = False) -> SortedNumericSeriesInterface:
+        return self.to_int(scale=DateScale.Month, inplace=inplace)
+
+    def to_years(self, decimal: bool = True, inplace: bool = False) -> SortedNumericSeriesInterface:
         series = self.map_dates(lambda d: dt.get_year_from_date(d, decimal=decimal), inplace=inplace) or self
         return self._assume_sorted_numeric(series.assume_numeric())
 
@@ -136,7 +145,7 @@ class DateSeries(SortedSeries, DateSeriesInterface):
         return [self.get_first_date(), self.get_last_date()]
 
     def get_mutual_border_dates(self, other: Native) -> list:
-        assert isinstance(other, (DateSeries, DateSeriesInterface, DateNumeric, DateNumericSeriesInterface)), other
+        assert isinstance(other, (DateSeries, DateSeriesInterface, DateNumericSeriesInterface)), other
         first_date = max(self.get_first_date(), other.get_first_date())
         last_date = min(self.get_last_date(), other.get_last_date())
         if first_date < last_date:
@@ -194,13 +203,20 @@ class DateSeries(SortedSeries, DateSeriesInterface):
     def yearly_shift(self, inplace: bool = False) -> Native:
         return self.map_dates(dt.get_next_year_date, inplace=inplace)
 
+    def round_to(self, scale: DateScale, as_iso_date: AutoBool = AUTO, inplace: bool = False) -> Native:
+        func = round_date(scale, as_iso_date=as_iso_date)
+        series = self.map_dates(func, inplace=inplace).uniq(inplace=inplace)
+        return self._assume_native(series)
+
+    # @deprecated_with_alternative('round_to(scale=DateScale.Week')
     def round_to_weeks(self, inplace: bool = False) -> Native:
-        return self.map_dates(dt.get_monday_date, inplace=inplace).uniq(inplace=inplace)
+        return self.round_to(DateScale.Week, inplace=inplace)
 
+    # @deprecated_with_alternative('round_to(scale=DateScale.Month')
     def round_to_months(self, inplace: bool = False) -> Native:
-        return self.map_dates(dt.get_month_first_date, inplace=inplace).uniq(inplace=inplace)
+        return self.round_to(DateScale.Month, inplace=inplace)
 
-    def distance(self, d: [Native, Date], take_abs: bool = True, inplace: bool = False) -> DateNumeric:
+    def distance(self, d: [Native, Date], take_abs: bool = True, inplace: bool = False) -> DateNumericSeriesInterface:
         if dt.is_date(d):
             distance_series = self.distance_for_date(d, take_abs=take_abs)
         elif self._is_native(d):
@@ -223,7 +239,7 @@ class DateSeries(SortedSeries, DateSeriesInterface):
             take_abs: bool = True,
             set_closure: bool = False,
             name: Name = None,
-    ) -> DateNumeric:
+    ) -> DateNumericSeriesInterface:
         f = self.get_distance_func()
         dates = self.get_dates()
         values = self.date_series(set_closure=set_closure).map(lambda d: f(date, d, take_abs), inplace=not set_closure)
@@ -252,18 +268,22 @@ class DateSeries(SortedSeries, DateSeriesInterface):
         nearest_dates = [i for i in self.get_two_nearest_dates(date) if i]
         return self.set_dates(nearest_dates, inplace=inplace) or self
 
-    def interpolate_to_weeks(self, inplace: bool = False) -> Native:
-        monday_dates = dt.get_weeks_range(self.get_first_date(), self.get_last_date())
-        return self.set_dates(monday_dates, inplace=inplace) or self
+    def interpolate_to_scale(self, scale: DateScale, inplace: bool = False) -> Native:
+        func = date_range(scale=scale)
+        dates = func(self.get_first_date(), self.get_last_date())
+        return self.set_dates(dates, inplace=inplace) or self
 
+    # @deprecated_with_alternative('interpolate_to_weeks(scale=DateScale.Week)')
+    def interpolate_to_weeks(self, inplace: bool = False) -> Native:
+        return self.interpolate_to_scale(DateScale.Week, inplace=inplace)
+
+    # @deprecated_with_alternative('interpolate_to_weeks(scale=DateScale.Month)')
     def interpolate_to_months(self, inplace: bool = False) -> Native:
-        monthly_dates = dt.get_months_range(self.get_first_date(), self.get_last_date())
-        return self.set_dates(monthly_dates, inplace=inplace) or self
-        # return self.new(monthly_dates)
+        return self.interpolate_to_scale(DateScale.Month, inplace=inplace)
 
     def find_base_date(
             self, date: Date,
-            max_distance: int = dt.MAX_DAYS_IN_MONTH, return_increment: bool = False,
+            max_distance: int = MAX_DAYS_IN_MONTH, return_increment: bool = False,
     ) -> Union[Date, tuple, None]:
         candidates = DateSeries(
             dt.get_yearly_dates(date, self.get_first_date(), self.get_last_date()),
@@ -290,7 +310,7 @@ class DateSeries(SortedSeries, DateSeriesInterface):
         return series
 
     @staticmethod
-    def _assume_sorted_numeric(series) -> SortedNumeric:
+    def _assume_sorted_numeric(series) -> SortedNumericSeriesInterface:
         return series
 
 

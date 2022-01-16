@@ -6,9 +6,15 @@ try:  # Assume we're a submodule in a package.
     from base.interfaces.sourced_interface import SourcedInterface  # inherits Base[Interface]
     from base.interfaces.data_interface import SimpleDataInterface  # inherits Base[Interface]
     from base.interfaces.iterable_interface import IterableInterface  # inherits SimpleDataInterface
-    from series.interfaces.any_series_interface import AnySeriesInterface  # Inherits IterableInterface
-    from series.interfaces.date_series_interface import DateSeriesInterface  # Inherits AnySeriesInterface
-    from series.interfaces.key_value_series_interface import KeyValueSeriesInterface  # Inherits DateSeriesInterface
+    from series.interfaces.any_series_interface import AnySeriesInterface  # inherits IterableInterface
+    from series.interfaces.sorted_series_interface import SortedSeriesInterface  # inherits AnySeriesInterface
+    from series.interfaces.numeric_series_interface import NumericSeriesInterface  # inherits AnySeriesInterface
+    from series.interfaces.sorted_numeric_series_interface import SortedNumericSeriesInterface  # Sorted, Numeric
+    from series.interfaces.date_series_interface import DateSeriesInterface  # inherits AnySeriesInterface
+    from series.interfaces.key_value_series_interface import KeyValueSeriesInterface  # inherits DateSeriesInterface
+    from series.interfaces.sorted_key_value_series_interface import SortedKeyValueSeriesInterface  # Sorted, KeyValue
+    from series.interfaces.sorted_numeric_key_value_series_interface import SortedNumericKeyValueSeriesInterface
+    from series.interfaces.date_numeric_series_interface import DateNumericSeriesInterface  # SortedNumericKeyValueSe..
     from streams.interfaces.abstract_stream_interface import StreamInterface  # inherits Sourced
     from streams.interfaces.iterable_stream_interface import IterableStreamInterface  # inherits Stream
     from streams.interfaces.local_stream_interface import LocalStreamInterface  # inherits IterableStream
@@ -25,12 +31,12 @@ try:  # Assume we're a submodule in a package.
     from loggers.extended_logger_interface import ExtendedLoggerInterface  # inherits Sourced, Logger; uses Base
     from loggers.selection_logger_interface import SelectionLoggerInterface  # inherits Extended, uses DetailedMessage
     from loggers.progress_interface import ProgressInterface  # inherits Tree; uses ExtendedLogger
-    from connectors.interfaces.format_interface import ContentFormatInterface  # inherits Base
     from connectors.interfaces.connector_interface import ConnectorInterface  # inherits Sourced, uses ExtendedLogger,..
     from connectors.interfaces.leaf_connector_interface import LeafConnectorInterface  # inherits Connector
     from connectors.interfaces.struct_file_interface import StructFileInterface  # inherits LeafConnectorInterface
     from connectors.interfaces.temporary_interface import TemporaryLocationInterface  # inherits Connector
     from connectors.interfaces.temporary_interface import TemporaryFilesMaskInterface  # inherits Connector
+    from content.format.format_interface import ContentFormatInterface  # inherits Base
     from content.struct.struct_interface import StructInterface, StructMixinInterface  # ROOT
     from content.struct.struct_row_interface import StructRowInterface  # inherits SimpleData; uses StructInterface
     from content.items.simple_items import (
@@ -44,9 +50,15 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .base.interfaces.sourced_interface import SourcedInterface  # inherits Base[Interface]
     from .base.interfaces.data_interface import SimpleDataInterface  # inherits Base[Interface]
     from .base.interfaces.iterable_interface import IterableInterface  # inherits SimpleDataInterface
-    from .series.interfaces.any_series_interface import AnySeriesInterface  # Inherits IterableInterface
-    from .series.interfaces.date_series_interface import DateSeriesInterface  # Inherits AnySeriesInterface
-    from .series.interfaces.key_value_series_interface import KeyValueSeriesInterface  # Inherits DateSeriesInterface
+    from .series.interfaces.any_series_interface import AnySeriesInterface  # inherits IterableInterface
+    from .series.interfaces.sorted_series_interface import SortedSeriesInterface  # inherits AnySeriesInterface
+    from .series.interfaces.numeric_series_interface import NumericSeriesInterface  # inherits AnySeriesInterface
+    from .series.interfaces.sorted_numeric_series_interface import SortedNumericSeriesInterface  # Sorted, Numeric
+    from .series.interfaces.date_series_interface import DateSeriesInterface  # inherits AnySeriesInterface
+    from .series.interfaces.key_value_series_interface import KeyValueSeriesInterface  # inherits DateSeriesInterface
+    from .series.interfaces.sorted_key_value_series_interface import SortedKeyValueSeriesInterface  # Sorted, KeyValue
+    from .series.interfaces.sorted_numeric_key_value_series_interface import SortedNumericKeyValueSeriesInterface
+    from .series.interfaces.date_numeric_series_interface import DateNumericSeriesInterface  # SortedNumericKeyValueSe..
     from .streams.interfaces.abstract_stream_interface import StreamInterface  # inherits Sourced
     from .streams.interfaces.iterable_stream_interface import IterableStreamInterface  # inherits Stream
     from .streams.interfaces.local_stream_interface import LocalStreamInterface  # inherits IterableStream
@@ -63,12 +75,12 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .loggers.extended_logger_interface import ExtendedLoggerInterface  # inherits Sourced, Logger; uses Base
     from .loggers.selection_logger_interface import SelectionLoggerInterface  # inherits Extended, uses DetailedMessage
     from .loggers.progress_interface import ProgressInterface  # inherits Tree; uses ExtendedLogger
-    from .connectors.interfaces.format_interface import ContentFormatInterface  # inherits Base
     from .connectors.interfaces.connector_interface import ConnectorInterface  # inherits Sourced, uses ExtendedLogger,.
     from .connectors.interfaces.leaf_connector_interface import LeafConnectorInterface  # inherits Connector
     from .connectors.interfaces.struct_file_interface import StructFileInterface  # inherits LeafConnectorInterface
     from .connectors.interfaces.temporary_interface import TemporaryLocationInterface  # inherits Connector
     from .connectors.interfaces.temporary_interface import TemporaryFilesMaskInterface  # inherits Connector
+    from .content.format.format_interface import ContentFormatInterface  # inherits Base
     from .content.struct.struct_interface import StructInterface, StructMixinInterface  # ROOT
     from .content.struct.struct_row_interface import StructRowInterface  # inherits SimpleData; uses StructInterface
     from .content.items.simple_items import (
@@ -90,6 +102,7 @@ try:  # Assume we're a submodule in a package.
     from content.fields.field_type import FieldType  # inherits DynamicEnum
     from content.items.item_type import ItemType  # inherits SubclassesType(ClassType)
     from series.series_type import SeriesType  # inherits ClassType(DynamicEnum)
+    from series.interpolation_type import InterpolationType  # inherits DynamicEnum
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from .utils.algo import JoinType  # standard Enum
     from .loggers.extended_logger_interface import LoggingLevel  # standard Enum
@@ -103,6 +116,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .content.fields.field_type import FieldType  # inherits DynamicEnum
     from .content.items.item_type import ItemType  # inherits SubclassesType(ClassType)
     from .series.series_type import SeriesType  # inherits ClassType(DynamicEnum)
+    from .series.interpolation_type import InterpolationType  # inherits DynamicEnum
 
 AUTO = arg.AUTO
 Auto = arg.Auto

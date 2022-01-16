@@ -4,16 +4,18 @@ try:  # Assume we're a submodule in a package.
     from functions.primary import numeric as nm
     from series.series_type import SeriesType
     from series.interfaces.key_value_series_interface import KeyValueSeriesInterface, Mutable, MUTABLE
+    from series.interfaces.sorted_key_value_series_interface import SortedKeyValueSeriesInterface
+    from series.interfaces.date_numeric_series_interface import DateNumericSeriesInterface
     from series.simple.any_series import AnySeries
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...functions.primary import numeric as nm
     from ..series_type import SeriesType
     from ..interfaces.key_value_series_interface import KeyValueSeriesInterface, Mutable, MUTABLE
+    from ..interfaces.sorted_key_value_series_interface import SortedKeyValueSeriesInterface
+    from ..interfaces.date_numeric_series_interface import DateNumericSeriesInterface
     from ..simple.any_series import AnySeries
 
-Native = Union[AnySeries, KeyValueSeriesInterface]
-Sorted = KeyValueSeriesInterface  # SortedKeyValueSeriesInterface
-DateNumeric = KeyValueSeriesInterface  # DateNumericSeriesInterface
+Native = Union[KeyValueSeriesInterface]
 
 DATA_MEMBER_NAMES = '_keys', '_data'
 META_MEMBER_MAPPING = dict(_data='values')
@@ -207,11 +209,11 @@ class KeyValueSeries(AnySeries, KeyValueSeriesInterface):
         keys = self.key_series().map(function)
         return self.set_keys(keys, inplace=inplace)
 
-    def assume_date_numeric(self) -> DateNumeric:
+    def assume_date_numeric(self) -> DateNumericSeriesInterface:
         series_class = SeriesType.DateNumericSeries.get_class()
         return series_class(**self.get_props())
 
-    def assume_sorted(self) -> Sorted:
+    def assume_sorted(self) -> SortedKeyValueSeriesInterface:
         series_class = SeriesType.SortedKeyValueSeries.get_class()
         return series_class(**self.get_props())
 

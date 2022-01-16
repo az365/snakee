@@ -1,9 +1,9 @@
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Optional, Iterable, Union, Any, NoReturn
+from typing import Optional, Iterable, Generator, Union, Any
 import logging
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
     from base.interfaces.base_interface import BaseInterface
     from base.interfaces.sourced_interface import SourcedInterface
@@ -18,10 +18,10 @@ BaseLogger = Union[LoggerInterface, Any]
 Context = Optional[BaseInterface]
 Name = str
 Count = Optional[int]
-Step = Union[Count, arg.DefaultArgument]
+Step = Union[Count, arg.Auto]
 Formatter = Union[str, logging.Formatter]
-OptContext = Union[Context, arg.DefaultArgument]
-OptName = Union[Name, arg.DefaultArgument]
+OptContext = Union[Context, arg.Auto]
+OptName = Union[Name, arg.Auto]
 File = BaseInterface
 
 DEFAULT_LOGGER_NAME = 'default'
@@ -59,7 +59,7 @@ class LoggingLevel(Enum):
         return cls.Warning
 
 
-Level = Union[LoggingLevel, int, arg.DefaultArgument]
+Level = Union[LoggingLevel, int, arg.Auto]
 
 DEFAULT_LOGGING_LEVEL = LoggingLevel.get_default()
 
@@ -101,29 +101,32 @@ class ExtendedLoggerInterface(SourcedInterface, LoggerInterface, ABC):
     @abstractmethod
     def progress(
             self, items: Iterable, name: Name = 'Progress',
-            count: Count = None, step: Step = arg.DEFAULT,
-            context: OptContext = arg.DEFAULT,
-    ) -> Iterable:
+            count: Count = None, step: Step = arg.AUTO,
+            context: OptContext = arg.AUTO,
+    ) -> Generator:
         pass
 
     @abstractmethod
-    def get_new_progress(self, name: Name, count: Count = None, context: OptContext = arg.DEFAULT):
+    def get_new_progress(self, name: Name, count: Count = None, context: OptContext = arg.AUTO):
         pass
 
     @abstractmethod
-    def get_selection_logger(self, name: OptName = arg.DEFAULT, **kwargs):
+    def get_selection_logger(self, name: OptName = arg.AUTO, **kwargs):
         pass
 
     @abstractmethod
-    def set_selection_logger(self, selection_logger, skip_errors: bool = True) -> NoReturn:
+    def set_selection_logger(self, selection_logger, skip_errors: bool = True) -> None:
         pass
 
     @abstractmethod
     def log(
             self,
-            msg: Union[str, list, tuple], level: Level = arg.DEFAULT,
-            logger: Union[BaseLogger, arg.DefaultArgument] = arg.DEFAULT,
-            end: Union[str, arg.DefaultArgument] = arg.DEFAULT,
-            verbose: bool = True, truncate: bool = True,
-    ) -> NoReturn:
+            msg: Union[str, list, tuple],
+            level: Level = arg.AUTO,
+            logger: Union[BaseLogger, arg.Auto] = arg.AUTO,
+            end: Union[str, arg.Auto] = arg.AUTO,
+            verbose: bool = True,
+            truncate: bool = True,
+            **kwargs
+    ) -> None:
         pass

@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Optional, Union, Iterable, NoReturn
+from typing import Optional, Union, Iterable, Generator
 
 try:  # Assume we're a sub-module in a package.
     from utils import arguments as arg
@@ -11,7 +11,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..base.abstract.tree_item import TreeInterface
     from .extended_logger_interface import ExtendedLoggerInterface
 
-Logger = Union[ExtendedLoggerInterface, arg.DefaultArgument]
+Logger = Union[ExtendedLoggerInterface, arg.Auto]
 
 
 class OperationStatus(Enum):
@@ -37,20 +37,20 @@ class ProgressInterface(TreeInterface, ABC):
         pass
 
     @abstractmethod
-    def get_selection_logger(self, name=arg.DEFAULT) -> Logger:
+    def get_selection_logger(self, name=arg.AUTO) -> Logger:
         pass
 
     @abstractmethod
     def log(
             self, msg: str,
-            level: Union[int, arg.DefaultArgument] = arg.DEFAULT,
-            end: Union[str, arg.DefaultArgument] = arg.DEFAULT,
-            verbose: Union[bool, arg.DefaultArgument] = arg.DEFAULT,
-    ) -> NoReturn:
+            level: Union[int, arg.Auto] = arg.AUTO,
+            end: Union[str, arg.Auto] = arg.AUTO,
+            verbose: Union[bool, arg.Auto] = arg.AUTO,
+    ) -> None:
         pass
 
     @abstractmethod
-    def log_selection_batch(self, level=arg.DEFAULT, reset_after: bool = True) -> NoReturn:
+    def log_selection_batch(self, level=arg.AUTO, reset_after: bool = True) -> None:
         pass
 
     @abstractmethod
@@ -78,15 +78,15 @@ class ProgressInterface(TreeInterface, ABC):
         pass
 
     @abstractmethod
-    def update(self, position: int, step: Optional[int] = None, message: Optional[str] = None) -> NoReturn:
+    def update(self, position: int, step: Optional[int] = None, message: Optional[str] = None) -> None:
         pass
 
     @abstractmethod
-    def start(self, position: int = 0) -> NoReturn:
+    def start(self, position: int = 0) -> None:
         pass
 
     @abstractmethod
-    def finish(self, position: Optional[int] = None, log_selection_batch: bool = True) -> NoReturn:
+    def finish(self, position: Optional[int] = None, log_selection_batch: bool = True) -> None:
         pass
 
     @abstractmethod
@@ -95,7 +95,7 @@ class ProgressInterface(TreeInterface, ABC):
             items: Iterable,
             name: Optional[str] = None,
             expected_count: Optional[int] = None,
-            step: Union[int, arg.DefaultArgument] = arg.DEFAULT,
+            step: Union[int, arg.Auto] = arg.AUTO,
             log_selection_batch: bool = True
-    ) -> Iterable:
+    ) -> Generator:
         pass

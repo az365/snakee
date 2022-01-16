@@ -1,12 +1,12 @@
 from typing import Iterable, Optional, Any
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
     from utils.decorators import deprecated, deprecated_with_alternative
     from interfaces import (
         Connector, Context, IterableStreamInterface,
         StreamType, ItemType, FileType, ContentType,
-        AUTO, AutoCount, AutoBool, Auto, AutoName, OptionalFields,
+        AUTO, AutoCount, AutoBool, Auto, AutoName, OptionalFields, Array,
     )
     from connectors.filesystem.local_file import LocalFile, Struct, AbstractFormat
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -15,7 +15,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...interfaces import (
         Connector, Context, IterableStreamInterface,
         StreamType, ItemType, FileType, ContentType,
-        AUTO, AutoCount, AutoBool, Auto, AutoName, OptionalFields,
+        AUTO, AutoCount, AutoBool, Auto, AutoName, OptionalFields, Array,
     )
     from .local_file import LocalFile, Struct, AbstractFormat
 
@@ -24,6 +24,7 @@ Stream = IterableStreamInterface
 
 
 class TextFile(LocalFile):
+    # @deprecated_with_alternative('LocalFile')
     def __init__(
             self,
             name: str,
@@ -41,8 +42,7 @@ class TextFile(LocalFile):
             folder=folder, expected_count=expected_count, verbose=verbose,
         )
 
-    @staticmethod
-    def get_default_file_extension() -> str:
+    def get_default_file_extension(self) -> str:
         return 'txt'
 
     @staticmethod
@@ -73,11 +73,22 @@ class TextFile(LocalFile):
             **self.get_stream_kwargs(**kwargs)
         )
 
-    def _get_demo_example(self, count: int = 10, filters: Optional[list] = None) -> Optional[Iterable]:
+    def _get_demo_example(
+            self,
+            count: int = 10,
+            columns: Optional[Array] = None,
+            filters: Optional[Array] = None,
+            filter_kwargs: Optional[dict] = None,
+    ) -> Optional[Iterable]:
         if self.is_existing():
-            stream_sample = self.filter(*filters or []) if filters else self
-            stream_sample = stream_sample.take(count)
-            return stream_sample.get_items()
+            stream_example = self
+            if filters or filter_kwargs:
+                stream_example = stream_example.filter(*filters or [], **filter_kwargs or {})
+            if columns:
+                stream_example = stream_example.select(*columns)
+            if count:
+                stream_example = stream_example.take(count)
+            return stream_example.get_items()
 
     def get_useful_props(self) -> dict:
         if self.is_existing():
@@ -107,15 +118,28 @@ class TextFile(LocalFile):
     def get_str_headers(self) -> Iterable:
         yield '{}({})'.format(self.__class__.__name__, self.get_str_meta(useful_only=True))
 
-    def describe(self, count: Optional[int] = 10, filters: Optional[list] = None, show_header: bool = True):
+    def describe(
+            self,
+            count: Optional[int] = 10,
+            show_header: bool = True,
+            struct_as_dataframe: bool = False,
+            safe_filter: bool = True,
+            actualize: bool = AUTO,
+            columns: Optional[Array] = None,
+            *filter_args, **filter_kwargs
+    ):
         if show_header:
             for line in self.get_str_headers():
                 self.log(line, end='\n')
         if self.is_existing():
-            self.actualize()
+            force = arg.delayed_acquire(actualize, self.is_outdated)
+            self.actualize(if_outdated=not force)
             self.log('{} File has {} lines'.format(self.get_datetime_str(), self.get_count(allow_slow_gzip=False)))
             self.log('')
-            for line in self._get_demo_example(count=count, filters=filters):
+            for line in self._get_demo_example(
+                    count=count, columns=columns,
+                    filters=filter_args, filter_kwargs=filter_kwargs,
+            ):
                 self.log(line)
         return self
 
@@ -140,8 +164,7 @@ class JsonFile(LocalFile):
             folder=folder, expected_count=expected_count, verbose=verbose,
         )
 
-    @staticmethod
-    def get_default_file_extension() -> str:
+    def get_default_file_extension(self) -> str:
         return 'json'
 
     @staticmethod

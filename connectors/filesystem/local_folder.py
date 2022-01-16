@@ -1,11 +1,11 @@
 from typing import Optional, Iterable, Union
 import os
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
     from interfaces import (
-        ContextInterface, ConnectorInterface, Connector,
-        FileType, FolderType, ConnType, Class,
+        ContextInterface, ConnectorInterface, Connector, ContentFormatInterface,
+        FolderType, FileType, ContentType, ConnType, Class, LoggingLevel,
         AUTO, Auto, AutoBool, AutoContext, AutoConnector,
     )
     from connectors.abstract.hierarchic_connector import HierarchicConnector
@@ -14,8 +14,8 @@ try:  # Assume we're a sub-module in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...interfaces import (
-        ContextInterface, ConnectorInterface, Connector,
-        FileType, FolderType, ConnType, Class,
+        ContextInterface, ConnectorInterface, Connector, ContentFormatInterface,
+        FolderType, FileType, ContentType, ConnType, Class, LoggingLevel,
         AUTO, Auto, AutoBool, AutoContext, AutoConnector,
     )
     from ..abstract.hierarchic_connector import HierarchicConnector
@@ -95,23 +95,31 @@ class LocalFolder(HierarchicFolder):
                 if item.is_leaf():
                     yield item
 
-    def file(self, name: str, filetype: Union[FileType, Auto] = AUTO, **kwargs) -> ConnectorInterface:
+    def file(
+            self,
+            name: str,
+            content_format: Union[ContentFormatInterface, ContentType, Auto] = AUTO,
+            filetype: Union[FileType, ContentType, Auto] = AUTO,  # deprecated argument
+            **kwargs
+    ) -> ConnectorInterface:
         file = self.get_children().get(name)
         if kwargs or not file:
             filename = kwargs.pop('filename', name)
-            file_class = self.get_default_child_obj_class()
+            file_class = self.get_default_child_obj_class()  # LocalFile
             assert file_class, "connector class or type name aren't detected"
             if arg.is_defined(filetype):
-                content_format = kwargs.get('content_format')
-                msg = 'Only one of arguments allowed: filetype (got {}) or content_format (got {})'
-                assert not content_format, msg.format(filetype, content_format)
+                if arg.is_defined(content_format):
+                    msg = 'Only one of arguments allowed: filetype (got {}) or content_format (got {})'
+                    raise ValueError(msg.format(filetype, content_format))
+                else:
+                    msg = 'LocalFolder.file(): filetype-argument is deprecated, use content_format instead'
+                    self.log(level=LoggingLevel.Warning, msg=msg)
                 if isinstance(filetype, FileType):  # tmp fix
                     content_format = filetype.get_value()
                 else:
                     content_format = filetype
-                kwargs['content_format'] = content_format
             try:
-                file = file_class(filename, folder=self, **kwargs)
+                file = file_class(filename, content_format=content_format, folder=self, **kwargs)
             except TypeError as e:
                 raise TypeError('{}.{}'.format(file_class.__name__, e))
             self.add_child(file)

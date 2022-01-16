@@ -1,7 +1,8 @@
-from typing import Union, Optional, Iterable, Any, NoReturn
+from typing import Union, Optional, Iterable, Generator, Type, Any
+from inspect import getframeinfo, stack
 import logging
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
     from utils.decorators import singleton
     from base import base_classes as bs
@@ -37,7 +38,8 @@ DEFAULT_LOGGER_NAME = 'default'
 DEFAULT_FORMATTER = '%(asctime)s - %(levelname)s - %(message)s'
 DEFAULT_LOGGING_LEVEL = LoggingLevel.get_default()
 DEFAULT_ENCODING = 'utf8'
-DEFAULT_LINE_LEN = 125
+JUPYTER_LINE_LEN = 125
+DEFAULT_LINE_LEN = JUPYTER_LINE_LEN
 LONG_LINE_LEN = 600
 TRUNCATED_SUFFIX = '..'
 REWRITE_SUFFIX = '...'
@@ -128,22 +130,26 @@ class BaseLoggerWrapper(bs.TreeItem, LoggerInterface):
             self.add_handler(file_handler)
         return self
 
-    def log(self, msg: str, level: Level, *args, **kwargs) -> NoReturn:
+    def log(self, msg: str, level: Level, *args, **kwargs) -> None:
         return self.get_base_logger().log(level=level, msg=msg, *args, **kwargs)
 
-    def debug(self, msg: str) -> NoReturn:
+    def debug(self, msg: str) -> None:
         self.log(msg=msg, level=LoggingLevel.Debug)
 
-    def info(self, msg: str) -> NoReturn:
+    def info(self, msg: str) -> None:
         self.log(msg=msg, level=LoggingLevel.Info)
 
-    def warning(self, msg: str) -> NoReturn:
+    def warning(self, msg: str, category: Optional[Type] = None, stacklevel: Optional[int] = None) -> None:
+        if stacklevel:
+            caller = getframeinfo(stack()[stacklevel][0])
+            category_name = arg.get_name(category) if category else ''
+            msg = '{}:{}: {} {}'.format(caller.filename, caller.lineno, category_name, msg)
         self.log(msg=msg, level=LoggingLevel.Warning)
 
-    def error(self, msg: str) -> NoReturn:
+    def error(self, msg: str) -> None:
         self.log(msg=msg, level=LoggingLevel.Error)
 
-    def critical(self, msg: str) -> NoReturn:
+    def critical(self, msg: str) -> None:
         self.log(msg=msg, level=LoggingLevel.Critical)
 
 
@@ -170,7 +176,7 @@ class ExtendedLogger(BaseLoggerWrapper, ExtendedLoggerInterface):
     def is_common_logger() -> bool:
         return False
 
-    def put_into_context(self, check: bool = False) -> NoReturn:
+    def put_into_context(self, check: bool = False) -> None:
         context = self.get_context()
         if context:
             if check:
@@ -195,7 +201,7 @@ class ExtendedLogger(BaseLoggerWrapper, ExtendedLoggerInterface):
             self, items: Iterable, name: Name = 'Progress',
             count: Count = None, step: Step = arg.AUTO,
             context: OptContext = arg.AUTO,
-    ) -> Iterable:
+    ) -> Generator:
         return self.get_new_progress(name, count=count, context=context).iterate(items, step=step)
 
     def get_selection_logger(self, name: OptName = arg.AUTO, **kwargs) -> Optional[SelectionLoggerInterface]:
@@ -208,7 +214,7 @@ class ExtendedLogger(BaseLoggerWrapper, ExtendedLoggerInterface):
             selection_logger = self.reset_selection_logger(name, **kwargs)
         return selection_logger
 
-    def set_selection_logger(self, selection_logger: SelectionLoggerInterface, skip_errors: bool = True) -> NoReturn:
+    def set_selection_logger(self, selection_logger: SelectionLoggerInterface, skip_errors: bool = True) -> None:
         try:
             assert isinstance(selection_logger, bs.ContextualDataWrapper)
             self.add_child(selection_logger)
@@ -236,10 +242,21 @@ class ExtendedLogger(BaseLoggerWrapper, ExtendedLoggerInterface):
             level: Level = arg.AUTO,
             logger: Union[BaseLogger, arg.Auto] = arg.AUTO,
             end: Union[str, arg.Auto] = arg.AUTO,
-            verbose: bool = True, truncate: bool = True,
-    ) -> NoReturn:
+            verbose: bool = True,
+            truncate: bool = True,
+            category: Optional[Type] = None,
+            stacklevel: Optional[int] = None,
+    ) -> None:
         level = arg.acquire(level, LoggingLevel.Info if verbose else LoggingLevel.Debug)
         logger = arg.delayed_acquire(logger, self.get_base_logger)
+        msg = [msg] if isinstance(msg, str) else list(msg)
+        if category:
+            category_name = arg.get_name(category)
+            msg = [category_name] + msg
+        if stacklevel:
+            caller = getframeinfo(stack()[stacklevel + 1][0])
+            file_name_without_path = caller.filename.split('\\')[-1].split('/')[-1]
+            msg = ['{}:{}:'.format(file_name_without_path, caller.lineno)] + msg
         if isinstance(msg, (list, tuple)):
             msg = self.format_message(*msg)
         if not isinstance(level, LoggingLevel):
@@ -263,7 +280,7 @@ class ExtendedLogger(BaseLoggerWrapper, ExtendedLoggerInterface):
             message = message[:max_len - 2] + TRUNCATED_SUFFIX
         return message
 
-    def clear_line(self) -> NoReturn:
+    def clear_line(self) -> None:
         print('\r', end='')
         print(SPACE * self.max_line_len, end='\r')
 
@@ -271,7 +288,7 @@ class ExtendedLogger(BaseLoggerWrapper, ExtendedLoggerInterface):
             self, *messages,
             end: Union[str, arg.Auto] = arg.AUTO,
             clear_before: bool = True, truncate: bool = True,
-    ) -> NoReturn:
+    ) -> None:
         message = self.format_message(
             *messages,
             max_len=LONG_LINE_LEN if end == '\n' else self.max_line_len,

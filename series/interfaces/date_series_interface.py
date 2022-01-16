@@ -2,32 +2,39 @@ from abc import ABC, abstractmethod
 from typing import Callable, Iterable, Optional, Union
 
 try:  # Assume we're a submodule in a package.
-    # from base.interfaces.iterable_interface import IterableInterface
-    from functions.primary import dates as dt
+    from utils.arguments import Auto, AUTO
+    from functions.primary.dates import Date, DateScale, MAX_DAYS_IN_MONTH
     from series.interfaces.any_series_interface import AnySeriesInterface
+    from series.interfaces.numeric_series_interface import NumericSeriesInterface
+    from series.interfaces.sorted_series_interface import SortedSeriesInterface
+    from series.interfaces.key_value_series_interface import KeyValueSeriesInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    # from ...base.interfaces.iterable_interface import IterableInterface
-    from ...functions.primary import dates as dt
+    from ...utils.arguments import Auto, AUTO
+    from ...functions.primary.dates import Date, DateScale, MAX_DAYS_IN_MONTH
     from .any_series_interface import AnySeriesInterface
+    from .numeric_series_interface import NumericSeriesInterface
+    from .sorted_series_interface import SortedSeriesInterface
+    from .key_value_series_interface import KeyValueSeriesInterface
 
-Native = AnySeriesInterface
+Native = SortedSeriesInterface
 SeriesInterface = AnySeriesInterface
-SortedNumeric = AnySeriesInterface
-DateNumeric = AnySeriesInterface
+SortedNumeric = Union[SortedSeriesInterface, NumericSeriesInterface]
+DateNumeric = Union[Native, KeyValueSeriesInterface, NumericSeriesInterface]
+AutoBool = Union[Auto, bool]
 
 
-class DateSeriesInterface(AnySeriesInterface, ABC):
+class DateSeriesInterface(SortedSeriesInterface, ABC):
     @staticmethod
     @abstractmethod
     def get_distance_func() -> Callable:
-        return dt.get_days_between
+        pass
 
     @abstractmethod
     def is_dates(self, check: bool = False) -> bool:
         pass
 
     @abstractmethod
-    def get_dates(self, as_date_type: bool = False) -> list:
+    def get_dates(self, as_date_type: Optional[bool] = False) -> list:
         pass
 
     @abstractmethod
@@ -35,19 +42,7 @@ class DateSeriesInterface(AnySeriesInterface, ABC):
         pass
 
     @abstractmethod
-    def to_days(self) -> SortedNumeric:
-        pass
-
-    @abstractmethod
-    def to_weeks(self) -> SortedNumeric:
-        pass
-
-    @abstractmethod
-    def to_months(self) -> SortedNumeric:
-        pass
-
-    @abstractmethod
-    def to_years(self) -> SortedNumeric:
+    def to_int(self, scale: DateScale, inplace: bool = False) -> SortedNumeric:
         pass
 
     @abstractmethod
@@ -55,11 +50,11 @@ class DateSeriesInterface(AnySeriesInterface, ABC):
         pass
 
     @abstractmethod
-    def get_first_date(self) -> dt.Date:
+    def get_first_date(self) -> Date:
         pass
 
     @abstractmethod
-    def get_last_date(self) -> dt.Date:
+    def get_last_date(self) -> Date:
         pass
 
     @abstractmethod
@@ -79,7 +74,7 @@ class DateSeriesInterface(AnySeriesInterface, ABC):
         pass
 
     @abstractmethod
-    def has_date_in_range(self, date: dt.Date) -> bool:
+    def has_date_in_range(self, date: Date) -> bool:
         pass
 
     @abstractmethod
@@ -91,11 +86,11 @@ class DateSeriesInterface(AnySeriesInterface, ABC):
         pass
 
     @abstractmethod
-    def exclude(self, first_date: dt.Date, last_date: dt.Date) -> Native:
+    def exclude(self, first_date: Date, last_date: Date) -> Native:
         pass
 
     @abstractmethod
-    def period(self, first_date: dt.Date, last_date: dt.Date) -> Native:
+    def period(self, first_date: Date, last_date: Date) -> Native:
         pass
 
     @abstractmethod
@@ -115,48 +110,41 @@ class DateSeriesInterface(AnySeriesInterface, ABC):
         pass
 
     @abstractmethod
-    def round_to_weeks(self) -> Native:
+    def round_to(self, scale: DateScale, as_iso_date: AutoBool = AUTO, inplace: bool = False) -> Native:
         pass
 
     @abstractmethod
-    def round_to_months(self) -> Native:
+    def distance(self, d: Date, take_abs: bool = True) -> DateNumeric:
         pass
 
     @abstractmethod
-    def distance(self, d: dt.Date, take_abs: bool = True) -> DateNumeric:
+    def distance_for_date(self, date: Date, take_abs: bool = True) -> DateNumeric:
         pass
 
     @abstractmethod
-    def distance_for_date(self, date: dt.Date, take_abs: bool = True) -> DateNumeric:
+    def get_distance_for_nearest_date(self, date: Date, take_abs: bool = True) -> int:
         pass
 
     @abstractmethod
-    def get_distance_for_nearest_date(self, date: dt.Date, take_abs: bool = True) -> int:
+    def get_nearest_date(self, date: Date, distance_func: Optional[Callable] = None) -> Date:
         pass
 
     @abstractmethod
-    def get_nearest_date(self, date: dt.Date, distance_func: Optional[Callable] = None) -> dt.Date:
+    def get_two_nearest_dates(self, date: Date) -> Optional[tuple]:
         pass
 
     @abstractmethod
-    def get_two_nearest_dates(self, date: dt.Date) -> Optional[tuple]:
+    def get_segment(self, date: Date) -> Native:
         pass
 
     @abstractmethod
-    def get_segment(self, date: dt.Date) -> Native:
-        pass
-
-    @abstractmethod
-    def interpolate_to_weeks(self) -> Native:
-        pass
-
-    @abstractmethod
-    def interpolate_to_months(self) -> Native:
+    def interpolate_to_scale(self, scale: DateScale, inplace: bool = False) -> Native:
         pass
 
     @abstractmethod
     def find_base_date(
-            self, date: dt.Date,
-            max_distance: int = dt.MAX_DAYS_IN_MONTH, return_increment: bool = False,
-    ) -> Union[dt.Date, tuple]:
+            self, date: Date,
+            max_distance: int = MAX_DAYS_IN_MONTH,
+            return_increment: bool = False,
+    ) -> Union[Date, tuple]:
         pass

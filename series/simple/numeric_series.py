@@ -1,24 +1,27 @@
-from typing import Optional, Callable, Iterable, Generator, Union, Any
+from typing import Optional, Callable, Iterable, Generator, Any
 
 try:  # Assume we're a submodule in a package.
     from functions.primary import numeric as nm
     from series.series_type import SeriesType
+    from series.interfaces.numeric_series_interface import (
+        NumericSeriesInterface,
+        NumericValue, OptNumeric, Window,
+        WINDOW_DEFAULT, WINDOW_WO_CENTER, WINDOW_NEIGHBORS,
+    )
     from series.simple.any_series import AnySeries
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...functions.primary import numeric as nm
     from ..series_type import SeriesType
+    from ..interfaces.numeric_series_interface import (
+        NumericSeriesInterface,
+        NumericValue, OptNumeric, Window,
+        WINDOW_DEFAULT, WINDOW_WO_CENTER, WINDOW_NEIGHBORS,
+    )
     from .any_series import AnySeries
 
-Native = AnySeries
-NumericValue = nm.NumericTypes
-OptNumeric = Optional[NumericValue]
-Window = Union[list, tuple]
+Native = NumericSeriesInterface
 
 DEFAULT_NUMERIC = True
-
-WINDOW_DEFAULT = -1, 0, 1
-WINDOW_WO_CENTER = -2, -1, 0, 1, 2
-WINDOW_NEIGHBORS = -1, 0
 
 
 class NumericSeries(AnySeries):
@@ -173,7 +176,7 @@ class NumericSeries(AnySeries):
     def smooth_simple_linear(self, window_len: int = 3, exclude_center: bool = False) -> Native:
         center = int((window_len - 1) / 2)
         count = self.get_count()
-        result = self.new()
+        result = self._assume_native(self.new())
         for n in self.get_range_numbers():
             is_edge = n < center or n >= count - center
             if is_edge:
@@ -183,14 +186,14 @@ class NumericSeries(AnySeries):
                 if exclude_center:
                     sub_series = sub_series.drop_item_no(center)
                 result.append(sub_series.get_mean(), inplace=True)
-        return result
+        return self._assume_native(result)
 
     def smooth(self, how: str = 'linear', *args, **kwargs) -> Native:
         method_name = 'smooth_{}'.format(how)
         smooth_method = self.__getattribute__(method_name)
         return smooth_method(*args, **kwargs)
 
-    def smooth_multiple(self, list_kwargs: Iterable = []) -> Native:
+    def smooth_multiple(self, list_kwargs: Iterable = tuple()) -> Native:
         series = self
         for kwargs in list_kwargs:
             series = series.smooth(**kwargs)
