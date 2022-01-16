@@ -1,7 +1,7 @@
 from abc import ABC
 from typing import Optional, Union
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
     from interfaces import (
         Connector, ConnectorInterface, ConnType,
@@ -98,10 +98,18 @@ class AbstractConnector(TreeItem, ConnectorInterface, ABC):
             truncate: bool = True,
             force: bool = False,
             verbose: bool = True,
+            stacklevel: Optional[int] = 1,
+            **kwargs
     ):
         logger = self.get_logger(force=force)
         if isinstance(logger, ExtendedLoggerInterface):
-            logger.log(msg=msg, level=level, end=end, truncate=truncate, verbose=verbose)
+            if stacklevel is not None:
+                stacklevel += 1
+            logger.log(
+                msg=msg, level=level, stacklevel=stacklevel,
+                end=end, truncate=truncate, verbose=verbose,
+                **kwargs,
+            )
         elif logger:
             logger.log(msg=msg, level=level)
         return self
