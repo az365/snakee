@@ -1,7 +1,7 @@
-from typing import Union, Optional, Iterable, Any
+from typing import Union, Optional
 import warnings
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
     from loggers.logger_interface import LoggerInterface, LoggingLevel
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -21,7 +21,7 @@ class FallbackLogger(LoggerInterface):
         self._name = arg.acquire(name, DEFAULT_LOGGER_NAME)
         self._ignore_warnings = ignore_warnings
 
-    def log(self, msg, level: Union[LoggingLevel, int] = DEFAULT_LOGGING_LEVEL, *args, **kwargs):
+    def log(self, msg, level: Union[LoggingLevel, int] = DEFAULT_LOGGING_LEVEL, stacklevel: int = 2, *args, **kwargs):
         if not level:
             level = LoggingLevel(level)
         else:
@@ -31,7 +31,9 @@ class FallbackLogger(LoggerInterface):
         elif level == LoggingLevel.Info:
             return self.info(msg)
         elif level == LoggingLevel.Warning:
-            return self.warning(msg)
+            if stacklevel is not None:
+                stacklevel += 1
+            return self.warning(msg, stacklevel=stacklevel, **kwargs)
         elif level == LoggingLevel.Critical:
             return self.critical(msg)
 
@@ -41,9 +43,10 @@ class FallbackLogger(LoggerInterface):
     def info(self, msg):
         print('INFO {}'.format(msg))
 
-    def warning(self, msg):
+    def warning(self, msg, category: Optional[Warning] = None, stacklevel: int = 2):
         if not self._ignore_warnings:
-            warnings.warn(msg)
+            stacklevel += 1
+            warnings.warn(msg, category=category, stacklevel=stacklevel)
 
     def error(self, msg):
         warnings.warn('ERROR {}'.format(msg))
