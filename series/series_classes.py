@@ -1,4 +1,5 @@
 try:  # Assume we're a submodule in a package.
+    from series.interpolation_type import InterpolationType
     from series.series_type import SeriesType
     from series.abstract_series import AbstractSeries
     from series.interfaces.any_series_interface import AnySeriesInterface
@@ -21,6 +22,7 @@ try:  # Assume we're a submodule in a package.
     from series.pairs.date_numeric_series import DateNumericSeries
     from functions.primary import numeric as nm, dates as dt
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
+    from .interpolation_type import InterpolationType
     from .series_type import SeriesType
     from .abstract_series import AbstractSeries
     from .interfaces.any_series_interface import AnySeriesInterface

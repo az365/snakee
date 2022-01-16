@@ -4,6 +4,7 @@ from typing import Optional, Callable, Iterable, Union
 try:  # Assume we're a submodule in a package.
     from utils.arguments import Auto, AUTO
     from functions.primary.dates import DateScale, DAYS_IN_WEEK, MAX_DAYS_IN_MONTH
+    from series.interpolation_type import InterpolationType
     from series.interfaces.any_series_interface import AnySeriesInterface, Name
     from series.interfaces.date_series_interface import DateSeriesInterface, Date
     from series.interfaces.numeric_series_interface import NumericSeriesInterface, NumericValue
@@ -12,6 +13,7 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils.arguments import Auto, AUTO
     from ...functions.primary.dates import DateScale, DAYS_IN_WEEK, MAX_DAYS_IN_MONTH
+    from ..interpolation_type import InterpolationType
     from .any_series_interface import AnySeriesInterface, Name
     from .date_series_interface import DateSeriesInterface, Date
     from .numeric_series_interface import NumericSeriesInterface, NumericValue
@@ -21,12 +23,11 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 Native = Union[SortedNumericKeyValueSeriesInterface, DateSeriesInterface]
 Series = Union[Native, AnySeriesInterface]
 AutoBool = Union[Auto, bool]
-InterpolationType = str
 Window = Union[list, tuple]
 
 WINDOW_WEEKLY_DEFAULT = -DAYS_IN_WEEK, 0, DAYS_IN_WEEK  # (-7, 0, 7)
-DEFAULT_INTERPOLATION_KWARGS = ('how', 'linear'),
-DEFAULT_YOY_KWARGS = ('how', 'linear'), ('near_for_outside', False)
+DEFAULT_INTERPOLATION_KWARGS = ('how', InterpolationType.Linear),
+DEFAULT_YOY_KWARGS = ('how', InterpolationType.Linear), ('near_for_outside', False)
 
 
 class DateNumericSeriesInterface(SortedNumericKeyValueSeriesInterface, DateSeriesInterface, ABC):
@@ -72,7 +73,12 @@ class DateNumericSeriesInterface(SortedNumericKeyValueSeriesInterface, DateSerie
         pass
 
     @abstractmethod
-    def interpolate_to_scale(self, scale: DateScale, how: InterpolationType = 'spline', *args, **kwargs) -> Series:
+    def interpolate_to_scale(
+            self,
+            scale: DateScale,
+            how: InterpolationType = InterpolationType.Spline,
+            *args, **kwargs
+    ) -> Series:
         pass
 
     @abstractmethod
@@ -134,7 +140,7 @@ class DateNumericSeriesInterface(SortedNumericKeyValueSeriesInterface, DateSerie
     ) -> Native:
         pass
 
-    def extrapolate(self, how: InterpolationType = 'by_yoy', *args, **kwargs) -> Native:
+    def extrapolate(self, how: InterpolationType = InterpolationType.ByYoy, *args, **kwargs) -> Native:
         pass
 
     @abstractmethod

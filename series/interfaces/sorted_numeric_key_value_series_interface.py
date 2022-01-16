@@ -3,6 +3,7 @@ from typing import Optional, Callable, Iterable, Union
 
 try:  # Assume we're a submodule in a package.
     from functions.primary import dates as dt
+    from series.interpolation_type import InterpolationType
     from series.interfaces.any_series_interface import AnySeriesInterface, Name, NumericTypes
     from series.interfaces.date_series_interface import DateSeriesInterface
     from series.interfaces.numeric_series_interface import NumericSeriesInterface, OptNumeric
@@ -11,6 +12,7 @@ try:  # Assume we're a submodule in a package.
     from series.interfaces.sorted_numeric_series_interface import SortedNumericSeriesInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...functions.primary import dates as dt
+    from ..interpolation_type import InterpolationType
     from .any_series_interface import AnySeriesInterface, Name, NumericTypes
     from .date_series_interface import DateSeriesInterface
     from .numeric_series_interface import NumericSeriesInterface, OptNumeric
@@ -95,11 +97,21 @@ class SortedNumericKeyValueSeriesInterface(SortedKeyValueSeriesInterface, Numeri
         pass
 
     @abstractmethod
-    def get_interpolated_value(self, key: NumericTypes, how: str = 'linear', *args, **kwargs) -> NumericTypes:
+    def get_interpolated_value(
+            self,
+            key: NumericTypes,
+            how: InterpolationType = InterpolationType.Linear,
+            *args, **kwargs
+    ) -> NumericTypes:
         pass
 
     @abstractmethod
-    def interpolate(self, keys: Iterable, how: str = 'linear', *args, **kwargs) -> Native:
+    def interpolate(
+            self,
+            keys: Iterable,
+            how: InterpolationType = InterpolationType.Linear,
+            *args, **kwargs
+    ) -> Native:
         pass
 
     @abstractmethod

@@ -1,6 +1,7 @@
 from typing import Optional, Callable, Iterable, Generator, Union, NoReturn
 
 try:  # Assume we're a submodule in a package.
+    from utils import arguments as arg
     from functions.primary import numeric as nm, dates as dt
     from functions.secondary.date_functions import round_date, date_range
     from series.series_type import SeriesType
@@ -15,6 +16,7 @@ try:  # Assume we're a submodule in a package.
     from series.simple.date_series import DateSeries, Date
     from series.pairs.sorted_numeric_key_value_series import SortedNumericKeyValueSeries
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
+    from ...utils import arguments as arg
     from ...functions.primary import numeric as nm, dates as dt
     from ...functions.secondary.date_functions import round_date, date_range
     from ..series_type import SeriesType
@@ -133,9 +135,14 @@ class DateNumericSeries(SortedNumericKeyValueSeries, DateSeries, DateNumericSeri
     def get_nearest_value(self, value: NumericValue, distance_func: Optional[Callable] = None) -> NumericValue:
         return self.value_series().sort().get_nearest_value(value, distance_func)
 
-    def get_interpolated_value(self, date: Date, how: InterpolationType = 'linear', *args, **kwargs) -> NumericValue:
-        method_name = 'get_{}_interpolated_value'.format(how)
-        requires_numeric_keys = how in ('linear', 'spline')
+    def get_interpolated_value(
+            self,
+            date: Date,
+            how: InterpolationType = InterpolationType.Linear,
+            *args, **kwargs
+    ) -> NumericValue:
+        method_name = 'get_{}_interpolated_value'.format(arg.get_value(how))
+        requires_numeric_keys = how in (InterpolationType.Linear, InterpolationType.Spline)
         if requires_numeric_keys:
             numeric_series = self.to_days()
             interpolation_method = numeric_series.__getattribute__(method_name)
@@ -145,9 +152,9 @@ class DateNumericSeries(SortedNumericKeyValueSeries, DateSeries, DateNumericSeri
             interpolation_method = self.__getattribute__(method_name)
             return interpolation_method(date, *args, **kwargs)
 
-    def interpolate(self, dates: Iterable, how: InterpolationType = 'linear', *args, **kwargs) -> Series:
-        method_name = '{}_interpolation'.format(how)
-        requires_numeric_keys = how in ('linear', 'spline')
+    def interpolate(self, dates: Iterable, how: InterpolationType = InterpolationType.Linear, *args, **kwargs) -> Series:
+        method_name = '{}_interpolation'.format(arg.get_value(how))
+        requires_numeric_keys = how in (InterpolationType.Linear, InterpolationType.Spline)
         if requires_numeric_keys:
             interpolation_method = self.to_days().__getattribute__(method_name)
             series_class = SeriesType.DateSeries.get_class()
@@ -161,7 +168,7 @@ class DateNumericSeries(SortedNumericKeyValueSeries, DateSeries, DateNumericSeri
             self,
             dates: Iterable,
             weight_benchmark: Series,
-            internal: InterpolationType = 'linear',
+            internal: InterpolationType = InterpolationType.Linear,
     ) -> Series:
         assert isinstance(weight_benchmark, DateNumericSeriesInterface), 'got {}'.format(weight_benchmark)
         list_dates = dates.get_dates() if isinstance(dates, DateNumericSeriesInterface) else dates
@@ -179,17 +186,22 @@ class DateNumericSeries(SortedNumericKeyValueSeries, DateSeries, DateNumericSeri
                 result.append_pair(d, weighted_value, inplace=True)
         return self._assume_series(result)
 
-    def interpolate_to_scale(self, scale: DateScale, how: InterpolationType = 'spline', *args, **kwargs) -> Series:
+    def interpolate_to_scale(
+            self,
+            scale: DateScale,
+            how: InterpolationType = InterpolationType.Spline,
+            *args, **kwargs
+    ) -> Series:
         func = date_range(scale=scale)
         dates = func(self.get_first_date(), self.get_last_date())
         return self.interpolate(dates, how=how, *args, **kwargs)
 
     # @deprecated_with_alternative('interpolate_to_scale(scale=DateScale.Week)')
-    def interpolate_to_weeks(self, how: InterpolationType = 'spline', *args, **kwargs) -> Series:
+    def interpolate_to_weeks(self, how: InterpolationType = InterpolationType.Spline, *args, **kwargs) -> Series:
         return self.interpolate_to_scale(scale=DateScale.Week, how=how, *args, **kwargs)
 
     # @deprecated_with_alternative('interpolate_to_scale(scale=DateScale.Month)')
-    def interpolate_to_months(self, how: InterpolationType = 'spline', *args, **kwargs) -> Series:
+    def interpolate_to_months(self, how: InterpolationType = InterpolationType.Spline, *args, **kwargs) -> Series:
         return self.interpolate_to_scale(scale=DateScale.Month, how=how, *args, **kwargs)
 
     def apply_window_series_function(
@@ -337,8 +349,8 @@ class DateNumericSeries(SortedNumericKeyValueSeries, DateSeries, DateNumericSeri
     def extrapolate_by_stl(self, dates: Iterable) -> NoReturn:
         raise NotImplementedError
 
-    def extrapolate(self, how: InterpolationType = 'by_yoy', *args, **kwargs) -> Series:
-        method_name = 'extrapolate_{}'.format(how)
+    def extrapolate(self, how: InterpolationType = InterpolationType.ByYoy, *args, **kwargs) -> Series:
+        method_name = 'extrapolate_{}'.format(arg.get_value(how))
         extrapolation_method = self.__getattribute__(method_name)
         return extrapolation_method(*args, **kwargs)
 
