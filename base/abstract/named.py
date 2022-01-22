@@ -1,6 +1,6 @@
 from abc import ABC
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
     from base.abstract.abstract_base import AbstractBaseObject
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -22,10 +22,14 @@ class AbstractNamed(AbstractBaseObject, ABC):
         if inplace:
             self._name = name
         else:
-            return self.__class__(
-                name=name,
-                **self.get_props(ex='name')
-            )
+            props = self.get_props(ex='name')
+            if props:
+                return self.__class__(name=name, **props)
+            else:
+                return self.__class__(name=name)
+
+    def is_defined(self) -> bool:
+        return arg.is_defined(self.get_name())
 
     @classmethod
     def _get_key_member_names(cls) -> list:

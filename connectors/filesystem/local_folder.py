@@ -45,6 +45,9 @@ class LocalFolder(HierarchicFolder):
         self._path_is_relative = arg.acquire(path_is_relative, not arg.is_absolute_path(path))
         super().__init__(name=path, parent=parent, verbose=verbose)
 
+    def is_defined(self) -> bool:
+        return True
+
     @classmethod
     def get_default_storage(cls) -> Connector:
         return cls._default_storage
@@ -113,7 +116,7 @@ class LocalFolder(HierarchicFolder):
                     raise ValueError(msg.format(filetype, content_format))
                 else:
                     msg = 'LocalFolder.file(): filetype-argument is deprecated, use content_format instead'
-                    self.log(level=LoggingLevel.Warning, msg=msg)
+                    self.log(level=LoggingLevel.Warning, msg=msg, stacklevel=1)
                 if isinstance(filetype, FileType):  # tmp fix
                     content_format = filetype.get_value()
                 else:

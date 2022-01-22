@@ -1,4 +1,5 @@
 from typing import Optional, Callable, Iterable, Iterator, Generator, Sized, Union, Any
+from inspect import isclass
 from datetime import datetime
 from random import randint
 
@@ -182,7 +183,7 @@ def is_defined(obj, check_name: bool = True) -> bool:
         result = False
     elif obj in (AUTO, AUTO.get_value(), str(AUTO)):
         result = False
-    elif hasattr(obj, 'is_defined'):
+    elif hasattr(obj, 'is_defined') and not isclass(obj):
         result = obj.is_defined()
     elif hasattr(obj, 'get_value'):
         result = is_defined(obj.get_value())

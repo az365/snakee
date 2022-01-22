@@ -1,7 +1,7 @@
 from abc import ABC
 from typing import Union, Optional, Iterable, Any
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
     from base.interfaces.context_interface import ContextInterface
     from base.interfaces.contextual_interface import ContextualInterface
@@ -37,6 +37,9 @@ class ContextualDataWrapper(Contextual, ContextualDataInterface, ABC):
         self._data = data
         super().__init__(name=name, source=source, context=context, check=check)
 
+    def is_defined(self) -> bool:
+        return bool(self.get_data())
+
     @classmethod
     def _get_data_member_names(cls):
         return DATA_MEMBER_NAMES
@@ -67,7 +70,7 @@ class ContextualDataWrapper(Contextual, ContextualDataInterface, ABC):
             meta.pop(f, None)
         return meta
 
-    def get_compatible_static_meta(self, other=arg.DEFAULT, ex=None, **kwargs) -> dict:
+    def get_compatible_static_meta(self, other=arg.AUTO, ex=None, **kwargs) -> dict:
         meta = self.get_compatible_meta(other=other, ex=ex, **kwargs)
         for f in self._get_dynamic_meta_fields():
             meta.pop(f, None)
