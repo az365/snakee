@@ -161,7 +161,7 @@ class IterableMixin(IterableInterface, ABC):
             items.append(i)
         return items
 
-    def take(self, count: Union[int, bool] = 1, inplace: bool = False) -> Optional[Native]:  ###
+    def take(self, count: Union[int, bool] = 1, inplace: bool = False) -> Optional[Native]:
         if (count and isinstance(count, bool)) or not arg.is_defined(count):  # True, None, AUTO
             return self
         elif isinstance(count, int):
@@ -462,8 +462,21 @@ class IterableMixin(IterableInterface, ABC):
             raise TypeError('external_object must be callable, list or dict')
         return self
 
-    def print(self, stream_function: Union[Callable, str] = 'get_count', *args, **kwargs) -> Native:
+    def print(
+            self,
+            stream_function: Union[Callable, str] = 'get_count',
+            assert_not_none: bool = True,
+            *args,
+            **kwargs,
+    ) -> Native:
         value = self._get_property(stream_function, *args, **kwargs)
+        if value is None:
+            if assert_not_none:
+                template = '{}.print({}): None received'
+                msg = template.format(arg.get_str_from_args_kwargs(self, stream_function, *args, **kwargs))
+                raise ValueError(msg)
+            else:
+                value = str(value)
         if hasattr(self, 'log'):
             self.log(value, end='\n', verbose=True)
         else:
