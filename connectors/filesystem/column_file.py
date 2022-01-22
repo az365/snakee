@@ -1,11 +1,11 @@
 from typing import Optional, Union, Iterable, Iterator, NoReturn
 import csv
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
     from interfaces import (
         StructInterface, Connector, LeafConnector, RegularStream, LineStream, RowStream, RecordStream, StructStream,
-        FieldType, ItemType, StreamType, FileType, ConnType, DialectType,
+        FieldType, ItemType, StreamType, ConnType, DialectType,
         Field, Name, Item, Array, Columns,
         AUTO, Auto, AutoName, AutoCount, AutoBool, OptionalFields
     )
@@ -19,7 +19,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils import arguments as arg
     from ...interfaces import (
         StructInterface, Connector, LeafConnector, RegularStream, LineStream, RowStream, RecordStream, StructStream,
-        FieldType, ItemType, StreamType, FileType, ConnType, DialectType,
+        FieldType, ItemType, StreamType, ConnType, DialectType,
         Field, Name, Item, Array, Columns,
         AUTO, Auto, AutoName, AutoCount, AutoBool, OptionalFields
     )
@@ -240,15 +240,6 @@ class TsvFile(LocalFile, ColumnarMixin):
         return self._assume_stream(stream)
 
 
-FileType.set_dict_classes(
-    {
-        FileType.TextFile: TextFile,
-        FileType.JsonFile: JsonFile,
-        FileType.ColumnFile: ColumnFile,
-        FileType.CsvFile: CsvFile,
-        FileType.TsvFile: TsvFile,
-    }
-)
 ConnType.add_classes(
     TextFile,
     JsonFile,

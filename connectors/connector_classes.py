@@ -4,7 +4,7 @@ try:  # Assume we're a submodule in a package.
     from interfaces import (
         ConnectorInterface, ContextInterface, Context,
         TemporaryLocationInterface, TemporaryFilesMaskInterface,
-        ConnType, FolderType, FileType, DialectType, Name,
+        ConnType, FolderType, Name, DialectType,
     )
     from connectors.abstract.abstract_connector import AbstractConnector
     from connectors.abstract.leaf_connector import LeafConnector
@@ -46,7 +46,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..interfaces import (
         ConnectorInterface, ContextInterface, Context,
         TemporaryLocationInterface, TemporaryFilesMaskInterface,
-        ConnType, FolderType, FileType, DialectType, Name,
+        ConnType, FolderType, Name, DialectType,
     )
     from .abstract.abstract_connector import AbstractConnector
     from .abstract.leaf_connector import LeafConnector

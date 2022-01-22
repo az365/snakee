@@ -2,21 +2,20 @@ from typing import Union
 
 try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
-    from interfaces import Item, ItemType, StreamType, FileType, ContentType, StructInterface, Auto, AUTO
+    from interfaces import Item, ItemType, StreamType, ContentType, StructInterface, Auto, AUTO
     from content.format.abstract_format import ParsedFormat, Compress
     from content.format.text_format import TextFormat, JsonFormat
     from content.format.columnar_format import ColumnarFormat, FlatStructFormat
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
-    from ...interfaces import Item, ItemType, StreamType, FileType, ContentType, StructInterface, Auto, AUTO
-    from .content_type import ContentType
+    from ...interfaces import Item, ItemType, StreamType, ContentType, StructInterface, Auto, AUTO
     from .abstract_format import ParsedFormat, Compress
     from .text_format import TextFormat, JsonFormat
     from .columnar_format import ColumnarFormat, FlatStructFormat
 
 TEXT_TYPES = (
-    ContentType.TextFile, ContentType.JsonFile, ContentType.ColumnFile, ContentType.CsvFile, ContentType.TsvFile,
-    FileType.TextFile, FileType.JsonFile, FileType.ColumnFile, FileType.CsvFile, FileType.TsvFile,
+    ContentType.TextFile, ContentType.JsonFile,
+    ContentType.ColumnFile, ContentType.CsvFile, ContentType.TsvFile,
 )
 
 

@@ -1,10 +1,10 @@
 from typing import Iterable, Union, Optional
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
     from interfaces import (
         Connector, Stream,
-        ConnType, FolderType, FileType, StreamType,
+        FolderType, ConnType, ContentType, StreamType,
         AUTO, Auto, AutoName, AutoBool, AutoContext, OptionalFields,
     )
     from connectors.abstract.hierarchic_connector import HierarchicConnector
@@ -17,7 +17,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils import arguments as arg
     from ...interfaces import (
         Connector, Stream,
-        ConnType, FolderType, FileType, StreamType,
+        FolderType, ConnType, ContentType, StreamType,
         AUTO, Auto, AutoName, AutoBool, AutoContext, OptionalFields,
     )
     from ..abstract.hierarchic_connector import HierarchicConnector
@@ -77,7 +77,7 @@ class PartitionedLocalFile(LocalMask, LocalFile):
         suffix = name[prefix_len: -postfix_len]
         return suffix
 
-    def file(self, suffix: Union[Suffix, arg.Auto], filetype: Union[FileType, Auto] = AUTO, **kwargs) -> Connector:
+    def file(self, suffix: Union[Suffix, arg.Auto], filetype: Union[ContentType, Auto] = AUTO, **kwargs) -> Connector:
         acquired_suffix = arg.acquire(suffix, self.get_suffix())
         assert acquired_suffix, 'suffix must be defined, got argument {}, default {}'.format(suffix, self.get_suffix())
         filename = self.get_mask().format(acquired_suffix)

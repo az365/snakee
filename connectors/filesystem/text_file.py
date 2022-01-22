@@ -5,7 +5,7 @@ try:  # Assume we're a submodule in a package.
     from utils.decorators import deprecated, deprecated_with_alternative
     from interfaces import (
         Connector, Context, IterableStreamInterface,
-        StreamType, ItemType, FileType, ContentType,
+        StreamType, ItemType, ContentType,
         AUTO, AutoCount, AutoBool, Auto, AutoName, OptionalFields, Array,
     )
     from connectors.filesystem.local_file import LocalFile, Struct, AbstractFormat
@@ -14,7 +14,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils.decorators import deprecated, deprecated_with_alternative
     from ...interfaces import (
         Connector, Context, IterableStreamInterface,
-        StreamType, ItemType, FileType, ContentType,
+        StreamType, ItemType, ContentType,
         AUTO, AutoCount, AutoBool, Auto, AutoName, OptionalFields, Array,
     )
     from .local_file import LocalFile, Struct, AbstractFormat
@@ -24,7 +24,7 @@ Stream = IterableStreamInterface
 
 
 class TextFile(LocalFile):
-    # @deprecated_with_alternative('LocalFile')
+    @deprecated_with_alternative('LocalFile')
     def __init__(
             self,
             name: str,

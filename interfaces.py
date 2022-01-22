@@ -96,7 +96,6 @@ try:  # Assume we're a submodule in a package.
     from connectors.databases.dialect_type import DialectType  # inherits DynamicEnum
     from content.format.content_type import ContentType  # inherits ClassType(DynamicEnum)
     from connectors.filesystem.folder_type import FolderType  # inherits ClassType(DynamicEnum)
-    from connectors.filesystem.file_type import FileType  # inherits ClassType(DynamicEnum)
     from connectors.conn_type import ConnType  # inherits ClassType(DynamicEnum)
     from streams.stream_type import StreamType  # inherits ClassType(DynamicEnum)
     from content.fields.field_type import FieldType  # inherits DynamicEnum
@@ -110,7 +109,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .connectors.databases.dialect_type import DialectType  # inherits DynamicEnum
     from .content.format.content_type import ContentType  # inherits ClassType(DynamicEnum)
     from .connectors.filesystem.folder_type import FolderType  # inherits ClassType(DynamicEnum)
-    from .connectors.filesystem.file_type import FileType  # inherits ClassType(DynamicEnum)
     from .connectors.conn_type import ConnType  # inherits ClassType(DynamicEnum)
     from .streams.stream_type import StreamType  # inherits ClassType(DynamicEnum)
     from .content.fields.field_type import FieldType  # inherits DynamicEnum

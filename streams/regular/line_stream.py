@@ -3,13 +3,13 @@ from typing import Iterable, Union
 try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
     from utils.decorators import deprecated_with_alternative
-    from interfaces import Stream, StreamInterface, StreamType, ItemType, FileType, Auto, AUTO
+    from interfaces import Stream, StreamInterface, StreamType, ItemType, ConnType, Auto, AUTO
     from functions.secondary import item_functions as fs
     from streams.regular.any_stream import AnyStream
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...utils.decorators import deprecated_with_alternative
-    from ...interfaces import Stream, StreamInterface, StreamType, ItemType, FileType, Auto, AUTO
+    from ...interfaces import Stream, StreamInterface, StreamType, ItemType, ConnType, Auto, AUTO
     from ...functions.secondary import item_functions as fs
     from .any_stream import AnyStream
 
@@ -59,7 +59,7 @@ class LineStream(AnyStream):
             skip_first_line=False, max_count=None, expected_count=AUTO,
             check=AUTO, verbose=False, step=AUTO,
     ):
-        build_file = FileType.TextFile.get_class()
+        build_file = ConnType.LocalFile.get_class()
         sm_lines = build_file(
             filename, encoding=encoding,
             expected_count=expected_count, verbose=verbose,
