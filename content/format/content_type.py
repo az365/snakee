@@ -24,7 +24,7 @@ class ContentType(ClassType):
 
     @classmethod
     def detect_by_file_extension(cls, ext: str):
-        return cls._get_dict_extensions().get(ext)
+        return cls._get_dict_extensions().get(ext, cls.get_default())
 
     @classmethod
     def detect_by_name(cls, name: str):
@@ -38,3 +38,4 @@ class ContentType(ClassType):
 
 
 ContentType.prepare()
+ContentType.set_default(ContentType.TextFile)
