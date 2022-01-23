@@ -77,11 +77,17 @@ class PartitionedLocalFile(LocalMask, LocalFile):
         suffix = name[prefix_len: -postfix_len]
         return suffix
 
-    def file(self, suffix: Union[Suffix, arg.Auto], filetype: Union[ContentType, Auto] = AUTO, **kwargs) -> Connector:
+    def file(
+            self,
+            suffix: Union[Suffix, arg.Auto],
+            content_format: Union[ContentType, Auto] = AUTO,
+            filetype: Union[ContentType, Auto] = AUTO,  # deprecated argument
+            **kwargs
+    ) -> Connector:
         acquired_suffix = arg.acquire(suffix, self.get_suffix())
         assert acquired_suffix, 'suffix must be defined, got argument {}, default {}'.format(suffix, self.get_suffix())
         filename = self.get_mask().format(acquired_suffix)
-        return super().file(filename, filetype=filetype, **kwargs)
+        return super().file(filename, content_format=content_format, filetype=filetype, **kwargs)
 
     def get_files(self) -> Iterable:
         return self.get_children().values()
