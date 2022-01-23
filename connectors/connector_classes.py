@@ -6,6 +6,13 @@ try:  # Assume we're a submodule in a package.
         TemporaryLocationInterface, TemporaryFilesMaskInterface,
         ConnType, FolderType, Name, DialectType,
     )
+    from utils.decorators import deprecated_with_alternative
+    from loggers import logger_classes as log
+    from content.format.format_classes import (
+        AbstractFormat, BinaryFormat, ParsedFormat, LeanFormat,
+        TextFormat, JsonFormat, ColumnarFormat, FlatStructFormat,
+        ContentType,
+    )
     from connectors.abstract.abstract_connector import AbstractConnector
     from connectors.abstract.leaf_connector import LeafConnector
     from connectors.abstract.hierarchic_connector import HierarchicConnector
@@ -33,18 +40,18 @@ try:  # Assume we're a submodule in a package.
     from connectors.operations.twin_sync import TwinSync
     from connectors.operations.multi_sync import MultiSync
     from connectors.operations.job import Job
-    from content.format.content_classes import (
-        AbstractFormat, BinaryFormat, ParsedFormat, LeanFormat,
-        TextFormat, JsonFormat, ColumnarFormat, FlatStructFormat,
-        ContentType,
-    )
-    from loggers import logger_classes as log
-    from utils.decorators import deprecated_with_alternative
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..interfaces import (
         ConnectorInterface, ContextInterface, Context,
         TemporaryLocationInterface, TemporaryFilesMaskInterface,
         ConnType, FolderType, Name, DialectType,
+    )
+    from ..utils.decorators import deprecated_with_alternative
+    from ..loggers import logger_classes as log
+    from ..content.format.format_classes import (
+        AbstractFormat, BinaryFormat, ParsedFormat, LeanFormat,
+        TextFormat, JsonFormat, ColumnarFormat, FlatStructFormat,
+        ContentType,
     )
     from .abstract.abstract_connector import AbstractConnector
     from .abstract.leaf_connector import LeafConnector
@@ -73,13 +80,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .operations.twin_sync import TwinSync
     from .operations.multi_sync import MultiSync
     from .operations.job import Job
-    from ..content.format.content_classes import (
-        AbstractFormat, BinaryFormat, ParsedFormat, LeanFormat,
-        TextFormat, JsonFormat, ColumnarFormat, FlatStructFormat,
-        ContentType,
-    )
-    from ..loggers import logger_classes as log
-    from ..utils.decorators import deprecated_with_alternative
 
 CONN_CLASSES = (
     AbstractConnector,
