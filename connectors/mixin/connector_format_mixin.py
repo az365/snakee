@@ -1,10 +1,10 @@
 from abc import ABC
 from typing import Optional, Union
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
     from interfaces import (
-        LeafConnectorInterface, StructInterface, StructFileInterface, IterableStreamInterface,
+        LeafConnectorInterface, StructInterface, IterableStreamInterface,
         ItemType, FieldType, DialectType, StreamType, ContentType,
         AUTO, Auto, AutoBool, Columns, Array, ARRAY_TYPES,
     )
@@ -15,7 +15,7 @@ try:  # Assume we're a sub-module in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...interfaces import (
-        LeafConnectorInterface, StructInterface, StructFileInterface, IterableStreamInterface,
+        LeafConnectorInterface, StructInterface, IterableStreamInterface,
         ItemType, FieldType, DialectType, StreamType, ContentType,
         AUTO, Auto, AutoBool, Columns, Array, ARRAY_TYPES,
     )
@@ -24,7 +24,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...content.format.text_format import AbstractFormat, ParsedFormat, TextFormat
     from ...content.format.lean_format import LeanFormat, ColumnarFormat, FlatStructFormat
 
-Native = Union[LeafConnectorInterface, IterableStreamInterface, StructFileInterface]
+Native = Union[LeafConnectorInterface, IterableStreamInterface]
 Struct = Optional[StructInterface]
 
 

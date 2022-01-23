@@ -17,8 +17,6 @@ try:  # Assume we're a submodule in a package.
     from connectors.filesystem.local_storage import LocalStorage
     from connectors.filesystem.local_folder import LocalFolder
     from connectors.filesystem.local_file import LocalFile
-    from connectors.filesystem.text_file import TextFile, JsonFile
-    from connectors.filesystem.column_file import ColumnFile, CsvFile, TsvFile
     from connectors.filesystem.local_mask import LocalMask
     from connectors.filesystem.partitioned_local_file import PartitionedLocalFile
     from connectors.filesystem.temporary_files import TemporaryLocation, TemporaryFilesMask
@@ -59,8 +57,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .filesystem.local_storage import LocalStorage
     from .filesystem.local_folder import LocalFolder
     from .filesystem.local_file import LocalFile
-    from .filesystem.text_file import TextFile, JsonFile
-    from .filesystem.column_file import ColumnFile, CsvFile, TsvFile
     from .filesystem.temporary_files import TemporaryLocation, TemporaryFilesMask
     from .filesystem.local_mask import LocalMask
     from .filesystem.partitioned_local_file import PartitionedLocalFile
@@ -93,7 +89,6 @@ CONN_CLASSES = (
     AbstractStorage,
     LocalStorage,
     LocalFolder, LocalMask, LocalFile, PartitionedLocalFile,
-    TextFile, JsonFile, ColumnFile, CsvFile, TsvFile,
     AbstractObjectStorage, S3Storage,
     S3Bucket, S3Folder,
     S3Object,

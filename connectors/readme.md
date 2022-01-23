@@ -64,12 +64,7 @@ and hierarchy of subclasses
     is a leaf node of objects hierarchy 
         - Table
         - S3Object
-        - File
-            - TextFile
-                - JsonFile
-                - ColumnFile
-                    - TsvFile
-                    - CsvFile
+        - LocalFile
 
 ## General connector methods
 Common for HierarchicConnector and LeafConnector:
