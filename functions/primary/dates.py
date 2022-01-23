@@ -1,14 +1,14 @@
 from typing import Union, Optional
 from datetime import date, timedelta, datetime
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
     from utils.decorators import deprecated_with_alternative
-    from base.enum import DynamicEnum
+    from base.classes.enum import DynamicEnum
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...utils.decorators import deprecated_with_alternative
-    from ...base.enum import DynamicEnum
+    from ...base.classes.enum import DynamicEnum
 
 PyDate = date
 IsoDate = str

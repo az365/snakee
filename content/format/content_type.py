@@ -1,9 +1,9 @@
 from typing import Optional
 
 try:  # Assume we're a submodule in a package.
-    from base.enum import ClassType
+    from base.classes.enum import ClassType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...base.enum import ClassType
+    from ...base.classes.enum import ClassType
 
 
 class ContentType(ClassType):

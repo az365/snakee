@@ -13,7 +13,7 @@ try:  # Assume we're a sub-module in a package.
     from base.abstract.contextual_data import ContextualDataWrapper
     from base.abstract.simple_data import SimpleDataWrapper
     from base.abstract.tree_item import TreeItem
-    from base.enum import EnumItem, DynamicEnum, ClassType, SubclassesType
+    from base.classes.enum import EnumItem, DynamicEnum, ClassType, SubclassesType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils import arguments as arg
     from .interfaces.base_interface import BaseInterface
@@ -29,4 +29,4 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .abstract.contextual_data import ContextualDataWrapper
     from .abstract.simple_data import SimpleDataWrapper
     from .abstract.tree_item import TreeItem
-    from .enum import EnumItem, DynamicEnum, ClassType, SubclassesType
+    from .classes.enum import EnumItem, DynamicEnum, ClassType, SubclassesType
