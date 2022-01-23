@@ -346,7 +346,7 @@ class AbstractDatabase(AbstractStorage, ABC):
         if max_error_rate is not None:
             message = 'Too many errors or skipped lines ({} > {})'.format(error_rate, max_error_rate)
             assert error_rate < max_error_rate, message
-        return self.table(table)
+        return self.table(table, struct=struct)
 
     def safe_upload_table(
             self,
@@ -441,10 +441,10 @@ class AbstractDatabase(AbstractStorage, ABC):
             table_struct = expected_struct
         elif cls._assert_is_appropriate_child(table) or hasattr(table, 'get_name'):
             table_name = table.get_name()
-            if hasattr(table, 'get_struct'):
+            if isinstance(table, LeafConnectorInterface) or hasattr(table, 'get_struct'):
                 table_struct = table.get_struct()
                 if expected_struct and check_struct:
-                    assert table_struct == expected_struct
+                    assert table_struct == expected_struct, '{} != {}'.format(table_struct, expected_struct)
             else:
                 table_struct = expected_struct
         else:
