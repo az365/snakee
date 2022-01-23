@@ -321,8 +321,6 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
         if not (isinstance(file, LeafConnectorInterface) or hasattr(file, 'write_stream')):
             raise TypeError('Expected TsvFile, got {} as {}'.format(file, type(file)))
         meta = self.get_meta()
-        if not file.is_gzip():
-            meta.pop('count')
         file.write_stream(self, verbose=verbose)
         if return_stream:
             return file.to_record_stream(verbose=verbose).update_meta(**meta)
@@ -333,10 +331,9 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
 
     def to_column_file(
             self, filename: str, columns: Union[Iterable, Auto] = AUTO,
-            add_title_row=True, delimiter='\t', encoding=AUTO,
+            add_title_row=True, delimiter='\t',
             check=True, verbose=True, return_stream=True,
     ) -> Optional[Native]:
-        encoding = arg.delayed_acquire(encoding, self.get_encoding)
         meta = self.get_meta()
         sm_csv_file = self.to_row_stream(
             columns=columns,
@@ -345,7 +342,6 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
             delimiter=delimiter,
         ).to_text_file(
             filename,
-            encoding=encoding,
             check=check,
             verbose=verbose,
             return_stream=return_stream,
@@ -365,14 +361,12 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
     def from_column_file(
             cls,
             filename, columns, delimiter='\t',
-            skip_first_line=True, encoding=AUTO, check=AUTO,
+            skip_first_line=True, check=AUTO,
             expected_count=AUTO, verbose=True,
     ) -> Native:
-        encoding = arg.acquire(encoding, sm.TMP_FILES_ENCODING)
         return sm.LineStream.from_text_file(
             filename, skip_first_line=skip_first_line,
-            encoding=encoding, check=check,
-            expected_count=expected_count, verbose=verbose,
+            check=check, expected_count=expected_count, verbose=verbose,
         ).to_row_stream(
             delimiter=delimiter,
         ).to_record_stream(
@@ -381,12 +375,12 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
 
     @classmethod
     def from_json_file(
-            cls, filename, encoding=None,
+            cls, filename,
             default_value=None, max_count=None,
             check=True, verbose=False,
     ) -> Native:
         parsed_stream = sm.LineStream.from_text_file(
-            filename, encoding=encoding,
+            filename,
             max_count=max_count, check=check, verbose=verbose,
         ).parse_json(
             default_value=default_value,

@@ -1,15 +1,15 @@
-from typing import Iterable, Union
+from typing import Optional, Iterable, Union
 
 try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
     from utils.decorators import deprecated_with_alternative
-    from interfaces import Stream, StreamInterface, StreamType, ItemType, ConnType, Auto, AUTO
+    from interfaces import Stream, StreamInterface, StreamType, ItemType, ConnType, Name, AutoBool, Auto, AUTO
     from functions.secondary import item_functions as fs
     from streams.regular.any_stream import AnyStream
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...utils.decorators import deprecated_with_alternative
-    from ...interfaces import Stream, StreamInterface, StreamType, ItemType, ConnType, Auto, AUTO
+    from ...interfaces import Stream, StreamInterface, StreamType, ItemType, ConnType, Name, AutoBool, Auto, AUTO
     from ...functions.secondary import item_functions as fs
     from .any_stream import AnyStream
 
@@ -54,14 +54,13 @@ class LineStream(AnyStream):
     @classmethod
     @deprecated_with_alternative('*Stream.from_file')
     def from_text_file(
-            cls,
-            filename, encoding=None,
-            skip_first_line=False, max_count=None, expected_count=AUTO,
-            check=AUTO, verbose=False, step=AUTO,
+            cls, filename: Name,
+            skip_first_line: bool = False, max_count: Optional[int] = None, expected_count: Union[Auto, int] = AUTO,
+            check: AutoBool = AUTO, verbose: bool = False, step: Union[Auto, int] = AUTO,
     ):
         build_file = ConnType.LocalFile.get_class()
         sm_lines = build_file(
-            filename, encoding=encoding,
+            filename,
             expected_count=expected_count, verbose=verbose,
         ).to_line_stream(
             check=check, step=step,
@@ -77,9 +76,8 @@ class LineStream(AnyStream):
 
     @deprecated_with_alternative('*Stream.write_to')
     def lazy_save(
-            self,
-            filename, encoding=None, end='\n',
-            check=AUTO, verbose=True, immediately=False,
+            self, filename: Name, end: str = '\n',
+            check: AutoBool = AUTO, verbose: bool = True, immediately: bool = False,
     ):
         def write_and_yield(fh, lines):
             n = 0
@@ -91,32 +89,22 @@ class LineStream(AnyStream):
             fh.close()
             self.log('Done. {} rows has written into {}'.format(n + 1, filename), verbose=verbose)
         if immediately:
-            return self.to_text_file(
-                filename, encoding=encoding, end=end,
-                check=check, verbose=verbose, return_stream=True,
-            )
+            return self.to_text_file(filename, end=end, check=check, verbose=verbose, return_stream=True)
         else:
-            fileholder = open(filename, 'w', encoding=encoding) if encoding else open(filename, 'w')
+            fileholder = open(filename, 'w')
             items = write_and_yield(fileholder, self.get_items())
             return LineStream(items, **self.get_meta())
 
     @deprecated_with_alternative('*Stream.write_to()')
     def to_text_file(
-            self,
-            filename, encoding=None, end='\n',
-            check=AUTO, verbose=True, return_stream=True
+            self, filename: Name, end: str = '\n',
+            check: AutoBool = AUTO, verbose: bool = True, return_stream: bool = True
     ):
-        saved_stream = self.lazy_save(
-            filename, encoding=encoding, end=end,
-            verbose=False, immediately=False,
-        )
+        saved_stream = self.lazy_save(filename, end=end, verbose=False, immediately=False)
         if verbose:
             message = 'Writing {}'.format(filename)
             saved_stream = saved_stream.progress(expected_count=self.get_count(), message=message)
         saved_stream.pass_items()
         meta = self.get_static_meta()
         if return_stream:
-            return self.from_text_file(
-                filename, encoding=encoding,
-                check=check, verbose=verbose,
-            ).update_meta(**meta)
+            return self.from_text_file(filename, check=check, verbose=verbose).update_meta(**meta)

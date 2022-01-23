@@ -184,7 +184,6 @@ class RowStream(AnyStream, ColumnarMixin):
     def from_column_file(
             cls,
             filename,
-            encoding=None, gzip=False,
             delimiter='\t',
             skip_first_line=False, max_count=None,
             check=AUTO,
@@ -193,7 +192,6 @@ class RowStream(AnyStream, ColumnarMixin):
         line_stream_class = StreamType.LineStream.get_class()
         stream = line_stream_class.from_text_file(
             filename,
-            encoding=encoding, gzip=gzip,
             skip_first_line=skip_first_line, max_count=max_count,
             check=check,
             verbose=verbose,
@@ -207,22 +205,15 @@ class RowStream(AnyStream, ColumnarMixin):
             self,
             filename,
             delimiter='\t',
-            encoding=AUTO,
-            gzip=False,
             check=AUTO,
             verbose=True,
             return_stream=True,
     ):
-        encoding = arg.acquire(encoding, self.get_encoding())
         meta = self.get_meta()
-        if not gzip:
-            meta.pop('count')
         stream_csv_file = self.to_line_stream(
             delimiter=delimiter,
         ).to_text_file(
             filename,
-            encoding=encoding,
-            gzip=gzip,
             check=check,
             verbose=verbose,
             return_stream=return_stream,
