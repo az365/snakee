@@ -1,10 +1,10 @@
 from abc import ABC
 
 try:  # Assume we're a submodule in a package.
-    from utils import arguments as arg
+    from base.classes.auto import Auto
     from base.abstract.abstract_base import AbstractBaseObject
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
+    from ..classes.auto import Auto
     from .abstract_base import AbstractBaseObject
 
 SPECIFIC_MEMBERS = ('_name', )
@@ -29,7 +29,7 @@ class AbstractNamed(AbstractBaseObject, ABC):
                 return self.__class__(name=name)
 
     def is_defined(self) -> bool:
-        return arg.is_defined(self.get_name())
+        return Auto.is_defined(self.get_name())
 
     @classmethod
     def _get_key_member_names(cls) -> list:

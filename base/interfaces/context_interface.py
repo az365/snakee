@@ -1,23 +1,23 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Iterable, Union, Any, NoReturn
+from typing import Optional, Iterable, Union, Any
 
-try:  # Assume we're a sub-module in a package.
-    from utils import arguments as arg
+try:  # Assume we're a submodule in a package.
     from base.interfaces.base_interface import BaseInterface
+    from base.classes.auto import Auto, AUTO
     from streams.interfaces.abstract_stream_interface import StreamInterface
     from loggers.logger_interface import LoggerInterface
     from loggers.extended_logger_interface import ExtendedLoggerInterface
     from loggers.selection_logger_interface import SelectionLoggerInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
     from .base_interface import BaseInterface
+    from ..classes.auto import Auto, AUTO
     from ...streams.interfaces.abstract_stream_interface import StreamInterface
     from ...loggers.logger_interface import LoggerInterface
     from ...loggers.extended_logger_interface import ExtendedLoggerInterface
     from ...loggers.selection_logger_interface import SelectionLoggerInterface
 
 Native = BaseInterface
-LoggingLevel = Union[int, arg.DefaultArgument]
+LoggingLevel = Union[int, Auto]
 Logger = Union[LoggerInterface, ExtendedLoggerInterface]
 Connector = Optional[BaseInterface]
 Stream = Optional[StreamInterface]
@@ -66,14 +66,14 @@ class ContextInterface(BaseInterface, ABC):
     @abstractmethod
     def log(
             self, msg: str,
-            level: LoggingLevel = arg.DEFAULT,
-            end: Union[str, arg.DefaultArgument] = arg.DEFAULT,
+            level: LoggingLevel = AUTO,
+            end: Union[str, Auto] = AUTO,
             verbose: bool = True,
-    ) -> NoReturn:
+    ):
         pass
 
     @abstractmethod
-    def get_child(self, name: Name, class_or_type: ChildType = arg.DEFAULT, deep: bool = True) -> Child:
+    def get_child(self, name: Name, class_or_type: ChildType = AUTO, deep: bool = True) -> Child:
         pass
 
     @abstractmethod
@@ -104,7 +104,7 @@ class ContextInterface(BaseInterface, ABC):
     def conn(
             self,
             conn: Union[Connector, ChildType],
-            name: Union[Name, arg.DefaultArgument] = arg.DEFAULT,
+            name: Union[Name, Auto] = AUTO,
             check: bool = True, redefine: bool = True,
             **kwargs
     ) -> Connector:
@@ -114,7 +114,7 @@ class ContextInterface(BaseInterface, ABC):
     def stream(
             self,
             stream_type: Union[Stream, ChildType],
-            name: Union[Name, arg.DefaultArgument] = arg.DEFAULT,
+            name: Union[Name, Auto] = AUTO,
             check: bool = True,
             **kwargs
     ) -> Stream:
