@@ -5,7 +5,7 @@ try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
     from interfaces import (
         ConnectorInterface, LeafConnectorInterface, Context, Stream,
-        ContentFormatInterface, ContentType, FileType,
+        ContentFormatInterface, ContentType,
         AUTO, Auto, AutoBool, AutoCount, AutoConnector, AutoContext, Name, StructInterface,
     )
     from connectors.abstract.abstract_connector import AbstractConnector
@@ -15,7 +15,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils import arguments as arg
     from ...interfaces import (
         ConnectorInterface, LeafConnectorInterface, Context, Stream,
-        ContentFormatInterface, ContentType, FileType,
+        ContentFormatInterface, ContentType,
         AUTO, Auto, AutoBool, AutoCount, AutoConnector, AutoContext, Name, StructInterface,
     )
     from .abstract_connector import AbstractConnector
@@ -52,13 +52,23 @@ class LeafConnector(AbstractConnector, ConnectorFormatMixin, StreamableMixin, Le
         self._caption = caption
         super().__init__(name=name, parent=parent, context=context, children=streams, verbose=verbose)
         content_format = arg.delayed_acquire(content_format, self._get_detected_format_by_name, name, **kwargs)
-        if isinstance(content_format, FileType):
+        suit_classes = ContentType, ContentFormatInterface
+        is_deprecated_class = hasattr(content_format, 'get_value') and not isinstance(content_format, suit_classes)
+        if is_deprecated_class:
+            msg = 'LeafConnector({}, {}): content_format as {} is deprecated, use ContentType or ContentFormat instead'
+            self.log(msg.format(name, content_format, content_format.__class__.__name__), level=30)
             content_format = content_format.get_value()
         if isinstance(content_format, str):
             content_format = ContentType(content_format)  # ContentType.detect(content_format) ?
         if isinstance(content_format, ContentType):  # tmp fix
             content_class = content_format.get_class()
             content_format = content_class(**kwargs)
+        elif isinstance(content_format, ContentFormatInterface):
+            content_format.set_inplace(**kwargs)
+        else:
+            if kwargs:
+                msg = 'LeafConnector: kwargs allowed for ContentType only, nor for{}, got kwargs={}'
+                raise ValueError(msg.format(content_format, kwargs))
         assert isinstance(content_format, ContentFormatInterface), 'Expect ContentFormat, got {}'.format(content_format)
         self.set_content_format(content_format, inplace=True)
         self.set_first_line_title(first_line_is_title)
@@ -83,13 +93,16 @@ class LeafConnector(AbstractConnector, ConnectorFormatMixin, StreamableMixin, Le
             content_type = ContentType.detect_by_name(name)
             assert content_type, 'Can not detect content type by name: {}'.format(name)
             content_class = content_type.get_class()
-        return content_class(**kwargs)
+        try:
+            return content_class(**kwargs)
+        except TypeError as e:
+            raise TypeError('{}: {}'.format(content_class.__name__, e))
 
     def _get_detected_struct(
             self,
             set_struct: bool = False,
             use_declared_types: bool = False,
-            verbose: AutoBool = AUTO,
+            verbose: AutoBool = False,
     ) -> Optional[StructInterface]:
         content_format = self.get_content_format()
         if isinstance(content_format, ContentFormatInterface) and hasattr(content_format, 'is_first_line_title'):

@@ -83,7 +83,8 @@ class SnakeeContext(bs.AbstractNamed, ContextInterface):
             return self.logger
         elif create_if_not_yet:
             logger = lg.get_logger(context=self)
-            return self.set_logger(logger, inplace=False)
+            self.set_logger(logger, inplace=True)
+            return logger
 
     @staticmethod
     def get_new_selection_logger(name: Name, **kwargs) -> lg.SelectionLoggerInterface:
@@ -274,7 +275,7 @@ class SnakeeContext(bs.AbstractNamed, ContextInterface):
             return job_folder_obj
         else:
             job_folder_path = self.stream_config.get(config_field_name, '')
-            job_folder_obj = ct.LocalFolder(job_folder_path, parent=self.get_local_storage())
+            job_folder_obj = ct.LocalFolder(job_folder_path, parent=self.get_local_storage(), context=self)
             self.conn_instances[instance_name] = job_folder_obj
             return job_folder_obj
 

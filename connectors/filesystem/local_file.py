@@ -10,7 +10,7 @@ try:  # Assume we're a submodule in a package.
         ContentType, ConnType, ItemType, StreamType,
         AUTO, Auto, AutoCount, AutoBool, AutoName, OptionalFields, UniKey, Array, ARRAY_TYPES,
     )
-    from content.format.content_classes import (
+    from content.format.format_classes import (
         AbstractFormat, ParsedFormat, LeanFormat,
         TextFormat, ColumnarFormat, FlatStructFormat,
     )
@@ -25,7 +25,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         ContentType, ConnType, ItemType, StreamType,
         AUTO, Auto, AutoCount, AutoBool, AutoName, OptionalFields, UniKey, Array, ARRAY_TYPES,
     )
-    from ...content.format.content_classes import (
+    from ...content.format.format_classes import (
         AbstractFormat, ParsedFormat, LeanFormat,
         TextFormat, ColumnarFormat, FlatStructFormat,
     )
@@ -237,7 +237,7 @@ class LocalFile(LeafConnector, ActualizeMixin):
         assert isinstance(content_format, ParsedFormat), 'For get first line content must be parsed: {}'.format(self)
         assert content_format.get_defined().is_text(), 'For parse content format must be text: {}'.format(self)
         assert not self.is_empty(), 'For get line file/object must be non-empty: {}'.format(self)
-        lines = self.get_lines(skip_first=False, check=False, verbose=False)
+        lines = self.get_lines(count=1, skip_first=False, check=False, verbose=False)
         try:
             first_line = next(lines)
         except StopIteration:
@@ -280,7 +280,8 @@ class LocalFile(LeafConnector, ActualizeMixin):
         lines = self.get_next_lines(count=count, skip_first=skip_first, close=True)
         verbose = arg.acquire(verbose, self.is_verbose())
         if verbose or arg.is_defined(message):
-            message = arg.acquire(message, 'Reading {}')
+            if not arg.is_defined(message):
+                message = 'Reading {}'
             if '{}' in message:
                 message = message.format(self.get_name())
             logger = self.get_logger()
@@ -300,7 +301,9 @@ class LocalFile(LeafConnector, ActualizeMixin):
     def get_items_of_type(
             self,
             item_type: Union[ItemType, Auto],
-            verbose: AutoBool = AUTO, message: AutoName = AUTO, step: AutoCount = AUTO,
+            verbose: AutoBool = AUTO,
+            message: AutoName = AUTO,
+            step: AutoCount = AUTO,
     ) -> Iterable:
         item_type = arg.acquire(item_type, self.get_default_item_type())
         verbose = arg.acquire(verbose, self.is_verbose())

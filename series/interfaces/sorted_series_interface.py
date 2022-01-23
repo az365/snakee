@@ -30,7 +30,7 @@ class SortedSeriesInterface(AnySeriesInterface, ABC):
         pass
 
     @abstractmethod
-    def uniq(self) -> Native:
+    def uniq(self, inplace: bool = False) -> Native:
         pass
 
     @abstractmethod

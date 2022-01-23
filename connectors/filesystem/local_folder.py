@@ -5,7 +5,7 @@ try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
     from interfaces import (
         ContextInterface, ConnectorInterface, Connector, ContentFormatInterface,
-        FolderType, FileType, ContentType, ConnType, Class, LoggingLevel,
+        FolderType, ConnType, ContentType, Class, LoggingLevel,
         AUTO, Auto, AutoBool, AutoContext, AutoConnector,
     )
     from connectors.abstract.hierarchic_connector import HierarchicConnector
@@ -15,7 +15,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils import arguments as arg
     from ...interfaces import (
         ContextInterface, ConnectorInterface, Connector, ContentFormatInterface,
-        FolderType, FileType, ContentType, ConnType, Class, LoggingLevel,
+        FolderType, ConnType, ContentType, Class, LoggingLevel,
         AUTO, Auto, AutoBool, AutoContext, AutoConnector,
     )
     from ..abstract.hierarchic_connector import HierarchicConnector
@@ -45,6 +45,9 @@ class LocalFolder(HierarchicFolder):
         self._path_is_relative = arg.acquire(path_is_relative, not arg.is_absolute_path(path))
         super().__init__(name=path, parent=parent, verbose=verbose)
 
+    def is_defined(self) -> bool:
+        return True
+
     @classmethod
     def get_default_storage(cls) -> Connector:
         return cls._default_storage
@@ -62,28 +65,31 @@ class LocalFolder(HierarchicFolder):
         return child_class
 
     @staticmethod
-    def get_child_class_by_type(type_name: Union[FolderType, FileType, str]) -> Class:
-        try:
-            conn_type = FolderType(type_name)
-        except ValueError:
-            conn_type = FileType(type_name)
+    def get_child_class_by_type(type_name: Union[ConnType, FolderType, str]) -> Class:
+        if isinstance(type_name, str):
+            try:
+                conn_type = FolderType(type_name)
+            except ValueError:
+                conn_type = ConnType(type_name)
         child_class = conn_type.get_class()
         return child_class
 
     @staticmethod
-    def get_type_by_name(name: str) -> Union[FileType, FolderType, str]:
+    def get_type_by_name(name: str) -> ConnType:
         if '*' in name:
             return FolderType.LocalMask
+        elif '.' in name:
+            return ConnType.LocalFile
         else:
-            return FileType.detect_by_name(name)
+            return ConnType.LocalFolder
 
     def get_child_class_by_name(self, name: str) -> Class:
         supposed_type = self.get_type_by_name(name)
         return self.get_child_class_by_type(supposed_type)
 
-    def get_child_class_by_name_and_type(self, name: str, filetype: Union[FileType, Auto] = AUTO) -> Class:
+    def get_child_class_by_name_and_type(self, name: str, filetype: Union[ConnType, ContentType, Auto] = AUTO) -> Class:
         if arg.is_defined(filetype):
-            return FileType(filetype).get_class()
+            return ConnType(filetype).get_class()
         else:
             supposed_type = self.get_type_by_name(name)
             if supposed_type:
@@ -99,7 +105,7 @@ class LocalFolder(HierarchicFolder):
             self,
             name: str,
             content_format: Union[ContentFormatInterface, ContentType, Auto] = AUTO,
-            filetype: Union[FileType, ContentType, Auto] = AUTO,  # deprecated argument
+            filetype: Union[ContentType, Auto] = AUTO,  # deprecated argument
             **kwargs
     ) -> ConnectorInterface:
         file = self.get_children().get(name)
@@ -113,11 +119,11 @@ class LocalFolder(HierarchicFolder):
                     raise ValueError(msg.format(filetype, content_format))
                 else:
                     msg = 'LocalFolder.file(): filetype-argument is deprecated, use content_format instead'
-                    self.log(level=LoggingLevel.Warning, msg=msg)
-                if isinstance(filetype, FileType):  # tmp fix
-                    content_format = filetype.get_value()
-                else:
+                    self.log(level=LoggingLevel.Warning, msg=msg, stacklevel=1)
+                if isinstance(filetype, (ContentType, Auto, str)):
                     content_format = filetype
+                else:  # temporary workaround for deprecated FileType class
+                    content_format = filetype.get_value()
             try:
                 file = file_class(filename, content_format=content_format, folder=self, **kwargs)
             except TypeError as e:
@@ -237,9 +243,11 @@ class LocalFolder(HierarchicFolder):
 
     def all_existing_files(self, **kwargs) -> Iterable:
         for name in self.list_existing_file_names():
-            if name not in self.get_children():
-                kwargs['filetype'] = self.get_default_child_type()
-            yield self.file(name, **kwargs)
+            children = self.get_children()
+            if name in children:
+                yield children[name]
+            else:
+                yield self.file(name, **kwargs)
 
     def connect_all(self, inplace: bool = True, **kwargs) -> Union[list, Native]:
         files = list(self.all_existing_files(**kwargs))

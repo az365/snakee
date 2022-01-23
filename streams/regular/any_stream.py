@@ -147,7 +147,7 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
             msg = 'Expected Sequence[Callable], got {}'
             assert min([isinstance(f, Callable) for f in functions]), msg.format(functions)
         if len(functions) == 0:
-            raise ValueError('key must be defined')
+            raise ValueError('key function must be defined')
         elif len(functions) == 1:
             key_function = functions[0]
         else:
@@ -258,13 +258,13 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
     @classmethod
     @deprecated_with_alternative('connectors.filesystem.local_file.JsonFile.to_stream()')
     def from_json_file(
-            cls, filename, encoding=None,
+            cls, filename: Name,
             skip_first_line=False, max_count=None,
             check=AUTO, verbose=False,
     ) -> Stream:
         line_stream_class = StreamType.LineStream.get_class()
         return line_stream_class.from_text_file(
-            filename, encoding=encoding,
+            filename,
             skip_first_line=skip_first_line, max_count=max_count,
             check=check, verbose=verbose,
         ).parse_json(to=cls.__name__)

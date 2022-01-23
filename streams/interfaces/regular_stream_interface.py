@@ -28,15 +28,7 @@ class RegularStreamInterface(IterableStreamInterface, ABC):
         return ItemType.Any
 
     @abstractmethod
-    def is_empty(self) -> bool:
-        pass
-
-    @abstractmethod
     def map_to(self, function: Callable, stream_type: StreamType) -> Stream:
-        pass
-
-    @abstractmethod
-    def flat_map(self, function: Callable) -> Stream:
         pass
 
     @abstractmethod
@@ -76,10 +68,6 @@ class RegularStreamInterface(IterableStreamInterface, ABC):
 
     @abstractmethod
     def add_stream(self, stream: Stream) -> Stream:
-        pass
-
-    @abstractmethod
-    def collect(self) -> Stream:
         pass
 
     @abstractmethod

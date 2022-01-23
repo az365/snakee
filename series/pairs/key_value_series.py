@@ -1,4 +1,4 @@
-from typing import Optional, Callable, Iterable, Generator, Union, Any
+from typing import Optional, Callable, Iterable, Generator, Any
 
 try:  # Assume we're a submodule in a package.
     from functions.primary import numeric as nm
@@ -15,7 +15,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..interfaces.date_numeric_series_interface import DateNumericSeriesInterface
     from ..simple.any_series import AnySeries
 
-Native = Union[KeyValueSeriesInterface]
+Native = KeyValueSeriesInterface
 
 DATA_MEMBER_NAMES = '_keys', '_data'
 META_MEMBER_MAPPING = dict(_data='values')
@@ -200,14 +200,14 @@ class KeyValueSeries(AnySeries, KeyValueSeriesInterface):
         return self.filter_values(nm.is_defined, inplace=inplace) or self
 
     def filter_keys_defined(self, inplace: bool = False) -> Native:
-        return self.filter_keys(nm.is_defined, inplace=inplace)
+        return self.filter_keys(nm.is_defined, inplace=inplace) or self
 
     def filter_keys_between(self, key_min, key_max, inplace: bool = False) -> Native:
-        return self.filter_keys(lambda k: key_min <= k <= key_max, inplace=inplace)
+        return self.filter_keys(lambda k: key_min <= k <= key_max, inplace=inplace) or self
 
     def map_keys(self, function: Callable, sorting_changed: bool = False, inplace: bool = False) -> Native:
         keys = self.key_series().map(function)
-        return self.set_keys(keys, inplace=inplace)
+        return self.set_keys(keys, inplace=inplace) or self
 
     def assume_date_numeric(self) -> DateNumericSeriesInterface:
         series_class = SeriesType.DateNumericSeries.get_class()

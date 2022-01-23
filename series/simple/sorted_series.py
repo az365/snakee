@@ -61,18 +61,29 @@ class SortedSeries(AnySeries, SortedSeriesInterface):
         series_class = SeriesType.AnySeries.get_class()
         return series_class(**self._get_data_member_dict())
 
-    def uniq(self) -> Native:
-        series = self.new(save_meta=True)
-        series = self._assume_native(series)
+    def uniq(self, inplace: bool = False) -> Native:
         prev = None
-        for item in self.get_items():
-            if prev is None or item != prev:
-                series.append(item, inplace=True)
-            if hasattr(item, 'copy'):
-                prev = item.copy()
-            else:
-                prev = item
-        return self._assume_native(series)
+        if inplace:
+            values = self.get_values()
+            n = 0
+            while n < self.get_count():
+                item = values[n]
+                if item == prev:
+                    del values[n]
+                else:
+                    n += 1
+            return self
+        else:
+            series = self.new(save_meta=True)
+            series = self._assume_native(series)
+            for item in self.get_items():
+                if prev is None or item != prev:
+                    series.append(item, inplace=True)
+                if hasattr(item, 'copy'):
+                    prev = item.copy()
+                else:
+                    prev = item
+            return self._assume_native(series)
 
     def get_nearest_value(self, value: Any, distance_func: Callable) -> Any:
         if self.get_count() == 0:
