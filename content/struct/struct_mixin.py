@@ -100,7 +100,10 @@ class StructMixin(StructMixinInterface, ABC):
         elif isinstance(raw_struct, ARRAY_TYPES):
             if verbose:
                 msg = 'Struct as list is deprecated, use FlatStruct(StructInterface) class instead'
-                if hasattr(self, 'log'):
+                if hasattr(self, 'get_logger'):
+                    logger = self.get_logger()
+                    logger.warning(msg, category=DeprecationWarning, stacklevel=2)
+                elif hasattr(self, 'log'):
                     self.log(msg=msg, level=30)
                 else:
                     print(msg)
