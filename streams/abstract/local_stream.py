@@ -1,11 +1,11 @@
 import json
 from typing import Optional, Callable, Iterable, Union
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from utils import algo, arguments as arg
     from interfaces import (
         LocalStreamInterface, ContextInterface, ConnectorInterface, TemporaryFilesMaskInterface,
-        Context, Connector, StreamType, JoinType, How,
+        Context, Connector, ContentType, StreamType, JoinType, How,
         Array, Count, FieldID, UniKey,
         AUTO, Auto, AutoBool, AutoCount, AutoName, OptionalFields,
     )
@@ -16,7 +16,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils import algo, arguments as arg
     from ...interfaces import (
         LocalStreamInterface, ContextInterface, ConnectorInterface, TemporaryFilesMaskInterface,
-        Context, Connector, StreamType, JoinType, How,
+        Context, Connector, ContentType, StreamType, JoinType, How,
         Array, Count, FieldID, UniKey,
         AUTO, Auto, AutoBool, AutoCount, AutoName, OptionalFields,
     )
@@ -100,7 +100,7 @@ class LocalStream(IterableStream, LocalStreamInterface):
         return self._assume_native(stream)
 
     def can_be_in_memory(self, step: AutoCount = AUTO) -> bool:
-        step = arg.acquire(step, self.max_items_in_memory)
+        step = arg.delayed_acquire(step, self.get_limit_items_in_memory)
         if self.is_in_memory() or step is None:
             return True
         else:
@@ -219,7 +219,7 @@ class LocalStream(IterableStream, LocalStreamInterface):
             step: AutoCount = AUTO,
             verbose: AutoBool = False,
     ) -> Native:
-        step = arg.acquire(step, self.max_items_in_memory)
+        step = arg.delayed_acquire(step, self.get_limit_items_in_memory)
         key_function = fs.composite_key(key)
         stream_parts = self.split_to_disk_by_step(
             step=step,
@@ -241,7 +241,7 @@ class LocalStream(IterableStream, LocalStreamInterface):
 
     def sort(self, *keys, reverse: bool = False, step: AutoCount = AUTO, verbose: AutoBool = True) -> Native:
         keys = arg.update(keys)
-        step = arg.acquire(step, self.max_items_in_memory)
+        step = arg.delayed_acquire(step, self.get_limit_items_in_memory)
         if len(keys) == 0:
             key_function = fs.same()
         else:
@@ -302,26 +302,32 @@ class LocalStream(IterableStream, LocalStreamInterface):
     ) -> list:
         result_parts = list()
         for part_no, sm_part in enumerate(self.to_iter().split_to_iter_by_step(step)):
+            is_last_part = sm_part.get_count() < step
+            is_single_part = is_last_part and part_no == 0
             file_part = self.get_tmp_files().file(
                 part_no,
-                filetype='JsonFile',
+                content_format=ContentType.JsonFile,
                 encoding=self.get_encoding(),
             )
             part_fn = file_part.get_path()
-            self.log('Sorting part {} and saving into {} ... '.format(part_no, part_fn), verbose=verbose)
+            if is_single_part:
+                self.log('Sorting single part without saving...', verbose=verbose)
+            else:
+                self.log('Sorting part {} and saving into {} ... '.format(part_no, part_fn), verbose=verbose)
             if sort_each_by:
                 sm_part = sm_part.memory_sort(
                     key=sort_each_by,
                     reverse=reverse,
                     verbose=verbose,
                 )
-            self.log('Writing {} ...'.format(part_fn), end='\r', verbose=verbose)
-            sm_part = sm_part.to_json().write_to(
-                file_part,
-            ).map_to_type(
-                json.loads,
-                stream_type=StreamType.AnyStream,
-            )
+            if not is_single_part:
+                self.log('Writing {} ...'.format(part_fn), end='\r', verbose=verbose)
+                sm_part = sm_part.to_json().write_to(
+                    file_part,
+                ).map_to_type(
+                    fs.json_loads(),
+                    stream_type=StreamType.AnyStream,
+                )
             result_parts.append(sm_part)
         return result_parts
 
@@ -363,7 +369,7 @@ class LocalStream(IterableStream, LocalStreamInterface):
             else:
                 return self.get_expected_count()
 
-    def get_str_count(self) -> str:
+    def get_str_count(self, default: str = '(unknown count)') -> str:
         if self.is_in_memory():
             return 'in memory {}'.format(self.get_count())
         else:
