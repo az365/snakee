@@ -60,6 +60,11 @@ class AnySeries(AbstractSeries, AnySeriesInterface):
             assert count == len(items), '{} != len({})'.format(count, items)
         return self.set_values(items, inplace=inplace, validate=validate) or self
 
+    def set_item_inplace(self, no: int, value: Any) -> Native:
+        data = self.get_items()
+        data[no] = value
+        return self
+
     def has_items(self) -> bool:
         return bool(self.get_values())
 
@@ -209,9 +214,18 @@ class AnySeries(AbstractSeries, AnySeriesInterface):
     def _get_mapped_items(function: Callable, *values) -> Iterable:
         return map(function, *values)
 
+    def _map_inplace(self, function: Callable) -> Native:
+        for n, i in enumerate(self.get_items()):
+            item = function(i)
+            self.set_item_inplace(n, item)
+        return self
+
     def map(self, function: Callable, inplace: bool = False, validate: bool = False) -> Native:
-        items = self._get_mapped_items(function, self.get_items())
-        return self.set_items(items, inplace=inplace, validate=validate)
+        if inplace:
+            return self._map_inplace(function)
+        else:
+            items = self._get_mapped_items(function, self.get_items())
+            return self.set_items(items, inplace=inplace, validate=validate)
 
     def map_values(self, function: Callable, inplace: bool = False) -> Native:
         mapped_values = self._get_mapped_items(function, self.get_values())
