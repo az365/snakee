@@ -139,12 +139,16 @@ def sqrt(value: float, default=None) -> OptionalFloat:
 
 
 def round_to(value: NumericTypes, step: NumericTypes, exclude_negative: bool = False) -> NumericTypes:
+    if not step:
+        step = 1
     value_type = type(step)
     if value < 0 and exclude_negative:
         return 0
-    else:
+    elif step:
         value = int(value / step) * step
         return value_type(value)
+    else:
+        raise ZeroDivisionError('{} / {}'.format(value, step))
 
 
 def is_local_extremum(x_left, x_center, x_right, local_max=True, local_min=True) -> bool:
@@ -181,7 +185,7 @@ def get_dataframe(*args, ignore_import_error=False, **kwargs) -> DataFrame:
         raise_import_error('pandas')
 
 
-def plot(*args, ignore_import_error=False, **kwargs):
+def plot(*args, ignore_import_error=False, **kwargs) -> None:
     if plt:
         kwargs.pop('fmt')
         plt.plot(*args, **kwargs)
@@ -189,7 +193,7 @@ def plot(*args, ignore_import_error=False, **kwargs):
         raise_import_error('matplotlib')
 
 
-def plot_dates(*args, ignore_import_error=False, **kwargs):
+def plot_dates(*args, ignore_import_error=False, **kwargs) -> None:
     if plt:
         kwargs.pop('fmt')
         plt.plot_date(*args, **kwargs)
