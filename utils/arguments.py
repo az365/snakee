@@ -1,15 +1,16 @@
 from typing import Optional, Callable, Iterable, Iterator, Generator, Sized, Union, Any
-from inspect import isclass
 from datetime import datetime
 from random import randint
 
 try:  # Assume we're a submodule in a package.
+    from base.classes.auto import Auto, AUTO
     from functions.primary.text import (
         str_to_bool,
         is_absolute_path, is_mask, is_formatter,
         get_str_from_args_kwargs, get_str_from_annotation,
     )
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
+    from ..base.classes.auto import Auto, AUTO
     from ..functions.primary.text import (
         str_to_bool,
         is_absolute_path, is_mask, is_formatter,
@@ -17,45 +18,12 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     )
 
 NOT_USED = None
-_AUTO_VALUE = 'AUTO'
-DEFAULT_VALUE = _AUTO_VALUE
+DEFAULT_VALUE = Auto.get_value()
 DEFAULT_RANDOM_LEN = 4
-
-
-class Auto:
-    @staticmethod
-    def get_value():
-        return _AUTO_VALUE
-
-    def __eq__(self, other):
-        if hasattr(other, 'get_value'):
-            try:
-                other = other.get_value()
-            except TypeError:
-                pass
-        elif hasattr(other, 'get_name'):
-            try:
-                other = other.get_name()
-            except TypeError:
-                pass
-        elif hasattr(other, 'value'):
-            other = other.value
-        elif hasattr(other, '__name__'):
-            other = other.__name__
-        elif hasattr(other, '__class__'):
-            other = other.__class__.__name__
-        return str(other) == str(self.get_value())
-
-    def __repr__(self):
-        return str(self.get_value())
-
-    def __str__(self):
-        return str(self.__class__.__name__)
 
 
 DefaultArgument = Auto
 
-AUTO = Auto()
 DEFAULT = AUTO
 
 
@@ -72,25 +40,15 @@ def apply(func: Callable, *args, **kwargs):
 
 
 def simple_acquire(current, default):
-    if current == AUTO:
-        return default
-    else:
-        return current
+    return Auto.simple_acquire(current, default)
 
 
 def delayed_acquire(current, func: Callable, *args, **kwargs):
-    if current == AUTO:
-        assert isinstance(func, Callable), 'Expected callable, got {} as {}'.format(func, type(func))
-        return apply(func, *args, **kwargs)
-    else:
-        return current
+    return Auto.delayed_acquire(current, func, *args, **kwargs)
 
 
-def acquire(current, default, *args, delayed=False, **kwargs):
-    if delayed or args or kwargs:
-        return delayed_acquire(current, func=default, *args, **kwargs)
-    else:
-        return simple_acquire(current, default)
+def acquire(current, default, delayed=False, *args, **kwargs):
+    return Auto.acquire(current, default, delayed=delayed, *args, **kwargs)
 
 
 # @deprecated_with_alternative('arg.simple_acquire(*args, **kwargs)')
@@ -179,25 +137,7 @@ def get_optional_len(obj: Iterable, default=None) -> Optional[int]:
 
 
 def is_defined(obj, check_name: bool = True) -> bool:
-    if obj is None:
-        result = False
-    elif obj in (AUTO, AUTO.get_value(), str(AUTO)):
-        result = False
-    elif hasattr(obj, 'is_defined') and not isclass(obj):
-        result = obj.is_defined()
-    elif hasattr(obj, 'get_value'):
-        result = is_defined(obj.get_value())
-    elif hasattr(obj, 'get_name') and check_name:
-        try:
-            name = obj.get_name()
-            result = not (name is None or name in (AUTO, _AUTO_VALUE))
-        except TypeError:
-            result = True
-    elif hasattr(obj, 'value'):
-        result = is_defined(obj.value)
-    else:
-        result = bool(obj)
-    return result
+    return Auto.is_defined(obj, check_name=check_name)
 
 
 def any_to_bool(value) -> bool:

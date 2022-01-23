@@ -165,7 +165,7 @@ class TreeItem(ContextualDataWrapper, TreeInterface):
 
     def get_context(self) -> Parent:
         parent = self.get_parent()
-        if arg.is_defined(parent):
+        if arg.is_defined(parent, check_name=False):
             if parent.is_context():
                 return parent
             elif hasattr(parent, 'get_context'):
