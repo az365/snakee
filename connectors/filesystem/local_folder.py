@@ -87,7 +87,7 @@ class LocalFolder(HierarchicFolder):
         supposed_type = self.get_type_by_name(name)
         return self.get_child_class_by_type(supposed_type)
 
-    def get_child_class_by_name_and_type(self, name: str, filetype: Union[ConnType, Auto] = AUTO) -> Class:
+    def get_child_class_by_name_and_type(self, name: str, filetype: Union[ConnType, ContentType, Auto] = AUTO) -> Class:
         if arg.is_defined(filetype):
             return ConnType(filetype).get_class()
         else:
@@ -120,7 +120,7 @@ class LocalFolder(HierarchicFolder):
                 else:
                     msg = 'LocalFolder.file(): filetype-argument is deprecated, use content_format instead'
                     self.log(level=LoggingLevel.Warning, msg=msg, stacklevel=1)
-                if isinstance(filetype, (ConnType, Auto, str)):
+                if isinstance(filetype, (ContentType, Auto, str)):
                     content_format = filetype
                 else:  # temporary workaround for deprecated FileType class
                     content_format = filetype.get_value()
