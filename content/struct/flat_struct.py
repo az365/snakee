@@ -21,9 +21,9 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils import arguments as arg
     from ...utils.external import pd, get_use_objects_for_output, DataFrame
     from ...base.abstract.simple_data import SimpleDataWrapper
+    from ...functions.secondary import array_functions as fs
     from ...content.fields.advanced_field import AdvancedField
     from ..selection.abstract_expression import AbstractDescription
-    from ...functions.secondary import array_functions as fs
 
 Native = StructInterface
 Group = Union[Native, Iterable]
@@ -116,6 +116,7 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
             before: bool = False,
             exclude_duplicates: bool = True,
             reassign_struct_name: bool = False,
+            skip_missing: bool = False,
             inplace: bool = True,
     ) -> Optional[Native]:
         if self._is_field(field):
@@ -126,6 +127,8 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
             field_desc = AdvancedField(*field)
         elif isinstance(field, dict):
             field_desc = AdvancedField(**field)
+        elif skip_missing and field is None:
+            pass
         else:
             raise TypeError('Expected field, str or dict, got {} as {}'.format(field, type(field)))
         if exclude_duplicates and field_desc.get_name() in self.get_field_names():
