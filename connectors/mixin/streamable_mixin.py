@@ -66,7 +66,7 @@ class StreamableMixin(ColumnarMixin, ABC):
         return arg.get_generated_name('{}:stream'.format(self.get_name()), include_random=True, include_datetime=False)
 
     def _get_fast_count(self) -> Optional[int]:
-        if hasattr(self, 'is_gzip'):
+        if 'allow_slow_gzip' in self.get_count.__annotations__:
             return self.get_count(allow_slow_gzip=False)
         else:
             return self.get_count()
@@ -144,7 +144,7 @@ class StreamableMixin(ColumnarMixin, ABC):
         if not arg.is_defined(data):
             data = self._get_items_of_type(item_type, verbose=kwargs.get('verbose', AUTO), step=step)
         meta = self.get_compatible_meta(stream_class, name=name, ex=ex, **kwargs)
-        if 'count' not in meta:
+        if 'count' not in meta and 'count' not in kwargs:
             meta['count'] = self._get_fast_count()
         if 'source' not in meta:
             meta['source'] = self
@@ -206,6 +206,10 @@ class StreamableMixin(ColumnarMixin, ABC):
     def add_stream(self, stream: Stream, **kwargs) -> Stream:
         stream = self.to_stream(**kwargs).add_stream(stream)
         return self._assume_stream(stream)
+
+    def take(self, count: Union[int, bool] = 1, inplace: bool = False) -> Stream:
+        assert not inplace, 'for LeafConnector inplace-mode not supported'
+        return self.to_stream().take(count)
 
     def collect(self, skip_missing: bool = False, **kwargs) -> Stream:
         if self._is_existing():
