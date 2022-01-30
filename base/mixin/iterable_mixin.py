@@ -354,15 +354,16 @@ class IterableMixin(IterableInterface, ABC):
         else:
             yield from map(function, self.get_items())
 
-    def _apply_map_inplace(self, function: Callable) -> None:
+    def _apply_map_inplace(self, function: Callable) -> Native:
         items = self.get_items()
         assert isinstance(items, list), 'expected list, got {}'.format(items)
         for k, v in enumerate(items):
             items[k] = function(v)
+        return self
 
     def map(self, function: Callable, inplace: bool = False) -> Optional[Native]:
         if inplace and isinstance(self.get_items(), list):
-            self._apply_map_inplace(function)
+            return self._apply_map_inplace(function) or self
         else:
             items = self._get_mapped_items(function, flat=False)
             return self.set_items(items, count=self.get_count(), inplace=inplace)
@@ -470,8 +471,7 @@ class IterableMixin(IterableInterface, ABC):
             self,
             stream_function: Union[Callable, str] = 'get_count',
             assert_not_none: bool = True,
-            *args,
-            **kwargs,
+            *args, **kwargs
     ) -> Native:
         value = self._get_property(stream_function, *args, **kwargs)
         if value is None:
