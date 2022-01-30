@@ -1,7 +1,12 @@
 from typing import Optional, Callable, Union, Any
 
 try:  # Assume we're a submodule in a package.
-    from utils import arguments as arg
+    from base.classes.auto import Auto, AUTO
+    from base.classes.typing import (
+        ARRAY_TYPES, Array, Count, Columns, OptionalFields, Options, Message,
+        FieldName, FieldNo, FieldID, Name, Value, Class,
+        AutoName, AutoCount, AutoBool, AutoColumns,
+    )
     from base.interfaces.base_interface import BaseInterface  # ROOT
     from base.interfaces.sourced_interface import SourcedInterface  # inherits Base[Interface]
     from base.interfaces.data_interface import SimpleDataInterface  # inherits Base[Interface]
@@ -39,12 +44,16 @@ try:  # Assume we're a submodule in a package.
     from content.struct.struct_interface import StructInterface, StructMixinInterface  # ROOT
     from content.struct.struct_row_interface import StructRowInterface  # inherits SimpleData; uses StructInterface
     from content.items.simple_items import (
-        ARRAY_TYPES, ROW_SUBCLASSES, RECORD_SUBCLASSES, LINE_SUBCLASSES,
+        ROW_SUBCLASSES, RECORD_SUBCLASSES, LINE_SUBCLASSES,
         SimpleRowInterface, SimpleRow, Row, Record, Line, SimpleItem, SimpleSelectableItem,
-        FieldNo, FieldName, FieldID, Value, Class, Array,
     )
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from .utils import arguments as arg
+    from .base.classes.auto import Auto, AUTO
+    from .base.classes.typing import (
+        ARRAY_TYPES, Array, Count, Columns, OptionalFields, Options, Message,
+        FieldName, FieldNo, FieldID, Name, Value, Class,
+        AutoName, AutoCOunt, AutoBool, AutoColumns,
+    )
     from .base.interfaces.base_interface import BaseInterface  # ROOT
     from .base.interfaces.sourced_interface import SourcedInterface  # inherits Base[Interface]
     from .base.interfaces.data_interface import SimpleDataInterface  # inherits Base[Interface]
@@ -82,9 +91,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .content.struct.struct_interface import StructInterface, StructMixinInterface  # ROOT
     from .content.struct.struct_row_interface import StructRowInterface  # inherits SimpleData; uses StructInterface
     from .content.items.simple_items import (
-        ARRAY_TYPES, ROW_SUBCLASSES, RECORD_SUBCLASSES, LINE_SUBCLASSES,
+        ROW_SUBCLASSES, RECORD_SUBCLASSES, LINE_SUBCLASSES,
         SimpleRowInterface, SimpleRow, Row, Record, Line, SimpleItem, SimpleSelectableItem,
-        FieldNo, FieldName, FieldID, Value, Class, Array,
     )
 
 try:  # Assume we're a submodule in a package.
@@ -114,15 +122,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .series.series_type import SeriesType  # inherits ClassType(DynamicEnum)
     from .series.interpolation_type import InterpolationType  # inherits DynamicEnum
 
-AUTO = arg.AUTO
-Auto = arg.Auto
-Name = FieldID
-Count = Optional[int]
-Message = Union[str, Array]
-Columns = Optional[Array]
 Field = Union[FieldID, FieldInterface]
-OptionalFields = Union[Array, str, None]
-Options = Union[dict, arg.Auto, None]
 How = Union[JoinType, str]
 
 StructRow = StructRowInterface
@@ -141,7 +141,7 @@ KeyValueStream = ColumnarStream
 StructStream = ColumnarStream
 SchemaStream = StructStream
 
-Source = Union[ConnectorInterface, arg.Auto, None]
+Source = Union[ConnectorInterface, Auto, None]
 Connector = Optional[ConnectorInterface]
 LeafConnector = LeafConnectorInterface
 ExtLogger = ExtendedLoggerInterface
@@ -149,11 +149,7 @@ SelectionLogger = SelectionLoggerInterface
 Context = Optional[ContextInterface]
 TmpFiles = TemporaryFilesMaskInterface
 
-AutoName = Union[Auto, Name]
-AutoCount = Union[Auto, Count]
-AutoBool = Union[arg.Auto, bool]
 AutoContext = Union[Auto, Context]
-AutoConnector = Union[arg.Auto, Connector]
-AutoStreamType = Union[arg.Auto, StreamType]
-AutoColumns = Union[Auto, Columns]
+AutoConnector = Union[Auto, Connector]
+AutoStreamType = Union[Auto, StreamType]
 UniKey = Union[StructInterface, Array, AutoName, Callable]
