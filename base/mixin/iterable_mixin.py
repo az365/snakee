@@ -6,20 +6,20 @@ from datetime import datetime
 try:  # Assume we're a submodule in a package.
     from functions.secondary import item_functions as fs
     from utils.algo import map_side_join
-    from utils.arguments import get_names, update, is_in_memory, get_str_from_args_kwargs
+    from base.functions.arguments import get_names, update, is_in_memory, get_str_from_args_kwargs
     from base.classes.auto import Auto, AUTO
+    from base.classes.typing import ARRAY_TYPES
     from base.interfaces.iterable_interface import IterableInterface, OptionalFields, Item, JoinType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...functions.secondary import item_functions as fs
     from ...utils.algo import map_side_join
-    from ...utils.arguments import get_names, update, is_in_memory, get_str_from_args_kwargs
+    from ..functions.arguments import get_names, update, is_in_memory, get_str_from_args_kwargs
     from ..classes.auto import Auto, AUTO
+    from ..classes.typing import ARRAY_TYPES
     from ..interfaces.iterable_interface import IterableInterface, OptionalFields, Item, JoinType
 
 Native = IterableInterface
 How = Union[JoinType, str]
-
-ARRAY_TYPES = list, tuple
 
 
 class IterableMixin(IterableInterface, ABC):
@@ -81,10 +81,10 @@ class IterableMixin(IterableInterface, ABC):
 
     def get_str_count(self, default: str = '(iter)') -> str:
         count = self.get_count()
-        if count is None:
-            return default
-        else:
+        if Auto.is_defined(count):
             return str(count)
+        else:
+            return default
 
     def is_empty(self) -> Optional[bool]:
         count = self.get_count()

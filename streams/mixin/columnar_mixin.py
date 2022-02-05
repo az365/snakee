@@ -128,7 +128,14 @@ class ColumnarMixin(ContextualDataWrapper, IterableMixin, ColumnarInterface, ABC
         )
         return self._assume_native(stream)
 
-    def map_side_join(self, right: Native, key: UniKey, how: How = JoinType.Left, right_is_uniq=True) -> Native:
+    def map_side_join(
+            self,
+            right: Native,
+            key: UniKey,
+            how: How = JoinType.Left,
+            right_is_uniq: bool = True,
+            inplace: bool = False,
+    ) -> Optional[Native]:
         key = arg.get_names(key)
         keys = arg.update([key])
         if not isinstance(how, JoinType):
@@ -144,10 +151,13 @@ class ColumnarMixin(ContextualDataWrapper, IterableMixin, ColumnarInterface, ABC
         )
         if self.is_in_memory():
             joined_items = list(joined_items)
-        stream = self.stream(joined_items)
-        meta = self.get_compatible_static_meta()
-        stream = stream.set_meta(**meta)
-        return self._assume_native(stream)
+        if inplace:
+            self.set_items(joined_items, count=self.get_count(), inplace=True)
+        else:
+            stream = self.stream(joined_items)
+            meta = self.get_compatible_static_meta()
+            stream = stream.set_meta(**meta)
+            return self._assume_native(stream)
 
     def sorted_group_by(self, *keys, **kwargs) -> Stream:
         stream = self.to_stream()
@@ -184,9 +194,6 @@ class ColumnarMixin(ContextualDataWrapper, IterableMixin, ColumnarInterface, ABC
         self.set_expected_count(count)
         self.set_estimated_count(count)
         return self
-
-    def get_str_count(self) -> str:  # tmp?
-        return str(self.get_count())
 
     def actualize(self, force: bool = False) -> Native:
         source = self.get_source()
