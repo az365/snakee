@@ -79,6 +79,7 @@ class AbstractSeries(IterableMixin, SimpleDataWrapper, ABC):
     def get_class_name(self) -> str:
         return self.__class__.__name__
 
+    # @deprecated_with_alternative('make_new()')
     def new(self, *args, save_meta: bool = False, **kwargs) -> Native:
         new = self.__class__(*args, **kwargs)
         if save_meta:
@@ -104,6 +105,11 @@ class AbstractSeries(IterableMixin, SimpleDataWrapper, ABC):
     def set_values(self, values: Iterable, inplace: bool, set_closure: bool = False, validate: bool = False) -> Native:
         values = self._get_optional_copy(values, role='values', set_closure=set_closure)
         return self.set_data(values, reset_dynamic_meta=True, validate=validate, inplace=inplace) or self
+
+    def set_item_inplace(self, no: int, value: Any) -> Native:
+        data = self.get_items()
+        data[no] = value
+        return self
 
     def __iter__(self):
         yield from self.get_items()

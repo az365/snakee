@@ -113,6 +113,19 @@ class KeyValueSeries(AnySeries, KeyValueSeriesInterface):
         else:
             return self.from_items(items)
 
+    def set_item_inplace(self, no: int, *item) -> Native:
+        if len(item) == 1:
+            key, value = item[0]
+        elif len(item) == 2:
+            key, value = item
+        else:
+            raise ValueError('Expected 1 tuple or 2 arguments (item and value), got {}'.format(item))
+        keys = self.get_keys()
+        values = self.get_values()
+        keys[no] = key
+        values[no] = value
+        return self
+
     @staticmethod
     def _split_keys_and_values(items: Iterable) -> tuple:
         keys = list()
@@ -151,6 +164,7 @@ class KeyValueSeries(AnySeries, KeyValueSeriesInterface):
             self.get_values().append(value)
         else:
             new = self.copy()
+            assert isinstance(new, KeyValueSeries)
             new.get_keys().append(key)
             new.get_values().append(value)
             return self._assume_native(new)
