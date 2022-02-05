@@ -1,29 +1,34 @@
-from typing import Iterable, Union
+from typing import Optional, Iterable, Union
 
-try:  # Assume we're a sub-module in a package.
-    from utils import (
-        arguments as arg,
-        mappers as ms,
+try:  # Assume we're a submodule in a package.
+    from interfaces import (
+        StreamType, RegularStream, LoggerInterface,
+        AUTO, Auto, AutoBool, Count, Message, Array,
     )
     from functions.primary import numeric as nm
-    from streams import stream_classes as sm
     from functions.secondary import all_secondary_functions as fs
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from . import (
-        arguments as arg,
-        mappers as ms,
+    from ..interfaces import (
+        StreamType, RegularStream, LoggerInterface,
+        AUTO, Auto, AutoBool, Count, Message, Array,
     )
     from ..functions.primary import numeric as nm
-    from ..streams import stream_classes as sm
     from ..functions.secondary import all_secondary_functions as fs
 
-StreamType = sm.StreamType
-Stream = Union[sm.LocalStream, sm.ColumnarMixin]
-Data = Union[Stream, Iterable]
+Data = Union[RegularStream, Iterable]
+
+DEFAULT_STEP = 1000000
+TOP_COUNT = 3
 
 
-def get_hist_records(stream: Stream, fields: Iterable, in_memory=arg.AUTO, logger=arg.AUTO, msg=None) -> Iterable:
-    if arg.is_defined(logger):
+def get_hist_records(
+        stream: RegularStream,
+        fields: Iterable,
+        in_memory: AutoBool = AUTO,
+        logger: Union[LoggerInterface, Auto] = AUTO,
+        msg: Optional[Message] = None,
+) -> Iterable:
+    if Auto.is_defined(logger):
         logger.log(msg if msg else 'calc hist in memory...')
     dict_hist = {f: dict() for f in fields}
     for i in stream.get_items():
@@ -38,11 +43,18 @@ def get_hist_records(stream: Stream, fields: Iterable, in_memory=arg.AUTO, logge
             yield dict(field=f, value=v, count=c)
 
 
-def hist(data: Data, *fields, in_memory=arg.AUTO, step=1000000, logger=arg.AUTO, msg=None) -> Stream:
+def hist(
+        data: Data,
+        *fields,
+        in_memory: AutoBool = AUTO,
+        step: Count = DEFAULT_STEP,
+        logger: Union[LoggerInterface, Auto] = AUTO,
+        msg: Optional[Message] = None,
+) -> RegularStream:
     stream = _stream(data)
     total_count = stream.get_count()
-    in_memory = arg.acquire(in_memory, stream.is_in_memory())
-    logger = arg.acquire(logger, stream.get_logger, delayed=True)
+    in_memory = Auto.acquire(in_memory, stream.is_in_memory())
+    logger = Auto.acquire(logger, stream.get_logger, delayed=True)
     # if in_memory:
     if in_memory or len(fields) > 1:
         stream = stream.stream(
@@ -79,7 +91,14 @@ def hist(data: Data, *fields, in_memory=arg.AUTO, step=1000000, logger=arg.AUTO,
     return _assume_native(stream)
 
 
-def stat(data: Data, *fields, in_memory=True, take_hash=True, count=3, msg=None) -> Stream:
+def stat(
+        data: Data,
+        *fields,
+        in_memory: bool = True,
+        take_hash: bool = True,
+        count: Count = TOP_COUNT,
+        msg: Optional[Message] = None,
+) -> RegularStream:
     return hist(
         data,
         *fields,
@@ -115,7 +134,7 @@ def stat(data: Data, *fields, in_memory=True, take_hash=True, count=3, msg=None)
     )
 
 
-def hist_by_cat(data: Data, cat_fields, hist_fields):
+def hist_by_cat(data: Data, cat_fields: Array, hist_fields: Array):
     return _stream(data).group_to_pairs(
         cat_fields,
         verbose=False,
@@ -148,17 +167,18 @@ def _merge_two_records(r1, r2):
     return {k: v for k, v in (list(r1.items()) + list(r2.items()))}
 
 
-def _stream(data: Data) -> sm.RecordStream:
+def _stream(data: Data) -> RegularStream:
     if hasattr(data, 'is_file'):
         if data.is_file():
             if hasattr(data, 'to_record_stream'):
                 return data.to_record_stream()
-    if sm.is_stream(data):
+    if isinstance(data, RegularStream):
         stream = data
     else:
-        stream = sm.RecordStream(data, check=False)
+        stream_class = StreamType.RecordStream.get_class()
+        stream = stream_class(data, check=False)
     return stream
 
 
-def _assume_native(stream) -> Stream:
+def _assume_native(stream) -> RegularStream:
     return stream
