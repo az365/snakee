@@ -2,8 +2,10 @@ from typing import Optional, Callable, Iterable, Generator, Union, NoReturn
 
 try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
-    from functions.primary import numeric as nm, dates as dt
+    from functions.primary import dates as dt
+    from functions.primary.numeric import plot
     from functions.secondary.date_functions import round_date, date_range
+    from functions.secondary.numeric_functions import lift
     from series.series_type import SeriesType
     from series.interfaces.key_value_series_interface import KeyValueSeriesInterface
     from series.interfaces.date_numeric_series_interface import (
@@ -17,8 +19,10 @@ try:  # Assume we're a submodule in a package.
     from series.pairs.sorted_numeric_key_value_series import SortedNumericKeyValueSeries
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
-    from ...functions.primary import numeric as nm, dates as dt
+    from ...functions.primary import dates as dt
+    from ...functions.primary.numeric import plot
     from ...functions.secondary.date_functions import round_date, date_range
+    from ...functions.secondary.numeric_functions import lift
     from ..series_type import SeriesType
     from ..interfaces.key_value_series_interface import KeyValueSeriesInterface
     from ..interfaces.date_numeric_series_interface import (
@@ -174,6 +178,7 @@ class DateNumericSeries(SortedNumericKeyValueSeries, DateSeries, DateNumericSeri
         list_dates = dates.get_dates() if isinstance(dates, DateNumericSeriesInterface) else dates
         border_dates = self.get_mutual_border_dates(weight_benchmark)
         result = self.new(save_meta=True)
+        assert isinstance(result, DateNumericSeriesInterface), 'got {}'.format(result)
         for d in list_dates:
             yearly_dates = dt.get_yearly_dates(d, *border_dates)
             if yearly_dates:
@@ -184,7 +189,7 @@ class DateNumericSeries(SortedNumericKeyValueSeries, DateSeries, DateNumericSeri
                 pre_interpolated_value = self.get_interpolated_value(d, how=internal)
                 weighted_value = pre_interpolated_value * weight
                 result.append_pair(d, weighted_value, inplace=True)
-        return self._assume_series(result)
+        return result
 
     def interpolate_to_scale(
             self,
@@ -281,18 +286,11 @@ class DateNumericSeries(SortedNumericKeyValueSeries, DateSeries, DateNumericSeri
                     result.append_pair(d, function(v, v0), inplace=True)
         return self._assume_native(result)
 
-    def yoy(
-            self,
-            interpolation_kwargs: Union[dict, tuple] = DEFAULT_YOY_KWARGS,
-    ) -> Native:
+    def yoy(self, interpolation_kwargs: Union[dict, tuple] = DEFAULT_YOY_KWARGS) -> Native:
         if isinstance(interpolation_kwargs, (list, tuple)):
             interpolation_kwargs = dict(interpolation_kwargs)
         yearly_shifted = self.yearly_shift()
-        return self.math(
-            yearly_shifted,
-            function=lambda a, b: (a - b) / b if b else None,
-            interpolation_kwargs=interpolation_kwargs,
-        )
+        return self.math(yearly_shifted, function=lift(reverse=True), interpolation_kwargs=interpolation_kwargs)
 
     def get_yoy_for_date(
             self,
@@ -364,7 +362,7 @@ class DateNumericSeries(SortedNumericKeyValueSeries, DateSeries, DateNumericSeri
         return 'date', 'value'
 
     def plot(self, fmt: str = '-') -> None:
-        nm.plot(self.get_keys(), self.get_values(), fmt=fmt)
+        plot(self.get_keys(), self.get_values(), fmt=fmt)
 
     @staticmethod
     def _assume_series(series) -> Series:

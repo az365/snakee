@@ -76,6 +76,17 @@ def div(x: NumericTypes, y: NumericTypes, default: OptionalFloat = None) -> Opti
         return default
 
 
+def lift(a: NumericTypes, b: NumericTypes, take_abs: bool = False, default: OptionalFloat = None) -> OptionalFloat:
+    if a is None or not b:
+        return default
+    else:
+        result = (b - a) / a
+        if take_abs:
+            return abs(result)
+        else:
+            return result
+
+
 def median(a: Iterable, ignore_import_error: bool = False, safe: bool = True) -> OptionalFloat:
     if safe:
         a = filter_numeric(a)
