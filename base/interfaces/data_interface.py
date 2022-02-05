@@ -1,12 +1,10 @@
 from abc import ABC, abstractmethod
 from typing import Optional, Union, Iterable, Callable, Any
 
-try:  # Assume we're a sub-module in a package.
-    from utils import arguments as arg
+try:  # Assume we're a submodule in a package.
     from base.interfaces.base_interface import BaseInterface
     from base.interfaces.contextual_interface import ContextualInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
     from .base_interface import BaseInterface
     from .contextual_interface import ContextualInterface
 

@@ -37,6 +37,9 @@ Struct = Optional[StructInterface]
 
 SAFE_COUNT_ITEMS_IN_MEMORY = 10000
 EXAMPLE_STR_LEN = 12
+DEFAULT_SHOW_COUNT = 10
+DEFAULT_DETECT_COUNT = 100
+LOGGING_LEVEL_INFO = 20
 
 
 class ColumnarMixin(ContextualDataWrapper, IterableMixin, ColumnarInterface, ABC):
@@ -111,11 +114,9 @@ class ColumnarMixin(ContextualDataWrapper, IterableMixin, ColumnarInterface, ABC
         for i in self.get_items():
             yield from function(i)
 
-    def flat_map(self, function: Callable) -> Native:
-        stream = self.stream(
-            self._get_flat_mapped_items(function=function),
-        )
-        return self._assume_native(stream)
+    def flat_map(self, function: Callable, inplace: bool = False) -> Optional[Native]:
+        items = self._get_flat_mapped_items(function=function)
+        return self.set_items(items, inplace=inplace)
 
     def map_to(self, function: Callable, stream_type: StreamType) -> Stream:
         items = map(function, self.get_items())
@@ -128,7 +129,14 @@ class ColumnarMixin(ContextualDataWrapper, IterableMixin, ColumnarInterface, ABC
         )
         return self._assume_native(stream)
 
-    def map_side_join(self, right: Native, key: UniKey, how: How = JoinType.Left, right_is_uniq=True) -> Native:
+    def map_side_join(
+            self,
+            right: Native,
+            key: UniKey,
+            how: How = JoinType.Left,
+            right_is_uniq: bool = True,
+            inplace: bool = False,
+    ) -> Optional[Native]:
         key = arg.get_names(key)
         keys = arg.update([key])
         if not isinstance(how, JoinType):
@@ -144,10 +152,13 @@ class ColumnarMixin(ContextualDataWrapper, IterableMixin, ColumnarInterface, ABC
         )
         if self.is_in_memory():
             joined_items = list(joined_items)
-        stream = self.stream(joined_items)
-        meta = self.get_compatible_static_meta()
-        stream = stream.set_meta(**meta)
-        return self._assume_native(stream)
+        if inplace:
+            self.set_items(joined_items, count=self.get_count(), inplace=True)
+        else:
+            stream = self.stream(joined_items)
+            meta = self.get_compatible_static_meta()
+            stream = stream.set_meta(**meta)
+            return self._assume_native(stream)
 
     def sorted_group_by(self, *keys, **kwargs) -> Stream:
         stream = self.to_stream()
@@ -184,9 +195,6 @@ class ColumnarMixin(ContextualDataWrapper, IterableMixin, ColumnarInterface, ABC
         self.set_expected_count(count)
         self.set_estimated_count(count)
         return self
-
-    def get_str_count(self) -> str:  # tmp?
-        return str(self.get_count())
 
     def actualize(self, force: bool = False) -> Native:
         source = self.get_source()
@@ -233,7 +241,12 @@ class ColumnarMixin(ContextualDataWrapper, IterableMixin, ColumnarInterface, ABC
         else:
             return default
 
-    def get_detected_struct(self, count: int = 100, set_types: Optional[dict] = None, default=None) -> Struct:
+    def get_detected_struct(
+            self,
+            count: int = DEFAULT_DETECT_COUNT,
+            set_types: Optional[dict] = None,
+            default: Optional[StructInterface] = None,
+    ) -> Struct:
         if hasattr(self, 'get_detected_columns'):
             columns = self.get_detected_columns(count)
         else:
@@ -289,7 +302,7 @@ class ColumnarMixin(ContextualDataWrapper, IterableMixin, ColumnarInterface, ABC
             return None
 
     def example(
-            self, *filters, count: int = 10,
+            self, *filters, count: int = DEFAULT_SHOW_COUNT,
             allow_tee_iterator: bool = True,
             allow_spend_iterator: bool = True,
             **filter_kwargs
@@ -306,7 +319,7 @@ class ColumnarMixin(ContextualDataWrapper, IterableMixin, ColumnarInterface, ABC
         return self._assume_native(example)
 
     def get_demo_example(
-            self, count: int = 10,
+            self, count: int = DEFAULT_SHOW_COUNT,
             as_dataframe: AutoBool = AUTO,
             filters: Optional[Array] = None, columns: Optional[Array] = None,
     ) -> Union[DataFrame, Iterable]:
@@ -320,14 +333,20 @@ class ColumnarMixin(ContextualDataWrapper, IterableMixin, ColumnarInterface, ABC
         elif hasattr(sm_sample, 'get_items'):
             return sm_sample.get_items()
 
-    def show(self, count: int = 10, filters: Columns = None, columns: Columns = None, as_dataframe: AutoBool = AUTO):
-        self.log(self.get_str_description(), truncate=False, force=True)
+    def show(
+            self,
+            count: int = DEFAULT_SHOW_COUNT,
+            filters: Columns = None,
+            columns: Columns = None,
+            as_dataframe: AutoBool = AUTO,
+    ):
+        self.log(self.get_str_description(), level=LOGGING_LEVEL_INFO, truncate=False, force=True)
         return self.get_demo_example(count=count, filters=filters, columns=columns, as_dataframe=as_dataframe)
 
     def describe(
             self, *filters,
             take_struct_from_source: bool = False,
-            count: Count = 10,
+            count: Count = DEFAULT_SHOW_COUNT,
             columns: Columns = None,
             show_header: bool = True,
             struct_as_dataframe: bool = False,

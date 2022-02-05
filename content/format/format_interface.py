@@ -1,14 +1,16 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Union
+from typing import Optional, Iterable, Generator, Union
 
 try:  # Assume we're a submodule in a package.
-    from utils import arguments as arg
+    from base.classes.auto import Auto, AUTO
+    from base.classes.typing import AutoBool
     from base.interfaces.base_interface import BaseInterface
     from streams.stream_type import StreamType
     from content.items.item_type import ItemType
     from content.format.content_type import ContentType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
+    from ...base.classes.auto import Auto, AUTO
+    from ...base.classes.typing import AutoBool
     from ...base.interfaces.base_interface import BaseInterface
     from ...streams.stream_type import StreamType
     from ..items.item_type import ItemType
@@ -50,4 +52,12 @@ class ContentFormatInterface(BaseInterface, ABC):
 
     @abstractmethod
     def copy(self):
+        pass
+
+    @abstractmethod
+    def get_lines(self, items: Iterable, item_type: ItemType, add_title_row: AutoBool = AUTO) -> Generator:
+        """Get raw (not parsed) lines from file.
+
+        :returns: Generator of strings with raw (not parsed) lines from file.
+        """
         pass

@@ -68,16 +68,16 @@ class LocalFolder(HierarchicFolder):
     def get_child_class_by_type(type_name: Union[ConnType, FolderType, str]) -> Class:
         if isinstance(type_name, str):
             try:
-                conn_type = FolderType(type_name)
-            except ValueError:
                 conn_type = ConnType(type_name)
+            except ValueError:
+                conn_type = FolderType(type_name)
         child_class = conn_type.get_class()
         return child_class
 
     @staticmethod
     def get_type_by_name(name: str) -> ConnType:
         if '*' in name:
-            return FolderType.LocalMask
+            return ConnType.LocalMask
         elif '.' in name:
             return ConnType.LocalFile
         else:
@@ -131,21 +131,23 @@ class LocalFolder(HierarchicFolder):
             self.add_child(file)
         return file
 
-    def folder(self, name: str, folder_type: Union[FolderType, Auto] = AUTO, **kwargs) -> ConnectorInterface:
-        supposed_type = FolderType.detect_by_name(name)
-        folder_type = arg.acquire(folder_type, supposed_type)
-        folder_class = FolderType(folder_type).get_class()
+    def folder(self, name: str, folder_type: Union[ConnType, FolderType, Auto] = AUTO, **kwargs) -> ConnectorInterface:
+        if not arg.is_defined(folder_type):
+            folder_type = self.get_type_by_name(name)
+            if folder_type == ConnType.LocalFile:
+                folder_type = ConnType.LocalFolder
+        folder_class = ConnType(folder_type).get_class()
         folder_obj = folder_class(name, parent=self, **kwargs)
         self.add_folder(folder_obj)
         return folder_obj
 
     def mask(self, mask: str) -> ConnectorInterface:
-        folder_type = FolderType.LocalMask
-        assert isinstance(folder_type, FolderType)
+        folder_type = ConnType.LocalMask
+        assert isinstance(folder_type, ConnType)
         return self.folder(mask, folder_type)
 
     def partitioned(self, mask: str, suffix: Optional[str] = None) -> ConnectorInterface:
-        folder_type = FolderType.PartitionedLocalFile
+        folder_type = ConnType.PartitionedLocalFile
         partitioned_local_file = self.folder(mask, folder_type=folder_type)
         if suffix:
             if hasattr(partitioned_local_file, 'set_suffix'):  # isinstance(partitioned_local_file, PartitionedFile)

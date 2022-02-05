@@ -1,14 +1,16 @@
 from abc import ABC
 from typing import Optional, Union
 
-try:  # Assume we're a sub-module in a package.
-    from utils import arguments as arg
+try:  # Assume we're a submodule in a package.
+    from utils.arguments import get_generated_name
+    from base.classes.auto import Auto, AUTO
     from base.interfaces.context_interface import ContextInterface
     from base.interfaces.contextual_interface import ContextualInterface
     from base.abstract.named import AbstractNamed
     from base.abstract.sourced import Sourced
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
+    from ...utils.arguments import get_generated_name
+    from ..classes.auto import Auto, AUTO
     from ..interfaces.context_interface import ContextInterface
     from ..interfaces.contextual_interface import ContextualInterface
     from .named import AbstractNamed
@@ -20,19 +22,19 @@ Source = Union[Context, Sourced]
 
 class Contextual(Sourced, ContextualInterface, ABC):
     def __init__(
-            self, name: str = arg.DEFAULT,
+            self, name: str = AUTO,
             source: Source = None,
             context: Context = None,
             check: bool = True,
     ):
-        name = arg.undefault(name, arg.get_generated_name(self._get_default_name_prefix()))
-        if arg.is_defined(context):
-            if arg.is_defined(source):
+        name = Auto.delayed_acquire(name, get_generated_name, self._get_default_name_prefix())
+        if Auto.is_defined(context):
+            if Auto.is_defined(source):
                 source.set_context(context)
             else:
                 source = context
         super().__init__(name=name, source=source, check=check)
-        if arg.is_defined(self.get_context()):
+        if Auto.is_defined(self.get_context()):
             self.put_into_context(check=check)
 
     def get_source(self) -> Union[Source, ContextualInterface]:
@@ -59,7 +61,7 @@ class Contextual(Sourced, ContextualInterface, ABC):
                     assert isinstance(context, ContextInterface)
                     assert isinstance(context, AbstractNamed)
                     self.set_source(context)
-            elif arg.is_defined(self.get_source()):
+            elif Auto.is_defined(self.get_source()):
                 self.get_source().set_context(context, reset=reset)
             self.put_into_context()
         else:

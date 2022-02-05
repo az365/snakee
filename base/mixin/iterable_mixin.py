@@ -4,18 +4,22 @@ from itertools import chain, tee
 from datetime import datetime
 
 try:  # Assume we're a submodule in a package.
-    from utils import algo, arguments as arg
     from functions.secondary import item_functions as fs
+    from utils.algo import map_side_join
+    from base.functions.arguments import get_names, update, is_in_memory, get_str_from_args_kwargs
+    from base.classes.auto import Auto, AUTO
+    from base.classes.typing import ARRAY_TYPES
     from base.interfaces.iterable_interface import IterableInterface, OptionalFields, Item, JoinType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import algo, arguments as arg
     from ...functions.secondary import item_functions as fs
+    from ...utils.algo import map_side_join
+    from ..functions.arguments import get_names, update, is_in_memory, get_str_from_args_kwargs
+    from ..classes.auto import Auto, AUTO
+    from ..classes.typing import ARRAY_TYPES
     from ..interfaces.iterable_interface import IterableInterface, OptionalFields, Item, JoinType
 
 Native = IterableInterface
 How = Union[JoinType, str]
-
-ARRAY_TYPES = list, tuple
 
 
 class IterableMixin(IterableInterface, ABC):
@@ -77,10 +81,10 @@ class IterableMixin(IterableInterface, ABC):
 
     def get_str_count(self, default: str = '(iter)') -> str:
         count = self.get_count()
-        if count is None:
-            return default
-        else:
+        if Auto.is_defined(count):
             return str(count)
+        else:
+            return default
 
     def is_empty(self) -> Optional[bool]:
         count = self.get_count()
@@ -99,10 +103,10 @@ class IterableMixin(IterableInterface, ABC):
     def set_items(self, items: Iterable, inplace: bool, count: Optional[int] = None) -> Optional[Native]:
         if inplace:
             self.set_data(items, inplace=True)
-            if arg.is_defined(count):
+            if Auto.is_defined(count):
                 self._set_count(count, inplace=True)
         else:
-            if arg.is_defined(count):
+            if Auto.is_defined(count):
                 return self.make_new(items, count=count)
             else:
                 return self.make_new(items)
@@ -128,8 +132,8 @@ class IterableMixin(IterableInterface, ABC):
     def get_description(self) -> str:
         return '{} items'.format(self.get_str_count())
 
-    def _get_enumerated_items(self, item_type=arg.AUTO) -> Generator:
-        if item_type == 'Any' or item_type == 'Any' or not arg.is_defined(item_type):
+    def _get_enumerated_items(self, item_type=AUTO) -> Generator:
+        if item_type == 'Any' or item_type == 'Any' or not Auto.is_defined(item_type):
             items = self.get_items()
         elif hasattr(self, 'get_items_of_type'):
             items = self.get_items_of_type(item_type)
@@ -141,7 +145,7 @@ class IterableMixin(IterableInterface, ABC):
         for n, i in enumerate(items):
             yield n, i
 
-    def _get_first_items(self, count: int = 1, item_type=arg.AUTO) -> Generator:
+    def _get_first_items(self, count: int = 1, item_type=AUTO) -> Generator:
         for n, i in self._get_enumerated_items(item_type=item_type):
             yield i
             if n + 1 >= count:
@@ -162,7 +166,7 @@ class IterableMixin(IterableInterface, ABC):
         return items
 
     def take(self, count: Union[int, bool] = 1, inplace: bool = False) -> Optional[Native]:
-        if (count and isinstance(count, bool)) or not arg.is_defined(count):  # True, None, AUTO
+        if (count and isinstance(count, bool)) or not Auto.is_defined(count):  # True, None, AUTO
             return self
         elif isinstance(count, int):
             if count > 0:
@@ -173,7 +177,7 @@ class IterableMixin(IterableInterface, ABC):
                 items = list()
             result_count = None
             if self.is_in_memory():
-                if not arg.is_in_memory(items):
+                if not is_in_memory(items):
                     items = list(items)
                 if self._has_count_attribute():
                     result_count = len(items)
@@ -270,7 +274,7 @@ class IterableMixin(IterableInterface, ABC):
             if old_count is not None:
                 add_count = len(items)
                 result_count = old_count + add_count
-        if self.is_in_memory() and arg.is_in_memory(items):
+        if self.is_in_memory() and is_in_memory(items):
             chain_items = list(chain_items)
         return self.set_items(chain_items, count=result_count, inplace=inplace)
 
@@ -350,15 +354,16 @@ class IterableMixin(IterableInterface, ABC):
         else:
             yield from map(function, self.get_items())
 
-    def _apply_map_inplace(self, function: Callable) -> None:
+    def _apply_map_inplace(self, function: Callable) -> Native:
         items = self.get_items()
         assert isinstance(items, list), 'expected list, got {}'.format(items)
         for k, v in enumerate(items):
             items[k] = function(v)
+        return self
 
     def map(self, function: Callable, inplace: bool = False) -> Optional[Native]:
         if inplace and isinstance(self.get_items(), list):
-            self._apply_map_inplace(function)
+            return self._apply_map_inplace(function) or self
         else:
             items = self._get_mapped_items(function, flat=False)
             return self.set_items(items, count=self.get_count(), inplace=inplace)
@@ -375,11 +380,11 @@ class IterableMixin(IterableInterface, ABC):
             right_is_uniq: bool = True,
             inplace: bool = False,
     ) -> Native:
-        key = arg.get_names(key)
-        keys = arg.update([key])
+        key = get_names(key)
+        keys = update([key])
         if not isinstance(how, JoinType):
             how = JoinType(how)
-        joined_items = algo.map_side_join(
+        joined_items = map_side_join(
             iter_left=self.get_items(),
             iter_right=right.get_items(),
             key_function=fs.composite_key(keys),
@@ -466,14 +471,13 @@ class IterableMixin(IterableInterface, ABC):
             self,
             stream_function: Union[Callable, str] = 'get_count',
             assert_not_none: bool = True,
-            *args,
-            **kwargs,
+            *args, **kwargs
     ) -> Native:
         value = self._get_property(stream_function, *args, **kwargs)
         if value is None:
             if assert_not_none:
                 template = '{}.print({}): None received'
-                msg = template.format(arg.get_str_from_args_kwargs(self, stream_function, *args, **kwargs))
+                msg = template.format(get_str_from_args_kwargs(self, stream_function, *args, **kwargs))
                 raise ValueError(msg)
             else:
                 value = str(value)

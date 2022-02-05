@@ -2,11 +2,9 @@ from abc import ABC, abstractmethod
 from typing import Optional, Iterable, Sequence, Union, Any
 
 try:  # Assume we're a submodule in a package.
-    from utils import arguments as arg
     from content.items.simple_items import Class
     from base.interfaces.data_interface import ContextualDataInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
     from ...content.items.simple_items import Class
     from ..interfaces.data_interface import ContextualDataInterface
 

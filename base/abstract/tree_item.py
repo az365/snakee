@@ -2,16 +2,16 @@ from typing import Optional, Iterable, Sequence, Union
 from inspect import isclass
 
 try:  # Assume we're a submodule in a package.
-    from utils import arguments as arg
     from content.items.simple_items import Class
+    from base.classes.auto import Auto, AUTO
     from base.interfaces.tree_interface import TreeInterface
     from base.interfaces.context_interface import ContextInterface
     from base.abstract.abstract_base import AbstractBaseObject
     from base.abstract.contextual import Contextual
     from base.abstract.contextual_data import ContextualDataWrapper
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
     from ...content.items.simple_items import Class
+    from ..classes.auto import Auto, AUTO
     from ..interfaces.tree_interface import TreeInterface
     from ..interfaces.context_interface import ContextInterface
     from .abstract_base import AbstractBaseObject
@@ -165,7 +165,7 @@ class TreeItem(ContextualDataWrapper, TreeInterface):
 
     def get_context(self) -> Parent:
         parent = self.get_parent()
-        if arg.is_defined(parent):
+        if Auto.is_defined(parent, check_name=False):
             if parent.is_context():
                 return parent
             elif hasattr(parent, 'get_context'):
@@ -258,11 +258,11 @@ class TreeItem(ContextualDataWrapper, TreeInterface):
     @classmethod
     def _assert_is_appropriate_parent(
             cls, obj,
-            msg: Union[str, arg.Auto] = arg.AUTO,
+            msg: Union[str, Auto] = AUTO,
             skip_missing: bool = False,
     ) -> None:
         if not cls._is_appropriate_parent(obj, skip_missing=skip_missing):
-            if not arg.is_defined(msg):
+            if not Auto.is_defined(msg):
                 template = '{}._assert_is_appropriate_parent({}): Expected parent as {} instance, got {}'
                 expected_class_names = [c.__name__ for c in cls.get_parent_obj_classes()]
                 msg = template.format(cls.__name__, obj, ', '.join(expected_class_names), type(obj))
@@ -271,11 +271,11 @@ class TreeItem(ContextualDataWrapper, TreeInterface):
     @classmethod
     def _assert_is_appropriate_child(
             cls, obj,
-            msg: Union[str, arg.Auto] = arg.AUTO,
+            msg: Union[str, Auto] = AUTO,
             skip_missing: bool = False,
     ) -> None:
         if not cls._is_appropriate_child(obj, skip_missing=skip_missing):
-            if not arg.is_defined(msg):
+            if not Auto.is_defined(msg):
                 template = '{}._assert_is_appropriate_child({}): Expected child as {} instance, got {}'
                 expected_class_names = [c.__name__ for c in cls.get_child_obj_classes()]
                 msg = template.format(cls.__name__, obj, ', '.join(expected_class_names), type(obj))

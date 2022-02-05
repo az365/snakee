@@ -17,13 +17,17 @@ except ImportError:
     )
 
 if np:
-    OptionalFloat = Union[float, np.ndarray, None]
-    NumericTypes = Union[int, float, np.ndarray]
-    NUMERIC_TYPES = (int, float, np.number)
+    OptionalFloat = Union[float, np.number, np.ndarray, None]
+    NumericTypes = Union[int, float, np.number, np.ndarray]
+    NUMERIC_TYPES = int, float, np.number
+    MUTABLE = list, np.ndarray
+    Mutable = Union[list, np.ndarray]
 else:
     OptionalFloat = Optional[float]
     NumericTypes = Union[int, float]
-    NUMERIC_TYPES = (int, float)
+    NUMERIC_TYPES = int, float
+    MUTABLE = list
+    Mutable = list
 
 _min = min
 _max = max
@@ -58,7 +62,7 @@ def filter_numeric(a: Iterable) -> list:
     return [i for i in a if is_numeric(i)]
 
 
-def diff(c, v, take_abs=False, default=None) -> OptionalFloat:
+def increment(c, v, take_abs=False, default=None) -> OptionalFloat:
     if c is None or v is None:
         return default
     else:
@@ -69,11 +73,26 @@ def diff(c, v, take_abs=False, default=None) -> OptionalFloat:
             return result
 
 
+def diff(v, c, take_abs=False, default=None) -> OptionalFloat:
+    return increment(c, v, take_abs=take_abs, default=default)
+
+
 def div(x: NumericTypes, y: NumericTypes, default: OptionalFloat = None) -> OptionalFloat:
     if y:
         return (x or 0) / y
     else:
         return default
+
+
+def lift(a: NumericTypes, b: NumericTypes, take_abs: bool = False, default: OptionalFloat = None) -> OptionalFloat:
+    if a is None or not b:
+        return default
+    else:
+        result = (b - a) / a
+        if take_abs:
+            return abs(result)
+        else:
+            return result
 
 
 def median(a: Iterable, ignore_import_error: bool = False, safe: bool = True) -> OptionalFloat:
@@ -151,7 +170,7 @@ def round_to(value: NumericTypes, step: NumericTypes, exclude_negative: bool = F
         raise ZeroDivisionError('{} / {}'.format(value, step))
 
 
-def is_local_extremum(x_left, x_center, x_right, local_max=True, local_min=True) -> bool:
+def is_local_extreme(x_left, x_center, x_right, local_max=True, local_min=True) -> bool:
     result = False
     if local_max:
         result = x_center > x_left and x_center >= x_right

@@ -2,14 +2,16 @@ from abc import ABC
 from typing import Union, Optional, Iterable, Any, NoReturn
 
 try:  # Assume we're a submodule in a package.
-    from utils import arguments as arg
+    from utils.arguments import get_str_from_annotation, get_str_from_args_kwargs
+    from base.classes.auto import AUTO
     from base.interfaces.context_interface import ContextInterface
     from base.interfaces.contextual_interface import ContextualInterface
     from base.interfaces.data_interface import SimpleDataInterface
     from base.abstract.named import AbstractNamed
     from base.abstract.contextual import Contextual
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
+    from ...utils.arguments import get_str_from_annotation, get_str_from_args_kwargs
+    from ..classes.auto import AUTO
     from ..interfaces.context_interface import ContextInterface
     from ..interfaces.contextual_interface import ContextualInterface
     from ..interfaces.data_interface import SimpleDataInterface
@@ -58,13 +60,13 @@ class SimpleDataWrapper(AbstractNamed, SimpleDataInterface, ABC):
             try:
                 return self.__class__(data, **meta)
             except TypeError as e:  # __init__() got an unexpected keyword argument '...'
-                self._raise_init_error(e, type(data), reset_dynamic_meta=reset_dynamic_meta, **meta)
+                self._raise_init_error(e, type(data), reset_dynamic_meta=reset_dynamic_meta, inplace=inplace, **meta)
 
     def _raise_init_error(self, msg: str, *args, **kwargs) -> NoReturn:
         class_name = self.__class__.__name__
-        annotations = arg.get_str_from_annotation(self.__class__)
+        annotations = get_str_from_annotation(self.__class__)
         ann_str = '\n(available args are: {})'.format(annotations) if annotations else ''
-        arg_str = arg.get_str_from_args_kwargs(*args, **kwargs)
+        arg_str = get_str_from_args_kwargs(*args, **kwargs)
         raise TypeError('{}: {}({}) {}'.format(msg, class_name, arg_str, ann_str))
 
     def apply_to_data(self, function, *args, dynamic=False, **kwargs):
@@ -83,7 +85,7 @@ class SimpleDataWrapper(AbstractNamed, SimpleDataInterface, ABC):
             meta.pop(f, None)
         return meta
 
-    def get_compatible_static_meta(self, other=arg.AUTO, ex=None, **kwargs) -> dict:
+    def get_compatible_static_meta(self, other=AUTO, ex=None, **kwargs) -> dict:
         meta = self.get_compatible_meta(other=other, ex=ex, **kwargs)
         for f in self._get_dynamic_meta_fields():
             meta.pop(f, None)

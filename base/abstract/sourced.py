@@ -1,15 +1,17 @@
 from abc import ABC
 from typing import Optional
 
-try:  # Assume we're a sub-module in a package.
-    from utils import arguments as arg
-    from loggers.logger_interface import LoggerInterface
+try:  # Assume we're a submodule in a package.
+    from utils.arguments import get_generated_name
+    from loggers.logger_interface import LoggerInterface, LoggingLevel
+    from base.classes.auto import Auto, AUTO
     from base.interfaces.context_interface import ContextInterface
     from base.interfaces.sourced_interface import SourcedInterface
     from base.abstract.named import AbstractNamed
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
-    from ...loggers.logger_interface import LoggerInterface
+    from ...utils.arguments import get_generated_name
+    from ...loggers.logger_interface import LoggerInterface, LoggingLevel
+    from ..classes.auto import Auto, AUTO
     from ..interfaces.context_interface import ContextInterface
     from ..interfaces.sourced_interface import SourcedInterface
     from .named import AbstractNamed
@@ -21,11 +23,11 @@ SPECIFIC_MEMBERS = ('_source', )
 
 
 class Sourced(AbstractNamed, SourcedInterface, ABC):
-    def __init__(self, name: str = arg.AUTO, source: Optional[SourcedInterface] = None, check: bool = True):
-        name = arg.acquire(name, arg.get_generated_name(self._get_default_name_prefix()))
+    def __init__(self, name: str = AUTO, source: Optional[SourcedInterface] = None, check: bool = True):
+        name = Auto.acquire(name, get_generated_name(self._get_default_name_prefix()))
         self._source = source
         super().__init__(name=name)
-        if arg.is_defined(source):
+        if Auto.is_defined(source):
             self.register(check=check)
 
     @classmethod
@@ -55,9 +57,10 @@ class Sourced(AbstractNamed, SourcedInterface, ABC):
 
     def register(self, check: bool = True) -> SourcedInterface:
         source = self.get_source()
-        assert arg.is_defined(source), 'source for register must be defined'
-        known_child = source.get_child(self.get_name())
-        if known_child:
+        assert Auto.is_defined(source, check_name=False), 'source for register must be defined'
+        name = self.get_name()
+        known_child = source.get_child(name)
+        if known_child is not None:
             if check:
                 assert known_child == self, '{} != {}'.format(
                     known_child.get_key_member_values(), self.get_key_member_values(),

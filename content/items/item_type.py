@@ -3,7 +3,7 @@ from typing import Optional, Callable, Union, Any
 try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
     from utils.decorators import deprecated_with_alternative
-    from base.enum import SubclassesType
+    from base.classes.enum import SubclassesType
     from content.fields.field_interface import FieldInterface
     from content.struct.struct_interface import StructInterface
     from content.struct.struct_row_interface import StructRowInterface
@@ -16,7 +16,7 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
     from ...utils.decorators import deprecated_with_alternative
-    from ...base.enum import SubclassesType
+    from ...base.classes.enum import SubclassesType
     from ..fields.field_interface import FieldInterface
     from ..struct.struct_interface import StructInterface
     from ..struct.struct_row_interface import StructRowInterface

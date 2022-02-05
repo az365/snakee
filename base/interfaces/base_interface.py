@@ -1,10 +1,10 @@
 from abc import ABC, abstractmethod
 from typing import Optional, Union, Iterable
 
-try:  # Assume we're a sub-module in a package.
-    from utils import arguments as arg
+try:  # Assume we're a submodule in a package.
+    from base.classes.auto import AUTO
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
+    from ..classes.auto import AUTO
 
 OptionalFields = Optional[Union[str, Iterable]]
 
@@ -36,7 +36,7 @@ class BaseInterface(ABC):
         pass
 
     @abstractmethod
-    def set_meta(self, inplace=False, **meta):
+    def set_meta(self, inplace: bool = False, **meta):
         pass
 
     @abstractmethod
@@ -44,13 +44,17 @@ class BaseInterface(ABC):
         pass
 
     @abstractmethod
-    def fill_meta(self, check=True, **meta):
+    def fill_meta(self, check: bool = True, **meta):
         pass
 
     @abstractmethod
-    def get_compatible_meta(self, other=arg.DEFAULT, ex=None, **kwargs) -> dict:
+    def get_compatible_meta(self, other=AUTO, ex: Optional[Iterable] = None, **kwargs) -> dict:
         pass
 
     @abstractmethod
     def get_str_meta(self):
+        pass
+
+    @abstractmethod
+    def make_new(self, *args, ex: OptionalFields = None, **kwargs):
         pass

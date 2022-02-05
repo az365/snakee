@@ -1,7 +1,6 @@
 from typing import Optional, Generator, Union
 
 try:  # Assume we're a submodule in a package.
-    from utils import arguments as arg
     from interfaces import (
         ConnectorInterface, ContentFormatInterface, Stream, StructInterface,
         ContentType, ConnType, StreamType,
@@ -9,7 +8,6 @@ try:  # Assume we're a submodule in a package.
     )
     from connectors.abstract.leaf_connector import LeafConnector
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
     from ...interfaces import (
         ConnectorInterface, ContentFormatInterface, Stream, StructInterface,
         ContentType, ConnType, StreamType,
@@ -147,6 +145,9 @@ class S3Object(LeafConnector):
     def to_stream(self, stream_type: Union[StreamType, str, Auto] = AUTO, **kwargs) -> Stream:
         stream_class = StreamType(stream_type).get_class()
         return stream_class(self.get_data(), **kwargs)
+
+    def get_expected_count(self) -> Optional[int]:
+        return self._count
 
     def get_count(self) -> Optional[int]:
         return None  # not available property

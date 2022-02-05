@@ -1,18 +1,14 @@
 from abc import ABC, abstractmethod
-from typing import Type, Callable, Iterable, Union, Any
+from typing import Callable, Iterable, Union, Any
 
-try:  # Assume we're a sub-module in a package.
-    from utils import arguments as arg
+try:  # Assume we're a submodule in a package.
+    from base.classes.auto import Auto, AUTO
+    from base.classes.typing import FieldName, FieldNo, FieldID, Value, Class, Array, ARRAY_TYPES
+    from base.functions.arguments import get_name
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
-
-FieldName = str
-FieldNo = int
-FieldID = Union[FieldNo, FieldName]
-Value = Any
-Class = Union[Type, Callable]
-Array = Union[list, tuple]
-ARRAY_TYPES = list, tuple
+    from ...base.classes.auto import Auto, AUTO
+    from ...base.classes.typing import FieldName, FieldNo, FieldID, Value, Class, Array, ARRAY_TYPES
+    from ...base.functions.arguments import get_name
 
 
 class SimpleRowInterface(ABC):
@@ -100,7 +96,7 @@ def get_field_value_from_record(
     if isinstance(field, Callable):
         return field(record)
     else:
-        field = arg.get_name(field)
+        field = get_name(field)
     if skip_missing:
         return record.get(field, default)
     else:

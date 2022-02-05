@@ -62,7 +62,6 @@ class Table(LeafConnector):
 
     def get_count(self, verbose: AutoBool = AUTO) -> Count:
         database = self.get_database()
-        assert isinstance(database, ct.AbstractDatabase)
         return database.select_count(self.get_name(), verbose=verbose)
 
     def get_expected_count(self, actual: bool = False) -> Optional[int]:
@@ -106,6 +105,11 @@ class Table(LeafConnector):
         if lines:
             return lines[0]
 
+    def take(self, count: Union[int, bool] = 1, inplace: bool = False) -> Stream:
+        database = self.get_database()
+        iter_lines = database.select(self.get_name(), '*', count=count, verbose=self.is_verbose())
+        return self.stream(iter_lines, count=count)
+
     def get_rows(self, verbose: AutoBool = AUTO) -> Iterable:
         database = self.get_database()
         return database.select_all(self.get_name(), verbose=verbose)
@@ -131,7 +135,7 @@ class Table(LeafConnector):
                 row_class = ItemType.StructRow.get_class()
                 items = map(lambda i: row_class(i, self.get_struct()), rows)
             elif item_type == ItemType.Record:
-                items = map(lambda r: {c: v for c, v in zip(r, self.get_columns())})
+                items = map(lambda r: {c: v for c, v in zip(r, self.get_columns())}, rows)
             elif item_type == ItemType.Line:
                 items = map(lambda r: '\t'.join([str(v) for v in r]), rows)
             else:
@@ -140,8 +144,13 @@ class Table(LeafConnector):
             logger = self.get_logger()
             if isinstance(logger, ExtendedLoggerInterface):
                 count = self._get_fast_count()
-                msg = 'Downloading {} lines from {}'.format(count, self.get_name())
-                items = logger.progress(items, name=msg, count=count, step=step, context=self.get_context())
+                if not arg.is_defined(message):
+                    message = 'Downloading count{} lines from {name}'
+                if '{}' in message:
+                    message = message.format(count, self.get_name())
+                if '{' in message:
+                    message = message.format(count=count, name=self.get_name())
+                items = logger.progress(items, name=message, count=count, step=step, context=self.get_context())
         return items
 
     def from_stream(self, stream, **kwargs):

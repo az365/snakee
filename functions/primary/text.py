@@ -1,8 +1,12 @@
-from typing import Optional, Callable, Iterable, Union, Type
-from inspect import isclass
+from typing import Optional
 import sys
 import csv
 import re
+
+try:
+    from base.functions.arguments import get_str_from_args_kwargs, get_str_from_annotation
+except ImportError:
+    from ...base.functions.arguments import get_str_from_args_kwargs, get_str_from_annotation
 
 RE_LETTERS = re.compile('[^a-zа-я ]')
 STR_FALSE_SYNONYMS = ('False', 'false', 'None', 'none', 'no', '0', '')
@@ -68,43 +72,3 @@ def is_formatter(string: str, count=None) -> bool:
 
 def str_to_bool(line: str) -> bool:
     return line not in STR_FALSE_SYNONYMS
-
-
-def get_str_from_args_kwargs(
-        *args,
-        delimiter: str = '=',
-        remove_prefixes: Optional[Iterable] = None,
-        **kwargs
-) -> str:
-    list_str_from_kwargs = list()
-    for k, v in kwargs.items():
-        if isclass(v):
-            v_str = v.__name__
-        else:
-            v_str = v.__repr__()
-        for prefix in remove_prefixes or []:
-            if v_str.startswith(prefix):
-                v_str = v_str[len(prefix):]
-        list_str_from_kwargs.append('{}{}{}'.format(k, delimiter, v_str))
-    list_str_from_args = [str(i) for i in args]
-    return ', '.join(list_str_from_args + list_str_from_kwargs)
-
-
-def get_str_from_annotation(class_or_func: Union[Callable, Type]) -> str:
-    if isclass(class_or_func):
-        func = class_or_func.__init__
-        name = class_or_func.__name__
-    elif isinstance(class_or_func, Callable):
-        func = class_or_func
-        name = class_or_func.__name__
-    elif isinstance(class_or_func, object):
-        func = class_or_func.__class__.__init__
-        name = class_or_func.__class__.__name__
-    else:
-        raise TypeError
-    if hasattr(func, '__annotations__'):
-        ann_dict = func.__annotations__
-        ann_str = get_str_from_args_kwargs(**ann_dict, delimiter=': ', remove_prefixes=['typing.'])
-    else:
-        ann_str = '*args, **kwargs'
-    return '{}({})'.format(name, ann_str)

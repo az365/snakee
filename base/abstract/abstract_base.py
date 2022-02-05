@@ -2,10 +2,12 @@ from abc import ABC
 from typing import Union, Optional, Iterable
 
 try:  # Assume we're a submodule in a package.
-    from utils import arguments as arg
+    from utils.arguments import get_list
+    from base.classes.auto import Auto, AUTO
     from base.interfaces.base_interface import BaseInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
+    from ...utils.arguments import get_list
+    from ..classes.auto import Auto, AUTO
     from ..interfaces.base_interface import BaseInterface
 
 OptionalFields = Optional[Union[str, Iterable]]
@@ -74,8 +76,8 @@ class AbstractBaseObject(BaseInterface, ABC):
         return [cls._get_meta_field_by_member_name(k) for k in cls._get_meta_member_names()]
 
     @staticmethod
-    def _get_other_meta_fields_list(other=arg.AUTO):
-        if other == arg.AUTO:
+    def _get_other_meta_fields_list(other=AUTO):
+        if other == AUTO:
             return tuple()
         elif hasattr(other, 'get_meta_fields_list'):
             other_meta = other.get_meta_fields_list()
@@ -91,7 +93,7 @@ class AbstractBaseObject(BaseInterface, ABC):
 
     def get_props(self, ex: OptionalFields = None, check: bool = True) -> dict:
         props = dict()
-        ex_list = arg.get_list(ex)
+        ex_list = get_list(ex)
         for k, v in self.__dict__.items():
             k = self._get_meta_field_by_member_name(k)
             if k in ex_list:
@@ -103,7 +105,7 @@ class AbstractBaseObject(BaseInterface, ABC):
         return props
 
     def get_meta(self, ex: OptionalFields = None) -> dict:
-        ex_list = arg.get_list(ex)
+        ex_list = get_list(ex)
         ex_list += self._get_data_fields_list()
         meta = self.get_props(ex=ex_list)
         return meta
@@ -138,14 +140,14 @@ class AbstractBaseObject(BaseInterface, ABC):
                 unsupported,
             )
         for key, value in new_meta.items():
-            if value is None or value == arg.AUTO:
+            if value is None or value == AUTO:
                 new_meta[key] = old_meta.get(key)
         return self.__class__(
             *self._get_data_member_items(),
             **new_meta
         )
 
-    def get_compatible_meta(self, other=arg.AUTO, ex=None, **kwargs) -> dict:
+    def get_compatible_meta(self, other=AUTO, ex=None, **kwargs) -> dict:
         other_meta = self._get_other_meta_fields_list(other)
         compatible_meta = dict()
         for k, v in list(self.get_meta(ex=ex).items()) + list(kwargs.items()):

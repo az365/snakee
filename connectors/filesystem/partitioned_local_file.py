@@ -4,7 +4,7 @@ try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
     from interfaces import (
         Connector, Stream,
-        FolderType, ConnType, ContentType, StreamType,
+        FolderType, ConnType, StreamType, ContentType, ContentFormatInterface,
         AUTO, Auto, AutoName, AutoBool, AutoContext, OptionalFields,
     )
     from connectors.abstract.hierarchic_connector import HierarchicConnector
@@ -17,7 +17,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils import arguments as arg
     from ...interfaces import (
         Connector, Stream,
-        FolderType, ConnType, ContentType, StreamType,
+        FolderType, ConnType, StreamType, ContentType, ContentFormatInterface,
         AUTO, Auto, AutoName, AutoBool, AutoContext, OptionalFields,
     )
     from ..abstract.hierarchic_connector import HierarchicConnector
@@ -80,8 +80,8 @@ class PartitionedLocalFile(LocalMask, LocalFile):
     def file(
             self,
             suffix: Union[Suffix, arg.Auto],
-            content_format: Union[ContentType, Auto] = AUTO,
-            filetype: Union[ContentType, Auto] = AUTO,  # deprecated argument
+            content_format: Union[ContentType, ContentFormatInterface, Auto] = AUTO,
+            filetype: Union[ContentType, ContentFormatInterface, Auto] = AUTO,  # deprecated argument
             **kwargs
     ) -> Connector:
         acquired_suffix = arg.acquire(suffix, self.get_suffix())
