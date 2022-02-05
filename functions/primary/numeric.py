@@ -17,13 +17,17 @@ except ImportError:
     )
 
 if np:
-    OptionalFloat = Union[float, np.ndarray, None]
-    NumericTypes = Union[int, float, np.ndarray]
-    NUMERIC_TYPES = (int, float, np.number)
+    OptionalFloat = Union[float, np.number, np.ndarray, None]
+    NumericTypes = Union[int, float, np.number, np.ndarray]
+    NUMERIC_TYPES = int, float, np.number
+    MUTABLE = list, np.ndarray
+    Mutable = Union[list, np.ndarray]
 else:
     OptionalFloat = Optional[float]
     NumericTypes = Union[int, float]
-    NUMERIC_TYPES = (int, float)
+    NUMERIC_TYPES = int, float
+    MUTABLE = list
+    Mutable = list
 
 _min = min
 _max = max
