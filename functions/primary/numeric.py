@@ -58,7 +58,7 @@ def filter_numeric(a: Iterable) -> list:
     return [i for i in a if is_numeric(i)]
 
 
-def diff(c, v, take_abs=False, default=None) -> OptionalFloat:
+def increment(c, v, take_abs=False, default=None) -> OptionalFloat:
     if c is None or v is None:
         return default
     else:
@@ -67,6 +67,10 @@ def diff(c, v, take_abs=False, default=None) -> OptionalFloat:
             return abs(result)
         else:
             return result
+
+
+def diff(v, c, take_abs=False, default=None) -> OptionalFloat:
+    return increment(c, v, take_abs=take_abs, default=default)
 
 
 def div(x: NumericTypes, y: NumericTypes, default: OptionalFloat = None) -> OptionalFloat:
@@ -162,7 +166,7 @@ def round_to(value: NumericTypes, step: NumericTypes, exclude_negative: bool = F
         raise ZeroDivisionError('{} / {}'.format(value, step))
 
 
-def is_local_extremum(x_left, x_center, x_right, local_max=True, local_min=True) -> bool:
+def is_local_extreme(x_left, x_center, x_right, local_max=True, local_min=True) -> bool:
     result = False
     if local_max:
         result = x_center > x_left and x_center >= x_right

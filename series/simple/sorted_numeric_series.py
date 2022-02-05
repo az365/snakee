@@ -76,8 +76,8 @@ class SortedNumericSeries(SortedSeries, NumericSeries, SortedNumericSeriesInterf
             return result
 
     def distance_for_value(self, value: NumericValue, take_abs: bool = True, inplace: bool = False) -> Native:
-        distance_func = self.get_distance_func()
-        distance_series = self.value_series().map(lambda d: distance_func(value, d, take_abs), inplace=inplace)
+        distance_func = self.get_distance_func(value, take_abs=take_abs)
+        distance_series = self.value_series().map(distance_func, inplace=inplace)
         series_class = SeriesType.SortedNumericKeyValueSeries.get_class()
         result = series_class(self.get_values(), distance_series)
         if inplace:

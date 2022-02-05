@@ -1,7 +1,8 @@
 from typing import Optional, Callable, Iterable, Generator, Any
 
 try:  # Assume we're a submodule in a package.
-    from functions.primary import numeric as nm
+    from functions.primary.numeric import plot
+    from functions.secondary import numeric_functions as fs
     from series.series_type import SeriesType
     from series.interfaces.numeric_series_interface import (
         NumericSeriesInterface,
@@ -10,7 +11,8 @@ try:  # Assume we're a submodule in a package.
     )
     from series.simple.any_series import AnySeries
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...functions.primary import numeric as nm
+    from ...functions.primary.numeric import plot
+    from ...functions.secondary import numeric_functions as fs
     from ..series_type import SeriesType
     from ..interfaces.numeric_series_interface import (
         NumericSeriesInterface,
@@ -24,7 +26,7 @@ Native = NumericSeriesInterface
 DEFAULT_NUMERIC = True
 
 
-class NumericSeries(AnySeries):
+class NumericSeries(AnySeries, NumericSeriesInterface):
     def __init__(
             self,
             values: Optional[Iterable] = None,
@@ -38,7 +40,8 @@ class NumericSeries(AnySeries):
         return SeriesType.NumericSeries
 
     @staticmethod
-    def get_distance_func() -> Callable:
+    def get_distance_func(constant=None, take_abs: bool = False, default=None) -> Callable:
+        return fs.increment(constant, take_abs=take_abs, default=default)
         return nm.diff
 
     def get_errors(self) -> Generator:
@@ -76,7 +79,7 @@ class NumericSeries(AnySeries):
 
     def divide(self, series: Native, default: OptNumeric = None, extend: bool = False, inplace: bool = False) -> Native:
         result = self.map_optionally_extend_zip_values(
-            lambda x, y: (x / y) if y else default,
+            fs.div(default=default),
             extend,
             series,
             inplace=inplace,
@@ -85,7 +88,7 @@ class NumericSeries(AnySeries):
 
     def subtract(self, series: Native, default: Any = None, extend: bool = False, inplace: bool = False) -> Native:
         result = self.map_optionally_extend_zip_values(
-            lambda x, y: x - y if x is not None and y is not None else default,
+            fs.diff(default=default),
             extend,
             series,
             inplace=inplace,
@@ -146,8 +149,10 @@ class NumericSeries(AnySeries):
         return self._assume_native(result) or self
 
     def mark_local_extremes(self, local_min: bool = True, local_max: bool = True, inplace: bool = False) -> Native:
+        win_len = len(WINDOW_DEFAULT)
+        assert win_len == 3, 'is_local_extreme() function accept only 3 numeric arguments, got {}'.format(win_len)
         return self.apply_window_func(
-            lambda a: nm.is_local_extremum(*a, local_min=local_min, local_max=local_max),
+            fs.is_local_extreme(local_min=local_min, local_max=local_max),
             window=WINDOW_DEFAULT,
             extend=True,
             default=False,
@@ -252,7 +257,7 @@ class NumericSeries(AnySeries):
         return spikes
 
     def plot(self, fmt: str = '-') -> None:
-        nm.plot(self.get_range_numbers(), self.get_values(), fmt=fmt)
+        plot(self.get_range_numbers(), self.get_values(), fmt=fmt)
 
     @staticmethod
     def _assume_native(series) -> Native:

@@ -5,7 +5,10 @@ try:  # Assume we're a submodule in a package.
         apply_dict, acquire,
     )
     from functions.secondary.cast_functions import DICT_CAST_TYPES, cast, date, number, percent
-    from functions.secondary.numeric_functions import sign, round_to, diff, div, mult, sqrt
+    from functions.secondary.numeric_functions import (
+        sign, round_to, is_local_extreme,
+        increment, diff, div, mult, sqrt,
+    )
     from functions.secondary.date_functions import int_to_date, date_to_int, round_date, next_date, date_range
     from functions.secondary.array_functions import (
         is_in, not_in,
@@ -30,7 +33,10 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         apply_dict, acquire,
     )
     from .cast_functions import DICT_CAST_TYPES, cast, date, number, percent
-    from .numeric_functions import sign, round_to, diff, div, mult, sqrt
+    from .numeric_functions import (
+        sign, round_to, is_local_extreme,
+        increment, diff, div, mult, sqrt,
+    )
     from .date_functions import int_to_date, date_to_int, round_date, next_date, date_range
     from .array_functions import (
         is_in, not_in,
