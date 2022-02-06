@@ -142,15 +142,3 @@ class AdvancedField(AbstractField):
 
     def drop(self):
         return ce.DropDescription([self], target_item_type=ItemType.Auto)
-
-    def __add__(self, other: Union[AbstractField, StructInterface, str]) -> StructInterface:
-        if isinstance(other, str):
-            return fc.FlatStruct([self, AdvancedField(other)])
-        elif isinstance(other, AbstractField):
-            return fc.FlatStruct([self, other])
-        elif isinstance(other, ARRAY_TYPES):
-            return fc.FlatStruct([self] + list(other))
-        elif isinstance(other, StructInterface):
-            return other.append_field(self, before=True, inplace=False)
-        else:
-            raise TypeError('Expected other as field or struct, got {} as {}'.format(other, type(other)))
