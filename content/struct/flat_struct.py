@@ -591,4 +591,4 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
             raise TypeError('Expected other as field or struct, got {} as {}'.format(other, type(other)))
 
 
-FieldGroup = FlatStruct
+AdvancedField.set_struct_builder(FlatStruct)

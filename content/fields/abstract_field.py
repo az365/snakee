@@ -6,13 +6,11 @@ try:  # Assume we're a submodule in a package.
     from base.functions.arguments import get_name, get_value
     from base.abstract.simple_data import SimpleDataWrapper
     from interfaces import FieldInterface, StructInterface, FieldType, DialectType, ARRAY_TYPES
-    from content.struct import flat_struct as fc
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.classes.auto import Auto, AUTO
     from ...base.functions.arguments import get_name, get_value
     from ...base.abstract.simple_data import SimpleDataWrapper
     from ...interfaces import FieldInterface, StructInterface, FieldType, DialectType, ARRAY_TYPES
-    from ..struct import flat_struct as fc
 
 
 class AbstractField(SimpleDataWrapper, FieldInterface, ABC):
@@ -49,6 +47,17 @@ class AbstractField(SimpleDataWrapper, FieldInterface, ABC):
     def get_converter(self, source: DialectType, target: DialectType) -> Callable:
         return self.get_type().get_converter(source, target)
 
+    @classmethod
+    def set_struct_builder(cls, struct_builder: Callable):
+        cls._struct_builder = struct_builder
+
+    @classmethod
+    def get_struct_builder(cls, default: Callable = list) -> Callable:
+        if cls._struct_builder:
+            return cls._struct_builder
+        else:
+            return default
+
     def __repr__(self):
         return '{}: {}'.format(self.get_name(), self.get_type_name())
 
@@ -56,12 +65,14 @@ class AbstractField(SimpleDataWrapper, FieldInterface, ABC):
         return self.get_name()
 
     def __add__(self, other: Union[FieldInterface, StructInterface, str]) -> StructInterface:
+        struct_builder = self.get_struct_builder()
+        field_builder = self.__class__
         if isinstance(other, str):
-            return fc.FlatStruct([self, self.__class__(other)])
+            return struct_builder([self, field_builder(other)])
         elif isinstance(other, AbstractField):
-            return fc.FlatStruct([self, other])
+            return struct_builder([self, other])
         elif isinstance(other, ARRAY_TYPES):
-            return fc.FlatStruct([self] + list(other))
+            return struct_builder([self] + list(other))
         elif isinstance(other, StructInterface):
             struct = other.append_field(self, before=True, inplace=False)
             assert isinstance(struct, StructInterface), struct
