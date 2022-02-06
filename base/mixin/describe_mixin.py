@@ -35,6 +35,22 @@ class DescribeMixin(AppropriateInterface, ABC):
     def get_brief_repr(self) -> str:
         return "{}('{}')".format(self.__class__.__name__, self.get_name())
 
+    def get_str_count(self, default: str = '(iter)') -> str:
+        if hasattr(self, 'get_count'):
+            count = self.get_count()
+        else:
+            count = None
+        if Auto.is_defined(count):
+            return str(count)
+        else:
+            return default
+
+    def get_count_repr(self, default: str = '<iter>') -> str:
+        count = self.get_str_count()
+        if not Auto.is_defined(count):
+            count = default
+        return '{} items'.format(count)
+
     def get_shape_repr(self) -> str:
         len_repr = self.get_count_repr()
         if hasattr(self, 'get_column_repr'):

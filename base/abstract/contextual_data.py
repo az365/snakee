@@ -2,7 +2,7 @@ from abc import ABC
 from typing import Union, Optional, Iterable, Any
 
 try:  # Assume we're a submodule in a package.
-    from utils import arguments as arg
+    from base.classes.auto import AUTO, Auto
     from base.interfaces.context_interface import ContextInterface
     from base.interfaces.contextual_interface import ContextualInterface
     from base.interfaces.data_interface import ContextualDataInterface
@@ -10,7 +10,7 @@ try:  # Assume we're a submodule in a package.
     from base.abstract.simple_data import SimpleDataWrapper
     from base.abstract.contextual import Contextual
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
+    from ..classes.auto import AUTO, Auto
     from ..interfaces.context_interface import ContextInterface
     from ..interfaces.contextual_interface import ContextualInterface
     from ..interfaces.data_interface import ContextualDataInterface
@@ -70,8 +70,24 @@ class ContextualDataWrapper(Contextual, ContextualDataInterface, ABC):
             meta.pop(f, None)
         return meta
 
-    def get_compatible_static_meta(self, other=arg.AUTO, ex=None, **kwargs) -> dict:
+    def get_compatible_static_meta(self, other=AUTO, ex=None, **kwargs) -> dict:
         meta = self.get_compatible_meta(other=other, ex=ex, **kwargs)
         for f in self._get_dynamic_meta_fields():
             meta.pop(f, None)
         return meta
+
+    def get_str_count(self, default: str = '(iter)') -> str:
+        if hasattr(self, 'get_count'):
+            count = self.get_count()
+        else:
+            count = None
+        if Auto.is_defined(count):
+            return str(count)
+        else:
+            return default
+
+    def get_count_repr(self, default: str = '<iter>') -> str:
+        count = self.get_str_count()
+        if not Auto.is_defined(count):
+            count = default
+        return '{} items'.format(count)
