@@ -7,6 +7,15 @@ try:  # Assume we're a submodule in a package.
         FieldName, FieldNo, FieldID, Name, Value, Class,
         AutoName, AutoCount, AutoBool, AutoColumns,
     )
+except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
+    from .base.classes.auto import Auto, AUTO
+    from .base.classes.typing import (
+        ARRAY_TYPES, Array, Count, Columns, OptionalFields, Options, Message,
+        FieldName, FieldNo, FieldID, Name, Value, Class,
+        AutoName, AutoCOunt, AutoBool, AutoColumns,
+    )
+
+try:  # Assume we're a submodule in a package.
     from base.interfaces.base_interface import BaseInterface  # ROOT
     from base.interfaces.sourced_interface import SourcedInterface  # inherits Base[Interface]
     from base.interfaces.data_interface import SimpleDataInterface  # inherits Base[Interface]
@@ -31,6 +40,7 @@ try:  # Assume we're a submodule in a package.
     from base.interfaces.contextual_interface import ContextualInterface  # inherits Sourced; uses Base, Context
     from base.interfaces.data_interface import ContextualDataInterface  # inherits SimpleData, Contextual
     from base.interfaces.tree_interface import TreeInterface  # inherits ContextualData
+    from content.representations.repr_interface import RepresentationInterface
     from content.fields.field_interface import FieldInterface  # inherits SimpleData
     from loggers.extended_logger_interface import LoggerInterface  # ROOT
     from loggers.extended_logger_interface import ExtendedLoggerInterface  # inherits Sourced, Logger; uses Base
@@ -48,12 +58,6 @@ try:  # Assume we're a submodule in a package.
         SimpleRowInterface, SimpleRow, Row, Record, Line, SimpleItem, SimpleSelectableItem,
     )
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from .base.classes.auto import Auto, AUTO
-    from .base.classes.typing import (
-        ARRAY_TYPES, Array, Count, Columns, OptionalFields, Options, Message,
-        FieldName, FieldNo, FieldID, Name, Value, Class,
-        AutoName, AutoCOunt, AutoBool, AutoColumns,
-    )
     from .base.interfaces.base_interface import BaseInterface  # ROOT
     from .base.interfaces.sourced_interface import SourcedInterface  # inherits Base[Interface]
     from .base.interfaces.data_interface import SimpleDataInterface  # inherits Base[Interface]
@@ -78,6 +82,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .base.interfaces.contextual_interface import ContextualInterface  # inherits Sourced; uses Base, Context
     from .base.interfaces.data_interface import ContextualDataInterface  # inherits SimpleData, Contextual
     from .base.interfaces.tree_interface import TreeInterface  # inherits ContextualData
+    from .content.representations.repr_interface import RepresentationInterface
     from .content.fields.field_interface import FieldInterface  # inherits SimpleData
     from .loggers.extended_logger_interface import LoggerInterface  # ROOT
     from .loggers.extended_logger_interface import ExtendedLoggerInterface  # inherits Sourced, Logger; uses Base
@@ -100,12 +105,13 @@ try:  # Assume we're a submodule in a package.
     from loggers.extended_logger_interface import LoggingLevel  # standard Enum
     from loggers.progress_interface import OperationStatus  # standard Enum
     from connectors.databases.dialect_type import DialectType  # inherits DynamicEnum
-    from content.format.content_type import ContentType  # inherits ClassType(DynamicEnum)
     from connectors.filesystem.folder_type import FolderType  # inherits ClassType(DynamicEnum)
     from connectors.conn_type import ConnType  # inherits ClassType(DynamicEnum)
-    from streams.stream_type import StreamType  # inherits ClassType(DynamicEnum)
+    from content.format.content_type import ContentType  # inherits ClassType(DynamicEnum)
+    from content.representations.repr_type import ReprType  # inherits ClassType(DynamicEnum)
     from content.fields.field_type import FieldType  # inherits DynamicEnum
     from content.items.item_type import ItemType  # inherits SubclassesType(ClassType)
+    from streams.stream_type import StreamType  # inherits ClassType(DynamicEnum)
     from series.series_type import SeriesType  # inherits ClassType(DynamicEnum)
     from series.interpolation_type import InterpolationType  # inherits DynamicEnum
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -113,12 +119,13 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .loggers.extended_logger_interface import LoggingLevel  # standard Enum
     from .loggers.progress_interface import OperationStatus  # standard Enum
     from .connectors.databases.dialect_type import DialectType  # inherits DynamicEnum
-    from .content.format.content_type import ContentType  # inherits ClassType(DynamicEnum)
     from .connectors.filesystem.folder_type import FolderType  # inherits ClassType(DynamicEnum)
     from .connectors.conn_type import ConnType  # inherits ClassType(DynamicEnum)
-    from .streams.stream_type import StreamType  # inherits ClassType(DynamicEnum)
+    from .content.format.content_type import ContentType  # inherits ClassType(DynamicEnum)
+    from .content.representations.repr_type import ReprType  # inherits ClassType(DynamicEnum)
     from .content.fields.field_type import FieldType  # inherits DynamicEnum
     from .content.items.item_type import ItemType  # inherits SubclassesType(ClassType)
+    from .streams.stream_type import StreamType  # inherits ClassType(DynamicEnum)
     from .series.series_type import SeriesType  # inherits ClassType(DynamicEnum)
     from .series.interpolation_type import InterpolationType  # inherits DynamicEnum
 
