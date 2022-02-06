@@ -39,5 +39,8 @@ class AbstractNamed(AbstractBaseObject, ABC):
     def _get_meta_member_names(cls) -> list:
         return cls._get_key_member_names()
 
-    def __repr__(self):
+    def get_brief_repr(self) -> str:
         return "{}('{}')".format(self.__class__.__name__, self.get_name())
+
+    def __repr__(self):
+        return self.get_brief_repr()

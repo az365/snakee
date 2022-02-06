@@ -32,6 +32,9 @@ class AppropriateInterface(ABC):
 
 
 class DescribeMixin(AppropriateInterface, ABC):
+    def get_brief_repr(self) -> str:
+        return "{}('{}')".format(self.__class__.__name__, self.get_name())
+
     def get_shape_repr(self) -> str:
         len_repr = self.get_count_repr()
         if hasattr(self, 'get_column_repr'):
