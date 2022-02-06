@@ -52,7 +52,11 @@ class BaseInterface(ABC):
         pass
 
     @abstractmethod
-    def get_str_meta(self):
+    def get_str_meta(self) -> str:
+        pass
+
+    @abstractmethod
+    def get_detailed_repr(self) -> str:
         pass
 
     @abstractmethod
