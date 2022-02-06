@@ -1,13 +1,15 @@
 from typing import Optional, Callable, Iterable, Generator, Union
 
 try:  # Assume we're a submodule in a package.
-    from utils import arguments as arg, selection as sf
+    from base.classes.auto import Auto, AUTO
+    from base.functions.arguments import get_name, get_names
+    from utils import selection as sf
     from utils.decorators import deprecated_with_alternative
     from utils.external import pd, DataFrame, get_use_objects_for_output
     from interfaces import (
         LoggerInterface, StreamInterface, FieldInterface, StructInterface, StructRowInterface,
         LoggingLevel, StreamType, FieldType, ItemType, JoinType, How,
-        Field, FieldName, FieldNo, UniKey, Item, Row, ROW_SUBCLASSES,
+        Field, Name, FieldName, FieldNo, UniKey, Item, Row, ROW_SUBCLASSES,
         AUTO, Auto, AutoBool, Source, Context, TmpFiles, Count, Columns, AutoColumns, Array, ARRAY_TYPES,
     )
     from loggers.fallback_logger import FallbackLogger
@@ -17,15 +19,16 @@ try:  # Assume we're a submodule in a package.
     from content.struct.flat_struct import FlatStruct
     from content.struct.struct_mixin import StructMixin
     from content.struct.struct_row import StructRow
-    from content.struct.legacy_classes import get_validation_errors as get_legacy_validation_errors
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg, selection as sf
+    from ...base.classes.auto import Auto, AUTO
+    from ...base.functions.arguments import get_name, get_names
+    from ...utils import selection as sf
     from ...utils.decorators import deprecated_with_alternative
     from ...utils.external import pd, DataFrame, get_use_objects_for_output
     from ...interfaces import (
         LoggerInterface, StreamInterface, FieldInterface, StructInterface, StructRowInterface,
         LoggingLevel, StreamType, FieldType, ItemType, JoinType, How,
-        Field, FieldName, FieldNo, UniKey, Item, Row, ROW_SUBCLASSES,
+        Field, Name, FieldName, FieldNo, UniKey, Item, Row, ROW_SUBCLASSES,
         AUTO, Auto, AutoBool, Source, Context, TmpFiles, Count, Columns, AutoColumns, Array, ARRAY_TYPES,
     )
     from ...loggers.fallback_logger import FallbackLogger
@@ -35,7 +38,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...content.struct.flat_struct import FlatStruct
     from ...content.struct.struct_mixin import StructMixin
     from ...content.struct.struct_row import StructRow
-    from ...content.struct.legacy_classes import get_validation_errors as get_legacy_validation_errors
 
 Native = Union[StreamInterface, StructRowInterface]
 Struct = StructInterface
@@ -43,6 +45,7 @@ OptStruct = Union[Struct, Iterable, None]
 
 DYNAMIC_META_FIELDS = ('count', 'struct')
 NAME_POS, TYPE_POS, HINT_POS = 0, 1, 2  # old style struct fields
+DICT_CAST_TYPES = dict(bool=bool, int=int, float=float, str=str, text=str, date=str)
 DEFAULT_EXAMPLE_COUNT = 10
 
 
@@ -70,6 +73,31 @@ def is_valid(row: Row, struct: OptStruct) -> bool:
             return True
         elif struct is None:
             return True
+
+
+# deprecated
+def get_legacy_validation_errors(row: Iterable, struct: Union[StructInterface, Iterable], default_type=str):
+    if isinstance(struct, StructInterface) or hasattr(struct, 'get_fields_descriptions'):
+        iter_struct = struct.get_fields_descriptions()
+    else:
+        assert isinstance(struct, Iterable)
+        iter_struct = struct
+    validation_errors = list()
+    names = list()
+    types = list()
+    for description in iter_struct:
+        field_name = description[NAME_POS]
+        field_type = description[TYPE_POS]
+        names.append(field_name)
+        if field_type not in DICT_CAST_TYPES.values():
+            field_type = DICT_CAST_TYPES.get(field_type, default_type)
+        types.append(field_type)
+    for value, field_name, field_type in zip(row, names, types):
+        if not isinstance(value, field_type):
+            template = 'Field {}: type {} expected, got {} (value={})'
+            msg = template.format(field_name, field_type, type(value), value)
+            validation_errors.append(msg)
+    return validation_errors
 
 
 def get_validation_errors(row: Row, struct: OptStruct) -> list:
@@ -137,9 +165,9 @@ def apply_struct_to_row(row, struct: OptStruct, skip_bad_values=False, logger=No
 class StructStream(sm.RowStream, StructMixin, sm.ConvertMixin):
     def __init__(
             self,
-            data,
+            data: Iterable,
             struct: OptStruct = None,
-            name=arg.DEFAULT, check=True,
+            name: Union[Name, Auto] = AUTO, check: bool = True,
             count: Count = None, less_than: Count = None,
             source: Source = None, context: Context = None,
             max_items_in_memory: Count = AUTO,
@@ -170,20 +198,20 @@ class StructStream(sm.RowStream, StructMixin, sm.ConvertMixin):
             func = field
         elif isinstance(field, sn.AbstractDescription) or hasattr(field, 'get_functions'):
             func = field.get_function()
-        else:  # isinstance(field, Field):
+        else:  # isinstance(field, Field)
             if isinstance(field, FieldNo):  # int
                 field_no = field
-            else:
-                if isinstance(field, FieldName):
+            else:  # isinstance(field, (FieldName, FieldInterface))
+                if isinstance(field, FieldName):  # str
                     field_name = field
-                else:  # if isinstance(field, FieldInterface):
-                    field_name = arg.get_name(field)
+                else:  # isinstance(field, FieldInterface)
+                    field_name = get_name(field)
                 field_no = self.get_field_position(field_name)
             func = fs.partial(lambda r, n: r[n], field_no)
         return func
 
     def _get_key_function(self, descriptions: Array, take_hash: bool = False) -> Callable:
-        descriptions = arg.get_names(descriptions, or_callable=True)
+        descriptions = get_names(descriptions, or_callable=True)
         if len(descriptions) == 0:
             raise ValueError('key must be defined')
         elif len(descriptions) == 1:
@@ -214,8 +242,8 @@ class StructStream(sm.RowStream, StructMixin, sm.ConvertMixin):
         validation_errors = get_validation_errors(item, struct=self.get_struct())
         return not validation_errors
 
-    def _get_validated_items(self, items, struct=arg.DEFAULT, skip_errors=False, context=arg.NOT_USED):
-        if struct == arg.DEFAULT:
+    def _get_validated_items(self, items, struct=AUTO, skip_errors=False, context=None):
+        if struct == AUTO:
             struct = self.get_struct()
         return check_rows(items, struct, skip_errors)
 
@@ -231,8 +259,8 @@ class StructStream(sm.RowStream, StructMixin, sm.ConvertMixin):
                 struct=struct,
             )
 
-    def get_struct_rows(self, rows, struct=arg.AUTO, skip_bad_rows=False, skip_bad_values=False, verbose=True):
-        struct = arg.undefault(struct, self.get_struct())
+    def get_struct_rows(self, rows, struct=AUTO, skip_bad_rows=False, skip_bad_values=False, verbose=True):
+        struct = Auto.delayed_acquire(struct, self.get_struct)
         if isinstance(struct, StructInterface):  # actual approach
             converters = struct.get_converters('str', 'py')
             for r in rows:
@@ -267,7 +295,7 @@ class StructStream(sm.RowStream, StructMixin, sm.ConvertMixin):
             return [c[0] for c in struct]
 
     def get_items(self, item_type: Union[ItemType, Auto] = AUTO) -> Iterable:
-        if arg.is_defined(item_type):
+        if Auto.is_defined(item_type):
             return self.get_items_of_type(item_type)
         else:
             return self.get_stream_data()
@@ -311,7 +339,7 @@ class StructStream(sm.RowStream, StructMixin, sm.ConvertMixin):
 
     def select(self, *args, **kwargs):
         selection_description = sn.SelectionDescription.with_expressions(
-            fields=arg.get_names(args, or_callable=True), expressions=kwargs,
+            fields=get_names(args, or_callable=True), expressions=kwargs,
             input_item_type=self.get_item_type(), target_item_type=self.get_item_type(),
             input_struct=self.get_struct(),
             logger=self.get_logger(), selection_logger=self.get_selection_logger(),
@@ -351,15 +379,15 @@ class StructStream(sm.RowStream, StructMixin, sm.ConvertMixin):
             output_struct = FlatStruct([])
             for f in list(keys) + list(values):
                 if isinstance(f, ARRAY_TYPES):
-                    field_name = arg.get_name(f[0])
+                    field_name = get_name(f[0])
                 else:
-                    field_name = arg.get_name(f)
+                    field_name = get_name(f)
                 if f in values:
                     field_type = FieldType.Tuple
                 elif isinstance(f, FieldInterface) or hasattr(f, 'get_type'):
                     field_type = f.get_type()
                 else:
-                    field_type = arg.AUTO
+                    field_type = AUTO
                 output_struct.append_field(field_name, field_type)
             return super().sorted_group_by(*keys, values=values, as_pairs=False, output_struct=output_struct)
 
@@ -391,7 +419,7 @@ class StructStream(sm.RowStream, StructMixin, sm.ConvertMixin):
                 raise TypeError(msg.format(r, type(r)))
 
     def get_records(self, columns: AutoColumns = AUTO) -> Generator:
-        if arg.is_defined(columns):
+        if Auto.is_defined(columns):
             available_columns = self.get_columns()
             for r in self.get_rows():
                 yield {k: v for k, v in zip(available_columns, r) if k in columns}
@@ -408,7 +436,7 @@ class StructStream(sm.RowStream, StructMixin, sm.ConvertMixin):
             filters: Columns = None, columns: Columns = None,
             as_dataframe: AutoBool = AUTO,
     ) -> Union[DataFrame, list, None]:
-        as_dataframe = arg.delayed_acquire(as_dataframe, get_use_objects_for_output)
+        as_dataframe = Auto.delayed_acquire(as_dataframe, get_use_objects_for_output)
         sm_sample = self.filter(*filters) if filters else self
         sm_sample = sm_sample.to_record_stream()
         if as_dataframe and hasattr(sm_sample, 'get_dataframe'):
