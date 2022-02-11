@@ -12,7 +12,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .base.classes.typing import (
         ARRAY_TYPES, Array, Count, Columns, OptionalFields, Options, Message,
         FieldName, FieldNo, FieldID, Name, Value, Class,
-        AutoName, AutoCOunt, AutoBool, AutoColumns,
+        AutoName, AutoCount, AutoBool, AutoColumns,
     )
 
 try:  # Assume we're a submodule in a package.

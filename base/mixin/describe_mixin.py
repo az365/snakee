@@ -12,30 +12,14 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 
 Native = SimpleDataInterface
 
-
-class AppropriateInterface(ABC):
-    @abstractmethod
-    def get_name(self) -> str:
-        pass
-
-    @abstractmethod
-    def get_count(self) -> AutoCount:
-        pass
-
-    @abstractmethod
-    def is_empty(self) -> Optional[bool]:
-        pass
-
-    @abstractmethod
-    def actualize(self, if_outdated: bool = True) -> Native:
-        pass
+DEFAULT_SHOW_COUNT = 10
 
 
-class DescribeMixin(AppropriateInterface, ABC):
+class DescribeMixin(ABC):
     def get_brief_repr(self) -> str:
         return "{}('{}')".format(self.__class__.__name__, self.get_name())
 
-    def get_str_count(self, default: str = '(iter)') -> str:
+    def get_str_count(self, default: Optional[str] = '(iter)') -> Optional[str]:
         if hasattr(self, 'get_count'):
             count = self.get_count()
         else:
@@ -46,7 +30,7 @@ class DescribeMixin(AppropriateInterface, ABC):
             return default
 
     def get_count_repr(self, default: str = '<iter>') -> str:
-        count = self.get_str_count()
+        count = self.get_str_count(default=default)
         if not Auto.is_defined(count):
             count = default
         return '{} items'.format(count)
@@ -69,7 +53,7 @@ class DescribeMixin(AppropriateInterface, ABC):
         name = self.get_name()
         if name:
             description_args.append(name)
-        if self.get_count() is not None:
+        if self.get_str_count(default=None) is not None:
             description_args.append(self.get_shape_repr())
         return '{}({})'.format(self.__class__, get_str_from_args_kwargs(*description_args))
 
@@ -78,7 +62,7 @@ class DescribeMixin(AppropriateInterface, ABC):
 
     def show(
             self,
-            count: int = 10,
+            count: int = DEFAULT_SHOW_COUNT,
             message: Optional[str] = None,
             filters: Columns = None,
             columns: Columns = None,
@@ -86,18 +70,20 @@ class DescribeMixin(AppropriateInterface, ABC):
             as_dataframe: AutoBool = Auto,
             **kwargs
     ):
-        if Auto.is_auto(actualize):
-            self.actualize(if_outdated=True)
-        elif actualize:
-            self.actualize(if_outdated=False)
+        if hasattr(self, 'actualize'):
+            if Auto.is_auto(actualize):
+                self.actualize(if_outdated=True)
+            elif actualize:
+                self.actualize(if_outdated=False)
         return self.to_record_stream(message=message).show(
             count=count, as_dataframe=as_dataframe,
             filters=filters or list(), columns=columns,
         )
 
     def describe(
-            self, *filter_args,
-            count: Optional[int] = 10,
+            self,
+            *filter_args,
+            count: Optional[int] = DEFAULT_SHOW_COUNT,
             columns: Optional[Array] = None,
             show_header: bool = True,
             struct_as_dataframe: bool = False,
