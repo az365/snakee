@@ -1,20 +1,21 @@
-from typing import Union, Optional
+from typing import Optional, Union, NoReturn
 from datetime import date, timedelta, datetime
 
 try:  # Assume we're a submodule in a package.
-    from utils import arguments as arg
-    from utils.decorators import deprecated_with_alternative
     from base.classes.enum import DynamicEnum
+    from base.classes.typing import AUTO, Auto, AutoBool
+    from base.functions.arguments import get_str_from_args_kwargs
+    from utils.decorators import deprecated_with_alternative
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
-    from ...utils.decorators import deprecated_with_alternative
     from ...base.classes.enum import DynamicEnum
+    from ...base.classes.typing import AUTO, Auto, AutoBool
+    from ...base.functions.arguments import get_str_from_args_kwargs
+    from ...utils.decorators import deprecated_with_alternative
 
 PyDate = date
 IsoDate = str
 GostDate = str
 Date = Union[PyDate, IsoDate, GostDate]
-AutoBool = Union[bool, arg.Auto]
 
 DAYS_IN_YEAR = 365
 MONTHS_IN_YEAR = 12
@@ -34,16 +35,16 @@ class DateScale(DynamicEnum):
     Year = 'year'
 
     @classmethod
-    def get_err_msg(cls, scale: Union[str, DynamicEnum] = '{}', available_scales=arg.AUTO):
-        list_available_scales = arg.delayed_acquire(available_scales, cls.get_enum_items)
-        if arg.is_defined(list_available_scales):
+    def get_err_msg(cls, scale: Union[str, DynamicEnum] = '{}', available_scales=AUTO):
+        list_available_scales = Auto.delayed_acquire(available_scales, cls.get_enum_items)
+        if Auto.is_defined(list_available_scales):
             str_available_scales = ' or '.join(map(str, list_available_scales))
         else:
             str_available_scales = '{}'
         return 'Expected time-scale {}, got {}'.format(str_available_scales, scale)
 
     @classmethod
-    def convert(cls, scale, default=arg.AUTO, skip_missing=False):
+    def convert(cls, scale, default=AUTO, skip_missing=False):
         if isinstance(scale, str):
             if scale.startswith('d'):  # daily, day, days
                 return DateScale.Day
@@ -116,7 +117,7 @@ def to_gost_format(d: Date) -> GostDate:
     return '{:02}.{:02}.{:04}'.format(d.day, d.month, d.year)
 
 
-def raise_date_type_error(d):
+def raise_date_type_error(d) -> NoReturn:
     raise TypeError('Argument must be date in iso-format as str or python date (got {})'.format(type(d)))
 
 
@@ -168,8 +169,8 @@ def get_month_from_date(d: Date) -> int:
     return d.month
 
 
-def get_month_first_date(d: Date, as_iso_date: AutoBool = arg.AUTO) -> Date:
-    as_iso_date = arg.delayed_acquire(as_iso_date, is_iso_date, d)
+def get_month_first_date(d: Date, as_iso_date: AutoBool = AUTO) -> Date:
+    as_iso_date = Auto.delayed_acquire(as_iso_date, is_iso_date, d)
     if as_iso_date:
         if not is_iso_date(d):
             d = to_date(as_iso_date=True)
@@ -180,16 +181,16 @@ def get_month_first_date(d: Date, as_iso_date: AutoBool = arg.AUTO) -> Date:
         return PyDate(d.year, d.month, 1)
 
 
-def get_monday_date(d: Date, as_iso_date: AutoBool = arg.AUTO) -> Date:
+def get_monday_date(d: Date, as_iso_date: AutoBool = AUTO) -> Date:
     cur_date = get_date(d)
-    if not arg.is_defined(as_iso_date):
+    if not Auto.is_defined(as_iso_date):
         as_iso_date = is_iso_date(d)
     monday_date = cur_date + timedelta(days=-cur_date.weekday())
     return to_date(monday_date, as_iso_date)
 
 
 def get_year_first_date(d: [Date, int], as_iso_date: AutoBool = True) -> Date:
-    as_iso_date = arg.delayed_acquire(as_iso_date, is_iso_date, d)
+    as_iso_date = Auto.delayed_acquire(as_iso_date, is_iso_date, d)
     if isinstance(d, int):
         if d > 1900:
             return get_date_from_year(d, as_iso_date=as_iso_date)
@@ -205,7 +206,7 @@ def get_year_first_date(d: [Date, int], as_iso_date: AutoBool = True) -> Date:
 
 
 def get_year_start_monday(year: Union[int, Date], as_iso_date: AutoBool = True) -> Date:
-    as_iso_date = arg.delayed_acquire(as_iso_date, is_iso_date, year)
+    as_iso_date = Auto.delayed_acquire(as_iso_date, is_iso_date, year)
     if isinstance(year, int):
         year_start_date = PyDate(year=year, month=1, day=1)
     else:
@@ -214,9 +215,9 @@ def get_year_start_monday(year: Union[int, Date], as_iso_date: AutoBool = True) 
     return to_date(year_start_monday, as_iso_date)
 
 
-def get_rounded_date(d: Date, scale: DateScale, as_iso_date: AutoBool = arg.AUTO) -> Date:
+def get_rounded_date(d: Date, scale: DateScale, as_iso_date: AutoBool = AUTO) -> Date:
     scale = DateScale.convert(scale)
-    as_iso_date = arg.delayed_acquire(as_iso_date, is_iso_date, d)
+    as_iso_date = Auto.delayed_acquire(as_iso_date, is_iso_date, d)
     if scale == DateScale.Day:
         return to_date(d, as_iso_date=as_iso_date)
     elif scale == DateScale.Week:
@@ -366,11 +367,11 @@ def get_dates_range(date_min: Date, date_max: Date, scale: DateScale, step: int 
     elif scale == DateScale.Week:
         return get_weeks_range(date_min, date_max, step=step, *args, **kwargs)
     elif scale == DateScale.Month:
-        assert not (args or kwargs), arg.get_str_from_args_kwargs(*args, **kwargs)
+        assert not (args or kwargs), get_str_from_args_kwargs(*args, **kwargs)
         return get_months_range(date_min, date_max, step=step)
     elif scale == DateScale.Year:
-        assert not (args or kwargs), arg.get_str_from_args_kwargs(*args, **kwargs)
-        return get_years_range(date_min, date_max, step=1)
+        assert not (args or kwargs), get_str_from_args_kwargs(*args, **kwargs)
+        return get_years_range(date_min, date_max, step=step)
     else:
         raise ValueError(DateScale.get_err_msg(scale))
 
@@ -448,8 +449,8 @@ def get_year_and_week_from_date(d: Date) -> tuple:
     return year, week
 
 
-def get_day_abs_from_date(d: Date, min_date: Union[Date, arg.Auto] = arg.AUTO) -> int:
-    min_date = arg.delayed_acquire(min_date, get_year_start_monday, get_min_year())
+def get_day_abs_from_date(d: Date, min_date: Union[Date, Auto] = AUTO) -> int:
+    min_date = Auto.delayed_acquire(min_date, get_year_start_monday, get_min_year())
     return get_days_between(min_date, d)
 
 
@@ -467,16 +468,16 @@ def get_year_abs_from_date(d: Date) -> int:
 
 def get_week_abs_from_year_and_week(
         year: int, week: int,
-        min_year: Union[int, arg.Auto] = arg.AUTO,
+        min_year: Union[int, Auto] = AUTO,
 ) -> int:
-    min_year = arg.acquire(min_year, get_min_year())
+    min_year = Auto.acquire(min_year, get_min_year())
     week_abs = (year - min_year) * WEEKS_IN_YEAR + week
     return week_abs
 
 
 def get_week_abs_from_date(
         d: Date,
-        min_year: Union[int, arg.Auto] = arg.AUTO,
+        min_year: Union[int, Auto] = AUTO,
         decimal: bool = False,
 ) -> int:
     year, week = get_year_and_week_from_date(d)
@@ -491,16 +492,16 @@ def get_week_no_from_date(d: Date) -> int:
     return week_no
 
 
-def get_year_and_week_from_week_abs(week_abs: int, min_year: Union[int, arg.Auto] = arg.AUTO) -> tuple:
-    min_year = arg.acquire(min_year, _min_year)
+def get_year_and_week_from_week_abs(week_abs: int, min_year: Union[int, Auto] = AUTO) -> tuple:
+    min_year = Auto.acquire(min_year, _min_year)
     delta_year = int(week_abs / WEEKS_IN_YEAR)
     year = min_year + delta_year
     week = week_abs - delta_year * WEEKS_IN_YEAR
     return year, week
 
 
-def get_year_from_week_abs(week_abs: int, min_year: Union[int, arg.Auto] = arg.AUTO) -> int:
-    min_year = arg.acquire(min_year, _min_year)
+def get_year_from_week_abs(week_abs: int, min_year: Union[int, Auto] = AUTO) -> int:
+    min_year = Auto.acquire(min_year, _min_year)
     delta_year = int(week_abs / WEEKS_IN_YEAR)
     return min_year + delta_year
 
@@ -556,17 +557,17 @@ def get_date_from_numeric(numeric: int, from_scale: Union[DateScale, str] = Date
 
 def get_date_from_day_abs(
         day_abs: int,
-        min_date: Union[Date, arg.Auto] = arg.AUTO,
+        min_date: Union[Date, Auto] = AUTO,
         as_iso_date: bool = True,
 ) -> Date:
-    min_date = arg.delayed_acquire(min_date, get_year_start_monday, get_min_year(), as_iso_date=as_iso_date)
+    min_date = Auto.delayed_acquire(min_date, get_year_start_monday, get_min_year(), as_iso_date=as_iso_date)
     cur_date = get_shifted_date(min_date, days=day_abs)
     return cur_date
 
 
 def get_date_from_week_abs(
         week_abs: int,
-        min_year: Union[int, arg.Auto] = arg.AUTO,
+        min_year: Union[int, Auto] = AUTO,
         as_iso_date: bool = True,
 ) -> Date:
     year, week = get_year_and_week_from_week_abs(week_abs, min_year=min_year)
@@ -576,10 +577,10 @@ def get_date_from_week_abs(
 
 def get_date_from_month_abs(
         month_abs: int,
-        min_date: Union[Date, arg.Auto] = arg.AUTO,
+        min_date: Union[Date, Auto] = AUTO,
         as_iso_date: bool = True,
 ) -> Date:
-    if arg.is_defined(min_date):
+    if Auto.is_defined(min_date):
         min_year = get_year_from_date(min_date)
     else:
         min_year = get_min_year()
@@ -633,8 +634,16 @@ def get_formatted_datetime(dt: datetime) -> str:
     return dt.isoformat()[:16].replace('T', ' ')
 
 
-def get_current_time_str():
-    return get_formatted_datetime(datetime.now())
+def get_current_datetime():
+    return datetime.now()
+
+
+def get_current_timestamp() -> float:
+    return get_current_datetime().timestamp()
+
+
+def get_current_time_str() -> str:
+    return get_formatted_datetime(get_current_datetime())
 
 
 def get_str_from_timedelta(td: timedelta) -> str:
