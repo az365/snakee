@@ -86,6 +86,47 @@ class LocalFile(LeafConnector, ActualizeMixin):
     def get_children(self) -> dict:
         return self._data
 
+    def get_slow_lines_count(self, verbose: AutoBool = AUTO) -> int:
+        count = 0
+        for _ in self.get_lines(message='Slow counting lines in {}...', allow_reopen=True, verbose=verbose):
+            count += 1
+        self.set_count(count)
+        return count
+
+    def get_fast_lines_count(self, ending: Union[str, Auto] = AUTO, verbose: AutoBool = AUTO) -> int:
+        if self.is_gzip():
+            raise ValueError('get_fast_lines_count() method is not available for gzip-files')
+        if not Auto.is_defined(ending):
+            if hasattr(self, 'get_content_format'):
+                ending = self.get_content_format().get_ending()
+            else:
+                ending = '\n'
+        verbose = Auto.acquire(verbose, self.is_verbose())
+        self.log('Counting lines in {}...'.format(self.get_name()), end='\r', verbose=verbose)
+        count_n_symbol = sum(chunk.count(ending) for chunk in self.get_chunks())
+        count_lines = count_n_symbol + 1
+        self.set_count(count_lines)
+        return count_lines
+
+    def get_actual_lines_count(self, allow_reopen: bool = True, allow_slow_gzip: bool = True) -> Optional[int]:
+        if self.is_opened():
+            if allow_reopen:
+                self.close()
+            else:
+                raise ValueError('File is already opened: {}'.format(self))
+        self.open(allow_reopen=allow_reopen)
+        if self.is_gzip():
+            if allow_slow_gzip:
+                count = self.get_slow_lines_count()
+            else:
+                count = None
+        else:
+            count = self.get_fast_lines_count()
+        self.close()
+        if count is not None:
+            self.log('Detected {} lines in {}.'.format(count, self.get_name()), end='\r')
+        return count
+
     def get_fileholder(self):
         return self._fileholder
 

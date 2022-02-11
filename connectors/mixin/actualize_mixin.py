@@ -1,21 +1,21 @@
 from abc import ABC, abstractmethod
 from typing import Optional, Iterable, Union
 
-try:  # Assume we're a sub-module in a package.
-    from utils import arguments as arg
-    from utils.decorators import deprecated_with_alternative
+try:  # Assume we're a submodule in a package.
     from interfaces import (
         LeafConnectorInterface, StructInterface, Stream, RecordStream, ItemType,
         AUTO, Auto, AutoCount, AutoBool, Columns, Array,
     )
+    from base.mixin.describe_mixin import DescribeMixin
+    from base.functions.arguments import get_str_from_args_kwargs
     from functions.primary import dates as dt
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
-    from ...utils.decorators import deprecated_with_alternative
     from ...interfaces import (
         LeafConnectorInterface, StructInterface, Stream, RecordStream, ItemType,
         AUTO, Auto, AutoCount, AutoBool, Columns, Array,
     )
+    from ...base.mixin.describe_mixin import DescribeMixin
+    from ...base.functions.arguments import get_str_from_args_kwargs
     from ...functions.primary import dates as dt
 
 Native = LeafConnectorInterface
@@ -26,7 +26,7 @@ COUNT_ITEMS_TO_LOG_COLLECT_OPERATION = 500000
 
 class AppropriateInterface(LeafConnectorInterface, ABC):
     @abstractmethod
-    def get_modification_timestamp(self, reset: bool = True) -> float:
+    def get_modification_timestamp(self, reset: bool = True) -> Optional[float]:
         pass
 
     @abstractmethod
@@ -34,11 +34,11 @@ class AppropriateInterface(LeafConnectorInterface, ABC):
         pass
 
     @abstractmethod
-    def set_prev_modification_timestamp(self, timestamp: float):
+    def set_prev_modification_timestamp(self, timestamp: float) -> Native:
         pass
 
     @abstractmethod
-    def get_expected_count(self) -> Union[int, arg.Auto, None]:
+    def get_actual_lines_count(self, allow_reopen: bool = True, allow_slow_gzip: bool = True) -> AutoCount:
         pass
 
     @abstractmethod
@@ -85,6 +85,7 @@ class AppropriateInterface(LeafConnectorInterface, ABC):
 
     @abstractmethod
     def get_initial_struct(self) -> StructInterface:
+        """Returns initial expected struct from connector settings."""
         pass
 
     @abstractmethod
@@ -108,10 +109,6 @@ class ActualizeMixin(AppropriateInterface, ABC):
     def is_outdated(self) -> bool:
         return not self.is_actual()
 
-    @deprecated_with_alternative('is_outdated()')
-    def is_changed_by_another(self) -> bool:
-        return self.is_outdated()
-
     def is_actual(self) -> bool:
         return self.get_modification_timestamp() == self.get_prev_modification_timestamp()
 
@@ -127,8 +124,8 @@ class ActualizeMixin(AppropriateInterface, ABC):
         return dt.get_formatted_datetime(timestamp)
 
     def reset_modification_timestamp(self, timestamp: Union[float, Auto, None] = AUTO) -> Native:
-        timestamp = arg.acquire(timestamp, self.get_modification_timestamp(reset=False))
-        return self.set_prev_modification_timestamp(timestamp)
+        timestamp = Auto.acquire(timestamp, self.get_modification_timestamp(reset=False))
+        return self.set_prev_modification_timestamp(timestamp) or self
 
     def get_file_age_str(self):
         timestamp = self.get_modification_timestamp()
@@ -149,64 +146,27 @@ class ActualizeMixin(AppropriateInterface, ABC):
         else:
             return dt.get_current_time_str()
 
+    @staticmethod
+    def _get_current_timestamp() -> float:
+        return dt.get_current_timestamp()
+
     def get_prev_lines_count(self) -> Optional[AutoCount]:
         return self.get_expected_count()
 
-    def get_slow_lines_count(self, verbose: AutoBool = AUTO) -> int:
-        count = 0
-        for _ in self.get_lines(message='Slow counting lines in {}...', allow_reopen=True, verbose=verbose):
-            count += 1
-        self.set_count(count)
-        return count
-
-    def get_fast_lines_count(self, ending: Union[str, Auto] = AUTO, verbose: AutoBool = AUTO) -> int:
-        if self.is_gzip():
-            raise ValueError('get_fast_lines_count() method is not available for gzip-files')
-        if not arg.is_defined(ending):
-            if hasattr(self, 'get_content_format'):
-                ending = self.get_content_format().get_ending()
-            else:
-                ending = '\n'
-        verbose = arg.acquire(verbose, self.is_verbose())
-        self.log('Counting lines in {}...'.format(self.get_name()), end='\r', verbose=verbose)
-        count_n_symbol = sum(chunk.count(ending) for chunk in self.get_chunks())
-        count_lines = count_n_symbol + 1
-        self.set_count(count_lines)
-        return count_lines
-
-    def get_actual_lines_count(self, allow_reopen: bool = True, allow_slow_gzip: bool = True) -> Optional[int]:
-        if self.is_opened():
-            if allow_reopen:
-                self.close()
-            else:
-                raise ValueError('File is already opened: {}'.format(self))
-        self.open(allow_reopen=allow_reopen)
-        if self.is_gzip():
-            if allow_slow_gzip:
-                count = self.get_slow_lines_count()
-            else:
-                count = None
-        else:
-            count = self.get_fast_lines_count()
-        self.close()
-        if count is not None:
-            self.log('Detected {} lines in {}.'.format(count, self.get_name()), end='\r')
-        return count
-
     def get_count(self, allow_reopen: bool = True, allow_slow_gzip: bool = True, force: bool = False) -> Optional[int]:
-        must_recount = force or self.is_outdated() or not arg.is_defined(self.get_prev_lines_count())
+        must_recount = force or self.is_outdated() or not Auto.is_defined(self.get_prev_lines_count())
         if self.is_existing() and must_recount:
             count = self.get_actual_lines_count(allow_reopen=allow_reopen, allow_slow_gzip=allow_slow_gzip)
             self.set_count(count)
         else:
             count = self.get_prev_lines_count()
-        if arg.is_defined(count):
+        if Auto.is_defined(count):
             return count
 
     def validate_fields(self, initial: bool = True) -> Native:
         if initial:
             expected_struct = self.get_initial_struct()
-            if arg.is_defined(expected_struct):
+            if Auto.is_defined(expected_struct):
                 expected_struct = expected_struct.copy()
             else:
                 expected_struct = self.get_detected_struct_by_title_row(set_struct=True, verbose=True)
@@ -301,7 +261,7 @@ class ActualizeMixin(AppropriateInterface, ABC):
         if filters:
             stream_example = stream_example.filter(*filters or [], **filter_kwargs)
         item_example = stream_example.get_one_item()
-        str_filters = arg.get_str_from_args_kwargs(*filters, **filter_kwargs)
+        str_filters = get_str_from_args_kwargs(*filters, **filter_kwargs)
         if item_example:
             if str_filters:
                 message = 'Example with filters: {}'.format(str_filters)
@@ -334,7 +294,7 @@ class ActualizeMixin(AppropriateInterface, ABC):
             columns: Optional[Array] = None,
             comment: str = '',
     ):
-        if not arg.is_defined(example):
+        if not Auto.is_defined(example):
             example = self.to_record_stream()
         stream_example = example.take(count).collect()
         if comment:
@@ -383,7 +343,7 @@ class ActualizeMixin(AppropriateInterface, ABC):
                 self.log(line)
         example_item, example_stream, example_comment = dict(), None, ''
         if self.is_existing():
-            if arg.acquire(actualize, not self.is_actual()):
+            if Auto.acquire(actualize, not self.is_actual()):
                 self.actualize()
             if self.is_empty():
                 message = '[EMPTY] file is empty, expected {} columns:'.format(self.get_column_count())
@@ -396,7 +356,7 @@ class ActualizeMixin(AppropriateInterface, ABC):
         if show_header:
             self.log('{} {}'.format(self.get_datetime_str(), message))
             if self.get_invalid_fields_count():
-                self.log('Invalid columns: {}'.format(arg.get_str_from_args_kwargs(*self.get_invalid_columns())))
+                self.log('Invalid columns: {}'.format(get_str_from_args_kwargs(*self.get_invalid_columns())))
             self.log('')
         struct = self.get_struct()
         struct_dataframe = struct.describe(
