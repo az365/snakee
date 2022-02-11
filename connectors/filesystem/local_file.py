@@ -86,20 +86,6 @@ class LocalFile(LeafConnector, ActualizeMixin):
     def get_children(self) -> dict:
         return self._data
 
-    def get_prev_modification_timestamp(self) -> Optional[float]:
-        return self._modification_ts
-
-    def set_prev_modification_timestamp(self, timestamp: float) -> Native:
-        self._modification_ts = timestamp
-        return self
-
-    def get_expected_count(self) -> Union[int, arg.Auto, None]:
-        return self._count
-
-    def set_count(self, count: int) -> Native:
-        self._count = count
-        return self
-
     def get_fileholder(self):
         return self._fileholder
 

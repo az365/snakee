@@ -2,21 +2,19 @@ from abc import ABC
 from typing import Optional, Union
 
 try:  # Assume we're a submodule in a package.
-    from utils import arguments as arg
     from interfaces import (
-        ConnectorInterface, LeafConnectorInterface, Context, Stream,
-        ContentFormatInterface, ContentType,
-        AUTO, Auto, AutoBool, AutoCount, AutoConnector, AutoContext, Name, StructInterface,
+        ConnectorInterface, LeafConnectorInterface, StructInterface,
+        ContentFormatInterface, ContentType, Context, Stream, Name,
+        AUTO, Auto, AutoBool, AutoCount, AutoConnector, AutoContext,
     )
     from connectors.abstract.abstract_connector import AbstractConnector
     from connectors.mixin.connector_format_mixin import ConnectorFormatMixin
     from connectors.mixin.streamable_mixin import StreamableMixin
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
     from ...interfaces import (
-        ConnectorInterface, LeafConnectorInterface, Context, Stream,
-        ContentFormatInterface, ContentType,
-        AUTO, Auto, AutoBool, AutoCount, AutoConnector, AutoContext, Name, StructInterface,
+        ConnectorInterface, LeafConnectorInterface, StructInterface,
+        ContentFormatInterface, ContentType, Context, Stream, Name,
+        AUTO, Auto, AutoBool, AutoCount, AutoConnector, AutoContext,
     )
     from .abstract_connector import AbstractConnector
     from ..mixin.connector_format_mixin import ConnectorFormatMixin
@@ -51,8 +49,8 @@ class LeafConnector(AbstractConnector, ConnectorFormatMixin, StreamableMixin, Le
         self._count = expected_count
         self._caption = caption
         super().__init__(name=name, parent=parent, context=context, children=streams, verbose=verbose)
-        content_format = arg.delayed_acquire(content_format, self._get_detected_format_by_name, name, **kwargs)
-        suit_classes = ContentType, ContentFormatInterface
+        content_format = Auto.delayed_acquire(content_format, self._get_detected_format_by_name, name, **kwargs)
+        suit_classes = ContentType, ContentFormatInterface, str
         is_deprecated_class = hasattr(content_format, 'get_value') and not isinstance(content_format, suit_classes)
         if is_deprecated_class:
             msg = 'LeafConnector({}, {}): content_format as {} is deprecated, use ContentType or ContentFormat instead'
@@ -67,7 +65,7 @@ class LeafConnector(AbstractConnector, ConnectorFormatMixin, StreamableMixin, Le
             content_format.set_inplace(**kwargs)
         else:
             if kwargs:
-                msg = 'LeafConnector: kwargs allowed for ContentType only, nor for{}, got kwargs={}'
+                msg = 'LeafConnector: kwargs allowed for ContentType only, not for {}, got kwargs={}'
                 raise ValueError(msg.format(content_format, kwargs))
         assert isinstance(content_format, ContentFormatInterface), 'Expect ContentFormat, got {}'.format(content_format)
         self.set_content_format(content_format, inplace=True)
@@ -75,7 +73,7 @@ class LeafConnector(AbstractConnector, ConnectorFormatMixin, StreamableMixin, Le
         if struct is not None:
             if struct == AUTO:
                 struct = self._get_detected_struct(use_declared_types=False)
-            if arg.is_defined(struct, check_name=False):
+            if Auto.is_defined(struct, check_name=False):
                 self.set_struct(struct, inplace=True)
 
     @classmethod
@@ -116,7 +114,7 @@ class LeafConnector(AbstractConnector, ConnectorFormatMixin, StreamableMixin, Le
 
     def get_content_format(self) -> ContentFormatInterface:
         detected_format = self.get_detected_format(detect=False)
-        if arg.is_defined(detected_format):
+        if Auto.is_defined(detected_format):
             return detected_format
         else:
             return self.get_declared_format()
@@ -130,7 +128,7 @@ class LeafConnector(AbstractConnector, ConnectorFormatMixin, StreamableMixin, Le
             force: bool = False,
             skip_missing: bool = True,
     ) -> ContentFormatInterface:
-        if force or (detect and not arg.is_defined(self._detected_format)):
+        if force or (detect and not Auto.is_defined(self._detected_format)):
             self.reset_detected_format(use_declared_types=True, skip_missing=skip_missing)
         return self._detected_format
 
@@ -174,6 +172,20 @@ class LeafConnector(AbstractConnector, ConnectorFormatMixin, StreamableMixin, Le
             declared_format.set_first_line_title(first_line_is_title)
         if hasattr(detected_format, 'set_first_line_title'):
             detected_format.set_first_line_title(first_line_is_title)
+        return self
+
+    def get_prev_modification_timestamp(self) -> Optional[float]:
+        return self._modification_ts
+
+    def set_prev_modification_timestamp(self, timestamp: float) -> Native:
+        self._modification_ts = timestamp
+        return self
+
+    def get_expected_count(self) -> Union[int, Auto, None]:
+        return self._count
+
+    def set_count(self, count: int) -> Native:
+        self._count = count
         return self
 
     def get_links(self) -> dict:

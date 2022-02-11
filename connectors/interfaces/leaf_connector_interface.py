@@ -2,11 +2,13 @@ from abc import ABC, abstractmethod
 from typing import Optional, Union
 
 try:  # Assume we're a submodule in a package.
+    from base.classes.typing import AutoCount
     from streams.interfaces.abstract_stream_interface import StreamInterface
     from content.format.content_type import ContentType
     from content.format.format_interface import ContentFormatInterface
     from connectors.interfaces.connector_interface import ConnectorInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
+    from ...base.classes.typing import AutoCount
     from ...streams.interfaces.abstract_stream_interface import StreamInterface
     from ...content.format.content_type import ContentType
     from ...content.format.format_interface import ContentFormatInterface
@@ -74,9 +76,24 @@ class LeafConnectorInterface(ConnectorInterface, StreamInterface, ABC):
         pass
 
     @abstractmethod
+    def get_prev_modification_timestamp(self) -> Optional[float]:
+        pass
+
+    @abstractmethod
+    def set_prev_modification_timestamp(self, timestamp: float) -> Native:
+        pass
+
+    @abstractmethod
     def is_existing(self) -> bool:
-        """Checks that file is existing in filesystem.
+        """Checks that file/table is existing in storage/filesystem.
         """
+        pass
+
+    @abstractmethod
+    def get_expected_count(self) -> AutoCount:
+        pass
+
+    def set_count(self, count: int) -> Native:
         pass
 
     @abstractmethod
