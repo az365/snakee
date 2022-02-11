@@ -230,6 +230,15 @@ def get_rounded_date(d: Date, scale: DateScale, as_iso_date: AutoBool = AUTO) ->
         raise ValueError(DateScale.get_err_msg(scale))
 
 
+def get_days_in_month(month_no: int) -> int:
+    if month_no == 2:
+        return 28
+    elif month_no in (2, 4, 6, 9, 11):
+        return 30
+    else:
+        return 31
+
+
 def get_next_year_date(d: Date, step: int = 1, round_to_monday: bool = False) -> Date:
     is_iso_format = is_iso_date(d)
     if is_iso_format:
@@ -258,7 +267,14 @@ def get_next_month_date(d: Date, step: int = 1, round_to_month: bool = False) ->
     while month < 0:
         month += MONTHS_IN_YEAR
         year -= 1
-    dt = date(year=year, month=month, day=1 if round_to_month else dt.day)
+    if round_to_month:
+        day = 1
+    else:
+        day = dt.day
+        days_in_month = get_days_in_month(month)
+        if day > days_in_month:
+            day = days_in_month
+    dt = date(year=year, month=month, day=day)
     return to_date(dt, is_iso_format)
 
 
