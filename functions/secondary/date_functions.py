@@ -1,10 +1,10 @@
 from typing import Callable, Union
 
-try:  # Assume we're a sub-module in a package.
-    from utils import arguments as arg
+try:  # Assume we're a submodule in a package.
+    from base.classes.typing import AUTO, Auto, AutoBool
     from functions.primary import dates as dt
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
+    from ...base.classes.typing import AUTO, Auto, AutoBool
     from ..primary import dates as dt
 
 Scale = Union[dt.DateScale, str]
@@ -12,7 +12,7 @@ Scale = Union[dt.DateScale, str]
 
 def date(as_iso_date: bool = True) -> Callable:
     def func(value):
-        return dt.to_date(value, as_iso_date=as_iso_date)
+        return dt.get_date(value, as_iso_date=as_iso_date)
     return func
 
 
@@ -28,7 +28,7 @@ def int_between(scale: Scale, rounded: bool = True, take_abs: bool = True) -> Ca
     return lambda a, b: dt.get_int_between(a, b, scale=scale, rounded=rounded, take_abs=take_abs)
 
 
-def round_date(scale: Scale, as_iso_date: Union[bool, arg.Auto] = arg.AUTO) -> Callable:
+def round_date(scale: Scale, as_iso_date: AutoBool = AUTO) -> Callable:
     return lambda d: dt.get_rounded_date(d, scale=scale, as_iso_date=as_iso_date)
 
 
