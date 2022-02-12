@@ -105,7 +105,7 @@ class LeafConnector(AbstractConnector, ConnectorFormatMixin, StreamableMixin, Le
         content_format = self.get_content_format()
         if isinstance(content_format, ContentFormatInterface) and hasattr(content_format, 'is_first_line_title'):
             if content_format.is_first_line_title():
-                struct = self.get_detected_struct_by_title_row(
+                struct = self.get_struct_from_source(
                     set_struct=set_struct,
                     use_declared_types=use_declared_types,
                     verbose=verbose,
@@ -143,7 +143,7 @@ class LeafConnector(AbstractConnector, ConnectorFormatMixin, StreamableMixin, Le
     def reset_detected_format(self, use_declared_types: bool = True, skip_missing: bool = False) -> Native:
         if self.is_existing():
             content_format = self.get_declared_format().copy()
-            detected_struct = self.get_detected_struct_by_title_row(
+            detected_struct = self.get_struct_from_source(
                 set_struct=False,
                 use_declared_types=use_declared_types,
             )

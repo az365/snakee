@@ -30,19 +30,7 @@ class AppropriateInterface(LeafConnectorInterface, ABC):
         pass
 
     @abstractmethod
-    def get_prev_modification_timestamp(self) -> Optional[float]:
-        pass
-
-    @abstractmethod
-    def set_prev_modification_timestamp(self, timestamp: float) -> Native:
-        pass
-
-    @abstractmethod
     def get_actual_lines_count(self, allow_reopen: bool = True, allow_slow_mode: bool = True) -> AutoCount:
-        pass
-
-    @abstractmethod
-    def set_count(self, count: int):
         pass
 
     @abstractmethod
@@ -55,10 +43,6 @@ class AppropriateInterface(LeafConnectorInterface, ABC):
 
     @abstractmethod
     def open(self, allow_reopen: bool):
-        pass
-
-    @abstractmethod
-    def close(self) -> int:
         pass
 
     @abstractmethod
@@ -86,10 +70,6 @@ class AppropriateInterface(LeafConnectorInterface, ABC):
     @abstractmethod
     def get_initial_struct(self) -> StructInterface:
         """Returns initial expected struct from connector settings."""
-        pass
-
-    @abstractmethod
-    def get_detected_struct_by_title_row(self, set_struct: bool, verbose: bool) -> StructInterface:
         pass
 
     @abstractmethod
@@ -169,10 +149,10 @@ class ActualizeMixin(AppropriateInterface, ABC):
             if Auto.is_defined(expected_struct):
                 expected_struct = expected_struct.copy()
             else:
-                expected_struct = self.get_detected_struct_by_title_row(set_struct=True, verbose=True)
+                expected_struct = self.get_struct_from_source(set_struct=True, verbose=True)
         else:
             expected_struct = self.get_struct()
-        actual_struct = self.get_detected_struct_by_title_row(set_struct=False, verbose=False)
+        actual_struct = self.get_struct_from_source(set_struct=False, verbose=False)
         actual_struct = self._get_native_struct(actual_struct)
         validated_struct = actual_struct.validate_about(expected_struct)
         self.set_struct(validated_struct, inplace=True)
