@@ -38,7 +38,7 @@ class AppropriateInterface(LeafConnectorInterface, ABC):
         pass
 
     @abstractmethod
-    def get_actual_lines_count(self, allow_reopen: bool = True, allow_slow_gzip: bool = True) -> AutoCount:
+    def get_actual_lines_count(self, allow_reopen: bool = True, allow_slow_mode: bool = True) -> AutoCount:
         pass
 
     @abstractmethod
@@ -153,10 +153,10 @@ class ActualizeMixin(AppropriateInterface, ABC):
     def get_prev_lines_count(self) -> Optional[AutoCount]:
         return self.get_expected_count()
 
-    def get_count(self, allow_reopen: bool = True, allow_slow_gzip: bool = True, force: bool = False) -> Optional[int]:
+    def get_count(self, allow_reopen: bool = True, allow_slow_mode: bool = True, force: bool = False) -> Optional[int]:
         must_recount = force or self.is_outdated() or not Auto.is_defined(self.get_prev_lines_count())
         if self.is_existing() and must_recount:
-            count = self.get_actual_lines_count(allow_reopen=allow_reopen, allow_slow_gzip=allow_slow_gzip)
+            count = self.get_actual_lines_count(allow_reopen=allow_reopen, allow_slow_mode=allow_slow_mode)
             self.set_count(count)
         else:
             count = self.get_prev_lines_count()
@@ -199,7 +199,7 @@ class ActualizeMixin(AppropriateInterface, ABC):
 
     def get_validation_message(self) -> str:
         self.validate_fields()
-        row_count = self.get_count(allow_slow_gzip=False)
+        row_count = self.get_count(allow_slow_mode=False)
         column_count = self.get_column_count()
         error_count = self.get_invalid_fields_count()
         if self.is_valid_struct():
@@ -214,7 +214,7 @@ class ActualizeMixin(AppropriateInterface, ABC):
 
     def get_str_description(self) -> str:
         if self.is_existing():
-            rows_count = self.get_count(allow_slow_gzip=False)
+            rows_count = self.get_count(allow_slow_mode=False)
             if rows_count:
                 cols_count = self.get_column_count() or 0
                 invalid_count = self.get_invalid_fields_count() or 0
@@ -233,7 +233,7 @@ class ActualizeMixin(AppropriateInterface, ABC):
     def has_title(self) -> bool:
         if self.is_first_line_title():
             if self.is_existing():
-                return bool(self.get_count(allow_slow_gzip=False))
+                return bool(self.get_count(allow_slow_mode=False))
         return False
 
     def get_useful_props(self) -> dict:
@@ -244,7 +244,7 @@ class ActualizeMixin(AppropriateInterface, ABC):
                 has_title=self.is_first_line_title(),
                 is_opened=self.is_opened(),
                 is_empty=self.is_empty(),
-                count=self.get_count(allow_slow_gzip=False),
+                count=self.get_count(allow_slow_mode=False),
                 path=self.get_path(),
             )
         else:

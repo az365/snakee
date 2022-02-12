@@ -108,7 +108,7 @@ class LocalFile(LeafConnector, ActualizeMixin):
         self.set_count(count_lines)
         return count_lines
 
-    def get_actual_lines_count(self, allow_reopen: bool = True, allow_slow_gzip: bool = True) -> Optional[int]:
+    def get_actual_lines_count(self, allow_reopen: bool = True, allow_slow_mode: bool = True) -> Optional[int]:
         if self.is_opened():
             if allow_reopen:
                 self.close()
@@ -116,7 +116,7 @@ class LocalFile(LeafConnector, ActualizeMixin):
                 raise ValueError('File is already opened: {}'.format(self))
         self.open(allow_reopen=allow_reopen)
         if self.is_gzip():
-            if allow_slow_gzip:
+            if allow_slow_mode:
                 count = self.get_slow_lines_count()
             else:
                 count = None
@@ -236,7 +236,7 @@ class LocalFile(LeafConnector, ActualizeMixin):
         return os.path.exists(self.get_path())
 
     def is_empty(self) -> bool:
-        count = self.get_count(allow_slow_gzip=False) or 0
+        count = self.get_count(allow_slow_mode=False) or 0
         return count <= 0
 
     def has_data(self) -> bool:
@@ -314,7 +314,7 @@ class LocalFile(LeafConnector, ActualizeMixin):
             logger = self.get_logger()
             assert hasattr(logger, 'progress'), '{} has no progress in {}'.format(self, logger)
             if not count:
-                count = self.get_count(allow_slow_gzip=False)
+                count = self.get_count(allow_slow_mode=False)
             lines = self.get_logger().progress(lines, name=message, count=count, step=step)
         return lines
 
@@ -336,7 +336,7 @@ class LocalFile(LeafConnector, ActualizeMixin):
         verbose = arg.acquire(verbose, self.is_verbose())
         content_format = self.get_content_format()
         assert isinstance(content_format, ParsedFormat)
-        count = self.get_count(allow_slow_gzip=False)
+        count = self.get_count(allow_slow_mode=False)
         if isinstance(verbose, str):
             self.log(verbose, verbose=bool(verbose))
         elif (count or 0) > 0:
