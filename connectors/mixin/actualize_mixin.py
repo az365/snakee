@@ -4,7 +4,7 @@ from typing import Optional, Iterable, Union
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         LeafConnectorInterface, StructInterface, Stream, RecordStream, ItemType,
-        AUTO, Auto, AutoCount, AutoBool, Columns, Array,
+        AUTO, Auto, AutoCount, AutoBool, Columns, Array, Count,
     )
     from base.mixin.describe_mixin import DescribeMixin
     from base.functions.arguments import get_str_from_args_kwargs
@@ -12,7 +12,7 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         LeafConnectorInterface, StructInterface, Stream, RecordStream, ItemType,
-        AUTO, Auto, AutoCount, AutoBool, Columns, Array,
+        AUTO, Auto, AutoCount, AutoBool, Columns, Array, Count,
     )
     from ...base.mixin.describe_mixin import DescribeMixin
     from ...base.functions.arguments import get_str_from_args_kwargs
@@ -21,6 +21,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 Native = LeafConnectorInterface
 
 EXAMPLE_STR_LEN = 12
+EXAMPLE_ROW_COUNT = 10
 COUNT_ITEMS_TO_LOG_COLLECT_OPERATION = 500000
 
 
@@ -39,24 +40,6 @@ class AppropriateInterface(LeafConnectorInterface, ABC):
 
     @abstractmethod
     def is_opened(self) -> bool:
-        pass
-
-    @abstractmethod
-    def open(self, allow_reopen: bool):
-        pass
-
-    @abstractmethod
-    def get_lines(
-            self,
-            count: Optional[int] = None,
-            skip_first: bool = False, allow_reopen: bool = True,
-            check: bool = True, verbose: AutoBool = AUTO,
-            message: Union[str, Auto] = AUTO, step: AutoCount = AUTO,
-    ) -> Iterable:
-        pass
-
-    @abstractmethod
-    def get_chunks(self) -> Iterable:
         pass
 
     @abstractmethod
@@ -133,7 +116,7 @@ class ActualizeMixin(AppropriateInterface, ABC):
     def get_prev_lines_count(self) -> Optional[AutoCount]:
         return self.get_expected_count()
 
-    def get_count(self, allow_reopen: bool = True, allow_slow_mode: bool = True, force: bool = False) -> Optional[int]:
+    def get_count(self, allow_reopen: bool = True, allow_slow_mode: bool = True, force: bool = False) -> Count:
         must_recount = force or self.is_outdated() or not Auto.is_defined(self.get_prev_lines_count())
         if self.is_existing() and must_recount:
             count = self.get_actual_lines_count(allow_reopen=allow_reopen, allow_slow_mode=allow_slow_mode)
@@ -142,6 +125,12 @@ class ActualizeMixin(AppropriateInterface, ABC):
             count = self.get_prev_lines_count()
         if Auto.is_defined(count):
             return count
+
+    def has_title(self) -> bool:
+        if self.is_first_line_title():
+            if self.is_existing():
+                return bool(self.get_count(allow_slow_mode=False))
+        return False
 
     def validate_fields(self, initial: bool = True) -> Native:
         if initial:
@@ -192,7 +181,10 @@ class ActualizeMixin(AppropriateInterface, ABC):
             message = '[DEPRECATED] {}'.format(message)
         return message
 
-    def get_str_description(self) -> str:
+    def get_shape_repr(self) -> str:
+        return self.get_columns_repr()
+
+    def get_columns_repr(self) -> str:
         if self.is_existing():
             rows_count = self.get_count(allow_slow_mode=False)
             if rows_count:
@@ -208,13 +200,7 @@ class ActualizeMixin(AppropriateInterface, ABC):
         return message.format(self.get_column_count(), ', '.join(self.get_columns()))
 
     def get_str_headers(self) -> Iterable:
-        yield "{}('{}') {}".format(self.__class__.__name__, self.get_name(), self.get_str_description())
-
-    def has_title(self) -> bool:
-        if self.is_first_line_title():
-            if self.is_existing():
-                return bool(self.get_count(allow_slow_mode=False))
-        return False
+        yield "{}('{}') {}".format(self.__class__.__name__, self.get_name(), self.get_shape_repr())
 
     def get_useful_props(self) -> dict:
         if self.is_existing():
@@ -233,13 +219,22 @@ class ActualizeMixin(AppropriateInterface, ABC):
                 path=self.get_path(),
             )
 
-    def _prepare_examples(self, *filters, safe_filter: bool = True, **filter_kwargs) -> tuple:
+    def _prepare_examples(
+            self,
+            *filters,
+            safe_filter: bool = True,
+            example_row_count: Count = None,
+            example_str_len: int = EXAMPLE_STR_LEN,
+            **filter_kwargs
+    ) -> tuple:
         filters = filters or list()
         if filter_kwargs and safe_filter:
             filter_kwargs = {k: v for k, v in filter_kwargs.items() if k in self.get_columns()}
         stream_example = self.to_record_stream()
         if filters:
             stream_example = stream_example.filter(*filters or [], **filter_kwargs)
+        if example_row_count:
+            stream_example = stream_example.take(example_row_count).collect()
         item_example = stream_example.get_one_item()
         str_filters = get_str_from_args_kwargs(*filters, **filter_kwargs)
         if item_example:
@@ -257,11 +252,11 @@ class ActualizeMixin(AppropriateInterface, ABC):
             else:
                 item_example = dict()
         if item_example:
-            if EXAMPLE_STR_LEN:
+            if example_str_len:
                 for k, v in item_example.items():
                     v = str(v)
-                    if len(v) > EXAMPLE_STR_LEN:
-                        item_example[k] = str(v)[:EXAMPLE_STR_LEN] + '..'
+                    if len(v) > example_str_len:
+                        item_example[k] = str(v)[:EXAMPLE_STR_LEN - 2] + '..'
         else:
             item_example = dict()
             stream_example = None
@@ -269,7 +264,8 @@ class ActualizeMixin(AppropriateInterface, ABC):
         return item_example, stream_example, message
 
     def show_example(
-            self, count: int = 10,
+            self,
+            count: int = EXAMPLE_ROW_COUNT,
             example: Optional[Stream] = None,
             columns: Optional[Array] = None,
             comment: str = '',
@@ -291,7 +287,7 @@ class ActualizeMixin(AppropriateInterface, ABC):
 
     def show(
             self,
-            count: int = 10,
+            count: int = EXAMPLE_ROW_COUNT,
             message: Optional[str] = None,
             filters: Columns = None,
             columns: Columns = None,
@@ -310,7 +306,7 @@ class ActualizeMixin(AppropriateInterface, ABC):
 
     def describe(
             self, *filter_args,
-            count: Optional[int] = 10,
+            count: Optional[int] = EXAMPLE_ROW_COUNT,
             columns: Optional[Array] = None,
             show_header: bool = True,
             struct_as_dataframe: bool = False,
