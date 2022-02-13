@@ -4,8 +4,8 @@ try:  # Assume we're a submodule in a package.
     from interfaces import (
         ConnectorInterface, StructInterface, ColumnarInterface, RegularStream, ExtendedLoggerInterface,
         ContentFormatInterface, ContentType, ConnType, ItemType, StreamType, LoggingLevel,
-        ARRAY_TYPES, Array, Count, Name, OptionalFields, Links,
-        AUTO, Auto, AutoBool, AutoName, AutoCount, AutoLinks,
+        ARRAY_TYPES, Array, Name, Count, OptionalFields, Links,
+        AUTO, Auto, AutoBool, AutoName, AutoCount, AutoLinks, AutoContext,
     )
     from base.functions.arguments import update, get_str_from_args_kwargs
     from content.struct.flat_struct import FlatStruct
@@ -14,8 +14,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...interfaces import (
         ConnectorInterface, StructInterface, ColumnarInterface, RegularStream, ExtendedLoggerInterface,
         ContentFormatInterface, ContentType, ConnType, ItemType, StreamType, LoggingLevel,
-        ARRAY_TYPES, Array, Count, Name, OptionalFields, Links,
-        AUTO, Auto, AutoBool, AutoName, AutoCount, AutoLinks,
+        ARRAY_TYPES, Array, Name, Count, OptionalFields, Links,
+        AUTO, Auto, AutoBool, AutoName, AutoCount, AutoLinks, AutoContext,
     )
     from ...base.functions.arguments import update, get_str_from_args_kwargs
     from ...content.struct.flat_struct import FlatStruct
@@ -25,6 +25,7 @@ Native = LeafConnector
 Stream = Union[RegularStream, ColumnarInterface]
 GeneralizedStruct = Union[StructInterface, list, tuple, Auto, None]
 
+META_MEMBER_MAPPING = dict(_source='database')
 MAX_ITEMS_IN_MEMORY = 10000
 
 
@@ -32,15 +33,25 @@ class Table(LeafConnector):
     def __init__(
             self,
             name: Name,
-            struct: Union[StructInterface, Auto],
             database: ConnectorInterface,
-            reconnect: bool = True,
+            content_format: Union[ContentFormatInterface, Auto] = AUTO,
+            struct: Union[StructInterface, Auto] = AUTO,
+            caption: Optional[str] = None,
+            streams: Links = None,
+            context: AutoContext = AUTO,
+            reconnect: bool = False,
+            expected_count: AutoCount = AUTO,
             verbose: AutoBool = AUTO,
     ):
         super().__init__(
             name=name,
+            content_format=content_format,
             struct=struct,
+            caption=caption,
             parent=database,
+            context=context,
+            streams=streams,
+            expected_count=expected_count,
             verbose=verbose,
         )
         if reconnect and hasattr(database, 'connect'):
@@ -49,11 +60,30 @@ class Table(LeafConnector):
     def get_content_type(self) -> ContentType:
         return ContentType.TsvFile
 
-    @staticmethod
-    def _get_detected_format_by_name(name: str) -> ContentFormatInterface:
-        return ContentType.TsvFile
+    @classmethod
+    def _get_meta_member_mapping(cls) -> dict:
+        meta_member_mapping = super()._get_meta_member_mapping()
+        meta_member_mapping.update(META_MEMBER_MAPPING)
+        return meta_member_mapping
 
-    def _get_detected_struct(self, set_struct: bool = False, verbose: AutoBool = AUTO) -> StructInterface:
+    @staticmethod
+    def _get_detected_format_by_name(name: str, **kwargs) -> ContentFormatInterface:
+        content_type = ContentType.TsvFile
+        if kwargs:
+            content_class = content_type.get_class()
+            try:
+                return content_class(**kwargs)
+            except TypeError as e:
+                raise TypeError('{}: {}'.format(content_class.__name__, e))
+        else:
+            return content_type
+
+    def _get_detected_struct(
+            self,
+            set_struct: bool = False,
+            use_declared_types: AutoBool = AUTO,  # ?
+            verbose: AutoBool = AUTO,
+    ) -> Optional[StructInterface]:
         struct = self.get_struct_from_database(set_struct=set_struct)
         if not isinstance(struct, StructInterface) and Auto.delayed_acquire(verbose, self.is_verbose):
             message = 'Struct as {} is deprecated. Use items.FlatStruct instead.'.format(type(struct))
@@ -64,15 +94,51 @@ class Table(LeafConnector):
         database = self.get_parent()
         return self._assume_connector(database)
 
-    def get_count(self, verbose: AutoBool = AUTO) -> Count:
+    def is_opened(self) -> Optional[bool]:
         database = self.get_database()
-        return database.select_count(self.get_name(), verbose=verbose)
+        if hasattr(database, 'is_connected'):  # isinstance(database, PostgresDatabase)
+            return database.is_connected()
+        elif hasattr(database, 'is_opened'):
+            return database.is_opened()
 
-    def get_expected_count(self, actual: bool = False) -> Optional[int]:
-        if actual:
-            return self.get_count()
+    def is_actual(self) -> bool:
+        return Auto.is_defined(self.get_expected_count()) and self.get_initial_struct()
+
+    def get_modification_timestamp(self, reset: bool = True) -> Optional[float]:
+        if self.is_actual():
+            timestamp = self.get_prev_modification_timestamp()
+            if not timestamp:
+                timestamp = self._get_current_timestamp()
+        elif self.is_existing():
+            timestamp = self._get_current_timestamp()
         else:
-            return None
+            timestamp = None
+        if reset:
+            self.reset_modification_timestamp(timestamp)
+        return timestamp
+
+    def get_count(self, allow_reopen: bool = True, allow_slow_mode: bool = True, force: bool = False) -> Count:
+        if force:
+            must_recount = True
+            count = None
+        else:
+            count = self.get_expected_count()
+            if count:
+                must_recount = False
+            elif allow_slow_mode:
+                must_recount = self.is_existing()
+            else:
+                must_recount = False
+        if must_recount:
+            count = self.get_actual_lines_count(allow_reopen=allow_reopen)
+            self.set_count(count)
+        if Auto.is_defined(count):
+            return count
+
+    def get_actual_lines_count(self, allow_reopen: AutoBool = AUTO, verbose: AutoBool = AUTO) -> Count:
+        database = self.get_database()
+        count = database.select_count(self.get_name(), verbose=verbose)
+        return count
 
     def get_columns(self) -> list:
         return self.get_struct().get_columns()
