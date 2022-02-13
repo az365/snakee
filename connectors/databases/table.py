@@ -1,21 +1,21 @@
 from typing import Optional, Iterable, Union
 
 try:  # Assume we're a submodule in a package.
-    from utils import arguments as arg
     from interfaces import (
         ConnectorInterface, StructInterface, ColumnarInterface, RegularStream, ExtendedLoggerInterface,
         ContentFormatInterface, ContentType, ConnType, ItemType, StreamType, LoggingLevel,
         ARRAY_TYPES, AUTO, Auto, AutoBool, AutoName, AutoCount, Count, Name, OptionalFields,
     )
+    from base.functions.arguments import update, get_str_from_args_kwargs
     from content.struct.flat_struct import FlatStruct
     from connectors.abstract.leaf_connector import LeafConnector
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
     from ...interfaces import (
         ConnectorInterface, StructInterface, ColumnarInterface, RegularStream, ExtendedLoggerInterface,
         ContentFormatInterface, ContentType, ConnType, ItemType, StreamType, LoggingLevel,
         ARRAY_TYPES, AUTO, Auto, AutoBool, AutoName, AutoCount, Count, Name, OptionalFields,
     )
+    from ...base.functions.arguments import update, get_str_from_args_kwargs
     from ...content.struct.flat_struct import FlatStruct
     from ..abstract.leaf_connector import LeafConnector
 
@@ -51,7 +51,7 @@ class Table(LeafConnector):
 
     def _get_detected_struct(self, set_struct: bool = False, verbose: AutoBool = AUTO) -> StructInterface:
         struct = self.get_struct_from_database(set_struct=set_struct)
-        if not isinstance(struct, StructInterface) and arg.delayed_acquire(verbose, self.is_verbose):
+        if not isinstance(struct, StructInterface) and Auto.delayed_acquire(verbose, self.is_verbose):
             message = 'Struct as {} is deprecated. Use items.FlatStruct instead.'.format(type(struct))
             self.log(msg=message, level=LoggingLevel.Warning)
         return struct
@@ -81,7 +81,7 @@ class Table(LeafConnector):
                 struct = FlatStruct(struct)
             else:
                 struct = FlatStruct.get_struct_detected_by_title_row(struct)
-        elif struct == arg.AUTO:
+        elif struct == AUTO:
             struct = self.get_struct_from_database()
         else:
             message = 'struct must be StructInterface or tuple with fields_description (got {})'.format(type(struct))
@@ -124,9 +124,10 @@ class Table(LeafConnector):
             self,
             item_type: Union[ItemType, Auto],
             verbose: AutoBool = AUTO,
+            message: AutoName = AUTO,
             step: AutoCount = AUTO,
     ) -> Iterable:
-        item_type = arg.delayed_acquire(item_type, self.get_item_type)
+        item_type = Auto.delayed_acquire(item_type, self.get_item_type)
         rows = self.get_rows(verbose=verbose)
         if item_type == ItemType.Row:
             items = rows
@@ -144,7 +145,7 @@ class Table(LeafConnector):
             logger = self.get_logger()
             if isinstance(logger, ExtendedLoggerInterface):
                 count = self._get_fast_count()
-                if not arg.is_defined(message):
+                if not Auto.is_defined(message):
                     message = 'Downloading count{} lines from {name}'
                 if '{}' in message:
                     message = message.format(count, self.get_name())
@@ -161,11 +162,11 @@ class Table(LeafConnector):
         database = self.get_database()
         return database.exists_table(self.get_path())
 
-    def describe(self) -> Iterable:
+    def describe_table(self, verbose: AutoBool = Auto) -> Iterable:
         database = self.get_database()
-        return database.describe_table(self.get_path())
+        return database.describe_table(self.get_path(), verbose=verbose)
 
-    def create(self, drop_if_exists: bool, verbose: AutoBool = arg.AUTO):
+    def create(self, drop_if_exists: bool, verbose: AutoBool = AUTO):
         database = self.get_database()
         return database.create_table(
             self.get_name(),
@@ -178,7 +179,7 @@ class Table(LeafConnector):
             self, data: Union[Iterable, Stream],
             encoding: Optional[str] = None, skip_first_line: bool = False,
             skip_lines: int = 0, max_error_rate: float = 0.0,
-            verbose: AutoBool = arg.AUTO,
+            verbose: AutoBool = AUTO,
     ):
         database = self.get_database()
         return database.safe_upload_table(
@@ -197,11 +198,11 @@ class Table(LeafConnector):
         return not count
 
     def select(self, *columns, **expressions) -> Stream:
-        columns = arg.update(columns)
+        columns = update(columns)
         if not expressions:
             is_simple_fields = min([isinstance(c, str) for c in columns])
             if is_simple_fields:
-                return self.get_database().select(table=self, fields=columns)
+                return self.get_database().execute_select(table=self, fields=columns)
         stream = self.to_struct_stream().select(*columns, **expressions)
         return self._assume_stream(stream)
 

@@ -5,7 +5,7 @@ try:  # Assume we're a submodule in a package.
     from interfaces import (
         StreamInterface, ColumnarInterface, ColumnarStream, StructStream, StructInterface, SimpleDataInterface,
         LeafConnectorInterface, ConnType, StreamType, DialectType, LoggingLevel,
-        AUTO, Auto, AutoContext, AutoBool, AutoCount, Count, Name, FieldName, Connector,
+        AUTO, Auto, AutoContext, AutoBool, AutoCount, Count, Name, FieldName, OptionalFields, Connector,
     )
     from functions.primary import text as tx
     from content.struct.flat_struct import FlatStruct
@@ -14,7 +14,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...interfaces import (
         StreamInterface, ColumnarInterface, ColumnarStream, StructStream, StructInterface, SimpleDataInterface,
         LeafConnectorInterface, ConnType, StreamType, DialectType, LoggingLevel,
-        AUTO, Auto, AutoContext, AutoBool, AutoCount, Count, Name, FieldName, Connector,
+        AUTO, Auto, AutoContext, AutoBool, AutoCount, Count, Name, FieldName, OptionalFields, Connector,
     )
     from ...functions.primary import text as tx
     from ...content.struct.flat_struct import FlatStruct
@@ -65,7 +65,6 @@ class AbstractDatabase(AbstractStorage, ABC):
         if table:
             assert not kwargs, 'table connection {} is already registered'.format(table_name)
         else:
-            assert struct is not None, 'for create table struct must be defined'
             table_class = self.get_default_child_obj_class()
             table = table_class(table_name, struct=struct, database=self, **kwargs)
             self.get_tables()[table_name] = table
@@ -218,31 +217,36 @@ class AbstractDatabase(AbstractStorage, ABC):
         )
         return self.table(name_new, struct=struct)
 
-    def select(
+    def execute_select(
             self,
             table: Union[Table, Name],
-            fields: Union[Iterable, str],
-            filters: Union[Iterable, str, None] = None,
+            fields: OptionalFields,
+            filters: OptionalFields = None,
+            sort: OptionalFields = None,
             count: Count = None,
             verbose: AutoBool = AUTO,
     ) -> Iterable:
-        fields_str = fields if isinstance(fields, str) else ', '.join(fields)
+        fields_str = fields if isinstance(fields, str) else ', '.join(fields) if fields else '*'
         filters_str = filters if isinstance(filters, str) else ' AND '.join(filters) if filters is not None else ''
+        sort_str = sort if isinstance(sort, str) else ' AND '.join(sort) if sort is not None else ''
         table_name = self._get_table_name(table)
         query = 'SELECT {fields} FROM {table}'.format(table=table_name, fields=fields_str)
         if filters:
             query += ' WHERE {filters}'.format(filters=filters_str)
+        if sort:
+            query += ' ORDER BY {sort}'.format(sort=sort_str)
         if count:
             query += ' LIMIT {count}'.format(count=count)
         query += ';'
         return self.execute(query, get_data=True, commit=False, verbose=verbose)
 
     def select_count(self, table: Union[Table, Name], verbose: AutoBool = AUTO) -> int:
-        response = self.select(table, fields='COUNT(*)', verbose=verbose)
-        return list(response)[0][0]
+        response = self.execute_select(table, fields='COUNT(*)', verbose=verbose)
+        count = list(response)[0][0]
+        return count
 
     def select_all(self, table: Union[Table, Name], verbose=AUTO) -> Iterable:
-        return self.select(table, fields='*', verbose=verbose)
+        return self.execute_select(table, fields='*', verbose=verbose)
 
     @abstractmethod
     def insert_rows(

@@ -153,10 +153,12 @@ class PostgresDatabase(AbstractDatabase):
         filters = ["TABLE_NAME = '{table}'".format(table=table_name)]
         if schema_name:
             filters = ["TABLE_SCHEMA = '{schema}'".format(schema=schema_name)] + filters
-        response = self.select(
+        response = self.execute_select(
             table='information_schema.COLUMNS',
             fields=['COLUMN_NAME', 'DATA_TYPE'],
             filters=filters,
+            sort=['ordinal_position'],
+            verbose=verbose,
         )
         return response
 
