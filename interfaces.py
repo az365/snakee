@@ -1,18 +1,16 @@
 from typing import Optional, Callable, Union, Any
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.auto import Auto, AUTO
     from base.classes.typing import (
         ARRAY_TYPES, Array, Count, Columns, OptionalFields, Options, Message,
-        FieldName, FieldNo, FieldID, Name, Value, Class,
-        AutoName, AutoCount, AutoBool, AutoColumns,
+        FieldName, FieldNo, FieldID, Name, Value, Class, Links,
+        AUTO, Auto, AutoName, AutoCount, AutoBool, AutoColumns, AutoLinks,
     )
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from .base.classes.auto import Auto, AUTO
     from .base.classes.typing import (
         ARRAY_TYPES, Array, Count, Columns, OptionalFields, Options, Message,
-        FieldName, FieldNo, FieldID, Name, Value, Class,
-        AutoName, AutoCount, AutoBool, AutoColumns,
+        FieldName, FieldNo, FieldID, Name, Value, Class, Links,
+        AUTO, Auto, AutoName, AutoCount, AutoBool, AutoColumns, AutoLinks,
     )
 
 try:  # Assume we're a submodule in a package.
