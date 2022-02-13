@@ -8,6 +8,7 @@ try:  # Assume we're a submodule in a package.
         AUTO, Auto, AutoBool, AutoCount, AutoConnector, AutoContext,
     )
     from connectors.abstract.abstract_connector import AbstractConnector
+    from connectors.mixin.actualize_mixin import ActualizeMixin
     from connectors.mixin.connector_format_mixin import ConnectorFormatMixin
     from connectors.mixin.streamable_mixin import StreamableMixin
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -17,6 +18,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         AUTO, Auto, AutoBool, AutoCount, AutoConnector, AutoContext,
     )
     from .abstract_connector import AbstractConnector
+    from ..mixin.actualize_mixin import ActualizeMixin
     from ..mixin.connector_format_mixin import ConnectorFormatMixin
     from ..mixin.streamable_mixin import StreamableMixin
 
@@ -28,7 +30,11 @@ META_MEMBER_MAPPING = dict(_data='streams', _source='parent', _declared_format='
 TEMPORARY_PARTITION_FORMAT = ContentType.JsonFile
 
 
-class LeafConnector(AbstractConnector, ConnectorFormatMixin, StreamableMixin, LeafConnectorInterface, ABC):
+class LeafConnector(
+    AbstractConnector,
+    ActualizeMixin, ConnectorFormatMixin, StreamableMixin,
+    LeafConnectorInterface, ABC,
+):
     def __init__(
             self,
             name: Name,

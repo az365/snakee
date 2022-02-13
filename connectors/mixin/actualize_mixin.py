@@ -68,7 +68,7 @@ class AppropriateInterface(LeafConnectorInterface, ABC):
         pass
 
 
-class ActualizeMixin(AppropriateInterface, ABC):
+class ActualizeMixin(DescribeMixin, ABC):
     def is_outdated(self) -> bool:
         return not self.is_actual()
 
