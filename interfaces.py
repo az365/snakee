@@ -52,8 +52,10 @@ try:  # Assume we're a submodule in a package.
     from content.struct.struct_interface import StructInterface, StructMixinInterface  # ROOT
     from content.struct.struct_row_interface import StructRowInterface  # inherits SimpleData; uses StructInterface
     from content.items.simple_items import (
-        ROW_SUBCLASSES, RECORD_SUBCLASSES, LINE_SUBCLASSES,
-        SimpleRowInterface, SimpleRow, Row, Record, Line, SimpleItem, SimpleSelectableItem,
+        ROW_SUBCLASSES, RECORD_SUBCLASSES, LINE_SUBCLASSES, STAR, Line,
+        FrozenDict, SimpleRecord, MutableRecord, ImmutableRecord, Record,
+        SimpleRowInterface, SimpleRow, MutableRow, ImmutableRow, Row,
+        SimpleSelectableItem, SimpleItem, Item,
     )
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from .base.interfaces.base_interface import BaseInterface  # ROOT
@@ -94,8 +96,10 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .content.struct.struct_interface import StructInterface, StructMixinInterface  # ROOT
     from .content.struct.struct_row_interface import StructRowInterface  # inherits SimpleData; uses StructInterface
     from .content.items.simple_items import (
-        ROW_SUBCLASSES, RECORD_SUBCLASSES, LINE_SUBCLASSES,
-        SimpleRowInterface, SimpleRow, Row, Record, Line, SimpleItem, SimpleSelectableItem,
+        ROW_SUBCLASSES, RECORD_SUBCLASSES, LINE_SUBCLASSES, STAR, Line,
+        FrozenDict, SimpleRecord, MutableRecord, ImmutableRecord, Record,
+        SimpleRowInterface, SimpleRow, MutableRow, ImmutableRow, Row,
+        SimpleSelectableItem, SimpleItem, Item,
     )
 
 try:  # Assume we're a submodule in a package.

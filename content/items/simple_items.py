@@ -48,14 +48,16 @@ Row = Union[SimpleRow, SimpleRowInterface]
 
 MutableRecord = dict
 ImmutableRecord = Mapping  # FrozenDict
-Record = Union[MutableRecord, ImmutableRecord]
+SimpleRecord = Union[MutableRecord, ImmutableRecord]
+Record = SimpleRecord
 
 RecRow = OrderedDict
 
 Line = str
-SimpleSelectableItem = Union[Row, Record, OrderedDict]
+SimpleSelectableItem = Union[SimpleRow, SimpleRecord, OrderedDict]
 SimpleItem = Union[SimpleSelectableItem, Line]
-Item = Union[SimpleItem, Any]
+SelectableItem = Union[Row, Record, RecRow]
+Item = Union[SelectableItem, Line, Any]
 
 ROW_SUBCLASSES = MutableRow, ImmutableRow, SimpleRowInterface
 RECORD_SUBCLASSES = MutableRecord, ImmutableRecord, RecRow

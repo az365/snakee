@@ -3,7 +3,9 @@ try:  # Assume we're a submodule in a package.
     from content.items.simple_items import (
         FieldName, FieldNo, FieldID, Value, Class, Array, ARRAY_TYPES,
         ROW_SUBCLASSES, RECORD_SUBCLASSES, LINE_SUBCLASSES, STAR,
-        SimpleRowInterface, SimpleRow, Row, Line, Record,
+        Line,
+        FrozenDict, SimpleRecord, MutableRecord, ImmutableRecord, Record,
+        SimpleRowInterface, SimpleRow, MutableRow, ImmutableRow, Row,
         SimpleSelectableItem, SimpleItem, Item,
     )
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -11,6 +13,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .simple_items import (
         FieldName, FieldNo, FieldID, Value, Class, Array, ARRAY_TYPES,
         ROW_SUBCLASSES, RECORD_SUBCLASSES, LINE_SUBCLASSES, STAR,
-        SimpleRowInterface, SimpleRow, Row, Line, Record,
+        Line,
+        FrozenDict, SimpleRecord, MutableRecord, ImmutableRecord, Record,
+        SimpleRowInterface, SimpleRow, MutableRow, ImmutableRow, Row,
         SimpleSelectableItem, SimpleItem, Item,
     )
