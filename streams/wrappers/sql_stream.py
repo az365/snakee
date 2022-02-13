@@ -1,24 +1,28 @@
 from enum import Enum
-from typing import Optional, Iterable, Callable, Union
+from typing import Callable, Iterable, Generator, Union
 
-try:  # Assume we're a sub-module in a package.
-    from utils import arguments as arg
-    from interfaces import ContextInterface, ConnType
-    from streams.abstract.wrapper_stream import WrapperStream
+try:  # Assume we're a submodule in a package.
+    from interfaces import (
+        ContextInterface, LeafConnectorInterface, StreamInterface,
+        ConnType, LoggingLevel, StreamType, Stream, Item, Name, Links, Array, ARRAY_TYPES,
+        AutoContext, AutoName, AutoBool, Auto, AUTO,
+    )
+    from functions.primary.text import remove_extra_spaces
     from content.fields.abstract_field import AbstractField
+    from streams.abstract.wrapper_stream import WrapperStream
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
-    from ...interfaces import ContextInterface, ConnType
-    from ..abstract.wrapper_stream import WrapperStream
+    from ...interfaces import (
+        ContextInterface, LeafConnectorInterface, StreamInterface, Stream, Item,
+        ConnType, LoggingLevel, StreamType, Stream, Item, Name, Links, Array, ARRAY_TYPES,
+        AutoContext, AutoName, AutoBool, Auto, AUTO,
+    )
+    from ...functions.primary.text import remove_extra_spaces
     from ...content.fields.abstract_field import AbstractField
+    from ..abstract.wrapper_stream import WrapperStream
 
 Native = WrapperStream
-Context = Union[ContextInterface, arg.Auto, None]
-Field = AbstractField
-Array = Union[list, tuple]
+TableOrQuery = Union[LeafConnectorInterface, StreamInterface, None]
 
-ARRAY_TYPES = list, tuple
-DEFAULT_NAME = 'sql'
 DICT_FUNC_NAMES = dict(len='COUNT')
 
 
@@ -39,13 +43,13 @@ SECTIONS_ORDER = (
 class SqlStream(WrapperStream):
     def __init__(
             self,
-            name: Optional[str] = None,
-            data: Optional[dict] = None,
-            source=None,
-            context: Context = arg.AUTO,
+            name: AutoName = AUTO,
+            data: Links = None,
+            source: TableOrQuery = None,
+            context: AutoContext = AUTO,
     ):
         super().__init__(
-            name=name or DEFAULT_NAME,
+            name=name,
             data=data or dict(),
             source=source,
             context=context,
@@ -63,9 +67,9 @@ class SqlStream(WrapperStream):
         assert table.get_conn_type() == ConnType.Table
         return table.get_database()
 
-    def execute_query(self) -> Iterable:
+    def execute_query(self, verbose: AutoBool = AUTO) -> Iterable:
         db = self.get_database()
-        return db.execute(self.get_query())
+        return db.execute(self.get_query(), get_data=True, verbose=verbose)
 
     def get_expressions_for(self, section: SqlSection) -> list:
         if section == SqlSection.From:
@@ -88,7 +92,7 @@ class SqlStream(WrapperStream):
         for desc in descriptions:
             if isinstance(desc, str):
                 yield desc
-            elif isinstance(desc, Field):
+            elif isinstance(desc, AbstractField):
                 if hasattr(desc, 'get_sql_expression'):
                     yield desc.get_sql_expression()
                 else:
@@ -116,7 +120,7 @@ class SqlStream(WrapperStream):
         for description in self.get_expressions_for(SqlSection.Where):
             if isinstance(description, str):
                 yield '{} <> 0 AND {} NOT NULL'.format(description, description)
-            elif isinstance(description, Field):
+            elif isinstance(description, AbstractField):
                 if hasattr(description, 'get_sql_expression'):
                     yield description.get_sql_expression()
                 else:
@@ -163,8 +167,12 @@ class SqlStream(WrapperStream):
         method = self.__getattribute__(method_name)
         yield from method()
 
-    def get_query(self) -> str:
-        return '\n'.join(list(self.get_query_lines()))
+    def get_one_line_query(self, finish: bool = True) -> str:
+        query = self.get_query(finish=finish)
+        return remove_extra_spaces(query)
+
+    def get_query(self, finish: bool = True) -> str:
+        return '\n'.join(list(self.get_query_lines(finish=finish)))
 
     def get_query_lines(self, finish: bool = True) -> Iterable:
         for section in SECTIONS_ORDER:
@@ -197,10 +205,7 @@ class SqlStream(WrapperStream):
         return False
 
     def new(self, **kwargs):
-        return self.__class__(
-            source=self,
-            **kwargs
-        )
+        return self.__class__(source=self, **kwargs)
 
     def select(self, *fields, **expressions) -> Native:
         select_section = self.get_expressions_for(SqlSection.Select)
@@ -260,17 +265,41 @@ class SqlStream(WrapperStream):
     def get_items(self) -> Iterable:
         return self.execute_query()
 
-    def get_demo_example(self, *args, **kwargs):
-        raise NotImplementedError
-
     def map(self, function: Callable) -> Native:
         raise NotImplementedError
 
     def skip(self, count: int) -> Native:
         raise NotImplementedError
 
-    def get_child(self, name):
-        pass
+    def collect(self, stream_type: StreamType = StreamType.RecordStream) -> Stream:
+        stream_class = stream_type.get_class()
+        return stream_class(self.execute_query())
 
-    def add_child(self, name):
-        pass
+    def get_demo_example(self, count: int = 10) -> Iterable:
+        return self.copy().take(count).collect().get_items()
+
+    def one(self) -> Stream:
+        return self.copy().take(1).collect()
+
+    def get_one_item(self) -> Item:
+        items = self.one().get_items()
+        return list(items)[0]
+
+    def copy(self) -> Native:
+        data = self._data.copy()
+        return self.make_new(data)
+
+    def get_one_line_representation(self) -> str:
+        template = '{cls}({name}, {data})'
+        message = template.format(cls=self.__class__.__name__, name=self.get_name(), data=self.get_data())
+        return message
+
+    def get_description_lines(self) -> Generator:
+        yield self.get_one_line_representation()
+        yield '\nGenerated SQL query:\n'
+        yield from self.get_query_lines()
+
+    def describe(self) -> Native:
+        for line in self.get_description_lines():
+            self.log(msg=line, level=LoggingLevel.Info)
+        return self
