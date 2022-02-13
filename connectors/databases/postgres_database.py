@@ -1,15 +1,19 @@
-from typing import Optional, Iterable, Sized, Union
+from typing import Optional, Iterable, Sized
 import gc
 
-try:  # Assume we're a sub-module in a package.
-    from utils import arguments as arg
+try:  # Assume we're a submodule in a package.
+    from interfaces import (
+        ConnType, DialectType, LoggingLevel,
+        AUTO, Auto, AutoBool, Count, Array, ARRAY_TYPES,
+    )
     from utils.external import psycopg2
-    from interfaces import ConnType, DialectType, LoggingLevel, Count, Array, ARRAY_TYPES
     from connectors.databases.abstract_database import AbstractDatabase, TEST_QUERY, DEFAULT_STEP, DEFAULT_GROUP
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
+    from ...interfaces import (
+        ConnType, DialectType, LoggingLevel,
+        AUTO, Auto, AutoBool, Count, Array, ARRAY_TYPES,
+    )
     from ...utils.external import psycopg2
-    from ...interfaces import ConnType, DialectType, LoggingLevel, Count, Array, ARRAY_TYPES
     from ..databases.abstract_database import AbstractDatabase, TEST_QUERY, DEFAULT_STEP, DEFAULT_GROUP
 
 
@@ -18,7 +22,7 @@ class PostgresDatabase(AbstractDatabase):
             self,
             name: str, host: str, port: int, db: str,
             user: Optional[str] = None, password: Optional[str] = None,
-            context=arg.AUTO,
+            context=AUTO,
             **kwargs
     ):
         super().__init__(
@@ -56,8 +60,8 @@ class PostgresDatabase(AbstractDatabase):
             )
         return self.connection
 
-    def disconnect(self, skip_errors: bool = False, verbose=arg.AUTO) -> Count:
-        verbose = arg.acquire(verbose, self.verbose)
+    def disconnect(self, skip_errors: bool = False, verbose=AUTO) -> Count:
+        verbose = Auto.acquire(verbose, self.verbose)
         if self.is_connected():
             if not psycopg2:
                 raise ImportError('psycopg2 must be installed (pip install psycopg2)')
@@ -72,13 +76,20 @@ class PostgresDatabase(AbstractDatabase):
             self.connection = None
             return 1
 
-    def execute(self, query=TEST_QUERY, get_data=arg.AUTO, commit=arg.AUTO, data=None, verbose=arg.AUTO):
-        verbose = arg.acquire(verbose, self.verbose)
+    def execute(
+            self,
+            query: str = TEST_QUERY,
+            get_data: AutoBool = AUTO,
+            commit: AutoBool = AUTO,
+            data: Optional[Iterable] = None,
+            verbose: AutoBool = AUTO,
+    ):
+        verbose = Auto.acquire(verbose, self.verbose)
         message = verbose if isinstance(verbose, str) else 'Execute: {}'
         if '{}' in message:
             message = message.format(self._get_compact_query_view(query))
         self.log(message, level=LoggingLevel.Debug, end='\r', verbose=verbose)
-        if get_data == arg.AUTO:
+        if get_data == AUTO:
             if 'SELECT' in query and 'GRANT' not in query:
                 get_data, commit = True, False
             else:
@@ -102,15 +113,15 @@ class PostgresDatabase(AbstractDatabase):
         if get_data:
             return result
 
-    def execute_batch(self, query: str, batch: Iterable, step: int = DEFAULT_STEP, cursor=arg.AUTO) -> None:
-        if cursor == arg.AUTO:
+    def execute_batch(self, query: str, batch: Iterable, step: int = DEFAULT_STEP, cursor=AUTO) -> None:
+        if cursor == AUTO:
             cursor = self.connect().cursor()
         if not psycopg2:
             raise ImportError('psycopg2 must be installed (pip install psycopg2)')
         psycopg2.extras.execute_batch(cursor, query, batch, page_size=step)
 
-    def grant_permission(self, name: str, permission='SELECT', group=DEFAULT_GROUP, verbose=arg.AUTO) -> None:
-        verbose = arg.acquire(verbose, self.verbose)
+    def grant_permission(self, name: str, permission='SELECT', group=DEFAULT_GROUP, verbose: AutoBool = AUTO) -> None:
+        verbose = Auto.acquire(verbose, self.verbose)
         message = 'Grant access:'
         query = 'GRANT {permission} ON {name} TO {group};'.format(
             name=name,
@@ -122,37 +133,42 @@ class PostgresDatabase(AbstractDatabase):
             verbose=message if verbose is True else verbose,
         )
 
-    def post_create_action(self, name: str, verbose=arg.AUTO) -> None:
+    def post_create_action(self, name: str, verbose=AUTO) -> None:
         self.grant_permission(name, verbose=verbose)
 
-    def exists_table(self, name: str, verbose=arg.AUTO) -> bool:
-        schema, table = name.split('.')
-        query = """
+    def exists_table(self, name: str, verbose=AUTO) -> bool:
+        schema_name, table_name = self._get_schema_and_table_name(name, default_schema='public')
+        template = """
             SELECT 1
             FROM   pg_catalog.pg_class c
             JOIN   pg_catalog.pg_namespace n ON n.oid = c.relnamespace
             WHERE  n.nspname = '{schema}'
             AND    c.relname = '{table}'
-            AND    c.relkind = 'r'
-        """.format(schema=schema, table=table)
-        return bool(self.execute(query, verbose))
+        """
+        query = template.format(schema=schema_name, table=table_name)
+        return bool(self.execute(query, verbose=verbose))
 
-    def describe_table(self, name: str, verbose=arg.AUTO):
-        return self.select(
+    def describe_table(self, name: str, verbose: AutoBool = AUTO):
+        schema_name, table_name = self._get_schema_and_table_name(name)
+        filters = ["TABLE_NAME = '{table}'".format(table=table_name)]
+        if schema_name:
+            filters = ["TABLE_SCHEMA = '{schema}'".format(schema=schema_name)] + filters
+        response = self.select(
             table='information_schema.COLUMNS',
             fields=['COLUMN_NAME', 'DATA_TYPE'],
-            filters=["TABLE_NAME = '{table}'".format(table=name)],
+            filters=filters,
         )
+        return response
 
     def insert_rows(
             self,
             table: str, rows: Iterable, columns: Array,
             step: int = DEFAULT_STEP, skip_errors: bool = False,
             expected_count: Count = None, return_count: bool = True,
-            verbose: Union[bool, arg.Auto] = arg.AUTO,
+            verbose: AutoBool = AUTO,
     ) -> Count:
         assert isinstance(columns, ARRAY_TYPES), 'list or tuple expected, got {}'.format(columns)
-        verbose = arg.acquire(verbose, self.verbose)
+        verbose = Auto.acquire(verbose, self.verbose)
         if isinstance(rows, Sized):
             count = len(rows)
         else:
