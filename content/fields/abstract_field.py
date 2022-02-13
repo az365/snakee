@@ -14,6 +14,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 
 
 class AbstractField(SimpleDataWrapper, FieldInterface, ABC):
+    _struct_builder: Optional[Callable] = None
+
     def __init__(self, name: str, field_type: FieldType = FieldType.Any, properties=None):
         field_type = Auto.delayed_acquire(field_type, FieldType.detect_by_name, field_name=name)
         field_type = FieldType.get_canonic_type(field_type, ignore_missing=True)
