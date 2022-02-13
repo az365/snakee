@@ -4,7 +4,8 @@ try:  # Assume we're a submodule in a package.
     from interfaces import (
         ConnectorInterface, StructInterface, ColumnarInterface, RegularStream, ExtendedLoggerInterface,
         ContentFormatInterface, ContentType, ConnType, ItemType, StreamType, LoggingLevel,
-        ARRAY_TYPES, AUTO, Auto, AutoBool, AutoName, AutoCount, Count, Name, OptionalFields,
+        ARRAY_TYPES, Array, Count, Name, OptionalFields, Links,
+        AUTO, Auto, AutoBool, AutoName, AutoCount, AutoLinks,
     )
     from base.functions.arguments import update, get_str_from_args_kwargs
     from content.struct.flat_struct import FlatStruct
@@ -13,7 +14,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...interfaces import (
         ConnectorInterface, StructInterface, ColumnarInterface, RegularStream, ExtendedLoggerInterface,
         ContentFormatInterface, ContentType, ConnType, ItemType, StreamType, LoggingLevel,
-        ARRAY_TYPES, AUTO, Auto, AutoBool, AutoName, AutoCount, Count, Name, OptionalFields,
+        ARRAY_TYPES, Array, Count, Name, OptionalFields, Links,
+        AUTO, Auto, AutoBool, AutoName, AutoCount, AutoLinks,
     )
     from ...base.functions.arguments import update, get_str_from_args_kwargs
     from ...content.struct.flat_struct import FlatStruct
@@ -22,6 +24,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 Native = LeafConnector
 Stream = Union[RegularStream, ColumnarInterface]
 GeneralizedStruct = Union[StructInterface, list, tuple, Auto, None]
+
+MAX_ITEMS_IN_MEMORY = 10000
 
 
 class Table(LeafConnector):
@@ -88,17 +92,27 @@ class Table(LeafConnector):
             raise TypeError(message)
         return super().set_struct(struct, inplace=inplace)
 
-    def get_struct_from_database(self, set_struct: bool = False, skip_missing: bool = False) -> StructInterface:
-        struct = FlatStruct(self.describe())
+    def get_struct_from_database(
+            self,
+            types: AutoLinks = AUTO,
+            set_struct: bool = False,
+            skip_missing: bool = False,
+            verbose: AutoBool = AUTO,
+    ) -> StructInterface:
+        struct = FlatStruct(self.describe_table(verbose=verbose))
         if struct.is_empty() and not skip_missing:
             raise ValueError('Can not get struct for non-existing table {}'.format(self))
+        if Auto.is_defined(types):
+            struct.set_types(types, inplace=True)
         if set_struct:
-            self.set_struct(struct)
+            self.set_struct(struct, inplace=True)
         return struct
 
+    def _get_struct_from_source(self, types: Union[dict, Auto, None] = AUTO, verbose: bool = False):
+        return self.get_struct_from_database(types=types, verbose=verbose)
+
     def get_first_line(self, close: bool = True, verbose: bool = True) -> Optional[str]:
-        database = self.get_database()
-        iter_lines = database.select(self.get_name(), '*', count=1, verbose=verbose)
+        iter_lines = self.execute_select(fields='*', count=1, verbose=verbose)
         lines = list(iter_lines)
         if close:
             self.close()
@@ -106,8 +120,7 @@ class Table(LeafConnector):
             return lines[0]
 
     def take(self, count: Union[int, bool] = 1, inplace: bool = False) -> Stream:
-        database = self.get_database()
-        iter_lines = database.select(self.get_name(), '*', count=count, verbose=self.is_verbose())
+        iter_lines = self.execute_select(fields='*', count=count, verbose=self.is_verbose())
         return self.stream(iter_lines, count=count)
 
     def get_rows(self, verbose: AutoBool = AUTO) -> Iterable:
@@ -146,7 +159,7 @@ class Table(LeafConnector):
             if isinstance(logger, ExtendedLoggerInterface):
                 count = self._get_fast_count()
                 if not Auto.is_defined(message):
-                    message = 'Downloading count{} lines from {name}'
+                    message = 'Downloading {count} lines from {name}'
                 if '{}' in message:
                     message = message.format(count, self.get_name())
                 if '{' in message:
@@ -176,9 +189,12 @@ class Table(LeafConnector):
         )
 
     def upload(
-            self, data: Union[Iterable, Stream],
-            encoding: Optional[str] = None, skip_first_line: bool = False,
-            skip_lines: int = 0, max_error_rate: float = 0.0,
+            self,
+            data: Union[Iterable, Stream],
+            encoding: Optional[str] = None,
+            skip_first_line: bool = False,
+            skip_lines: int = 0,
+            max_error_rate: float = 0.0,
             verbose: AutoBool = AUTO,
     ):
         database = self.get_database()
@@ -196,6 +212,46 @@ class Table(LeafConnector):
     def is_empty(self) -> bool:
         count = self.get_count()
         return not count
+
+    def execute_select(
+            self,
+            fields: OptionalFields,
+            filters: OptionalFields = None,
+            sort: OptionalFields = None,
+            count: Count = None,
+            verbose: AutoBool = AUTO,
+    ) -> Iterable:
+        database = self.get_database()
+        rows = database.execute_select(
+            table=self, verbose=verbose,
+            fields=fields, filters=filters, sort=sort, count=count,
+        )
+        return rows
+
+    def simple_select(
+            self,
+            fields: OptionalFields,
+            filters: OptionalFields = None,
+            sort: OptionalFields = None,
+            count: Count = None,
+            stream_type: Union[StreamType, Auto] = AUTO,
+            verbose: AutoBool = AUTO,
+    ) -> Stream:
+        stream_type = Auto.acquire(stream_type, StreamType.RecordStream)
+        stream_class = stream_type.get_class()
+        stream_rows = self.execute_select(fields=fields, filters=filters, sort=sort, count=count, verbose=verbose)
+        if stream_type == StreamType.RowStream:
+            stream_data = stream_rows
+        elif stream_type == StreamType.RecordStream:
+            columns = self.get_columns()
+            stream_data = map(lambda r: dict(zip(columns, r)), stream_rows)
+        else:
+            raise NotImplementedError
+        if Auto.is_defined(count):
+            if count < MAX_ITEMS_IN_MEMORY:
+                stream_data = list(stream_data)
+                count = len(stream_data)
+        return stream_class(stream_data, count=count, source=self, context=self.get_context())
 
     def select(self, *columns, **expressions) -> Stream:
         columns = update(columns)
