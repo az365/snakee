@@ -5,8 +5,8 @@ try:  # Assume we're a submodule in a package.
         DEFAULT_STR, CROP_SUFFIX, FILL_CHAR,
     )
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from base.classes.typing import AUTO, Auto, Value, AutoCount
-    from content.representations.abstract_repr import (
+    from ...base.classes.typing import AUTO, Auto, Value, AutoCount
+    from .abstract_repr import (
         AbstractRepresentation, ReprType, OptKey,
         DEFAULT_STR, CROP_SUFFIX, FILL_CHAR,
     )

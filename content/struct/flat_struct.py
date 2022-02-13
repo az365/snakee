@@ -6,23 +6,25 @@ try:  # Assume we're a submodule in a package.
         FieldType, DialectType,
         AUTO, Auto, Name, Array, ARRAY_TYPES,
     )
-    from utils import arguments as arg
-    from utils.external import pd, get_use_objects_for_output, DataFrame
+    from base.functions.arguments import update, get_generated_name, get_name, get_names
     from base.abstract.simple_data import SimpleDataWrapper
+    from base.mixin.describe_mixin import DescribeMixin
+    from functions.secondary import array_functions as fs
+    from utils.external import pd, get_use_objects_for_output, DataFrame
     from content.fields.advanced_field import AdvancedField
     from content.selection.abstract_expression import AbstractDescription
-    from functions.secondary import array_functions as fs
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         StructInterface, StructRowInterface, FieldInterface, SelectionLoggerInterface, ExtLogger,
         FieldType, DialectType,
         AUTO, Auto, Name, Array, ARRAY_TYPES,
     )
-    from ...utils import arguments as arg
-    from ...utils.external import pd, get_use_objects_for_output, DataFrame
+    from ...base.functions.arguments import update, get_generated_name, get_name, get_names
     from ...base.abstract.simple_data import SimpleDataWrapper
+    from ...base.mixin.describe_mixin import DescribeMixin
     from ...functions.secondary import array_functions as fs
-    from ...content.fields.advanced_field import AdvancedField
+    from ...utils.external import pd, get_use_objects_for_output, DataFrame
+    from ..fields.advanced_field import AdvancedField
     from ..selection.abstract_expression import AbstractDescription
 
 Native = StructInterface
@@ -35,10 +37,10 @@ Comment = Union[StructName, Auto]
 META_MEMBER_MAPPING = dict(_data='fields')
 GROUP_NO_STR = '===='
 GROUP_TYPE_STR = 'GROUP'
-DICT_VALID_SIGN = {'True': '-', 'False': 'x', 'None': '-', arg.DEFAULT.get_value(): '~'}
+DICT_VALID_SIGN = {'True': '-', 'False': 'x', 'None': '-', AUTO.get_value(): '~'}
 
 
-class FlatStruct(SimpleDataWrapper, StructInterface):
+class FlatStruct(SimpleDataWrapper, DescribeMixin, StructInterface):
     def __init__(
             self,
             fields: Iterable,
@@ -48,7 +50,7 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
             exclude_duplicates: bool = False,
             reassign_struct_name: bool = False,
     ):
-        name = arg.acquire(name, arg.get_generated_name(prefix='FieldGroup'))
+        name = Auto.acquire(name, get_generated_name(prefix='FieldGroup'))
         self._caption = caption or ''
         super().__init__(name=name, data=list())
         for field_or_group in fields:
@@ -90,7 +92,7 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
         return self.get_data()
 
     def get_field_names(self) -> list:
-        return arg.get_names(self.get_fields())
+        return get_names(self.get_fields())
 
     def fields(self, fields: Iterable) -> Native:
         self._data = list(fields)
@@ -135,7 +137,7 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
             return self
         else:
             if isinstance(field_desc, AdvancedField):
-                if reassign_struct_name or not arg.is_defined(field_desc.get_group_name()):
+                if reassign_struct_name or not Auto.is_defined(field_desc.get_group_name()):
                     field_desc.set_group_name(self.get_name(), inplace=True)
                     field_desc.set_group_caption(self.get_caption(), inplace=True)
             if before:
@@ -172,7 +174,7 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
             reassign_struct_name: bool = False,
             inplace: bool = False,
     ) -> Optional[Native]:
-        fields = arg.update(fields)
+        fields = update(fields)
         if inplace:
             for f in fields:
                 self.append(
@@ -185,17 +187,17 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
             return self.make_new(fields=self.get_fields_descriptions() + list(fields), name=name)
 
     def remove_fields(self, *fields, multiple: bool = False, inplace: bool = True):
-        removing_fields = arg.update(fields)
-        removing_field_names = arg.get_names(removing_fields)
+        removing_fields = update(fields)
+        removing_field_names = get_names(removing_fields)
         existing_fields = self.get_fields()
         if inplace:
             for e in existing_fields:
-                if arg.get_name(e) in removing_field_names:
+                if get_name(e) in removing_field_names:
                     existing_fields.remove(e)
                     if not multiple:
                         break
         else:
-            new_fields = [f for f in existing_fields if arg.get_name(f) not in removing_field_names]
+            new_fields = [f for f in existing_fields if get_name(f) not in removing_field_names]
             return self.make_new(new_fields)
 
     def is_empty(self) -> bool:
@@ -209,7 +211,7 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
 
     def get_type_count(self, field_type: Type = AUTO, by_prefix: bool = True) -> int:
         count = 0
-        field_type_name = arg.get_name(field_type, or_callable=False)
+        field_type_name = get_name(field_type, or_callable=False)
         for f in self.get_fields():
             if by_prefix:
                 is_selected_type = f.get_type_name().startswith(field_type_name)
@@ -225,7 +227,7 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
         types_count = list()
         for t in types:
             types_count.append(self.get_type_count(t))
-            type_names.append(arg.get_name(t, or_callable=False))
+            type_names.append(get_name(t, or_callable=False))
         other_count = total_count - sum(types_count)
         str_fields_count = ' + '.join(['{} {}'.format(c, t) for c, t in zip(types_count, type_names)])
         return '{} total = {} + {} other'.format(total_count, str_fields_count, other_count)
@@ -241,13 +243,13 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
         return [c.get_name() for c in self.get_fields()]
 
     def get_types_list(self, dialect: Union[DialectType, Auto] = DialectType.String) -> list:
-        if arg.is_defined(dialect):
+        if Auto.is_defined(dialect):
             return [f.get_type_in(dialect) for f in self.get_fields()]
         else:
             return [f.get_type() for f in self.get_fields()]
 
     def get_types_dict(self, dialect: Union[DialectType, Auto] = AUTO) -> dict:
-        names = map(lambda f: arg.get_name(f), self.get_fields())
+        names = map(lambda f: get_name(f), self.get_fields())
         types = self.get_types_list(dialect)
         return dict(zip(names, types))
 
@@ -357,14 +359,14 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
         return fs.compare_lists(**alias)(other, self)
 
     def get_struct_comparison_iter(self, other: StructInterface, message: Optional[str] = None) -> Iterable:
-        if arg.is_defined(message):
+        if Auto.is_defined(message):
             title = '{} {}'.format(self.__repr__(), message)
         else:
             title = self.__repr__()
         comparison = self.get_struct_comparison_dict(other)
         counts = {k: len(v) for k, v in comparison.items()}
-        added_names = arg.get_names(comparison.get('added'))
-        removed_names = arg.get_names(comparison.get('removed'))
+        added_names = get_names(comparison.get('added'))
+        removed_names = get_names(comparison.get('removed'))
         if added_names or removed_names:
             message = '{}: {saved} fields will be saved, {added} added, {removed} removed'.format(title, **counts)
             yield message
@@ -409,7 +411,7 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
                 remaining_struct.remove_fields(f_name, inplace=True)
 
         for f_remaining in remaining_struct.get_columns():
-            f_name = arg.get_name(f_remaining)
+            f_name = get_name(f_remaining)
             is_valid = False
             f_expected = expected_struct.get_field_description(f_name)
             if f_name in updated_struct.get_field_names():
@@ -422,8 +424,8 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
         self.set_fields(updated_struct.get_fields(), inplace=True)
         return self
 
-    def get_validation_message(self, standard: Union[StructInterface, Auto, None] = arg.DEFAULT) -> str:
-        if arg.is_defined(standard):
+    def get_validation_message(self, standard: Union[StructInterface, Auto, None] = AUTO) -> str:
+        if Auto.is_defined(standard):
             self.validate_about(standard)
         if self.is_valid_struct():
             message = 'struct has {} valid columns:'.format(self.get_column_count())
@@ -494,16 +496,16 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
             prev_group_name = group_name
 
     def get_group_header(self, name: Comment = AUTO, caption: Comment = AUTO, comment: Comment = None) -> Iterable[str]:
-        is_title_row = name == arg.AUTO
-        name = arg.acquire(name, self.get_name())
-        caption = arg.acquire(caption, self.get_caption())
-        if arg.is_defined(name):
+        is_title_row = name == AUTO
+        name = Auto.acquire(name, self.get_name())
+        caption = Auto.acquire(caption, self.get_caption())
+        if Auto.is_defined(name):
             yield name
-        if arg.is_defined(caption):
+        if Auto.is_defined(caption):
             yield caption
         if is_title_row:
             yield self.get_str_fields_count()
-        if arg.is_defined(comment):
+        if Auto.is_defined(comment):
             yield comment
 
     @staticmethod
@@ -525,7 +527,7 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
             select_fields: Optional[Array] = None,
             logger: Union[ExtLogger, Auto] = AUTO,
     ) -> Optional[DataFrame]:
-        log = logger.log if arg.is_defined(logger) else print
+        log = logger.log if Auto.is_defined(logger) else print
         if show_header:
             for line in self.get_group_header(comment=comment):
                 log(line)
@@ -556,7 +558,7 @@ class FlatStruct(SimpleDataWrapper, StructInterface):
         return DataFrame(data, columns=columns)
 
     def show(self, as_dataframe: Union[bool, Auto] = AUTO) -> Optional[DataFrame]:
-        as_dataframe = arg.acquire(as_dataframe, get_use_objects_for_output())
+        as_dataframe = Auto.acquire(as_dataframe, get_use_objects_for_output())
         if as_dataframe:
             return self.get_dataframe()
         else:
