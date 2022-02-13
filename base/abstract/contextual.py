@@ -2,20 +2,21 @@ from abc import ABC
 from typing import Optional, Union
 
 try:  # Assume we're a submodule in a package.
-    from utils.arguments import get_generated_name
     from base.classes.auto import Auto, AUTO
+    from base.functions.arguments import get_generated_name
     from base.interfaces.context_interface import ContextInterface
     from base.interfaces.contextual_interface import ContextualInterface
     from base.abstract.named import AbstractNamed
     from base.abstract.sourced import Sourced
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils.arguments import get_generated_name
     from ..classes.auto import Auto, AUTO
+    from ..functions.arguments import get_generated_name
     from ..interfaces.context_interface import ContextInterface
     from ..interfaces.contextual_interface import ContextualInterface
     from .named import AbstractNamed
     from .sourced import Sourced
 
+Native = ContextualInterface
 Context = Optional[ContextInterface]
 Source = Union[Context, Sourced]
 
@@ -37,11 +38,11 @@ class Contextual(Sourced, ContextualInterface, ABC):
         if Auto.is_defined(self.get_context()):
             self.put_into_context(check=check)
 
-    def get_source(self) -> Union[Source, ContextualInterface]:
+    def get_source(self) -> Union[Native, Source]:
         source = self._source
         return source
 
-    def _has_context_as_source(self):
+    def _has_context_as_source(self) -> bool:
         source = self.get_source()
         if hasattr(source, 'is_context'):
             return source.is_context()
@@ -54,22 +55,27 @@ class Contextual(Sourced, ContextualInterface, ABC):
         if hasattr(source, 'get_context'):
             return source.get_context()
 
-    def set_context(self, context: ContextInterface, reset: bool = True, inplace: bool = True):
+    def set_context(self, context: ContextInterface, reset: bool = True, inplace: bool = True) -> Native:
         if inplace:
-            if self._has_context_as_source():
+            if self._is_stub_instance(context):
+                return self
+            elif self._has_context_as_source():
                 if reset:
                     assert isinstance(context, ContextInterface)
                     assert isinstance(context, AbstractNamed)
                     self.set_source(context)
             elif Auto.is_defined(self.get_source()):
                 self.get_source().set_context(context, reset=reset)
-            self.put_into_context()
+            return self.put_into_context()
         else:
-            return self.set_outplace(context=context)
+            contextual = self.set_outplace(context=context)
+            return self._assume_native(contextual)
 
-    def put_into_context(self, check: bool = True):
+    def put_into_context(self, check: bool = True) -> Native:
         context = self.get_context()
-        if context:
+        if self._is_stub_instance(context):
+            pass
+        elif context:
             known_child = context.get_child(self.get_name())
             if known_child:
                 if check:
@@ -77,8 +83,16 @@ class Contextual(Sourced, ContextualInterface, ABC):
                         message = 'Object with name {} already registered in context ({} != {})'
                         raise ValueError(message.format(self.get_name(), known_child, self))
             else:
-                context.add_child(self)
+                return context.add_child(self) or self
         elif check:
             msg = 'for put_into_context context must be defined (got object {} with source {}'
             raise ValueError(msg.format(self, self.get_source()))
         return self
+
+    @staticmethod
+    def _is_stub_instance(context) -> bool:
+        return hasattr(context, '_method_stub')
+
+    @staticmethod
+    def _assume_native(contextual) -> Native:
+        return contextual

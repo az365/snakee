@@ -1,17 +1,23 @@
 from typing import Optional, Callable, Iterable, Generator, Union
 
 try:  # Assume we're a submodule in a package.
-    from utils import arguments as arg
-    from content.items.simple_items import Record, Row, Array, FieldName, Value
+    from base.classes.auto import AUTO, Auto
+    from content.items.simple_items import (
+        Record, MutableRecord, Row, MutableRow, ImmutableRow,
+        Array, FieldName, Value,
+    )
     from content.items.item_type import ItemType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
-    from ...content.items.simple_items import Record, Row, Array, FieldName, Value
+    from ...base.classes.auto import AUTO, Auto
+    from ...content.items.simple_items import (
+        Record, MutableRecord, Row, MutableRow, ImmutableRow,
+        Array, FieldName, Value,
+    )
     from ...content.items.item_type import ItemType
 
 
-def transpose_records_list(records_list: Iterable) -> Record:
-    record_out = dict()
+def transpose_records_list(records_list: Iterable) -> MutableRecord:
+    record_out = MutableRecord()
     for r in records_list:
         for k, v in r.items():
             record_out[k] = record_out.get(k, []) + [v]
@@ -24,12 +30,12 @@ def get_histograms(
         max_values: int = 25,
         ignore_none: bool = False,
 ) -> Generator:
-    histograms = dict()
+    histograms = MutableRecord()
     for r in records:
         cur_fields = fields or r.keys()
         for f in cur_fields:
             if f not in histograms:
-                histograms[f] = dict()
+                histograms[f] = MutableRecord()
             cur_hist = histograms[f]
             cur_value = r.get(f)
             cur_count = cur_hist.get(cur_value, 0)
@@ -41,29 +47,29 @@ def get_histograms(
 
 
 def sum_by_keys(records: Iterable, keys: Array, counters: Array) -> Generator:
-    result = dict()
+    result = MutableRecord()
     for r in records:
-        cur_key = tuple([r.get(k) for k in keys])
+        cur_key = ImmutableRow([r.get(k) for k in keys])
         if cur_key not in result:
-            result[cur_key] = dict()
+            result[cur_key] = MutableRecord()
         for c in counters:
             result[cur_key][c] = result[cur_key].get(c, 0) + r.get(c, 0)
     yield from result.items()
 
 
-def get_first_values(records: Iterable, fields: Array) -> Record:
-    dict_first_values = dict()
+def get_first_values(records: Iterable, fields: Array) -> MutableRecord:
+    first_values = MutableRecord()
     empty_fields = fields.copy()
     for r in records:
         added_fields = list()
         for f in empty_fields:
             v = r.get(f)
             if v:
-                dict_first_values[f] = v
+                first_values[f] = v
                 added_fields.append(f)
         for f in added_fields:
             empty_fields.remove(f)
-    return dict_first_values
+    return first_values
 
 
 def fold_rows(
@@ -71,9 +77,9 @@ def fold_rows(
         key_columns: Array,
         list_columns: Iterable,
         skip_missing: bool = False,
-) -> Optional[tuple]:
+) -> Optional[ImmutableRow]:
     if list_rows:
-        row_out = list()
+        row_out = MutableRecord()
         first_row = list_rows[0]
         for c in key_columns:
             if isinstance(c, Callable):
@@ -104,7 +110,7 @@ def fold_rows(
                             raise IndexError('fold_rows(): row has no column {}: {}'.format(c_in, r_in))
                 else:
                     raise TypeError('fold_rows(): expected function or column number, got {}'.format(c_in))
-        return tuple(row_out)
+        return ImmutableRow(row_out)
 
 
 def fold_records(
@@ -112,8 +118,8 @@ def fold_records(
         key_fields: Iterable,
         list_fields: Iterable,
         skip_missing: bool = False,
-) -> Record:
-    rec_out = Record()
+) -> MutableRecord:
+    rec_out = MutableRecord()
     for f in key_fields:
         if hasattr(f, 'get_name'):
             f = f.get_name()
@@ -137,7 +143,7 @@ def fold_lists(
         item_type: Optional[ItemType] = None,
 ) -> Union[Row, Record]:
     if list_items:
-        if not arg.is_defined(item_type):
+        if not Auto.is_defined(item_type):
             first_item = list_items[0]
             item_type = ItemType.detect(first_item)
         if item_type == ItemType.Record:

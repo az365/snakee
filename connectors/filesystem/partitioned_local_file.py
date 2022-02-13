@@ -1,7 +1,6 @@
 from typing import Iterable, Union, Optional
 
 try:  # Assume we're a submodule in a package.
-    from utils import arguments as arg
     from interfaces import (
         Connector, Stream,
         FolderType, ConnType, StreamType, ContentType, ContentFormatInterface,
@@ -14,7 +13,6 @@ try:  # Assume we're a submodule in a package.
     from connectors.filesystem.local_file import LocalFile
     from connectors.filesystem.local_mask import LocalMask
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
     from ...interfaces import (
         Connector, Stream,
         FolderType, ConnType, StreamType, ContentType, ContentFormatInterface,
@@ -79,12 +77,12 @@ class PartitionedLocalFile(LocalMask, LocalFile):
 
     def file(
             self,
-            suffix: Union[Suffix, arg.Auto],
+            suffix: Union[Suffix, Auto],
             content_format: Union[ContentType, ContentFormatInterface, Auto] = AUTO,
             filetype: Union[ContentType, ContentFormatInterface, Auto] = AUTO,  # deprecated argument
             **kwargs
     ) -> Connector:
-        acquired_suffix = arg.acquire(suffix, self.get_suffix())
+        acquired_suffix = Auto.acquire(suffix, self.get_suffix())
         assert acquired_suffix, 'suffix must be defined, got argument {}, default {}'.format(suffix, self.get_suffix())
         filename = self.get_mask().format(acquired_suffix)
         return super().file(filename, content_format=content_format, filetype=filetype, **kwargs)
@@ -96,15 +94,15 @@ class PartitionedLocalFile(LocalMask, LocalFile):
         for file in self.get_files():
             yield from file.get_items(how=how, *args, **kwargs)
 
-    def get_items_count(self, allow_reopen=True, allow_slow_gzip=True, force=False) -> Optional[int]:
+    def get_items_count(self, allow_reopen=True, allow_slow_mode=True, force=False) -> Optional[int]:
         partition = self.get_partition()
         if partition:
             if isinstance(partition, LocalFile) or hasattr(partition, 'get_count'):
-                return partition.get_count(allow_reopen=allow_reopen, allow_slow_gzip=allow_slow_gzip, force=force)
+                return partition.get_count(allow_reopen=allow_reopen, allow_slow_mode=allow_slow_mode, force=force)
         else:
             count = 0
             for file in self.get_files():
-                current_count = file.get_count(allow_reopen=allow_reopen, allow_slow_gzip=allow_slow_gzip, force=force)
+                current_count = file.get_count(allow_reopen=allow_reopen, allow_slow_mode=allow_slow_mode, force=force)
                 count += current_count or 0
             return count
 

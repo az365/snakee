@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import Callable, Iterable, Union, Any
+from collections import Mapping, OrderedDict
+from typing import Callable, Iterable, Sequence, Union, Any
 
 try:  # Assume we're a submodule in a package.
     from base.classes.auto import Auto, AUTO
@@ -11,34 +12,55 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.functions.arguments import get_name
 
 
-class SimpleRowInterface(ABC):
-    @abstractmethod
-    def __iter__(self) -> Iterable:
-        pass
-
-    @abstractmethod
-    def __len__(self) -> int:
-        pass
-
-    @abstractmethod
-    def __getitem__(self, item) -> Value:
-        pass
-
+class SimpleRowInterface(Sequence, ABC):
     @abstractmethod
     def __add__(self, other) -> Iterable:
         pass
 
 
-SimpleRow = Array
-Row = Union[SimpleRow, SimpleRowInterface]
-Record = dict
-Line = str
-SimpleSelectableItem = Union[Row, Record]
-SimpleItem = Union[SimpleSelectableItem, Line]
-Item = Union[SimpleItem, Any]
+class FrozenDict(Mapping):
+    def __init__(self, *args, **kwargs):
+        self._d = dict(*args, **kwargs)
+        self._hash = None
 
-ROW_SUBCLASSES = list, tuple, SimpleRowInterface
-RECORD_SUBCLASSES = dict,
+    def __iter__(self):
+        return iter(self._d)
+
+    def __len__(self):
+        return len(self._d)
+
+    def __getitem__(self, key):
+        return self._d[key]
+
+    def __hash__(self):
+        if self._hash is None:
+            hash_ = 0
+            for pair in self.items():
+                hash_ ^= hash(pair)
+            self._hash = hash_
+        return self._hash
+
+
+MutableRow = list
+ImmutableRow = tuple
+SimpleRow = Union[MutableRow, ImmutableRow]
+Row = Union[SimpleRow, SimpleRowInterface]
+
+MutableRecord = dict
+ImmutableRecord = Mapping  # FrozenDict
+SimpleRecord = Union[MutableRecord, ImmutableRecord]
+Record = SimpleRecord
+
+RecRow = OrderedDict
+
+Line = str
+SimpleSelectableItem = Union[SimpleRow, SimpleRecord, OrderedDict]
+SimpleItem = Union[SimpleSelectableItem, Line]
+SelectableItem = Union[Row, Record, RecRow]
+Item = Union[SelectableItem, Line, Any]
+
+ROW_SUBCLASSES = MutableRow, ImmutableRow, SimpleRowInterface
+RECORD_SUBCLASSES = MutableRecord, ImmutableRecord, RecRow
 LINE_SUBCLASSES = str,
 STAR = '*'
 

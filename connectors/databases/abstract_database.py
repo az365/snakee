@@ -1,22 +1,20 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Iterable, Union
+from typing import Optional, Iterable, Tuple, Union
 
 try:  # Assume we're a submodule in a package.
-    from utils import arguments as arg
     from interfaces import (
         StreamInterface, ColumnarInterface, ColumnarStream, StructStream, StructInterface, SimpleDataInterface,
         LeafConnectorInterface, ConnType, StreamType, DialectType, LoggingLevel,
-        AUTO, Auto, AutoContext, AutoBool, AutoCount, Count, Name, FieldName, Connector,
+        AUTO, Auto, AutoContext, AutoBool, AutoCount, Count, Name, FieldName, OptionalFields, Connector,
     )
     from functions.primary import text as tx
     from content.struct.flat_struct import FlatStruct
     from connectors.abstract.abstract_storage import AbstractStorage
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
     from ...interfaces import (
         StreamInterface, ColumnarInterface, ColumnarStream, StructStream, StructInterface, SimpleDataInterface,
         LeafConnectorInterface, ConnType, StreamType, DialectType, LoggingLevel,
-        AUTO, Auto, AutoContext, AutoBool, AutoCount, Count, Name, FieldName, Connector,
+        AUTO, Auto, AutoContext, AutoBool, AutoCount, Count, Name, FieldName, OptionalFields, Connector,
     )
     from ...functions.primary import text as tx
     from ...content.struct.flat_struct import FlatStruct
@@ -67,7 +65,6 @@ class AbstractDatabase(AbstractStorage, ABC):
         if table:
             assert not kwargs, 'table connection {} is already registered'.format(table_name)
         else:
-            assert struct is not None, 'for create table struct must be defined'
             table_class = self.get_default_child_obj_class()
             table = table_class(table_name, struct=struct, database=self, **kwargs)
             self.get_tables()[table_name] = table
@@ -123,7 +120,7 @@ class AbstractDatabase(AbstractStorage, ABC):
             message_if_yes: Optional[str] = None, message_if_no: Optional[str] = None,
             stop_if_no: bool = False, verbose: AutoBool = AUTO,
     ) -> Optional[Iterable]:
-        verbose = arg.acquire(verbose, message_if_yes or message_if_no)
+        verbose = Auto.acquire(verbose, message_if_yes or message_if_no)
         table_name = self._get_table_name(table)
         table_exists = self.exists_table(table_name, verbose=verbose)
         if table_exists:
@@ -148,7 +145,7 @@ class AbstractDatabase(AbstractStorage, ABC):
             self, table: Union[Table, Name], struct: Struct,
             drop_if_exists: bool = False, verbose: AutoBool = AUTO,
     ) -> Table:
-        verbose = arg.acquire(verbose, self.verbose)
+        verbose = Auto.acquire(verbose, self.verbose)
         table_name, struct_str = self._get_table_name_and_struct_str(table, struct, check_struct=True)
         if drop_if_exists:
             self.drop_table(table_name, verbose=verbose)
@@ -220,31 +217,36 @@ class AbstractDatabase(AbstractStorage, ABC):
         )
         return self.table(name_new, struct=struct)
 
-    def select(
+    def execute_select(
             self,
             table: Union[Table, Name],
-            fields: Union[Iterable, str],
-            filters: Union[Iterable, str, None] = None,
+            fields: OptionalFields,
+            filters: OptionalFields = None,
+            sort: OptionalFields = None,
             count: Count = None,
             verbose: AutoBool = AUTO,
     ) -> Iterable:
-        fields_str = fields if isinstance(fields, str) else ', '.join(fields)
+        fields_str = fields if isinstance(fields, str) else ', '.join(fields) if fields else '*'
         filters_str = filters if isinstance(filters, str) else ' AND '.join(filters) if filters is not None else ''
+        sort_str = sort if isinstance(sort, str) else ' AND '.join(sort) if sort is not None else ''
         table_name = self._get_table_name(table)
         query = 'SELECT {fields} FROM {table}'.format(table=table_name, fields=fields_str)
         if filters:
             query += ' WHERE {filters}'.format(filters=filters_str)
+        if sort:
+            query += ' ORDER BY {sort}'.format(sort=sort_str)
         if count:
             query += ' LIMIT {count}'.format(count=count)
         query += ';'
         return self.execute(query, get_data=True, commit=False, verbose=verbose)
 
     def select_count(self, table: Union[Table, Name], verbose: AutoBool = AUTO) -> int:
-        response = self.select(table, fields='COUNT(*)', verbose=verbose)
-        return list(response)[0][0]
+        response = self.execute_select(table, fields='COUNT(*)', verbose=verbose)
+        count = list(response)[0][0]
+        return count
 
     def select_all(self, table: Union[Table, Name], verbose=AUTO) -> Iterable:
-        return self.select(table, fields='*', verbose=verbose)
+        return self.execute_select(table, fields='*', verbose=verbose)
 
     @abstractmethod
     def insert_rows(
@@ -287,7 +289,7 @@ class AbstractDatabase(AbstractStorage, ABC):
             skip_lines: Count = 0, skip_first_line: bool = False,
             step: AutoCount = DEFAULT_STEP, verbose: AutoBool = AUTO,
     ) -> tuple:
-        if not arg.is_defined(skip_lines):
+        if not Auto.is_defined(skip_lines):
             skip_lines = 0
         is_struct_description = isinstance(struct, StructInterface) or hasattr(struct, 'get_struct_str')
         if not is_struct_description:
@@ -323,7 +325,7 @@ class AbstractDatabase(AbstractStorage, ABC):
             skip_lines: Count = 0, skip_first_line: bool = False, max_error_rate: float = 0.0,
             verbose: AutoBool = AUTO,
     ) -> Table:
-        verbose = arg.acquire(verbose, self.verbose)
+        verbose = Auto.acquire(verbose, self.verbose)
         table_name, struct = self._get_table_name_and_struct(table, struct)
         if not skip_lines:
             self.create_table(table_name, struct=struct, drop_if_exists=True, verbose=verbose)
@@ -334,7 +336,7 @@ class AbstractDatabase(AbstractStorage, ABC):
             step=step, skip_lines=skip_lines, skip_errors=skip_errors,
             verbose=verbose,
         )
-        write_count += (skip_lines if isinstance(skip_lines, int) else 0)  # can be None or arg.default
+        write_count += (skip_lines if isinstance(skip_lines, int) else 0)  # can be None or Auto
         result_count = self.select_count(table)
         if write_count:
             error_rate = (write_count - result_count) / write_count
@@ -380,7 +382,7 @@ class AbstractDatabase(AbstractStorage, ABC):
         return self
 
     def take_credentials_from_file(self, file: Union[File, Name], by_name: bool = False, delimiter=AUTO) -> Native:
-        delimiter = arg.acquire(delimiter, '\t' if by_name else '\n')
+        delimiter = Auto.acquire(delimiter, '\t' if by_name else '\n')
         if isinstance(file, str):
             context = self.get_context()
             if context:
@@ -428,6 +430,23 @@ class AbstractDatabase(AbstractStorage, ABC):
             return table.get_name()
         else:
             return str(table)
+
+    @staticmethod
+    def _get_schema_and_table_name(
+            table: Union[Table, Name],
+            default_schema: Optional[str] = None,
+    ) -> Tuple[Optional[str], str]:
+        if isinstance(table, LeafConnectorInterface) or hasattr(table, 'get_name'):
+            name = table.get_name()
+        elif isinstance(table, str):
+            name = table
+        else:
+            raise TypeError('Expected Table or Name, got {}'.format(table))
+        if '.' in name:
+            schema_name, table_name = name.split('.')
+        else:
+            schema_name, table_name = default_schema, name
+        return schema_name, table_name
 
     @classmethod
     def _get_table_name_and_struct(

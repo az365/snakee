@@ -2,7 +2,7 @@ from abc import ABC
 from typing import Union, Iterable, Callable, Any
 from inspect import isclass
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
     from interfaces import Stream, StreamBuilderInterface, StreamType, ItemType, OptionalFields
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -29,19 +29,21 @@ class StreamBuilderMixin(StreamBuilderInterface, ABC):
         meta.update(kwargs)
         return StreamType.of(stream_type).stream(data, **meta)
 
-    def get_calc(self, function: Callable, *args, **kwargs) -> Any:
+    @classmethod
+    def empty(cls, **kwargs):
+        empty_data = list()
+        return cls(empty_data, **kwargs)
+
+    def _get_calc(self, function: Callable, *args, **kwargs) -> Any:
         return function(self.get_data(), *args, **kwargs)
 
     def map(self, function: Callable) -> Stream:
-        return self.stream(
-            map(function, self.get_items()),
-        )
+        items = map(function, self.get_items())
+        return self.stream(items)
 
     def filter(self, function: Callable) -> Stream:
-        return self.stream(
-            filter(function, self.get_items()),
-            count=None,
-        )
+        items = filter(function, self.get_items())
+        return self.stream(items, count=None)
 
     def get_demo_example(self, count=3) -> Iterable:
         stream = self.take(count)

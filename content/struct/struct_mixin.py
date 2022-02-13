@@ -2,19 +2,19 @@ from abc import ABC, abstractmethod
 from typing import Optional, Iterable, Union, Type, Callable
 
 try:  # Assume we're a submodule in a package.
-    from utils import arguments as arg
     from interfaces import (
         StructInterface, StructMixinInterface,
         ItemType, DialectType, FieldType, Field, FieldName, FieldNo,
         AUTO, Auto, AutoBool, Row, Array, ARRAY_TYPES,
     )
+    from base.functions.arguments import get_name
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
     from ...interfaces import (
         StructInterface, StructMixinInterface,
         ItemType, DialectType, FieldType, Field, FieldName, FieldNo,
         AUTO, Auto, AutoBool, Row, Array, ARRAY_TYPES,
     )
+    from ...base.functions.arguments import get_name
 
 Struct = Optional[StructInterface]
 
@@ -46,7 +46,7 @@ class StructMixin(StructMixinInterface, ABC):
     def get_types_list(self, dialect: DialectType = DialectType.String) -> list:
         return self.get_struct().get_types_list(dialect)
 
-    def get_types_dict(self, dialect: Union[DialectType, arg.Auto, None] = AUTO) -> dict:
+    def get_types_dict(self, dialect: Union[DialectType, Auto, None] = AUTO) -> dict:
         return self.get_struct().get_types_dict(dialect)
 
     def get_types(self, dialect: DialectType = DialectType.String, as_list: bool = True) -> Iterable:
@@ -61,16 +61,20 @@ class StructMixin(StructMixinInterface, ABC):
         if isinstance(field, FieldNo):
             return field
         else:  # isinstance(field, FieldName)
-            field_name = arg.get_name(field)
+            field_name = get_name(field)
             return self.get_struct().get_field_position(field_name)
 
     def get_fields_positions(self, fields: Row) -> Row:
         return [self.get_field_position(f) for f in fields]
 
     @classmethod
-    def _get_struct_detected_by_title_row(cls, title_row: Iterable, types: Optional[dict] = None) -> StructInterface:
+    def _get_struct_detected_by_title_row(
+            cls,
+            title_row: Iterable,
+            types: Union[dict, Auto, None] = None,
+    ) -> StructInterface:
         struct_class = cls._get_struct_class()
-        if not arg.is_defined(types):
+        if not Auto.is_defined(types):
             types = dict()
         detected_struct = struct_class([])
         for name in title_row:
@@ -87,8 +91,8 @@ class StructMixin(StructMixinInterface, ABC):
         flat_struct_class = struct_row_class([], []).get_struct().__class__
         return flat_struct_class
 
-    def _get_native_struct(self, raw_struct: Struct, verbose: AutoBool = AUTO) -> Struct:
-        if hasattr(self, 'is_verbose') and not arg.is_defined(verbose):
+    def _get_native_struct(self, raw_struct: Struct, save_if_not_yet: bool = False, verbose: AutoBool = AUTO) -> Struct:
+        if hasattr(self, 'is_verbose') and not Auto.is_defined(verbose):
             verbose = self.is_verbose()
         if raw_struct is None:
             native_struct = None
@@ -116,10 +120,14 @@ class StructMixin(StructMixinInterface, ABC):
                 native_struct = self._get_struct_detected_by_title_row(column_names)
         elif raw_struct == AUTO:
             native_struct = None
-            if hasattr(self, 'is_first_line_title'):
+            if hasattr(self, 'get_struct_from_source'):
+                native_struct = self.get_struct_from_source(set_struct=save_if_not_yet, verbose=verbose)
+            elif hasattr(self, 'is_first_line_title'):
                 if self.is_first_line_title():
                     if hasattr(self, 'get_detected_struct_by_title_row'):
-                        native_struct = self.get_detected_struct_by_title_row(set_struct=False, verbose=verbose)
+                        native_struct = self.get_detected_struct_by_title_row(
+                            set_struct=save_if_not_yet, verbose=verbose,
+                        )
                     elif hasattr(self, 'get_title_row'):
                         title_row = self.get_title_row(close=True)
                         native_struct = self._get_struct_detected_by_title_row(title_row)

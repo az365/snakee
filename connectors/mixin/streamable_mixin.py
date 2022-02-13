@@ -2,22 +2,22 @@ from abc import ABC
 from typing import Optional, Iterable, Union
 
 try:  # Assume we're a submodule in a package.
-    from utils import arguments as arg
     from interfaces import (
         IterableStreamInterface, StructInterface, Context, LeafConnectorInterface, StructMixinInterface,
         RegularStream, RowStream, StructStream, RecordStream, LineStream,
         ItemType, StreamType,
         Auto, AUTO, AutoBool, AutoCount, AutoName, Array, OptionalFields,
     )
+    from base.functions.arguments import get_generated_name
     from streams.mixin.columnar_mixin import ColumnarMixin
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
     from ...interfaces import (
         IterableStreamInterface, StructInterface, Context, LeafConnectorInterface, StructMixinInterface,
         RegularStream, RowStream, StructStream, RecordStream, LineStream,
         ItemType, StreamType,
         Auto, AUTO, AutoBool, AutoCount, AutoName, Array, OptionalFields,
     )
+    from ...base.functions.arguments import get_generated_name
     from ...streams.mixin.columnar_mixin import ColumnarMixin
 
 Stream = Union[IterableStreamInterface, RegularStream]
@@ -35,13 +35,14 @@ class StreamableMixin(ColumnarMixin, ABC):
         return StreamType.AnyStream
 
     def _get_stream_type(self, stream_type: Union[StreamType, Auto] = AUTO) -> StreamType:
-        if not arg.is_defined(stream_type):
+        if not Auto.is_defined(stream_type):
             if hasattr(self, 'get_stream_type'):
                 stream_type = self.get_stream_type()
             elif hasattr(self, 'get_default_stream_type'):
-                stream_type = self.get_default_item_type()
+                stream_type = self.get_default_stream_type()
             else:
-                stream_type = StreamType.LineStream
+                item_type = self.get_default_item_type()
+                stream_type = StreamType.detect(item_type)
         return stream_type
 
     def _get_stream_class(self, stream_type: Union[StreamType, Auto] = AUTO):
@@ -51,7 +52,7 @@ class StreamableMixin(ColumnarMixin, ABC):
     def _get_item_type(self, stream: Union[StreamType, RegularStream, Auto] = AUTO) -> ItemType:
         if isinstance(stream, StreamType) or hasattr(stream, 'get_class'):
             stream_class = self._get_stream_class(stream)
-        elif arg.is_defined(stream):
+        elif Auto.is_defined(stream):
             stream_class = stream
         else:
             stream_class = self._get_stream_class()
@@ -63,11 +64,11 @@ class StreamableMixin(ColumnarMixin, ABC):
             return stream_obj.get_item_type()
 
     def _get_generated_stream_name(self) -> str:
-        return arg.get_generated_name('{}:stream'.format(self.get_name()), include_random=True, include_datetime=False)
+        return get_generated_name('{}:stream'.format(self.get_name()), include_random=True, include_datetime=False)
 
     def _get_fast_count(self) -> Optional[int]:
-        if 'allow_slow_gzip' in self.get_count.__annotations__:
-            return self.get_count(allow_slow_gzip=False)
+        if 'allow_slow_mode' in self.get_count.__annotations__:
+            return self.get_count(allow_slow_mode=False)
         else:
             return self.get_count()
 
@@ -102,8 +103,8 @@ class StreamableMixin(ColumnarMixin, ABC):
             message: AutoName = AUTO,
             **kwargs
     ) -> dict:
-        name = arg.delayed_acquire(name, self._get_generated_stream_name)
-        if not arg.is_defined(data):
+        name = Auto.delayed_acquire(name, self._get_generated_stream_name)
+        if not Auto.is_defined(data):
             item_type = self._get_item_type()
             data = self._get_items_of_type(item_type, verbose=verbose, step=step, message=message)
         result = dict(
@@ -130,7 +131,7 @@ class StreamableMixin(ColumnarMixin, ABC):
             step: AutoCount = AUTO,
             **kwargs
     ) -> Stream:
-        name = arg.delayed_acquire(name, self._get_generated_stream_name)
+        name = Auto.delayed_acquire(name, self._get_generated_stream_name)
         stream_type = self._get_stream_type(stream_type)
         stream_class = self._get_stream_class(stream_type)
         if hasattr(stream_class, 'get_item_type'):
@@ -141,7 +142,7 @@ class StreamableMixin(ColumnarMixin, ABC):
                 item_type = stream_obj.get_item_type()
             else:
                 item_type = AUTO
-        if not arg.is_defined(data):
+        if not Auto.is_defined(data):
             data = self._get_items_of_type(item_type, verbose=kwargs.get('verbose', AUTO), step=step)
         meta = self.get_compatible_meta(stream_class, name=name, ex=ex, **kwargs)
         if 'count' not in meta and 'count' not in kwargs:
@@ -156,15 +157,15 @@ class StreamableMixin(ColumnarMixin, ABC):
             stream_type: StreamType,
             step: AutoCount = AUTO,
             verbose: AutoBool = AUTO,
-            message: Union[str, arg.Auto, None] = AUTO,
+            message: Union[str, Auto, None] = AUTO,
             **kwargs,
     ) -> Stream:
-        stream_type = arg.delayed_acquire(stream_type, self._get_stream_type)
+        stream_type = Auto.delayed_acquire(stream_type, self._get_stream_type)
         item_type = self._get_item_type(stream_type)
         if item_type == ItemType.StructRow and hasattr(self, 'get_struct') and 'struct' not in kwargs:
             kwargs['struct'] = self.get_struct()
         data = kwargs.pop('data', None)
-        if not arg.is_defined(data):
+        if not Auto.is_defined(data):
             data = self._get_items_of_type(item_type, step=step, verbose=verbose, message=message)
         stream_kwargs = self.get_stream_kwargs(data=data, step=step, verbose=verbose, **kwargs)
         return stream_type.stream(**stream_kwargs)
@@ -189,7 +190,7 @@ class StreamableMixin(ColumnarMixin, ABC):
             **kwargs,
     ) -> StructStream:
         assert self._is_existing(), 'for get stream file must exists'
-        if not arg.is_defined(struct):
+        if not Auto.is_defined(struct):
             if isinstance(self, StructMixinInterface) or hasattr(self, 'get_struct'):
                 struct = self.get_struct()
             else:
@@ -208,8 +209,9 @@ class StreamableMixin(ColumnarMixin, ABC):
         return self._assume_stream(stream)
 
     def take(self, count: Union[int, bool] = 1, inplace: bool = False) -> Stream:
-        assert not inplace, 'for LeafConnector inplace-mode not supported'
-        return self.to_stream().take(count)
+        assert not inplace, 'for LeafConnector inplace-mode is not supported'
+        stream = self.to_stream().take(count)
+        return self._assume_stream(stream)
 
     def collect(self, skip_missing: bool = False, **kwargs) -> Stream:
         if self._is_existing():

@@ -2,7 +2,6 @@ from abc import ABC
 from typing import Optional, Union
 
 try:  # Assume we're a submodule in a package.
-    from utils import arguments as arg
     from interfaces import (
         Connector, ConnectorInterface, ConnType,
         LoggerInterface, ExtendedLoggerInterface, LoggingLevel, Message,
@@ -11,7 +10,6 @@ try:  # Assume we're a submodule in a package.
     from base.abstract.tree_item import TreeItem
     from loggers.logging_context_stub import LoggingContextStub
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
     from ...interfaces import (
         Connector, ConnectorInterface, ConnType,
         LoggerInterface, ExtendedLoggerInterface, LoggingLevel, Message,
@@ -41,6 +39,9 @@ class AbstractConnector(TreeItem, ConnectorInterface, ABC):
         self.set_context(context)
         self.set_verbose(verbose)
 
+    def is_defined(self) -> bool:
+        return self.get_name() is not None
+
     def get_conn_type(self) -> ConnType:
         conn_type = ConnType.detect(self)
         if isinstance(conn_type, ConnType):
@@ -53,8 +54,8 @@ class AbstractConnector(TreeItem, ConnectorInterface, ABC):
         return self._verbose
 
     def set_verbose(self, verbose: AutoBool = AUTO, parent: AutoConnector = AUTO) -> Native:
-        if not arg.is_defined(verbose):
-            parent = arg.delayed_acquire(parent, self.get_parent)
+        if not Auto.is_defined(verbose):
+            parent = Auto.delayed_acquire(parent, self.get_parent)
             if hasattr(parent, 'is_verbose'):
                 verbose = parent.is_verbose()
             elif hasattr(parent, 'verbose'):
@@ -67,9 +68,9 @@ class AbstractConnector(TreeItem, ConnectorInterface, ABC):
     def set_context(self, context: AutoContext, reset: bool = False, inplace: bool = True) -> Optional[Native]:
         if context:
             parent = self.get_parent()
-            if arg.is_defined(parent):
+            if Auto.is_defined(parent):
                 parent.set_context(context, reset=False, inplace=True)
-            elif arg.is_defined(context):
+            elif Auto.is_defined(context):
                 self.set_parent(context, reset=False, inplace=True)
         if not inplace:
             return self
@@ -93,8 +94,8 @@ class AbstractConnector(TreeItem, ConnectorInterface, ABC):
     def log(
             self,
             msg: Message,
-            level: Union[LoggingLevel, int, arg.Auto] = arg.AUTO,
-            end: Union[str, arg.Auto] = arg.AUTO,
+            level: Union[LoggingLevel, int, Auto] = AUTO,
+            end: Union[str, Auto] = AUTO,
             truncate: bool = True,
             force: bool = False,
             verbose: bool = True,
@@ -114,9 +115,9 @@ class AbstractConnector(TreeItem, ConnectorInterface, ABC):
             logger.log(msg=msg, level=level)
         return self
 
-    def get_new_progress(self, name: str, count: Optional[int] = None, context: AutoContext = arg.AUTO):
+    def get_new_progress(self, name: str, count: Optional[int] = None, context: AutoContext = AUTO):
         logger = self.get_logger()
-        if arg.is_defined(context) and not arg.is_defined(logger):
+        if Auto.is_defined(context) and not Auto.is_defined(logger):
             logger = context.get_logger()
         if isinstance(logger, ExtendedLoggerInterface) or hasattr(logger, 'get_new_progress'):
             return logger.get_new_progress(name, count=count, context=context)

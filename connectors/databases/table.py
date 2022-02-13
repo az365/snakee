@@ -1,21 +1,23 @@
 from typing import Optional, Iterable, Union
 
 try:  # Assume we're a submodule in a package.
-    from utils import arguments as arg
     from interfaces import (
         ConnectorInterface, StructInterface, ColumnarInterface, RegularStream, ExtendedLoggerInterface,
         ContentFormatInterface, ContentType, ConnType, ItemType, StreamType, LoggingLevel,
-        ARRAY_TYPES, AUTO, Auto, AutoBool, AutoName, AutoCount, Count, Name, OptionalFields,
+        ARRAY_TYPES, Array, Name, Count, OptionalFields, Links,
+        AUTO, Auto, AutoBool, AutoName, AutoCount, AutoLinks, AutoContext,
     )
+    from base.functions.arguments import update, get_str_from_args_kwargs
     from content.struct.flat_struct import FlatStruct
     from connectors.abstract.leaf_connector import LeafConnector
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
     from ...interfaces import (
         ConnectorInterface, StructInterface, ColumnarInterface, RegularStream, ExtendedLoggerInterface,
         ContentFormatInterface, ContentType, ConnType, ItemType, StreamType, LoggingLevel,
-        ARRAY_TYPES, AUTO, Auto, AutoBool, AutoName, AutoCount, Count, Name, OptionalFields,
+        ARRAY_TYPES, Array, Name, Count, OptionalFields, Links,
+        AUTO, Auto, AutoBool, AutoName, AutoCount, AutoLinks, AutoContext,
     )
+    from ...base.functions.arguments import update, get_str_from_args_kwargs
     from ...content.struct.flat_struct import FlatStruct
     from ..abstract.leaf_connector import LeafConnector
 
@@ -23,20 +25,35 @@ Native = LeafConnector
 Stream = Union[RegularStream, ColumnarInterface]
 GeneralizedStruct = Union[StructInterface, list, tuple, Auto, None]
 
+META_MEMBER_MAPPING = dict(_source='database')
+MAX_ITEMS_IN_MEMORY = 10000
+EXAMPLE_ROW_COUNT = 10
+EXAMPLE_STR_LEN = 12
+
 
 class Table(LeafConnector):
     def __init__(
             self,
             name: Name,
-            struct: Union[StructInterface, Auto],
             database: ConnectorInterface,
-            reconnect: bool = True,
+            content_format: Union[ContentFormatInterface, Auto] = AUTO,
+            struct: Union[StructInterface, Auto] = AUTO,
+            caption: Optional[str] = None,
+            streams: Links = None,
+            context: AutoContext = AUTO,
+            reconnect: bool = False,
+            expected_count: AutoCount = AUTO,
             verbose: AutoBool = AUTO,
     ):
         super().__init__(
             name=name,
+            content_format=content_format,
             struct=struct,
+            caption=caption,
             parent=database,
+            context=context,
+            streams=streams,
+            expected_count=expected_count,
             verbose=verbose,
         )
         if reconnect and hasattr(database, 'connect'):
@@ -45,13 +62,32 @@ class Table(LeafConnector):
     def get_content_type(self) -> ContentType:
         return ContentType.TsvFile
 
-    @staticmethod
-    def _get_detected_format_by_name(name: str) -> ContentFormatInterface:
-        return ContentType.TsvFile
+    @classmethod
+    def _get_meta_member_mapping(cls) -> dict:
+        meta_member_mapping = super()._get_meta_member_mapping()
+        meta_member_mapping.update(META_MEMBER_MAPPING)
+        return meta_member_mapping
 
-    def _get_detected_struct(self, set_struct: bool = False, verbose: AutoBool = AUTO) -> StructInterface:
+    @staticmethod
+    def _get_detected_format_by_name(name: str, **kwargs) -> ContentFormatInterface:
+        content_type = ContentType.TsvFile
+        if kwargs:
+            content_class = content_type.get_class()
+            try:
+                return content_class(**kwargs)
+            except TypeError as e:
+                raise TypeError('{}: {}'.format(content_class.__name__, e))
+        else:
+            return content_type
+
+    def _get_detected_struct(
+            self,
+            set_struct: bool = False,
+            use_declared_types: AutoBool = AUTO,  # ?
+            verbose: AutoBool = AUTO,
+    ) -> Optional[StructInterface]:
         struct = self.get_struct_from_database(set_struct=set_struct)
-        if not isinstance(struct, StructInterface) and arg.delayed_acquire(verbose, self.is_verbose):
+        if not isinstance(struct, StructInterface) and Auto.delayed_acquire(verbose, self.is_verbose):
             message = 'Struct as {} is deprecated. Use items.FlatStruct instead.'.format(type(struct))
             self.log(msg=message, level=LoggingLevel.Warning)
         return struct
@@ -60,15 +96,51 @@ class Table(LeafConnector):
         database = self.get_parent()
         return self._assume_connector(database)
 
-    def get_count(self, verbose: AutoBool = AUTO) -> Count:
+    def is_opened(self) -> Optional[bool]:
         database = self.get_database()
-        return database.select_count(self.get_name(), verbose=verbose)
+        if hasattr(database, 'is_connected'):  # isinstance(database, PostgresDatabase)
+            return database.is_connected()
+        elif hasattr(database, 'is_opened'):
+            return database.is_opened()
 
-    def get_expected_count(self, actual: bool = False) -> Optional[int]:
-        if actual:
-            return self.get_count()
+    def is_actual(self) -> bool:
+        return Auto.is_defined(self.get_expected_count()) and self.get_initial_struct()
+
+    def get_modification_timestamp(self, reset: bool = True) -> Optional[float]:
+        if self.is_actual():
+            timestamp = self.get_prev_modification_timestamp()
+            if not timestamp:
+                timestamp = self._get_current_timestamp()
+        elif self.is_existing():
+            timestamp = self._get_current_timestamp()
         else:
-            return None
+            timestamp = None
+        if reset:
+            self.reset_modification_timestamp(timestamp)
+        return timestamp
+
+    def get_count(self, allow_reopen: bool = True, allow_slow_mode: bool = True, force: bool = False) -> Count:
+        if force:
+            must_recount = True
+            count = None
+        else:
+            count = self.get_expected_count()
+            if count:
+                must_recount = False
+            elif allow_slow_mode:
+                must_recount = self.is_existing()
+            else:
+                must_recount = False
+        if must_recount:
+            count = self.get_actual_lines_count(allow_reopen=allow_reopen)
+            self.set_count(count)
+        if Auto.is_defined(count):
+            return count
+
+    def get_actual_lines_count(self, allow_reopen: AutoBool = AUTO, verbose: AutoBool = AUTO) -> Count:
+        database = self.get_database()
+        count = database.select_count(self.get_name(), verbose=verbose)
+        return count
 
     def get_columns(self) -> list:
         return self.get_struct().get_columns()
@@ -81,24 +153,34 @@ class Table(LeafConnector):
                 struct = FlatStruct(struct)
             else:
                 struct = FlatStruct.get_struct_detected_by_title_row(struct)
-        elif struct == arg.AUTO:
+        elif struct == AUTO:
             struct = self.get_struct_from_database()
         else:
             message = 'struct must be StructInterface or tuple with fields_description (got {})'.format(type(struct))
             raise TypeError(message)
         return super().set_struct(struct, inplace=inplace)
 
-    def get_struct_from_database(self, set_struct: bool = False, skip_missing: bool = False) -> StructInterface:
-        struct = FlatStruct(self.describe())
+    def get_struct_from_database(
+            self,
+            types: AutoLinks = AUTO,
+            set_struct: bool = False,
+            skip_missing: bool = False,
+            verbose: AutoBool = AUTO,
+    ) -> StructInterface:
+        struct = FlatStruct(self.describe_table(verbose=verbose))
         if struct.is_empty() and not skip_missing:
             raise ValueError('Can not get struct for non-existing table {}'.format(self))
+        if Auto.is_defined(types):
+            struct.set_types(types, inplace=True)
         if set_struct:
-            self.set_struct(struct)
+            self.set_struct(struct, inplace=True)
         return struct
 
+    def _get_struct_from_source(self, types: Union[dict, Auto, None] = AUTO, verbose: bool = False):
+        return self.get_struct_from_database(types=types, verbose=verbose)
+
     def get_first_line(self, close: bool = True, verbose: bool = True) -> Optional[str]:
-        database = self.get_database()
-        iter_lines = database.select(self.get_name(), '*', count=1, verbose=verbose)
+        iter_lines = self.execute_select(fields='*', count=1, verbose=verbose)
         lines = list(iter_lines)
         if close:
             self.close()
@@ -106,8 +188,7 @@ class Table(LeafConnector):
             return lines[0]
 
     def take(self, count: Union[int, bool] = 1, inplace: bool = False) -> Stream:
-        database = self.get_database()
-        iter_lines = database.select(self.get_name(), '*', count=count, verbose=self.is_verbose())
+        iter_lines = self.execute_select(fields='*', count=count, verbose=self.is_verbose())
         return self.stream(iter_lines, count=count)
 
     def get_rows(self, verbose: AutoBool = AUTO) -> Iterable:
@@ -124,9 +205,10 @@ class Table(LeafConnector):
             self,
             item_type: Union[ItemType, Auto],
             verbose: AutoBool = AUTO,
+            message: AutoName = AUTO,
             step: AutoCount = AUTO,
     ) -> Iterable:
-        item_type = arg.delayed_acquire(item_type, self.get_item_type)
+        item_type = Auto.delayed_acquire(item_type, self.get_item_type)
         rows = self.get_rows(verbose=verbose)
         if item_type == ItemType.Row:
             items = rows
@@ -144,8 +226,8 @@ class Table(LeafConnector):
             logger = self.get_logger()
             if isinstance(logger, ExtendedLoggerInterface):
                 count = self._get_fast_count()
-                if not arg.is_defined(message):
-                    message = 'Downloading count{} lines from {name}'
+                if not Auto.is_defined(message):
+                    message = 'Downloading {count} lines from {name}'
                 if '{}' in message:
                     message = message.format(count, self.get_name())
                 if '{' in message:
@@ -161,11 +243,11 @@ class Table(LeafConnector):
         database = self.get_database()
         return database.exists_table(self.get_path())
 
-    def describe(self) -> Iterable:
+    def describe_table(self, verbose: AutoBool = Auto) -> Iterable:
         database = self.get_database()
-        return database.describe_table(self.get_path())
+        return database.describe_table(self.get_path(), verbose=verbose)
 
-    def create(self, drop_if_exists: bool, verbose: AutoBool = arg.AUTO):
+    def create(self, drop_if_exists: bool, verbose: AutoBool = AUTO):
         database = self.get_database()
         return database.create_table(
             self.get_name(),
@@ -175,10 +257,13 @@ class Table(LeafConnector):
         )
 
     def upload(
-            self, data: Union[Iterable, Stream],
-            encoding: Optional[str] = None, skip_first_line: bool = False,
-            skip_lines: int = 0, max_error_rate: float = 0.0,
-            verbose: AutoBool = arg.AUTO,
+            self,
+            data: Union[Iterable, Stream],
+            encoding: Optional[str] = None,
+            skip_first_line: bool = False,
+            skip_lines: int = 0,
+            max_error_rate: float = 0.0,
+            verbose: AutoBool = AUTO,
     ):
         database = self.get_database()
         return database.safe_upload_table(
@@ -196,14 +281,115 @@ class Table(LeafConnector):
         count = self.get_count()
         return not count
 
+    def to_stream(
+            self,
+            data: Union[Iterable, Auto] = AUTO,
+            name: AutoName = AUTO,
+            stream_type: Union[StreamType, Auto] = AUTO,
+            ex: OptionalFields = None,
+            step: AutoCount = AUTO,
+            **kwargs
+    ) -> Stream:
+        stream_type = Auto.acquire(stream_type, StreamType.SqlStream)
+        if stream_type == StreamType.SqlStream:
+            assert not data
+            name = Auto.delayed_acquire(name, self._get_generated_stream_name)
+            stream_class = stream_type.get_class()
+            meta = self.get_compatible_meta(stream_class, name=name, ex=ex, **kwargs)
+            meta['source'] = self
+            return stream_class(data, **meta)
+        else:
+            return super().to_stream(
+                data=data, name=name,
+                stream_type=stream_type,
+                ex=ex, step=step, **kwargs,
+            )
+
+    def execute_select(
+            self,
+            fields: OptionalFields,
+            filters: OptionalFields = None,
+            sort: OptionalFields = None,
+            count: Count = None,
+            verbose: AutoBool = AUTO,
+    ) -> Iterable:
+        database = self.get_database()
+        rows = database.execute_select(
+            table=self, verbose=verbose,
+            fields=fields, filters=filters, sort=sort, count=count,
+        )
+        return rows
+
+    def simple_select(
+            self,
+            fields: OptionalFields,
+            filters: OptionalFields = None,
+            sort: OptionalFields = None,
+            count: Count = None,
+            stream_type: Union[StreamType, Auto] = AUTO,
+            verbose: AutoBool = AUTO,
+    ) -> Stream:
+        stream_type = Auto.acquire(stream_type, StreamType.RecordStream)
+        stream_class = stream_type.get_class()
+        stream_rows = self.execute_select(fields=fields, filters=filters, sort=sort, count=count, verbose=verbose)
+        if stream_type == StreamType.RowStream:
+            stream_data = stream_rows
+        elif stream_type == StreamType.RecordStream:
+            columns = self.get_columns()
+            stream_data = map(lambda r: dict(zip(columns, r)), stream_rows)
+        else:
+            raise NotImplementedError
+        if Auto.is_defined(count):
+            if count < MAX_ITEMS_IN_MEMORY:
+                stream_data = list(stream_data)
+                count = len(stream_data)
+        return stream_class(stream_data, count=count, source=self, context=self.get_context())
+
     def select(self, *columns, **expressions) -> Stream:
-        columns = arg.update(columns)
-        if not expressions:
-            is_simple_fields = min([isinstance(c, str) for c in columns])
-            if is_simple_fields:
-                return self.get_database().select(table=self, fields=columns)
-        stream = self.to_struct_stream().select(*columns, **expressions)
+        stream = self.to_stream().select(*columns, **expressions)
         return self._assume_stream(stream)
+
+    def filter(self, *columns, **expressions) -> Stream:
+        stream = self.to_stream().filter(*columns, **expressions)
+        return self._assume_stream(stream)
+
+    def _prepare_examples(
+            self,
+            *filters,
+            safe_filter: bool = True,
+            example_row_count: Optional[int] = EXAMPLE_ROW_COUNT,
+            example_str_len: int = EXAMPLE_STR_LEN,
+            **filter_kwargs,
+    ) -> tuple:
+        filters = filters or list()
+        if filter_kwargs and safe_filter:
+            filter_kwargs = {k: v for k, v in filter_kwargs.items() if k in self.get_columns()}
+        if filter_kwargs:
+            stream_example = self.filter(*filters or [], **filter_kwargs).take(example_row_count)
+        else:
+            stream_example = self.simple_select(fields='*', filters=filters, count=example_row_count)
+        str_filters = get_str_from_args_kwargs(*filters, **filter_kwargs)
+        item_example = stream_example.get_one_item()
+        if item_example:
+            if str_filters:
+                message = 'Example with filters: {}'.format(str_filters)
+            else:
+                message = 'Example without any filters:'
+        else:
+            message = '[EXAMPLE_NOT_FOUND] Example with this filters not found: {}'.format(str_filters)
+            stream_example = None
+            item_example = self.get_one_item()
+        if item_example:
+            if example_str_len:
+                for k, v in item_example.items():
+                    v = str(v)
+                    if len(v) > example_str_len:
+                        item_example[k] = str(v)[:example_str_len - 2] + '..'
+        else:
+            item_example = dict()
+            stream_example = None
+            message = '[EMPTY_DATA] There are no valid data in {}'.format(self.__repr__())
+        return item_example, stream_example, message
 
 
 ConnType.add_classes(Table)

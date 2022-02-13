@@ -1,7 +1,6 @@
 from typing import Optional, Union
 
-try:  # Assume we're a sub-module in a package.
-    from utils import arguments as arg
+try:  # Assume we're a submodule in a package.
     from utils.decorators import singleton
     from interfaces import (
         ContextInterface, ContextualInterface,
@@ -12,7 +11,6 @@ try:  # Assume we're a sub-module in a package.
     from loggers.extended_logger import SingletonLogger
     from loggers.message_collector import SelectionMessageCollector
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..utils import arguments as arg
     from ..utils.decorators import singleton
     from ..interfaces import (
         ContextInterface, ContextualInterface,
@@ -41,7 +39,7 @@ class LoggingContextStub(TreeItem, ContextInterface):
         self._local_storage = None
         self._skip_not_implemented = skip_not_implemented
         self._tmp_folder = None
-        super().__init__(name=arg.acquire(name, NAME))
+        super().__init__(name=Auto.acquire(name, NAME))
 
     def set_logger(self, logger: LoggerInterface, inplace: bool = False) -> Optional[Native]:
         self._logger = logger
@@ -54,7 +52,7 @@ class LoggingContextStub(TreeItem, ContextInterface):
 
     def get_logger(self, create_if_not_yet=True) -> LoggerInterface:
         logger = self._logger
-        if arg.is_defined(logger):
+        if Auto.is_defined(logger, check_name=False):
             if isinstance(logger, ExtendedLoggerInterface) or hasattr(logger, 'get_context'):
                 if not logger.get_context():
                     if hasattr(logger, 'set_context'):
@@ -118,90 +116,87 @@ class LoggingContextStub(TreeItem, ContextInterface):
         if self._skip_not_implemented:
             logger = self.get_logger(create_if_not_yet=False)
             if logger:
-                logger.warning(message)
+                logger.warning(message, stacklevel=3)
         else:
-            raise NotImplemented(message)
+            raise NotImplementedError(message)
 
     def get_local_storage(self, name='filesystem', create_if_not_yet=True):
-        self._method_stub()
+        self._method_stub('get_local_storage')
 
     def get_job_folder(self, path='tmp'):
-        self._method_stub()
+        self._method_stub('get_job_folder')
 
     def get_tmp_folder(self, path='tmp'):
-        self._method_stub()
+        self._method_stub('get_tmp_folder')
 
     def get_stream(self, name, skip_missing=True):
-        self._method_stub()
+        self._method_stub('get_stream')
 
     def get_connection(self, name, skip_missing=True):
-        self._method_stub()
+        self._method_stub('get_connection')
 
     def conn(self, conn, name=AUTO, check=True, redefine=True, **kwargs):
-        self._method_stub()
+        self._method_stub('conn')
 
     def stream(self, stream_type, name=AUTO, check=True, **kwargs):
-        self._method_stub()
+        self._method_stub('stream')
 
     def rename_stream(self, old_name, new_name):
-        self._method_stub()
+        self._method_stub('rename_stream')
 
     def clear_tmp_files(self, verbose=True):
-        self._method_stub()
+        self._method_stub('clear_tmp_files')
 
     def close_conn(self, name, recursively=False, verbose=True):
-        self._method_stub()
+        self._method_stub('close_conn')
 
     def close_stream(self, name, recursively=False, verbose=True):
-        self._method_stub()
+        self._method_stub('close_stream')
 
     def forget_conn(self, name, recursively=True, skip_errors=False, verbose=True):
-        self._method_stub()
+        self._method_stub('forget_conn')
 
     def forget_stream(self, name, recursively=True, skip_errors=False, verbose=True):
-        self._method_stub()
+        self._method_stub('forget_stream')
 
     def close_all_conns(self, recursively=False, verbose=True):
-        self._method_stub()
+        self._method_stub('close_all_conns')
 
     def close_all_streams(self, recursively=False, verbose=True):
-        self._method_stub()
+        self._method_stub('close_all_streams')
 
     def close(self, verbose=True):
-        self._method_stub()
+        self._method_stub('close')
 
     def forget_all_conns(self, recursively=False, verbose=True):
-        self._method_stub()
+        self._method_stub('forget_all_conns')
 
     def forget_all_streams(self, recursively=False, verbose=True):
-        self._method_stub()
+        self._method_stub('forget_all_streams')
 
     def forget_all_children(self):
-        self._method_stub()
-
-    def get_name(self):
-        self._method_stub()
+        self._method_stub('forget_all_children')
 
     def get_parent(self):
-        self._method_stub()
+        self._method_stub('get_parent')
 
     def set_parent(self, parent, reset=False, inplace=True):
-        self._method_stub()
+        self._method_stub('set_parent')
 
     def get_items(self):
-        self._method_stub()
+        self._method_stub('get_items')
 
     def get_children(self):
-        self._method_stub()
+        self._method_stub('get_children')
 
     def get_child(self, name):
-        self._method_stub()
+        self._method_stub('get_child')
 
     def forget_child(self, name_or_child, recursively=False, also_from_context=True, skip_errors=False):
-        self._method_stub()
+        self._method_stub('forget_child')
 
     def is_leaf(self):
-        self._method_stub()
+        self._method_stub('is_leaf')
 
     def is_root(self):
-        self._method_stub()
+        self._method_stub('is_root')

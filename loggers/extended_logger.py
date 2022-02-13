@@ -249,7 +249,14 @@ class ExtendedLogger(BaseLoggerWrapper, ExtendedLoggerInterface):
     ) -> None:
         level = arg.acquire(level, LoggingLevel.Info if verbose else LoggingLevel.Debug)
         logger = arg.delayed_acquire(logger, self.get_base_logger)
-        msg = [msg] if isinstance(msg, str) else list(msg)
+        if isinstance(msg, BaseException):
+            msg = str(msg)
+        if isinstance(msg, str):
+            msg = [msg]
+        elif isinstance(msg, Iterable):
+            msg = list(msg)
+        else:
+            raise TypeError('Expected msg as str or list[str], got {}'.format(msg))
         if category:
             category_name = arg.get_name(category)
             msg = [category_name] + msg
