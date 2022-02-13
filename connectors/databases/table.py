@@ -27,6 +27,8 @@ GeneralizedStruct = Union[StructInterface, list, tuple, Auto, None]
 
 META_MEMBER_MAPPING = dict(_source='database')
 MAX_ITEMS_IN_MEMORY = 10000
+EXAMPLE_ROW_COUNT = 10
+EXAMPLE_STR_LEN = 12
 
 
 class Table(LeafConnector):
@@ -279,6 +281,30 @@ class Table(LeafConnector):
         count = self.get_count()
         return not count
 
+    def to_stream(
+            self,
+            data: Union[Iterable, Auto] = AUTO,
+            name: AutoName = AUTO,
+            stream_type: Union[StreamType, Auto] = AUTO,
+            ex: OptionalFields = None,
+            step: AutoCount = AUTO,
+            **kwargs
+    ) -> Stream:
+        stream_type = Auto.acquire(stream_type, StreamType.SqlStream)
+        if stream_type == StreamType.SqlStream:
+            assert not data
+            name = Auto.delayed_acquire(name, self._get_generated_stream_name)
+            stream_class = stream_type.get_class()
+            meta = self.get_compatible_meta(stream_class, name=name, ex=ex, **kwargs)
+            meta['source'] = self
+            return stream_class(data, **meta)
+        else:
+            return super().to_stream(
+                data=data, name=name,
+                stream_type=stream_type,
+                ex=ex, step=step, **kwargs,
+            )
+
     def execute_select(
             self,
             fields: OptionalFields,
@@ -320,13 +346,50 @@ class Table(LeafConnector):
         return stream_class(stream_data, count=count, source=self, context=self.get_context())
 
     def select(self, *columns, **expressions) -> Stream:
-        columns = update(columns)
-        if not expressions:
-            is_simple_fields = min([isinstance(c, str) for c in columns])
-            if is_simple_fields:
-                return self.get_database().execute_select(table=self, fields=columns)
-        stream = self.to_struct_stream().select(*columns, **expressions)
+        stream = self.to_stream().select(*columns, **expressions)
         return self._assume_stream(stream)
+
+    def filter(self, *columns, **expressions) -> Stream:
+        stream = self.to_stream().filter(*columns, **expressions)
+        return self._assume_stream(stream)
+
+    def _prepare_examples(
+            self,
+            *filters,
+            safe_filter: bool = True,
+            example_row_count: Optional[int] = EXAMPLE_ROW_COUNT,
+            example_str_len: int = EXAMPLE_STR_LEN,
+            **filter_kwargs,
+    ) -> tuple:
+        filters = filters or list()
+        if filter_kwargs and safe_filter:
+            filter_kwargs = {k: v for k, v in filter_kwargs.items() if k in self.get_columns()}
+        if filter_kwargs:
+            stream_example = self.filter(*filters or [], **filter_kwargs).take(example_row_count)
+        else:
+            stream_example = self.simple_select(fields='*', filters=filters, count=example_row_count)
+        str_filters = get_str_from_args_kwargs(*filters, **filter_kwargs)
+        item_example = stream_example.get_one_item()
+        if item_example:
+            if str_filters:
+                message = 'Example with filters: {}'.format(str_filters)
+            else:
+                message = 'Example without any filters:'
+        else:
+            message = '[EXAMPLE_NOT_FOUND] Example with this filters not found: {}'.format(str_filters)
+            stream_example = None
+            item_example = self.get_one_item()
+        if item_example:
+            if example_str_len:
+                for k, v in item_example.items():
+                    v = str(v)
+                    if len(v) > example_str_len:
+                        item_example[k] = str(v)[:example_str_len - 2] + '..'
+        else:
+            item_example = dict()
+            stream_example = None
+            message = '[EMPTY_DATA] There are no valid data in {}'.format(self.__repr__())
+        return item_example, stream_example, message
 
 
 ConnType.add_classes(Table)
