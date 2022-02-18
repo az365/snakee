@@ -13,6 +13,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 Native = BaseInterface
 OptionalFields = Optional[Union[str, Iterable]]
 
+COVERT_CAP = '***'
+
 
 class AbstractBaseObject(BaseInterface, ABC):
     def set_inplace(self, **kwargs) -> Native:
@@ -164,7 +166,8 @@ class AbstractBaseObject(BaseInterface, ABC):
             meta_kwargs.pop(self._get_meta_field_by_member_name(f), None)
         if except_covert:
             for f in self._get_covert_props():
-                meta_kwargs[f] = '***'
+                if meta_kwargs.get(f):
+                    meta_kwargs[f] = COVERT_CAP
         return meta_kwargs
 
     def get_str_meta(self) -> str:
@@ -175,7 +178,7 @@ class AbstractBaseObject(BaseInterface, ABC):
     def get_detailed_repr(self) -> str:
         return '{}({})'.format(self.__class__.__name__, self.get_str_meta())
 
-    def make_new(self, *args, ex: OptionalFields = None, **kwargs):
+    def make_new(self, *args, ex: OptionalFields = None, **kwargs) -> Native:
         meta = self.get_meta(ex=ex)
         meta.update(kwargs)
         return self.__class__(*args, **meta)
