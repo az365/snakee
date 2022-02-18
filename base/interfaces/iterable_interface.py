@@ -2,11 +2,9 @@ from abc import ABC, abstractmethod
 from typing import Optional, Callable, Iterable, Generator, Union, Any
 
 try:  # Assume we're a submodule in a package.
-    from utils import arguments as arg
     from utils.algo import JoinType
     from base.interfaces.data_interface import SimpleDataInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
     from ...utils.algo import JoinType
     from .data_interface import SimpleDataInterface
 
@@ -16,6 +14,14 @@ Item = Any
 
 
 class IterableInterface(SimpleDataInterface, ABC):
+    @abstractmethod
+    def is_sequence(self) -> bool:
+        pass
+
+    @abstractmethod
+    def is_iter(self) -> bool:
+        pass
+
     @abstractmethod
     def is_in_memory(self) -> Optional[bool]:
         """Checks is the data of iterable object is in RAM or in external iterator.
@@ -286,7 +292,7 @@ class IterableInterface(SimpleDataInterface, ABC):
         pass
 
     @abstractmethod
-    def print(self, stream_function: Union[Callable, str] = 'get_count', *args, **kwargs) -> Native:
+    def print(self, stream_function: Union[Callable, str] = '__str__', *args, **kwargs) -> Native:
         pass
 
     @abstractmethod
