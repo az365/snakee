@@ -2,15 +2,15 @@ from abc import ABC, abstractmethod
 from typing import Optional, Iterable, Union, Any
 
 try:  # Assume we're a submodule in a package.
-    from base.interfaces.base_interface import BaseInterface
     from base.classes.auto import Auto, AUTO
+    from base.interfaces.base_interface import BaseInterface
     from streams.interfaces.abstract_stream_interface import StreamInterface
     from loggers.logger_interface import LoggerInterface
     from loggers.extended_logger_interface import ExtendedLoggerInterface
     from loggers.selection_logger_interface import SelectionLoggerInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from .base_interface import BaseInterface
     from ..classes.auto import Auto, AUTO
+    from .base_interface import BaseInterface
     from ...streams.interfaces.abstract_stream_interface import StreamInterface
     from ...loggers.logger_interface import LoggerInterface
     from ...loggers.extended_logger_interface import ExtendedLoggerInterface
@@ -77,7 +77,7 @@ class ContextInterface(BaseInterface, ABC):
         pass
 
     @abstractmethod
-    def add_child(self, instance: Child, inplace: bool = False) -> Optional[Native]:
+    def add_child(self, instance: Child, reset: bool = False, inplace: bool = False) -> Optional[Native]:
         pass
 
     @abstractmethod

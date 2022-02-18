@@ -1,27 +1,27 @@
+from typing import Optional, Iterable, Union, Any
 import gc
-from typing import Optional, Iterable, Union, Any, NoReturn
 
-try:  # Assume we're a sub-module in a package.
-    from utils import arguments as arg
+try:  # Assume we're a submodule in a package.
     from utils.decorators import singleton
     from interfaces import (
         Context, ContextInterface, Connector, ConnType, Stream, StreamType,
         TemporaryLocationInterface, LoggerInterface, ExtendedLoggerInterface, SelectionLoggerInterface, LoggingLevel,
         AUTO, Auto, Name, ARRAY_TYPES,
     )
+    from base.functions.arguments import get_generated_name
     from base import base_classes as bs
     from streams import stream_classes as sm
     from connectors import connector_classes as ct
     from connectors.filesystem.temporary_files import TemporaryLocation
     from loggers import logger_classes as lg
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from .utils import arguments as arg
     from .utils.decorators import singleton
     from .interfaces import (
         Context, ContextInterface, Connector, ConnType, Stream, StreamType,
         TemporaryLocationInterface, LoggerInterface, ExtendedLoggerInterface, SelectionLoggerInterface, LoggingLevel,
         AUTO, Auto, Name, ARRAY_TYPES,
     )
+    from .base.functions.arguments import get_generated_name
     from .base import base_classes as bs
     from .streams import stream_classes as sm
     from .connectors import connector_classes as ct
@@ -47,16 +47,16 @@ class SnakeeContext(bs.AbstractNamed, ContextInterface):
             name: Union[Name, Auto] = AUTO,
             stream_config: Union[dict, Auto] = AUTO,
             conn_config: Union[dict, Auto] = AUTO,
-            logger: Union[Optional[Logger], Auto] = AUTO,
+            logger: Union[Logger, Auto, None] = AUTO,
             clear_tmp: bool = False,
     ):
         self.logger = logger
-        self.stream_config = arg.acquire(stream_config, DEFAULT_STREAM_CONFIG)
-        self.conn_config = arg.acquire(conn_config, dict())
+        self.stream_config = Auto.acquire(stream_config, DEFAULT_STREAM_CONFIG)
+        self.conn_config = Auto.acquire(conn_config, dict())
         self.stream_instances = dict()
         self.conn_instances = dict()
 
-        name = arg.acquire(name, NAME)
+        name = Auto.acquire(name, NAME)
         super().__init__(name)
 
         self.sm = sm
@@ -77,10 +77,12 @@ class SnakeeContext(bs.AbstractNamed, ContextInterface):
             return self
 
     def get_logger(self, create_if_not_yet: bool = True) -> Optional[Logger]:
-        if arg.is_defined(self.logger):
-            if not self.logger.get_context():
-                self.logger.set_context(self)
-            return self.logger
+        logger = self.logger
+        if Auto.is_defined(logger):
+            if hasattr(logger, 'get_context') and hasattr(logger, 'set_context'):
+                if not logger.get_context():
+                    logger.set_context(self)
+            return logger
         elif create_if_not_yet:
             logger = lg.get_logger(context=self)
             self.set_logger(logger, inplace=True)
@@ -106,7 +108,7 @@ class SnakeeContext(bs.AbstractNamed, ContextInterface):
             self,
             msg: str, level: Union[LoggingLevel, int, Auto] = AUTO,
             end: Union[str, Auto] = AUTO, verbose: bool = True,
-    ) -> NoReturn:
+    ) -> None:
         logger = self.get_logger()
         if logger is not None:
             logger.log(
@@ -131,14 +133,14 @@ class SnakeeContext(bs.AbstractNamed, ContextInterface):
     def get_children(self) -> dict:
         return dict(self.get_items())
 
-    def add_child(self, instance: Child, inplace: bool = False) -> Context:
+    def add_child(self, instance: Child, reset: bool = False, inplace: bool = False) -> Context:
         name = instance.get_name()
         err_msg = 'instance with name {} already registered (got {})'
         if ct.is_conn(instance):
-            assert name not in self.conn_instances, err_msg.format(name, instance)
+            assert reset or name not in self.conn_instances, err_msg.format(name, instance)
             self.conn_instances[name] = instance
         elif sm.is_stream(instance):
-            assert name not in self.stream_instances, err_msg.format(name, instance)
+            assert reset or name not in self.stream_instances, err_msg.format(name, instance)
             self.stream_instances[name] = instance
         elif lg.is_logger(instance):
             assert isinstance(instance, lg.LoggerInterface)
@@ -161,7 +163,7 @@ class SnakeeContext(bs.AbstractNamed, ContextInterface):
             check: bool = True, redefine: bool = True,
             **kwargs
     ) -> Connector:
-        name = arg.acquire(name, arg.get_generated_name('Connection'))
+        name = Auto.acquire(name, get_generated_name('Connection'))
         conn_object = self.conn_instances.get(name)
         if conn_object:
             if redefine or ct.is_conn(conn):
@@ -185,7 +187,7 @@ class SnakeeContext(bs.AbstractNamed, ContextInterface):
             check: bool = True,
             **kwargs
     ) -> Stream:
-        name = arg.acquire(name, arg.get_generated_name('Stream'))
+        name = Auto.acquire(name, get_generated_name('Stream'))
         if sm.is_stream(stream_type):
             stream_object = stream_type
         else:
@@ -220,7 +222,7 @@ class SnakeeContext(bs.AbstractNamed, ContextInterface):
             return self.get_connection(name)
         elif 'Logger' in str(class_or_type):
             return self.get_logger()
-        elif not arg.is_defined(class_or_type):
+        elif not Auto.is_defined(class_or_type):
             if name in self.stream_instances:
                 return self.stream_instances[name]
             elif name in self.conn_instances:
@@ -308,7 +310,9 @@ class SnakeeContext(bs.AbstractNamed, ContextInterface):
 
     def close_stream(self, name: Name, recursively: bool = False, verbose: bool = True) -> tuple:
         this_stream = self.get_stream(name, skip_missing=False)
-        closed = this_stream.close() or 0
+        closed = 0
+        if hasattr(this_stream, 'close'):
+            closed = this_stream.close() or 0
         if isinstance(closed, ARRAY_TYPES):
             closed_stream, closed_links = closed[:2]
         else:  # isinstance(closed, int):
