@@ -52,12 +52,16 @@ class Sourced(AbstractNamed, SourcedInterface, ABC):
             self.register()
         else:
             sourced_obj = self.set_outplace(source=source)
+            assert isinstance(sourced_obj, SourcedInterface)
             sourced_obj.register()
             return sourced_obj
 
     def register(self, check: bool = True) -> SourcedInterface:
         source = self.get_source()
+        while hasattr(source, 'get_source') and not hasattr(source, 'get_child'):
+            source = source.get_source()
         assert Auto.is_defined(source, check_name=False), 'source for register must be defined'
+        assert hasattr(source, 'get_child'), 'expected source as Source, got {}'.format(source)
         name = self.get_name()
         known_child = source.get_child(name)
         if known_child is not None:
