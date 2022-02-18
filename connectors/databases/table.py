@@ -29,6 +29,7 @@ META_MEMBER_MAPPING = dict(_source='database')
 MAX_ITEMS_IN_MEMORY = 10000
 EXAMPLE_ROW_COUNT = 10
 EXAMPLE_STR_LEN = 12
+CONTINUE_SYMBOL = '..'
 
 
 class Table(LeafConnector):
@@ -58,6 +59,9 @@ class Table(LeafConnector):
         )
         if reconnect and hasattr(database, 'connect'):
             database.connect(reconnect=True)
+
+    def get_conn_type(self) -> ConnType:
+        return ConnType.Table
 
     def get_content_type(self) -> ContentType:
         return ContentType.TsvFile
@@ -292,7 +296,7 @@ class Table(LeafConnector):
     ) -> Stream:
         stream_type = Auto.acquire(stream_type, StreamType.SqlStream)
         if stream_type == StreamType.SqlStream:
-            assert not data
+            assert not Auto.is_defined(data)
             name = Auto.delayed_acquire(name, self._get_generated_stream_name)
             stream_class = stream_type.get_class()
             meta = self.get_compatible_meta(stream_class, name=name, ex=ex, **kwargs)
@@ -384,7 +388,13 @@ class Table(LeafConnector):
                 for k, v in item_example.items():
                     v = str(v)
                     if len(v) > example_str_len:
-                        item_example[k] = str(v)[:example_str_len - 2] + '..'
+                        fixed_len = example_str_len - len(CONTINUE_SYMBOL)
+                        if fixed_len < 0:
+                            fixed_len = 0
+                            continue_symbol = CONTINUE_SYMBOL[:example_str_len]
+                        else:
+                            continue_symbol = CONTINUE_SYMBOL
+                        item_example[k] = str(v)[:fixed_len] + continue_symbol
         else:
             item_example = dict()
             stream_example = None
