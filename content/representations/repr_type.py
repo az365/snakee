@@ -9,3 +9,6 @@ class ReprType(ClassType):
     NumericRepr = 'NumericRepr'
     StringRepr = 'StringRepr'
     SequenceRepr = 'SequenceRepr'
+
+
+ReprType.prepare()
