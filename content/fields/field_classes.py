@@ -1,8 +1,11 @@
 from typing import Optional, Union, Any
 
 try:  # Assume we're a submodule in a package.
-    from utils import arguments as arg
-    from interfaces import StructInterface, FieldInterface, SelectionLoggerInterface, Auto, AUTO
+    from interfaces import (
+        StructInterface, FieldInterface, RepresentationInterface, SelectionLoggerInterface,
+        Auto, AUTO,
+    )
+    from base.functions.arguments import update
     from content.fields.field_type import FieldType
     from content.struct.flat_struct import FlatStruct
     from content.fields.abstract_field import AbstractField
@@ -10,8 +13,11 @@ try:  # Assume we're a submodule in a package.
     from content.selection.abstract_expression import AbstractDescription
     from content.selection import concrete_expression as ce
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
-    from ...interfaces import StructInterface, FieldInterface, SelectionLoggerInterface, Auto, AUTO
+    from ...interfaces import (
+        StructInterface, FieldInterface, RepresentationInterface, SelectionLoggerInterface,
+        Auto, AUTO,
+    )
+    from ...base.functions.arguments import update
     from .field_type import FieldType
     from ..struct.flat_struct import FlatStruct
     from .abstract_field import AbstractField
@@ -35,10 +41,20 @@ def set_logger(logger: SelectionLoggerInterface):
 
 
 def field(
-        name: str, field_type: Type = AUTO, default: Optional[Any] = None,
+        name: str,
+        field_type: Type = AUTO,
+        representation: RepresentationInterface = None,
+        default: Optional[Any] = None,
         caption: Optional[str] = None,
 ) -> AdvancedField:
-    return AdvancedField(name, field_type=field_type, caption=caption, default=default, logger=_logger)
+    return AdvancedField(
+        name,
+        field_type=field_type,
+        representation=representation,
+        caption=caption,
+        default=default,
+        logger=_logger,
+    )
 
 
 def struct(
@@ -46,7 +62,7 @@ def struct(
         name: Optional[str] = None, caption: Optional[str] = None,
         **kwargs
 ) -> FlatStruct:
-    fields = arg.update(fields)
+    fields = update(fields)
     return FlatStruct(fields, name=name, caption=caption, default_type=default_type, **kwargs)
 
 
