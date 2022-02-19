@@ -15,7 +15,7 @@ def partial(function, *args, **kwargs) -> Callable:
 
 
 def const(value: Any) -> Callable:
-    def func(_) -> Any:
+    def func(*_) -> Any:
         return value
     return func
 
@@ -38,22 +38,39 @@ def not_none() -> Callable:
     return func
 
 
-def nonzero(zero_values=ZERO_VALUES) -> Callable:
+def nonzero(zero_values: Union[set, list, tuple] = ZERO_VALUES) -> Callable:
     def func(value: Any) -> bool:
         if nm.is_defined(value):
             return value not in zero_values
     return func
 
 
-def equal(other: Any) -> Callable:
-    def func(value: Any) -> bool:
+def equal(*args) -> Callable:
+    if len(args) == 0:
+        benchmark = None
+        is_benchmark_defined = False
+    elif len(args) == 1:
+        is_benchmark_defined = True
+        benchmark = args[0]
+    else:
+        raise ValueError('fs.equals() accepts 0 or 1 argument, got {}'.format(args))
+
+    def func(*a) -> bool:
+        if len(a) == 1 and is_benchmark_defined:
+            value, other = a[0], benchmark
+        elif len(a) == 2 and not is_benchmark_defined:
+            value, other = a
+        else:
+            raise ValueError('fs.equal() accepts 1 benchmark and 1 value, got benchmark={}, value={}'.format(args, a))
         return value == other
     return func
 
 
-def not_equal(other: Any) -> Callable:
-    def func(value) -> bool:
-        return value != other
+def not_equal(*args) -> Callable:
+    _func = equal(*args)
+
+    def func(*a) -> bool:
+        return not _func(*a)
     return func
 
 
