@@ -76,7 +76,7 @@ class NumericRepresentation(AbstractRepresentation):
         template = '{fill}{align}{sign}{width}{precision}{type}'
         return template.format(
             fill=self._fill, align=self.get_align_str(), sign=self.get_sign_str(),
-            width=self._min_len, precision=self.get_precision_str(),
+            width=self.get_min_value_len(), precision=self.get_precision_str(),
             type=self.get_type_str(),
         )
 
