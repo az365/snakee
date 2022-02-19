@@ -1,12 +1,16 @@
-from typing import Optional, Union, Callable, Iterable, Any
+from typing import Optional, Callable, Iterable, Sized, Union, Any
 
 try:  # Assume we're a submodule in a package.
-    from utils import arguments as arg
+    from base.classes.auto import AUTO, Auto
+    from base.functions.arguments import get_names, update
+    from utils.decorators import sql_compatible
     from content.items.item_type import ItemType
     from functions.primary import numeric as nm
     from functions.primary import grouping as gr
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
+    from ...base.classes.auto import AUTO, Auto
+    from ...base.functions.arguments import get_names, update
+    from ...utils.decorators import sql_compatible
     from ...content.items.item_type import ItemType
     from ..primary import numeric as nm
     from ..primary import grouping as gr
@@ -20,7 +24,7 @@ def is_in(*list_values, or_none: bool = False) -> Callable:
             return lambda v: True
         else:
             return lambda v: False
-    list_values = arg.update(list_values)
+    list_values = update(list_values)
 
     def func(value: Any) -> bool:
         return value in list_values
@@ -28,7 +32,7 @@ def is_in(*list_values, or_none: bool = False) -> Callable:
 
 
 def not_in(*list_values) -> Callable:
-    list_values = arg.update(list_values)
+    list_values = update(list_values)
 
     def func(value: Any) -> bool:
         return value not in list_values
@@ -57,10 +61,18 @@ def count_uniq() -> Callable:
     return func
 
 
-def count() -> Callable:
+@sql_compatible
+def count(default=None, _as_sql: bool = False) -> Callable:
     def func(a: Array) -> int:
-        return len(a)
-    return func
+        if isinstance(a, Sized):
+            return len(a)
+        else:
+            return default
+
+    def get_sql_repr(field: Optional[str]) -> str:
+        return 'COUNT({})'.format(field or '*')
+
+    return get_sql_repr if _as_sql else func
 
 
 def distinct() -> Callable:
@@ -113,7 +125,7 @@ def fold_lists(
 ) -> Callable:
     def func(item) -> Union[dict, tuple]:
         detected_type = item_type
-        if not arg.is_defined(detected_type):
+        if not Auto.is_defined(detected_type):
             detected_type = ItemType.detect(item)
         return gr.fold_lists(item, keys, values, skip_missing=skip_missing, item_type=detected_type)
     return func
@@ -123,7 +135,7 @@ def unfold_lists(*fields, number_field: str = 'n', default_value: Any = 0) -> Ca
     if len(fields) == 1:
         if isinstance(fields, Iterable) and not isinstance(fields, str):
             fields = fields[0]
-    fields = arg.get_names(fields)
+    fields = get_names(fields)
 
     def func(record: dict) -> Iterable:
         yield from gr.unfold_lists(record, fields=fields, number_field=number_field, default_value=default_value)
