@@ -14,7 +14,7 @@ try:  # Assume we're a submodule in a package.
         is_in, not_in,
         elem_no, subsequence, first, second, last,
         distinct, uniq, count_uniq, count,
-        compare_lists, list_minus,
+        compare_lists, list_minus, detect_group,
         values_not_none, defined_values, nonzero_values, numeric_values, shift_right,
         fold_lists, unfold_lists, top, hist, mean,
     )
@@ -42,7 +42,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         is_in, not_in,
         elem_no, subsequence, first, second, last,
         distinct, uniq, count_uniq, count,
-        compare_lists, list_minus,
+        compare_lists, list_minus, detect_group,
         values_not_none, defined_values, nonzero_values, numeric_values, shift_right,
         fold_lists, unfold_lists, top, hist, mean,
     )

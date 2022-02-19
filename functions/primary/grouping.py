@@ -72,6 +72,13 @@ def get_first_values(records: Iterable, fields: Array) -> MutableRecord:
     return first_values
 
 
+def get_group_name(value: Value, default: FieldName = 'other', **kwargs) -> FieldName:
+    for group_name, group_values in kwargs.items():
+        if value in group_values:
+            return group_name
+    return default
+
+
 def fold_rows(
         list_rows: Array,
         key_columns: Array,
@@ -79,7 +86,7 @@ def fold_rows(
         skip_missing: bool = False,
 ) -> Optional[ImmutableRow]:
     if list_rows:
-        row_out = MutableRecord()
+        row_out = MutableRow()
         first_row = list_rows[0]
         for c in key_columns:
             if isinstance(c, Callable):
