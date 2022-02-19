@@ -1,4 +1,4 @@
-from typing import Optional, Iterable, Union
+from typing import Optional, Iterable, Generator, Union
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
@@ -72,11 +72,13 @@ class FlatStruct(SimpleDataWrapper, DescribeMixin, StructInterface):
     def get_caption(self) -> str:
         return self._caption
 
-    def set_caption(self, caption: str, inplace: bool) -> Optional[Native]:
+    def set_caption(self, caption: str, inplace: bool) -> Native:
         if inplace:
             self._caption = caption
+            return self
         else:
-            return self.make_new(caption=caption)
+            struct = self.make_new(caption=caption)
+            return self._assume_native(struct)
 
     def caption(self, caption: str) -> Native:
         self._caption = caption
@@ -86,7 +88,8 @@ class FlatStruct(SimpleDataWrapper, DescribeMixin, StructInterface):
         return bool(self.get_fields())
 
     def set_fields(self, fields: Iterable, inplace: bool) -> Optional[Native]:
-        return self.set_data(data=fields, inplace=inplace, reset_dynamic_meta=False)
+        struct = self.set_data(data=fields, inplace=inplace, reset_dynamic_meta=False)
+        return self._assume_native(struct)
 
     def get_fields(self) -> list:
         return self.get_data()
@@ -98,12 +101,13 @@ class FlatStruct(SimpleDataWrapper, DescribeMixin, StructInterface):
         self._data = list(fields)
         return self
 
-    def set_field_no(self, no: int, field: Field, inplace: bool) -> Optional[Native]:
+    def set_field_no(self, no: int, field: Field, inplace: bool) -> Native:
         if inplace:
             self.get_data()[no] = field
+            return self
         else:
             struct = self.copy()
-            assert isinstance(struct, StructInterface)
+            assert isinstance(struct, FlatStruct)
             struct.set_field_no(no=no, field=field, inplace=True)
             return struct
 
@@ -264,12 +268,13 @@ class FlatStruct(SimpleDataWrapper, DescribeMixin, StructInterface):
             dict_field_types: Optional[dict] = None,
             inplace: bool = True,
             **kwargs
-    ) -> Optional[Native]:
+    ) -> Native:
         if inplace:
-            self.types(dict_field_types=dict_field_types, **kwargs)
+            return self.types(dict_field_types=dict_field_types, **kwargs) or self
         else:
-            copy = self.copy().types(dict_field_types=dict_field_types, **kwargs)
-            return copy
+            struct = self.copy()
+            assert isinstance(struct, FlatStruct)
+            return struct.types(dict_field_types=dict_field_types, **kwargs)
 
     def types(self, dict_field_types: Optional[dict] = None, **kwargs) -> Native:
         for field_name, field_type in list((dict_field_types or {}).items()) + list(kwargs.items()):
@@ -380,8 +385,8 @@ class FlatStruct(SimpleDataWrapper, DescribeMixin, StructInterface):
     def validate_about(self, standard: StructInterface, ignore_moved: bool = False) -> Native:
         expected_struct = self.convert_to_native(standard)
         remaining_struct = expected_struct.copy()
-        assert isinstance(expected_struct, FlatStruct)
-        assert isinstance(remaining_struct, FlatStruct)
+        assert isinstance(expected_struct, FlatStruct), 'got {}'.format(expected_struct)
+        assert isinstance(remaining_struct, FlatStruct), 'got {}'.format(remaining_struct)
         updated_struct = FlatStruct([])
         for pos_received, f_received in enumerate(self.get_fields()):
             assert isinstance(f_received, AdvancedField)
@@ -485,14 +490,14 @@ class FlatStruct(SimpleDataWrapper, DescribeMixin, StructInterface):
         group_name = self.get_name()
         group_caption = self.get_caption()
         if include_header:
-            yield (GROUP_NO_STR, GROUP_TYPE_STR, group_name or '', group_caption, '')
+            yield GROUP_NO_STR, GROUP_TYPE_STR, group_name or '', group_caption, ''
         prev_group_name = group_name
         for n, field_tuple in enumerate(self.get_fields_tuples()):
             f_name, f_type_name, f_caption, f_valid, group_name, group_caption = field_tuple
             is_next_group = group_name != prev_group_name
             if is_next_group:
-                yield (GROUP_NO_STR, GROUP_TYPE_STR, group_name, group_caption, '')
-            yield (n, f_type_name, f_name or '', f_caption, f_valid)
+                yield GROUP_NO_STR, GROUP_TYPE_STR, group_name, group_caption, ''
+            yield n, f_type_name, f_name or '', f_caption, f_valid
             prev_group_name = group_name
 
     def get_group_header(self, name: Comment = AUTO, caption: Comment = AUTO, comment: Comment = None) -> Iterable[str]:
@@ -518,8 +523,37 @@ class FlatStruct(SimpleDataWrapper, DescribeMixin, StructInterface):
             template = ' {:<1}  {:<3} {:<8} {:<28} {:<72}'
         return columns, template
 
+    def get_struct_repr_lines(
+            self,
+            example: Optional[dict] = None,
+            separate_by_tabs: bool = False,
+            select_fields: Optional[Array] = None,
+            count: Optional[int] = None
+    ) -> Generator:
+        columns, template = self._get_describe_template(example)
+        yield '\t'.join(columns) if separate_by_tabs else template.format(*columns)
+        for (n, type_name, name, caption, is_valid) in self.get_struct_description(include_header=False):
+            if type_name == GROUP_TYPE_STR:
+                yield ''
+                for line in self.get_group_header(name, caption=caption):
+                    yield line
+            else:
+                if name in (select_fields or []):
+                    is_valid = '>' if is_valid == '.' else str(is_valid).upper()
+                if example:
+                    value = str(example.get(name))
+                    row = (is_valid, n, type_name, name, value, caption)
+                else:
+                    row = (is_valid, n, type_name, name, caption)
+                yield '\t'.join(row) if separate_by_tabs else template.format(*row)
+            if Auto.is_defined(count):
+                if n >= count - 1:
+                    break
+
     def describe(
-            self, example: Optional[dict] = None,
+            self,
+            example: Optional[dict] = None,
+            count: Optional[int] = None,
             as_dataframe: bool = False,
             separate_by_tabs: bool = False,
             show_header: bool = True,
@@ -535,22 +569,12 @@ class FlatStruct(SimpleDataWrapper, DescribeMixin, StructInterface):
         if as_dataframe:
             return self.show()
         else:
-            columns, template = self._get_describe_template(example)
-            log('\t'.join(columns) if separate_by_tabs else template.format(*columns))
-            for (n, type_name, name, caption, is_valid) in self.get_struct_description(include_header=False):
-                if type_name == GROUP_TYPE_STR:
-                    log('')
-                    for line in self.get_group_header(name, caption=caption):
-                        log(line)
-                else:
-                    if name in (select_fields or []):
-                        is_valid = '>' if is_valid == '.' else str(is_valid).upper()
-                    if example:
-                        value = str(example.get(name))
-                        row = (is_valid, n, type_name, name, value, caption)
-                    else:
-                        row = (is_valid, n, type_name, name, caption)
-                    log('\t'.join(row) if separate_by_tabs else template.format(*row))
+            struct_description_lines = self.get_struct_repr_lines(
+                example=example, separate_by_tabs=separate_by_tabs, select_fields=select_fields,
+                count=count,
+            )
+            for line in struct_description_lines:
+                log(line)
 
     def get_dataframe(self) -> DataFrame:
         data = self.get_struct_description(include_header=True)
@@ -563,6 +587,10 @@ class FlatStruct(SimpleDataWrapper, DescribeMixin, StructInterface):
             return self.get_dataframe()
         else:
             return self.describe(as_dataframe=False)
+
+    @staticmethod
+    def _assume_native(struct) -> Native:
+        return struct
 
     def __repr__(self):
         return self.get_struct_str(None)
