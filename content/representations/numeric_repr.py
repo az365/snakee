@@ -46,15 +46,19 @@ class NumericRepresentation(AbstractRepresentation):
     def get_repr_type() -> ReprType:
         return ReprType.NumericRepr
 
+    def get_precision(self):
+        return self._precision
+
     def format(self, value: Value, skip_errors: bool = True) -> str:
         return super().format(value, skip_errors=skip_errors)
 
     def parse(self, line: str, skip_errors: bool = False) -> Union[int, float, None]:
         value = super().parse(line)
         try:
-            if self._precision or '.' in line:
-                value = float(value)
-            if not self._precision:
+            if self.get_precision():
+                if '.' in line:
+                    value = float(value)
+            else:
                 value = int(value)
             return value
         except ValueError as e:
@@ -65,12 +69,23 @@ class NumericRepresentation(AbstractRepresentation):
 
     def convert_value(self, value: Value) -> Value:
         try:
-            if self._precision > 0:
+            if self.get_precision() > 0:
                 return float(value)
             else:
                 return int(value)
         except ValueError:
             return self._default
+
+    def get_template(self, key: OptKey = None) -> str:
+        template = '{prefix}{start}{key}:{spec}{end}{suffix}'
+        return template.format(
+            prefix=self._prefix,
+            start='{',
+            key=str(key or ''),
+            spec=self.get_spec_str(),
+            end='}',
+            suffix=self._suffix,
+        )
 
     def get_spec_str(self) -> str:
         template = '{fill}{align}{sign}{width}{precision}{type}'
