@@ -1,7 +1,9 @@
 from typing import Iterable, Callable, Union
 
-try:  # Assume we're a sub-module in a package.
-    from utils import arguments as arg, selection as sf
+try:  # Assume we're a submodule in a package.
+    from base.classes.auto import AUTO
+    from base.functions.arguments import get_name
+    from utils import selection as sf
     from content.items.item_type import ItemType
     from content.selection.abstract_expression import (
         AbstractDescription, SingleFieldDescription, MultipleFieldDescription, TrivialMultipleDescription,
@@ -13,8 +15,10 @@ try:  # Assume we're a sub-module in a package.
     from content.selection.abstract_expression import AbstractDescription, SingleFieldDescription, MultipleFieldDescription
     from content.selection.selection_description import SelectionDescription, translate_names_to_columns
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg, selection as sf
-    from ...content.items.item_type import ItemType
+    from ...base.classes.auto import AUTO
+    from ...base.functions.arguments import get_name
+    from ...utils import selection as sf
+    from ..items.item_type import ItemType
     from .abstract_expression import (
         AbstractDescription, SingleFieldDescription, MultipleFieldDescription, TrivialMultipleDescription,
     )
@@ -23,6 +27,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         StarDescription, DropDescription,
     )
     from .selection_description import SelectionDescription, translate_names_to_columns
+
+STAR = '*'
 
 
 def is_expression_description(obj) -> bool:
@@ -36,22 +42,27 @@ def get_name_or_function(field) -> Union[int, str, Callable]:
     if isinstance(field, Callable):
         return field
     else:
-        return arg.get_name(field)
+        return get_name(field)
 
 
-def get_selection_tuple(description: Union[AbstractDescription, Iterable]) -> tuple:
-    if isinstance(description, AbstractDescription):
+def get_selection_tuple(description: Union[AbstractDescription, Iterable], or_star: bool = True) -> Union[tuple, str]:
+    if isinstance(description, AbstractDescription) or hasattr(description, 'get_selection_table'):
         return description.get_selection_tuple()
-    elif isinstance(description, Iterable):
+    elif isinstance(description, Iterable) and not isinstance(description, str):
         return tuple([get_name_or_function(f) for f in description])
+    elif str(description) == STAR:
+        if or_star:
+            return STAR
+        else:
+            return description,
     else:
-        raise TypeError
+        return get_name_or_function(description)
 
 
 def get_compatible_expression_tuples(expressions: dict) -> dict:
     prepared_expressions = dict()
     for k, v in expressions.items():
-        name = arg.get_name(k)
+        name = get_name(k)
         if isinstance(v, (list, tuple)):
             value = get_selection_tuple(v)
         elif is_expression_description(v):
@@ -64,8 +75,10 @@ def get_compatible_expression_tuples(expressions: dict) -> dict:
 
 def select(
         *fields,
-        target_item_type=ItemType.Auto, input_item_type=ItemType.Auto,
-        logger=None, selection_logger=arg.AUTO,
+        target_item_type=ItemType.Auto,
+        input_item_type=ItemType.Auto,
+        logger=None,
+        selection_logger=AUTO,
         use_extended_method=True,
         **expressions
 ):
@@ -81,7 +94,7 @@ def select(
             logger=selection_logger,
         )
     else:
-        fields = get_selection_tuple(fields)
+        fields = [get_selection_tuple(f) for f in fields]
         expressions = get_compatible_expression_tuples(expressions)
         return sf.select(
             *fields,
