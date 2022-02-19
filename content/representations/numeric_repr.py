@@ -28,6 +28,8 @@ class NumericRepresentation(AbstractRepresentation):
             max_len: AutoCount = AUTO,
             crop: str = CROP_SUFFIX,
             fill: str = FILL_CHAR,
+            prefix: str = '',
+            suffix: str = '',
             default: str = DEFAULT_STR,
     ):
         self._precision = precision
@@ -36,6 +38,7 @@ class NumericRepresentation(AbstractRepresentation):
         self._allow_exp = allow_exp
         super().__init__(
             min_len=min_len, max_len=max_len, fill=fill, crop=crop,
+            prefix=prefix, suffix=suffix,
             align_right=align_right, default=default,
         )
 

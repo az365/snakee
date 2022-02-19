@@ -27,12 +27,15 @@ class SequenceRepresentation(AbstractRepresentation):
             max_len: int = AUTO,
             crop: str = CROP_SUFFIX,
             fill: str = FILL_CHAR,
+            prefix: str = '',
+            suffix: str = '',
             default: str = DEFAULT_STR,
     ):
         self._delimiter = delimiter
         self._item_representation = item_representation
         super().__init__(
             min_len=min_len, max_len=max_len, fill=fill, crop=crop,
+            prefix=prefix, suffix=suffix,
             align_right=align_right, default=default,
         )
 

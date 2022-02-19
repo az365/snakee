@@ -19,7 +19,7 @@ CROP_SUFFIX = '..'
 FILL_CHAR = ' '
 
 
-class AbstractRepresentation(AbstractBaseObject, RepresentationInterface, ABC):
+class AbstractRepresentation(RepresentationInterface, AbstractBaseObject, ABC):
     def __init__(
             self,
             align_right: bool = False,
@@ -27,6 +27,8 @@ class AbstractRepresentation(AbstractBaseObject, RepresentationInterface, ABC):
             max_len: Count = AUTO,
             crop: str = CROP_SUFFIX,
             fill: str = FILL_CHAR,
+            prefix: str = '',
+            suffix: str = '',
             default: str = DEFAULT_STR,
     ):
         max_len = Auto.acquire(max_len, min_len if Auto.is_defined(min_len) else DEFAULT_LEN)
@@ -37,6 +39,8 @@ class AbstractRepresentation(AbstractBaseObject, RepresentationInterface, ABC):
         self._max_len = max_len
         self._crop = crop
         self._fill = fill
+        self._prefix = prefix
+        self._suffix = suffix
         self._default = default
 
     @classmethod
@@ -49,7 +53,8 @@ class AbstractRepresentation(AbstractBaseObject, RepresentationInterface, ABC):
             self._max_len = value
             return self
         else:
-            return self.set_outplace(min_len=value, max_len=value)
+            representation = self.set_outplace(min_len=value, max_len=value)
+            return self._assume_native(representation)
 
     def convert_value(self, value: Value) -> Value:
         if value is None:
@@ -96,3 +101,10 @@ class AbstractRepresentation(AbstractBaseObject, RepresentationInterface, ABC):
             return '>'
         else:
             return '<'
+
+    @staticmethod
+    def _assume_native(representation):
+        return representation
+
+    def __repr__(self):
+        return "'" + self.get_template() + "'"
