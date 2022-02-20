@@ -42,7 +42,6 @@ class NumericSeries(AnySeries, NumericSeriesInterface):
     @staticmethod
     def get_distance_func(constant=None, take_abs: bool = False, default=None) -> Callable:
         return fs.increment(constant, take_abs=take_abs, default=default)
-        return nm.diff
 
     def get_errors(self) -> Generator:
         yield from super().get_errors()
@@ -80,8 +79,8 @@ class NumericSeries(AnySeries, NumericSeriesInterface):
     def divide(self, series: Native, default: OptNumeric = None, extend: bool = False, inplace: bool = False) -> Native:
         result = self.map_optionally_extend_zip_values(
             fs.div(default=default),
-            extend,
             series,
+            extend=extend,
             inplace=inplace,
         )
         return self._assume_native(result)
@@ -89,8 +88,8 @@ class NumericSeries(AnySeries, NumericSeriesInterface):
     def subtract(self, series: Native, default: Any = None, extend: bool = False, inplace: bool = False) -> Native:
         result = self.map_optionally_extend_zip_values(
             fs.diff(default=default),
-            extend,
             series,
+            extend=extend,
             inplace=inplace,
         )
         return self._assume_native(result)
