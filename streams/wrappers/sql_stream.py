@@ -43,8 +43,8 @@ SECTIONS_ORDER = (
 class SqlStream(WrapperStream):
     def __init__(
             self,
-            name: AutoName = AUTO,
             data: Links = None,
+            name: AutoName = AUTO,
             source: TableOrQuery = None,
             context: AutoContext = AUTO,
     ):
@@ -53,6 +53,7 @@ class SqlStream(WrapperStream):
             data=data or dict(),
             source=source,
             context=context,
+            check=False,
         )
 
     def get_source_table(self):
