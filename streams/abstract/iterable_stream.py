@@ -169,7 +169,7 @@ class IterableStream(AbstractStream, IterableMixin, IterableStreamInterface):
     def one(self, use_tee: bool = True) -> Native:
         if use_tee:
             item = self.get_one_item()
-            stream = self.stream(item)
+            stream = self.stream([item])
             return self._assume_native(stream)
         else:
             return self.take(1, inplace=False)
