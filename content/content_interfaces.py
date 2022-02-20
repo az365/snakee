@@ -11,7 +11,7 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..base.classes.auto import Auto
     from ..utils.algo import JoinType
-    from .fields.field_classes import FieldInterface, FieldType
+    from .fields.field_interface import FieldInterface, FieldType
     from .format.format_interface import ContentFormatInterface, Compress
     from .items.item_classes import *
     from .struct.struct_interface import StructInterface, StructMixinInterface
