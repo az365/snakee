@@ -1,17 +1,4 @@
-from typing import Optional, Callable, Union, Any
-
-try:  # Assume we're a submodule in a package.
-    from base.classes.typing import (
-        ARRAY_TYPES, Array, Count, Columns, OptionalFields, Options, Message,
-        FieldName, FieldNo, FieldID, Name, Value, Class, Links,
-        AUTO, Auto, AutoName, AutoCount, AutoBool, AutoColumns, AutoLinks,
-    )
-except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from .base.classes.typing import (
-        ARRAY_TYPES, Array, Count, Columns, OptionalFields, Options, Message,
-        FieldName, FieldNo, FieldID, Name, Value, Class, Links,
-        AUTO, Auto, AutoName, AutoCount, AutoBool, AutoColumns, AutoLinks,
-    )
+from typing import Optional, Union
 
 try:  # Assume we're a submodule in a package.
     from base.interfaces.base_interface import BaseInterface  # ROOT
@@ -51,12 +38,6 @@ try:  # Assume we're a submodule in a package.
     from content.format.format_interface import ContentFormatInterface  # inherits Base
     from content.struct.struct_interface import StructInterface, StructMixinInterface  # ROOT
     from content.struct.struct_row_interface import StructRowInterface  # inherits SimpleData; uses StructInterface
-    from content.items.simple_items import (
-        ROW_SUBCLASSES, RECORD_SUBCLASSES, LINE_SUBCLASSES, STAR, Line,
-        FrozenDict, SimpleRecord, MutableRecord, ImmutableRecord, Record,
-        SimpleRowInterface, SimpleRow, MutableRow, ImmutableRow, Row,
-        SimpleSelectableItem, SimpleItem, Item,
-    )
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from .base.interfaces.base_interface import BaseInterface  # ROOT
     from .base.interfaces.sourced_interface import SourcedInterface  # inherits Base[Interface]
@@ -95,12 +76,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .content.format.format_interface import ContentFormatInterface  # inherits Base
     from .content.struct.struct_interface import StructInterface, StructMixinInterface  # ROOT
     from .content.struct.struct_row_interface import StructRowInterface  # inherits SimpleData; uses StructInterface
-    from .content.items.simple_items import (
-        ROW_SUBCLASSES, RECORD_SUBCLASSES, LINE_SUBCLASSES, STAR, Line,
-        FrozenDict, SimpleRecord, MutableRecord, ImmutableRecord, Record,
-        SimpleRowInterface, SimpleRow, MutableRow, ImmutableRow, Row,
-        SimpleSelectableItem, SimpleItem, Item,
-    )
 
 try:  # Assume we're a submodule in a package.
     from utils.algo import JoinType  # standard Enum
@@ -131,12 +106,38 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .series.series_type import SeriesType  # inherits ClassType(DynamicEnum)
     from .series.interpolation_type import InterpolationType  # inherits DynamicEnum
 
-Field = Union[FieldID, FieldInterface]
-How = Union[JoinType, str]
-
-StructRow = StructRowInterface
-RegularItem = Union[SimpleItem, StructRow]
-Item = Union[Any, RegularItem]
+try:  # Assume we're a submodule in a package.
+    from base.classes.typing import (
+        ARRAY_TYPES, Array, Count, Columns, OptionalFields, Options, Message,
+        FieldName, FieldNo, FieldID, Name, Value, Class, Links,
+        AUTO, Auto, AutoName, AutoCount, AutoBool, AutoColumns, AutoLinks,
+    )
+    from content.content_interfaces import (
+        StructRow, RegularItem, Item, How,
+        Field, Struct, Group, FieldOrStruct, FieldOrGroup, UniKey,
+    )
+    from content.items.simple_items import (
+        ROW_SUBCLASSES, RECORD_SUBCLASSES, LINE_SUBCLASSES, STAR, Line,
+        FrozenDict, SimpleRecord, MutableRecord, ImmutableRecord, Record,
+        SimpleRowInterface, SimpleRow, MutableRow, ImmutableRow, Row,
+        SimpleSelectableItem, SimpleItem, Item,
+    )
+except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
+    from .base.classes.typing import (
+        ARRAY_TYPES, Array, Count, Columns, OptionalFields, Options, Message,
+        FieldName, FieldNo, FieldID, Name, Value, Class, Links,
+        AUTO, Auto, AutoName, AutoCount, AutoBool, AutoColumns, AutoLinks,
+    )
+    from .content.content_interfaces import (
+        StructRow, RegularItem, Item, How,
+        Field, Struct, Group, FieldOrStruct, FieldOrGroup, UniKey,
+    )
+    from .content.items.simple_items import (
+        ROW_SUBCLASSES, RECORD_SUBCLASSES, LINE_SUBCLASSES, STAR, Line,
+        FrozenDict, SimpleRecord, MutableRecord, ImmutableRecord, Record,
+        SimpleRowInterface, SimpleRow, MutableRow, ImmutableRow, Row,
+        SimpleSelectableItem, SimpleItem, Item,
+    )
 
 Stream = StreamInterface
 IterableStream = IterableStreamInterface
@@ -161,4 +162,3 @@ TmpFiles = TemporaryFilesMaskInterface
 AutoContext = Union[Auto, Context]
 AutoConnector = Union[Auto, Connector]
 AutoStreamType = Union[Auto, StreamType]
-UniKey = Union[StructInterface, Array, AutoName, Callable]

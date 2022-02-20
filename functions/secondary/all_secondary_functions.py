@@ -10,11 +10,12 @@ try:  # Assume we're a submodule in a package.
         increment, diff, div, mult, sqrt,
     )
     from functions.secondary.date_functions import int_to_date, date_to_int, round_date, next_date, date_range
+    from functions.secondary.text_functions import startswith, endswith, contains
     from functions.secondary.array_functions import (
         is_in, not_in,
         elem_no, subsequence, first, second, last,
         distinct, uniq, count_uniq, count,
-        compare_lists, list_minus,
+        compare_lists, list_minus, detect_group,
         values_not_none, defined_values, nonzero_values, numeric_values, shift_right,
         fold_lists, unfold_lists, top, hist, mean,
     )
@@ -38,11 +39,12 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         increment, diff, div, mult, sqrt,
     )
     from .date_functions import int_to_date, date_to_int, round_date, next_date, date_range
+    from .text_functions import startswith, endswith, contains
     from .array_functions import (
         is_in, not_in,
         elem_no, subsequence, first, second, last,
         distinct, uniq, count_uniq, count,
-        compare_lists, list_minus,
+        compare_lists, list_minus, detect_group,
         values_not_none, defined_values, nonzero_values, numeric_values, shift_right,
         fold_lists, unfold_lists, top, hist, mean,
     )

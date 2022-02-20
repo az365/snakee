@@ -26,12 +26,15 @@ class StringRepresentation(AbstractRepresentation):
             fill: str = FILL_CHAR,
             tab: str = TAB_SUBSTITUTE,
             paragraph: str = PARAGRAPH_SUBSTITUTE,
+            prefix: str = '',
+            suffix: str = '',
             default: str = DEFAULT_STR,
     ):
         self._tab = tab
         self._paragraph = paragraph
         super().__init__(
             min_len=min_len, max_len=max_len, fill=fill, crop=crop,
+            prefix=prefix, suffix=suffix,
             align_right=align_right, default=default,
         )
 

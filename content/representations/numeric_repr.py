@@ -28,6 +28,8 @@ class NumericRepresentation(AbstractRepresentation):
             max_len: AutoCount = AUTO,
             crop: str = CROP_SUFFIX,
             fill: str = FILL_CHAR,
+            prefix: str = '',
+            suffix: str = '',
             default: str = DEFAULT_STR,
     ):
         self._precision = precision
@@ -36,6 +38,7 @@ class NumericRepresentation(AbstractRepresentation):
         self._allow_exp = allow_exp
         super().__init__(
             min_len=min_len, max_len=max_len, fill=fill, crop=crop,
+            prefix=prefix, suffix=suffix,
             align_right=align_right, default=default,
         )
 
@@ -43,15 +46,19 @@ class NumericRepresentation(AbstractRepresentation):
     def get_repr_type() -> ReprType:
         return ReprType.NumericRepr
 
+    def get_precision(self):
+        return self._precision
+
     def format(self, value: Value, skip_errors: bool = True) -> str:
         return super().format(value, skip_errors=skip_errors)
 
     def parse(self, line: str, skip_errors: bool = False) -> Union[int, float, None]:
         value = super().parse(line)
         try:
-            if self._precision or '.' in line:
-                value = float(value)
-            if not self._precision:
+            if self.get_precision():
+                if '.' in line:
+                    value = float(value)
+            else:
                 value = int(value)
             return value
         except ValueError as e:
@@ -62,18 +69,29 @@ class NumericRepresentation(AbstractRepresentation):
 
     def convert_value(self, value: Value) -> Value:
         try:
-            if self._precision > 0:
+            if self.get_precision() > 0:
                 return float(value)
             else:
                 return int(value)
         except ValueError:
             return self._default
 
+    def get_template(self, key: OptKey = None) -> str:
+        template = '{prefix}{start}{key}:{spec}{end}{suffix}'
+        return template.format(
+            prefix=self._prefix,
+            start='{',
+            key=str(key or ''),
+            spec=self.get_spec_str(),
+            end='}',
+            suffix=self._suffix,
+        )
+
     def get_spec_str(self) -> str:
         template = '{fill}{align}{sign}{width}{precision}{type}'
         return template.format(
             fill=self._fill, align=self.get_align_str(), sign=self.get_sign_str(),
-            width=self._min_len, precision=self.get_precision_str(),
+            width=self.get_min_value_len(), precision=self.get_precision_str(),
             type=self.get_type_str(),
         )
 

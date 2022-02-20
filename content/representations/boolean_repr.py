@@ -29,6 +29,8 @@ class BooleanRepresentation(AbstractRepresentation):
             max_len: Union[int, Auto] = AUTO,
             crop: str = CROP_SUFFIX,
             fill: str = FILL_CHAR,
+            prefix: str = '',
+            suffix: str = '',
             default: str = DEFAULT_STR,
     ):
         max_len = Auto.acquire(max_len, max(len(true), len(false), len(default), len(crop), Auto.acquire(min_len, 0)))
@@ -37,6 +39,7 @@ class BooleanRepresentation(AbstractRepresentation):
         self._false = false
         super().__init__(
             min_len=min_len, max_len=max_len, fill=fill, crop=crop,
+            prefix=prefix, suffix=suffix,
             align_right=align_right, default=default,
         )
 

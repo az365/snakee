@@ -66,7 +66,7 @@ class Contextual(Sourced, ContextualInterface, ABC):
                     self.set_source(context)
             elif Auto.is_defined(self.get_source()):
                 self.get_source().set_context(context, reset=reset)
-            return self.put_into_context()
+            return self.put_into_context(check=not reset)
         else:
             contextual = self.set_outplace(context=context)
             return self._assume_native(contextual)
@@ -82,6 +82,8 @@ class Contextual(Sourced, ContextualInterface, ABC):
                     if known_child != self:
                         message = 'Object with name {} already registered in context ({} != {})'
                         raise ValueError(message.format(self.get_name(), known_child, self))
+                else:
+                    return context.add_child(self, reset=True, inplace=True) or self
             else:
                 return context.add_child(self) or self
         elif check:

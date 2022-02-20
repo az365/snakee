@@ -423,7 +423,7 @@ class IterableMixin(IterableInterface, ABC):
             return demo_example
 
     def _get_property(self, name, *args, **kwargs) -> Any:
-        if callable(name):
+        if isinstance(name, Callable):
             value = name(self)
         elif isinstance(name, str):
             meta = self.get_meta()
@@ -469,7 +469,7 @@ class IterableMixin(IterableInterface, ABC):
 
     def print(
             self,
-            stream_function: Union[Callable, str] = 'get_count',
+            stream_function: Union[Callable, str] = '__str__',
             assert_not_none: bool = True,
             *args, **kwargs
     ) -> Native:
@@ -477,7 +477,7 @@ class IterableMixin(IterableInterface, ABC):
         if value is None:
             if assert_not_none:
                 template = '{}.print({}): None received'
-                msg = template.format(get_str_from_args_kwargs(self, stream_function, *args, **kwargs))
+                msg = template.format(repr(self), get_str_from_args_kwargs(stream_function, *args, **kwargs))
                 raise ValueError(msg)
             else:
                 value = str(value)

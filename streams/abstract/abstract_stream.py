@@ -1,30 +1,30 @@
 from abc import ABC, abstractmethod
 import inspect
-from typing import Optional, Callable, Iterable, Union, Any, NoReturn
+from typing import Optional, Callable, Iterable, Union, Any
 import gc
 
-try:  # Assume we're a sub-module in a package.
-    from utils import arguments as arg
-    from utils.decorators import deprecated_with_alternative
+try:  # Assume we're a submodule in a package.
     from interfaces import (
         StreamInterface, LoggerInterface,
         StreamType, LoggingLevel,
         Stream, ExtLogger, Context, Connector, LeafConnector,
         AUTO, Auto, AutoName, OptionalFields, Message,
     )
+    from base.functions.arguments import get_generated_name
     from base.abstract.contextual_data import ContextualDataWrapper
+    from utils.decorators import deprecated_with_alternative
     from loggers.fallback_logger import FallbackLogger
     from streams import stream_classes as sm
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
-    from ...utils.decorators import deprecated_with_alternative
     from ...interfaces import (
         StreamInterface, LoggerInterface,
         StreamType, LoggingLevel,
         Stream, ExtLogger, Context, Connector, LeafConnector,
         AUTO, Auto, AutoName, OptionalFields, Message,
     )
+    from ...base.functions.arguments import get_generated_name
     from ...base.abstract.contextual_data import ContextualDataWrapper
+    from ...utils.decorators import deprecated_with_alternative
     from ...loggers.fallback_logger import FallbackLogger
     from .. import stream_classes as sm
 
@@ -43,9 +43,9 @@ class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
             check: bool = False,
     ):
         if source:
-            name = arg.acquire(name, source.get_name())
+            name = Auto.acquire(name, source.get_name())
         else:
-            name = arg.acquire(name, arg.get_generated_name())
+            name = Auto.acquire(name, get_generated_name())
         if source and not context:
             context = source.get_context()
         if not context:
@@ -57,6 +57,9 @@ class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
             old_name = self.get_name()
             self.get_context().rename_stream(old_name, name)
         return super().set_name(name, inplace=inplace)
+
+    def get_type(self) -> StreamType:
+        return self.get_stream_type()
 
     @classmethod
     def _get_data_member_names(cls) -> tuple:
@@ -132,8 +135,8 @@ class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
     def get_class(cls, other: Stream = None):
         if other is None:
             return cls
-        elif isinstance(other, (sm.StreamType, str)):
-            return sm.StreamType(other).get_class()
+        elif isinstance(other, (StreamType, str)):
+            return StreamType(other).get_class()
         elif inspect.isclass(other):
             return other
         else:
@@ -165,13 +168,18 @@ class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
             logger = context.get_logger(create_if_not_yet=skip_missing)
         else:
             logger = None
-        if not logger:
+        if skip_missing and not logger:
             return FallbackLogger()
         return logger
 
     def log(
-            self, msg: Message, level: LoggingLevel = AUTO,
-            end: str = AUTO, truncate: bool = True, force: bool = False, verbose: bool = True,
+            self,
+            msg: Message,
+            level: LoggingLevel = AUTO,
+            end: str = AUTO,
+            truncate: bool = True,
+            force: bool = True,
+            verbose: bool = True,
     ) -> Native:
         logger = self.get_logger(skip_missing=force)
         if isinstance(logger, ExtLogger):
@@ -180,7 +188,7 @@ class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
             logger.log(msg=msg, level=level)
         return self
 
-    def forget(self) -> NoReturn:
+    def forget(self) -> None:
         if hasattr(self, 'close'):
             self.close()
         context = self.get_context()

@@ -7,6 +7,7 @@ try:  # Assume we're a submodule in a package.
         Field, Class,
         AutoBool, Auto, AUTO, ARRAY_TYPES,
     )
+    from content.representations.repr_classes import ReprType
     from content.fields.abstract_field import AbstractField
     from content.selection import abstract_expression as ae, concrete_expression as ce
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -16,6 +17,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         Field, Class,
         AutoBool, Auto, AUTO, ARRAY_TYPES,
     )
+    from ..representations.repr_classes import ReprType
     from .abstract_field import AbstractField
     from ..selection import abstract_expression as ae, concrete_expression as ce
 
@@ -65,7 +67,43 @@ class AdvancedField(AbstractField):
             self._representation = representation
             return self
         else:
-            return self.make_new(representation=representation)
+            field = self.make_new(representation=representation)
+            return self._assume_native(field)
+
+    def set_repr(
+            self,
+            representation: Union[RepresentationInterface, str, Auto] = AUTO,
+            inplace: bool = None,
+            **kwargs
+    ) -> Native:
+        assert inplace is not None and not Auto.is_auto(inplace)
+        if Auto.is_auto(representation):
+            representation = self.get_representation()
+        if kwargs:
+            if Auto.is_defined(representation):
+                assert isinstance(representation, RepresentationInterface), 'got {}'.format(representation)
+                representation = representation.update_meta(**kwargs, inplace=False)
+            else:
+                repr_class = self.get_repr_class()
+                representation = repr_class(**kwargs)
+        return self.set_representation(representation, inplace=inplace) or self
+
+    def get_repr_class(self) -> Class:
+        if self.is_numeric():
+            return ReprType.NumericRepr.get_class()
+        elif self.is_boolean():
+            return ReprType.BooleanRepr.get_class()
+        else:
+            return ReprType.StringRepr.get_class()
+
+    def is_numeric(self) -> bool:
+        return self.get_type() in (FieldType.Int, FieldType.Float)
+
+    def is_boolean(self) -> bool:
+        return self.get_type() == FieldType.Bool
+
+    def is_string(self) -> bool:
+        return self.get_type() == FieldType.Str
 
     def get_caption(self) -> str:
         return self._caption or None
@@ -75,7 +113,8 @@ class AdvancedField(AbstractField):
             self._caption = caption
             return self
         else:
-            return self.make_new(caption=caption)
+            field = self.make_new(caption=caption)
+            return self._assume_native(field)
 
     def caption(self, caption: str) -> Native:
         self._caption = caption
@@ -84,11 +123,13 @@ class AdvancedField(AbstractField):
     def is_valid(self) -> AutoBool:
         return self._is_valid
 
-    def set_valid(self, is_valid: bool, inplace: bool) -> Optional[Native]:
+    def set_valid(self, is_valid: bool, inplace: bool) -> Native:
         if inplace:
             self._is_valid = is_valid
+            return self
         else:
-            return self.make_new(is_valid=is_valid)
+            field = self.make_new(is_valid=is_valid)
+            return self._assume_native(field)
 
     def valid(self, is_valid: bool) -> Native:
         self._is_valid = is_valid
@@ -100,11 +141,13 @@ class AdvancedField(AbstractField):
     def get_group_name(self) -> str:
         return self._group_name
 
-    def set_group_name(self, group_name: str, inplace: bool) -> Optional[Native]:
+    def set_group_name(self, group_name: str, inplace: bool) -> Native:
         if inplace:
             self._group_name = group_name
+            return self
         else:
-            return self.make_new(group_name=group_name)
+            field = self.make_new(group_name=group_name)
+            return self._assume_native(field)
 
     def group_name(self, group_name: str) -> Native:
         self._group_name = group_name
@@ -113,11 +156,13 @@ class AdvancedField(AbstractField):
     def get_group_caption(self) -> str:
         return self._group_caption
 
-    def set_group_caption(self, group_caption: str, inplace: bool) -> Optional[Native]:
+    def set_group_caption(self, group_caption: str, inplace: bool) -> Native:
         if inplace:
             self._group_caption = group_caption
+            return self
         else:
-            return self.make_new(group_caption=group_caption)
+            field = self.make_new(group_caption=group_caption)
+            return self._assume_native(field)
 
     def group_caption(self, group_caption: str) -> Native:
         self._group_caption = group_caption
@@ -160,3 +205,7 @@ class AdvancedField(AbstractField):
 
     def drop(self):
         return ce.DropDescription([self], target_item_type=ItemType.Auto)
+
+    @staticmethod
+    def _assume_native(field) -> Native:
+        return field

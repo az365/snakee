@@ -1,5 +1,5 @@
 from functools import wraps
-from typing import Optional, Union, Type
+from typing import Type, Callable, Optional, Union
 
 try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
@@ -75,3 +75,29 @@ def singleton(cls):
         return wrapper.instance
     wrapper.instance = None
     return wrapper
+
+
+def sql_compatible(func):
+    class SqlCompatibleFunction(Callable):
+        _name = None
+
+        @wraps(func)
+        def __init__(self, *args, **kwargs):
+            self._name = func.__name__
+            self._py_func = func(*args, **kwargs)
+            self._sql_func = func(*args, **kwargs, _as_sql=True)
+            self._repr = '{}({})'.format(self._name, arg.get_str_from_args_kwargs(*args, **kwargs))
+
+        def __call__(self, *args, **kwargs):
+            return self._py_func(*args, **kwargs)
+
+        def get_sql_expr(self, *args, **kwargs):
+            if isinstance(self, SqlCompatibleFunction):
+                return self._sql_func(*args, **kwargs)
+            else:
+                raise TypeError('function must be initialized before using function.get_sql_expr()') from None
+
+        def __repr__(self):
+            return self._repr
+
+    return SqlCompatibleFunction
