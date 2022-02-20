@@ -8,7 +8,7 @@ try:  # Assume we're a submodule in a package.
         AutoContext, AutoStreamType, AutoName, AutoBool, Auto, AUTO,
         Item, Name, Links, Columns, OptionalFields, Array, ARRAY_TYPES,
     )
-    from base.functions.arguments import get_names, get_generated_name, get_str_from_args_kwargs
+    from base.functions.arguments import get_names, get_name, get_generated_name, get_str_from_args_kwargs
     from functions.primary.text import remove_extra_spaces
     from content.fields.abstract_field import AbstractField
     from content.struct.flat_struct import FlatStruct
@@ -20,7 +20,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         AutoContext, AutoStreamType, AutoName, AutoBool, Auto, AUTO,
         Item, Name, Links, Columns, OptionalFields, Array, ARRAY_TYPES,
     )
-    from ...base.functions.arguments import get_names, get_generated_name, get_str_from_args_kwargs
+    from ...base.functions.arguments import get_names, get_name, get_generated_name, get_str_from_args_kwargs
     from ...functions.primary.text import remove_extra_spaces
     from ...content.fields.abstract_field import AbstractField
     from ...content.struct.flat_struct import FlatStruct
@@ -150,7 +150,7 @@ class SqlStream(WrapperStream):
                         else:
                             sql_function_name = DICT_FUNC_NAMES.get(function_name)
                             if not sql_function_name:
-                                self.get_logger().warning('Unsupported function all: {}'.format(function_name))
+                                self.get_logger().warning('Unsupported function call: {}'.format(function_name))
                                 sql_function_name = function_name
                             sql_function_expr = '{}({})'.format(sql_function_name, source_field)
                     yield '{} AS {}'.format(sql_function_expr, target_field)
@@ -178,7 +178,7 @@ class SqlStream(WrapperStream):
                     elif isinstance(value, Callable):
                         func = value
                         if hasattr(func, 'get_sql_expr'):
-                            yield func.get_sql_expr()
+                            yield func.get_sql_expr(target_field)
                         else:
                             func_name = func.__name__
                             sql_func_name = DICT_FUNC_NAMES.get(func_name)
@@ -220,7 +220,7 @@ class SqlStream(WrapperStream):
         yield from self.get_expressions_for(SqlSection.Limit)
 
     def get_section_lines(self, section: SqlSection) -> Iterable:
-        method_name = 'get_{}_lines'.format(section.name.lower())
+        method_name = 'get_{}_lines'.format(get_name(section).lower())
         method = self.__getattribute__(method_name)
         yield from method()
 
@@ -301,7 +301,8 @@ class SqlStream(WrapperStream):
 
     def group_by(self, *fields, values: Optional[list] = None) -> Native:
         if values:
-            assert get_names(values) in self.get_input_columns()
+            columns = self.get_input_columns()
+            assert min([c in columns for c in get_names(values)])
         select_section = self.get_expressions_for(SqlSection.Select)
         groupby_section = self.get_expressions_for(SqlSection.GroupBy)
         if select_section or groupby_section:
