@@ -70,7 +70,7 @@ class AdvancedField(AbstractField):
             field = self.make_new(representation=representation)
             return self._assume_native(field)
 
-    def get_repr(
+    def set_repr(
             self,
             representation: Union[RepresentationInterface, str, Auto] = AUTO,
             inplace: bool = None,
