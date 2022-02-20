@@ -62,6 +62,6 @@ def max(_as_sql: bool = False) -> Callable:
         return nm.max(array)
 
     def get_sql_repr(field: str) -> str:
-        return 'MAX({}'.format(field)
+        return 'MAX({})'.format(field)
 
     return get_sql_repr if _as_sql else func
