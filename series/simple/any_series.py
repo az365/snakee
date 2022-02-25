@@ -244,8 +244,8 @@ class AnySeries(AbstractSeries, AnySeriesInterface):
     def map_optionally_extend_zip_values(
             self,
             function: Callable,
-            extend: bool,
             *series,
+            extend: bool,
             inplace: bool = False,
     ) -> Native:
         if extend:
