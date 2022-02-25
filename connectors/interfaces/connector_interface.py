@@ -175,12 +175,17 @@ class ConnectorInterface(SourcedInterface, ABC):
 
         :return: bool (if checked) or None (if not appropriate)
         """
+        pass
 
     @abstractmethod
     def is_verbose(self) -> bool:
         """Get verbose mode setting:
         True value means that connector must log and show its actions,
         False value means that connector will be silent.
+
+        Can be used by default for methods with verbose argument.
+
+        :returns: boolean flag with verbose setting.
         """
         pass
 
@@ -220,5 +225,13 @@ class ConnectorInterface(SourcedInterface, ABC):
         :param count: expected count of items for count percent of execution over iterator
         :param context: SnakeeContext object for obtain common logger and settings
         :return: Progress object receiving iterable object for measure and show progress of iteration
+        """
+        pass
+
+    @abstractmethod
+    def close(self) -> int:
+        """Close connection(s) or fileholder(s) if it's opened.
+
+        :return: count of closed connections.
         """
         pass
