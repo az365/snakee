@@ -91,7 +91,7 @@ class LineStream(AnyStream):
         if immediately:
             return self.to_text_file(filename, end=end, check=check, verbose=verbose, return_stream=True)
         else:
-            fileholder = open(filename, 'w')
+            fileholder = open(filename, 'w', encoding='utf8')
             items = write_and_yield(fileholder, self.get_items())
             return LineStream(items, **self.get_meta())
 
