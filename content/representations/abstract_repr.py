@@ -25,64 +25,65 @@ class AbstractRepresentation(RepresentationInterface, AbstractBaseObject, ABC):
             align_right: bool = False,
             min_len: Count = AUTO,
             max_len: Count = AUTO,
+            including_framing: bool = False,
             crop: str = CROP_SUFFIX,
             fill: str = FILL_CHAR,
             prefix: str = '',
             suffix: str = '',
             default: str = DEFAULT_STR,
     ):
-        max_len = Auto.acquire(max_len, min_len if Auto.is_defined(min_len) else DEFAULT_LEN)
+        max_len = Auto.acquire(max_len, min_len)
         min_len = Auto.acquire(min_len, max_len)
-        assert len(crop) <= max_len, 'Expected len(crop) <= max_len, got len({}) > {}'.format(crop, max_len)
-        self._align_right = align_right
+        if Auto.is_defined(max_len):
+            assert len(crop) <= max_len, 'Expected len(crop) <= max_len, got len({}) > {}'.format(crop, max_len)
         self._min_len = min_len
         self._max_len = max_len
         self._crop = crop
         self._fill = fill
+        self._align_right = align_right
         self._prefix = prefix
         self._suffix = suffix
         self._default = default
+        if including_framing:
+            framing_len = self.get_framing_len()
+            assert framing_len < min_len and framing_len < max_len
+            self._min_len -= framing_len
+            self._max_len -= framing_len
 
     @classmethod
     def get_type(cls) -> ReprType:
         return cls.get_repr_type()
 
-    def get_min_value_len(self) -> Count:
-        min_total_len = self.get_min_total_len()
-        if min_total_len:
-            min_value_len = min_total_len - len(self._prefix) - len(self._suffix)
-            if min_value_len > 0:
-                return min_value_len
-        return 0
-
-    def get_max_value_len(self) -> Count:
-        max_total_len = self.get_max_total_len()
-        if max_total_len is None:
-            return None
+    def get_min_value_len(self, or_max: bool = True) -> Count:
+        min_value_len = self._min_len
+        if Auto.is_auto(min_value_len):
+            return self.get_max_value_len(or_min=False) if or_max else None
         else:
-            max_value_len = max_total_len - len(self._prefix) - len(self._suffix)
-            if max_value_len > 0:
-                return max_value_len
-            else:
-                return 0
+            return min_value_len
+
+    def get_max_value_len(self, or_min: bool = True) -> Count:
+        max_value_len = self._max_len
+        if Auto.is_auto(max_value_len):
+            return self.get_min_value_len(or_max=False) if or_min else None
+        else:
+            return max_value_len
 
     def get_min_total_len(self, or_max: bool = True) -> Count:
-        if Auto.is_auto(self._min_len):
-            if or_max:
-                return self.get_max_total_len(or_min=False)
-            else:
-                return None
+        min_value_len = self.get_min_value_len(or_max=or_max)
+        if min_value_len:
+            return min_value_len + self.get_framing_len()
         else:
-            return self._min_len
+            return 0
 
     def get_max_total_len(self, or_min: bool = True) -> Count:
-        if Auto.is_auto(self._max_len):
-            if or_min:
-                return self.get_min_total_len(or_max=False)
-            else:
-                return None
+        max_value_len = self.get_max_value_len(or_min=or_min)
+        if max_value_len is None:
+            return None
         else:
-            return self._max_len
+            return max_value_len + self.get_framing_len()
+
+    def get_framing_len(self) -> int:
+        return len(self._prefix) + len(self._suffix)
 
     def get_count(self, get_min: bool = False) -> Count:
         if get_min:
