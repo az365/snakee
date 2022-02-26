@@ -47,26 +47,16 @@ class AbstractRepresentation(RepresentationInterface, AbstractBaseObject, ABC):
     def get_type(cls) -> ReprType:
         return cls.get_repr_type()
 
-    def get_max_len(self, or_min: bool = True) -> Count:
-        if Auto.is_auto(self._max_len):
-            if or_min:
-                return self.get_min_len(or_max=False)
-            else:
-                return None
-        else:
-            return self._max_len
-
-    def get_min_len(self, or_max: bool = True) -> Count:
-        if Auto.is_auto(self._min_len):
-            if or_max:
-                return self.get_max_len(or_min=False)
-            else:
-                return None
-        else:
-            return self._min_len
+    def get_min_value_len(self) -> Count:
+        min_total_len = self.get_min_total_len()
+        if min_total_len:
+            min_value_len = min_total_len - len(self._prefix) - len(self._suffix)
+            if min_value_len > 0:
+                return min_value_len
+        return 0
 
     def get_max_value_len(self) -> Count:
-        max_total_len = self.get_max_len()
+        max_total_len = self.get_max_total_len()
         if max_total_len is None:
             return None
         else:
@@ -76,19 +66,29 @@ class AbstractRepresentation(RepresentationInterface, AbstractBaseObject, ABC):
             else:
                 return 0
 
-    def get_min_value_len(self) -> Count:
-        min_total_len = self.get_min_len()
-        if min_total_len:
-            min_value_len = min_total_len - len(self._prefix) - len(self._suffix)
-            if min_value_len > 0:
-                return min_value_len
-        return 0
+    def get_min_total_len(self, or_max: bool = True) -> Count:
+        if Auto.is_auto(self._min_len):
+            if or_max:
+                return self.get_max_total_len(or_min=False)
+            else:
+                return None
+        else:
+            return self._min_len
+
+    def get_max_total_len(self, or_min: bool = True) -> Count:
+        if Auto.is_auto(self._max_len):
+            if or_min:
+                return self.get_min_total_len(or_max=False)
+            else:
+                return None
+        else:
+            return self._max_len
 
     def get_count(self, get_min: bool = False) -> Count:
         if get_min:
-            return self.get_min_len()
+            return self.get_min_total_len()
         else:
-            return self.get_max_len()
+            return self.get_max_total_len()
 
     def set_count(self, value: int, inplace: bool) -> Native:
         if inplace:
@@ -108,7 +108,7 @@ class AbstractRepresentation(RepresentationInterface, AbstractBaseObject, ABC):
         return self._crop
 
     def get_cropped(self, line: str) -> str:
-        max_len = self.get_max_len()
+        max_len = self.get_max_total_len()
         if Auto.is_defined(max_len):
             if 0 < max_len < len(line):
                 crop_str = self.get_crop_str()
