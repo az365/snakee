@@ -73,7 +73,7 @@ class AdvancedField(AbstractField):
     def set_repr(
             self,
             representation: Union[RepresentationInterface, str, Auto] = AUTO,
-            inplace: bool = None,
+            inplace: bool = False,
             **kwargs
     ) -> Native:
         assert inplace is not None and not Auto.is_auto(inplace)
@@ -104,6 +104,16 @@ class AdvancedField(AbstractField):
 
     def is_string(self) -> bool:
         return self.get_type() == FieldType.Str
+
+    def format(self, value, skip_errors: bool = False) -> str:
+        representation = self.get_representation()
+        if Auto.is_defined(representation):
+            try:
+                return representation.format(value, skip_errors=skip_errors)
+            except AttributeError:
+                return representation.format(value)
+        else:
+            return str(value)
 
     def get_caption(self) -> str:
         return self._caption or None
