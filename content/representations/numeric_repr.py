@@ -77,7 +77,7 @@ class NumericRepresentation(AbstractRepresentation):
             return self._default
 
     def get_template(self, key: OptKey = None) -> str:
-        template = '{prefix}{start}{key}:{spec}{end}{suffix}'
+        template = '{prefix}{start}{key}{spec}{end}{suffix}'
         return template.format(
             prefix=self._prefix,
             start='{',
@@ -88,12 +88,18 @@ class NumericRepresentation(AbstractRepresentation):
         )
 
     def get_spec_str(self) -> str:
-        template = '{fill}{align}{sign}{width}{precision}{type}'
-        return template.format(
-            fill=self._fill, align=self.get_align_str(), sign=self.get_sign_str(),
-            width=self.get_min_value_len(), precision=self.get_precision_str(),
-            type=self.get_type_str(),
-        )
+        width = self.get_min_value_len()
+        sign = self.get_sign_str()
+        precision = self.get_precision_str()
+        type_str = self.get_type_str()
+        if width or sign or precision is not None or type_str != 'd':
+            template = ':{fill}{align}{sign}{width}{precision}{type}'
+            return template.format(
+                fill=self._fill, align=self.get_align_str(), sign=sign,
+                width=width, precision=precision, type=type_str,
+            )
+        else:
+            return ''
 
     def get_sign_str(self) -> str:
         if isinstance(self._use_plus, str):

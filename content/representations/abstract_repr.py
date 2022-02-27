@@ -19,7 +19,7 @@ CROP_SUFFIX = '..'
 FILL_CHAR = ' '
 
 
-class AbstractRepresentation(RepresentationInterface, AbstractBaseObject, ABC):
+class AbstractRepresentation(AbstractBaseObject, RepresentationInterface, ABC):
     def __init__(
             self,
             align_right: bool = False,
@@ -139,7 +139,7 @@ class AbstractRepresentation(RepresentationInterface, AbstractBaseObject, ABC):
         return self.get_default_template(key=key)
 
     def get_default_template(self, key: OptKey = None) -> str:
-        template = '{prefix}{start}{key}:{spec}{end}{suffix}'
+        template = '{prefix}{start}{key}{spec}{end}{suffix}'
         return template.format(
             prefix=self._prefix,
             start='{',
@@ -153,8 +153,12 @@ class AbstractRepresentation(RepresentationInterface, AbstractBaseObject, ABC):
         return self.get_default_spec_str()
 
     def get_default_spec_str(self) -> str:
-        template = '{fill}{align}{width}'
-        return template.format(fill=self._fill, align=self.get_align_str(), width=self.get_min_value_len())
+        width = self.get_min_value_len()
+        if width:
+            template = ':{fill}{align}{width}'
+            return template.format(fill=self._fill, align=self.get_align_str(), width=width)
+        else:
+            return ''
 
     def get_align_str(self) -> str:
         if self._align_right:
