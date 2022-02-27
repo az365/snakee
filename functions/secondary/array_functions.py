@@ -267,6 +267,6 @@ def hist(as_list: bool = True, sort_by_count: bool = False, sort_by_name: bool =
 
 
 def detect_group(**kwargs) -> Callable:
-    def func(value: any) -> str:
+    def func(value: Any) -> str:
         return gr.get_group_name(value, **kwargs)
     return func
