@@ -4,7 +4,7 @@ try:  # Assume we're a submodule in a package.
     from interfaces import (
         StructInterface, StructRowInterface, FieldInterface, SelectionLoggerInterface, ExtLogger,
         FieldType, DialectType,
-        AUTO, Auto, Name, Array, ARRAY_TYPES,
+        AUTO, Auto, Name, Array, ARRAY_TYPES, ROW_SUBCLASSES, RECORD_SUBCLASSES
     )
     from base.functions.arguments import update, get_generated_name, get_name, get_names
     from base.abstract.simple_data import SimpleDataWrapper
@@ -18,7 +18,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...interfaces import (
         StructInterface, StructRowInterface, FieldInterface, SelectionLoggerInterface, ExtLogger,
         FieldType, DialectType,
-        AUTO, Auto, Name, Array, ARRAY_TYPES,
+        AUTO, Auto, Name, Array, ARRAY_TYPES, ROW_SUBCLASSES, RECORD_SUBCLASSES,
     )
     from ...base.functions.arguments import update, get_generated_name, get_name, get_names
     from ...base.abstract.simple_data import SimpleDataWrapper
@@ -456,7 +456,10 @@ class FlatStruct(SimpleDataWrapper, DescribeMixin, StructInterface):
         return FlatStruct(fields=list(self.get_fields()), name=self.get_name())
 
     def format(self, *args, delimiter: str = DEFAULT_DELIMITER, skip_errors: bool = False) -> str:
-        item = update(args)
+        if len(args) == 1 and isinstance(args[0], (*ROW_SUBCLASSES, *RECORD_SUBCLASSES)):
+            item = args[0]
+        else:
+            item = args
         formatted_values = list()
         for n, f in enumerate(self.get_fields()):
             if is_row(item):
