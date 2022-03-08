@@ -15,7 +15,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         ConnType, DialectType, LoggingLevel,
         AUTO, Auto, AutoBool, AutoContext, AutoName, Name, Count, Array, ARRAY_TYPES,
     )
-    from base.functions.arguments import get_name
+    from ...base.functions.arguments import get_name
     from .abstract_database import AbstractDatabase, TEST_QUERY, DEFAULT_STEP
 
 
