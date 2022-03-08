@@ -103,3 +103,9 @@ def is_local_extreme(local_min=True, local_max=True) -> Callable:
         assert len(args) == 3, 'is_local_extreme.func(): Expected 3 arguments, got {}'.format(args)
         return nm.is_local_extreme(*args, local_min=local_min, local_max=local_max)
     return func
+
+
+def t_test_1sample_p_value(value: float = 0) -> Callable:
+    def func(series) -> float:
+        return nm.t_test_1sample_p_value(series, value=value)
+    return func

@@ -3,14 +3,14 @@ from typing import Optional, Union, Iterable
 
 try:  # Assume we're a submodule in a package.
     from utils.external import (
-        np, sp, pd, plt, interpolate,
+        np, sp, pd, plt, stats, interpolate,
         DataFrame,
         get_use_objects_for_output,
         raise_import_error,
     )
 except ImportError:
     from ...utils.external import (
-        np, sp, pd, plt, interpolate,
+        np, sp, pd, plt, stats, interpolate,
         DataFrame,
         get_use_objects_for_output,
         raise_import_error,
@@ -184,6 +184,14 @@ def corr(a, b, ignore_import_error=False) -> float:
         return float(np.corrcoef(a, b)[0, 1])
     elif not ignore_import_error:
         raise_import_error('numpy')
+
+
+def t_test_1sample_p_value(series: Iterable, value: float = 0, ignore_import_error=False) -> float:
+    if stats:
+        t_test = stats.ttest_1samp(series, value)
+        return t_test[1]
+    elif not ignore_import_error:
+        raise_import_error('scipy')
 
 
 def spline_interpolate(x, y, ignore_import_error=False):
