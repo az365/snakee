@@ -32,8 +32,6 @@ class AbstractRepresentation(AbstractBaseObject, RepresentationInterface, ABC):
             suffix: str = '',
             default: str = DEFAULT_STR,
     ):
-        max_len = Auto.acquire(max_len, min_len)
-        min_len = Auto.acquire(min_len, max_len)
         if Auto.is_defined(max_len):
             assert len(crop) <= max_len, 'Expected len(crop) <= max_len, got len({}) > {}'.format(crop, max_len)
         self._min_len = min_len
@@ -46,9 +44,14 @@ class AbstractRepresentation(AbstractBaseObject, RepresentationInterface, ABC):
         self._default = default
         if including_framing:
             framing_len = self.get_framing_len()
-            assert framing_len < min_len and framing_len < max_len
-            self._min_len -= framing_len
-            self._max_len -= framing_len
+            if Auto.is_defined(max_len):
+                assert framing_len < min_len and framing_len < max_len
+                self._max_len -= framing_len
+            if Auto.is_defined(min_len):
+                if framing_len < min_len:
+                    self._min_len -= framing_len
+                else:
+                    self._min_len = 0
 
     @classmethod
     def get_type(cls) -> ReprType:
@@ -111,7 +114,7 @@ class AbstractRepresentation(AbstractBaseObject, RepresentationInterface, ABC):
     def get_cropped(self, line: str) -> str:
         max_len = self.get_max_total_len()
         if Auto.is_defined(max_len):
-            if 0 < max_len < len(line):
+            if max_len < len(line):
                 crop_str = self.get_crop_str()
                 crop_len = max_len - len(crop_str)
                 if crop_len > 0:
