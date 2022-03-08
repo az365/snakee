@@ -103,6 +103,9 @@ class AbstractRepresentation(AbstractBaseObject, RepresentationInterface, ABC):
             representation = self.set_outplace(min_len=value, max_len=value)
             return self._assume_native(representation)
 
+    def get_default(self) -> str:
+        return self._default
+
     def convert_value(self, value: Value) -> Value:
         if value is None:
             value = self._default
@@ -129,7 +132,10 @@ class AbstractRepresentation(AbstractBaseObject, RepresentationInterface, ABC):
             line = self.get_template().format(value)
         except ValueError as e:
             if skip_errors:
-                line = self.get_default_template().format(value)
+                try:
+                    line = self.get_default_template().format(value)
+                except ValueError:
+                    line = str(value)
             else:
                 raise ValueError(e)
         line = self.get_cropped(line)

@@ -44,6 +44,8 @@ class StringRepresentation(AbstractRepresentation):
         return ReprType.StringRepr
 
     def format(self, value: Value, key: OptKey = None, skip_errors: bool = False) -> str:
+        if value is None:
+            value = self.get_default()
         if not isinstance(value, str):
             value = str(value)
         if self._tab is not None:
