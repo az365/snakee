@@ -25,6 +25,7 @@ class SequenceRepresentation(AbstractRepresentation):
             align_right: bool = False,
             min_len: int = DEFAULT_LEN,
             max_len: int = AUTO,
+            including_framing: bool = False,
             crop: str = CROP_SUFFIX,
             fill: str = FILL_CHAR,
             prefix: str = '',
@@ -34,7 +35,8 @@ class SequenceRepresentation(AbstractRepresentation):
         self._delimiter = delimiter
         self._item_representation = item_representation
         super().__init__(
-            min_len=min_len, max_len=max_len, fill=fill, crop=crop,
+            min_len=min_len, max_len=max_len, including_framing=including_framing,
+            fill=fill, crop=crop,
             prefix=prefix, suffix=suffix,
             align_right=align_right, default=default,
         )
