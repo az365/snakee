@@ -13,7 +13,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 
 TAB_SYMBOL, TAB_SUBSTITUTE = '\t', ' -> '
 PARAGRAPH_SYMBOL, PARAGRAPH_SUBSTITUTE = '\t', ' \\n '
-DEFAULT_LEN = 15
 
 
 class StringRepresentation(AbstractRepresentation):
@@ -22,6 +21,7 @@ class StringRepresentation(AbstractRepresentation):
             align_right: bool = False,
             min_len: AutoCount = AUTO,
             max_len: AutoCount = AUTO,
+            including_framing: bool = False,
             crop: str = CROP_SUFFIX,
             fill: str = FILL_CHAR,
             tab: str = TAB_SUBSTITUTE,
@@ -33,7 +33,8 @@ class StringRepresentation(AbstractRepresentation):
         self._tab = tab
         self._paragraph = paragraph
         super().__init__(
-            min_len=min_len, max_len=max_len, fill=fill, crop=crop,
+            min_len=min_len, max_len=max_len, including_framing=including_framing,
+            fill=fill, crop=crop,
             prefix=prefix, suffix=suffix,
             align_right=align_right, default=default,
         )
@@ -43,6 +44,8 @@ class StringRepresentation(AbstractRepresentation):
         return ReprType.StringRepr
 
     def format(self, value: Value, key: OptKey = None, skip_errors: bool = False) -> str:
+        if value is None:
+            value = self.get_default()
         if not isinstance(value, str):
             value = str(value)
         if self._tab is not None:

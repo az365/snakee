@@ -1,15 +1,13 @@
-import fnmatch
 from typing import Iterable
+import fnmatch
 
-try:  # Assume we're a sub-module in a package.
-    from utils import arguments as arg
-    from interfaces import FolderType, AUTO, Auto, AutoBool, AutoContext
+try:  # Assume we're a submodule in a package.
+    from interfaces import ConnType, FolderType, AUTO, Auto, AutoBool, AutoContext
     from connectors.abstract.hierarchic_connector import HierarchicConnector
     from connectors.abstract.abstract_folder import HierarchicFolder
     from connectors.filesystem.local_folder import LocalFolder
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
-    from ...interfaces import FolderType, AUTO, Auto, AutoBool, AutoContext
+    from ...interfaces import ConnType, FolderType, AUTO, Auto, AutoBool, AutoContext
     from ..abstract.hierarchic_connector import HierarchicConnector
     from ..abstract.abstract_folder import HierarchicFolder
     from .local_folder import LocalFolder
@@ -23,8 +21,8 @@ class LocalMask(LocalFolder):
             context: AutoContext = None,
             verbose: AutoBool = AUTO,
     ):
-        if not arg.is_defined(parent):
-            if arg.is_defined(context):
+        if not Auto.is_defined(parent):
+            if Auto.is_defined(context):
                 parent = context.get_local_storage()
         assert parent.is_folder() or parent.is_storage()
         super().__init__(path=mask, parent=parent, context=context, verbose=verbose)
@@ -57,3 +55,6 @@ class LocalMask(LocalFolder):
 
     def list_existing_names(self) -> list:
         return list(self.yield_existing_names())
+
+
+ConnType.add_classes(LocalMask)

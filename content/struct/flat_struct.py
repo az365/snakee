@@ -4,7 +4,7 @@ try:  # Assume we're a submodule in a package.
     from interfaces import (
         StructInterface, StructRowInterface, FieldInterface, SelectionLoggerInterface, ExtLogger,
         FieldType, DialectType,
-        AUTO, Auto, Name, Array, ARRAY_TYPES,
+        AUTO, Auto, Name, Array, ARRAY_TYPES, ROW_SUBCLASSES, RECORD_SUBCLASSES
     )
     from base.functions.arguments import update, get_generated_name, get_name, get_names
     from base.abstract.simple_data import SimpleDataWrapper
@@ -12,12 +12,13 @@ try:  # Assume we're a submodule in a package.
     from functions.secondary import array_functions as fs
     from utils.external import pd, get_use_objects_for_output, DataFrame
     from content.fields.advanced_field import AdvancedField
+    from content.items.simple_items import SelectableItem, is_row, is_record
     from content.selection.abstract_expression import AbstractDescription
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         StructInterface, StructRowInterface, FieldInterface, SelectionLoggerInterface, ExtLogger,
         FieldType, DialectType,
-        AUTO, Auto, Name, Array, ARRAY_TYPES,
+        AUTO, Auto, Name, Array, ARRAY_TYPES, ROW_SUBCLASSES, RECORD_SUBCLASSES,
     )
     from ...base.functions.arguments import update, get_generated_name, get_name, get_names
     from ...base.abstract.simple_data import SimpleDataWrapper
@@ -25,6 +26,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...functions.secondary import array_functions as fs
     from ...utils.external import pd, get_use_objects_for_output, DataFrame
     from ..fields.advanced_field import AdvancedField
+    from ..items.simple_items import SelectableItem, is_row, is_record
     from ..selection.abstract_expression import AbstractDescription
 
 Native = StructInterface
@@ -35,6 +37,7 @@ Type = Union[FieldType, type, Auto]
 Comment = Union[StructName, Auto]
 
 META_MEMBER_MAPPING = dict(_data='fields')
+DEFAULT_DELIMITER = ' '
 GROUP_NO_STR = '===='
 GROUP_TYPE_STR = 'GROUP'
 DICT_VALID_SIGN = {'True': '-', 'False': 'x', 'None': '-', AUTO.get_value(): '~'}
@@ -451,6 +454,26 @@ class FlatStruct(SimpleDataWrapper, DescribeMixin, StructInterface):
 
     def copy(self) -> Native:
         return FlatStruct(fields=list(self.get_fields()), name=self.get_name())
+
+    def format(self, *args, delimiter: str = DEFAULT_DELIMITER, skip_errors: bool = False) -> str:
+        if len(args) == 1 and isinstance(args[0], (*ROW_SUBCLASSES, *RECORD_SUBCLASSES)):
+            item = args[0]
+        else:
+            item = args
+        formatted_values = list()
+        for n, f in enumerate(self.get_fields()):
+            if is_row(item):
+                value = item[n] if n < len(item) or not skip_errors else None
+            elif is_record(item):
+                value = item.get(get_name(f))
+            else:
+                raise TypeError('Expected item as Row or Record, got {}'.format(item))
+            if isinstance(f, AdvancedField) or hasattr(f, 'format'):
+                str_value = f.format(value, skip_errors=skip_errors)
+            else:
+                str_value = str(value)
+            formatted_values.append(str_value)
+        return delimiter.join(formatted_values)
 
     def simple_select_fields(self, fields: Iterable) -> Group:
         return FlatStruct(

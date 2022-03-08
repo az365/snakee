@@ -34,7 +34,7 @@ def diff(
     def func(*args) -> float:
         if constant is None:
             assert len(args) == 2, 'Expected two values (constant={}), got {}'.format(constant, args)
-            c, v = args
+            v, c = args
         else:
             assert len(args) == 1, 'Expected one value (constant={}), got {}'.format(constant, args)
             c = constant
@@ -54,7 +54,8 @@ def div(denominator: OptFloat = None, default: OptFloat = None) -> Callable:
         if y is None:
             y = denominator
         elif denominator:
-            raise ValueError('only one denominator allowed (from argument or from item), but both received')
+            msg = 'only one denominator allowed (from argument or from item), but both received: {} and {}'
+            raise ValueError(msg.format(denominator, y))
         return nm.div(x, y, default=default)
     return func
 
@@ -101,4 +102,10 @@ def is_local_extreme(local_min=True, local_max=True) -> Callable:
         args = update(args)
         assert len(args) == 3, 'is_local_extreme.func(): Expected 3 arguments, got {}'.format(args)
         return nm.is_local_extreme(*args, local_min=local_min, local_max=local_max)
+    return func
+
+
+def t_test_1sample_p_value(value: float = 0) -> Callable:
+    def func(series) -> float:
+        return nm.t_test_1sample_p_value(series, value=value)
     return func

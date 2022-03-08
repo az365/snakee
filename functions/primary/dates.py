@@ -242,7 +242,7 @@ def get_days_in_month(month_no: int) -> int:
 def get_next_year_date(d: Date, step: int = 1, round_to_monday: bool = False) -> Date:
     is_iso_format = is_iso_date(d)
     if is_iso_format:
-        dt = date.fromisoformat(d)
+        dt = get_py_date(d)
         dt = '{:04}-{:02}-{:02}'.format(dt.year + step, dt.month, dt.day)
     elif isinstance(d, date):
         dt = date(d.year + step, d.month, d.day)
@@ -281,7 +281,7 @@ def get_next_month_date(d: Date, step: int = 1, round_to_month: bool = False) ->
 def get_next_week_date(d: Date, step: int = 1, round_to_monday: bool = False) -> Date:
     is_iso_format = is_iso_date(d)
     if is_iso_format:
-        dt = date.fromisoformat(d)
+        dt = get_py_date(d)
     elif isinstance(d, date):
         dt = d
     else:

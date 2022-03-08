@@ -27,6 +27,7 @@ class BooleanRepresentation(AbstractRepresentation):
             align_right: bool = False,
             min_len: Union[int, Auto] = AUTO,
             max_len: Union[int, Auto] = AUTO,
+            including_framing: bool = False,
             crop: str = CROP_SUFFIX,
             fill: str = FILL_CHAR,
             prefix: str = '',
@@ -38,7 +39,8 @@ class BooleanRepresentation(AbstractRepresentation):
         self._true = true
         self._false = false
         super().__init__(
-            min_len=min_len, max_len=max_len, fill=fill, crop=crop,
+            min_len=min_len, max_len=max_len, including_framing=including_framing,
+            fill=fill, crop=crop,
             prefix=prefix, suffix=suffix,
             align_right=align_right, default=default,
         )

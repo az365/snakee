@@ -3,13 +3,13 @@ import os
 import gzip as gz
 
 try:  # Assume we're a submodule in a package.
-    from utils import arguments as arg
     from interfaces import (
         Context, Connector, ConnectorInterface, ContentFormatInterface, StructInterface,
         IterableStreamInterface, RegularStreamInterface,
         ContentType, ConnType, ItemType, StreamType,
         AUTO, Auto, AutoCount, AutoBool, AutoName, OptionalFields, UniKey, Array, ARRAY_TYPES,
     )
+    from functions.primary.text import is_formatter
     from content.format.format_classes import (
         AbstractFormat, ParsedFormat, LeanFormat,
         TextFormat, ColumnarFormat, FlatStructFormat,
@@ -18,13 +18,13 @@ try:  # Assume we're a submodule in a package.
     from connectors.mixin.connector_format_mixin import ConnectorFormatMixin
     from connectors.mixin.actualize_mixin import ActualizeMixin
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
     from ...interfaces import (
         Context, Connector, ConnectorInterface, ContentFormatInterface, StructInterface,
         IterableStreamInterface, RegularStreamInterface,
         ContentType, ConnType, ItemType, StreamType,
         AUTO, Auto, AutoCount, AutoBool, AutoName, OptionalFields, UniKey, Array, ARRAY_TYPES,
     )
+    from ...functions.primary.text import is_formatter
     from ...content.format.format_classes import (
         AbstractFormat, ParsedFormat, LeanFormat,
         TextFormat, ColumnarFormat, FlatStructFormat,
@@ -62,10 +62,10 @@ class LocalFile(LeafConnector, ActualizeMixin):
         if folder:
             message = 'only LocalFolder supported for *File instances (got {})'.format(type(folder))
             assert isinstance(folder, ConnectorInterface) or folder.is_folder(), message
-            assert folder == parent or not arg.is_defined(parent)
-        elif arg.is_defined(parent):
+            assert folder == parent or not Auto.is_defined(parent)
+        elif Auto.is_defined(parent):
             folder = parent
-        elif arg.is_defined(context):
+        elif Auto.is_defined(context):
             folder = context.get_job_folder()
         else:
             folder = self.get_default_folder()
@@ -159,7 +159,7 @@ class LocalFile(LeafConnector, ActualizeMixin):
             folder_path = self.get_folder().get_path()
             if '*' in folder_path:
                 folder_path = folder_path.replace('*', '{}')
-            if arg.is_formatter(folder_path):
+            if is_formatter(folder_path):
                 return folder_path.format(self.get_name())
             elif folder_path.endswith(self.get_path_delimiter()):
                 return folder_path + self.get_name()
@@ -175,7 +175,7 @@ class LocalFile(LeafConnector, ActualizeMixin):
         return self.get_path_delimiter().join(self.get_list_path()[:-1])
 
     def is_inside_folder(self, folder: Union[str, Connector, Auto] = AUTO) -> bool:
-        folder_obj = arg.acquire(folder, self.get_folder())
+        folder_obj = Auto.acquire(folder, self.get_folder())
         if isinstance(folder_obj, str):
             folder_path = folder_obj
         else:  # elif isinstance(folder_obj, LocalFolder)
@@ -288,7 +288,7 @@ class LocalFile(LeafConnector, ActualizeMixin):
             if ending:
                 line = line.rstrip(ending)
             yield line
-            if arg.is_defined(count):
+            if Auto.is_defined(count):
                 if count > 0 and (n + 1 == count):
                     break
         if close:
@@ -301,13 +301,12 @@ class LocalFile(LeafConnector, ActualizeMixin):
             verbose: AutoBool = AUTO, message: AutoName = AUTO, step: AutoCount = AUTO,
     ) -> Generator:
         if check and not self.is_gzip():
-            # assert self.get_count(allow_reopen=True) > 0
             assert not self.is_empty(), 'for get_lines() file must be non-empty: {}'.format(self)
         self.open(allow_reopen=allow_reopen)
         lines = self.get_next_lines(count=count, skip_first=skip_first, close=True)
-        verbose = arg.acquire(verbose, self.is_verbose())
-        if verbose or arg.is_defined(message):
-            if not arg.is_defined(message):
+        verbose = Auto.acquire(verbose, self.is_verbose())
+        if verbose or Auto.is_defined(message):
+            if not Auto.is_defined(message):
                 message = 'Reading {}'
             if '{}' in message:
                 message = message.format(self.get_name())
@@ -332,15 +331,20 @@ class LocalFile(LeafConnector, ActualizeMixin):
             message: AutoName = AUTO,
             step: AutoCount = AUTO,
     ) -> Iterable:
-        item_type = arg.acquire(item_type, self.get_default_item_type())
-        verbose = arg.acquire(verbose, self.is_verbose())
+        item_type = Auto.acquire(item_type, self.get_default_item_type())
+        verbose = Auto.acquire(verbose, self.is_verbose())
         content_format = self.get_content_format()
         assert isinstance(content_format, ParsedFormat)
         count = self.get_count(allow_slow_mode=False)
         if isinstance(verbose, str):
-            self.log(verbose, verbose=bool(verbose))
+            if Auto.is_defined(message):
+                self.log(verbose, verbose=bool(verbose))
+            else:
+                message = verbose
         elif (count or 0) > 0:
-            self.log('Expecting {} lines in file {}...'.format(count, self.get_name()), verbose=verbose)
+            template = '{count} lines expected from file {name}...'
+            msg = template.format(count=count, name=self.get_name())
+            self.log(msg, verbose=verbose)
         lines = self.get_lines(skip_first=self.is_first_line_title(), step=step, verbose=verbose, message=message)
         items = content_format.get_items_from_lines(lines, item_type=item_type)
         return items
@@ -348,9 +352,8 @@ class LocalFile(LeafConnector, ActualizeMixin):
     def get_chunks(self, chunk_size=CHUNK_SIZE) -> Iterable:
         return iter(lambda: self.get_fileholder().read(chunk_size), '')
 
-    # def write_lines(self, lines: Iterable, verbose: AutoBool = AUTO, step: AutoCount = AUTO) -> Native:
     def write_lines(self, lines: Iterable, verbose: AutoBool = AUTO) -> Native:
-        verbose = arg.acquire(verbose, self.is_verbose())
+        verbose = Auto.acquire(verbose, self.is_verbose())
         ending = self.get_ending().encode(self.get_encoding()) if self.is_gzip() else self.get_ending()
         self.open('w', allow_reopen=True)
         n = 0
@@ -372,7 +375,7 @@ class LocalFile(LeafConnector, ActualizeMixin):
             add_title_row: AutoBool = AUTO,
             verbose: AutoBool = AUTO,
     ) -> Native:
-        item_type = arg.undefault(item_type, self.get_default_item_type())
+        item_type = Auto.delayed_acquire(item_type, self.get_default_item_type)
         content_format = self.get_content_format()
         assert isinstance(content_format, ParsedFormat)
         lines = content_format.get_lines(items, item_type=item_type, add_title_row=add_title_row)
@@ -399,9 +402,9 @@ class LocalFile(LeafConnector, ActualizeMixin):
             step: AutoCount = AUTO,
             **kwargs
     ) -> Stream:
-        if arg.is_defined(data):
+        if Auto.is_defined(data):
             kwargs['data'] = data
-        stream_type = arg.delayed_acquire(stream_type, self.get_stream_type)
+        stream_type = Auto.delayed_acquire(stream_type, self.get_stream_type)
         assert not ex, 'ex-argument for LocalFile.to_stream() not supported (got {})'.format(ex)
         return self.to_stream_type(stream_type=stream_type, step=step, **kwargs)
 

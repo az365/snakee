@@ -226,7 +226,14 @@ class AbstractDatabase(AbstractStorage, ABC):
             count: Count = None,
             verbose: AutoBool = AUTO,
     ) -> Iterable:
-        fields_str = fields if isinstance(fields, str) else ', '.join(fields) if fields else '*'
+        if isinstance(fields, str):
+            fields_str = fields
+        elif isinstance(fields, Iterable):
+            fields_str = ', '.join(fields)
+        elif not fields:
+            fields_str = '*'
+        else:
+            raise TypeError('Expected str, Iterable or None, got {}'.format(fields))
         filters_str = filters if isinstance(filters, str) else ' AND '.join(filters) if filters is not None else ''
         sort_str = sort if isinstance(sort, str) else ' AND '.join(sort) if sort is not None else ''
         table_name = self._get_table_name(table)

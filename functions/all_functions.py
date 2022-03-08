@@ -6,4 +6,4 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .secondary.all_secondary_functions import *
 
 MSG = 'functions.all_functions module is deprecated, use functions.secondary.all_secondary_functions instead'
-warn(MSG)
+warn(MSG, stacklevel=2)

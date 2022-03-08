@@ -4,13 +4,13 @@ try:  # Assume we're a submodule in a package.
     from base.classes.typing import AUTO, Auto, Value, AutoCount
     from content.representations.abstract_repr import (
         AbstractRepresentation, ReprType, OptKey,
-        DEFAULT_LEN, DEFAULT_STR, CROP_SUFFIX, FILL_CHAR,
+        DEFAULT_STR, CROP_SUFFIX, FILL_CHAR,
     )
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.classes.typing import AUTO, Auto, Value, AutoCount
     from .abstract_repr import (
         AbstractRepresentation, ReprType, OptKey,
-        DEFAULT_LEN, DEFAULT_STR, CROP_SUFFIX, FILL_CHAR,
+        DEFAULT_STR, CROP_SUFFIX, FILL_CHAR,
     )
 
 DEFAULT_PRECISION = 3
@@ -23,9 +23,10 @@ class NumericRepresentation(AbstractRepresentation):
             use_percent: bool = False,
             use_plus: Union[bool, str] = False,
             allow_exp: bool = False,
-            align_right: bool = False,
-            min_len: AutoCount = DEFAULT_LEN,
+            align_right: bool = True,
+            min_len: AutoCount = AUTO,
             max_len: AutoCount = AUTO,
+            including_framing: bool = True,
             crop: str = CROP_SUFFIX,
             fill: str = FILL_CHAR,
             prefix: str = '',
@@ -37,7 +38,8 @@ class NumericRepresentation(AbstractRepresentation):
         self._use_plus = use_plus
         self._allow_exp = allow_exp
         super().__init__(
-            min_len=min_len, max_len=max_len, fill=fill, crop=crop,
+            min_len=min_len, max_len=max_len, including_framing=including_framing,
+            fill=fill, crop=crop,
             prefix=prefix, suffix=suffix,
             align_right=align_right, default=default,
         )
@@ -62,7 +64,7 @@ class NumericRepresentation(AbstractRepresentation):
                 value = int(value)
             return value
         except ValueError as e:
-            if skip_errors or line == self._default:
+            if skip_errors or line == self.get_default():
                 return None
             else:
                 raise ValueError(e)
@@ -73,11 +75,11 @@ class NumericRepresentation(AbstractRepresentation):
                 return float(value)
             else:
                 return int(value)
-        except ValueError:
-            return self._default
+        except (ValueError, TypeError):
+            return self.get_default()
 
     def get_template(self, key: OptKey = None) -> str:
-        template = '{prefix}{start}{key}:{spec}{end}{suffix}'
+        template = '{prefix}{start}{key}{spec}{end}{suffix}'
         return template.format(
             prefix=self._prefix,
             start='{',
@@ -88,12 +90,18 @@ class NumericRepresentation(AbstractRepresentation):
         )
 
     def get_spec_str(self) -> str:
-        template = '{fill}{align}{sign}{width}{precision}{type}'
-        return template.format(
-            fill=self._fill, align=self.get_align_str(), sign=self.get_sign_str(),
-            width=self.get_min_value_len(), precision=self.get_precision_str(),
-            type=self.get_type_str(),
-        )
+        width = self.get_min_value_len()
+        sign = self.get_sign_str()
+        precision = self.get_precision_str()
+        type_str = self.get_type_str()
+        if width or sign or precision is not None or type_str != 'd':
+            template = ':{fill}{align}{sign}{width}{precision}{type}'
+            return template.format(
+                fill=self._fill, align=self.get_align_str(), sign=sign,
+                width=width, precision=precision, type=type_str,
+            )
+        else:
+            return ''
 
     def get_sign_str(self) -> str:
         if isinstance(self._use_plus, str):

@@ -1,25 +1,25 @@
-from typing import Union
+from typing import Optional, Iterable, Union
 import requests
 
-try:  # Assume we're a sub-module in a package.
-    from utils import arguments as arg
+try:  # Assume we're a submodule in a package.
     from interfaces import (
         ConnectorInterface,
         ConnType, DialectType, LoggingLevel,
-        AUTO, Auto, AutoBool, AutoContext, AutoName, Name, Array, ARRAY_TYPES,
+        AUTO, Auto, AutoBool, AutoContext, AutoName, Name, Count, Array, ARRAY_TYPES,
     )
-    from connectors.databases import abstract_database as ad
+    from base.functions.arguments import get_name
+    from connectors.databases.abstract_database import AbstractDatabase, TEST_QUERY, DEFAULT_STEP
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
     from ...interfaces import (
         ConnectorInterface,
         ConnType, DialectType, LoggingLevel,
-        AUTO, Auto, AutoBool, AutoContext, AutoName, Name, Array, ARRAY_TYPES,
+        AUTO, Auto, AutoBool, AutoContext, AutoName, Name, Count, Array, ARRAY_TYPES,
     )
-    from ..databases import abstract_database as ad
+    from ...base.functions.arguments import get_name
+    from .abstract_database import AbstractDatabase, TEST_QUERY, DEFAULT_STEP
 
 
-class ClickhouseDatabase(ad.AbstractDatabase):
+class ClickhouseDatabase(AbstractDatabase):
     def __init__(
             self,
             name: Name,
@@ -43,7 +43,13 @@ class ClickhouseDatabase(ad.AbstractDatabase):
     def get_dialect_type(cls) -> DialectType:
         return DialectType.Clickhouse
 
-    def execute(self, query=ad.TEST_QUERY, get_data=AUTO, commit=AUTO, verbose=True):
+    def execute(
+            self,
+            query: str = TEST_QUERY,
+            get_data: AutoBool = AUTO,
+            commit: AutoBool = AUTO,
+            verbose: bool = True,
+    ) -> Optional[Iterable]:
         url = 'https://{host}:{port}/?database={db}&query={query}'.format(
             host=self.host,
             port=self.port,
@@ -67,12 +73,12 @@ class ClickhouseDatabase(ad.AbstractDatabase):
         if get_data:
             return res.text
 
-    def exists_table(self, name, verbose=arg.AUTO):
+    def exists_table(self, name: Name, verbose: AutoBool = AUTO):
         query = 'EXISTS TABLE {}'.format(name)
         answer = self.execute(query, verbose=verbose)
         return answer[0] == '1'
 
-    def describe_table(self, name, output_format=None, verbose=arg.AUTO):
+    def describe_table(self, name: Name, output_format: Optional[str] = None, verbose: AutoBool = AUTO):
         query = 'DESCRIBE TABLE {table}'.format(table=self.get_path())
         if output_format:
             query = '{} FORMAT {}'.format(query, output_format)
@@ -81,13 +87,16 @@ class ClickhouseDatabase(ad.AbstractDatabase):
     def insert_rows(
             self,
             table: Union[Name, ConnectorInterface],
-            rows: Array, columns: Array,
-            step=ad.DEFAULT_STEP, skip_errors=False,
-            expected_count=None, return_count=True,
-            verbose=arg.AUTO,
+            rows: Array,
+            columns: Array,
+            step: Count = DEFAULT_STEP,
+            skip_errors: bool = False,
+            expected_count: Count = None,
+            return_count: bool = True,
+            verbose: AutoBool = AUTO,
     ):
-        verbose = arg.acquire(verbose, self.verbose)
-        table_name = arg.get_name(table)
+        verbose = Auto.delayed_acquire(verbose, self.is_verbose)
+        table_name = get_name(table)
         count = len(rows) if isinstance(rows, ARRAY_TYPES) else expected_count
         if count == 0:
             message = 'Rows are empty, nothing to insert into {}.'.format(table)

@@ -19,76 +19,80 @@ CROP_SUFFIX = '..'
 FILL_CHAR = ' '
 
 
-class AbstractRepresentation(RepresentationInterface, AbstractBaseObject, ABC):
+class AbstractRepresentation(AbstractBaseObject, RepresentationInterface, ABC):
     def __init__(
             self,
             align_right: bool = False,
             min_len: Count = AUTO,
             max_len: Count = AUTO,
+            including_framing: bool = False,
             crop: str = CROP_SUFFIX,
             fill: str = FILL_CHAR,
             prefix: str = '',
             suffix: str = '',
             default: str = DEFAULT_STR,
     ):
-        max_len = Auto.acquire(max_len, min_len if Auto.is_defined(min_len) else DEFAULT_LEN)
-        min_len = Auto.acquire(min_len, max_len)
-        assert len(crop) <= max_len, 'Expected len(crop) <= max_len, got len({}) > {}'.format(crop, max_len)
-        self._align_right = align_right
+        if Auto.is_defined(max_len):
+            assert len(crop) <= max_len, 'Expected len(crop) <= max_len, got len({}) > {}'.format(crop, max_len)
         self._min_len = min_len
         self._max_len = max_len
         self._crop = crop
         self._fill = fill
+        self._align_right = align_right
         self._prefix = prefix
         self._suffix = suffix
         self._default = default
+        if including_framing:
+            framing_len = self.get_framing_len()
+            if Auto.is_defined(max_len):
+                assert framing_len < min_len and framing_len < max_len
+                self._max_len -= framing_len
+            if Auto.is_defined(min_len):
+                if framing_len < min_len:
+                    self._min_len -= framing_len
+                else:
+                    self._min_len = 0
 
     @classmethod
     def get_type(cls) -> ReprType:
         return cls.get_repr_type()
 
-    def get_max_len(self, or_min: bool = True) -> Count:
-        if Auto.is_auto(self._max_len):
-            if or_min:
-                return self.get_min_len(or_max=False)
-            else:
-                return None
+    def get_min_value_len(self, or_max: bool = True) -> Count:
+        min_value_len = self._min_len
+        if Auto.is_auto(min_value_len):
+            return self.get_max_value_len(or_min=False) if or_max else None
         else:
-            return self._max_len
+            return min_value_len
 
-    def get_min_len(self, or_max: bool = True) -> Count:
-        if Auto.is_auto(self._min_len):
-            if or_max:
-                return self.get_max_len(or_min=False)
-            else:
-                return None
+    def get_max_value_len(self, or_min: bool = True) -> Count:
+        max_value_len = self._max_len
+        if Auto.is_auto(max_value_len):
+            return self.get_min_value_len(or_max=False) if or_min else None
         else:
-            return self._min_len
+            return max_value_len
 
-    def get_max_value_len(self) -> Count:
-        max_total_len = self.get_max_len()
-        if max_total_len is None:
+    def get_min_total_len(self, or_max: bool = True) -> Count:
+        min_value_len = self.get_min_value_len(or_max=or_max)
+        if min_value_len:
+            return min_value_len + self.get_framing_len()
+        else:
+            return 0
+
+    def get_max_total_len(self, or_min: bool = True) -> Count:
+        max_value_len = self.get_max_value_len(or_min=or_min)
+        if max_value_len is None:
             return None
         else:
-            max_value_len = max_total_len - len(self._prefix) - len(self._suffix)
-            if max_value_len > 0:
-                return max_value_len
-            else:
-                return 0
+            return max_value_len + self.get_framing_len()
 
-    def get_min_value_len(self) -> Count:
-        min_total_len = self.get_min_len()
-        if min_total_len:
-            min_value_len = min_total_len - len(self._prefix) - len(self._suffix)
-            if min_value_len > 0:
-                return min_value_len
-        return 0
+    def get_framing_len(self) -> int:
+        return len(self._prefix) + len(self._suffix)
 
     def get_count(self, get_min: bool = False) -> Count:
         if get_min:
-            return self.get_min_len()
+            return self.get_min_total_len()
         else:
-            return self.get_max_len()
+            return self.get_max_total_len()
 
     def set_count(self, value: int, inplace: bool) -> Native:
         if inplace:
@@ -99,6 +103,9 @@ class AbstractRepresentation(RepresentationInterface, AbstractBaseObject, ABC):
             representation = self.set_outplace(min_len=value, max_len=value)
             return self._assume_native(representation)
 
+    def get_default(self) -> str:
+        return self._default
+
     def convert_value(self, value: Value) -> Value:
         if value is None:
             value = self._default
@@ -108,9 +115,9 @@ class AbstractRepresentation(RepresentationInterface, AbstractBaseObject, ABC):
         return self._crop
 
     def get_cropped(self, line: str) -> str:
-        max_len = self.get_max_len()
+        max_len = self.get_max_total_len()
         if Auto.is_defined(max_len):
-            if 0 < max_len < len(line):
+            if max_len < len(line):
                 crop_str = self.get_crop_str()
                 crop_len = max_len - len(crop_str)
                 if crop_len > 0:
@@ -125,7 +132,10 @@ class AbstractRepresentation(RepresentationInterface, AbstractBaseObject, ABC):
             line = self.get_template().format(value)
         except ValueError as e:
             if skip_errors:
-                line = self.get_default_template().format(value)
+                try:
+                    line = self.get_default_template().format(value)
+                except ValueError:
+                    line = str(value)
             else:
                 raise ValueError(e)
         line = self.get_cropped(line)
@@ -138,7 +148,7 @@ class AbstractRepresentation(RepresentationInterface, AbstractBaseObject, ABC):
         return self.get_default_template(key=key)
 
     def get_default_template(self, key: OptKey = None) -> str:
-        template = '{prefix}{start}{key}:{spec}{end}{suffix}'
+        template = '{prefix}{start}{key}{spec}{end}{suffix}'
         return template.format(
             prefix=self._prefix,
             start='{',
@@ -152,8 +162,12 @@ class AbstractRepresentation(RepresentationInterface, AbstractBaseObject, ABC):
         return self.get_default_spec_str()
 
     def get_default_spec_str(self) -> str:
-        template = '{fill}{align}{width}'
-        return template.format(fill=self._fill, align=self.get_align_str(), width=self.get_min_value_len())
+        width = self.get_min_value_len()
+        if width:
+            template = ':{fill}{align}{width}'
+            return template.format(fill=self._fill, align=self.get_align_str(), width=width)
+        else:
+            return ''
 
     def get_align_str(self) -> str:
         if self._align_right:

@@ -1,3 +1,4 @@
+from typing import NoReturn
 import warnings
 
 try:  # Assume NumPy installed
@@ -7,9 +8,11 @@ except ImportError:
 
 try:  # Assume SciPy installed
     import scipy as sp
+    from scipy import stats
     from scipy import interpolate
 except ImportError:
     sp = None
+    stats = None
     interpolate = None
 
 try:  # Assume Pandas installed
@@ -76,7 +79,7 @@ def set_running_from_command_line():
     set_use_objects_for_output(False)
 
 
-def raise_import_error(lib=None):
+def raise_import_error(lib=None) -> NoReturn:
     if lib:
         raise ImportError('{} not installed'.format(lib))
     else:

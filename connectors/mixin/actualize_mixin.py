@@ -256,7 +256,7 @@ class ActualizeMixin(DescribeMixin, ABC):
                 for k, v in item_example.items():
                     v = str(v)
                     if len(v) > example_str_len:
-                        item_example[k] = str(v)[:EXAMPLE_STR_LEN - 2] + '..'
+                        item_example[k] = str(v)[:example_str_len - 2] + '..'
         else:
             item_example = dict()
             stream_example = None
