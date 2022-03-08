@@ -10,11 +10,17 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 
 @sql_compatible
 def sum(_as_sql: bool = False) -> Callable:
-    def func(array: Iterable) -> Optional[float]:
+    def func(*array) -> Optional[float]:
+        if len(array) == 1:
+            if isinstance(array[0], Iterable):
+                array = array[0]
         return nm.sum(array)
 
-    def get_sql_repr(field: str) -> str:
-        return 'SUM({})'.format(field)
+    def get_sql_repr(*fields) -> str:
+        if len(fields) == 1:
+            return 'SUM({})'.format(fields[0])
+        else:
+            return ' + '.join(fields)
 
     return get_sql_repr if _as_sql else func
 
