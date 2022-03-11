@@ -2,19 +2,12 @@ from typing import Union, Iterable
 
 try:  # Assume we're a submodule in a package.
     from base.classes.typing import AUTO, Auto, Value, AutoCount
-    from content.representations.abstract_repr import (
-        AbstractRepresentation, ReprType, OptKey,
-        DEFAULT_STR, CROP_SUFFIX, FILL_CHAR,
-    )
+    from content.representations.repr_constants import DEFAULT_STR, CROP_SUFFIX, FILL_CHAR, DEFAULT_LEN, DELIMITER
+    from content.representations.abstract_repr import AbstractRepresentation, ReprType, OptKey
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.classes.typing import AUTO, Auto, Value, AutoCount
-    from .abstract_repr import (
-        AbstractRepresentation, ReprType, OptKey,
-        DEFAULT_STR, CROP_SUFFIX, FILL_CHAR,
-    )
-
-DEFAULT_LEN = 23
-DELIMITER = ', '
+    from .repr_constants import DEFAULT_STR, CROP_SUFFIX, FILL_CHAR, DEFAULT_LEN, DELIMITER
+    from .abstract_repr import AbstractRepresentation, ReprType, OptKey
 
 
 class SequenceRepresentation(AbstractRepresentation):

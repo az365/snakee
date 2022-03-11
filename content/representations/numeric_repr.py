@@ -2,18 +2,12 @@ from typing import Union
 
 try:  # Assume we're a submodule in a package.
     from base.classes.typing import AUTO, Auto, Value, AutoCount
-    from content.representations.abstract_repr import (
-        AbstractRepresentation, ReprType, OptKey,
-        DEFAULT_STR, CROP_SUFFIX, FILL_CHAR,
-    )
+    from content.representations.repr_constants import DEFAULT_STR, CROP_SUFFIX, FILL_CHAR, DEFAULT_PRECISION
+    from content.representations.abstract_repr import AbstractRepresentation, ReprType, OptKey
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.classes.typing import AUTO, Auto, Value, AutoCount
-    from .abstract_repr import (
-        AbstractRepresentation, ReprType, OptKey,
-        DEFAULT_STR, CROP_SUFFIX, FILL_CHAR,
-    )
-
-DEFAULT_PRECISION = 3
+    from .repr_constants import DEFAULT_STR, CROP_SUFFIX, FILL_CHAR, DEFAULT_PRECISION
+    from .abstract_repr import AbstractRepresentation, ReprType, OptKey
 
 
 class NumericRepresentation(AbstractRepresentation):
@@ -26,7 +20,7 @@ class NumericRepresentation(AbstractRepresentation):
             align_right: bool = True,
             min_len: AutoCount = AUTO,
             max_len: AutoCount = AUTO,
-            including_framing: bool = True,
+            including_framing: bool = False,
             crop: str = CROP_SUFFIX,
             fill: str = FILL_CHAR,
             prefix: str = '',
