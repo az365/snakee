@@ -2,18 +2,18 @@ from typing import Union, Iterable
 
 try:  # Assume we're a submodule in a package.
     from base.classes.typing import AUTO, Auto, Value, AutoCount
-    from content.representations.repr_constants import DEFAULT_STR, CROP_SUFFIX, FILL_CHAR, DEFAULT_LEN, DELIMITER
+    from content.representations.repr_constants import DEFAULT_STR, CROP_SUFFIX, FILL_CHAR, DEFAULT_LEN, LIST_DELIMITER
     from content.representations.abstract_repr import AbstractRepresentation, ReprType, OptKey
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.classes.typing import AUTO, Auto, Value, AutoCount
-    from .repr_constants import DEFAULT_STR, CROP_SUFFIX, FILL_CHAR, DEFAULT_LEN, DELIMITER
+    from .repr_constants import DEFAULT_STR, CROP_SUFFIX, FILL_CHAR, DEFAULT_LEN, LIST_DELIMITER
     from .abstract_repr import AbstractRepresentation, ReprType, OptKey
 
 
 class SequenceRepresentation(AbstractRepresentation):
     def __init__(
             self,
-            delimiter: str = DELIMITER,
+            delimiter: str = LIST_DELIMITER,
             item_representation: Union[AbstractRepresentation, str, None] = None,
             align_right: bool = False,
             min_len: int = DEFAULT_LEN,
