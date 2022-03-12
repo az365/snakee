@@ -1,4 +1,4 @@
-from typing import Callable, Iterable, Union
+from typing import Optional, Callable, Iterable, Union
 
 try:  # Assume we're a submodule in a package.
     from base.functions.arguments import update
@@ -14,6 +14,14 @@ def sign(zero=0, plus=1, minus=-1) -> Callable:
     def func(value: float) -> int:
         return nm.sign(value, zero=zero, plus=plus, minus=minus)
     return func
+
+
+def round(ndigits: Optional[int] = None, step: Union[int, OptFloat] = None, exclude_negative: bool = False) -> Callable:
+    if step:
+        assert ndigits is None, 'Only one of arguments allowed: ndigits or step, got {} and {}'.format(ndigits, step)
+        return round_to(step=step, exclude_negative=exclude_negative)
+    else:
+        return lambda v: nm.round_py(v, ndigits, exclude_negative=exclude_negative)
 
 
 def round_to(step: Union[int, float], exclude_negative: bool = False) -> Callable:
@@ -118,7 +126,7 @@ def p_log_sign(value: float = 0, default: float = -10.0) -> Callable:
             p_value = nm.t_test_1sample_p_value(series_or_p_value)
         else:
             p_value = series_or_p_value
-        p_log = nm.log(p_value, default=default)
+        p_log = nm.log(p_value, base=10, default=default)
         if p_log < default:
             p_log = default
         return p_log * nm.sign(value)

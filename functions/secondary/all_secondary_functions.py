@@ -6,7 +6,7 @@ try:  # Assume we're a submodule in a package.
     )
     from functions.secondary.cast_functions import DICT_CAST_TYPES, cast, date, number, percent
     from functions.secondary.numeric_functions import (
-        sign, round_to, is_local_extreme,
+        sign, round, round_to, is_local_extreme,
         increment, diff, div, mult, sqrt, log,
         t_test_1sample_p_value, p_log_sign,
     )
@@ -36,7 +36,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     )
     from .cast_functions import DICT_CAST_TYPES, cast, date, number, percent
     from .numeric_functions import (
-        sign, round_to, is_local_extreme,
+        sign, round, round_to, is_local_extreme,
         increment, diff, div, mult, sqrt, log,
         t_test_1sample_p_value, p_log_sign,
     )

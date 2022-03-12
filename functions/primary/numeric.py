@@ -176,6 +176,14 @@ def log(value: float, base: OptionalFloat = None, default=None) -> OptionalFloat
         return default
 
 
+def round_py(value, ndigits: int = 0, exclude_negative: bool = False) -> NumericTypes:
+    if value < 0 and exclude_negative:
+        return 0
+    if ndigits <= 0:
+        value = int(value)
+    return round(value, ndigits)
+
+
 def round_to(value: NumericTypes, step: NumericTypes, exclude_negative: bool = False) -> NumericTypes:
     if not step:
         step = 1
