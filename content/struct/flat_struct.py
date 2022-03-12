@@ -2,9 +2,10 @@ from typing import Optional, Iterable, Generator, Union
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
-        StructInterface, StructRowInterface, FieldInterface, SelectionLoggerInterface, ExtLogger,
+        StructInterface, StructRowInterface, FieldInterface, RepresentationInterface,
+        SelectionLoggerInterface, ExtLogger,
         FieldType, DialectType,
-        AUTO, Auto, Name, Array, ARRAY_TYPES, ROW_SUBCLASSES, RECORD_SUBCLASSES
+        AUTO, Auto, Name, Array, ARRAY_TYPES, ROW_SUBCLASSES, RECORD_SUBCLASSES,
     )
     from base.functions.arguments import update, get_generated_name, get_name, get_names
     from base.abstract.simple_data import SimpleDataWrapper
@@ -17,7 +18,8 @@ try:  # Assume we're a submodule in a package.
     from content.selection.abstract_expression import AbstractDescription
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
-        StructInterface, StructRowInterface, FieldInterface, SelectionLoggerInterface, ExtLogger,
+        StructInterface, StructRowInterface, FieldInterface, RepresentationInterface,
+        SelectionLoggerInterface, ExtLogger,
         FieldType, DialectType,
         AUTO, Auto, Name, Array, ARRAY_TYPES, ROW_SUBCLASSES, RECORD_SUBCLASSES,
     )
@@ -227,6 +229,37 @@ class FlatStruct(SimpleDataWrapper, DescribeMixin, StructInterface):
             if is_selected_type:
                 count += 1
         return count
+
+    def get_field_representations(self) -> Generator:
+        for f in self.get_fields():
+            if isinstance(f, AdvancedField) or hasattr(f, 'get_representation'):
+                yield f.get_representation()
+            else:
+                yield None
+
+    def get_min_str_len(self, delimiter: str = COLUMN_DELIMITER, default_field_len: int = 0) -> Optional[int]:
+        delimiter_len = len(delimiter)
+        min_str_len = -delimiter_len
+        for r in self.get_field_representations():
+            if isinstance(r, RepresentationInterface) or hasattr(r, 'get_min_total_len'):
+                field_len = r.get_min_total_len()
+            else:
+                field_len = default_field_len
+            min_str_len += field_len + delimiter_len
+        if min_str_len >= 0:
+            return min_str_len
+
+    def get_max_str_len(self, delimiter: str = COLUMN_DELIMITER, default_field_len: int = 0) -> Optional[int]:
+        delimiter_len = len(delimiter)
+        max_str_len = -delimiter_len
+        for r in self.get_field_representations():
+            if isinstance(r, RepresentationInterface) or hasattr(r, 'get_max_total_len'):
+                field_len = r.get_max_total_len()
+            else:
+                field_len = default_field_len
+            max_str_len += field_len + delimiter_len
+        if max_str_len >= 0:
+            return max_str_len
 
     def get_str_fields_count(self, types: Array = (str, int, float, bool)) -> str:
         total_count = self.get_fields_count()
