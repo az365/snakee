@@ -2,21 +2,18 @@ from typing import Optional, Union
 
 try:  # Assume we're a submodule in a package.
     from base.classes.auto import Auto, AUTO
-    from content.representations.abstract_repr import (
-        AbstractRepresentation, ReprType, Value,
-        DEFAULT_STR, FILL_CHAR, DEFAULT_LEN,
+    from content.representations.repr_constants import (
+        DEFAULT_STR, FILL_CHAR, SHORT_CROP_SUFFIX,
+        DEFAULT_TRUE_STR, DEFAULT_FALSE_STR, FALSE_VALUES,
     )
+    from content.representations.abstract_repr import AbstractRepresentation, ReprType, Value
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.classes.auto import Auto, AUTO
-    from .abstract_repr import (
-        AbstractRepresentation, ReprType, Value,
-        DEFAULT_STR, FILL_CHAR, DEFAULT_LEN,
+    from .repr_constants import (
+        DEFAULT_STR, FILL_CHAR, SHORT_CROP_SUFFIX,
+        DEFAULT_TRUE_STR, DEFAULT_FALSE_STR, FALSE_VALUES,
     )
-
-DEFAULT_TRUE_STR = 'Yes'
-DEFAULT_FALSE_STR = 'No'
-FALSE_VALUES = 'false', 'no', '-', '0', '0.0', ''
-CROP_SUFFIX = '_'
+    from .abstract_repr import AbstractRepresentation, ReprType, Value
 
 
 class BooleanRepresentation(AbstractRepresentation):
@@ -28,7 +25,7 @@ class BooleanRepresentation(AbstractRepresentation):
             min_len: Union[int, Auto] = AUTO,
             max_len: Union[int, Auto] = AUTO,
             including_framing: bool = False,
-            crop: str = CROP_SUFFIX,
+            crop: str = SHORT_CROP_SUFFIX,
             fill: str = FILL_CHAR,
             prefix: str = '',
             suffix: str = '',

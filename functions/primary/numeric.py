@@ -1,5 +1,5 @@
-import math
 from typing import Optional, Union, Iterable
+import math
 
 try:  # Assume we're a submodule in a package.
     from utils.external import (
@@ -60,6 +60,15 @@ def is_numeric(value) -> bool:
 
 def filter_numeric(a: Iterable) -> list:
     return [i for i in a if is_numeric(i)]
+
+
+def sign(value: float, zero: int = 0, plus: int = 1, minus: int = -1) -> int:
+    if not value:
+        return zero
+    elif value > 0:
+        return plus
+    else:
+        return minus
 
 
 def increment(c, v, take_abs=False, default=None) -> OptionalFloat:
@@ -155,6 +164,24 @@ def sqrt(value: float, default=None) -> OptionalFloat:
             return math.sqrt(value)
     else:
         return default
+
+
+def log(value: float, base: OptionalFloat = None, default=None) -> OptionalFloat:
+    try:
+        if base:
+            return math.log(value, base)
+        else:
+            return math.log(value)
+    except ValueError:
+        return default
+
+
+def round_py(value, ndigits: int = 0, exclude_negative: bool = False) -> NumericTypes:
+    if value < 0 and exclude_negative:
+        return 0
+    if ndigits <= 0:
+        value = int(value)
+    return round(value, ndigits)
 
 
 def round_to(value: NumericTypes, step: NumericTypes, exclude_negative: bool = False) -> NumericTypes:

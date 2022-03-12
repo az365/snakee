@@ -4,19 +4,16 @@ try:  # Assume we're a submodule in a package.
     from base.classes.auto import Auto, AUTO
     from base.classes.typing import Value, Count
     from base.abstract.abstract_base import AbstractBaseObject
+    from content.representations.repr_constants import DEFAULT_STR, CROP_SUFFIX, FILL_CHAR
     from content.representations.repr_interface import RepresentationInterface, ReprType, OptKey
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.classes.auto import Auto, AUTO
     from ...base.classes.typing import Value, Count
     from ...base.abstract.abstract_base import AbstractBaseObject
+    from .repr_constants import DEFAULT_STR, CROP_SUFFIX, FILL_CHAR
     from .repr_interface import RepresentationInterface, ReprType, OptKey
 
 Native = RepresentationInterface
-
-DEFAULT_LEN = 7
-DEFAULT_STR = '-'
-CROP_SUFFIX = '..'
-FILL_CHAR = ' '
 
 
 class AbstractRepresentation(AbstractBaseObject, RepresentationInterface, ABC):
@@ -45,10 +42,10 @@ class AbstractRepresentation(AbstractBaseObject, RepresentationInterface, ABC):
         if including_framing:
             framing_len = self.get_framing_len()
             if Auto.is_defined(max_len):
-                assert framing_len < min_len and framing_len < max_len
+                assert max_len >= framing_len, 'Expected max_len >= framing_len, got {}<{}'.format(max_len, framing_len)
                 self._max_len -= framing_len
             if Auto.is_defined(min_len):
-                if framing_len < min_len:
+                if min_len > framing_len:
                     self._min_len -= framing_len
                 else:
                     self._min_len = 0
@@ -176,7 +173,7 @@ class AbstractRepresentation(AbstractBaseObject, RepresentationInterface, ABC):
             return '<'
 
     @staticmethod
-    def _assume_native(representation):
+    def _assume_native(representation) -> Native:
         return representation
 
     def __repr__(self):

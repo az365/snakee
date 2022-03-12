@@ -2,21 +2,24 @@ from typing import Optional, Iterable, Generator, Union
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
-        StructInterface, StructRowInterface, FieldInterface, SelectionLoggerInterface, ExtLogger,
+        StructInterface, StructRowInterface, FieldInterface, RepresentationInterface,
+        SelectionLoggerInterface, ExtLogger,
         FieldType, DialectType,
-        AUTO, Auto, Name, Array, ARRAY_TYPES, ROW_SUBCLASSES, RECORD_SUBCLASSES
+        AUTO, Auto, Name, Array, ARRAY_TYPES, ROW_SUBCLASSES, RECORD_SUBCLASSES,
     )
     from base.functions.arguments import update, get_generated_name, get_name, get_names
     from base.abstract.simple_data import SimpleDataWrapper
     from base.mixin.describe_mixin import DescribeMixin
     from functions.secondary import array_functions as fs
     from utils.external import pd, get_use_objects_for_output, DataFrame
+    from content.representations.repr_constants import COLUMN_DELIMITER, TITLE_PREFIX, DICT_VALID_SIGN
     from content.fields.advanced_field import AdvancedField
     from content.items.simple_items import SelectableItem, is_row, is_record
     from content.selection.abstract_expression import AbstractDescription
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
-        StructInterface, StructRowInterface, FieldInterface, SelectionLoggerInterface, ExtLogger,
+        StructInterface, StructRowInterface, FieldInterface, RepresentationInterface,
+        SelectionLoggerInterface, ExtLogger,
         FieldType, DialectType,
         AUTO, Auto, Name, Array, ARRAY_TYPES, ROW_SUBCLASSES, RECORD_SUBCLASSES,
     )
@@ -25,6 +28,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.mixin.describe_mixin import DescribeMixin
     from ...functions.secondary import array_functions as fs
     from ...utils.external import pd, get_use_objects_for_output, DataFrame
+    from ..representations.repr_constants import COLUMN_DELIMITER, TITLE_PREFIX, DICT_VALID_SIGN
     from ..fields.advanced_field import AdvancedField
     from ..items.simple_items import SelectableItem, is_row, is_record
     from ..selection.abstract_expression import AbstractDescription
@@ -37,10 +41,7 @@ Type = Union[FieldType, type, Auto]
 Comment = Union[StructName, Auto]
 
 META_MEMBER_MAPPING = dict(_data='fields')
-DEFAULT_DELIMITER = ' '
-GROUP_NO_STR = '===='
 GROUP_TYPE_STR = 'GROUP'
-DICT_VALID_SIGN = {'True': '-', 'False': 'x', 'None': '-', AUTO.get_value(): '~'}
 
 
 class FlatStruct(SimpleDataWrapper, DescribeMixin, StructInterface):
@@ -137,7 +138,7 @@ class FlatStruct(SimpleDataWrapper, DescribeMixin, StructInterface):
         elif isinstance(field, dict):
             field_desc = AdvancedField(**field)
         elif skip_missing and field is None:
-            pass
+            return None
         else:
             raise TypeError('Expected field, str or dict, got {} as {}'.format(field, type(field)))
         if exclude_duplicates and field_desc.get_name() in self.get_field_names():
@@ -191,7 +192,8 @@ class FlatStruct(SimpleDataWrapper, DescribeMixin, StructInterface):
                     inplace=True,
                 )
         else:
-            return self.make_new(fields=self.get_fields_descriptions() + list(fields), name=name)
+            struct = self.make_new(fields=self.get_fields_descriptions() + list(fields), name=name)
+            return self._assume_native(struct)
 
     def remove_fields(self, *fields, multiple: bool = False, inplace: bool = True):
         removing_fields = update(fields)
@@ -227,6 +229,37 @@ class FlatStruct(SimpleDataWrapper, DescribeMixin, StructInterface):
             if is_selected_type:
                 count += 1
         return count
+
+    def get_field_representations(self) -> Generator:
+        for f in self.get_fields():
+            if isinstance(f, AdvancedField) or hasattr(f, 'get_representation'):
+                yield f.get_representation()
+            else:
+                yield None
+
+    def get_min_str_len(self, delimiter: str = COLUMN_DELIMITER, default_field_len: int = 0) -> Optional[int]:
+        delimiter_len = len(delimiter)
+        min_str_len = -delimiter_len
+        for r in self.get_field_representations():
+            if isinstance(r, RepresentationInterface) or hasattr(r, 'get_min_total_len'):
+                field_len = r.get_min_total_len()
+            else:
+                field_len = default_field_len
+            min_str_len += field_len + delimiter_len
+        if min_str_len >= 0:
+            return min_str_len
+
+    def get_max_str_len(self, delimiter: str = COLUMN_DELIMITER, default_field_len: int = 0) -> Optional[int]:
+        delimiter_len = len(delimiter)
+        max_str_len = -delimiter_len
+        for r in self.get_field_representations():
+            if isinstance(r, RepresentationInterface) or hasattr(r, 'get_max_total_len'):
+                field_len = r.get_max_total_len()
+            else:
+                field_len = default_field_len
+            max_str_len += field_len + delimiter_len
+        if max_str_len >= 0:
+            return max_str_len
 
     def get_str_fields_count(self, types: Array = (str, int, float, bool)) -> str:
         total_count = self.get_fields_count()
@@ -455,7 +488,7 @@ class FlatStruct(SimpleDataWrapper, DescribeMixin, StructInterface):
     def copy(self) -> Native:
         return FlatStruct(fields=list(self.get_fields()), name=self.get_name())
 
-    def format(self, *args, delimiter: str = DEFAULT_DELIMITER, skip_errors: bool = False) -> str:
+    def format(self, *args, delimiter: str = COLUMN_DELIMITER, skip_errors: bool = False) -> str:
         if len(args) == 1 and isinstance(args[0], (*ROW_SUBCLASSES, *RECORD_SUBCLASSES)):
             item = args[0]
         else:
@@ -480,7 +513,7 @@ class FlatStruct(SimpleDataWrapper, DescribeMixin, StructInterface):
             [self.get_field_description(f) for f in fields]
         )
 
-    def get_fields_tuples(self) -> Iterable[tuple]:  # (name, type, caption)
+    def get_fields_tuples(self) -> Iterable[tuple]:  # (name, type, caption, is_valid, group_caption)
         for f in self.get_fields():
             if isinstance(f, AdvancedField):
                 field_name = f.get_name()
@@ -513,13 +546,13 @@ class FlatStruct(SimpleDataWrapper, DescribeMixin, StructInterface):
         group_name = self.get_name()
         group_caption = self.get_caption()
         if include_header:
-            yield GROUP_NO_STR, GROUP_TYPE_STR, group_name or '', group_caption, ''
+            yield TITLE_PREFIX, GROUP_TYPE_STR, group_name or '', group_caption, ''
         prev_group_name = group_name
         for n, field_tuple in enumerate(self.get_fields_tuples()):
             f_name, f_type_name, f_caption, f_valid, group_name, group_caption = field_tuple
             is_next_group = group_name != prev_group_name
             if is_next_group:
-                yield GROUP_NO_STR, GROUP_TYPE_STR, group_name, group_caption, ''
+                yield TITLE_PREFIX, GROUP_TYPE_STR, group_name, group_caption, ''
             yield n, f_type_name, f_name or '', f_caption, f_valid
             prev_group_name = group_name
 

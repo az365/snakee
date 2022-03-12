@@ -1,18 +1,17 @@
 try:  # Assume we're a submodule in a package.
     from base.classes.typing import AUTO, Auto, Value, AutoCount
-    from content.representations.abstract_repr import (
-        AbstractRepresentation, ReprType, OptKey,
+    from content.representations.repr_constants import (
         DEFAULT_STR, CROP_SUFFIX, FILL_CHAR,
+        TAB_SYMBOL, TAB_SUBSTITUTE, PARAGRAPH_SYMBOL, PARAGRAPH_SUBSTITUTE,
     )
+    from content.representations.abstract_repr import AbstractRepresentation, ReprType, OptKey
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.classes.typing import AUTO, Auto, Value, AutoCount
-    from .abstract_repr import (
-        AbstractRepresentation, ReprType, OptKey,
+    from .repr_constants import (
         DEFAULT_STR, CROP_SUFFIX, FILL_CHAR,
+        TAB_SYMBOL, TAB_SUBSTITUTE, PARAGRAPH_SYMBOL, PARAGRAPH_SUBSTITUTE,
     )
-
-TAB_SYMBOL, TAB_SUBSTITUTE = '\t', ' -> '
-PARAGRAPH_SYMBOL, PARAGRAPH_SUBSTITUTE = '\t', ' \\n '
+    from .abstract_repr import AbstractRepresentation, ReprType, OptKey
 
 
 class StringRepresentation(AbstractRepresentation):
