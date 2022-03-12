@@ -1,4 +1,4 @@
-from typing import Callable, Union
+from typing import Callable, Iterable, Union
 
 try:  # Assume we're a submodule in a package.
     from base.functions.arguments import update
@@ -10,14 +10,9 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 OptFloat = nm.OptionalFloat
 
 
-def sign() -> Callable:
+def sign(zero=0, plus=1, minus=-1) -> Callable:
     def func(value: float) -> int:
-        if not value:
-            return 0
-        elif value > 0:
-            return 1
-        else:
-            return -1
+        return nm.sign(value, zero=zero, plus=plus, minus=minus)
     return func
 
 
@@ -97,6 +92,12 @@ def sqrt(default: OptFloat = None) -> Callable:
     return func
 
 
+def log(base: OptFloat, shift: float = 0, default: OptFloat = None) -> Callable:
+    def func(value: float) -> OptFloat:
+        return nm.log(value + shift, base=base, default=default)
+    return func
+
+
 def is_local_extreme(local_min=True, local_max=True) -> Callable:
     def func(*args) -> bool:
         args = update(args)
@@ -106,6 +107,19 @@ def is_local_extreme(local_min=True, local_max=True) -> Callable:
 
 
 def t_test_1sample_p_value(value: float = 0) -> Callable:
-    def func(series) -> float:
+    def func(series: Iterable) -> float:
         return nm.t_test_1sample_p_value(series, value=value)
+    return func
+
+
+def p_log_sign(value: float = 0, default: float = -10.0) -> Callable:
+    def func(series_or_p_value: Union[Iterable, float]) -> float:
+        if isinstance(series_or_p_value, Iterable):
+            p_value = nm.t_test_1sample_p_value(series_or_p_value)
+        else:
+            p_value = series_or_p_value
+        p_log = nm.log(p_value, default=default)
+        if p_log < default:
+            p_log = default
+        return p_log * nm.sign(value)
     return func
