@@ -1,21 +1,21 @@
 from typing import Optional, Callable, Iterable, Union
 
 try:  # Assume we're a submodule in a package.
-    from utils import arguments as arg, selection as sf
+    from utils import selection as sf
     from interfaces import (
         StructInterface, StructRowInterface, LoggerInterface,
         ItemType, Item, Row, Record, Field, Name, Array, ARRAY_TYPES,
-        AUTO, Auto
+        AUTO, Auto,
     )
     from content.fields.simple_field import SimpleField
     from functions.primary import items as it
     from content.selection import selection_classes as sn
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg, selection as sf
+    from ...utils import selection as sf
     from ...interfaces import (
         StructInterface, StructRowInterface, LoggerInterface,
         ItemType, Item, Row, Record, Field, Name, Array, ARRAY_TYPES,
-        AUTO, Auto
+        AUTO, Auto,
     )
     from ..fields.simple_field import SimpleField
     from ...functions.primary import items as it
@@ -58,10 +58,13 @@ def build_expression_description(left: Field, right: Union[Optional[Array], Call
 
 
 def compose_descriptions(
-        fields: Iterable, expressions: dict,
-        target_item_type: ItemType, input_item_type: ItemType,
+        fields: Iterable,
+        expressions: dict,
+        target_item_type: ItemType,
+        input_item_type: ItemType,
         skip_errors: bool = False,
-        logger: Logger = None, selection_logger: Logger = None,
+        logger: Logger = None,
+        selection_logger: Logger = None,
 ) -> Iterable:
     assert isinstance(target_item_type, ItemType)
     target_is_row = target_item_type == ItemType.Row
@@ -114,7 +117,7 @@ class SelectionDescription:
         self._input_item_type = input_item_type
         self._input_struct = input_struct
         self._logger = logger
-        self._selection_logger = arg.acquire(selection_logger, getattr(logger, 'get_selection_logger', None))
+        self._selection_logger = Auto.acquire(selection_logger, getattr(logger, 'get_selection_logger', None))
         self._has_trivial_multiple_selectors = AUTO
         self._output_field_names = AUTO
 
@@ -151,8 +154,8 @@ class SelectionDescription:
             logger: Union[Logger, Auto] = AUTO,
             selection_logger: Union[Logger, Auto] = AUTO,
     ) -> None:
-        self._logger = arg.acquire(logger, getattr(logger, 'get_logger', None))
-        self._selection_logger = arg.acquire(selection_logger, getattr(logger, 'get_selection_logger', None))
+        self._logger = Auto.acquire(logger, getattr(logger, 'get_logger', None))
+        self._selection_logger = Auto.acquire(selection_logger, getattr(logger, 'get_selection_logger', None))
 
     def set_selection_logger(self, logger: Logger) -> None:
         self._selection_logger = logger
@@ -216,13 +219,13 @@ class SelectionDescription:
             return self
 
     def get_output_field_names(self, item: Optional[Item] = None) -> list:
-        if arg.is_defined(item, check_name=False):
+        if Auto.is_defined(item, check_name=False):
             if self.check_changing_output_fields() or self.get_known_output_field_names() == AUTO:
                 self.reset_output_field_names(item, inplace=True)
         return self.get_known_output_field_names()
 
     def get_dict_output_field_types(self, struct: Union[Struct, Auto] = AUTO) -> dict:
-        struct = arg.delayed_undefault(struct, self.get_input_struct)
+        struct = Auto.delayed_acquire(struct, self.get_input_struct)
         output_types = dict()
         for d in self.get_descriptions():
             output_types.update(d.get_dict_output_field_types(struct))
@@ -273,7 +276,7 @@ class SelectionDescription:
         return it.get_frozen(new_item)
 
     def get_mapper(self, logger: Union[Logger, Auto] = AUTO) -> Callable:
-        if arg.is_defined(logger):
+        if Auto.is_defined(logger):
             self.set_selection_logger(logger)
         return self.process_item
 
