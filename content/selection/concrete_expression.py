@@ -1,14 +1,16 @@
 from typing import Optional, Callable, Iterable, Union
 
 try:  # Assume we're a submodule in a package.
-    from utils import arguments as arg, selection as sf
-    from interfaces import ItemType, StructInterface, Item, Name, Field, Value, Array
+    from interfaces import ItemType, StructInterface, Item, Name, Field, Value, LoggerInterface, Array, Auto, AUTO
+    from base.functions.arguments import get_name
     from functions.primary import items as it
+    from utils import selection as sf
     from content.selection.abstract_expression import SingleFieldDescription, TrivialMultipleDescription
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg, selection as sf
-    from ...interfaces import ItemType, StructInterface, Item, Name, Field, Value, Array
+    from ...interfaces import ItemType, StructInterface, Item, Name, Field, Value, LoggerInterface, Array, Auto, AUTO
+    from ...base.functions.arguments import get_name
     from ...functions.primary import items as it
+    from ...utils import selection as sf
     from .abstract_expression import SingleFieldDescription, TrivialMultipleDescription
 
 GIVE_SAME_FIELD_FOR_FUNCTION_DESCRIPTION = False
@@ -18,8 +20,11 @@ class TrivialDescription(SingleFieldDescription):
     def __init__(
             self,
             field: Field,
-            target_item_type: ItemType, input_item_type: ItemType = ItemType.Auto,
-            skip_errors=False, logger=None, default=None,
+            target_item_type: ItemType,
+            input_item_type: ItemType = ItemType.Auto,
+            skip_errors: bool = False,
+            logger: Optional[LoggerInterface] = None,
+            default: Value = None,
     ):
         super().__init__(
             field=field,
@@ -27,8 +32,8 @@ class TrivialDescription(SingleFieldDescription):
             skip_errors=skip_errors, logger=logger, default=default,
         )
 
-    def get_input_field_names(self) -> list:
-        return [self.get_target_field_name()]
+    def get_input_fields(self) -> list:
+        return [self.get_target_field()]
 
     def get_value_from_item(self, item: Item) -> Value:
         return it.get_field_value_from_item(
@@ -41,13 +46,26 @@ class TrivialDescription(SingleFieldDescription):
         field_name = self.get_target_field_name()
         return [struct.get_field_description(field_name).get_type()]
 
+    def get_linked_fields(self) -> list:
+        return [self.get_target_field()]
+
+    def get_brief_repr(self) -> str:
+        return "'{}'".format(self.get_target_field_name())
+
+    def get_detailed_repr(self) -> str:
+        return '{}({})'.format(self.__class__.__name__, repr(self.get_target_field()))
+
 
 class AliasDescription(SingleFieldDescription):
     def __init__(
             self,
-            alias: Field, source: Field,
-            target_item_type: ItemType, input_item_type: ItemType = ItemType.Auto,
-            skip_errors=False, logger=None, default=None,
+            alias: Field,
+            source: Field,
+            target_item_type: ItemType,
+            input_item_type: ItemType = ItemType.Auto,
+            skip_errors: bool = False,
+            logger: Optional[LoggerInterface] = None,
+            default: Value = None,
     ):
         self._source_field = source
         super().__init__(
@@ -63,10 +81,10 @@ class AliasDescription(SingleFieldDescription):
         return self._source_field
 
     def get_source_name(self) -> Name:
-        return arg.get_name(self.get_source_field())
+        return get_name(self.get_source_field())
 
-    def get_input_field_names(self) -> list:
-        return [self.get_source_name()]
+    def get_input_fields(self) -> list:
+        return [self.get_source_field()]
 
     def get_value_from_item(self, item: Field) -> Value:
         return it.get_field_value_from_item(
@@ -87,9 +105,14 @@ class AliasDescription(SingleFieldDescription):
 class RegularDescription(SingleFieldDescription):
     def __init__(
             self,
-            target: Field, function: Callable, inputs: Array,
-            target_item_type: ItemType, input_item_type: ItemType = ItemType.Auto,
-            skip_errors=False, logger=None, default=None,
+            target: Field,
+            function: Callable,
+            inputs: Array,
+            target_item_type: ItemType,
+            input_item_type: ItemType = ItemType.Auto,
+            skip_errors: bool = False,
+            logger: Optional[LoggerInterface] = None,
+            default: Value = None,
     ):
         super().__init__(
             target,
@@ -110,7 +133,7 @@ class RegularDescription(SingleFieldDescription):
     def get_return_type(self) -> Optional[type]:
         return self.get_annotations().get('return')
 
-    def get_input_field_names(self) -> Iterable:
+    def get_input_fields(self) -> Array:
         return self._inputs
 
     def get_output_field_types(self, struct) -> list:
@@ -130,10 +153,14 @@ class RegularDescription(SingleFieldDescription):
 class FunctionDescription(SingleFieldDescription):
     def __init__(
             self,
-            target: Field, function: Callable,
-            give_same_field_to_input=GIVE_SAME_FIELD_FOR_FUNCTION_DESCRIPTION,
-            target_item_type=ItemType.Auto, input_item_type=ItemType.Auto,
-            skip_errors=False, logger=None, default=None,
+            target: Field,
+            function: Callable,
+            give_same_field_to_input: bool = GIVE_SAME_FIELD_FOR_FUNCTION_DESCRIPTION,
+            target_item_type: ItemType = ItemType.Auto,
+            input_item_type: ItemType = ItemType.Auto,
+            skip_errors: bool = False,
+            logger: Optional[ LoggerInterface] = None,
+            default: Value = None,
     ):
         super().__init__(
             field=target,
@@ -152,9 +179,9 @@ class FunctionDescription(SingleFieldDescription):
     def get_output_field_types(self, struct) -> list:
         return [self.get_return_type()]
 
-    def get_input_field_names(self) -> list:
+    def get_input_fields(self) -> list:
         if self.give_same_field_to_input:
-            return [self.get_target_field_name()]
+            return [self.get_target_field()]
         else:
             return [it.STAR]
 
@@ -177,15 +204,17 @@ class FunctionDescription(SingleFieldDescription):
 class StarDescription(TrivialMultipleDescription):
     def __init__(
             self,
-            target_item_type: ItemType, input_item_type: ItemType = ItemType.Auto,
-            skip_errors=False, logger=None,
+            target_item_type: ItemType,
+            input_item_type: ItemType = ItemType.Auto,
+            skip_errors: bool = False,
+            logger: Optional[LoggerInterface] = None,
     ):
         super().__init__(
             target_item_type=target_item_type, input_item_type=input_item_type,
             skip_errors=skip_errors, logger=logger,
         )
 
-    def get_output_field_names(self, item_or_struct: Union[Item, StructInterface], item_type=arg.AUTO) -> Array:
+    def get_output_fields(self, item_or_struct: Union[Item, StructInterface], item_type: ItemType = AUTO) -> Array:
         if isinstance(item_or_struct, StructInterface) or hasattr(item_or_struct, 'get_columns'):
             return item_or_struct.get_columns()
         else:  # isinstance(item_or_struct, Item)
@@ -200,8 +229,10 @@ class DropDescription(TrivialMultipleDescription):
     def __init__(
             self,
             drop_fields: Array,
-            target_item_type: ItemType, input_item_type=ItemType.Auto,
-            skip_errors=False, logger=None,
+            target_item_type: ItemType,
+            input_item_type=ItemType.Auto,
+            skip_errors: bool = False,
+            logger: Optional[LoggerInterface] = None,
     ):
         super().__init__(
             target_item_type=target_item_type, input_item_type=input_item_type,
@@ -212,7 +243,7 @@ class DropDescription(TrivialMultipleDescription):
     def get_drop_fields(self) -> Array:
         return self._drop_fields
 
-    def get_output_field_names(self, item_or_struct: Union[Item, StructInterface]) -> list:
+    def get_output_fields(self, item_or_struct: Union[Item, StructInterface]) -> list:
         if isinstance(item_or_struct, StructInterface) or hasattr(item_or_struct, 'get_columns'):
             initial_fields = item_or_struct.get_columns()
         else:

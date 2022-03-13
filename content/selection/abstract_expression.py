@@ -3,16 +3,16 @@ from typing import Optional, Iterable, Callable, Any
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
-        StructRowInterface, StructInterface, LoggerInterface,
-        ItemType, Item, UniKey, Field, Name, Value, Array,
+        StructRowInterface, StructInterface, LoggerInterface, LoggingLevel,
+        ItemType, Item, UniKey, FieldInterface, FieldName, FieldNo, Field, Name, Value, Class, Array,
         AUTO, Auto,
     )
     from base.functions.arguments import get_name, get_names
     from functions.primary import items as it
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
-        StructRowInterface, StructInterface, LoggerInterface,
-        ItemType, Item, UniKey, Field, Name, Value, Array,
+        StructRowInterface, StructInterface, LoggerInterface, LoggingLevel,
+        ItemType, Item, UniKey, FieldInterface, FieldName, FieldNo, Field, Name, Value, Class, Array,
         AUTO, Auto,
     )
     from ...base.functions.arguments import get_name, get_names
@@ -53,12 +53,27 @@ class AbstractDescription(ABC):
         pass
 
     @abstractmethod
-    def get_input_field_names(self, *args) -> Iterable:
+    def get_input_fields(self, *args) -> Array:
         pass
 
     @abstractmethod
-    def get_output_field_names(self, *args) -> Iterable:
+    def get_output_fields(self, *args) -> Array:
         pass
+
+    def get_linked_fields(self) -> Array:
+        return list(self.get_input_fields()) + list(self.get_output_fields())
+
+    def get_input_field_names(self) -> list:
+        return get_names(self.get_input_fields())
+
+    def get_output_field_names(self, *args) -> list:
+        return get_names(self.get_output_fields(*args))
+
+    def get_target_field_name(self) -> Optional[str]:
+        if hasattr(self, 'get_target_field'):
+            target_field = self.get_target_field()
+            if target_field:
+                return get_name(target_field)
 
     @abstractmethod
     def get_output_field_types(self, struct: StructInterface) -> Iterable:
@@ -100,7 +115,7 @@ class SingleFieldDescription(AbstractDescription, ABC):
             target_item_type=target_item_type, input_item_type=input_item_type,
             skip_errors=skip_errors, logger=logger,
         )
-        assert isinstance(field, (int, str)), 'got {} as {}'.format(field, type(field))
+        assert isinstance(field, (FieldName, FieldNo, FieldInterface)), 'got {} as {}'.format(field, type(field))
         self._target = field
         self._default = default
 
@@ -110,11 +125,17 @@ class SingleFieldDescription(AbstractDescription, ABC):
     def get_default_value(self) -> Value:
         return self._default
 
-    def get_target_field_name(self) -> Name:
-        return get_name(self._target)
+    def get_target_field(self) -> Field:
+        return self._target
 
-    def get_input_field_names(self) -> list:
+    def get_output_fields(self, *args) -> list:
+        return [self.get_target_field()]
+
+    def get_input_fields(self) -> list:
         return list()
+
+    def get_target_field_name(self) -> Name:
+        return get_name(self.get_target_field())
 
     def get_input_values(self, item: Item) -> list:
         return it.get_fields_values_from_item(
@@ -122,9 +143,6 @@ class SingleFieldDescription(AbstractDescription, ABC):
             item=item, item_type=self.get_input_item_type(),
             skip_errors=self.must_skip_errors(), logger=self.get_logger(), default=self.get_default_value(),
         )
-
-    def get_output_field_names(self, *args) -> list:
-        yield self.get_target_field_name()
 
     def get_function(self) -> Callable:
         return lambda i: i
@@ -135,6 +153,13 @@ class SingleFieldDescription(AbstractDescription, ABC):
             return function.__annotations__
         else:
             return dict()
+
+    def set_target_field(self, field: Field, inplace: bool):
+        if inplace:
+            self._target = field
+            return self
+        else:
+            return self.make_new(field=field)
 
     def to(self, field: Field):
         if self.get_target_field() in ('_', AUTO, None):
@@ -196,8 +221,8 @@ class TrivialMultipleDescription(MultipleFieldDescription, ABC):
     def get_function(self) -> Callable:
         return lambda i: i
 
-    def get_input_field_names(self, struct: UniKey) -> Iterable:
-        return self.get_output_field_names(struct)
+    def get_input_fields(self, struct: UniKey) -> Iterable:
+        return self.get_output_fields(struct)
 
     def get_output_field_types(self, struct: UniKey) -> list:
         names = self.get_output_field_names(struct)
