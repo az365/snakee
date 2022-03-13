@@ -9,13 +9,14 @@ try:  # Assume we're a submodule in a package.
     )
     from base.functions.arguments import update, get_generated_name, get_name, get_names
     from base.abstract.simple_data import SimpleDataWrapper
-    from base.mixin.describe_mixin import DescribeMixin
+    from base.mixin.describe_mixin import DescribeMixin, AutoOutput, DEFAULT_ROWS_COUNT, JUPYTER_LINE_LEN
     from functions.secondary import array_functions as fs
     from utils.external import pd, get_use_objects_for_output, DataFrame
     from content.representations.repr_constants import COLUMN_DELIMITER, TITLE_PREFIX, DICT_VALID_SIGN
     from content.fields.advanced_field import AdvancedField
     from content.items.simple_items import SelectableItem, is_row, is_record
     from content.selection.abstract_expression import AbstractDescription
+    from content.selection.selectable_mixin import SelectableMixin
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         StructInterface, StructRowInterface, FieldInterface, RepresentationInterface,
@@ -25,13 +26,14 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     )
     from ...base.functions.arguments import update, get_generated_name, get_name, get_names
     from ...base.abstract.simple_data import SimpleDataWrapper
-    from ...base.mixin.describe_mixin import DescribeMixin
+    from ...base.mixin.describe_mixin import DescribeMixin, AutoOutput, DEFAULT_ROWS_COUNT, JUPYTER_LINE_LEN
     from ...functions.secondary import array_functions as fs
     from ...utils.external import pd, get_use_objects_for_output, DataFrame
     from ..representations.repr_constants import COLUMN_DELIMITER, TITLE_PREFIX, DICT_VALID_SIGN
     from ..fields.advanced_field import AdvancedField
     from ..items.simple_items import SelectableItem, is_row, is_record
     from ..selection.abstract_expression import AbstractDescription
+    from ..selection.selectable_mixin import SelectableMixin
 
 Native = StructInterface
 Group = Union[Native, Iterable]
@@ -44,7 +46,7 @@ META_MEMBER_MAPPING = dict(_data='fields')
 GROUP_TYPE_STR = 'GROUP'
 
 
-class FlatStruct(SimpleDataWrapper, DescribeMixin, StructInterface):
+class FlatStruct(SimpleDataWrapper, DescribeMixin, SelectableMixin, StructInterface):
     def __init__(
             self,
             fields: Iterable,
@@ -582,11 +584,12 @@ class FlatStruct(SimpleDataWrapper, DescribeMixin, StructInterface):
     def get_struct_repr_lines(
             self,
             example: Optional[dict] = None,
-            separate_by_tabs: bool = False,
+            delimiter: str = COLUMN_DELIMITER,
             select_fields: Optional[Array] = None,
             count: Optional[int] = None
     ) -> Generator:
         columns, template = self._get_describe_template(example)
+        separate_by_tabs = delimiter == '\t'
         yield '\t'.join(columns) if separate_by_tabs else template.format(*columns)
         for (n, type_name, name, caption, is_valid) in self.get_struct_description(include_header=False):
             if type_name == GROUP_TYPE_STR:
@@ -606,38 +609,28 @@ class FlatStruct(SimpleDataWrapper, DescribeMixin, StructInterface):
                 if n >= count - 1:
                     break
 
-    def describe(
+    def get_data_description(
             self,
+            count: int = DEFAULT_ROWS_COUNT,
+            title: Optional[str] = 'Columns:',
             example: Optional[dict] = None,
-            count: Optional[int] = None,
-            as_dataframe: bool = False,
-            separate_by_tabs: bool = False,
-            show_header: bool = True,
-            comment: Comment = None,
             select_fields: Optional[Array] = None,
-            logger: Union[ExtLogger, Auto] = AUTO,
-    ) -> Optional[DataFrame]:
-        log = logger.log if Auto.is_defined(logger) else print
-        if show_header:
-            for line in self.get_group_header(comment=comment):
-                log(line)
-            log('')
-        if as_dataframe:
-            return self.show()
-        else:
-            struct_description_lines = self.get_struct_repr_lines(
-                example=example, separate_by_tabs=separate_by_tabs, select_fields=select_fields,
-                count=count,
-            )
-            for line in struct_description_lines:
-                log(line)
+            max_len: int = JUPYTER_LINE_LEN,
+            delimiter: str = COLUMN_DELIMITER,
+    ) -> Generator:
+        struct_description_lines = self.get_struct_repr_lines(
+            example=example, delimiter=delimiter, select_fields=select_fields,
+            count=count,
+        )
+        for line in struct_description_lines:
+            yield line[:max_len]
 
     def get_dataframe(self) -> DataFrame:
         data = self.get_struct_description(include_header=True)
         columns = ('n', 'type', 'name', 'caption', 'valid')
         return DataFrame(data, columns=columns)
 
-    def show(self, as_dataframe: Union[bool, Auto] = AUTO) -> Optional[DataFrame]:
+    def show(self, count: Optional[int] = None, as_dataframe: Union[bool, Auto] = AUTO) -> Optional[DataFrame]:
         as_dataframe = Auto.acquire(as_dataframe, get_use_objects_for_output())
         if as_dataframe:
             return self.get_dataframe()

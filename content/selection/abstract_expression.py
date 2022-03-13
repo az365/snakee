@@ -1,23 +1,29 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Iterable, Callable, Any
+from typing import Optional, Callable, Iterable, Generator, Union, Any
 
-try:  # Assume we're a sub-module in a package.
-    from utils import arguments as arg
+try:  # Assume we're a submodule in a package.
     from interfaces import (
-        StructRowInterface, StructInterface, LoggerInterface,
-        ItemType, Item, Row, Record, UniKey, Field, Name, Value, Array,
+        StructRowInterface, StructInterface, LoggerInterface, LoggingLevel,
+        ItemType, Item, UniKey, FieldInterface, FieldName, FieldNo, Field, Name, Value, Class, Array,
+        AUTO, Auto,
     )
+    from base.functions.arguments import get_name, get_names
+    from base.abstract.abstract_base import AbstractBaseObject
+    from base.mixin.describe_mixin import DescribeMixin, AutoOutput, JUPYTER_LINE_LEN, CROP_SUFFIX
     from functions.primary import items as it
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
     from ...interfaces import (
-        StructRowInterface, StructInterface, LoggerInterface,
-        ItemType, Item, Row, Record, UniKey, Field, Name, Value, Array,
+        StructRowInterface, StructInterface, LoggerInterface, LoggingLevel,
+        ItemType, Item, UniKey, FieldInterface, FieldName, FieldNo, Field, Name, Value, Class, Array,
+        AUTO, Auto,
     )
+    from ...base.functions.arguments import get_name, get_names
+    from ...base.abstract.abstract_base import AbstractBaseObject
+    from ...base.mixin.describe_mixin import DescribeMixin, AutoOutput, JUPYTER_LINE_LEN, CROP_SUFFIX
     from ...functions.primary import items as it
 
 
-class AbstractDescription(ABC):
+class AbstractDescription(DescribeMixin, AbstractBaseObject, ABC):
     def __init__(
             self,
             target_item_type: ItemType,
@@ -51,12 +57,27 @@ class AbstractDescription(ABC):
         pass
 
     @abstractmethod
-    def get_input_field_names(self, *args) -> Iterable:
+    def get_input_fields(self, *args) -> Array:
         pass
 
     @abstractmethod
-    def get_output_field_names(self, *args) -> Iterable:
+    def get_output_fields(self, *args) -> Array:
         pass
+
+    def get_linked_fields(self) -> Array:
+        return list(self.get_input_fields()) + list(self.get_output_fields())
+
+    def get_input_field_names(self) -> list:
+        return get_names(self.get_input_fields())
+
+    def get_output_field_names(self, *args) -> list:
+        return get_names(self.get_output_fields(*args))
+
+    def get_target_field_name(self) -> Optional[str]:
+        if hasattr(self, 'get_target_field'):
+            target_field = self.get_target_field()
+            if target_field:
+                return get_name(target_field)
 
     @abstractmethod
     def get_output_field_types(self, struct: StructInterface) -> Iterable:
@@ -67,21 +88,78 @@ class AbstractDescription(ABC):
         types = self.get_output_field_types(struct)
         return dict(zip(names, types))
 
-    def get_selection_tuple(self) -> tuple:
-        return (self.get_function(), *self.get_input_field_names())
+    def has_data(self) -> bool:
+        return bool(self.get_input_fields()) or bool(self.get_output_fields())
+
+    def get_selection_tuple(self, including_target: bool = False) -> tuple:
+        if including_target:
+            return (self.get_target_field_name(), self.get_function(), *self.get_input_field_names())
+        else:
+            return (self.get_function(), *self.get_input_field_names())
 
     @abstractmethod
     def apply_inplace(self, item: Item) -> None:
         pass
 
-    def __repr__(self):
-        return str(self)
+    def get_output(self, output: AutoOutput = AUTO) -> Optional[Class]:
+        if Auto.is_defined(output) and not isinstance(output, (LoggingLevel, int)):
+            return output
+        else:
+            return print
 
-    def __str__(self):
-        inputs = ', '.join(map(str, self.get_input_field_names()))
-        outputs = ', '.join(map(str, self.get_output_field_names()))
+    def _get_linked_fields_descriptions(
+            self,
+            fields: Union[Iterable, Auto] = AUTO,
+            group_name: str = 'used',
+            prefix: str = '    - ',
+            max_len: int = JUPYTER_LINE_LEN,
+    ) -> Generator:
+        fields = list(Auto.delayed_acquire(fields, self.get_linked_fields))
+        count = len(fields)
+        yield '{count} {name} fields:'.format(count=count, name=group_name)
+        for f in fields:
+            if isinstance(f, DescribeMixin) or hasattr(f, 'get_one_line_repr'):
+                f_repr = f.get_one_line_repr(max_len=120)
+            else:
+                f_repr = repr(f)
+            f_repr = prefix + f_repr
+            if len(f_repr) > max_len:
+                f_repr = f_repr[:max_len - len(CROP_SUFFIX)] + CROP_SUFFIX
+            yield f_repr
+
+    def get_detailed_fields_description(self) -> Generator:
+        for f in self.get_linked_fields():
+            if hasattr(f, 'get_meta_description'):
+                # yield repr(f) + ':'
+                yield from f.get_meta_description()
+
+    def get_data_description(
+            self,
+            count: Optional[int] = None,
+            title: Optional[str] = 'Linked fields:',
+            max_len: int = JUPYTER_LINE_LEN,
+    ) -> Generator:
+        input_fields = self.get_input_fields()
+        output_fields = self.get_output_fields()
+        if input_fields:
+            yield from self._get_linked_fields_descriptions(fields=input_fields, group_name='input')
+        if output_fields:
+            yield from self._get_linked_fields_descriptions(fields=output_fields, group_name='output')
+        detailed_description = list(self.get_detailed_fields_description())
+        if detailed_description:
+            yield '\nDetailed fields descriptions:\n'
+            yield from detailed_description
+
+    def get_brief_repr(self) -> str:
+        inputs = ', '.join(map(get_name, self.get_input_field_names()))
+        target = ', '.join(map(get_name, self.get_target_field_name()))
         func = self.get_function().__name__
-        return '{outputs}={func}({inputs})'.format(outputs=outputs, func=func, inputs=inputs)
+        if func == '<lambda>':
+            func = 'lambda'
+        return '{target}={func}({inputs})'.format(target=target, func=func, inputs=inputs)
+
+    def __repr__(self):
+        return self.get_brief_repr()
 
 
 class SingleFieldDescription(AbstractDescription, ABC):
@@ -98,7 +176,7 @@ class SingleFieldDescription(AbstractDescription, ABC):
             target_item_type=target_item_type, input_item_type=input_item_type,
             skip_errors=skip_errors, logger=logger,
         )
-        assert isinstance(field, (int, str)), 'got {} as {}'.format(field, type(field))
+        assert isinstance(field, (FieldName, FieldNo, FieldInterface)), 'got {} as {}'.format(field, type(field))
         self._target = field
         self._default = default
 
@@ -108,11 +186,17 @@ class SingleFieldDescription(AbstractDescription, ABC):
     def get_default_value(self) -> Value:
         return self._default
 
-    def get_target_field_name(self) -> Name:
-        return arg.get_name(self._target)
+    def get_target_field(self) -> Field:
+        return self._target
 
-    def get_input_field_names(self) -> list:
+    def get_output_fields(self, *args) -> list:
+        return [self.get_target_field()]
+
+    def get_input_fields(self) -> list:
         return list()
+
+    def get_target_field_name(self) -> Name:
+        return get_name(self.get_target_field())
 
     def get_input_values(self, item: Item) -> list:
         return it.get_fields_values_from_item(
@@ -120,9 +204,6 @@ class SingleFieldDescription(AbstractDescription, ABC):
             item=item, item_type=self.get_input_item_type(),
             skip_errors=self.must_skip_errors(), logger=self.get_logger(), default=self.get_default_value(),
         )
-
-    def get_output_field_names(self, *args) -> list:
-        yield self.get_target_field_name()
 
     def get_function(self) -> Callable:
         return lambda i: i
@@ -134,13 +215,27 @@ class SingleFieldDescription(AbstractDescription, ABC):
         else:
             return dict()
 
+    def set_target_field(self, field: Field, inplace: bool):
+        if inplace:
+            self._target = field
+            return self
+        else:
+            return self.make_new(field=field)
+
+    def to(self, field: Field):
+        if self.get_target_field() in ('_', AUTO, None):
+            self.set_target_field(field, inplace=True)
+            return self
+        else:
+            raise NotImplementedError
+
     @abstractmethod
     def get_value_from_item(self, item: Item) -> Value:
         pass
 
     def apply_inplace(self, item: Item) -> None:
         item_type = self.get_input_item_type()
-        if item_type == arg.AUTO:
+        if item_type == AUTO:
             item_type = ItemType.detect(item, default=ItemType.Any)
         it.set_to_item_inplace(
             field=self.get_target_field_name(),
@@ -187,8 +282,8 @@ class TrivialMultipleDescription(MultipleFieldDescription, ABC):
     def get_function(self) -> Callable:
         return lambda i: i
 
-    def get_input_field_names(self, struct: UniKey) -> Iterable:
-        return self.get_output_field_names(struct)
+    def get_input_fields(self, struct: UniKey) -> Iterable:
+        return self.get_output_fields(struct)
 
     def get_output_field_types(self, struct: UniKey) -> list:
         names = self.get_output_field_names(struct)

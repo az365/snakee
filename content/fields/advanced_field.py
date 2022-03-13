@@ -4,20 +4,26 @@ try:  # Assume we're a submodule in a package.
     from interfaces import (
         FieldInterface, RepresentationInterface, StructInterface, ExtLogger, SelectionLogger,
         FieldType, ReprType, ItemType,
-        Field, Class,
-        AutoBool, Auto, AUTO, ARRAY_TYPES,
+        Field, Class, Array, ARRAY_TYPES,
+        AutoBool, Auto, AUTO,
     )
+    from base.functions.arguments import get_name
+    from base.mixin.describe_mixin import DescribeMixin, AutoOutput
     from content.representations.repr_classes import ReprType
+    from content.selection.selectable_mixin import SelectableMixin
     from content.fields.abstract_field import AbstractField
     from content.selection import abstract_expression as ae, concrete_expression as ce
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         FieldInterface, RepresentationInterface, StructInterface, ExtLogger, SelectionLogger,
         FieldType, ReprType, ItemType,
-        Field, Class,
-        AutoBool, Auto, AUTO, ARRAY_TYPES,
+        Field, Class, Array, ARRAY_TYPES,
+        AutoBool, Auto, AUTO,
     )
+    from ...base.functions.arguments import get_name
+    from ...base.mixin.describe_mixin import DescribeMixin, AutoOutput
     from ..representations.repr_classes import ReprType
+    from ..selection.selectable_mixin import SelectableMixin
     from .abstract_field import AbstractField
     from ..selection import abstract_expression as ae, concrete_expression as ce
 
@@ -26,7 +32,7 @@ Native = AbstractField
 META_MEMBER_MAPPING = dict(_type='field_type', _data='extractors')
 
 
-class AdvancedField(AbstractField):
+class AdvancedField(AbstractField, SelectableMixin, DescribeMixin):
     def __init__(
             self,
             name: str,
@@ -219,3 +225,6 @@ class AdvancedField(AbstractField):
     @staticmethod
     def _assume_native(field) -> Native:
         return field
+
+    def __str__(self):
+        return self.get_detailed_repr()

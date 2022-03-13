@@ -1,21 +1,21 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Iterable, Union
+from typing import Optional, Generator, Union
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         LeafConnectorInterface, StructInterface, Stream, RecordStream, ItemType,
         AUTO, Auto, AutoCount, AutoBool, Columns, Array, Count,
     )
-    from base.mixin.describe_mixin import DescribeMixin
-    from base.functions.arguments import get_str_from_args_kwargs
+    from base.mixin.describe_mixin import DescribeMixin, AutoOutput, JUPYTER_LINE_LEN, CROP_SUFFIX
+    from base.functions.arguments import get_name, get_str_from_args_kwargs
     from functions.primary import dates as dt
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         LeafConnectorInterface, StructInterface, Stream, RecordStream, ItemType,
         AUTO, Auto, AutoCount, AutoBool, Columns, Array, Count,
     )
-    from ...base.mixin.describe_mixin import DescribeMixin
-    from ...base.functions.arguments import get_str_from_args_kwargs
+    from ...base.mixin.describe_mixin import DescribeMixin, AutoOutput, JUPYTER_LINE_LEN, CROP_SUFFIX
+    from ...base.functions.arguments import get_name, get_str_from_args_kwargs
     from ...functions.primary import dates as dt
 
 Native = LeafConnectorInterface
@@ -147,7 +147,7 @@ class ActualizeMixin(DescribeMixin, ABC):
         self.set_struct(validated_struct, inplace=True)
         return self
 
-    def get_invalid_columns(self) -> Iterable:
+    def get_invalid_columns(self) -> Generator:
         struct = self.get_struct()
         if hasattr(struct, 'get_fields'):
             for f in struct.get_fields():
@@ -199,7 +199,7 @@ class ActualizeMixin(DescribeMixin, ABC):
             message = 'file not exists, expected {} columns: {}'
         return message.format(self.get_column_count(), ', '.join(self.get_columns()))
 
-    def get_str_headers(self) -> Iterable:
+    def get_str_headers(self) -> Generator:
         yield "{}('{}') {}".format(self.__class__.__name__, self.get_name(), self.get_shape_repr())
 
     def get_useful_props(self) -> dict:
@@ -218,6 +218,22 @@ class ActualizeMixin(DescribeMixin, ABC):
                 is_existing=self.is_existing(),
                 path=self.get_path(),
             )
+
+    def get_one_line_repr(
+            self,
+            str_meta: Union[str, Auto, None] = AUTO,
+            max_len: int = JUPYTER_LINE_LEN,
+            crop: str = CROP_SUFFIX,
+    ) -> str:
+        if not Auto.is_defined(str_meta):
+            description_args = list()
+            name = get_name(self)
+            if name:
+                description_args.append(name)
+            if self.get_str_count(default=None) is not None:
+                description_args.append(self.get_shape_repr())
+            str_meta = get_str_from_args_kwargs(*description_args)
+        return super().get_one_line_repr(str_meta=str_meta, max_len=max_len, crop=crop)
 
     def _prepare_examples(
             self,
@@ -269,13 +285,14 @@ class ActualizeMixin(DescribeMixin, ABC):
             example: Optional[Stream] = None,
             columns: Optional[Array] = None,
             comment: str = '',
+            output: AutoOutput = AUTO,
     ):
         if not Auto.is_defined(example):
             example = self.to_record_stream()
         stream_example = example.take(count).collect()
         if comment:
-            self.log('')
-            self.log(comment)
+            self.output_line('', output=output)
+            self.output_line(comment, output=output)
         if stream_example:
             example = stream_example.get_demo_example(columns=columns)
             is_dataframe = hasattr(example, 'shape')
@@ -283,7 +300,7 @@ class ActualizeMixin(DescribeMixin, ABC):
                 return example
             else:
                 for line in example:
-                    self.log(line)
+                    self.output_line(line, output=output)
 
     def show(
             self,
@@ -305,18 +322,20 @@ class ActualizeMixin(DescribeMixin, ABC):
         )
 
     def describe(
-            self, *filter_args,
+            self,
+            *filter_args,
             count: Optional[int] = EXAMPLE_ROW_COUNT,
             columns: Optional[Array] = None,
             show_header: bool = True,
             struct_as_dataframe: bool = False,
             safe_filter: bool = True,
             actualize: AutoBool = AUTO,
+            output: AutoOutput = AUTO,
             **filter_kwargs
     ):
         if show_header:
             for line in self.get_str_headers():
-                self.log(line)
+                self.output_line(line, output=output)
         example_item, example_stream, example_comment = dict(), None, ''
         if self.is_existing():
             if Auto.acquire(actualize, not self.is_actual()):
@@ -330,14 +349,15 @@ class ActualizeMixin(DescribeMixin, ABC):
         else:
             message = '[NOT_EXISTS] file is not created yet, expected {} columns:'.format(self.get_column_count())
         if show_header:
-            self.log('{} {}'.format(self.get_datetime_str(), message))
+            self.output_line('{} {}'.format(self.get_datetime_str(), message))
             if self.get_invalid_fields_count():
-                self.log('Invalid columns: {}'.format(get_str_from_args_kwargs(*self.get_invalid_columns())))
-            self.log('')
+                line = 'Invalid columns: {}'.format(get_str_from_args_kwargs(*self.get_invalid_columns()))
+                self.output_line(line, output=output)
+            self.output_blank_line(output=output)
         struct = self.get_struct()
         struct_dataframe = struct.describe(
             as_dataframe=struct_as_dataframe, example=example_item,
-            logger=self.get_logger(), comment=example_comment,
+            output=output, comment=example_comment,
         )
         if struct_dataframe is not None:
             return struct_dataframe

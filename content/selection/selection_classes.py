@@ -47,7 +47,7 @@ def get_name_or_function(field) -> Union[int, str, Callable]:
 
 def get_selection_tuple(description: Union[AbstractDescription, Iterable], or_star: bool = True) -> Union[tuple, str]:
     if isinstance(description, AbstractDescription) or hasattr(description, 'get_selection_tuple'):
-        return description.get_selection_tuple()
+        return description.get_selection_tuple(including_target=True)
     elif isinstance(description, Iterable) and not isinstance(description, str):
         return tuple([get_name_or_function(f) for f in description])
     elif str(description) == STAR:

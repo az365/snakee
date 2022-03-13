@@ -60,11 +60,14 @@ class AbstractField(SimpleDataWrapper, FieldInterface, ABC):
         else:
             return default
 
-    def __repr__(self):
+    def get_str_repr(self) -> str:
+        return self.get_name()
+
+    def get_brief_repr(self) -> str:
         return '{}: {}'.format(self.get_name(), self.get_type_name())
 
     def __str__(self):
-        return self.get_name()
+        return self.get_detailed_repr()
 
     def __add__(self, other: Union[FieldInterface, StructInterface, str]) -> StructInterface:
         struct_builder = self.get_struct_builder()

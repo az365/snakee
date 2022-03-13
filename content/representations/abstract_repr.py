@@ -4,19 +4,21 @@ try:  # Assume we're a submodule in a package.
     from base.classes.auto import Auto, AUTO
     from base.classes.typing import Value, Count
     from base.abstract.abstract_base import AbstractBaseObject
+    from base.mixin.describe_mixin import DescribeMixin
     from content.representations.repr_constants import DEFAULT_STR, CROP_SUFFIX, FILL_CHAR
     from content.representations.repr_interface import RepresentationInterface, ReprType, OptKey
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.classes.auto import Auto, AUTO
     from ...base.classes.typing import Value, Count
     from ...base.abstract.abstract_base import AbstractBaseObject
+    from ...base.mixin.describe_mixin import DescribeMixin
     from .repr_constants import DEFAULT_STR, CROP_SUFFIX, FILL_CHAR
     from .repr_interface import RepresentationInterface, ReprType, OptKey
 
 Native = RepresentationInterface
 
 
-class AbstractRepresentation(AbstractBaseObject, RepresentationInterface, ABC):
+class AbstractRepresentation(AbstractBaseObject, DescribeMixin, RepresentationInterface, ABC):
     def __init__(
             self,
             align_right: bool = False,

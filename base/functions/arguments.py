@@ -88,10 +88,22 @@ def get_str_from_args_kwargs(
         *args,
         delimiter: str = '=',
         remove_prefixes: Optional[Iterable] = None,
+        kwargs_order: Optional[Iterable] = None,
         **kwargs
 ) -> str:
     list_str_from_kwargs = list()
-    for k, v in kwargs.items():
+    if kwargs_order is None:
+        ordered_kwargs_items = kwargs.items()
+    else:
+        kwargs_order = list(kwargs_order)
+        ordered_kwargs_items = list()
+        for k in kwargs_order:
+            if k in kwargs:
+                ordered_kwargs_items.append((k, kwargs[k]))
+        for k, v in kwargs.items():
+            if k not in kwargs_order:
+                ordered_kwargs_items.append((k, v))
+    for k, v in ordered_kwargs_items:
         if isclass(v):
             v_str = v.__name__
         else:

@@ -3,12 +3,14 @@ from functools import total_ordering
 from typing import Optional, Callable, Iterable, Union, Type
 
 try:  # Assume we're a submodule in a package.
-    from utils import arguments as arg
+    from utils.arguments import get_name, get_str_from_args_kwargs
+    from base.classes.auto import Auto, AUTO
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
+    from ...utils.arguments import get_name, get_str_from_args_kwargs
+    from .auto import Auto, AUTO
 
 Name = str
-Value = Union[str, int, arg.Auto]
+Value = Union[str, int, Auto]
 Class = Union[Type, Callable]
 
 AUX_NAMES = ('name', 'value', 'is_prepared')
@@ -18,11 +20,11 @@ AUX_NAMES = ('name', 'value', 'is_prepared')
 class EnumItem:
     _auto_value = True
 
-    def __init__(self, name: Name, value: Union[Value, arg.Auto] = arg.AUTO, update: bool = False):
+    def __init__(self, name: Name, value: Union[Value, Auto] = AUTO, update: bool = False):
         if update or not self._is_initialized():
-            name = arg.get_name(name)
+            name = get_name(name)
             if self._auto_value:
-                value = arg.acquire(value, name)
+                value = Auto.acquire(value, name)
             self.name = name
             self.value = value
 
@@ -63,10 +65,10 @@ class EnumItem:
         return other_str == self.get_name() or other_str == self.get_value()
 
     def __str__(self):
-        return '{}.{}'.format(self.__class__.__name__, self.get_name())
+        return "<{}.{}: '{}'>".format(self.__class__.__name__, self.get_name(), self.get_value())
 
     def __repr__(self):
-        return "<{}.{}: '{}'>".format(self.__class__.__name__, self.get_name(), self.get_value())
+        return '{}.{}'.format(self.__class__.__name__, self.get_name())
 
     def __hash__(self):
         return hash(self.get_value())
@@ -111,7 +113,7 @@ class DynamicEnum(EnumItem):
     def convert(
             cls,
             obj: Union[EnumItem, Name],
-            default: Union[EnumItem, arg.Auto, None] = arg.AUTO,
+            default: Union[EnumItem, Auto, None] = AUTO,
             skip_missing: bool = False,
     ):
         assert cls.is_prepared(), 'DynamicEnum must be prepared before usage'
@@ -121,7 +123,7 @@ class DynamicEnum(EnumItem):
             instance = cls.find_instance(string)
             if instance:
                 return instance
-        default = arg.delayed_acquire(default, cls.get_default)
+        default = Auto.delayed_acquire(default, cls.get_default)
         if default:
             return cls.convert(default)
         elif not skip_missing:
@@ -133,6 +135,9 @@ class DynamicEnum(EnumItem):
             return cls.__dict__[instance]
         else:
             for item in cls.get_enum_items():
+                if isinstance(item, str):
+                    msg = '{cls}(DynamicEnum) class must be prepared before using. Run {cls}.prepare() previously.'
+                    raise ValueError(msg.format(cls=cls.__name__))
                 if instance in (item, item.get_name(), item.get_value(), str(item)):
                     return item
 
@@ -146,7 +151,7 @@ class DynamicEnum(EnumItem):
             try:
                 return cls.convert(*args[1:], **kwargs)
             except ValueError as e:
-                str_args = arg.get_str_from_args_kwargs(*args, **kwargs)
+                str_args = get_str_from_args_kwargs(*args, **kwargs)
                 msg = '{}({}): {}'.format(cls.__name__, str_args, e)
                 raise ValueError(msg)
 
@@ -162,11 +167,11 @@ class DynamicEnum(EnumItem):
     def prepare(cls) -> Type:
         dict_copy = cls.__dict__.copy()
         for name, value in dict_copy.items():
-            if isinstance(value, (str, int, arg.Auto)) and not cls._is_aux_name(name):
+            if isinstance(value, (str, int, Auto)) and not cls._is_aux_name(name):
                 item = cls(name, value)
                 cls.add_enum_item(item)
                 setattr(cls, name, item)
-                if value == arg.AUTO:
+                if value == AUTO:
                     cls.set_default(item)
         cls.set_prepared(True)
         return cls
