@@ -13,6 +13,7 @@ try:  # Assume we're a submodule in a package.
     from base.abstract.simple_data import SimpleDataWrapper
     from base.abstract.tree_item import TreeItem
     from base.mixin.iterable_mixin import IterableInterface, IterableMixin
+    from base.mixin.describe_mixin import DescribeMixin
     from base.classes.auto import Auto, AUTO
     from base.classes.enum import EnumItem, DynamicEnum, ClassType, SubclassesType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -30,5 +31,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .abstract.simple_data import SimpleDataWrapper
     from .abstract.tree_item import TreeItem
     from .mixin.iterable_mixin import IterableInterface, IterableMixin
+    from .mixin.describe_mixin import DescribeMixin
     from .classes.auto import Auto, AUTO
     from .classes.enum import EnumItem, DynamicEnum, ClassType, SubclassesType

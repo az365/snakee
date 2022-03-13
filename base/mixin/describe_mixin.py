@@ -196,72 +196,153 @@ class DescribeMixin(ABC):
             one_line_repr = template.format(cls=class_name, meta=str_meta + crop)
         return one_line_repr
 
-    def get_detailed_repr(self) -> str:
-        return '{}({})'.format(self.__class__.__name__, self.get_str_meta())
+    def get_str_headers(self) -> Generator:
+        yield self.get_one_line_repr()
 
-    def show(
+    def _get_init_defaults(self) -> dict:
+        args = getfullargspec(self.__init__).args
+        defaults = getfullargspec(self.__init__).defaults
+        no_default_count = len(args) - len(defaults)
+        return dict(zip(args[no_default_count:], defaults))
+
+    def _get_init_types(self) -> dict:
+        return getfullargspec(self.__init__).annotations
+
+    def has_data(self) -> bool:
+        if hasattr(self, 'get_data'):
+            return bool(self.get_data())
+        else:
+            return False
+
+    @staticmethod
+    def _get_value_repr(value: Value, default: str = '-') -> str:
+        if isinstance(value, Callable):
+            return get_name(value, or_callable=False)
+        elif value is not None:
+            return repr(value)
+        else:
+            return default
+
+    def get_meta_defaults(self) -> Generator:
+        meta = self.get_meta()
+        args = getfullargspec(self.__init__).args
+        defaults = getfullargspec(self.__init__).defaults
+        for k, v in zip(args, defaults):
+            if k in meta:
+                yield k, v
+        for k in meta:
+            if k not in args:
+                yield None
+
+    def get_meta_records(self) -> Generator:
+        init_defaults = self._get_init_defaults()
+        for key, value in self.get_meta_items():
+            actual_type = type(value).__name__
+            expected_type = self._get_init_types().get(key)
+            if hasattr(expected_type, '__name__'):
+                expected_type = expected_type.__name__
+            else:
+                expected_type = str(expected_type).replace('typing.', '')
+            default = init_defaults.get(key)
+            yield dict(
+                key=key,
+                value=self._get_value_repr(value),
+                default=self._get_value_repr(default),
+                actual_type=actual_type,
+                expected_type=expected_type or '-',
+                defined='-' if value == default else '+' if Auto.is_defined(value) else 'x',
+            )
+
+    def get_data_description(
             self,
             count: int = DEFAULT_ROWS_COUNT,
-            message: Optional[str] = None,
-            filters: Columns = None,
-            columns: Columns = None,
-            actualize: AutoBool = Auto,
-            as_dataframe: AutoBool = Auto,
-            **kwargs
-    ):
-        if hasattr(self, 'actualize'):
-            if Auto.is_auto(actualize):
-                self.actualize(if_outdated=True)
-            elif actualize:
-                self.actualize(if_outdated=False)
-        return self.to_record_stream(message=message).show(
-            count=count, as_dataframe=as_dataframe,
-            filters=filters or list(), columns=columns,
+            title: Optional[str] = 'Data:',
+            max_len: int = JUPYTER_LINE_LEN,
+    ) -> Generator:
+        if title:
+            yield title
+        if hasattr(self, 'get_data_caption'):
+            yield self.get_data_caption()
+        if hasattr(self, 'get_data'):
+            data = self.get_data()
+            if data:
+                shape_repr = self.get_shape_repr()
+                if shape_repr:
+                    yield 'First {count} data items from {shape}:'.format(count=count, shape=shape_repr)
+                if isinstance(data, dict):
+                    records = map(
+                        lambda i: dict(key=i[0], value=i[1], defined='+' if Auto.is_defined(i[1]) else '-'),
+                        data.items(),
+                    )
+                    yield from self._get_columnar_lines(
+                        records, columns=DICT_DESCRIPTION_COLUMNS, count=count, max_len=max_len,
+                    )
+                elif isinstance(data, Iterable):
+                    for n, item in enumerate(data):
+                        if n >= count:
+                            break
+                        line = '    - ' + str(item)
+                        yield line[:max_len]
+                elif isinstance(data, DescribeMixin) or hasattr(data, 'get_meta_description'):
+                    for line in data.get_meta_description():
+                        yield line
+                else:
+                    line = str(data)
+                    yield line[:max_len]
+            else:
+                yield '(data attribute is empty)'
+        else:
+            yield '(data attribute not found)'
+
+    def get_meta_description(
+            self,
+            with_title: bool = True,
+            with_summary: bool = True,
+            prefix: str = PREFIX_VALUE,
+            delimiter: str = COLUMN_DELIMITER,
+    ) -> Generator:
+        if with_summary:
+            yield '{name} has {count} attributes in meta-data:'.format(name=repr(self), count=len(self.get_meta()))
+        yield from self._get_columnar_lines(
+            records=self.get_meta_records(),
+            columns=META_DESCRIPTION_COLUMNS,
+            with_title=with_title,
+            prefix=prefix,
+            delimiter=delimiter,
         )
 
     def describe(
             self,
-            *filter_args,
-            count: Optional[int] = DEFAULT_ROWS_COUNT,
-            columns: Optional[Array] = None,
             show_header: bool = True,
-            struct_as_dataframe: bool = False,
-            safe_filter: bool = True,
-            actualize: AutoBool = AUTO,
+            count: AutoCount = AUTO,
+            depth: int = 1,
             output: AutoOutput = AUTO,
-            **filter_kwargs
+            as_dataframe: bool = Auto,
+            **kwargs
     ):
+        as_dataframe = Auto.acquire(as_dataframe, hasattr(self, 'show') or hasattr(self, 'show_example'))
+        show_meta = show_header or not self.has_data()
         if show_header:
             for line in self.get_str_headers():
                 self.output_line(line, output=output)
-        example_item, example_stream, example_comment = dict(), None, ''
-        if self.is_existing():
-            if Auto.acquire(actualize, not self.is_actual()):
-                self.actualize()
-            if self.is_empty():
-                message = '[EMPTY] file is empty, expected {} columns:'.format(self.get_column_count())
-            else:
-                message = self.get_validation_message()
-                example_tuple = self._prepare_examples(safe_filter=safe_filter, filters=filter_args, **filter_kwargs)
-                example_item, example_stream, example_comment = example_tuple
-        else:
-            message = '[NOT_EXISTS] file is not created yet, expected {} columns:'.format(self.get_column_count())
-        if show_header:
-            line = '{} {}'.format(self.get_datetime_str(), message)
-            self.output_line(line, output=output)
-            if self.get_invalid_fields_count():
-                line = 'Invalid columns: {}'.format(get_str_from_args_kwargs(*self.get_invalid_columns()))
+        if show_meta:
+            for line in self.get_meta_description():
                 self.output_line(line, output=output)
-            self.output_blank_line(output=output)
-        struct = self.get_struct()
-        struct_dataframe = struct.describe(
-            as_dataframe=struct_as_dataframe, example=example_item,
-            output=output, comment=example_comment,
-        )
-        if struct_dataframe is not None:
-            return struct_dataframe
-        if example_stream and count:
-            return self.show_example(
-                count=count, example=example_stream,
-                columns=columns, comment=example_comment,
-            )
+        if self.has_data():
+            if not as_dataframe:
+                self.output_blank_line(output=output)
+                for line in self.get_data_description(count=count, **kwargs):
+                    self.output_line(line, output=output)
+        elif depth > 0:
+            for attribute, value in self.get_meta_items():
+                if isinstance(value, DescribeMixin) or hasattr(value, 'describe'):
+                    self.output_blank_line(output=output)
+                    self.output_line('{attribute}:'.format(attribute=attribute), output=output)
+                    value.describe(show_header=False, depth=depth - 1, output=output)
+        if self.has_data() and as_dataframe:
+            if hasattr(self, 'show_example'):
+                return self.show_example(count=count, **kwargs)
+            elif hasattr(self, 'show'):
+                return self.show(count=count, **kwargs)
+            else:
+                raise AttributeError('{} does not support dataframe'.format(self))

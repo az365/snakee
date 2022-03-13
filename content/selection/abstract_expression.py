@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Iterable, Callable, Any
+from typing import Optional, Callable, Iterable, Generator, Union, Any
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
@@ -8,6 +8,8 @@ try:  # Assume we're a submodule in a package.
         AUTO, Auto,
     )
     from base.functions.arguments import get_name, get_names
+    from base.abstract.abstract_base import AbstractBaseObject
+    from base.mixin.describe_mixin import DescribeMixin, AutoOutput, JUPYTER_LINE_LEN, CROP_SUFFIX
     from functions.primary import items as it
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
@@ -16,10 +18,12 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         AUTO, Auto,
     )
     from ...base.functions.arguments import get_name, get_names
+    from ...base.abstract.abstract_base import AbstractBaseObject
+    from ...base.mixin.describe_mixin import DescribeMixin, AutoOutput, JUPYTER_LINE_LEN, CROP_SUFFIX
     from ...functions.primary import items as it
 
 
-class AbstractDescription(ABC):
+class AbstractDescription(DescribeMixin, AbstractBaseObject, ABC):
     def __init__(
             self,
             target_item_type: ItemType,
@@ -97,14 +101,65 @@ class AbstractDescription(ABC):
     def apply_inplace(self, item: Item) -> None:
         pass
 
-    def __repr__(self):
-        return str(self)
+    def get_output(self, output: AutoOutput = AUTO) -> Optional[Class]:
+        if Auto.is_defined(output) and not isinstance(output, (LoggingLevel, int)):
+            return output
+        else:
+            return print
 
-    def __str__(self):
-        inputs = ', '.join(map(str, self.get_input_field_names()))
-        outputs = ', '.join(map(str, self.get_output_field_names()))
+    def _get_linked_fields_descriptions(
+            self,
+            fields: Union[Iterable, Auto] = AUTO,
+            group_name: str = 'used',
+            prefix: str = '    - ',
+            max_len: int = JUPYTER_LINE_LEN,
+    ) -> Generator:
+        fields = list(Auto.delayed_acquire(fields, self.get_linked_fields))
+        count = len(fields)
+        yield '{count} {name} fields:'.format(count=count, name=group_name)
+        for f in fields:
+            if isinstance(f, DescribeMixin) or hasattr(f, 'get_one_line_repr'):
+                f_repr = f.get_one_line_repr(max_len=120)
+            else:
+                f_repr = repr(f)
+            f_repr = prefix + f_repr
+            if len(f_repr) > max_len:
+                f_repr = f_repr[:max_len - len(CROP_SUFFIX)] + CROP_SUFFIX
+            yield f_repr
+
+    def get_detailed_fields_description(self) -> Generator:
+        for f in self.get_linked_fields():
+            if hasattr(f, 'get_meta_description'):
+                # yield repr(f) + ':'
+                yield from f.get_meta_description()
+
+    def get_data_description(
+            self,
+            count: Optional[int] = None,
+            title: Optional[str] = 'Linked fields:',
+            max_len: int = JUPYTER_LINE_LEN,
+    ) -> Generator:
+        input_fields = self.get_input_fields()
+        output_fields = self.get_output_fields()
+        if input_fields:
+            yield from self._get_linked_fields_descriptions(fields=input_fields, group_name='input')
+        if output_fields:
+            yield from self._get_linked_fields_descriptions(fields=output_fields, group_name='output')
+        detailed_description = list(self.get_detailed_fields_description())
+        if detailed_description:
+            yield '\nDetailed fields descriptions:\n'
+            yield from detailed_description
+
+    def get_brief_repr(self) -> str:
+        inputs = ', '.join(map(get_name, self.get_input_field_names()))
+        target = ', '.join(map(get_name, self.get_target_field_name()))
         func = self.get_function().__name__
-        return '{outputs}={func}({inputs})'.format(outputs=outputs, func=func, inputs=inputs)
+        if func == '<lambda>':
+            func = 'lambda'
+        return '{target}={func}({inputs})'.format(target=target, func=func, inputs=inputs)
+
+    def __repr__(self):
+        return self.get_brief_repr()
 
 
 class SingleFieldDescription(AbstractDescription, ABC):
