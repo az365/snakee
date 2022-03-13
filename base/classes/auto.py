@@ -87,5 +87,13 @@ class Auto:
         else:
             return cls.simple_acquire(current, default)
 
+    @classmethod
+    def multi_acquire(cls, *values):
+        for v in values:
+            if not cls.is_auto(v):
+                return v
+        if values:
+            return values[0]
+
 
 AUTO = Auto()
