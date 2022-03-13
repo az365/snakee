@@ -8,6 +8,7 @@ try:  # Assume we're a submodule in a package.
         AutoBool, Auto, AUTO, ARRAY_TYPES,
     )
     from content.representations.repr_classes import ReprType
+    from content.selection.selectable_mixin import SelectableMixin
     from content.fields.abstract_field import AbstractField
     from content.selection import abstract_expression as ae, concrete_expression as ce
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -18,6 +19,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         AutoBool, Auto, AUTO, ARRAY_TYPES,
     )
     from ..representations.repr_classes import ReprType
+    from ..selection.selectable_mixin import SelectableMixin
     from .abstract_field import AbstractField
     from ..selection import abstract_expression as ae, concrete_expression as ce
 
@@ -26,7 +28,7 @@ Native = AbstractField
 META_MEMBER_MAPPING = dict(_type='field_type', _data='extractors')
 
 
-class AdvancedField(AbstractField):
+class AdvancedField(AbstractField, SelectableMixin):
     def __init__(
             self,
             name: str,

@@ -16,6 +16,7 @@ try:  # Assume we're a submodule in a package.
     from content.fields.advanced_field import AdvancedField
     from content.items.simple_items import SelectableItem, is_row, is_record
     from content.selection.abstract_expression import AbstractDescription
+    from content.selection.selectable_mixin import SelectableMixin
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         StructInterface, StructRowInterface, FieldInterface, RepresentationInterface,
@@ -32,6 +33,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..fields.advanced_field import AdvancedField
     from ..items.simple_items import SelectableItem, is_row, is_record
     from ..selection.abstract_expression import AbstractDescription
+    from ..selection.selectable_mixin import SelectableMixin
 
 Native = StructInterface
 Group = Union[Native, Iterable]
@@ -44,7 +46,7 @@ META_MEMBER_MAPPING = dict(_data='fields')
 GROUP_TYPE_STR = 'GROUP'
 
 
-class FlatStruct(SimpleDataWrapper, DescribeMixin, StructInterface):
+class FlatStruct(SimpleDataWrapper, DescribeMixin, SelectableMixin, StructInterface):
     def __init__(
             self,
             fields: Iterable,

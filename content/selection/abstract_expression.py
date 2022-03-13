@@ -1,19 +1,21 @@
 from abc import ABC, abstractmethod
 from typing import Optional, Iterable, Callable, Any
 
-try:  # Assume we're a sub-module in a package.
-    from utils import arguments as arg
+try:  # Assume we're a submodule in a package.
     from interfaces import (
         StructRowInterface, StructInterface, LoggerInterface,
-        ItemType, Item, Row, Record, UniKey, Field, Name, Value, Array,
+        ItemType, Item, UniKey, Field, Name, Value, Array,
+        AUTO, Auto,
     )
+    from base.functions.arguments import get_name, get_names
     from functions.primary import items as it
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
     from ...interfaces import (
         StructRowInterface, StructInterface, LoggerInterface,
-        ItemType, Item, Row, Record, UniKey, Field, Name, Value, Array,
+        ItemType, Item, UniKey, Field, Name, Value, Array,
+        AUTO, Auto,
     )
+    from ...base.functions.arguments import get_name, get_names
     from ...functions.primary import items as it
 
 
@@ -109,7 +111,7 @@ class SingleFieldDescription(AbstractDescription, ABC):
         return self._default
 
     def get_target_field_name(self) -> Name:
-        return arg.get_name(self._target)
+        return get_name(self._target)
 
     def get_input_field_names(self) -> list:
         return list()
@@ -134,13 +136,20 @@ class SingleFieldDescription(AbstractDescription, ABC):
         else:
             return dict()
 
+    def to(self, field: Field):
+        if self.get_target_field() in ('_', AUTO, None):
+            self.set_target_field(field, inplace=True)
+            return self
+        else:
+            raise NotImplementedError
+
     @abstractmethod
     def get_value_from_item(self, item: Item) -> Value:
         pass
 
     def apply_inplace(self, item: Item) -> None:
         item_type = self.get_input_item_type()
-        if item_type == arg.AUTO:
+        if item_type == AUTO:
             item_type = ItemType.detect(item, default=ItemType.Any)
         it.set_to_item_inplace(
             field=self.get_target_field_name(),
