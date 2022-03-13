@@ -1,12 +1,12 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Union, Iterable
+from typing import Optional, Iterable, Generator, Union
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.auto import AUTO
+    from base.classes.auto import AUTO, Auto
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..classes.auto import AUTO
+    from ..classes.auto import AUTO, Auto
 
-OptionalFields = Optional[Union[str, Iterable]]
+OptionalFields = Union[str, Iterable, None]
 
 
 class BaseInterface(ABC):
@@ -49,6 +49,14 @@ class BaseInterface(ABC):
 
     @abstractmethod
     def get_compatible_meta(self, other=AUTO, ex: Optional[Iterable] = None, **kwargs) -> dict:
+        pass
+
+    @abstractmethod
+    def get_ordered_meta_names(self, meta: Union[dict, Auto] = AUTO) -> Generator:
+        pass
+
+    @abstractmethod
+    def get_meta_items(self, meta: Union[dict, Auto] = AUTO) -> Generator:
         pass
 
     @abstractmethod

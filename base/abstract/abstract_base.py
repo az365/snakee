@@ -1,13 +1,14 @@
 from abc import ABC
 from typing import Union, Optional, Iterable, Generator
+from inspect import getfullargspec
 
 try:  # Assume we're a submodule in a package.
     from base.classes.auto import Auto, AUTO
-    from base.functions.arguments import get_list
+    from base.functions.arguments import get_list, get_str_from_args_kwargs
     from base.interfaces.base_interface import BaseInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.auto import Auto, AUTO
-    from ..functions.arguments import get_list
+    from ..functions.arguments import get_list, get_str_from_args_kwargs
     from ..interfaces.base_interface import BaseInterface
 
 Native = BaseInterface
@@ -153,6 +154,21 @@ class AbstractBaseObject(BaseInterface, ABC):
                 compatible_meta[k] = v
         return compatible_meta
 
+    def get_ordered_meta_names(self, meta: Union[dict, Auto] = AUTO) -> Generator:
+        meta = Auto.delayed_acquire(meta, self.get_meta)
+        args = getfullargspec(self.__init__).args
+        for k in args:
+            if k in meta:
+                yield k
+        for k in meta:
+            if k not in args:
+                yield k
+
+    def get_meta_items(self, meta: Union[dict, Auto] = AUTO) -> Generator:
+        meta = Auto.delayed_acquire(meta, self.get_meta)
+        for k in self.get_ordered_meta_names(meta):
+            yield k, meta[k]
+
     @staticmethod
     def _get_covert_props() -> tuple:
         return tuple()
@@ -172,8 +188,8 @@ class AbstractBaseObject(BaseInterface, ABC):
 
     def get_str_meta(self) -> str:
         args_str = [i.__repr__() for i in self._get_meta_args()]
-        kwargs_str = ['{}={}'.format(k, v) for k, v in self._get_meta_kwargs(except_covert=True).items()]
-        return ', '.join(args_str + kwargs_str)
+        meta_kwargs = self._get_meta_kwargs(except_covert=True)
+        return get_str_from_args_kwargs(*args_str, **meta_kwargs, kwargs_order=self.get_ordered_meta_names())
 
     def get_detailed_repr(self) -> str:
         return '{}({})'.format(self.__class__.__name__, self.get_str_meta())
