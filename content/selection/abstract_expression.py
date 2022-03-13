@@ -84,8 +84,14 @@ class AbstractDescription(ABC):
         types = self.get_output_field_types(struct)
         return dict(zip(names, types))
 
-    def get_selection_tuple(self) -> tuple:
-        return (self.get_function(), *self.get_input_field_names())
+    def has_data(self) -> bool:
+        return bool(self.get_input_fields()) or bool(self.get_output_fields())
+
+    def get_selection_tuple(self, including_target: bool = False) -> tuple:
+        if including_target:
+            return (self.get_target_field_name(), self.get_function(), *self.get_input_field_names())
+        else:
+            return (self.get_function(), *self.get_input_field_names())
 
     @abstractmethod
     def apply_inplace(self, item: Item) -> None:
