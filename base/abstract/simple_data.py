@@ -2,22 +2,23 @@ from abc import ABC
 from typing import Union, Optional, Iterable, Any, NoReturn
 
 try:  # Assume we're a submodule in a package.
-    from utils.arguments import get_str_from_annotation, get_str_from_args_kwargs
-    from base.classes.auto import AUTO
+    from base.classes.auto import AUTO, Auto
+    from base.functions.arguments import get_str_from_annotation, get_str_from_args_kwargs
     from base.interfaces.context_interface import ContextInterface
     from base.interfaces.contextual_interface import ContextualInterface
     from base.interfaces.data_interface import SimpleDataInterface
     from base.abstract.named import AbstractNamed
     from base.abstract.contextual import Contextual
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils.arguments import get_str_from_annotation, get_str_from_args_kwargs
-    from ..classes.auto import AUTO
+    from ..classes.auto import AUTO, Auto
+    from ..functions.arguments import get_str_from_annotation, get_str_from_args_kwargs
     from ..interfaces.context_interface import ContextInterface
     from ..interfaces.contextual_interface import ContextualInterface
     from ..interfaces.data_interface import SimpleDataInterface
     from .named import AbstractNamed
     from .contextual import Contextual
 
+Native = SimpleDataInterface
 Data = Union[Iterable, Any]
 OptionalFields = Optional[Union[str, Iterable]]
 Source = Optional[ContextualInterface]
@@ -41,7 +42,7 @@ class SimpleDataWrapper(AbstractNamed, SimpleDataInterface, ABC):
     def get_data(self) -> Data:
         return self._data
 
-    def set_data(self, data: Data, inplace: bool, reset_dynamic_meta: bool = True, **kwargs):
+    def set_data(self, data: Data, inplace: bool, reset_dynamic_meta: bool = True, **kwargs) -> Native:
         if inplace:
             self._data = data
             if reset_dynamic_meta:
@@ -51,6 +52,7 @@ class SimpleDataWrapper(AbstractNamed, SimpleDataInterface, ABC):
             meta.update(kwargs)
             if meta:
                 self.set_meta(**meta, inplace=True)
+            return self
         else:
             if reset_dynamic_meta:
                 meta = self.get_static_meta()
@@ -69,11 +71,9 @@ class SimpleDataWrapper(AbstractNamed, SimpleDataInterface, ABC):
         arg_str = get_str_from_args_kwargs(*args, **kwargs)
         raise TypeError('{}: {}({}) {}'.format(msg, class_name, arg_str, ann_str))
 
-    def apply_to_data(self, function, *args, dynamic=False, **kwargs):
-        return self.__class__(
-            data=function(self.get_data(), *args, **kwargs),
-            **self.get_static_meta() if dynamic else self.get_meta()
-        )
+    def apply_to_data(self, function, *args, dynamic=False, inplace: bool = False, **kwargs) -> Native:
+        data = function(self.get_data(), *args, **kwargs)
+        return self.set_data(data, inplace=inplace, reset_dynamic_meta=dynamic)
 
     @staticmethod
     def _get_dynamic_meta_fields() -> tuple:
