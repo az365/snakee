@@ -219,6 +219,22 @@ class ActualizeMixin(DescribeMixin, ABC):
                 path=self.get_path(),
             )
 
+    def get_one_line_repr(
+            self,
+            str_meta: Union[str, Auto, None] = AUTO,
+            max_len: int = JUPYTER_LINE_LEN,
+            crop: str = CROP_SUFFIX,
+    ) -> str:
+        if not Auto.is_defined(str_meta):
+            description_args = list()
+            name = get_name(self)
+            if name:
+                description_args.append(name)
+            if self.get_str_count(default=None) is not None:
+                description_args.append(self.get_shape_repr())
+            str_meta = get_str_from_args_kwargs(*description_args)
+        return super().get_one_line_repr(str_meta=str_meta, max_len=max_len, crop=crop)
+
     def _prepare_examples(
             self,
             *filters,

@@ -25,7 +25,7 @@ META_DESCRIPTION_COLUMNS = [
 ]
 DICT_DESCRIPTION_COLUMNS = [(PREFIX_FIELD, 3), ('key', 20), 'value']
 JUPYTER_LINE_LEN = 120
-DEFAULT_SHOW_COUNT = 10
+DEFAULT_ROWS_COUNT = 10
 
 
 class DescribeMixin(ABC):
@@ -174,26 +174,34 @@ class DescribeMixin(ABC):
             column_repr = None
         dimensions_repr = list()
         if len_repr:
-            dimensions_repr += len_repr
+            dimensions_repr.append(len_repr)
         if column_repr:
-            dimensions_repr += column_repr
+            dimensions_repr.append(column_repr)
         return ', '.join(dimensions_repr)
 
-    def get_one_line_repr(self) -> str:
-        description_args = list()
-        name = self.get_name()
-        if name:
-            description_args.append(name)
-        if self.get_str_count(default=None) is not None:
-            description_args.append(self.get_shape_repr())
-        return '{}({})'.format(self.__class__, get_str_from_args_kwargs(*description_args))
+    def get_one_line_repr(
+            self,
+            str_meta: Union[str, Auto, None] = AUTO,
+            max_len: int = JUPYTER_LINE_LEN,
+            crop: str = CROP_SUFFIX,
+    ) -> str:
+        template = '{cls}({meta})'
+        class_name = self.__class__.__name__
+        str_meta = Auto.delayed_acquire(str_meta, self.get_str_meta)
+        one_line_repr = template.format(cls=class_name, meta=str_meta)
+        full_line_len = len(one_line_repr)
+        if full_line_len > max_len:
+            exceeded_len = full_line_len + len(crop) - max_len
+            str_meta = str_meta[:-exceeded_len]
+            one_line_repr = template.format(cls=class_name, meta=str_meta + crop)
+        return one_line_repr
 
     def get_detailed_repr(self) -> str:
         return '{}({})'.format(self.__class__.__name__, self.get_str_meta())
 
     def show(
             self,
-            count: int = DEFAULT_SHOW_COUNT,
+            count: int = DEFAULT_ROWS_COUNT,
             message: Optional[str] = None,
             filters: Columns = None,
             columns: Columns = None,
@@ -214,7 +222,7 @@ class DescribeMixin(ABC):
     def describe(
             self,
             *filter_args,
-            count: Optional[int] = DEFAULT_SHOW_COUNT,
+            count: Optional[int] = DEFAULT_ROWS_COUNT,
             columns: Optional[Array] = None,
             show_header: bool = True,
             struct_as_dataframe: bool = False,
