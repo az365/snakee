@@ -1,6 +1,6 @@
 try:  # Assume we're a submodule in a package.
     from functions.secondary.basic_functions import (
-        partial, const, defined, is_none, not_none, nonzero, equal, not_equal,
+        same, partial, const, defined, is_none, not_none, nonzero, equal, not_equal,
         at_least, more_than, safe_more_than, less_than, between, not_between, is_ordered,
         apply_dict, acquire,
     )
@@ -25,12 +25,12 @@ try:  # Assume we're a submodule in a package.
     from functions.secondary.logic_functions import maybe, always, never
     from functions.secondary.item_functions import (
         composite_key, value_by_key, values_by_keys, is_in_sample,
-        same, merge_two_items, items_to_dict,
+        merge_two_items, items_to_dict,
         json_dumps, json_loads, csv_loads, csv_reader,
     )
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from .basic_functions import (
-        partial, const, defined, is_none, not_none, nonzero, equal, not_equal,
+        same, partial, const, defined, is_none, not_none, nonzero, equal, not_equal,
         at_least, more_than, safe_more_than, less_than, between, not_between, is_ordered,
         apply_dict, acquire,
     )
@@ -55,6 +55,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .logic_functions import maybe, always, never
     from .item_functions import (
         composite_key, value_by_key, values_by_keys, is_in_sample,
-        same, merge_two_items, items_to_dict,
+        merge_two_items, items_to_dict,
         json_dumps, json_loads, csv_loads, csv_reader,
     )
