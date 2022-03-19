@@ -349,13 +349,14 @@ class ActualizeMixin(DescribeMixin, ABC):
         else:
             message = '[NOT_EXISTS] file is not created yet, expected {} columns:'.format(self.get_column_count())
         if show_header:
-            self.output_line('{} {}'.format(self.get_datetime_str(), message))
+            self.output_line('{} {}'.format(self.get_datetime_str(), message), output=output)
             if self.get_invalid_fields_count():
                 line = 'Invalid columns: {}'.format(get_str_from_args_kwargs(*self.get_invalid_columns()))
                 self.output_line(line, output=output)
             self.output_blank_line(output=output)
         struct = self.get_struct()
         struct_dataframe = struct.describe(
+            show_header=False,
             as_dataframe=struct_as_dataframe, example=example_item,
             output=output, comment=example_comment,
         )

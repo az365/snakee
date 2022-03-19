@@ -5,7 +5,7 @@ from inspect import getfullargspec
 try:  # Assume we're a submodule in a package.
     from base.classes.typing import AUTO, Auto, AutoBool, AutoCount, Columns, Class, Value, Array, ARRAY_TYPES
     from base.functions.arguments import get_name, get_str_from_args_kwargs
-    from base.interfaces.data_interface import SimpleDataInterfaced
+    from base.interfaces.data_interface import SimpleDataInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.typing import AUTO, Auto, AutoBool, AutoCount, Columns, Class, Value, Array, ARRAY_TYPES
     from ..functions.arguments import get_name, get_str_from_args_kwargs
@@ -315,6 +315,7 @@ class DescribeMixin(ABC):
             self,
             show_header: bool = True,
             count: AutoCount = AUTO,
+            comment: Optional[str] = None,
             depth: int = 1,
             output: AutoOutput = AUTO,
             as_dataframe: bool = Auto,
@@ -325,6 +326,8 @@ class DescribeMixin(ABC):
         if show_header:
             for line in self.get_str_headers():
                 self.output_line(line, output=output)
+        if comment:
+            self.output_line(comment, output=output)
         if show_meta:
             for line in self.get_meta_description():
                 self.output_line(line, output=output)

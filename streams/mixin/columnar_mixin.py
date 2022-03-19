@@ -3,7 +3,7 @@ from typing import Union, Iterable, Generator, Callable, Optional
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
-        Context, LoggerInterface, SelectionLogger, ExtLogger,
+        Context, LoggerInterface, SelectionLogger, ExtLogger, LoggingLevel,
         Stream, RegularStream, RegularStreamInterface, StructStream, StructInterface, ColumnarInterface,
         StreamType, ItemType, JoinType, How,
         Count, UniKey, Item, Array, Columns, OptionalFields,
@@ -14,11 +14,12 @@ try:  # Assume we're a submodule in a package.
     from content.fields import field_classes as fc
     from base.abstract.contextual_data import ContextualDataWrapper
     from base.mixin.iterable_mixin import IterableMixin
+    from base.mixin.describe_mixin import DescribeMixin
     from functions.secondary import item_functions as fs
     from utils import selection as sf
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
-        Context, LoggerInterface, SelectionLogger, ExtLogger,
+        Context, LoggerInterface, SelectionLogger, ExtLogger, LoggingLevel,
         Stream, RegularStream, RegularStreamInterface, StructStream, StructInterface, ColumnarInterface,
         StreamType, ItemType, JoinType, How,
         Count, UniKey, Item, Array, Columns, OptionalFields,
@@ -29,6 +30,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...content.fields import field_classes as fc
     from ...base.abstract.contextual_data import ContextualDataWrapper
     from ...base.mixin.iterable_mixin import IterableMixin
+    from ...base.mixin.describe_mixin import DescribeMixin
     from ...functions.secondary import item_functions as fs
     from ...utils import selection as sf
 
@@ -42,7 +44,7 @@ DEFAULT_DETECT_COUNT = 100
 LOGGING_LEVEL_INFO = 20
 
 
-class ColumnarMixin(ContextualDataWrapper, IterableMixin, ColumnarInterface, ABC):
+class ColumnarMixin(ContextualDataWrapper, IterableMixin, DescribeMixin, ColumnarInterface, ABC):
     @classmethod
     def is_valid_item(cls, item: Item) -> bool:
         return cls.get_item_type().isinstance(item)
@@ -56,7 +58,7 @@ class ColumnarMixin(ContextualDataWrapper, IterableMixin, ColumnarInterface, ABC
                 message = 'get_validated(): item {} is not a {}'.format(i, cls.get_item_type())
                 if skip_errors:
                     if context:
-                        context.get_logger().log(message)
+                        context.get_logger().log(message, level=LoggingLevel.Info)
                 else:
                     raise TypeError(message)
 
@@ -302,7 +304,9 @@ class ColumnarMixin(ContextualDataWrapper, IterableMixin, ColumnarInterface, ABC
             return None
 
     def example(
-            self, *filters, count: int = DEFAULT_SHOW_COUNT,
+            self,
+            *filters,
+            count: int = DEFAULT_SHOW_COUNT,
             allow_tee_iterator: bool = True,
             allow_spend_iterator: bool = True,
             **filter_kwargs
@@ -348,15 +352,17 @@ class ColumnarMixin(ContextualDataWrapper, IterableMixin, ColumnarInterface, ABC
             take_struct_from_source: bool = False,
             count: Count = DEFAULT_SHOW_COUNT,
             columns: Columns = None,
+            allow_collect: bool = True,
             show_header: bool = True,
             struct_as_dataframe: bool = False,
-            separate_by_tabs: bool = False,
-            allow_collect: bool = True,
+            delimiter: str = ' ',
+            output=AUTO,
             **filter_kwargs
     ):
+        output = Auto.delayed_acquire(output, self.get_logger)
         if show_header:
             for line in self.get_str_headers():
-                self.log(line)
+                self.output_line(line, output=output)
         example = self.example(*filters, **filter_kwargs, count=count)
         if hasattr(self, 'get_struct'):
             expected_struct = self.get_struct()
@@ -369,12 +375,14 @@ class ColumnarMixin(ContextualDataWrapper, IterableMixin, ColumnarInterface, ABC
             source_str = 'detected from example items'
         expected_struct = fc.FlatStruct.convert_to_native(expected_struct)
         detected_struct = example.get_detected_struct(count)
+        assert isinstance(expected_struct, fc.FlatStruct) or hasattr(expected_struct, 'describe'), expected_struct
+        assert isinstance(detected_struct, fc.FlatStruct) or hasattr(expected_struct, 'describe'), expected_struct
         detected_struct.validate_about(expected_struct)
-        message = '{} {}'.format(source_str, expected_struct.get_validation_message())
+        validation_message = '{} {}'.format(source_str, expected_struct.get_validation_message())
         struct_as_dataframe = struct_as_dataframe and get_use_objects_for_output()
         struct_dataframe = expected_struct.describe(
-            as_dataframe=struct_as_dataframe, show_header=False, logger=self.get_logger(),
-            separate_by_tabs=separate_by_tabs, example=example.get_one_item(), comment=message,
+            as_dataframe=struct_as_dataframe, show_header=False, output=output,
+            delimiter=delimiter, example=example.get_one_item(), comment=validation_message,
         )
         if struct_as_dataframe:
             return struct_dataframe
