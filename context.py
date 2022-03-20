@@ -311,7 +311,7 @@ class SnakeeContext(bs.AbstractNamed, ContextInterface):
     def close_stream(self, name: Name, recursively: bool = False, verbose: bool = True) -> tuple:
         this_stream = self.get_stream(name, skip_missing=False)
         closed = 0
-        if hasattr(this_stream, 'close'):
+        if isinstance(this_stream, sm.IterableStream) or hasattr(this_stream, 'close'):
             closed = this_stream.close() or 0
         if isinstance(closed, ARRAY_TYPES):
             closed_stream, closed_links = closed[:2]
@@ -319,7 +319,8 @@ class SnakeeContext(bs.AbstractNamed, ContextInterface):
             closed_stream, closed_links = closed, 0
         if recursively and hasattr(this_stream, 'get_links'):
             for link in this_stream.get_links():
-                closed_links += link.close() or 0
+                if not link == self:
+                    closed_links += link.close() or 0
         if verbose:
             self.log('{} stream(es) and {} link(s) closed.'.format(closed_stream, closed_links))
         else:
@@ -336,7 +337,7 @@ class SnakeeContext(bs.AbstractNamed, ContextInterface):
     def close_all_streams(self, recursively: bool = False, verbose: bool = True) -> tuple:
         closed_streams, closed_links = 0, 0
         for name in self.stream_instances:
-            closed = self.close_stream(name, recursively=recursively)
+            closed = self.close_stream(name, recursively=recursively, verbose=False)
             if isinstance(closed, ARRAY_TYPES):
                 closed_streams += closed[0]
                 closed_links += closed[1]
