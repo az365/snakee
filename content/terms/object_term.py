@@ -41,8 +41,8 @@ class ObjectTerm(DiscreteTerm):
         else:
             return default_type
 
-    def get_id_field(self) -> Field:
-        return self.get_field_by_role(FieldRole.Id)
+    def get_id_field(self, **kwargs) -> Field:
+        return self.get_field_by_role(FieldRole.Id, **kwargs)
 
     @staticmethod
     def _assume_native(term) -> Native:

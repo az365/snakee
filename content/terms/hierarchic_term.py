@@ -92,20 +92,20 @@ class HierarchicTerm(DiscreteTerm):
     def get_level_id_field(self, level: Level = AUTO) -> Field:
         return self.get_level_term(level).get_id_field()
 
-    def get_key_field(self, level: Level = AUTO, default_type: FieldType = FieldType.Str) -> Field:
+    def get_key_field(self, level: Level = AUTO, default_type: FieldType = FieldType.Str, **kwargs) -> Field:
         if Auto.is_auto(level) or level is None:
-            key_field = self.get_field_by_role(FieldRole.Key, default_type=default_type)
+            key_field = self.get_field_by_role(FieldRole.Key, default_type=default_type, **kwargs)
         else:
             level_term = self.get_level_term(level)
-            key_field = level_term.get_field_by_role(FieldRole.Key, default_type=default_type)
+            key_field = level_term.get_field_by_role(FieldRole.Key, default_type=default_type, **kwargs)
         return key_field
 
-    def get_ids_field(self, level: Level = AUTO, default_type: FieldType = FieldType.Tuple) -> Field:
+    def get_ids_field(self, level: Level = AUTO, default_type: FieldType = FieldType.Tuple, **kwargs) -> Field:
         if Auto.is_auto(level) or level is None:
-            key_field = self.get_field_by_role(FieldRole.Ids, default_type=default_type)
+            key_field = self.get_field_by_role(FieldRole.Ids, default_type=default_type, **kwargs)
         else:
             level_term = self.get_level_term(level)
-            key_field = level_term.get_field_by_role(FieldRole.Ids, default_type=default_type)
+            key_field = level_term.get_field_by_role(FieldRole.Ids, default_type=default_type, **kwargs)
         return key_field
 
     def get_id_fields(self, level: Union[int, str, ObjectTerm, Auto] = AUTO) -> list:

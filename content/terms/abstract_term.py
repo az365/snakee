@@ -131,12 +131,15 @@ class AbstractTerm(SimpleDataWrapper, DescribeMixin, ABC):
         assert isinstance(key, TermDataAttribute)
         return self.get_item(key, subkey, skip_missing=True, default=default)
 
-    def get_field_by_role(self, role: FieldRole, default_type: Union[FieldType, Auto, None] = None) -> Field:
+    def get_field_by_role(self, role: FieldRole, default_type: Union[FieldType, Auto, None] = None, **kwargs) -> Field:
         default_type = Auto.acquire(default_type, None)
         fields_by_roles = self.get_fields_by_roles()
         role_value = get_value(role)
         if role_value in fields_by_roles:
-            return fields_by_roles[role_value]
+            field = fields_by_roles[role_value]
+            if kwargs:
+                assert isinstance(field, AdvancedField)
+                field = field.update_meta(**kwargs, inplace=False)
         else:
             term_name = self.get_name()
             term_caption = self.get_caption()
@@ -149,9 +152,13 @@ class AbstractTerm(SimpleDataWrapper, DescribeMixin, ABC):
                 field_caption_template = '{role} of {term} ({caption})'
                 field_caption = field_caption_template.format(role=role_value, term=term_name, caption=term_caption)
             field_class = AdvancedField
-            field = field_class(field_name, field_type, caption=field_caption)
+            if 'caption' not in kwargs:
+                kwargs['caption'] = field_caption
+            if 'field_type' not in kwargs:
+                kwargs['field_type'] = field_type
+            field = field_class(field_name, **kwargs)
             fields_by_roles[role_value] = field
-            return field
+        return field
 
     @staticmethod
     def get_default_type_by_role(role: FieldRole, default_type: FieldType = FieldType.Any) -> FieldType:
