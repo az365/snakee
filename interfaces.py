@@ -87,6 +87,7 @@ try:  # Assume we're a submodule in a package.
     from content.format.content_type import ContentType  # inherits ClassType(DynamicEnum)
     from content.representations.repr_type import ReprType  # inherits ClassType(DynamicEnum)
     from content.fields.field_type import FieldType  # inherits DynamicEnum
+    from content.fields.field_role_type import FieldRoleType  # inherits ClassType(DynamicEnum)
     from content.items.item_type import ItemType  # inherits SubclassesType(ClassType)
     from streams.stream_type import StreamType  # inherits ClassType(DynamicEnum)
     from series.series_type import SeriesType  # inherits ClassType(DynamicEnum)
@@ -101,6 +102,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .content.format.content_type import ContentType  # inherits ClassType(DynamicEnum)
     from .content.representations.repr_type import ReprType  # inherits ClassType(DynamicEnum)
     from .content.fields.field_type import FieldType  # inherits DynamicEnum
+    from .content.fields.field_role_type import FieldRoleType  # inherits ClassType(DynamicEnum)
     from .content.items.item_type import ItemType  # inherits SubclassesType(ClassType)
     from .streams.stream_type import StreamType  # inherits ClassType(DynamicEnum)
     from .series.series_type import SeriesType  # inherits ClassType(DynamicEnum)
@@ -149,7 +151,7 @@ RowStream = ColumnarStream
 RecordStream = ColumnarStream
 KeyValueStream = ColumnarStream
 StructStream = ColumnarStream
-SchemaStream = StructStream
+SchemaStream = StructStream  # deprecated
 
 Source = Union[ConnectorInterface, Auto, None]
 Connector = Optional[ConnectorInterface]

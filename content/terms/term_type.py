@@ -1,7 +1,9 @@
 try:  # Assume we're a submodule in a package.
     from base.classes.enum import DynamicEnum, ClassType
+    from content.fields.field_role_type import FieldRoleType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.classes.enum import DynamicEnum, ClassType
+    from ..fields.field_role_type import FieldRoleType
 
 
 class TermType(ClassType):
@@ -38,21 +40,8 @@ class TermRelation(DynamicEnum):
         return self
 
 
-class FieldRole(ClassType):
-    Id = 'id'
-    Name = 'name'
-    Repr = 'repr'
-    Key = 'key'
-    Ids = 'ids'
-    Count = 'count'
-    Share = 'share'
-
-
 TermType.prepare()
 TermDataAttribute.prepare()
 TermRelation.prepare()
-FieldRole.prepare()
-FieldRole.add_classes(
-    id=int, name=str, repr=str, key=str, ids=tuple,
-    count=int, share=float,
-)
+
+FieldRole = FieldRoleType  # deprecated

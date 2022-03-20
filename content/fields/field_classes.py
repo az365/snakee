@@ -7,6 +7,7 @@ try:  # Assume we're a submodule in a package.
     )
     from base.functions.arguments import update
     from content.fields.field_type import FieldType
+    from content.fields.field_role_type import FieldRoleType
     from content.struct.flat_struct import FlatStruct
     from content.fields.abstract_field import AbstractField
     from content.fields.advanced_field import AdvancedField
@@ -19,13 +20,14 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     )
     from ...base.functions.arguments import update
     from .field_type import FieldType
+    from .field_role_type import FieldRoleType
     from ..struct.flat_struct import FlatStruct
     from .abstract_field import AbstractField
     from .advanced_field import AdvancedField
     from ..selection.abstract_expression import AbstractDescription
     from ..selection import concrete_expression as ce
 
-Type = Union[FieldType, type, Auto]
+Type = Union[FieldType, FieldRoleType, type, Auto]
 
 _logger = None
 
