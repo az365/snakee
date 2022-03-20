@@ -1,4 +1,4 @@
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from streams import stream_classes as sm
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from . import stream_classes as sm
@@ -225,7 +225,7 @@ def test_save_and_read():
         EXAMPLE_FILENAME,
     ).get_list()
     received_1 = sm.LineStream.from_text_file(
-        EXAMPLE_FILENAME
+        EXAMPLE_FILENAME,
     ).get_list()
     assert received_0 == expected, 'test case 0: lazy_save(), {} != {}'.format(received_0, expected)
     assert received_1 == expected, 'test case 1: secondary fileholder, {} != {}'.format(received_1, expected)
@@ -362,6 +362,9 @@ def test_split_by_step():
     )
     received_1 = [f.get_list() for f in split_1]
     assert received_1 == expected, 'test case 1'
+    context = sm.get_context()
+    if context:
+        context.close_all_streams(verbose=False)
 
 
 def test_memory_sort():
