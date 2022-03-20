@@ -9,13 +9,14 @@ try:  # Assume we're a submodule in a package.
         Count, UniKey, Item, Array, Columns, OptionalFields,
         AUTO, Auto, AutoBool,
     )
-    from utils import algo, arguments as arg
-    from utils.external import pd, DataFrame, get_use_objects_for_output
-    from content.fields import field_classes as fc
+    from base.functions.arguments import get_name, get_names, update
     from base.abstract.contextual_data import ContextualDataWrapper
     from base.mixin.iterable_mixin import IterableMixin
     from base.mixin.describe_mixin import DescribeMixin
     from functions.secondary import item_functions as fs
+    from content.fields import field_classes as fc
+    from utils import algo
+    from utils.external import pd, DataFrame, get_use_objects_for_output
     from utils import selection as sf
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
@@ -25,13 +26,14 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         Count, UniKey, Item, Array, Columns, OptionalFields,
         AUTO, Auto, AutoBool,
     )
-    from ...utils import algo, arguments as arg
-    from ...utils.external import pd, DataFrame, get_use_objects_for_output
-    from ...content.fields import field_classes as fc
+    from ...base.functions.arguments import get_name, get_names, update
     from ...base.abstract.contextual_data import ContextualDataWrapper
     from ...base.mixin.iterable_mixin import IterableMixin
     from ...base.mixin.describe_mixin import DescribeMixin
     from ...functions.secondary import item_functions as fs
+    from ...content.fields import field_classes as fc
+    from ...utils import algo
+    from ...utils.external import pd, DataFrame, get_use_objects_for_output
     from ...utils import selection as sf
 
 Native = Union[RegularStreamInterface, ColumnarInterface]
@@ -68,6 +70,19 @@ class ColumnarMixin(ContextualDataWrapper, IterableMixin, DescribeMixin, Columna
         )
         return self._assume_native(stream)
 
+    def assert_has_columns(self, *columns, skip_missing: bool = False, **kwargs) -> Native:
+        missing_columns = list()
+        for c in columns:
+            if not get_name(c) in get_names(self.get_columns(**kwargs)):
+                missing_columns.append(c)
+        if missing_columns:
+            msg = '{} has no declared columns: {}'.format(repr(self), ', '.join(map(str, missing_columns)))
+            if skip_missing:
+                self.log(msg, level=LoggingLevel.Warning)
+            else:
+                raise AssertionError(msg)
+        return self
+
     def get_shape(self) -> tuple:
         return self.get_count(), self.get_column_count()
 
@@ -95,8 +110,8 @@ class ColumnarMixin(ContextualDataWrapper, IterableMixin, DescribeMixin, Columna
             logger: Union[LoggerInterface, Auto] = AUTO,
             **kwargs
     ) -> Iterable:
-        logger = arg.delayed_acquire(logger, self.get_logger)
-        item_type = arg.delayed_acquire(item_type, self.get_item_type)
+        logger = Auto.delayed_acquire(logger, self.get_logger)
+        item_type = Auto.delayed_acquire(item_type, self.get_item_type)
         filter_function = sf.filter_items(
             *args, item_type=item_type,
             skip_errors=skip_errors, logger=logger,
@@ -105,7 +120,7 @@ class ColumnarMixin(ContextualDataWrapper, IterableMixin, DescribeMixin, Columna
         return filter(filter_function, self.get_items())
 
     def filter(self, *args, item_type: ItemType = ItemType.Auto, skip_errors: bool = False, **kwargs) -> Native:
-        item_type = arg.delayed_acquire(item_type, self.get_item_type)
+        item_type = Auto.delayed_acquire(item_type, self.get_item_type)
         stream_type = self.get_stream_type()
         assert isinstance(stream_type, StreamType), 'Expected StreamType, got {}'.format(stream_type)
         filtered_items = self._get_filtered_items(*args, item_type=item_type, skip_errors=skip_errors, **kwargs)
@@ -139,8 +154,8 @@ class ColumnarMixin(ContextualDataWrapper, IterableMixin, DescribeMixin, Columna
             right_is_uniq: bool = True,
             inplace: bool = False,
     ) -> Optional[Native]:
-        key = arg.get_names(key)
-        keys = arg.update([key])
+        key = get_names(key)
+        keys = update([key])
         if not isinstance(how, JoinType):
             how = JoinType(how)
         joined_items = algo.map_side_join(
@@ -167,9 +182,9 @@ class ColumnarMixin(ContextualDataWrapper, IterableMixin, DescribeMixin, Columna
         return self._assume_native(stream).sorted_group_by(*keys, **kwargs)
 
     def group_by(self, *keys, values: Optional[Iterable] = None, as_pairs: bool = False) -> Stream:
-        keys = arg.get_names(keys)
-        keys = arg.update(keys)
-        values = arg.get_names(values)
+        keys = get_names(keys)
+        keys = update(keys)
+        values = get_names(values)
         return self.sort(*keys).sorted_group_by(*keys, values=values, as_pairs=as_pairs)
 
     def apply_to_stream(self, function: Callable, *args, **kwargs) -> Stream:
@@ -265,7 +280,7 @@ class ColumnarMixin(ContextualDataWrapper, IterableMixin, DescribeMixin, Columna
         if pd and get_use_objects_for_output():
             if columns:
                 dataframe = DataFrame(self.get_items(), columns=columns)
-                columns = arg.get_names(columns)
+                columns = get_names(columns)
                 dataframe = dataframe[columns]
             else:
                 dataframe = DataFrame(self.get_items())
@@ -273,7 +288,7 @@ class ColumnarMixin(ContextualDataWrapper, IterableMixin, DescribeMixin, Columna
 
     def _get_field_getter(self, field: UniKey, item_type: Union[ItemType, Auto] = AUTO, default=None):
         if isinstance(self, RegularStreamInterface) or hasattr(self, 'get_item_type'):
-            item_type = arg.delayed_acquire(item_type, self.get_item_type)
+            item_type = Auto.delayed_acquire(item_type, self.get_item_type)
         return lambda i: fs.it.get_field_value_from_item(
             field=field, item=i, item_type=item_type,
             default=default, logger=self.get_selection_logger(),
@@ -327,7 +342,7 @@ class ColumnarMixin(ContextualDataWrapper, IterableMixin, DescribeMixin, Columna
             as_dataframe: AutoBool = AUTO,
             filters: Optional[Array] = None, columns: Optional[Array] = None,
     ) -> Union[DataFrame, Iterable]:
-        as_dataframe = arg.acquire(as_dataframe, get_use_objects_for_output())
+        as_dataframe = Auto.acquire(as_dataframe, get_use_objects_for_output())
         sm_sample = self.filter(*filters or []) if filters else self
         sm_sample = sm_sample.take(count)
         if hasattr(sm_sample, 'get_dataframe') and as_dataframe:
