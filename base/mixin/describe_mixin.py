@@ -4,11 +4,11 @@ from inspect import getfullargspec
 
 try:  # Assume we're a submodule in a package.
     from base.classes.typing import AUTO, Auto, AutoBool, AutoCount, Columns, Class, Value, Array, ARRAY_TYPES
-    from base.functions.arguments import get_name, get_str_from_args_kwargs
+    from base.functions.arguments import get_name, get_value, get_str_from_args_kwargs
     from base.interfaces.data_interface import SimpleDataInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.typing import AUTO, Auto, AutoBool, AutoCount, Columns, Class, Value, Array, ARRAY_TYPES
-    from ..functions.arguments import get_name, get_str_from_args_kwargs
+    from ..functions.arguments import get_name, get_value, get_str_from_args_kwargs
     from ..interfaces.data_interface import SimpleDataInterface
 
 Native = SimpleDataInterface
@@ -117,7 +117,7 @@ class DescribeMixin(ABC):
         names = list(cls._get_column_names(columns, ex=ex))
         lens = cls._get_column_lens(columns, max_len=max_len)
         if isinstance(item, dict):
-            values = [str(item.get(k)) if k not in ex else '' for k in names]
+            values = [str(get_value(item.get(k))) if k not in ex else '' for k in names]
         else:
             values = [str(v) if k not in ex else '' for k, v in zip(names, item)]
         return {c: v[:s] for c, v, s in zip(names, values, lens)}
@@ -257,8 +257,9 @@ class DescribeMixin(ABC):
             self,
             count: int = DEFAULT_ROWS_COUNT,
             title: Optional[str] = 'Data:',
-            max_len: int = JUPYTER_LINE_LEN,
+            max_len: AutoCount = AUTO,
     ) -> Generator:
+        max_len = Auto.acquire(max_len, JUPYTER_LINE_LEN)
         if title:
             yield title
         if hasattr(self, 'get_data_caption'):
@@ -267,7 +268,7 @@ class DescribeMixin(ABC):
             data = self.get_data()
             if data:
                 shape_repr = self.get_shape_repr()
-                if shape_repr:
+                if Auto.is_defined(count) and shape_repr:
                     yield 'First {count} data items from {shape}:'.format(count=count, shape=shape_repr)
                 if isinstance(data, dict):
                     records = map(
@@ -302,7 +303,8 @@ class DescribeMixin(ABC):
             delimiter: str = COLUMN_DELIMITER,
     ) -> Generator:
         if with_summary:
-            yield '{name} has {count} attributes in meta-data:'.format(name=repr(self), count=len(self.get_meta()))
+            count = len(list(self.get_meta_records()))
+            yield '{name} has {count} attributes in meta-data:'.format(name=repr(self), count=count)
         yield from self._get_columnar_lines(
             records=self.get_meta_records(),
             columns=META_DESCRIPTION_COLUMNS,

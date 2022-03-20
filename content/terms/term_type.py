@@ -21,6 +21,17 @@ class TermDataAttribute(ClassType):
     Datasets = 'datasets'
     Relations = 'relations'
 
+    _dict_names = dict(
+        fields=('role', 'name'),
+        dictionaries=('from_to', 'dict'),
+        mappers=('from_to', 'function'),
+        datasets=('name', 'field'),
+        relations=('term', 'relation'),
+    )
+
+    def get_dict_names(self, default: tuple = ('key', 'value')) -> tuple:
+        return self._dict_names.get(self.get_value(), default)
+
 
 class TermRelation(DynamicEnum):
     OneToOne = 'one_to_one'

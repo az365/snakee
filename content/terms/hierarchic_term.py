@@ -1,4 +1,4 @@
-from typing import Optional, Iterable, Union
+from typing import Optional, Iterable, Generator, Union
 
 try:  # Assume we're a submodule in a package.
     from base.classes.auto import AUTO, Auto
@@ -38,13 +38,13 @@ class HierarchicTerm(DiscreteTerm):
         )
         self.set_level_terms(levels)
 
-    def add_level(self, level: Iterable) -> Native:
+    def add_level(self, level: ObjectTerm) -> Native:
         assert get_name(level) not in self.get_level_names()
         if isinstance(level, str):
             template = '{name} level {no} ({caption})'
             caption = template.format(name=self.get_name(), no=self.get_count(), caption=self.get_caption())
             level = ObjectTerm(level, caption=caption)
-        assert isinstance(level, ObjectTerm)
+        assert isinstance(level, ObjectTerm), 'add_level(level): Expected level as ObjectTerm, got {}'.format(level)
         self.get_level_terms().append(level)
         return self
 
@@ -128,6 +128,20 @@ class HierarchicTerm(DiscreteTerm):
         if including_target:
             selector = [self.get_key_field(level, default_type=FieldType.Tuple), *selector]
         return tuple(selector)
+
+    def get_meta_description(
+            self,
+            with_title: bool = True,
+            with_summary: bool = True,
+            prefix: str = ' ' * 4,
+            delimiter: str = ' ',
+    ) -> Generator:
+        for level_no, level_term in enumerate(self.get_level_terms()):
+            yield '\n#{no}: {term}'.format(no=level_no, term=level_term.get_brief_repr())
+            if isinstance(level_term, DiscreteTerm):
+                yield from level_term.get_data_description()
+            else:
+                yield str(level_term)
 
 
 TermType.add_classes(hierarchic=HierarchicTerm)
