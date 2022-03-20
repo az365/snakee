@@ -37,10 +37,11 @@ class TermRelation(DynamicEnum):
         (Process, Object),
     ]
 
-    def get_reverted(self):
+    def get_reversed(self):
         for pair in self._pairs:
             if self in pair:
-                return pair[0] if self == pair[1] else pair[1]
+                reversed_relation = pair[0] if self == pair[1] else pair[1]
+                return TermRelation(reversed_relation)
         return self
 
 

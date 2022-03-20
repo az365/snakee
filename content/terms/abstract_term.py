@@ -4,6 +4,7 @@ from typing import Optional, Callable, Union
 try:  # Assume we're a submodule in a package.
     from base.abstract.simple_data import SimpleDataWrapper
     from base.classes.auto import AUTO, Auto
+    from base.classes.enum import ClassType
     from base.functions.arguments import get_value
     from base.mixin.describe_mixin import DescribeMixin
     from utils.arguments import update, get_names, get_str_from_args_kwargs
@@ -15,6 +16,7 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.abstract.simple_data import SimpleDataWrapper
     from ...base.classes.auto import AUTO, Auto
+    from ...base.classes.enum import ClassType
     from ...base.functions.arguments import get_value
     from ...base.mixin.describe_mixin import DescribeMixin
     from ...utils.arguments import update, get_names, get_str_from_args_kwargs
@@ -70,9 +72,18 @@ class AbstractTerm(SimpleDataWrapper, DescribeMixin, ABC):
             data[key] = dict()
         data_dict = data[key]
         assert isinstance(data_dict, dict), 'AbstractTerm.add_to_data(): Expected data as dict, got {}'.format(data)
+        added_items = list()
         if value:
-            data_dict.update(value)
-        data_dict.update(kwargs)
+            added_items += list(value.items())
+        added_items += list(kwargs.items())
+        if isinstance(key, ClassType) or hasattr(key, 'get_class'):
+            subkey_class = key.get_class()
+        else:
+            subkey_class = str
+        for k, v in added_items:
+            if isinstance(k, str) and subkey_class != str:
+                k = subkey_class(k)
+            data_dict[k] = v
         return self
 
     def get_from_data(self, key: Union[TermDataAttribute], subkey=None) -> dict:
@@ -94,8 +105,18 @@ class AbstractTerm(SimpleDataWrapper, DescribeMixin, ABC):
     def add_datasets(self, value: Optional[dict] = None, **kwargs) -> Native:
         return self.add_to_data(TermDataAttribute.Datasets, value=value, **kwargs)
 
-    def add_relations(self, value: Optional[dict] = None, **kwargs) -> Native:
-        return self.add_to_data(TermDataAttribute.Relations, value=value, **kwargs)
+    def add_relations(self, value: Optional[dict] = None, update_relations: bool = True, **kwargs) -> Native:
+        self.add_to_data(TermDataAttribute.Relations, value=value, **kwargs)
+        return self.update_relations() if update_relations else self
+
+    def update_relations(self) -> Native:
+        relations = self.get_from_data(TermDataAttribute.Relations)
+        for k, v in relations.items():
+            assert isinstance(k, AbstractTerm), 'update_relations(): expected AbstractTerm, got {}'.format(k)
+            assert isinstance(v, TermRelation), 'update_relations(): expected TermRelation, got {}'.format(v)
+            reversed_relation = v.get_reversed()
+            k.add_relations({self: reversed_relation}, update_relations=False)
+        return self
 
     def get_item(self, key: TermDataAttribute, subkey, skip_missing: Union[bool, Auto] = AUTO, default=None):
         skip_missing = Auto.acquire(skip_missing, default is not None)
@@ -175,6 +196,9 @@ class AbstractTerm(SimpleDataWrapper, DescribeMixin, ABC):
         if not isinstance(role, FieldRoleType):
             role = FieldRoleType.detect(role)
         return role.get_default_value_type(default=default_type)
+
+    def __hash__(self):
+        return hash(self.get_name())
 
     def __repr__(self):
         return self.get_name()
