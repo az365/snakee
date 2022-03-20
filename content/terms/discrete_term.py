@@ -2,12 +2,13 @@ from typing import Optional, Callable
 
 try:  # Assume we're a submodule in a package.
     from utils.arguments import get_names
-    from content.terms.abstract_term import AbstractTerm, TermType, TermDataAttribute, Field, FieldRole
+    from content.terms.abstract_term import AbstractTerm, TermType, TermDataAttribute, Field, FieldRoleType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils.arguments import get_names
-    from .abstract_term import AbstractTerm, TermType, TermDataAttribute, Field, FieldRole
+    from .abstract_term import AbstractTerm, TermType, TermDataAttribute, Field, FieldRoleType
 
 Native = AbstractTerm
+FieldRole = FieldRoleType  # deprecated
 
 
 class DiscreteTerm(AbstractTerm):

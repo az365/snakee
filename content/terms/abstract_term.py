@@ -7,21 +7,26 @@ try:  # Assume we're a submodule in a package.
     from base.functions.arguments import get_value
     from base.mixin.describe_mixin import DescribeMixin
     from utils.arguments import update, get_names, get_str_from_args_kwargs
-    from content.fields.field_interface import FieldInterface, FieldType
+    from content.fields.field_type import FieldType
+    from content.fields.field_role_type import FieldRoleType
+    from content.fields.field_interface import FieldInterface
     from content.fields.advanced_field import AdvancedField
-    from content.terms.term_type import TermType, TermDataAttribute, FieldRole, TermRelation
+    from content.terms.term_type import TermType, TermDataAttribute, TermRelation
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.abstract.simple_data import SimpleDataWrapper
     from ...base.classes.auto import AUTO, Auto
     from ...base.functions.arguments import get_value
     from ...base.mixin.describe_mixin import DescribeMixin
     from ...utils.arguments import update, get_names, get_str_from_args_kwargs
+    from ..fields.field_type import FieldType
+    from ..fields.field_role_type import FieldRoleType
     from ..fields.field_interface import FieldInterface, FieldType
     from ..fields.advanced_field import AdvancedField
-    from .term_type import TermType, TermDataAttribute, FieldRole, TermRelation
+    from .term_type import TermType, TermDataAttribute, TermRelation
 
 Native = SimpleDataWrapper
 Field = Union[FieldInterface, str]
+RoleType = FieldRoleType  # deprecated
 
 
 class AbstractTerm(SimpleDataWrapper, DescribeMixin, ABC):
@@ -131,7 +136,12 @@ class AbstractTerm(SimpleDataWrapper, DescribeMixin, ABC):
         assert isinstance(key, TermDataAttribute)
         return self.get_item(key, subkey, skip_missing=True, default=default)
 
-    def get_field_by_role(self, role: FieldRole, default_type: Union[FieldType, Auto, None] = None, **kwargs) -> Field:
+    def get_field_by_role(
+            self,
+            role: FieldRoleType,
+            default_type: Union[FieldType, Auto, None] = None,
+            **kwargs
+    ) -> Field:
         default_type = Auto.acquire(default_type, None)
         fields_by_roles = self.get_fields_by_roles()
         role_value = get_value(role)
@@ -143,8 +153,8 @@ class AbstractTerm(SimpleDataWrapper, DescribeMixin, ABC):
         else:
             term_name = self.get_name()
             term_caption = self.get_caption()
-            field_type = default_type or self.get_default_type_by_role(role)
-            if role == FieldRole.Repr or role is None:
+            field_type = default_type or self.get_default_value_type_by_role(role)
+            if role == FieldRoleType.Repr or role is None:
                 field_name = term_name
                 field_caption = term_caption
             else:
@@ -161,8 +171,10 @@ class AbstractTerm(SimpleDataWrapper, DescribeMixin, ABC):
         return field
 
     @staticmethod
-    def get_default_type_by_role(role: FieldRole, default_type: FieldType = FieldType.Any) -> FieldType:
-        return FieldType.Any
+    def get_default_value_type_by_role(role: FieldRoleType, default_type: FieldType = FieldType.Any) -> FieldType:
+        if not isinstance(role, FieldRoleType):
+            role = FieldRoleType.detect(role)
+        return role.get_default_value_type(default=default_type)
 
     def __repr__(self):
         return self.get_name()

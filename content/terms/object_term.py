@@ -3,11 +3,11 @@ from typing import Optional
 try:  # Assume we're a submodule in a package.
     from utils.arguments import update
     from content.fields.field_type import FieldType
-    from content.terms.discrete_term import DiscreteTerm, TermType, Field, FieldRole
+    from content.terms.discrete_term import DiscreteTerm, TermType, Field, FieldRoleType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils.arguments import update
     from ..fields.field_type import FieldType
-    from .discrete_term import DiscreteTerm, TermType, Field, FieldRole
+    from .discrete_term import DiscreteTerm, TermType, Field, FieldRoleType
 
 Native = DiscreteTerm
 
@@ -33,16 +33,8 @@ class ObjectTerm(DiscreteTerm):
         term_type = TermType.Object
         return term_type
 
-    @staticmethod
-    def get_default_type_by_role(role: FieldRole, default_type: FieldType = FieldType.Any) -> FieldType:
-        field_class = role.get_class()
-        if field_class:
-            return FieldType.detect_by_type(field_class)
-        else:
-            return default_type
-
     def get_id_field(self, **kwargs) -> Field:
-        return self.get_field_by_role(FieldRole.Id, **kwargs)
+        return self.get_field_by_role(FieldRoleType.Id, **kwargs)
 
     @staticmethod
     def _assume_native(term) -> Native:
