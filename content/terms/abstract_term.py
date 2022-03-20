@@ -5,33 +5,33 @@ try:  # Assume we're a submodule in a package.
     from base.abstract.simple_data import SimpleDataWrapper
     from base.classes.auto import AUTO, Auto
     from base.classes.enum import ClassType
-    from base.functions.arguments import get_value
+    from base.functions.arguments import get_names, get_value
     from base.mixin.describe_mixin import DescribeMixin
-    from utils.arguments import update, get_names, get_str_from_args_kwargs
     from content.fields.field_type import FieldType
     from content.fields.field_role_type import FieldRoleType
     from content.fields.field_interface import FieldInterface
     from content.fields.advanced_field import AdvancedField
     from content.terms.term_type import TermType, TermDataAttribute, TermRelation
+    from content.terms.term_interface import TermInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.abstract.simple_data import SimpleDataWrapper
     from ...base.classes.auto import AUTO, Auto
     from ...base.classes.enum import ClassType
-    from ...base.functions.arguments import get_value
+    from ...base.functions.arguments import get_names, get_value
     from ...base.mixin.describe_mixin import DescribeMixin
-    from ...utils.arguments import update, get_names, get_str_from_args_kwargs
     from ..fields.field_type import FieldType
     from ..fields.field_role_type import FieldRoleType
     from ..fields.field_interface import FieldInterface, FieldType
     from ..fields.advanced_field import AdvancedField
     from .term_type import TermType, TermDataAttribute, TermRelation
+    from .term_interface import TermInterface
 
 Native = SimpleDataWrapper
 Field = Union[FieldInterface, str]
 RoleType = FieldRoleType  # deprecated
 
 
-class AbstractTerm(SimpleDataWrapper, DescribeMixin, ABC):
+class AbstractTerm(SimpleDataWrapper, DescribeMixin, TermInterface, ABC):
     def __init__(
             self,
             name: str,

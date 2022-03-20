@@ -27,6 +27,7 @@ try:  # Assume we're a submodule in a package.
     from base.interfaces.tree_interface import TreeInterface  # inherits ContextualData
     from content.representations.repr_interface import RepresentationInterface
     from content.fields.field_interface import FieldInterface  # inherits SimpleData
+    from content.terms.term_interface import TermInterface  # inherits SimpleData
     from loggers.extended_logger_interface import LoggerInterface  # ROOT
     from loggers.extended_logger_interface import ExtendedLoggerInterface  # inherits Sourced, Logger; uses Base
     from loggers.selection_logger_interface import SelectionLoggerInterface  # inherits Extended, uses DetailedMessage
@@ -65,6 +66,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .base.interfaces.tree_interface import TreeInterface  # inherits ContextualData
     from .content.representations.repr_interface import RepresentationInterface
     from .content.fields.field_interface import FieldInterface  # inherits SimpleData
+    from .content.terms.term_interface import TermInterface  # inherits SimpleData
     from .loggers.extended_logger_interface import LoggerInterface  # ROOT
     from .loggers.extended_logger_interface import ExtendedLoggerInterface  # inherits Sourced, Logger; uses Base
     from .loggers.selection_logger_interface import SelectionLoggerInterface  # inherits Extended, uses DetailedMessage
@@ -89,6 +91,7 @@ try:  # Assume we're a submodule in a package.
     from content.fields.field_type import FieldType  # inherits DynamicEnum
     from content.fields.field_role_type import FieldRoleType  # inherits ClassType(DynamicEnum)
     from content.items.item_type import ItemType  # inherits SubclassesType(ClassType)
+    from content.terms.term_type import TermType, TermDataAttribute, TermRelation  # inherits ClassType(DynamicEnum)
     from streams.stream_type import StreamType  # inherits ClassType(DynamicEnum)
     from series.series_type import SeriesType  # inherits ClassType(DynamicEnum)
     from series.interpolation_type import InterpolationType  # inherits DynamicEnum
@@ -104,6 +107,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .content.fields.field_type import FieldType  # inherits DynamicEnum
     from .content.fields.field_role_type import FieldRoleType  # inherits ClassType(DynamicEnum)
     from .content.items.item_type import ItemType  # inherits SubclassesType(ClassType)
+    from .content.terms.term_type import TermType, TermDataAttribute, TermRelation  # inherits ClassType(DynamicEnum)
     from .streams.stream_type import StreamType  # inherits ClassType(DynamicEnum)
     from .series.series_type import SeriesType  # inherits ClassType(DynamicEnum)
     from .series.interpolation_type import InterpolationType  # inherits DynamicEnum
