@@ -4,13 +4,13 @@ try:  # Assume we're a submodule in a package.
     from base.classes.auto import AUTO, Auto
     from utils.arguments import get_name, get_names
     from content.fields.field_type import FieldType
-    from content.terms.discrete_term import DiscreteTerm, TermType, Field, FieldRole
+    from content.terms.discrete_term import DiscreteTerm, TermType, Field, FieldRoleType
     from content.terms.object_term import ObjectTerm
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.classes.auto import AUTO, Auto
     from ...utils.arguments import get_name, get_names
     from ..fields.field_type import FieldType
-    from .discrete_term import DiscreteTerm, TermType, Field, FieldRole
+    from .discrete_term import DiscreteTerm, TermType, Field, FieldRoleType
     from .object_term import ObjectTerm
 
 Native = DiscreteTerm
@@ -27,12 +27,13 @@ class HierarchicTerm(DiscreteTerm):
             dicts: Optional[dict] = None,
             mappers: Optional[dict] = None,
             datasets: Optional[dict] = None,
+            relations: Optional[dict] = None,
             data: Optional[dict] = None,
     ):
         self._levels = list()
         super().__init__(
             name=name, caption=caption,
-            fields=fields, dicts=dicts, mappers=mappers, datasets=datasets,
+            fields=fields, dicts=dicts, mappers=mappers, datasets=datasets, relations=relations,
             data=data,
         )
         self.set_level_terms(levels)
@@ -94,18 +95,18 @@ class HierarchicTerm(DiscreteTerm):
 
     def get_key_field(self, level: Level = AUTO, default_type: FieldType = FieldType.Str, **kwargs) -> Field:
         if Auto.is_auto(level) or level is None:
-            key_field = self.get_field_by_role(FieldRole.Key, default_type=default_type, **kwargs)
+            key_field = self.get_field_by_role(FieldRoleType.Key, default_type=default_type, **kwargs)
         else:
             level_term = self.get_level_term(level)
-            key_field = level_term.get_field_by_role(FieldRole.Key, default_type=default_type, **kwargs)
+            key_field = level_term.get_field_by_role(FieldRoleType.Key, default_type=default_type, **kwargs)
         return key_field
 
     def get_ids_field(self, level: Level = AUTO, default_type: FieldType = FieldType.Tuple, **kwargs) -> Field:
         if Auto.is_auto(level) or level is None:
-            key_field = self.get_field_by_role(FieldRole.Ids, default_type=default_type, **kwargs)
+            key_field = self.get_field_by_role(FieldRoleType.Ids, default_type=default_type, **kwargs)
         else:
             level_term = self.get_level_term(level)
-            key_field = level_term.get_field_by_role(FieldRole.Ids, default_type=default_type, **kwargs)
+            key_field = level_term.get_field_by_role(FieldRoleType.Ids, default_type=default_type, **kwargs)
         return key_field
 
     def get_id_fields(self, level: Union[int, str, ObjectTerm, Auto] = AUTO) -> list:
@@ -127,3 +128,6 @@ class HierarchicTerm(DiscreteTerm):
         if including_target:
             selector = [self.get_key_field(level, default_type=FieldType.Tuple), *selector]
         return tuple(selector)
+
+
+TermType.add_classes(hierarchic=HierarchicTerm)

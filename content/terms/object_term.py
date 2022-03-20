@@ -21,11 +21,12 @@ class ObjectTerm(DiscreteTerm):
             dicts: Optional[dict] = None,
             mappers: Optional[dict] = None,
             datasets: Optional[dict] = None,
+            relations: Optional[dict] = None,
             data: Optional[dict] = None,
     ):
         super().__init__(
             name=name, caption=caption,
-            fields=fields, dicts=dicts, mappers=mappers, datasets=datasets,
+            fields=fields, dicts=dicts, mappers=mappers, datasets=datasets, relations=relations,
             data=data,
         )
 
@@ -36,6 +37,15 @@ class ObjectTerm(DiscreteTerm):
     def get_id_field(self, **kwargs) -> Field:
         return self.get_field_by_role(FieldRoleType.Id, **kwargs)
 
+    def get_name_field(self, **kwargs) -> Field:
+        return self.get_field_by_role(FieldRoleType.Name, **kwargs)
+
+    def get_count_field(self, **kwargs) -> Field:
+        return self.get_field_by_role(FieldRoleType.Count, **kwargs)
+
     @staticmethod
     def _assume_native(term) -> Native:
         return term
+
+
+TermType.add_classes(object=ObjectTerm)
