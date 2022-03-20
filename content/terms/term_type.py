@@ -8,12 +8,13 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 
 class TermType(ClassType):
     Continual = 'continual'
+    Process = 'process'
     Discrete = 'discrete'
     Object = 'object'
     Hierarchy = 'hierarchy'
 
 
-class TermDataAttribute(DynamicEnum):
+class TermDataAttribute(ClassType):
     Fields = 'fields'
     Dictionaries = 'dictionaries'
     Mappers = 'mappers'
@@ -27,10 +28,13 @@ class TermRelation(DynamicEnum):
     ManyToOne = 'many_to_one'
     Parent = 'parent'
     Child = 'child'
+    Process = 'process'
+    Object = 'object'
 
     _pairs = [
         (OneToMany, ManyToOne),
         (Parent, Child),
+        (Process, Object),
     ]
 
     def get_reverted(self):
