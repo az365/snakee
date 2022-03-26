@@ -1,149 +1,27 @@
 from abc import ABC
-from typing import Optional, Iterable, Callable, Generator, Union
+from typing import Optional, Iterable, Generator, Union
 
 try:  # Assume we're a submodule in a package.
     from base.classes.typing import AUTO, Auto, AutoBool, AutoCount, Columns, Class, Value, Array, ARRAY_TYPES
     from base.constants.chars import DEFAULT_LINE_LEN, JUPYTER_LINE_LEN, REPR_DELIMITER, SMALL_INDENT, CROP_SUFFIX
     from base.functions.arguments import get_name, get_value, get_str_from_args_kwargs
-    from base.interfaces.data_interface import SimpleDataInterface
+    from base.mixin.line_output_mixin import LineOutputMixin, AutoOutput, DEFAULT_ROWS_COUNT, PREFIX_FIELD
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.typing import AUTO, Auto, AutoBool, AutoCount, Columns, Class, Value, Array, ARRAY_TYPES
     from ..constants.chars import DEFAULT_LINE_LEN, JUPYTER_LINE_LEN, REPR_DELIMITER, SMALL_INDENT, CROP_SUFFIX
     from ..functions.arguments import get_name, get_value, get_str_from_args_kwargs
-    from ..interfaces.data_interface import SimpleDataInterface
+    from .line_output_mixin import LineOutputMixin, AutoOutput, DEFAULT_ROWS_COUNT, PREFIX_FIELD
 
-Native = SimpleDataInterface
-LoggingLevel = int
-AutoOutput = Union[Class, LoggingLevel, Callable, Auto]
+AutoOutput = Union[AutoOutput, LineOutputMixin]
 
-DEFAULT_ROWS_COUNT = 10
-PREFIX_FIELD = 'prefix'
-DICT_DESCRIPTION_COLUMNS = [(PREFIX_FIELD, 3), ('key', 20), 'value']
-META_DESCRIPTION_COLUMNS = [
+COLS_FOR_DICT = [(PREFIX_FIELD, 3), ('key', 20), 'value']
+COLS_FOR_META = [
     (PREFIX_FIELD, 3), ('defined', 3),
     ('key', 20), ('value', 30), ('actual_type', 14), ('expected_type', 20), ('default', 20),
 ]
 
 
-class DescribeMixin(ABC):
-    def get_output(self, output: AutoOutput = AUTO) -> Optional[Class]:
-        if Auto.is_defined(output) and not isinstance(output, LoggingLevel):
-            return output
-        if hasattr(self, 'get_logger'):
-            logger = self.get_logger()
-            if Auto.is_defined(logger):
-                return logger
-        elif Auto.is_auto(output):
-            return print
-
-    def output_line(self, line: str, output: AutoOutput = AUTO) -> None:
-        if isinstance(output, LoggingLevel):
-            logger_kwargs = dict(level=output)
-            output = AUTO
-        else:
-            logger_kwargs = dict()
-        if Auto.is_auto(output):
-            if hasattr(self, 'log'):
-                return self.log(msg=line, **logger_kwargs)
-            else:
-                output = self.get_output()
-        if isinstance(output, Callable):
-            return output(line)
-        elif output:
-            if hasattr(output, 'output_line'):
-                return output.output_line(line)
-            elif hasattr(output, 'log'):
-                return output.log(msg=line, **logger_kwargs)
-            else:
-                raise TypeError('Expected Output, Logger or Auto, got {}'.format(output))
-
-    def output_blank_line(self, output: AutoOutput = AUTO) -> None:
-        self.output_line('', output=output)
-
-    @classmethod
-    def _get_formatter(cls, columns: Array, delimiter: str = ' ') -> str:
-        meta_description_placeholders = list()
-        for name, size in zip(cls._get_column_names(columns), cls._get_column_lens(columns)):
-            if size is None:
-                formatter = name
-            elif size:
-                formatter = '{name}:{size}'.format(name=name, size=size)
-            else:
-                formatter = ''
-            meta_description_placeholders.append('{open}{f}{close}'.format(open='{', f=formatter, close='}'))
-        return delimiter.join(meta_description_placeholders)
-
-    @staticmethod
-    def _get_column_names(columns: Iterable, ex: Union[str, Array, None] = None) -> Generator:
-        if ex is None:
-            ex = []
-        elif isinstance(ex, str):
-            ex = [ex]
-        for c in columns:
-            if c in ex:
-                yield ''
-            elif isinstance(c, (int, str)):
-                yield c
-            elif isinstance(c, ARRAY_TYPES):
-                yield c[0]
-            else:
-                raise ValueError('Expected column description as str or tuple, got {}'.format(c))
-
-    @staticmethod
-    def _get_column_lens(columns: Iterable, max_len: Optional[int] = None) -> Generator:
-        for c in columns:
-            if isinstance(c, (int, str)):
-                yield max_len
-            elif isinstance(c, ARRAY_TYPES):
-                yield c[1] if len(c) > 1 else c
-            else:
-                raise ValueError('Expected column description as str or tuple, got {}'.format(c))
-
-    @classmethod
-    def _get_cropped_record(
-            cls,
-            item: Union[dict, Iterable],
-            columns: Array,
-            max_len: int = DEFAULT_LINE_LEN,
-            ex: Union[str, Array, None] = None,
-    ) -> dict:
-        if ex is None:
-            ex = []
-        elif isinstance(ex, str):
-            ex = [ex]
-        names = list(cls._get_column_names(columns, ex=ex))
-        lens = cls._get_column_lens(columns, max_len=max_len)
-        if isinstance(item, dict):
-            values = [str(get_value(item.get(k))) if k not in ex else '' for k in names]
-        else:
-            values = [str(v) if k not in ex else '' for k, v in zip(names, item)]
-        return {c: v[:s] for c, v, s in zip(names, values, lens)}
-
-    @classmethod
-    def _get_columnar_lines(
-            cls,
-            records: Iterable,
-            columns: Array,
-            count: AutoCount = None,
-            with_title: bool = True,
-            prefix: str = SMALL_INDENT,
-            delimiter: str = ' ',
-            max_len: int = DEFAULT_LINE_LEN,
-    ) -> Generator:
-        count = Auto.acquire(count, DEFAULT_ROWS_COUNT)
-        formatter = cls._get_formatter(columns=columns, delimiter=delimiter)
-        if with_title:
-            column_names = cls._get_column_names(columns, ex=PREFIX_FIELD)
-            title_record = cls._get_cropped_record(column_names, columns=columns, max_len=max_len, ex=PREFIX_FIELD)
-            yield formatter.format(**{k: v.upper() for k, v in title_record.items()})
-        for n, r in enumerate(records):
-            if count is not None and n >= count:
-                break
-            if prefix and PREFIX_FIELD not in r:
-                r[PREFIX_FIELD] = prefix
-            r = cls._get_cropped_record(r, columns=columns, max_len=max_len)
-            yield formatter.format(**r)
-
+class DescribeMixin(LineOutputMixin, ABC):
     def get_brief_repr(self) -> str:
         return "{}('{}')".format(self.__class__.__name__, get_name(self, or_callable=False))
 
@@ -225,7 +103,7 @@ class DescribeMixin(ABC):
                         data.items(),
                     )
                     yield from self._get_columnar_lines(
-                        records, columns=DICT_DESCRIPTION_COLUMNS, count=count, max_len=max_len,
+                        records, columns=COLS_FOR_DICT, count=count, max_len=max_len,
                     )
                 elif isinstance(data, Iterable):
                     for n, item in enumerate(data):
@@ -256,7 +134,7 @@ class DescribeMixin(ABC):
             yield '{name} has {count} attributes in meta-data:'.format(name=repr(self), count=count)
         yield from self._get_columnar_lines(
             records=self.get_meta_records(),
-            columns=META_DESCRIPTION_COLUMNS,
+            columns=COLS_FOR_META,
             with_title=with_title,
             prefix=prefix,
             delimiter=delimiter,

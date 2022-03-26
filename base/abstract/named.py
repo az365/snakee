@@ -2,15 +2,17 @@ from abc import ABC
 
 try:  # Assume we're a submodule in a package.
     from base.classes.auto import Auto
+    from base.mixin.line_output_mixin import LineOutputMixin
     from base.abstract.abstract_base import AbstractBaseObject
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.auto import Auto
+    from ..mixin.line_output_mixin import LineOutputMixin
     from .abstract_base import AbstractBaseObject
 
 SPECIFIC_MEMBERS = ('_name', )
 
 
-class AbstractNamed(AbstractBaseObject, ABC):
+class AbstractNamed(AbstractBaseObject, LineOutputMixin, ABC):
     def __init__(self, name: str):
         super().__init__()
         self._name = name
