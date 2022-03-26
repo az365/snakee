@@ -52,11 +52,19 @@ class BaseInterface(ABC):
         pass
 
     @abstractmethod
+    def get_meta_items(self, meta: Union[dict, Auto] = AUTO) -> Generator:
+        pass
+
+    @abstractmethod
     def get_ordered_meta_names(self, meta: Union[dict, Auto] = AUTO) -> Generator:
         pass
 
     @abstractmethod
-    def get_meta_items(self, meta: Union[dict, Auto] = AUTO) -> Generator:
+    def get_meta_defaults(self) -> Generator:
+        pass
+
+    @abstractmethod
+    def get_meta_records(self) -> Generator:
         pass
 
     @abstractmethod

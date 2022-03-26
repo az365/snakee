@@ -1,6 +1,5 @@
 from abc import ABC
 from typing import Optional, Iterable, Callable, Generator, Union
-from inspect import getfullargspec
 
 try:  # Assume we're a submodule in a package.
     from base.classes.typing import AUTO, Auto, AutoBool, AutoCount, Columns, Class, Value, Array, ARRAY_TYPES
@@ -199,59 +198,11 @@ class DescribeMixin(ABC):
     def get_str_headers(self) -> Generator:
         yield self.get_one_line_repr()
 
-    def _get_init_defaults(self) -> dict:
-        args = getfullargspec(self.__init__).args
-        defaults = getfullargspec(self.__init__).defaults
-        no_default_count = len(args) - len(defaults)
-        return dict(zip(args[no_default_count:], defaults))
-
-    def _get_init_types(self) -> dict:
-        return getfullargspec(self.__init__).annotations
-
     def has_data(self) -> bool:
         if hasattr(self, 'get_data'):
             return bool(self.get_data())
         else:
             return False
-
-    @staticmethod
-    def _get_value_repr(value: Value, default: str = '-') -> str:
-        if isinstance(value, Callable):
-            return get_name(value, or_callable=False)
-        elif value is not None:
-            return repr(value)
-        else:
-            return default
-
-    def get_meta_defaults(self) -> Generator:
-        meta = self.get_meta()
-        args = getfullargspec(self.__init__).args
-        defaults = getfullargspec(self.__init__).defaults
-        for k, v in zip(args, defaults):
-            if k in meta:
-                yield k, v
-        for k in meta:
-            if k not in args:
-                yield None
-
-    def get_meta_records(self) -> Generator:
-        init_defaults = self._get_init_defaults()
-        for key, value in self.get_meta_items():
-            actual_type = type(value).__name__
-            expected_type = self._get_init_types().get(key)
-            if hasattr(expected_type, '__name__'):
-                expected_type = expected_type.__name__
-            else:
-                expected_type = str(expected_type).replace('typing.', '')
-            default = init_defaults.get(key)
-            yield dict(
-                key=key,
-                value=self._get_value_repr(value),
-                default=self._get_value_repr(default),
-                actual_type=actual_type,
-                expected_type=expected_type or '-',
-                defined='-' if value == default else '+' if Auto.is_defined(value) else 'x',
-            )
 
     def get_data_description(
             self,
