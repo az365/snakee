@@ -7,10 +7,11 @@ try:  # Assume we're a submodule in a package.
         TermType, TermDataAttribute, TermRelation, FieldRoleType, FieldType,
         AUTO, Auto, AutoCount,
     )
+    from base.functions.arguments import get_name, get_names, get_value
+    from base.constants.chars import SMALL_INDENT, REPR_DELIMITER, JUPYTER_LINE_LEN, EMPTY
     from base.abstract.simple_data import SimpleDataWrapper
     from base.classes.enum import ClassType
-    from base.functions.arguments import get_name, get_names, get_value
-    from base.mixin.describe_mixin import DescribeMixin, PREFIX_VALUE, COLUMN_DELIMITER, JUPYTER_LINE_LEN
+    from base.mixin.describe_mixin import DescribeMixin
     from content.fields.advanced_field import AdvancedField
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
@@ -18,10 +19,11 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         TermType, TermDataAttribute, TermRelation, FieldRoleType, FieldType,
         AUTO, Auto, AutoCount,
     )
+    from ...base.functions.arguments import get_name, get_names, get_value
+    from ...base.constants.chars import SMALL_INDENT, REPR_DELIMITER, JUPYTER_LINE_LEN, EMPTY
     from ...base.abstract.simple_data import SimpleDataWrapper
     from ...base.classes.enum import ClassType
-    from ...base.functions.arguments import get_name, get_names, get_value
-    from ...base.mixin.describe_mixin import DescribeMixin, PREFIX_VALUE, COLUMN_DELIMITER, JUPYTER_LINE_LEN
+    from ...base.mixin.describe_mixin import DescribeMixin
     from ..fields.advanced_field import AdvancedField
 
 Native = SimpleDataWrapper
@@ -35,7 +37,7 @@ class AbstractTerm(SimpleDataWrapper, DescribeMixin, TermInterface, ABC):
     def __init__(
             self,
             name: str,
-            caption: str = '',
+            caption: str = EMPTY,
             fields: Optional[dict] = None,
             mappers: Optional[dict] = None,
             datasets: Optional[dict] = None,
@@ -214,8 +216,8 @@ class AbstractTerm(SimpleDataWrapper, DescribeMixin, TermInterface, ABC):
             self,
             with_title: bool = True,
             with_summary: bool = True,
-            prefix: str = PREFIX_VALUE,
-            delimiter: str = COLUMN_DELIMITER,
+            prefix: str = SMALL_INDENT,
+            delimiter: str = REPR_DELIMITER,
     ) -> Generator:
         if len(list(self.get_meta_items())) > 2:
             yield from super().get_meta_description(
