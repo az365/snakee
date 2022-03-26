@@ -604,6 +604,7 @@ class FlatStruct(SimpleDataWrapper, DescribeMixin, SelectableMixin, StructInterf
                     row = (is_valid, n, type_name, name, value, caption)
                 else:
                     row = (is_valid, n, type_name, name, caption)
+                row = map(str, row)
                 yield '\t'.join(row) if separate_by_tabs else template.format(*row)
             if Auto.is_defined(count):
                 if n >= count - 1:
