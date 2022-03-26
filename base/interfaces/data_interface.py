@@ -1,20 +1,22 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Union, Iterable, Callable, Any
+from typing import Optional, Callable, Iterable, Union, Any
 
 try:  # Assume we're a submodule in a package.
     from base.classes.auto import Auto
     from base.interfaces.base_interface import BaseInterface
+    from base.interfaces.line_output_interface import LineOutputInterface
     from base.interfaces.contextual_interface import ContextualInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.auto import Auto
     from .base_interface import BaseInterface
+    from .line_output_interface import LineOutputInterface
     from .contextual_interface import ContextualInterface
 
 Data = Union[Iterable, Any]
-OptionalFields = Optional[Union[Iterable, str]]
+OptionalFields = Union[Iterable, str, None]
 
 
-class SimpleDataInterface(BaseInterface, ABC):
+class SimpleDataInterface(BaseInterface, LineOutputInterface, ABC):
     @abstractmethod
     def get_name(self) -> Optional[str]:
         pass

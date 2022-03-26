@@ -2,25 +2,22 @@ from abc import ABC
 from typing import Optional, Callable, Iterable, Generator, Sequence, Union
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.auto import Auto, AUTO
-    from base.classes.typing import Class, AutoCount
+    from base.classes.typing import AUTO, Auto, AutoCount, Class
     from base.functions.arguments import get_name, get_value
     from base.constants.chars import DEFAULT_LINE_LEN, REPR_DELIMITER, SMALL_INDENT, EMPTY
+    from base.interfaces.line_output_interface import LineOutputInterface, AutoOutput, LoggingLevel
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..classes.auto import Auto, AUTO
-    from ..classes.typing import Class, AutoCount
+    from ..classes.typing import AUTO, Auto, AutoCount, Class
     from ..functions.arguments import get_name, get_value
     from ..constants.chars import DEFAULT_LINE_LEN, REPR_DELIMITER, SMALL_INDENT, EMPTY
-
-LoggingLevel = int
-AutoOutput = Union[Class, LoggingLevel, Callable, Auto]
+    from ..interfaces.line_output_interface import LineOutputInterface, AutoOutput, LoggingLevel
 
 DEFAULT_ROWS_COUNT = 10
 DEFAULT_INT_WIDTH, DEFAULT_FLOAT_WIDTH = 7, 12
 PREFIX_FIELD = 'prefix'
 
 
-class LineOutputMixin(ABC):
+class LineOutputMixin(LineOutputInterface, ABC):
     def get_output(self, output: AutoOutput = AUTO) -> Optional[Class]:
         if Auto.is_defined(output) and not isinstance(output, LoggingLevel):
             return output
