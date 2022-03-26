@@ -43,7 +43,6 @@ class AbstractTerm(SimpleDataWrapper, DescribeMixin, TermInterface, ABC):
             data: Optional[dict] = None,
     ):
         assert name, 'AbstractTerm: name must be non-empty'
-        # data = Auto.delayed_acquire(data, dict)
         self._caption = caption
         super().__init__(name=name, data=data or dict())
         self.add_fields(fields)
@@ -96,6 +95,9 @@ class AbstractTerm(SimpleDataWrapper, DescribeMixin, TermInterface, ABC):
         else:
             return data[key].get(subkey)
 
+    def add_field(self, field: AdvancedField, role: FieldRoleType) -> Native:
+        return self.add_fields({role: field})
+
     def add_fields(self, value: Optional[dict] = None, **kwargs) -> Native:
         return self.add_to_data(TermDataAttribute.Fields, value=value, **kwargs)
 
@@ -142,20 +144,13 @@ class AbstractTerm(SimpleDataWrapper, DescribeMixin, TermInterface, ABC):
         data_dict[subkey] = value
         return self
 
+    def field(self, name: str, field_type: FieldType, role: Union[FieldRoleType, str], **kwargs) -> FieldInterface:
+        new_field = AdvancedField(name, field_type=field_type, **kwargs)
+        self.add_fields(field=new_field, role=role)
+        return new_field
+
     def get_fields_by_roles(self) -> dict:
         return self.get_from_data(TermDataAttribute.Fields)
-
-    def add_mapper(self, src: Field, dst: Field, mapper: Callable) -> Native:
-        key = TermDataAttribute.Mappers
-        subkey = get_names([src, dst])
-        assert isinstance(key, TermDataAttribute)
-        return self.add_item(key, subkey, mapper)
-
-    def get_mapper(self, src: Field, dst: Field, default: Optional[Callable] = None) -> Optional[Callable]:
-        key = TermDataAttribute.Mappers
-        subkey = get_names([src, dst])
-        assert isinstance(key, TermDataAttribute)
-        return self.get_item(key, subkey, skip_missing=True, default=default)
 
     def get_field_by_role(
             self,
@@ -170,12 +165,12 @@ class AbstractTerm(SimpleDataWrapper, DescribeMixin, TermInterface, ABC):
             field = fields_by_roles[role_value]
             if kwargs:
                 assert isinstance(field, AdvancedField)
-                field = field.update_meta(**kwargs, inplace=False)
+                field = field.set_outplace(**kwargs)
         else:
             term_name = self.get_name()
             term_caption = self.get_caption()
             field_type = default_type or self.get_default_value_type_by_role(role)
-            if role == FieldRoleType.Repr or role is None:
+            if role in (FieldRoleType.Repr, FieldRoleType.Value, None):
                 field_name = term_name
                 field_caption = term_caption
             else:
@@ -183,11 +178,13 @@ class AbstractTerm(SimpleDataWrapper, DescribeMixin, TermInterface, ABC):
                 field_caption_template = '{role} of {term} ({caption})'
                 field_caption = field_caption_template.format(role=role_value, term=term_name, caption=term_caption)
             field_class = AdvancedField
+            if 'name' not in kwargs:
+                kwargs['name'] = field_name
             if 'caption' not in kwargs:
                 kwargs['caption'] = field_caption
             if 'field_type' not in kwargs:
                 kwargs['field_type'] = field_type
-            field = field_class(field_name, **kwargs)
+            field = field_class(**kwargs)
             fields_by_roles[role_value] = field
         return field
 
@@ -196,6 +193,18 @@ class AbstractTerm(SimpleDataWrapper, DescribeMixin, TermInterface, ABC):
         if not isinstance(role, FieldRoleType):
             role = FieldRoleType.detect(role)
         return role.get_default_value_type(default=default_type)
+
+    def add_mapper(self, src: Field, dst: Field, mapper: Callable) -> Native:
+        key = TermDataAttribute.Mappers
+        subkey = get_names([src, dst])
+        assert isinstance(key, TermDataAttribute)
+        return self.add_item(key, subkey, mapper)
+
+    def get_mapper(self, src: Field, dst: Field, default: Optional[Callable] = None) -> Optional[Callable]:
+        key = TermDataAttribute.Mappers
+        subkey = get_names([src, dst])
+        assert isinstance(key, TermDataAttribute)
+        return self.get_item(key, subkey, skip_missing=True, default=default)
 
     def get_str_headers(self) -> Generator:
         yield self.get_brief_repr()
@@ -240,6 +249,10 @@ class AbstractTerm(SimpleDataWrapper, DescribeMixin, TermInterface, ABC):
                     data.items(),
                 )
                 yield from self._get_columnar_lines(records, columns=columns, count=count, max_len=max_len)
+
+    # @deprecated
+    def get_type_in(self, dialect=None):  # TMP for compatibility with AbstractField/StructInterface
+        return list
 
     def __hash__(self):
         return hash(self.get_name())
