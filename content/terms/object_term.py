@@ -40,6 +40,9 @@ class ObjectTerm(DiscreteTerm):
     def get_name_field(self, **kwargs) -> Field:
         return self.get_field_by_role(FieldRoleType.Name, **kwargs)
 
+    def get_repr_field(self, **kwargs) -> Field:
+        return self.get_field_by_role(FieldRoleType.Repr, **kwargs)
+
     def get_count_field(self, **kwargs) -> Field:
         return self.get_field_by_role(FieldRoleType.Count, **kwargs)
 
