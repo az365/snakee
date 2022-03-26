@@ -3,10 +3,12 @@ from typing import Optional, Iterable, Callable, Generator, Union
 
 try:  # Assume we're a submodule in a package.
     from base.classes.typing import AUTO, Auto, AutoBool, AutoCount, Columns, Class, Value, Array, ARRAY_TYPES
+    from base.constants.chars import DEFAULT_LINE_LEN, JUPYTER_LINE_LEN, REPR_DELIMITER, SMALL_INDENT, CROP_SUFFIX
     from base.functions.arguments import get_name, get_value, get_str_from_args_kwargs
     from base.interfaces.data_interface import SimpleDataInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.typing import AUTO, Auto, AutoBool, AutoCount, Columns, Class, Value, Array, ARRAY_TYPES
+    from ..constants.chars import DEFAULT_LINE_LEN, JUPYTER_LINE_LEN, REPR_DELIMITER, SMALL_INDENT, CROP_SUFFIX
     from ..functions.arguments import get_name, get_value, get_str_from_args_kwargs
     from ..interfaces.data_interface import SimpleDataInterface
 
@@ -14,17 +16,13 @@ Native = SimpleDataInterface
 LoggingLevel = int
 AutoOutput = Union[Class, LoggingLevel, Callable, Auto]
 
+DEFAULT_ROWS_COUNT = 10
 PREFIX_FIELD = 'prefix'
-PREFIX_VALUE = '  '
-COLUMN_DELIMITER = ' '
-CROP_SUFFIX = '..'
+DICT_DESCRIPTION_COLUMNS = [(PREFIX_FIELD, 3), ('key', 20), 'value']
 META_DESCRIPTION_COLUMNS = [
     (PREFIX_FIELD, 3), ('defined', 3),
     ('key', 20), ('value', 30), ('actual_type', 14), ('expected_type', 20), ('default', 20),
 ]
-DICT_DESCRIPTION_COLUMNS = [(PREFIX_FIELD, 3), ('key', 20), 'value']
-JUPYTER_LINE_LEN = 120
-DEFAULT_ROWS_COUNT = 10
 
 
 class DescribeMixin(ABC):
@@ -106,7 +104,7 @@ class DescribeMixin(ABC):
             cls,
             item: Union[dict, Iterable],
             columns: Array,
-            max_len: int = JUPYTER_LINE_LEN,
+            max_len: int = DEFAULT_LINE_LEN,
             ex: Union[str, Array, None] = None,
     ) -> dict:
         if ex is None:
@@ -128,9 +126,9 @@ class DescribeMixin(ABC):
             columns: Array,
             count: AutoCount = None,
             with_title: bool = True,
-            prefix: str = PREFIX_VALUE,
+            prefix: str = SMALL_INDENT,
             delimiter: str = ' ',
-            max_len: int = JUPYTER_LINE_LEN,
+            max_len: int = DEFAULT_LINE_LEN,
     ) -> Generator:
         count = Auto.acquire(count, DEFAULT_ROWS_COUNT)
         formatter = cls._get_formatter(columns=columns, delimiter=delimiter)
@@ -181,7 +179,7 @@ class DescribeMixin(ABC):
     def get_one_line_repr(
             self,
             str_meta: Union[str, Auto, None] = AUTO,
-            max_len: int = JUPYTER_LINE_LEN,
+            max_len: int = DEFAULT_LINE_LEN,
             crop: str = CROP_SUFFIX,
     ) -> str:
         template = '{cls}({meta})'
@@ -210,7 +208,7 @@ class DescribeMixin(ABC):
             title: Optional[str] = 'Data:',
             max_len: AutoCount = AUTO,
     ) -> Generator:
-        max_len = Auto.acquire(max_len, JUPYTER_LINE_LEN)
+        max_len = Auto.acquire(max_len, DEFAULT_LINE_LEN)
         if title:
             yield title
         if hasattr(self, 'get_data_caption'):
@@ -250,8 +248,8 @@ class DescribeMixin(ABC):
             self,
             with_title: bool = True,
             with_summary: bool = True,
-            prefix: str = PREFIX_VALUE,
-            delimiter: str = COLUMN_DELIMITER,
+            prefix: str = SMALL_INDENT,
+            delimiter: str = REPR_DELIMITER,
     ) -> Generator:
         if with_summary:
             count = len(list(self.get_meta_records()))

@@ -1,15 +1,15 @@
 try:  # Assume we're a submodule in a package.
     from base.classes.typing import AUTO, Auto, Value, AutoCount
-    from content.representations.repr_constants import (
-        DEFAULT_STR, CROP_SUFFIX, FILL_CHAR,
-        TAB_SYMBOL, TAB_SUBSTITUTE, PARAGRAPH_SYMBOL, PARAGRAPH_SUBSTITUTE,
+    from base.constants.chars import (
+        CROP_SUFFIX, FILL_CHAR, DEFAULT_STR,
+        TAB_CHAR, TAB_SUBSTITUTE, PARAGRAPH_CHAR, PARAGRAPH_SUBSTITUTE,
     )
     from content.representations.abstract_repr import AbstractRepresentation, ReprType, OptKey
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.classes.typing import AUTO, Auto, Value, AutoCount
-    from .repr_constants import (
-        DEFAULT_STR, CROP_SUFFIX, FILL_CHAR,
-        TAB_SYMBOL, TAB_SUBSTITUTE, PARAGRAPH_SYMBOL, PARAGRAPH_SUBSTITUTE,
+    from ...base.constants.chars import (
+        CROP_SUFFIX, FILL_CHAR, DEFAULT_STR,
+        TAB_CHAR, TAB_SUBSTITUTE, PARAGRAPH_CHAR, PARAGRAPH_SUBSTITUTE,
     )
     from .abstract_repr import AbstractRepresentation, ReprType, OptKey
 
@@ -48,17 +48,17 @@ class StringRepresentation(AbstractRepresentation):
         if not isinstance(value, str):
             value = str(value)
         if self._tab is not None:
-            value = value.replace(TAB_SYMBOL, self._tab)
+            value = value.replace(TAB_CHAR, self._tab)
         if self._paragraph is not None:
-            value = value.replace(PARAGRAPH_SYMBOL, self._paragraph)
+            value = value.replace(PARAGRAPH_CHAR, self._paragraph)
         return super().format(value)
 
     def parse(self, line: str) -> str:
         value = super().parse(line)
         if self._tab is not None:
-            value = value.replace(self._tab, TAB_SYMBOL)
+            value = value.replace(self._tab, TAB_CHAR)
         if self._paragraph is not None:
-            value = value.replace(self._paragraph, PARAGRAPH_SYMBOL)
+            value = value.replace(self._paragraph, PARAGRAPH_CHAR)
         return value
 
 
