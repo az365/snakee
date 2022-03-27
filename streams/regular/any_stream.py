@@ -116,6 +116,7 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
         props = {k: v for k, v in self.get_meta().items() if k in new_props_keys}
         props.pop('count')
         items = self._get_mapped_items(function=function, flat=True)
+        props = self._get_safe_meta(**props)
         return stream_class(items, **props)
 
     @deprecated_with_alternative('map()')

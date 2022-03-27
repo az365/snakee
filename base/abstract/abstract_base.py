@@ -12,7 +12,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..interfaces.base_interface import BaseInterface
 
 Native = BaseInterface
-OptionalFields = Optional[Union[str, Iterable]]
+OptionalFields = Union[str, Iterable, None]
 
 COVERT_CAP = '***'
 
@@ -81,10 +81,12 @@ class AbstractBaseObject(BaseInterface, ABC):
     def _get_other_meta_fields_list(other: Union[Native, Auto] = AUTO) -> tuple:
         if other == AUTO:
             return tuple()
+        elif isinstance(other, AbstractBaseObject) or hasattr(other, '_get_init_args'):
+            other_meta = other._get_init_args()
         elif hasattr(other, 'get_meta_fields_list'):
             other_meta = other.get_meta_fields_list()
         elif hasattr(other, 'get_meta'):
-            other_meta = other.get_meta()
+            other_meta = tuple(other.get_meta())
         else:
             other_meta = tuple()
         return other_meta
@@ -112,17 +114,21 @@ class AbstractBaseObject(BaseInterface, ABC):
         meta = self.get_props(ex=ex_list)
         return meta
 
-    def set_meta(self, inplace: bool = False, **meta) -> Native:
+    def set_meta(self, inplace: bool = False, safe: bool = True, **meta) -> Native:
         if inplace:
             current_meta = self.get_meta()
             current_meta.update(meta)
             return self.set_inplace(**current_meta) or self
         else:
+            if safe:
+                meta = self._get_safe_meta(**meta)
             return self.__class__(*self._get_data_member_items(), **meta)
 
-    def update_meta(self, inplace: bool = False, **meta) -> Native:
+    def update_meta(self, inplace: bool = False, safe: bool = True, **meta) -> Native:
         current_meta = self.get_meta()
         current_meta.update(meta)
+        if safe:
+            current_meta = self._get_safe_meta(**current_meta)
         if inplace:
             return self.set_inplace(**current_meta) or self
         else:
@@ -143,7 +149,7 @@ class AbstractBaseObject(BaseInterface, ABC):
                 new_meta[key] = old_meta.get(key)
         return self.__class__(*self._get_data_member_items(), **new_meta)
 
-    def get_compatible_meta(self, other=AUTO, ex=None, **kwargs) -> dict:
+    def get_compatible_meta(self, other=AUTO, ex: OptionalFields = None, **kwargs) -> dict:
         other_meta = self._get_other_meta_fields_list(other)
         compatible_meta = dict()
         for k, v in list(self.get_meta(ex=ex).items()) + list(kwargs.items()):
@@ -151,29 +157,37 @@ class AbstractBaseObject(BaseInterface, ABC):
                 compatible_meta[k] = v
         return compatible_meta
 
-    def get_meta_items(self, meta: Union[dict, Auto] = AUTO) -> Generator:
+    def get_meta_items(self, meta: Union[dict, Auto] = AUTO, ex: OptionalFields = None) -> Generator:
         meta = Auto.delayed_acquire(meta, self.get_meta)
-        for k in self.get_ordered_meta_names(meta):
+        for k in self.get_ordered_meta_names(meta, ex=ex):
             yield k, meta[k]
 
-    def get_ordered_meta_names(self, meta: Union[dict, Auto] = AUTO) -> Generator:
+    def get_ordered_meta_names(self, meta: Union[dict, Auto] = AUTO, ex: OptionalFields = None) -> Generator:
         meta = Auto.delayed_acquire(meta, self.get_meta)
-        args = getfullargspec(self.__init__).args
+        ex_list = get_list(ex)
+        args = self._get_init_args()
         for k in args:
-            if k in meta:
+            if k in meta and k not in ex_list:
                 yield k
         for k in meta:
-            if k not in args:
+            if k not in args and k not in ex_list:
                 yield k
 
+    @classmethod
+    def _get_init_args(cls) -> list:
+        return getfullargspec(cls.__init__).args or list()
+
     def _get_init_defaults(self) -> dict:
-        args = getfullargspec(self.__init__).args or list()
+        args = self._get_init_args()
         defaults = getfullargspec(self.__init__).defaults or list()
         no_default_count = len(args) - len(defaults)
         return dict(zip(args[no_default_count:], defaults))
 
     def _get_init_types(self) -> dict:
         return getfullargspec(self.__init__).annotations
+
+    def _get_safe_meta(self, **meta) -> dict:
+        return {k: v for k, v in meta.items() if k in self._get_init_args()}
 
     @staticmethod
     def _get_covert_props() -> tuple:
@@ -182,8 +196,8 @@ class AbstractBaseObject(BaseInterface, ABC):
     def _get_meta_args(self) -> list:
         return [self.__dict__[k] for k in self._get_key_member_names()]
 
-    def _get_meta_kwargs(self, except_covert: bool = False) -> dict:
-        meta_kwargs = self.get_meta().copy()
+    def _get_meta_kwargs(self, except_covert: bool = False, ex: OptionalFields = None) -> dict:
+        meta_kwargs = self.get_meta(ex=ex).copy()
         for f in self._get_key_member_names():
             meta_kwargs.pop(self._get_meta_field_by_member_name(f), None)
         if except_covert:
@@ -192,8 +206,8 @@ class AbstractBaseObject(BaseInterface, ABC):
                     meta_kwargs[f] = COVERT_CAP
         return meta_kwargs
 
-    def get_meta_defaults(self) -> Generator:
-        meta = self.get_meta()
+    def get_meta_defaults(self, ex: OptionalFields = None) -> Generator:
+        meta = self.get_meta(ex=ex)
         args = getfullargspec(self.__init__).args
         defaults = getfullargspec(self.__init__).defaults
         for k, v in zip(args, defaults):
@@ -203,9 +217,9 @@ class AbstractBaseObject(BaseInterface, ABC):
             if k not in args:
                 yield None
 
-    def get_meta_records(self) -> Generator:
+    def get_meta_records(self, ex: OptionalFields = None) -> Generator:
         init_defaults = self._get_init_defaults()
-        for key, value in self.get_meta_items():
+        for key, value in self.get_meta_items(ex=ex):
             actual_type = type(value).__name__
             expected_type = self._get_init_types().get(key)
             if hasattr(expected_type, '__name__'):
@@ -230,9 +244,11 @@ class AbstractBaseObject(BaseInterface, ABC):
     def get_detailed_repr(self) -> str:
         return '{}({})'.format(self.__class__.__name__, self.get_str_meta())
 
-    def make_new(self, *args, ex: OptionalFields = None, **kwargs) -> Native:
+    def make_new(self, *args, ex: OptionalFields = None, safe: bool = True, **kwargs) -> Native:
         meta = self.get_meta(ex=ex)
         meta.update(kwargs)
+        if safe:
+            meta = self._get_safe_meta(**meta)
         return self.__class__(*args, **meta)
 
     @staticmethod

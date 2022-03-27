@@ -18,7 +18,8 @@ class LineStream(AnyStream):
     def __init__(
             self,
             data: Iterable,
-            name=AUTO, check=True,
+            name: str = AUTO, caption: str = '',
+            check: bool = True,
             count=None, less_than=None,
             source=None, context=None,
             max_items_in_memory=AUTO,
@@ -32,6 +33,7 @@ class LineStream(AnyStream):
             max_items_in_memory=max_items_in_memory,
             tmp_files=tmp_files,
         )
+        self._caption = caption
 
     @staticmethod
     def get_item_type() -> ItemType:

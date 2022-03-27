@@ -42,7 +42,7 @@ class SimpleDataWrapper(AbstractNamed, SimpleDataInterface, ABC):
     def get_data(self) -> Data:
         return self._data
 
-    def set_data(self, data: Data, inplace: bool, reset_dynamic_meta: bool = True, **kwargs) -> Native:
+    def set_data(self, data: Data, inplace: bool, reset_dynamic_meta: bool = True, safe=True, **kwargs) -> Native:
         if inplace:
             self._data = data
             if reset_dynamic_meta:
@@ -51,7 +51,7 @@ class SimpleDataWrapper(AbstractNamed, SimpleDataInterface, ABC):
                 meta = dict()
             meta.update(kwargs)
             if meta:
-                self.set_meta(**meta, inplace=True)
+                self.set_meta(**meta, safe=safe, inplace=True)
             return self
         else:
             if reset_dynamic_meta:
@@ -59,6 +59,8 @@ class SimpleDataWrapper(AbstractNamed, SimpleDataInterface, ABC):
             else:
                 meta = self.get_meta()
             meta.update(kwargs)
+            if safe:
+                meta = self._get_safe_meta(**meta)
             try:
                 return self.__class__(data, **meta)
             except TypeError as e:  # __init__() got an unexpected keyword argument '...'

@@ -81,6 +81,7 @@ class ConvertMixin(IterableStream, ABC):
         meta.update(kwargs)
         if 'context' not in meta:
             meta['context'] = self.get_context()
+        meta = self.get_compatible_meta(stream_class, ex=ex, **meta)
         stream = stream_class(data, **meta)
         return stream
 
