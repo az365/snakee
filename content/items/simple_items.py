@@ -1,6 +1,10 @@
 from abc import ABC, abstractmethod
-from collections import Mapping, OrderedDict
 from typing import Callable, Iterable, Sequence, Union, Any
+from collections import OrderedDict
+try:
+    from collections import Mapping
+except ImportError:
+    from collections.abc import Mapping
 
 try:  # Assume we're a submodule in a package.
     from base.classes.auto import Auto, AUTO
