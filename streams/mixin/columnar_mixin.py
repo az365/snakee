@@ -12,7 +12,6 @@ try:  # Assume we're a submodule in a package.
     from base.functions.arguments import get_name, get_names, update
     from base.abstract.contextual_data import ContextualDataWrapper
     from base.mixin.iterable_mixin import IterableMixin
-    from base.mixin.describe_mixin import DescribeMixin
     from functions.secondary import item_functions as fs
     from content.fields import field_classes as fc
     from utils import algo
@@ -29,7 +28,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.functions.arguments import get_name, get_names, update
     from ...base.abstract.contextual_data import ContextualDataWrapper
     from ...base.mixin.iterable_mixin import IterableMixin
-    from ...base.mixin.describe_mixin import DescribeMixin
     from ...functions.secondary import item_functions as fs
     from ...content.fields import field_classes as fc
     from ...utils import algo

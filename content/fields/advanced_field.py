@@ -8,7 +8,6 @@ try:  # Assume we're a submodule in a package.
         AutoBool, Auto, AUTO,
     )
     from base.functions.arguments import get_name
-    from base.mixin.describe_mixin import DescribeMixin, AutoOutput
     from content.representations.repr_classes import ReprType
     from content.selection.selectable_mixin import SelectableMixin
     from content.fields.abstract_field import AbstractField
@@ -21,7 +20,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         AutoBool, Auto, AUTO,
     )
     from ...base.functions.arguments import get_name
-    from ...base.mixin.describe_mixin import DescribeMixin, AutoOutput
     from ..representations.repr_classes import ReprType
     from ..selection.selectable_mixin import SelectableMixin
     from .abstract_field import AbstractField
@@ -32,7 +30,7 @@ Native = AbstractField
 META_MEMBER_MAPPING = dict(_type='field_type', _data='extractors')
 
 
-class AdvancedField(AbstractField, SelectableMixin, DescribeMixin):
+class AdvancedField(AbstractField, SelectableMixin):
     def __init__(
             self,
             name: str,

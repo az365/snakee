@@ -6,16 +6,18 @@ try:  # Assume we're a submodule in a package.
         LeafConnectorInterface, StructInterface, Stream, RecordStream, ItemType,
         AUTO, Auto, AutoCount, AutoBool, Columns, Array, Count,
     )
-    from base.mixin.describe_mixin import DescribeMixin, AutoOutput, JUPYTER_LINE_LEN, CROP_SUFFIX
     from base.functions.arguments import get_name, get_str_from_args_kwargs
+    from base.constants.chars import JUPYTER_LINE_LEN, CROP_SUFFIX
+    from base.mixin.line_output_mixin import AutoOutput
     from functions.primary import dates as dt
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         LeafConnectorInterface, StructInterface, Stream, RecordStream, ItemType,
         AUTO, Auto, AutoCount, AutoBool, Columns, Array, Count,
     )
-    from ...base.mixin.describe_mixin import DescribeMixin, AutoOutput, JUPYTER_LINE_LEN, CROP_SUFFIX
     from ...base.functions.arguments import get_name, get_str_from_args_kwargs
+    from ...base.constants.chars import JUPYTER_LINE_LEN, CROP_SUFFIX
+    from ...base.mixin.line_output_mixin import AutoOutput
     from ...functions.primary import dates as dt
 
 Native = LeafConnectorInterface
@@ -68,7 +70,7 @@ class AppropriateInterface(LeafConnectorInterface, ABC):
         pass
 
 
-class ActualizeMixin(DescribeMixin, ABC):
+class ActualizeMixin(ABC):
     def is_outdated(self) -> bool:
         return not self.is_actual()
 

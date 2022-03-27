@@ -8,9 +8,8 @@ try:  # Assume we're a submodule in a package.
         AUTO, Auto, Name, Array, ARRAY_TYPES, ROW_SUBCLASSES, RECORD_SUBCLASSES,
     )
     from base.functions.arguments import update, get_generated_name, get_name, get_names
-    from base.constants.chars import REPR_DELIMITER, TITLE_PREFIX
-    from base.abstract.simple_data import SimpleDataWrapper
-    from base.mixin.describe_mixin import DescribeMixin, AutoOutput, DEFAULT_ROWS_COUNT, JUPYTER_LINE_LEN
+    from base.constants.chars import REPR_DELIMITER, TITLE_PREFIX, JUPYTER_LINE_LEN
+    from base.abstract.simple_data import SimpleDataWrapper, DEFAULT_ROWS_COUNT
     from functions.secondary import array_functions as fs
     from utils.external import pd, get_use_objects_for_output, DataFrame
     from content.fields.advanced_field import AdvancedField
@@ -25,9 +24,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         AUTO, Auto, Name, Array, ARRAY_TYPES, ROW_SUBCLASSES, RECORD_SUBCLASSES,
     )
     from ...base.functions.arguments import update, get_generated_name, get_name, get_names
-    from ...base.constants.chars import REPR_DELIMITER, TITLE_PREFIX
-    from ...base.abstract.simple_data import SimpleDataWrapper
-    from ...base.mixin.describe_mixin import DescribeMixin, AutoOutput, DEFAULT_ROWS_COUNT, JUPYTER_LINE_LEN
+    from ...base.constants.chars import REPR_DELIMITER, TITLE_PREFIX, JUPYTER_LINE_LEN
+    from ...base.abstract.simple_data import SimpleDataWrapper, DEFAULT_ROWS_COUNT
     from ...functions.secondary import array_functions as fs
     from ...utils.external import pd, get_use_objects_for_output, DataFrame
     from ..fields.advanced_field import AdvancedField
@@ -47,7 +45,7 @@ GROUP_TYPE_STR = 'GROUP'
 DICT_VALID_SIGN = {'True': '-', 'False': 'x', 'None': '-', AUTO.get_value(): '~'}
 
 
-class FlatStruct(SimpleDataWrapper, DescribeMixin, SelectableMixin, StructInterface):
+class FlatStruct(SimpleDataWrapper, SelectableMixin, StructInterface):
     def __init__(
             self,
             fields: Iterable,
