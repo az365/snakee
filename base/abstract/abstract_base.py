@@ -1,20 +1,20 @@
 from abc import ABC
-from typing import Optional, Callable, Iterable, Generator, Union, Any
+from typing import Callable, Iterable, Generator, Union, Any
 from inspect import getfullargspec
 
 try:  # Assume we're a submodule in a package.
     from base.classes.auto import Auto, AUTO
+    from base.constants.chars import EMPTY, PLUS, MINUS, CROSS, DEFAULT_STR, COVERT, PROTECTED
     from base.functions.arguments import get_name, get_list, get_str_from_args_kwargs
     from base.interfaces.base_interface import BaseInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.auto import Auto, AUTO
+    from ..constants.chars import EMPTY, PLUS, MINUS, CROSS, DEFAULT_STR, COVERT, PROTECTED
     from ..functions.arguments import get_name, get_list, get_str_from_args_kwargs
     from ..interfaces.base_interface import BaseInterface
 
 Native = BaseInterface
 OptionalFields = Union[str, Iterable, None]
-
-COVERT_CAP = '***'
 
 
 class AbstractBaseObject(BaseInterface, ABC):
@@ -53,7 +53,7 @@ class AbstractBaseObject(BaseInterface, ABC):
     @classmethod
     def _get_meta_field_by_member_name(cls, name: str) -> str:
         name = cls._get_meta_member_mapping().get(name, name)
-        if name.startswith('_'):
+        if name.startswith(PROTECTED):
             name = name[1:]
         return name
 
@@ -203,7 +203,7 @@ class AbstractBaseObject(BaseInterface, ABC):
         if except_covert:
             for f in self._get_covert_props():
                 if meta_kwargs.get(f):
-                    meta_kwargs[f] = COVERT_CAP
+                    meta_kwargs[f] = COVERT
         return meta_kwargs
 
     def get_meta_defaults(self, ex: OptionalFields = None) -> Generator:
@@ -225,15 +225,15 @@ class AbstractBaseObject(BaseInterface, ABC):
             if hasattr(expected_type, '__name__'):
                 expected_type = expected_type.__name__
             else:
-                expected_type = str(expected_type).replace('typing.', '')
+                expected_type = str(expected_type).replace('typing.', EMPTY)
             default = init_defaults.get(key)
             yield dict(
                 key=key,
                 value=self._get_value_repr(value),
                 default=self._get_value_repr(default),
                 actual_type=actual_type,
-                expected_type=expected_type or '-',
-                defined='-' if value == default else '+' if Auto.is_defined(value) else 'x',
+                expected_type=expected_type or DEFAULT_STR,
+                defined=MINUS if value == default else PLUS if Auto.is_defined(value) else CROSS,
             )
 
     def get_str_meta(self) -> str:
@@ -252,7 +252,7 @@ class AbstractBaseObject(BaseInterface, ABC):
         return self.__class__(*args, **meta)
 
     @staticmethod
-    def _get_value_repr(value: Any, default: str = '-') -> str:
+    def _get_value_repr(value: Any, default: str = DEFAULT_STR) -> str:
         if isinstance(value, Callable):
             return get_name(value, or_callable=False)
         elif value is not None:
