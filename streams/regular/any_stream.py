@@ -84,7 +84,7 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
         if use_extended_method:
             selection_method = sn.select
         else:
-            selection_method = sf.select
+            selection_method = sf.get_selection_mapper
         select_function = selection_method(
             *columns, **expressions,
             target_item_type=target_item_type, input_item_type=input_item_type,

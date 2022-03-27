@@ -1,15 +1,21 @@
-from typing import Callable, Union, Any
+from typing import Optional, Callable, Union, Any
 
 try:  # Assume we're a submodule in a package.
     from base.classes.auto import AUTO, Auto
     from base.functions.arguments import get_names, update
+    from content.items.item_type import ItemType
+    from loggers.logger_interface import LoggerInterface
     from functions.primary import items as it
     from utils import algo
+    from utils.decorators import deprecated_with_alternative
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..base.classes.auto import AUTO, Auto
     from ..base.functions.arguments import get_names, update
+    from ..content.items.item_type import ItemType
+    from ..loggers.logger_interface import LoggerInterface
     from ..functions.primary import items as it
     from . import algo
+    from .decorators import deprecated_with_alternative
 
 Description = Union[Callable, list, tuple]
 
@@ -260,12 +266,17 @@ def auto_to_auto(item, *descriptions, logger=None) -> Any:
         return get_composite_key(item, descriptions)
 
 
-def select(
+@deprecated_with_alternative('get_selection_mapper()')
+def select(*fields, **expressions):
+    return get_selection_mapper(*fields, **expressions)
+
+
+def get_selection_mapper(
         *fields,
-        target_item_type=AUTO,
-        input_item_type=AUTO,
-        logger=None,
-        selection_logger=AUTO,
+        target_item_type: ItemType = AUTO,
+        input_item_type: ItemType = AUTO,
+        logger: Optional[LoggerInterface] = None,
+        selection_logger: Union[LoggerInterface, Auto] = AUTO,
         **expressions
 ):
     descriptions = flatten_descriptions(

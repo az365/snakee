@@ -99,7 +99,7 @@ class RowStream(AnyStream, ColumnarMixin):
         if extended:
             return sn.select
         else:
-            return sf.select
+            return sf.get_selection_mapper
 
     def select(self, *columns, use_extended_method: bool = True) -> Native:
         selection_method = self._get_selection_method(extended=use_extended_method)
