@@ -3,13 +3,13 @@ from typing import Optional, Generator, Union
 
 try:  # Assume we're a submodule in a package.
     from base.classes.auto import AUTO, Auto
-    from base.constants.chars import EMPTY, PY_INDENT, REPR_DELIMITER
+    from base.constants.chars import EMPTY, PY_INDENT, REPR_DELIMITER, DEFAULT_LINE_LEN
     from base.functions.arguments import get_str_from_args_kwargs
     from base.mixin.line_output_mixin import LineOutputMixin, AutoOutput
     from base.abstract.abstract_base import AbstractBaseObject
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.auto import AUTO, Auto
-    from ..constants.chars import EMPTY, PY_INDENT, REPR_DELIMITER
+    from ..constants.chars import EMPTY, PY_INDENT, REPR_DELIMITER, DEFAULT_LINE_LEN
     from ..functions.arguments import get_str_from_args_kwargs
     from ..mixin.line_output_mixin import LineOutputMixin, AutoOutput
     from .abstract_base import AbstractBaseObject
@@ -63,9 +63,10 @@ class AbstractNamed(AbstractBaseObject, LineOutputMixin, ABC):
         yield BRIEF_META_ROW_FORMATTER.format(prefix=prefix, key='caption:', value=self.get_caption())
         meta = self.get_meta(ex=['name', 'caption'])
         if meta:
-            yield BRIEF_META_ROW_FORMATTER.format(prefix=prefix, key='meta:', value=get_str_from_args_kwargs(**meta))
+            line = BRIEF_META_ROW_FORMATTER.format(prefix=prefix, key='meta:', value=get_str_from_args_kwargs(**meta))
+            yield line[:DEFAULT_LINE_LEN]
 
-    def get_meta_description(self, prefix: str = PY_INDENT) -> Generator:
+    def get_meta_description(self, prefix: str = PY_INDENT, delimiter: str = REPR_DELIMITER) -> Generator:
         yield from self.get_brief_meta_description(prefix=prefix)
 
     def get_brief_repr(self) -> str:
