@@ -152,7 +152,7 @@ class AbstractDescription(DescribeMixin, AbstractBaseObject, ABC):
 
     def get_brief_repr(self) -> str:
         inputs = ', '.join(map(get_name, self.get_input_field_names()))
-        target = ', '.join(map(get_name, self.get_target_field_name()))
+        target = get_name(self.get_target_field_name())
         func = self.get_function().__name__
         if func == '<lambda>':
             func = 'lambda'
@@ -204,6 +204,9 @@ class SingleFieldDescription(AbstractDescription, ABC):
             item=item, item_type=self.get_input_item_type(),
             skip_errors=self.must_skip_errors(), logger=self.get_logger(), default=self.get_default_value(),
         )
+
+    def get_output_field_names(self, *args) -> list:
+        return [self.get_target_field_name()]
 
     def get_function(self) -> Callable:
         return lambda i: i
