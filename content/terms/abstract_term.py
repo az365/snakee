@@ -46,8 +46,7 @@ class AbstractTerm(SimpleDataWrapper, TermInterface, ABC):
             data: Optional[dict] = None,
     ):
         assert name, 'AbstractTerm: name must be non-empty'
-        self._caption = caption
-        super().__init__(name=name, data=data or dict())
+        super().__init__(name=name, caption=caption, data=data or dict())
         self.add_fields(fields)
         self.add_mappers(mappers)
         self.add_datasets(datasets)

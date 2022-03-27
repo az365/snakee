@@ -11,6 +11,16 @@ try:  # Assume we're a submodule in a package.
     from content.struct.flat_struct import FlatStruct
     from content.fields.abstract_field import AbstractField
     from content.fields.advanced_field import AdvancedField
+    from content.fields.id_field import IdField
+    from content.fields.name_field import NameField
+    from content.fields.repr_field import ReprField
+    from content.fields.key_field import KeyField
+    from content.fields.ids_field import IdsField
+    from content.fields.count_field import CountField
+    from content.fields.share_field import ShareField
+    from content.fields.value_field import ValueField
+    from content.fields.mean_field import MeanField
+    from content.fields.norm_field import NormField
     from content.selection.abstract_expression import AbstractDescription
     from content.selection import concrete_expression as ce
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -24,6 +34,16 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..struct.flat_struct import FlatStruct
     from .abstract_field import AbstractField
     from .advanced_field import AdvancedField
+    from .id_field import IdField
+    from .name_field import NameField
+    from .repr_field import ReprField
+    from .key_field import KeyField
+    from .ids_field import IdsField
+    from .count_field import CountField
+    from .share_field import ShareField
+    from .value_field import ValueField
+    from .mean_field import MeanField
+    from .norm_field import NormField
     from ..selection.abstract_expression import AbstractDescription
     from ..selection import concrete_expression as ce
 
