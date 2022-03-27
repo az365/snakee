@@ -123,7 +123,7 @@ class LineOutputMixin(LineOutputInterface, ABC):
             values = [str(get_value(item.get(k))) if k not in ex else '' for k in names]
         else:
             values = [str(v) if k not in ex else '' for k, v in zip(names, item)]
-        return {c: v[:s] for c, v, s in zip(names, values, lens)}
+        return {c: str(v)[:s] for c, v, s in zip(names, values, lens)}
 
     @classmethod
     def _get_columnar_lines(
