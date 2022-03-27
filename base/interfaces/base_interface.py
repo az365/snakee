@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Iterable, Generator, Union
+from typing import Type, Optional, Callable, Iterable, Generator, Union
 
 try:  # Assume we're a submodule in a package.
     from base.classes.auto import AUTO, Auto
@@ -7,6 +7,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..classes.auto import AUTO, Auto
 
 OptionalFields = Union[str, Iterable, None]
+AutoOutput = Union[Type, Callable, int, Auto]
 
 
 class BaseInterface(ABC):
@@ -77,4 +78,14 @@ class BaseInterface(ABC):
 
     @abstractmethod
     def make_new(self, *args, ex: OptionalFields = None, **kwargs):
+        pass
+
+    @abstractmethod
+    def describe(
+            self,
+            show_header: bool = True,
+            comment: Optional[str] = None,
+            depth: int = 1,
+            output: AutoOutput = AUTO,
+    ):
         pass

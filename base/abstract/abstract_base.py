@@ -1,17 +1,17 @@
 from abc import ABC
-from typing import Callable, Iterable, Generator, Union, Any
+from typing import Optional, Callable, Iterable, Generator, Union, Any
 from inspect import getfullargspec
 
 try:  # Assume we're a submodule in a package.
     from base.classes.auto import Auto, AUTO
     from base.constants.chars import EMPTY, PLUS, MINUS, CROSS, DEFAULT_STR, COVERT, PROTECTED
     from base.functions.arguments import get_name, get_list, get_str_from_args_kwargs
-    from base.interfaces.base_interface import BaseInterface
+    from base.interfaces.base_interface import BaseInterface, AutoOutput
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.auto import Auto, AUTO
     from ..constants.chars import EMPTY, PLUS, MINUS, CROSS, DEFAULT_STR, COVERT, PROTECTED
     from ..functions.arguments import get_name, get_list, get_str_from_args_kwargs
-    from ..interfaces.base_interface import BaseInterface
+    from ..interfaces.base_interface import BaseInterface, AutoOutput
 
 Native = BaseInterface
 OptionalFields = Union[str, Iterable, None]
@@ -174,6 +174,10 @@ class AbstractBaseObject(BaseInterface, ABC):
                 yield k
 
     @classmethod
+    def _get_safe_meta(cls, **meta) -> dict:
+        return {k: v for k, v in meta.items() if k in cls._get_init_args()}
+
+    @classmethod
     def _get_init_args(cls) -> list:
         return getfullargspec(cls.__init__).args or list()
 
@@ -185,9 +189,6 @@ class AbstractBaseObject(BaseInterface, ABC):
 
     def _get_init_types(self) -> dict:
         return getfullargspec(self.__init__).annotations
-
-    def _get_safe_meta(self, **meta) -> dict:
-        return {k: v for k, v in meta.items() if k in self._get_init_args()}
 
     @staticmethod
     def _get_covert_props() -> tuple:
@@ -259,6 +260,21 @@ class AbstractBaseObject(BaseInterface, ABC):
             return repr(value)
         else:
             return default
+
+    def describe(
+            self,
+            show_header: bool = True,
+            comment: Optional[str] = None,
+            depth: int = 1,
+            output: AutoOutput = AUTO,
+    ):
+        detailed_repr = self.get_detailed_repr()
+        if hasattr(output, 'output_line'):
+            output_method = output.output_line(detailed_repr)
+        else:
+            output_method = print
+        output_method(detailed_repr)
+        output_method(comment)
 
     def __repr__(self):
         return self.get_detailed_repr()
