@@ -4,30 +4,34 @@ from typing import Optional, Callable, Union
 try:  # Assume we're a submodule in a package.
     from base.classes.auto import Auto, AUTO
     from base.functions.arguments import get_name, get_value
-    from base.abstract.simple_data import SimpleDataWrapper
+    from base.abstract.simple_data import SimpleDataWrapper, EMPTY
     from interfaces import FieldInterface, StructInterface, FieldType, DialectType, ARRAY_TYPES
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.classes.auto import Auto, AUTO
     from ...base.functions.arguments import get_name, get_value
-    from ...base.abstract.simple_data import SimpleDataWrapper
+    from ...base.abstract.simple_data import SimpleDataWrapper, EMPTY
     from ...interfaces import FieldInterface, StructInterface, FieldType, DialectType, ARRAY_TYPES
+
+Native = Union[SimpleDataWrapper, FieldInterface]
 
 
 class AbstractField(SimpleDataWrapper, FieldInterface, ABC):
     _struct_builder: Optional[Callable] = None
 
-    def __init__(self, name: str, field_type: FieldType = FieldType.Any, properties=None):
+    def __init__(self, name: str, field_type: FieldType = FieldType.Any, caption: str = EMPTY, properties=None):
         field_type = Auto.delayed_acquire(field_type, FieldType.detect_by_name, field_name=name)
         field_type = FieldType.get_canonic_type(field_type, ignore_missing=True)
         assert isinstance(field_type, FieldType), 'Expected FieldType, got {}'.format(field_type)
         self._type = field_type
-        super().__init__(name=name, data=properties)
+        super().__init__(name=name, caption=caption, data=properties)
 
-    def set_type(self, field_type: FieldType, inplace: bool) -> Optional[FieldInterface]:
+    def set_type(self, field_type: FieldType, inplace: bool) -> Native:
         if inplace:
             self._type = field_type
+            return self
         else:
-            return self.set_outplace(field_type=field_type)
+            field = self.set_outplace(field_type=field_type)
+            return self._assume_native(field)
 
     def get_type(self) -> FieldType:
         return self._type
@@ -84,3 +88,7 @@ class AbstractField(SimpleDataWrapper, FieldInterface, ABC):
             return struct
         else:
             raise TypeError('Expected other as field or struct, got {} as {}'.format(other, type(other)))
+
+    @staticmethod
+    def _assume_native(obj) -> Native:
+        return obj
