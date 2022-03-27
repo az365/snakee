@@ -51,7 +51,7 @@ def topologically_sorted(expressions: dict, ignore_cycles: bool = IGNORE_CYCLIC_
     return [(f, expressions[f]) for f in ordered_fields]
 
 
-def flatten_descriptions(*fields, **expressions) -> list:
+def flatten_descriptions(*fields, to_names: bool = True, **expressions) -> list:
     descriptions = list(fields)
     logger = expressions.pop('logger', None)
     ignore_cycles = logger is not None
@@ -62,7 +62,15 @@ def flatten_descriptions(*fields, **expressions) -> list:
             descriptions.append([k] + list(v))
         else:
             descriptions.append([k] + [v])
-    return descriptions
+    if to_names:
+        result = list()
+        for desc in descriptions:
+            if isinstance(desc, (list, tuple)):
+                desc = get_names(desc, or_callable=True)
+            result.append(desc)
+        return result
+    else:
+        return descriptions
 
 
 def safe_apply_function(function: Callable, fields, values, item=None, logger=None, skip_errors=True) -> Any:
