@@ -228,8 +228,14 @@ class AbstractBaseObject(BaseInterface, ABC):
             else:
                 expected_type = str(expected_type).replace('typing.', EMPTY)
             default = init_defaults.get(key)
+            if hasattr(value, 'get_caption'):
+                caption = value.get_caption()
+            else:
+                caption = EMPTY
             yield dict(
                 key=key,
+                obj=value,
+                caption=caption,
                 value=self._get_value_repr(value),
                 default=self._get_value_repr(default),
                 actual_type=actual_type,

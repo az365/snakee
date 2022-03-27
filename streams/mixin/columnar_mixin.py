@@ -356,6 +356,7 @@ class ColumnarMixin(ContextualDataWrapper, IterableMixin, ColumnarInterface, ABC
             filters: Columns = None,
             columns: Columns = None,
             as_dataframe: AutoBool = AUTO,
+            output=AUTO,
     ):
         self.log(self.get_str_description(), level=LOGGING_LEVEL_INFO, truncate=False, force=True)
         demo_example = self.get_demo_example(count=count, filters=filters, columns=columns, as_dataframe=as_dataframe)

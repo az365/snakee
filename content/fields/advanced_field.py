@@ -1,4 +1,4 @@
-from typing import Optional, Union, Iterable, Callable, Any
+from typing import Optional, Callable, Iterable, Generator, Union, Any
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
@@ -10,7 +10,7 @@ try:  # Assume we're a submodule in a package.
     from base.functions.arguments import get_name
     from content.representations.repr_classes import ReprType
     from content.selection.selectable_mixin import SelectableMixin
-    from content.fields.abstract_field import AbstractField
+    from content.fields.abstract_field import AbstractField, EMPTY
     from content.selection import abstract_expression as ae, concrete_expression as ce
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
@@ -22,7 +22,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.functions.arguments import get_name
     from ..representations.repr_classes import ReprType
     from ..selection.selectable_mixin import SelectableMixin
-    from .abstract_field import AbstractField
+    from .abstract_field import AbstractField, EMPTY
     from ..selection import abstract_expression as ae, concrete_expression as ce
 
 Native = AbstractField
@@ -47,7 +47,6 @@ class AdvancedField(AbstractField, SelectableMixin):
             group_name: Optional[str] = None,
             group_caption: Optional[str] = None,
     ):
-        self._caption = caption
         self._representation = representation
         self._default = default
         self._transform = transform
@@ -57,7 +56,7 @@ class AdvancedField(AbstractField, SelectableMixin):
         self._is_valid = is_valid
         self._group_name = group_name or ''
         self._group_caption = group_caption or ''
-        super().__init__(name=name, field_type=field_type, properties=extractors or list())
+        super().__init__(name=name, field_type=field_type, caption=caption, properties=extractors or list())
 
     @classmethod
     def _get_meta_member_mapping(cls) -> dict:
@@ -219,6 +218,11 @@ class AdvancedField(AbstractField, SelectableMixin):
 
     def drop(self):
         return ce.DropDescription([self], target_item_type=ItemType.Auto)
+
+    def get_str_headers(self) -> Generator:
+        yield self.get_brief_repr()
+        yield from self.get_brief_meta_description()
+        yield EMPTY
 
     @staticmethod
     def _assume_native(field) -> Native:

@@ -7,7 +7,7 @@ try:  # Assume we're a submodule in a package.
         AUTO, Auto, AutoCount, AutoBool, Columns, Array, Count,
     )
     from base.functions.arguments import get_name, get_str_from_args_kwargs
-    from base.constants.chars import JUPYTER_LINE_LEN, CROP_SUFFIX
+    from base.constants.chars import CROP_SUFFIX, DEFAULT_LINE_LEN
     from base.mixin.line_output_mixin import AutoOutput
     from functions.primary import dates as dt
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -16,7 +16,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         AUTO, Auto, AutoCount, AutoBool, Columns, Array, Count,
     )
     from ...base.functions.arguments import get_name, get_str_from_args_kwargs
-    from ...base.constants.chars import JUPYTER_LINE_LEN, CROP_SUFFIX
+    from ...base.constants.chars import CROP_SUFFIX, DEFAULT_LINE_LEN
     from ...base.mixin.line_output_mixin import AutoOutput
     from ...functions.primary import dates as dt
 
@@ -202,7 +202,10 @@ class ActualizeMixin(ABC):
         return message.format(self.get_column_count(), ', '.join(self.get_columns()))
 
     def get_str_headers(self) -> Generator:
-        yield "{}('{}') {}".format(self.__class__.__name__, self.get_name(), self.get_shape_repr())
+        str_header = "{}('{}') {}".format(self.__class__.__name__, self.get_name(), self.get_shape_repr())
+        if len(str_header) > DEFAULT_LINE_LEN:
+            str_header = str_header[:DEFAULT_LINE_LEN - len(CROP_SUFFIX)] + CROP_SUFFIX
+        yield str_header
 
     def get_useful_props(self) -> dict:
         if self.is_existing():
@@ -224,7 +227,7 @@ class ActualizeMixin(ABC):
     def get_one_line_repr(
             self,
             str_meta: Union[str, Auto, None] = AUTO,
-            max_len: int = JUPYTER_LINE_LEN,
+            max_len: int = DEFAULT_LINE_LEN,
             crop: str = CROP_SUFFIX,
     ) -> str:
         if not Auto.is_defined(str_meta):
@@ -335,6 +338,7 @@ class ActualizeMixin(ABC):
             output: AutoOutput = AUTO,
             **filter_kwargs
     ):
+        output = Auto.acquire(output, print)
         if show_header:
             for line in self.get_str_headers():
                 self.output_line(line, output=output)
@@ -368,4 +372,5 @@ class ActualizeMixin(ABC):
             return self.show_example(
                 count=count, example=example_stream,
                 columns=columns, comment=example_comment,
+                output=output,
             )

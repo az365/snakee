@@ -213,6 +213,9 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, StructInterface):
     def is_empty(self) -> bool:
         return not self.get_column_count()
 
+    def get_count(self) -> int:
+        return self.get_fields_count()
+
     def get_column_count(self) -> int:
         return self.get_fields_count()
 
@@ -532,7 +535,7 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, StructInterface):
                 field_name = str(f)
                 field_type_name = FieldType.get_default()
                 field_caption, field_is_valid, group_name, group_caption = '', '', '', ''
-            str_field_is_valid = DICT_VALID_SIGN.get(field_is_valid, field_is_valid[0])
+            str_field_is_valid = DICT_VALID_SIGN.get(field_is_valid, field_is_valid[:1])
             yield field_name, field_type_name, field_caption, str_field_is_valid, group_name, group_caption
 
     def get_field_description(self, field_name: Name, skip_missing: bool = False) -> Union[Field, AdvancedField]:

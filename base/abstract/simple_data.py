@@ -2,8 +2,8 @@ from abc import ABC
 from typing import Optional, Iterable, Generator, Union, Any, NoReturn
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.typing import AUTO, Auto, AutoCount
-    from base.constants.chars import REPR_DELIMITER, SMALL_INDENT, CROP_SUFFIX, DEFAULT_LINE_LEN
+    from base.classes.typing import AUTO, Auto, AutoCount, AutoBool
+    from base.constants.chars import EMPTY, REPR_DELIMITER, SMALL_INDENT, CROP_SUFFIX, DEFAULT_LINE_LEN
     from base.functions.arguments import get_str_from_annotation, get_str_from_args_kwargs
     from base.interfaces.base_interface import BaseInterface
     from base.interfaces.context_interface import ContextInterface
@@ -13,8 +13,8 @@ try:  # Assume we're a submodule in a package.
     from base.abstract.named import AbstractNamed
     from base.abstract.contextual import Contextual
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..classes.typing import AUTO, Auto, AutoCount
-    from ..constants.chars import REPR_DELIMITER, SMALL_INDENT, CROP_SUFFIX, DEFAULT_LINE_LEN
+    from ..classes.typing import AUTO, Auto, AutoCount, AutoBool
+    from ..constants.chars import EMPTY, REPR_DELIMITER, SMALL_INDENT, CROP_SUFFIX, DEFAULT_LINE_LEN
     from ..functions.arguments import get_str_from_annotation, get_str_from_args_kwargs
     from ..interfaces.base_interface import BaseInterface
     from ..interfaces.context_interface import ContextInterface
@@ -39,14 +39,13 @@ COLS_FOR_META = [
     (PREFIX_FIELD, 3), ('defined', 3),
     ('key', 20), ('value', 30), ('actual_type', 14), ('expected_type', 20), ('default', 20),
 ]
+MAX_OUTPUT_ROW_COUNT, MAX_DATAFRAME_ROW_COUNT = 200, 20
 
 
 class SimpleDataWrapper(AbstractNamed, SimpleDataInterface, ABC):
-    def __init__(
-            self, data, name: str,
-    ):
+    def __init__(self, data, name: str, caption: str = EMPTY):
         self._data = data
-        super().__init__(name=name)
+        super().__init__(name=name, caption=caption)
 
     @classmethod
     def _get_data_member_names(cls):
@@ -155,6 +154,12 @@ class SimpleDataWrapper(AbstractNamed, SimpleDataInterface, ABC):
     def get_str_headers(self) -> Generator:
         yield self.get_one_line_repr()
 
+    def get_count(self) -> int:
+        if self.has_data():
+            return len(self.get_data())
+        else:
+            return 0
+
     def has_data(self) -> bool:
         return bool(self.get_data())
 
@@ -185,8 +190,9 @@ class SimpleDataWrapper(AbstractNamed, SimpleDataInterface, ABC):
                     )
                 elif isinstance(data, Iterable):
                     for n, item in enumerate(data):
-                        if n >= count:
-                            break
+                        if Auto.is_defined(count):
+                            if n >= count:
+                                break
                         line = '    - ' + str(item)
                         yield line[:max_len]
                 elif isinstance(data, SimpleDataInterface) or hasattr(data, 'get_meta_description'):
@@ -225,10 +231,17 @@ class SimpleDataWrapper(AbstractNamed, SimpleDataInterface, ABC):
             comment: Optional[str] = None,
             depth: int = 1,
             output: AutoOutput = AUTO,
-            as_dataframe: bool = Auto,
+            as_dataframe: AutoBool = Auto,
             **kwargs
     ):
-        as_dataframe = Auto.acquire(as_dataframe, hasattr(self, 'show') or hasattr(self, 'show_example'))
+        fact_count = Auto.delayed_acquire(count, self.get_count)
+        if fact_count > MAX_OUTPUT_ROW_COUNT:
+            fact_count = MAX_OUTPUT_ROW_COUNT
+        if Auto.is_auto(as_dataframe):
+            if hasattr(self, 'show') or hasattr(self, 'show_example'):
+                as_dataframe = fact_count < MAX_DATAFRAME_ROW_COUNT
+            else:
+                as_dataframe = False
         show_meta = show_header or not self.has_data()
         if show_header:
             for line in self.get_str_headers():

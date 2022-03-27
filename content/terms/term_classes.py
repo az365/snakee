@@ -6,6 +6,7 @@ try:  # Assume we're a submodule in a package.
     from content.terms.discrete_term import DiscreteTerm
     from content.terms.object_term import ObjectTerm
     from content.terms.hierarchic_term import HierarchicTerm
+    from content.terms.entity_map import EntityMap
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from .term_type import TermType, TermDataAttribute, TermRelation, FieldRoleType
     from .abstract_term import AbstractTerm
@@ -14,6 +15,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .discrete_term import DiscreteTerm
     from .object_term import ObjectTerm
     from .hierarchic_term import HierarchicTerm
+    from .entity_map import EntityMap
 
 
 TermType.add_classes(

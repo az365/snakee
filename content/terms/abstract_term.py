@@ -8,10 +8,9 @@ try:  # Assume we're a submodule in a package.
         AUTO, Auto, AutoCount,
     )
     from base.functions.arguments import get_name, get_names, get_value
-    from base.constants.chars import SMALL_INDENT, REPR_DELIMITER, JUPYTER_LINE_LEN, EMPTY
+    from base.constants.chars import EMPTY, UNDER, SMALL_INDENT, REPR_DELIMITER, JUPYTER_LINE_LEN
     from base.abstract.simple_data import SimpleDataWrapper
     from base.classes.enum import ClassType
-    from base.mixin.describe_mixin import DescribeMixin
     from content.fields.advanced_field import AdvancedField
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
@@ -20,20 +19,22 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         AUTO, Auto, AutoCount,
     )
     from ...base.functions.arguments import get_name, get_names, get_value
-    from ...base.constants.chars import SMALL_INDENT, REPR_DELIMITER, JUPYTER_LINE_LEN, EMPTY
+    from ...base.constants.chars import EMPTY, UNDER, SMALL_INDENT, REPR_DELIMITER, JUPYTER_LINE_LEN
     from ...base.abstract.simple_data import SimpleDataWrapper
     from ...base.classes.enum import ClassType
-    from ...base.mixin.describe_mixin import DescribeMixin
     from ..fields.advanced_field import AdvancedField
 
 Native = SimpleDataWrapper
 Field = Union[FieldInterface, str]
 RoleType = FieldRoleType  # deprecated
 
+FIELD_ROLES_WITHOUT_SUFFIXES = FieldRoleType.Repr, FieldRoleType.Value, FieldRoleType.Undefined
+FIELD_NAME_TEMPLATE = '{term}' + UNDER + '{role}'
+FIELD_CAPTION_TEMPLATE = '{role} of {term} ({caption})'
 DESCRIPTION_COLUMN_LENS = 3, 10, 20, 85  # prefix, key, value, caption
 
 
-class AbstractTerm(SimpleDataWrapper, DescribeMixin, TermInterface, ABC):
+class AbstractTerm(SimpleDataWrapper, TermInterface, ABC):
     def __init__(
             self,
             name: str,
@@ -146,10 +147,18 @@ class AbstractTerm(SimpleDataWrapper, DescribeMixin, TermInterface, ABC):
         data_dict[subkey] = value
         return self
 
-    def field(self, name: str, field_type: FieldType, role: Union[FieldRoleType, str], **kwargs) -> FieldInterface:
-        new_field = AdvancedField(name, field_type=field_type, **kwargs)
-        self.add_fields(field=new_field, role=role)
-        return new_field
+    def field(
+            self,
+            name: str,
+            value_type: Union[FieldType, Auto] = AUTO,
+            role: Union[FieldRoleType, str, Auto] = AUTO,
+            caption: Union[str, Auto] = AUTO,
+            **kwargs
+    ) -> FieldInterface:
+        if Auto.is_auto(role):
+            suffix = name.split(UNDER)[-1]
+            role = FieldRoleType.detect(suffix, default=FieldRoleType.Undefined)
+        return self.get_field_by_role(role, value_type=value_type, name=name, caption=caption, **kwargs)
 
     def get_fields_by_roles(self) -> dict:
         return self.get_from_data(TermDataAttribute.Fields)
@@ -157,10 +166,11 @@ class AbstractTerm(SimpleDataWrapper, DescribeMixin, TermInterface, ABC):
     def get_field_by_role(
             self,
             role: FieldRoleType,
-            default_type: Union[FieldType, Auto, None] = None,
+            value_type: Union[FieldType, Auto] = AUTO,
+            name: Union[str, Auto] = AUTO,
+            caption: Union[str, Auto] = AUTO,
             **kwargs
     ) -> Field:
-        default_type = Auto.acquire(default_type, None)
         fields_by_roles = self.get_fields_by_roles()
         role_value = get_value(role)
         if role_value in fields_by_roles:
@@ -169,29 +179,48 @@ class AbstractTerm(SimpleDataWrapper, DescribeMixin, TermInterface, ABC):
                 assert isinstance(field, AdvancedField)
                 field = field.set_outplace(**kwargs)
         else:
-            term_name = self.get_name()
-            term_caption = self.get_caption()
-            field_type = default_type or self.get_default_value_type_by_role(role)
-            if role in (FieldRoleType.Repr, FieldRoleType.Value, None):
-                field_name = term_name
-                field_caption = term_caption
-            else:
-                field_name = '{term}_{role}'.format(term=self.get_name(), role=role_value)
-                field_caption_template = '{role} of {term} ({caption})'
-                field_caption = field_caption_template.format(role=role_value, term=term_name, caption=term_caption)
-            field_class = AdvancedField
-            if 'name' not in kwargs:
-                kwargs['name'] = field_name
-            if 'caption' not in kwargs:
-                kwargs['caption'] = field_caption
-            if 'field_type' not in kwargs:
-                kwargs['field_type'] = field_type
-            field = field_class(**kwargs)
+            field_class = self._get_default_field_class_by_role(role)
+            field_name = Auto.delayed_acquire(name, self._get_default_field_name_by_role, role)
+            value_type = Auto.delayed_acquire(value_type, self._get_default_value_type_by_role, role)
+            field_caption = Auto.delayed_acquire(caption, self._get_default_field_caption_by_role, role)
+            field = field_class(field_name, value_type, caption=field_caption, **kwargs)
             fields_by_roles[role_value] = field
         return field
 
     @staticmethod
-    def get_default_value_type_by_role(role: FieldRoleType, default_type: FieldType = FieldType.Any) -> FieldType:
+    def _get_default_field_class():
+        return AdvancedField
+
+    def _get_default_field_class_by_role(self, role: FieldRoleType):
+        default = self._get_default_field_class()
+        if not isinstance(role, FieldRoleType):
+            role = FieldRoleType(role)
+        custom = role.get_class(default=default)
+        if isinstance(custom, FieldInterface):
+            return custom
+        else:
+            return default
+
+    def _get_default_field_name_by_role(self, role: FieldRoleType) -> str:
+        term_name = self.get_name()
+        if role in FIELD_ROLES_WITHOUT_SUFFIXES or role in (None, AUTO):
+            field_name = term_name
+        else:
+            field_name = FIELD_NAME_TEMPLATE.format(term=term_name, role=get_value(role))
+        return field_name
+
+    def _get_default_field_caption_by_role(self, role: FieldRoleType) -> str:
+        term_caption = self.get_caption()
+        if role in FIELD_ROLES_WITHOUT_SUFFIXES or role in (None, AUTO):
+            field_caption = term_caption
+        else:
+            term_name = self.get_name()
+            role_value = get_value(role)
+            field_caption = FIELD_CAPTION_TEMPLATE.format(role=role_value, term=term_name, caption=term_caption)
+        return field_caption
+
+    @staticmethod
+    def _get_default_value_type_by_role(role: FieldRoleType, default_type: FieldType = FieldType.Any) -> FieldType:
         if not isinstance(role, FieldRoleType):
             role = FieldRoleType.detect(role)
         return role.get_default_value_type(default=default_type)

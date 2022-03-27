@@ -15,8 +15,10 @@ class FieldRoleType(ClassType):
     Ids = 'ids'
     Count = 'count'
     Share = 'share'
-    Value = 'value'
     Rate = 'rate'
+    Value = 'value'
+    Mean = 'mean'
+    Norm = 'norm'
 
     _dict_value_types = dict(
         undef=FieldType.Any,
@@ -27,8 +29,10 @@ class FieldRoleType(ClassType):
         ids=FieldType.Tuple,
         count=FieldType.Int,
         share=FieldType.Float,
-        value=FieldType.Float,
         rate=FieldType.Float,
+        value=FieldType.Float,
+        mean=FieldType.Float,
+        norm=FieldType.Float,
     )
 
     @classmethod
@@ -49,5 +53,6 @@ FieldRoleType.prepare()
 FieldRoleType.set_default(FieldRoleType.Undefined)
 FieldRoleType.add_classes(
     id=int, name=str, repr=str, key=str, ids=tuple,
-    count=int, share=float, value=float, rate=float,
+    count=int, share=float, rate=float,
+    value=float, mean=float, norm=float,
 )
