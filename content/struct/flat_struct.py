@@ -8,11 +8,10 @@ try:  # Assume we're a submodule in a package.
         AUTO, Auto, Name, Array, ARRAY_TYPES, ROW_SUBCLASSES, RECORD_SUBCLASSES,
     )
     from base.functions.arguments import update, get_generated_name, get_name, get_names
-    from base.abstract.simple_data import SimpleDataWrapper
-    from base.mixin.describe_mixin import DescribeMixin, AutoOutput, DEFAULT_ROWS_COUNT, JUPYTER_LINE_LEN
+    from base.constants.chars import REPR_DELIMITER, TITLE_PREFIX, JUPYTER_LINE_LEN
+    from base.abstract.simple_data import SimpleDataWrapper, DEFAULT_ROWS_COUNT
     from functions.secondary import array_functions as fs
     from utils.external import pd, get_use_objects_for_output, DataFrame
-    from content.representations.repr_constants import COLUMN_DELIMITER, TITLE_PREFIX, DICT_VALID_SIGN
     from content.fields.advanced_field import AdvancedField
     from content.items.simple_items import SelectableItem, is_row, is_record
     from content.selection.abstract_expression import AbstractDescription
@@ -25,11 +24,10 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         AUTO, Auto, Name, Array, ARRAY_TYPES, ROW_SUBCLASSES, RECORD_SUBCLASSES,
     )
     from ...base.functions.arguments import update, get_generated_name, get_name, get_names
-    from ...base.abstract.simple_data import SimpleDataWrapper
-    from ...base.mixin.describe_mixin import DescribeMixin, AutoOutput, DEFAULT_ROWS_COUNT, JUPYTER_LINE_LEN
+    from ...base.constants.chars import REPR_DELIMITER, TITLE_PREFIX, JUPYTER_LINE_LEN
+    from ...base.abstract.simple_data import SimpleDataWrapper, DEFAULT_ROWS_COUNT
     from ...functions.secondary import array_functions as fs
     from ...utils.external import pd, get_use_objects_for_output, DataFrame
-    from ..representations.repr_constants import COLUMN_DELIMITER, TITLE_PREFIX, DICT_VALID_SIGN
     from ..fields.advanced_field import AdvancedField
     from ..items.simple_items import SelectableItem, is_row, is_record
     from ..selection.abstract_expression import AbstractDescription
@@ -44,9 +42,10 @@ Comment = Union[StructName, Auto]
 
 META_MEMBER_MAPPING = dict(_data='fields')
 GROUP_TYPE_STR = 'GROUP'
+DICT_VALID_SIGN = {'True': '-', 'False': 'x', 'None': '-', AUTO.get_value(): '~'}
 
 
-class FlatStruct(SimpleDataWrapper, DescribeMixin, SelectableMixin, StructInterface):
+class FlatStruct(SimpleDataWrapper, SelectableMixin, StructInterface):
     def __init__(
             self,
             fields: Iterable,
@@ -239,7 +238,7 @@ class FlatStruct(SimpleDataWrapper, DescribeMixin, SelectableMixin, StructInterf
             else:
                 yield None
 
-    def get_min_str_len(self, delimiter: str = COLUMN_DELIMITER, default_field_len: int = 0) -> Optional[int]:
+    def get_min_str_len(self, delimiter: str = REPR_DELIMITER, default_field_len: int = 0) -> Optional[int]:
         delimiter_len = len(delimiter)
         min_str_len = -delimiter_len
         for r in self.get_field_representations():
@@ -251,7 +250,7 @@ class FlatStruct(SimpleDataWrapper, DescribeMixin, SelectableMixin, StructInterf
         if min_str_len >= 0:
             return min_str_len
 
-    def get_max_str_len(self, delimiter: str = COLUMN_DELIMITER, default_field_len: int = 0) -> Optional[int]:
+    def get_max_str_len(self, delimiter: str = REPR_DELIMITER, default_field_len: int = 0) -> Optional[int]:
         delimiter_len = len(delimiter)
         max_str_len = -delimiter_len
         for r in self.get_field_representations():
@@ -490,7 +489,7 @@ class FlatStruct(SimpleDataWrapper, DescribeMixin, SelectableMixin, StructInterf
     def copy(self) -> Native:
         return FlatStruct(fields=list(self.get_fields()), name=self.get_name())
 
-    def format(self, *args, delimiter: str = COLUMN_DELIMITER, skip_errors: bool = False) -> str:
+    def format(self, *args, delimiter: str = REPR_DELIMITER, skip_errors: bool = False) -> str:
         if len(args) == 1 and isinstance(args[0], (*ROW_SUBCLASSES, *RECORD_SUBCLASSES)):
             item = args[0]
         else:
@@ -584,7 +583,7 @@ class FlatStruct(SimpleDataWrapper, DescribeMixin, SelectableMixin, StructInterf
     def get_struct_repr_lines(
             self,
             example: Optional[dict] = None,
-            delimiter: str = COLUMN_DELIMITER,
+            delimiter: str = REPR_DELIMITER,
             select_fields: Optional[Array] = None,
             count: Optional[int] = None
     ) -> Generator:
@@ -604,6 +603,7 @@ class FlatStruct(SimpleDataWrapper, DescribeMixin, SelectableMixin, StructInterf
                     row = (is_valid, n, type_name, name, value, caption)
                 else:
                     row = (is_valid, n, type_name, name, caption)
+                row = map(str, row)
                 yield '\t'.join(row) if separate_by_tabs else template.format(*row)
             if Auto.is_defined(count):
                 if n >= count - 1:
@@ -616,7 +616,7 @@ class FlatStruct(SimpleDataWrapper, DescribeMixin, SelectableMixin, StructInterf
             example: Optional[dict] = None,
             select_fields: Optional[Array] = None,
             max_len: int = JUPYTER_LINE_LEN,
-            delimiter: str = COLUMN_DELIMITER,
+            delimiter: str = REPR_DELIMITER,
     ) -> Generator:
         struct_description_lines = self.get_struct_repr_lines(
             example=example, delimiter=delimiter, select_fields=select_fields,

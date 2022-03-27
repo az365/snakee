@@ -96,7 +96,7 @@ def select(
     else:
         fields = [get_selection_tuple(f) for f in fields]
         expressions = get_compatible_expression_tuples(expressions)
-        return sf.select(
+        return sf.get_selection_mapper(
             *fields,
             target_item_type=target_item_type,
             input_item_type=input_item_type,

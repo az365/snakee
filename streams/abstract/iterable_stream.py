@@ -158,6 +158,7 @@ class IterableStream(AbstractStream, IterableMixin, IterableStreamInterface):
         else:
             target_class = StreamType.KeyValueStream.get_class()
             props['value_stream_type'] = self.get_stream_type()
+        props = self._get_safe_meta(**props)
         return target_class(self._get_enumerated_items(), **props)
 
     def take(self, count: Union[int, bool] = 1, inplace: bool = False) -> Native:

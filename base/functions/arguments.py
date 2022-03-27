@@ -34,9 +34,15 @@ def get_value(obj) -> Union[str, int]:
         return obj
 
 
-def get_name(obj, or_callable: bool = True) -> Union[str, int, Callable]:
+def get_name(obj, or_callable: bool = True, or_class: bool = True) -> Union[str, int, Callable]:
     if hasattr(obj, 'get_name'):
-        return obj.get_name()
+        try:
+            return obj.get_name()
+        except TypeError:  # is class (not instanced)
+            if or_class:
+                return obj
+            else:
+                return obj.__name__
     elif hasattr(obj, 'name'):
         return obj.name
     elif isinstance(obj, Callable) and or_callable:

@@ -3,16 +3,16 @@ from abc import ABC
 try:  # Assume we're a submodule in a package.
     from base.classes.auto import Auto, AUTO
     from base.classes.typing import Value, Count
+    from base.constants.chars import FILL_CHAR, DEFAULT_STR, CROP_SUFFIX
     from base.abstract.abstract_base import AbstractBaseObject
     from base.mixin.describe_mixin import DescribeMixin
-    from content.representations.repr_constants import DEFAULT_STR, CROP_SUFFIX, FILL_CHAR
     from content.representations.repr_interface import RepresentationInterface, ReprType, OptKey
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.classes.auto import Auto, AUTO
     from ...base.classes.typing import Value, Count
+    from ...base.constants.chars import FILL_CHAR, DEFAULT_STR, CROP_SUFFIX
     from ...base.abstract.abstract_base import AbstractBaseObject
     from ...base.mixin.describe_mixin import DescribeMixin
-    from .repr_constants import DEFAULT_STR, CROP_SUFFIX, FILL_CHAR
     from .repr_interface import RepresentationInterface, ReprType, OptKey
 
 Native = RepresentationInterface
@@ -136,7 +136,9 @@ class AbstractRepresentation(AbstractBaseObject, DescribeMixin, RepresentationIn
                 except ValueError:
                     line = str(value)
             else:
-                raise ValueError(e)
+                template = '{obj}.format({value}): {e}'
+                msg = template.format(obj=repr(self), value=repr(value), e=e)
+                raise ValueError(msg)
         line = self.get_cropped(line)
         return line
 

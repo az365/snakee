@@ -5,6 +5,7 @@ try:  # Assume we're a submodule in a package.
     from interfaces import ItemType, StructInterface, Item, Name, Field, Value, LoggerInterface, Array, Auto, AUTO
     from base.functions.arguments import get_name
     from base.classes.typing import FieldID
+    from base.constants.chars import ALL, NOT_SET
     from functions.primary import items as it
     from functions.secondary.basic_functions import same
     from utils import selection as sf
@@ -17,6 +18,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...interfaces import ItemType, StructInterface, Item, Name, Field, Value, LoggerInterface, Array, Auto, AUTO
     from ...base.functions.arguments import get_name
     from ...base.classes.typing import FieldID
+    from ...base.constants.chars import ALL, NOT_SET
     from ...functions.primary import items as it
     from ...functions.secondary.basic_functions import same
     from ...utils import selection as sf
@@ -26,8 +28,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .abstract_expression import AbstractDescription, MultipleFieldDescription
     from .concrete_expression import AliasDescription, RegularDescription
 
-NOT_SET = '_'
-STAR = '*'
 TYPE_ERROR_MSG = 'Expected Field, Struct or Item, got {}'
 
 
@@ -72,9 +72,9 @@ class SelectableMixin(SelectableInterface, ABC):
                 if hasattr(self, 'get_struct'):
                     return self.get_struct().get_fields_descriptions()
                 else:
-                    return [STAR]
+                    return [ALL]
             else:
-                return STAR
+                return ALL
         else:
             raise TypeError(TYPE_ERROR_MSG.format(self))
 

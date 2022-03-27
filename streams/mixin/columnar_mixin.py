@@ -12,7 +12,6 @@ try:  # Assume we're a submodule in a package.
     from base.functions.arguments import get_name, get_names, update
     from base.abstract.contextual_data import ContextualDataWrapper
     from base.mixin.iterable_mixin import IterableMixin
-    from base.mixin.describe_mixin import DescribeMixin
     from functions.secondary import item_functions as fs
     from content.fields import field_classes as fc
     from utils import algo
@@ -29,7 +28,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.functions.arguments import get_name, get_names, update
     from ...base.abstract.contextual_data import ContextualDataWrapper
     from ...base.mixin.iterable_mixin import IterableMixin
-    from ...base.mixin.describe_mixin import DescribeMixin
     from ...functions.secondary import item_functions as fs
     from ...content.fields import field_classes as fc
     from ...utils import algo
@@ -46,7 +44,7 @@ DEFAULT_DETECT_COUNT = 100
 LOGGING_LEVEL_INFO = 20
 
 
-class ColumnarMixin(ContextualDataWrapper, IterableMixin, DescribeMixin, ColumnarInterface, ABC):
+class ColumnarMixin(ContextualDataWrapper, IterableMixin, ColumnarInterface, ABC):
     @classmethod
     def is_valid_item(cls, item: Item) -> bool:
         return cls.get_item_type().isinstance(item)
@@ -70,13 +68,15 @@ class ColumnarMixin(ContextualDataWrapper, IterableMixin, DescribeMixin, Columna
         )
         return self._assume_native(stream)
 
-    def assert_has_columns(self, *columns, skip_missing: bool = False, **kwargs) -> Native:
+    def assert_has_columns(self, *columns, skip_columns=('*', '-', ''), skip_missing: bool = False, **kwargs) -> Native:
         missing_columns = list()
         for c in columns:
-            if not get_name(c) in get_names(self.get_columns(**kwargs)):
-                missing_columns.append(c)
+            c_name = get_name(c)
+            if c_name not in get_names(skip_columns):
+                if c_name not in get_names(self.get_columns(**kwargs)):
+                    missing_columns.append(c)
         if missing_columns:
-            msg = '{} has no declared columns: {}'.format(repr(self), ', '.join(map(str, missing_columns)))
+            msg = '{} has no declared columns: {}'.format(repr(self), ', '.join(map(str, get_names(missing_columns))))
             if skip_missing:
                 self.log(msg, level=LoggingLevel.Warning)
             else:
@@ -140,11 +140,9 @@ class ColumnarMixin(ContextualDataWrapper, IterableMixin, DescribeMixin, Columna
         stream = self.stream(items, stream_type=stream_type)
         return self._assume_native(stream)
 
-    def map(self, function: Callable) -> Native:
-        stream = self.stream(
-            map(function, self.get_items()),
-        )
-        return self._assume_native(stream)
+    def map(self, function: Callable, inplace: bool = False) -> Optional[Native]:
+        items = map(function, self.get_items())
+        return self.set_items(items, count=self.get_count(), inplace=inplace)
 
     def map_side_join(
             self,
@@ -360,7 +358,12 @@ class ColumnarMixin(ContextualDataWrapper, IterableMixin, DescribeMixin, Columna
             as_dataframe: AutoBool = AUTO,
     ):
         self.log(self.get_str_description(), level=LOGGING_LEVEL_INFO, truncate=False, force=True)
-        return self.get_demo_example(count=count, filters=filters, columns=columns, as_dataframe=as_dataframe)
+        demo_example = self.get_demo_example(count=count, filters=filters, columns=columns, as_dataframe=as_dataframe)
+        if not as_dataframe:
+            output = Auto.delayed_acquire(output, self.get_logger)
+            for item in demo_example:
+                self.output_line(str(item), output=output)
+        return demo_example
 
     def describe(
             self, *filters,

@@ -13,9 +13,11 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils.decorators import deprecated_with_alternative
 
 PyDate = date
+IntDate = int
 IsoDate = str
 GostDate = str
 Date = Union[PyDate, IsoDate, GostDate]
+DateOrInt = Union[Date, IntDate]
 
 DAYS_IN_YEAR = 365
 MONTHS_IN_YEAR = 12
@@ -118,7 +120,9 @@ def to_gost_format(d: Date) -> GostDate:
 
 
 def raise_date_type_error(d) -> NoReturn:
-    raise TypeError('Argument must be date in iso-format as str or python date (got {})'.format(type(d)))
+    template = 'Argument must be date in iso-format as str or python date (got {value} as {type})'
+    msg = template.format(value=repr(d), type=repr(type(d)))
+    raise TypeError(msg)
 
 
 def get_py_date(d: Date) -> PyDate:
@@ -553,22 +557,6 @@ def get_date_from_int(d: int, scale: Union[DateScale, str], as_iso_date: bool = 
         return get_date_from_year(d, as_iso_date=as_iso_date)
     else:
         raise ValueError(DateScale.get_err_msg(scale))
-
-
-@deprecated_with_alternative('get_date_from_int()')
-def get_date_from_numeric(numeric: int, from_scale: Union[DateScale, str] = DateScale.Day) -> Date:
-    scale = DateScale.convert(from_scale)
-    if scale == DateScale.Day:
-        func = get_date_from_day_abs
-    elif scale == DateScale.Week:
-        func = get_date_from_week_abs
-    elif scale == DateScale.Month:
-        func = get_date_from_month_abs
-    elif scale == DateScale.Year:
-        func = get_date_from_year
-    else:
-        raise ValueError(DateScale.get_err_msg(scale))
-    return func(numeric)
 
 
 def get_date_from_day_abs(

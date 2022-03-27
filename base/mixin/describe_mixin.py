@@ -1,152 +1,27 @@
 from abc import ABC
-from typing import Optional, Iterable, Callable, Generator, Union
-from inspect import getfullargspec
+from typing import Optional, Iterable, Generator, Union
 
 try:  # Assume we're a submodule in a package.
     from base.classes.typing import AUTO, Auto, AutoBool, AutoCount, Columns, Class, Value, Array, ARRAY_TYPES
+    from base.constants.chars import DEFAULT_LINE_LEN, JUPYTER_LINE_LEN, REPR_DELIMITER, SMALL_INDENT, CROP_SUFFIX
     from base.functions.arguments import get_name, get_value, get_str_from_args_kwargs
-    from base.interfaces.data_interface import SimpleDataInterface
+    from base.mixin.line_output_mixin import LineOutputMixin, AutoOutput, DEFAULT_ROWS_COUNT, PREFIX_FIELD
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.typing import AUTO, Auto, AutoBool, AutoCount, Columns, Class, Value, Array, ARRAY_TYPES
+    from ..constants.chars import DEFAULT_LINE_LEN, JUPYTER_LINE_LEN, REPR_DELIMITER, SMALL_INDENT, CROP_SUFFIX
     from ..functions.arguments import get_name, get_value, get_str_from_args_kwargs
-    from ..interfaces.data_interface import SimpleDataInterface
+    from .line_output_mixin import LineOutputMixin, AutoOutput, DEFAULT_ROWS_COUNT, PREFIX_FIELD
 
-Native = SimpleDataInterface
-LoggingLevel = int
-AutoOutput = Union[Class, LoggingLevel, Callable, Auto]
+AutoOutput = Union[AutoOutput, LineOutputMixin]
 
-PREFIX_FIELD = 'prefix'
-PREFIX_VALUE = '  '
-COLUMN_DELIMITER = ' '
-CROP_SUFFIX = '..'
-META_DESCRIPTION_COLUMNS = [
+COLS_FOR_DICT = [(PREFIX_FIELD, 3), ('key', 20), 'value']
+COLS_FOR_META = [
     (PREFIX_FIELD, 3), ('defined', 3),
     ('key', 20), ('value', 30), ('actual_type', 14), ('expected_type', 20), ('default', 20),
 ]
-DICT_DESCRIPTION_COLUMNS = [(PREFIX_FIELD, 3), ('key', 20), 'value']
-JUPYTER_LINE_LEN = 120
-DEFAULT_ROWS_COUNT = 10
 
 
-class DescribeMixin(ABC):
-    def get_output(self, output: AutoOutput = AUTO) -> Optional[Class]:
-        if Auto.is_defined(output) and not isinstance(output, LoggingLevel):
-            return output
-        if hasattr(self, 'get_logger'):
-            logger = self.get_logger()
-            if Auto.is_defined(logger):
-                return logger
-        elif Auto.is_auto(output):
-            return print
-
-    def output_line(self, line: str, output: AutoOutput = AUTO) -> None:
-        if isinstance(output, LoggingLevel):
-            logger_kwargs = dict(level=output)
-            output = AUTO
-        else:
-            logger_kwargs = dict()
-        if Auto.is_auto(output):
-            if hasattr(self, 'log'):
-                return self.log(msg=line, **logger_kwargs)
-            else:
-                output = self.get_output()
-        if isinstance(output, Callable):
-            return output(line)
-        elif output:
-            if hasattr(output, 'output_line'):
-                return output.output_line(line)
-            elif hasattr(output, 'log'):
-                return output.log(msg=line, **logger_kwargs)
-            else:
-                raise TypeError('Expected Output, Logger or Auto, got {}'.format(output))
-
-    def output_blank_line(self, output: AutoOutput = AUTO) -> None:
-        self.output_line('', output=output)
-
-    @classmethod
-    def _get_formatter(cls, columns: Array, delimiter: str = ' ') -> str:
-        meta_description_placeholders = list()
-        for name, size in zip(cls._get_column_names(columns), cls._get_column_lens(columns)):
-            if size is None:
-                formatter = name
-            elif size:
-                formatter = '{name}:{size}'.format(name=name, size=size)
-            else:
-                formatter = ''
-            meta_description_placeholders.append('{open}{f}{close}'.format(open='{', f=formatter, close='}'))
-        return delimiter.join(meta_description_placeholders)
-
-    @staticmethod
-    def _get_column_names(columns: Iterable, ex: Union[str, Array, None] = None) -> Generator:
-        if ex is None:
-            ex = []
-        elif isinstance(ex, str):
-            ex = [ex]
-        for c in columns:
-            if c in ex:
-                yield ''
-            elif isinstance(c, (int, str)):
-                yield c
-            elif isinstance(c, ARRAY_TYPES):
-                yield c[0]
-            else:
-                raise ValueError('Expected column description as str or tuple, got {}'.format(c))
-
-    @staticmethod
-    def _get_column_lens(columns: Iterable, max_len: Optional[int] = None) -> Generator:
-        for c in columns:
-            if isinstance(c, (int, str)):
-                yield max_len
-            elif isinstance(c, ARRAY_TYPES):
-                yield c[1] if len(c) > 1 else c
-            else:
-                raise ValueError('Expected column description as str or tuple, got {}'.format(c))
-
-    @classmethod
-    def _get_cropped_record(
-            cls,
-            item: Union[dict, Iterable],
-            columns: Array,
-            max_len: int = JUPYTER_LINE_LEN,
-            ex: Union[str, Array, None] = None,
-    ) -> dict:
-        if ex is None:
-            ex = []
-        elif isinstance(ex, str):
-            ex = [ex]
-        names = list(cls._get_column_names(columns, ex=ex))
-        lens = cls._get_column_lens(columns, max_len=max_len)
-        if isinstance(item, dict):
-            values = [str(get_value(item.get(k))) if k not in ex else '' for k in names]
-        else:
-            values = [str(v) if k not in ex else '' for k, v in zip(names, item)]
-        return {c: v[:s] for c, v, s in zip(names, values, lens)}
-
-    @classmethod
-    def _get_columnar_lines(
-            cls,
-            records: Iterable,
-            columns: Array,
-            count: AutoCount = None,
-            with_title: bool = True,
-            prefix: str = PREFIX_VALUE,
-            delimiter: str = ' ',
-            max_len: int = JUPYTER_LINE_LEN,
-    ) -> Generator:
-        count = Auto.acquire(count, DEFAULT_ROWS_COUNT)
-        formatter = cls._get_formatter(columns=columns, delimiter=delimiter)
-        if with_title:
-            column_names = cls._get_column_names(columns, ex=PREFIX_FIELD)
-            title_record = cls._get_cropped_record(column_names, columns=columns, max_len=max_len, ex=PREFIX_FIELD)
-            yield formatter.format(**{k: v.upper() for k, v in title_record.items()})
-        for n, r in enumerate(records):
-            if count is not None and n >= count:
-                break
-            if prefix and PREFIX_FIELD not in r:
-                r[PREFIX_FIELD] = prefix
-            r = cls._get_cropped_record(r, columns=columns, max_len=max_len)
-            yield formatter.format(**r)
-
+class DescribeMixin(LineOutputMixin, ABC):
     def get_brief_repr(self) -> str:
         return "{}('{}')".format(self.__class__.__name__, get_name(self, or_callable=False))
 
@@ -182,7 +57,7 @@ class DescribeMixin(ABC):
     def get_one_line_repr(
             self,
             str_meta: Union[str, Auto, None] = AUTO,
-            max_len: int = JUPYTER_LINE_LEN,
+            max_len: int = DEFAULT_LINE_LEN,
             crop: str = CROP_SUFFIX,
     ) -> str:
         template = '{cls}({meta})'
@@ -199,59 +74,11 @@ class DescribeMixin(ABC):
     def get_str_headers(self) -> Generator:
         yield self.get_one_line_repr()
 
-    def _get_init_defaults(self) -> dict:
-        args = getfullargspec(self.__init__).args
-        defaults = getfullargspec(self.__init__).defaults
-        no_default_count = len(args) - len(defaults)
-        return dict(zip(args[no_default_count:], defaults))
-
-    def _get_init_types(self) -> dict:
-        return getfullargspec(self.__init__).annotations
-
     def has_data(self) -> bool:
         if hasattr(self, 'get_data'):
             return bool(self.get_data())
         else:
             return False
-
-    @staticmethod
-    def _get_value_repr(value: Value, default: str = '-') -> str:
-        if isinstance(value, Callable):
-            return get_name(value, or_callable=False)
-        elif value is not None:
-            return repr(value)
-        else:
-            return default
-
-    def get_meta_defaults(self) -> Generator:
-        meta = self.get_meta()
-        args = getfullargspec(self.__init__).args
-        defaults = getfullargspec(self.__init__).defaults
-        for k, v in zip(args, defaults):
-            if k in meta:
-                yield k, v
-        for k in meta:
-            if k not in args:
-                yield None
-
-    def get_meta_records(self) -> Generator:
-        init_defaults = self._get_init_defaults()
-        for key, value in self.get_meta_items():
-            actual_type = type(value).__name__
-            expected_type = self._get_init_types().get(key)
-            if hasattr(expected_type, '__name__'):
-                expected_type = expected_type.__name__
-            else:
-                expected_type = str(expected_type).replace('typing.', '')
-            default = init_defaults.get(key)
-            yield dict(
-                key=key,
-                value=self._get_value_repr(value),
-                default=self._get_value_repr(default),
-                actual_type=actual_type,
-                expected_type=expected_type or '-',
-                defined='-' if value == default else '+' if Auto.is_defined(value) else 'x',
-            )
 
     def get_data_description(
             self,
@@ -259,7 +86,7 @@ class DescribeMixin(ABC):
             title: Optional[str] = 'Data:',
             max_len: AutoCount = AUTO,
     ) -> Generator:
-        max_len = Auto.acquire(max_len, JUPYTER_LINE_LEN)
+        max_len = Auto.acquire(max_len, DEFAULT_LINE_LEN)
         if title:
             yield title
         if hasattr(self, 'get_data_caption'):
@@ -276,7 +103,7 @@ class DescribeMixin(ABC):
                         data.items(),
                     )
                     yield from self._get_columnar_lines(
-                        records, columns=DICT_DESCRIPTION_COLUMNS, count=count, max_len=max_len,
+                        records, columns=COLS_FOR_DICT, count=count, max_len=max_len,
                     )
                 elif isinstance(data, Iterable):
                     for n, item in enumerate(data):
@@ -299,15 +126,15 @@ class DescribeMixin(ABC):
             self,
             with_title: bool = True,
             with_summary: bool = True,
-            prefix: str = PREFIX_VALUE,
-            delimiter: str = COLUMN_DELIMITER,
+            prefix: str = SMALL_INDENT,
+            delimiter: str = REPR_DELIMITER,
     ) -> Generator:
         if with_summary:
             count = len(list(self.get_meta_records()))
             yield '{name} has {count} attributes in meta-data:'.format(name=repr(self), count=count)
         yield from self._get_columnar_lines(
             records=self.get_meta_records(),
-            columns=META_DESCRIPTION_COLUMNS,
+            columns=COLS_FOR_META,
             with_title=with_title,
             prefix=prefix,
             delimiter=delimiter,

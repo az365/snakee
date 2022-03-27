@@ -3,70 +3,70 @@ from inspect import getframeinfo, stack
 import logging
 
 try:  # Assume we're a submodule in a package.
-    from utils import arguments as arg
+    from base.classes.typing import AUTO, Auto, AutoName, AutoCount, Count, Name
+    from base.constants.chars import DEFAULT_ENCODING, DEFAULT_LINE_LEN, LONG_LINE_LEN, CROP_SUFFIX, ELLIPSIS, SPACE
+    from base.functions.arguments import get_name, get_value, update
+    from base.interfaces.context_interface import ContextInterface
+    from base.interfaces.data_interface import ContextualDataInterface
+    from base.abstract.named import AbstractNamed
+    from base.abstract.tree_item import TreeItem
     from utils.decorators import singleton
-    from base import base_classes as bs
     from loggers.logger_interface import LoggerInterface
     from loggers.extended_logger_interface import ExtendedLoggerInterface, LoggingLevel
     from loggers.selection_logger_interface import SelectionLoggerInterface, SELECTION_LOGGER_NAME
     from loggers.progress_interface import ProgressInterface
     from loggers.progress import Progress
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..utils import arguments as arg
+    from ..base.classes.typing import AUTO, Auto, AutoName, AutoCount, Count, Name
+    from ..base.constants.chars import DEFAULT_ENCODING, DEFAULT_LINE_LEN, LONG_LINE_LEN, CROP_SUFFIX, ELLIPSIS, SPACE
+    from ..base.functions.arguments import get_name, get_value, update
+    from ..base.interfaces.context_interface import ContextInterface
+    from ..base.interfaces.data_interface import ContextualDataInterface
+    from ..base.abstract.named import AbstractNamed
+    from ..base.abstract.tree_item import TreeItem
     from ..utils.decorators import singleton
-    from ..base import base_classes as bs
     from .logger_interface import LoggerInterface
     from .extended_logger_interface import ExtendedLoggerInterface, LoggingLevel
     from .selection_logger_interface import SelectionLoggerInterface, SELECTION_LOGGER_NAME
     from .progress_interface import ProgressInterface
     from .progress import Progress
 
-Level = Union[LoggingLevel, int, arg.Auto]
-Name = str
-Count = Optional[int]
-Step = Union[Count, arg.Auto]
+Native = Union[TreeItem, LoggerInterface]
+Level = Union[LoggingLevel, int, Auto]
 Formatter = Union[str, logging.Formatter]
-Context = Optional[bs.ContextInterface]
-OptContext = Union[Context, arg.Auto]
-OptName = Union[Name, arg.Auto]
+Context = Optional[ContextInterface]
+OptContext = Union[Context, Auto]
 BaseLogger = Union[LoggerInterface, Any]
 SubLoggers = Optional[Union[list, dict]]
-File = bs.AbstractNamed
-FileOrName = Union[File, Name]
+File = AbstractNamed
 
 DEFAULT_LOGGER_NAME = 'default'
 DEFAULT_FORMATTER = '%(asctime)s - %(levelname)s - %(message)s'
 DEFAULT_LOGGING_LEVEL = LoggingLevel.get_default()
-DEFAULT_ENCODING = 'utf8'
-JUPYTER_LINE_LEN = 125
-DEFAULT_LINE_LEN = JUPYTER_LINE_LEN
-LONG_LINE_LEN = 600
-TRUNCATED_SUFFIX = '..'
-REWRITE_SUFFIX = '...'
-SPACE = ' '
+REWRITE_SUFFIX = ELLIPSIS
 
 
-class BaseLoggerWrapper(bs.TreeItem, LoggerInterface):
+class BaseLoggerWrapper(TreeItem, LoggerInterface):
     def __init__(
             self,
-            name: OptName = arg.AUTO,
-            level: Level = arg.AUTO,
-            formatter: Union[Formatter, arg.Auto] = arg.AUTO,
-            loggers: SubLoggers = arg.AUTO,
+            name: AutoName = AUTO,
+            level: Level = AUTO,
+            formatter: Union[Formatter, Auto] = AUTO,
+            loggers: SubLoggers = AUTO,
             context: Context = None,
-            file: Optional[FileOrName] = None,
+            file: Union[File, Name, None] = None,
     ):
-        name = arg.acquire(name, DEFAULT_LOGGER_NAME)
-        level = arg.acquire(level, DEFAULT_LOGGING_LEVEL)
-        formatter = arg.acquire(formatter, DEFAULT_FORMATTER)
+        name = Auto.acquire(name, DEFAULT_LOGGER_NAME)
+        level = Auto.acquire(level, DEFAULT_LOGGING_LEVEL)
+        formatter = Auto.acquire(formatter, DEFAULT_FORMATTER)
         if not isinstance(level, LoggingLevel):
             level = LoggingLevel(level)
         if isinstance(loggers, list):
             loggers = {i: i.get_name() for i in loggers}
-        elif not arg.is_defined(loggers):
+        elif not Auto.is_defined(loggers):
             loggers = dict()
         if name not in loggers:
-            level_value = arg.get_value(level)
+            level_value = get_value(level)
             base_logger = self.build_base_logger(name, level_value, formatter)
             loggers[name] = base_logger
         self._level = level
@@ -80,7 +80,7 @@ class BaseLoggerWrapper(bs.TreeItem, LoggerInterface):
             level: Level = logging.DEBUG,
             formatter: Formatter = DEFAULT_FORMATTER,
     ) -> BaseLogger:
-        level = arg.get_value(level)
+        level = get_value(level)
         base_logger = logging.getLogger(name)
         base_logger.setLevel(level)
         if not base_logger.handlers:
@@ -107,14 +107,15 @@ class BaseLoggerWrapper(bs.TreeItem, LoggerInterface):
         return self
 
     def set_file(
-            self, file: Union[File, Name],
+            self,
+            file: Union[File, Name],
             encoding: str = DEFAULT_ENCODING,
             level: Level = DEFAULT_LOGGING_LEVEL,
             formatter: Formatter = DEFAULT_FORMATTER,
             if_not_added: bool = True,
     ) -> LoggerInterface:
-        filename = arg.get_name(file)
-        level = arg.get_value(level)
+        filename = get_name(file)
+        level = get_value(level)
         is_added = False
         for h in self.get_handlers():
             if hasattr(h, 'baseFilename'):
@@ -142,7 +143,7 @@ class BaseLoggerWrapper(bs.TreeItem, LoggerInterface):
     def warning(self, msg: str, category: Optional[Type] = None, stacklevel: Optional[int] = None) -> None:
         if stacklevel:
             caller = getframeinfo(stack()[stacklevel][0])
-            category_name = arg.get_name(category) if category else ''
+            category_name = get_name(category) if category else ''
             msg = '{}:{}: {} {}'.format(caller.filename, caller.lineno, category_name, msg)
         self.log(msg=msg, level=LoggingLevel.Warning)
 
@@ -156,14 +157,14 @@ class BaseLoggerWrapper(bs.TreeItem, LoggerInterface):
 class ExtendedLogger(BaseLoggerWrapper, ExtendedLoggerInterface):
     def __init__(
             self,
-            name: Union[Name, arg.Auto] = arg.AUTO,
-            level: Level = arg.AUTO,
-            formatter: Union[Formatter, arg.Auto] = arg.AUTO,
-            max_line_len=arg.AUTO,
+            name: Union[Name, Auto] = AUTO,
+            level: Level = AUTO,
+            formatter: Union[Formatter, Auto] = AUTO,
+            max_line_len=AUTO,
             context: Context = None,
-            file: Optional[FileOrName] = None,
+            file: Union[File, Name, None] = None,
     ):
-        self.max_line_len = arg.acquire(max_line_len, DEFAULT_LINE_LEN)
+        self.max_line_len = Auto.acquire(max_line_len, DEFAULT_LINE_LEN)
         progress_trackers = dict()
         self.LoggingLevel = LoggingLevel
         super().__init__(
@@ -187,25 +188,28 @@ class ExtendedLogger(BaseLoggerWrapper, ExtendedLoggerInterface):
                         assert is_same_logger, 'Context already has logger registered'
             context.set_logger(self)
 
-    def get_new_progress(self, name: Name, count: Count = None, context: OptContext = arg.AUTO) -> ProgressInterface:
+    def get_new_progress(self, name: Name, count: Count = None, context: OptContext = AUTO) -> ProgressInterface:
         progress = Progress(
             name=name,
             count=count,
             logger=self,
-            context=arg.acquire(context, self.get_context, delayed=True),
+            context=Auto.acquire(context, self.get_context, delayed=True),
         )
         self.add_child(progress, check=False)
         return progress
 
     def progress(
-            self, items: Iterable, name: Name = 'Progress',
-            count: Count = None, step: Step = arg.AUTO,
-            context: OptContext = arg.AUTO,
+            self,
+            items: Iterable,
+            name: Name = 'Progress',
+            count: Count = None,
+            step: AutoCount = AUTO,
+            context: OptContext = AUTO,
     ) -> Generator:
         return self.get_new_progress(name, count=count, context=context).iterate(items, step=step)
 
-    def get_selection_logger(self, name: OptName = arg.AUTO, **kwargs) -> Optional[SelectionLoggerInterface]:
-        name = arg.acquire(name, SELECTION_LOGGER_NAME)
+    def get_selection_logger(self, name: AutoName = AUTO, **kwargs) -> Optional[SelectionLoggerInterface]:
+        name = Auto.acquire(name, SELECTION_LOGGER_NAME)
         selection_logger = self.get_child(name)
         if selection_logger:
             if kwargs:
@@ -214,16 +218,17 @@ class ExtendedLogger(BaseLoggerWrapper, ExtendedLoggerInterface):
             selection_logger = self.reset_selection_logger(name, **kwargs)
         return selection_logger
 
-    def set_selection_logger(self, selection_logger: SelectionLoggerInterface, skip_errors: bool = True) -> None:
+    def set_selection_logger(self, selection_logger: SelectionLoggerInterface, skip_errors: bool = True) -> Native:
         try:
-            assert isinstance(selection_logger, bs.ContextualDataWrapper)
+            assert isinstance(selection_logger, ContextualDataInterface)
             self.add_child(selection_logger)
+            return self
         except ValueError as e:
             if not skip_errors:
-                raise e
+                raise ValueError('{obj}: {e}'.format(obj=self, e=e))
 
-    def reset_selection_logger(self, name: OptName = arg.AUTO, **kwargs) -> Optional[SelectionLoggerInterface]:
-        name = arg.acquire(name, SELECTION_LOGGER_NAME)
+    def reset_selection_logger(self, name: AutoName = AUTO, **kwargs) -> Optional[SelectionLoggerInterface]:
+        name = Auto.acquire(name, SELECTION_LOGGER_NAME)
         context = self.get_context()
         if context:
             selection_logger = context.get_new_selection_logger(name, **kwargs)
@@ -232,23 +237,23 @@ class ExtendedLogger(BaseLoggerWrapper, ExtendedLoggerInterface):
                 return selection_logger
 
     def is_suitable_level(self, level: Level) -> bool:
-        proposed_level_value = arg.get_value(level)
-        selected_level_value = arg.get_value(self.get_level())
+        proposed_level_value = get_value(level)
+        selected_level_value = get_value(self.get_level())
         return proposed_level_value >= selected_level_value
 
     def log(
             self,
             msg: Union[str, list, tuple],
-            level: Level = arg.AUTO,
-            logger: Union[BaseLogger, arg.Auto] = arg.AUTO,
-            end: Union[str, arg.Auto] = arg.AUTO,
+            level: Level = AUTO,
+            logger: Union[BaseLogger, Auto] = AUTO,
+            end: Union[str, Auto] = AUTO,
             verbose: bool = True,
             truncate: bool = True,
             category: Optional[Type] = None,
             stacklevel: Optional[int] = None,
     ) -> None:
-        level = arg.acquire(level, LoggingLevel.Info if verbose else LoggingLevel.Debug)
-        logger = arg.delayed_acquire(logger, self.get_base_logger)
+        level = Auto.acquire(level, LoggingLevel.Info if verbose else LoggingLevel.Debug)
+        logger = Auto.delayed_acquire(logger, self.get_base_logger)
         if isinstance(msg, BaseException):
             msg = str(msg)
         if isinstance(msg, str):
@@ -258,7 +263,7 @@ class ExtendedLogger(BaseLoggerWrapper, ExtendedLoggerInterface):
         else:
             raise TypeError('Expected msg as str or list[str], got {}'.format(msg))
         if category:
-            category_name = arg.get_name(category)
+            category_name = get_name(category)
             msg = [category_name] + msg
         if stacklevel:
             caller = getframeinfo(stack()[stacklevel + 1][0])
@@ -277,14 +282,14 @@ class ExtendedLogger(BaseLoggerWrapper, ExtendedLoggerInterface):
 
     def format_message(
             self, *messages,
-            max_len: Union[int, arg.Auto] = arg.AUTO,
+            max_len: Union[int, Auto] = AUTO,
             truncate: bool = True,
     ) -> str:
-        messages = arg.update(messages)
-        max_len = arg.acquire(max_len, self.max_line_len)
+        messages = update(messages)
+        max_len = Auto.acquire(max_len, self.max_line_len)
         message = SPACE.join([str(m) for m in messages])
         if truncate and len(message) > max_len:
-            message = message[:max_len - 2] + TRUNCATED_SUFFIX
+            message = message[:max_len - 2] + CROP_SUFFIX
         return message
 
     def clear_line(self) -> None:
@@ -293,15 +298,16 @@ class ExtendedLogger(BaseLoggerWrapper, ExtendedLoggerInterface):
 
     def show(
             self, *messages,
-            end: Union[str, arg.Auto] = arg.AUTO,
-            clear_before: bool = True, truncate: bool = True,
+            end: Union[str, Auto] = AUTO,
+            clear_before: bool = True,
+            truncate: bool = True,
     ) -> None:
         message = self.format_message(
             *messages,
             max_len=LONG_LINE_LEN if end == '\n' else self.max_line_len,
             truncate=truncate,
         )
-        end = arg.acquire(end, '\r' if message.endswith(REWRITE_SUFFIX) else '\n')
+        end = Auto.acquire(end, '\r' if message.endswith(REWRITE_SUFFIX) else '\n')
         if clear_before:
             remainder = self.max_line_len - len(message)
             message += SPACE * remainder

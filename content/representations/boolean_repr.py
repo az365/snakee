@@ -2,15 +2,15 @@ from typing import Optional, Union
 
 try:  # Assume we're a submodule in a package.
     from base.classes.auto import Auto, AUTO
-    from content.representations.repr_constants import (
-        DEFAULT_STR, FILL_CHAR, SHORT_CROP_SUFFIX,
-        DEFAULT_TRUE_STR, DEFAULT_FALSE_STR, FALSE_VALUES,
+    from base.constants.chars import (
+        FILL_CHAR, SHORT_CROP_SUFFIX, DEFAULT_STR,
+        DEFAULT_TRUE_STR, DEFAULT_FALSE_STR, FALSE_VALUES
     )
     from content.representations.abstract_repr import AbstractRepresentation, ReprType, Value
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.classes.auto import Auto, AUTO
-    from .repr_constants import (
-        DEFAULT_STR, FILL_CHAR, SHORT_CROP_SUFFIX,
+    from ...base.constants.chars import (
+        FILL_CHAR, SHORT_CROP_SUFFIX, DEFAULT_STR,
         DEFAULT_TRUE_STR, DEFAULT_FALSE_STR, FALSE_VALUES,
     )
     from .abstract_repr import AbstractRepresentation, ReprType, Value

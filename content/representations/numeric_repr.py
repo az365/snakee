@@ -2,12 +2,14 @@ from typing import Union
 
 try:  # Assume we're a submodule in a package.
     from base.classes.typing import AUTO, Auto, Value, AutoCount
-    from content.representations.repr_constants import DEFAULT_STR, CROP_SUFFIX, FILL_CHAR, DEFAULT_PRECISION
+    from base.constants.chars import FILL_CHAR, DEFAULT_STR, CROP_SUFFIX
     from content.representations.abstract_repr import AbstractRepresentation, ReprType, OptKey
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.classes.typing import AUTO, Auto, Value, AutoCount
-    from .repr_constants import DEFAULT_STR, CROP_SUFFIX, FILL_CHAR, DEFAULT_PRECISION
+    from ...base.constants.chars import FILL_CHAR, DEFAULT_STR, CROP_SUFFIX
     from .abstract_repr import AbstractRepresentation, ReprType, OptKey
+
+DEFAULT_PRECISION = 3
 
 
 class NumericRepresentation(AbstractRepresentation):
@@ -42,6 +44,12 @@ class NumericRepresentation(AbstractRepresentation):
     def get_repr_type() -> ReprType:
         return ReprType.NumericRepr
 
+    def using_percent(self) -> bool:
+        return self._use_percent
+
+    def using_plus(self) -> bool:
+        return self._use_plus
+
     def get_precision(self):
         return self._precision
 
@@ -64,8 +72,9 @@ class NumericRepresentation(AbstractRepresentation):
                 raise ValueError(e)
 
     def convert_value(self, value: Value) -> Value:
+        int_precision = -2 if self.using_percent() else 0
         try:
-            if self.get_precision() > 0:
+            if self.get_precision() > int_precision:
                 return float(value)
             else:
                 return int(value)
@@ -106,17 +115,17 @@ class NumericRepresentation(AbstractRepresentation):
             return '-'
 
     def get_precision_str(self) -> str:
-        if self._precision > 0:
-            return '.{}'.format(self._precision)
+        if self.get_precision() > 0:
+            return '.{}'.format(self.get_precision())
         else:
             return ''
 
     def get_type_str(self) -> str:
-        if self._use_percent:
+        if self.using_percent():
             return '%'
         elif self._allow_exp:
             return 'g'
-        elif self._precision:
+        elif self.get_precision():
             return 'f'
         else:
             return 'd'

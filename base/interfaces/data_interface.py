@@ -1,22 +1,29 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Union, Iterable, Callable, Any
+from typing import Optional, Callable, Iterable, Union, Any
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.auto import Auto
-    from base.interfaces.base_interface import BaseInterface
+    from base.classes.typing import AUTO, Auto, AutoCount, OptionalFields
+    from base.constants.chars import CROP_SUFFIX, DEFAULT_LINE_LEN
+    from base.interfaces.base_interface import BaseInterface, AutoOutput
+    from base.interfaces.line_output_interface import LineOutputInterface
     from base.interfaces.contextual_interface import ContextualInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..classes.auto import Auto
-    from .base_interface import BaseInterface
+    from ..classes.typing import AUTO, Auto, AutoCount, OptionalFields
+    from ..constants.chars import CROP_SUFFIX, DEFAULT_LINE_LEN
+    from .base_interface import BaseInterface, AutoOutput
+    from .line_output_interface import LineOutputInterface
     from .contextual_interface import ContextualInterface
 
 Data = Union[Iterable, Any]
-OptionalFields = Optional[Union[Iterable, str]]
 
 
-class SimpleDataInterface(BaseInterface, ABC):
+class SimpleDataInterface(BaseInterface, LineOutputInterface, ABC):
     @abstractmethod
     def get_name(self) -> Optional[str]:
+        pass
+
+    @abstractmethod
+    def get_caption(self) -> str:
         pass
 
     @abstractmethod
@@ -33,6 +40,31 @@ class SimpleDataInterface(BaseInterface, ABC):
 
     @abstractmethod
     def get_static_meta(self, ex: OptionalFields = None) -> dict:
+        pass
+
+    @abstractmethod
+    def get_count_repr(self, default: str = '<iter>') -> str:
+        pass
+
+    def get_one_line_repr(
+            self,
+            str_meta: Union[str, Auto, None] = AUTO,
+            max_len: int = DEFAULT_LINE_LEN,
+            crop: str = CROP_SUFFIX,
+    ) -> str:
+        pass
+
+    @abstractmethod
+    def describe(
+            self,
+            show_header: bool = True,
+            count: AutoCount = AUTO,
+            comment: Optional[str] = None,
+            depth: int = 1,
+            output: AutoOutput = AUTO,
+            as_dataframe: bool = Auto,
+            **kwargs
+    ):
         pass
 
 

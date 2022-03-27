@@ -1,15 +1,21 @@
-from typing import Callable, Union, Any
+from typing import Optional, Callable, Union, Any
 
 try:  # Assume we're a submodule in a package.
     from base.classes.auto import AUTO, Auto
     from base.functions.arguments import get_names, update
+    from content.items.item_type import ItemType
+    from loggers.logger_interface import LoggerInterface
     from functions.primary import items as it
     from utils import algo
+    from utils.decorators import deprecated_with_alternative
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..base.classes.auto import AUTO, Auto
     from ..base.functions.arguments import get_names, update
+    from ..content.items.item_type import ItemType
+    from ..loggers.logger_interface import LoggerInterface
     from ..functions.primary import items as it
     from . import algo
+    from .decorators import deprecated_with_alternative
 
 Description = Union[Callable, list, tuple]
 
@@ -51,7 +57,7 @@ def topologically_sorted(expressions: dict, ignore_cycles: bool = IGNORE_CYCLIC_
     return [(f, expressions[f]) for f in ordered_fields]
 
 
-def flatten_descriptions(*fields, **expressions) -> list:
+def flatten_descriptions(*fields, to_names: bool = True, **expressions) -> list:
     descriptions = list(fields)
     logger = expressions.pop('logger', None)
     ignore_cycles = logger is not None
@@ -62,7 +68,15 @@ def flatten_descriptions(*fields, **expressions) -> list:
             descriptions.append([k] + list(v))
         else:
             descriptions.append([k] + [v])
-    return descriptions
+    if to_names:
+        result = list()
+        for desc in descriptions:
+            if isinstance(desc, (list, tuple)):
+                desc = get_names(desc, or_callable=True)
+            result.append(desc)
+        return result
+    else:
+        return descriptions
 
 
 def safe_apply_function(function: Callable, fields, values, item=None, logger=None, skip_errors=True) -> Any:
@@ -252,12 +266,17 @@ def auto_to_auto(item, *descriptions, logger=None) -> Any:
         return get_composite_key(item, descriptions)
 
 
-def select(
+@deprecated_with_alternative('get_selection_mapper()')
+def select(*fields, **expressions):
+    return get_selection_mapper(*fields, **expressions)
+
+
+def get_selection_mapper(
         *fields,
-        target_item_type=AUTO,
-        input_item_type=AUTO,
-        logger=None,
-        selection_logger=AUTO,
+        target_item_type: ItemType = AUTO,
+        input_item_type: ItemType = AUTO,
+        logger: Optional[LoggerInterface] = None,
+        selection_logger: Union[LoggerInterface, Auto] = AUTO,
         **expressions
 ):
     descriptions = flatten_descriptions(
