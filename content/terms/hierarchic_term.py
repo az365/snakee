@@ -4,6 +4,7 @@ try:  # Assume we're a submodule in a package.
     from base.classes.auto import AUTO, Auto
     from base.functions.arguments import get_name, get_names, get_value
     from base.classes.enum import DynamicEnum
+    from base.constants.chars import EMPTY, PY_INDENT, IDS_DELIMITER, REPR_DELIMITER
     from content.fields.field_type import FieldType
     from content.terms.discrete_term import DiscreteTerm, TermType, Field, FieldRoleType
     from content.terms.object_term import ObjectTerm
@@ -11,6 +12,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.classes.auto import AUTO, Auto
     from ...base.functions.arguments import get_name, get_names, get_value
     from ...base.classes.enum import DynamicEnum
+    from ...base.constants.chars import EMPTY, PY_INDENT, IDS_DELIMITER, REPR_DELIMITER
     from ..fields.field_type import FieldType
     from .discrete_term import DiscreteTerm, TermType, Field, FieldRoleType
     from .object_term import ObjectTerm
@@ -19,14 +21,12 @@ Native = DiscreteTerm
 IdValue = Union[int, str]
 Level = Union[ObjectTerm, DynamicEnum, IdValue, Type, Auto]
 
-IDS_DELIMITER = '|'
-
 
 class HierarchicTerm(DiscreteTerm):
     def __init__(
             self,
             name: str,
-            caption: str = '',
+            caption: str = EMPTY,
             levels: Union[DynamicEnum, list, None] = None,
             fields: Optional[dict] = None,
             dicts: Optional[dict] = None,
@@ -149,7 +149,7 @@ class HierarchicTerm(DiscreteTerm):
         assert isinstance(level, ObjectTerm), 'Expected level as ObjectTerm, got {level}'.format(level=level)
         if self._ids_is_independent or get_name(level) == self.get_level_name(0):
             depth = self.get_depth(level)
-            assert depth < len(ids), 'Expected depth < ids, gt {d}, {ids}'.format(d=depth, ids=ids)
+            assert depth < len(ids), 'Expected depth < ids count, got {d}, {ids}'.format(d=depth, ids=ids)
             return ids[depth]
         else:
             return self.get_key_value(*ids, level=level, delimiter=delimiter)
@@ -172,18 +172,18 @@ class HierarchicTerm(DiscreteTerm):
 
     def get_key_field(self, level: Level = AUTO, default_type: FieldType = FieldType.Str, **kwargs) -> Field:
         if Auto.is_auto(level) or level is None:
-            key_field = self.get_field_by_role(FieldRoleType.Key, default_type=default_type, **kwargs)
+            key_field = self.get_field_by_role(FieldRoleType.Key, value_type=default_type, **kwargs)
         else:
             level_term = self.get_level_term(level)
-            key_field = level_term.get_field_by_role(FieldRoleType.Key, default_type=default_type, **kwargs)
+            key_field = level_term.get_field_by_role(FieldRoleType.Key, value_type=default_type, **kwargs)
         return key_field
 
     def get_ids_field(self, level: Level = AUTO, default_type: FieldType = FieldType.Tuple, **kwargs) -> Field:
         if Auto.is_auto(level) or level is None:
-            key_field = self.get_field_by_role(FieldRoleType.Ids, default_type=default_type, **kwargs)
+            key_field = self.get_field_by_role(FieldRoleType.Ids, value_type=default_type, **kwargs)
         else:
             level_term = self.get_level_term(level)
-            key_field = level_term.get_field_by_role(FieldRoleType.Ids, default_type=default_type, **kwargs)
+            key_field = level_term.get_field_by_role(FieldRoleType.Ids, value_type=default_type, **kwargs)
         return key_field
 
     def get_id_fields(self, level: Level = AUTO) -> list:
@@ -192,7 +192,12 @@ class HierarchicTerm(DiscreteTerm):
             fields.append(self.get_level_id_field(level_depth))
         return fields
 
-    def get_key_selection_tuple(self, including_target: bool, level: Level = AUTO, delimiter: str = '|') -> tuple:
+    def get_key_selection_tuple(
+            self,
+            including_target: bool,
+            level: Level = AUTO,
+            delimiter: str = IDS_DELIMITER,
+    ) -> tuple:
         selector = [lambda *a: delimiter.join(a)]
         selector += self.get_id_fields(level)
         if including_target:
@@ -210,8 +215,8 @@ class HierarchicTerm(DiscreteTerm):
             self,
             with_title: bool = True,
             with_summary: bool = True,
-            prefix: str = ' ' * 4,
-            delimiter: str = ' ',
+            prefix: str = PY_INDENT,
+            delimiter: str = REPR_DELIMITER,
     ) -> Generator:
         for level_no, level_term in enumerate(self.get_level_terms()):
             yield '\n#{no}: {term}'.format(no=level_no, term=level_term.get_brief_repr())

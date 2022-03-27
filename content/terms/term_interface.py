@@ -70,6 +70,28 @@ class TermInterface(SimpleDataInterface, ABC):
         pass
 
     @abstractmethod
+    def field(
+            self,
+            name: str,
+            value_type: Union[FieldType, Auto] = AUTO,
+            role: Union[FieldRoleType, str, Auto] = AUTO,
+            caption: Union[str, Auto] = AUTO,
+            **kwargs
+    ) -> FieldInterface:
+        pass
+
+    @abstractmethod
+    def get_field_by_role(
+            self,
+            role: FieldRoleType,
+            value_type: Union[FieldType, Auto] = AUTO,
+            name: Union[str, Auto] = AUTO,
+            caption: Union[str, Auto] = AUTO,
+            **kwargs
+    ) -> Field:
+        pass
+
+    @abstractmethod
     def get_fields_by_roles(self) -> dict:
         pass
 
@@ -79,18 +101,4 @@ class TermInterface(SimpleDataInterface, ABC):
 
     @abstractmethod
     def get_mapper(self, src: Field, dst: Field, default: Optional[Callable] = None) -> Optional[Callable]:
-        pass
-
-    @abstractmethod
-    def get_field_by_role(
-            self,
-            role: FieldRoleType,
-            default_type: Union[FieldType, Auto, None] = None,
-            **kwargs
-    ) -> Field:
-        pass
-
-    @staticmethod
-    @abstractmethod
-    def get_default_value_type_by_role(role: FieldRoleType, default_type: FieldType = FieldType.Any) -> FieldType:
         pass
