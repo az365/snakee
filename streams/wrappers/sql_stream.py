@@ -6,7 +6,7 @@ try:  # Assume we're a submodule in a package.
         ContextInterface, LeafConnectorInterface, StreamInterface, StructInterface,
         ConnType, LoggingLevel, ItemType, StreamType, Stream, RegularStream,
         AutoContext, AutoStreamType, AutoName, AutoBool, Auto, AUTO,
-        Item, Name, Links, Columns, OptionalFields, Array,
+        Item, Name, Links, Columns, OptionalFields, Array, ARRAY_TYPES,
     )
     from base.functions.arguments import get_names, get_name, get_generated_name, get_str_from_args_kwargs
     from base.constants.chars import EMPTY, ALL, CROP_SUFFIX, ITEMS_DELIMITER
@@ -21,7 +21,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         ContextInterface, LeafConnectorInterface, StreamInterface, StructInterface,
         ConnType, LoggingLevel, ItemType, StreamType, Stream, RegularStream,
         AutoContext, AutoStreamType, AutoName, AutoBool, Auto, AUTO,
-        Item, Name, Links, Columns, OptionalFields, Array,
+        Item, Name, Links, Columns, OptionalFields, Array, ARRAY_TYPES,
     )
     from ...base.functions.arguments import get_names, get_name, get_generated_name, get_str_from_args_kwargs
     from ...base.constants.chars import EMPTY, ALL, CROP_SUFFIX, ITEMS_DELIMITER
@@ -131,12 +131,7 @@ class SqlStream(WrapperStream):
         for desc in descriptions:
             if isinstance(desc, str):
                 yield desc
-            elif isinstance(desc, AbstractField):
-                if hasattr(desc, 'get_sql_expression'):
-                    yield desc.get_sql_expression()
-                else:
-                    yield desc.get_name()
-            elif isinstance(desc, AbstractDescription):
+            elif isinstance(desc, (AbstractField, AbstractDescription)) or hasattr(desc, 'get_sql_expression'):
                 yield desc.get_sql_expression()
             elif isinstance(desc, Sequence):
                 target_field = desc[0]
@@ -224,11 +219,17 @@ class SqlStream(WrapperStream):
 
     def get_groupby_lines(self) -> Generator:
         for f in self.get_expressions_for(SqlSection.GroupBy):
-            yield get_name(f)
+            if isinstance(f, (AbstractField, AbstractDescription)) or hasattr(f, 'get_sql_expression'):
+                yield f.get_sql_expression()
+            else:
+                yield get_name(f)
 
     def get_orderby_lines(self) -> Generator:
         for f in self.get_expressions_for(SqlSection.OrderBy):
-            yield get_name(f)
+            if isinstance(f, (AbstractField, AbstractDescription)) or hasattr(f, 'get_sql_expression'):
+                yield f.get_sql_expression()
+            else:
+                yield get_name(f)
 
     def get_limit_lines(self) -> Generator:
         yield from self.get_expressions_for(SqlSection.Limit)
@@ -294,7 +295,7 @@ class SqlStream(WrapperStream):
             assert isinstance(stream, SqlStream)
             list_expressions = list(fields)
             for target, source in expressions.items():
-                if isinstance(source, Sequence):
+                if isinstance(source, ARRAY_TYPES):
                     list_expressions.append((target, *source))
                 else:
                     list_expressions.append((target, source))
@@ -477,7 +478,7 @@ class SqlStream(WrapperStream):
             for i in filter_expressions:
                 if isinstance(i, (AbstractDescription, AbstractField)) or hasattr(i, 'get_brief_repr'):
                     str_filter_expressions.append(i.get_brief_repr())
-                elif isinstance(i, Sequence):
+                elif isinstance(i, ARRAY_TYPES):
                     str_filter_expressions.append('{}={}'.format(get_name(i[0]), repr(i[1]) if len(i) == 2 else i[1:]))
             sm_repr += '.filter({})'.format(ITEMS_DELIMITER.join(str_filter_expressions))
         groupby_expressions = self.get_expressions_for(SqlSection.GroupBy)
@@ -492,7 +493,7 @@ class SqlStream(WrapperStream):
             for i in select_expressions:
                 if isinstance(i, (AbstractDescription, AbstractField)) or hasattr(i, 'get_brief_repr'):
                     str_select_expressions.append(i.get_brief_repr())
-                elif isinstance(i, Sequence):
+                elif isinstance(i, ARRAY_TYPES):
                     str_select_expressions.append('{}={}'.format(get_name(i[0]), repr(i[1]) if len(i) == 2 else i[1:]))
             sm_repr += '.select({})'.format(ITEMS_DELIMITER.join(str_select_expressions))
         return sm_repr
