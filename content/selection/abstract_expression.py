@@ -119,7 +119,7 @@ class AbstractDescription(DescribeMixin, AbstractBaseObject, ABC):
                 sql_function_expr = '{field}::{type}'.format(field=input_fields[0], type=sql_type_name)
             elif function_name == ALIAS_FUNCTION:
                 assert len(input_fields) == 1, 'got {}'.format(input_fields)
-                return '{source} AS {alias}'.format(source=input_fields, alias=target_field)
+                return '{source} AS {alias}'.format(source=input_fields[0], alias=target_field)
             else:
                 sql_function_name = SQL_FUNC_NAMES_DICT.get(function_name)
                 if not sql_function_name:
