@@ -99,11 +99,15 @@ class TreeItem(ContextualDataWrapper, TreeInterface):
         yield from self.get_children().values()
 
     def close(self) -> int:
-        count = 0
+        total_closed_count = 0
         for child in self.get_children().values():
             if hasattr(child, 'close'):
-                count += child.close()
-        return count
+                try:
+                    current_closed_count = child.close(recursively=False)
+                except TypeError:
+                    current_closed_count = child.close()
+                total_closed_count += current_closed_count or 0
+        return total_closed_count
 
     def forget_child(
             self,
