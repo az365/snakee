@@ -5,9 +5,9 @@ try:  # Assume we're a submodule in a package.
         FieldInterface, RepresentationInterface, StructInterface, ExtLogger, SelectionLogger,
         FieldType, ReprType, ItemType,
         Field, Class, Array, ARRAY_TYPES,
-        AutoBool, Auto, AUTO,
+        AUTO, Auto, AutoBool, AutoName,
     )
-    from base.functions.arguments import get_name
+    from base.functions.arguments import get_name, get_plural
     from content.representations.repr_classes import ReprType
     from content.selection.selectable_mixin import SelectableMixin
     from content.fields.abstract_field import AbstractField, EMPTY
@@ -17,9 +17,9 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         FieldInterface, RepresentationInterface, StructInterface, ExtLogger, SelectionLogger,
         FieldType, ReprType, ItemType,
         Field, Class, Array, ARRAY_TYPES,
-        AutoBool, Auto, AUTO,
+        AUTO, Auto, AutoBool, AutoName,
     )
-    from ...base.functions.arguments import get_name
+    from ...base.functions.arguments import get_name, get_plural
     from ..representations.repr_classes import ReprType
     from ..selection.selectable_mixin import SelectableMixin
     from .abstract_field import AbstractField, EMPTY
@@ -218,6 +218,16 @@ class AdvancedField(AbstractField, SelectableMixin):
 
     def drop(self):
         return ce.DropDescription([self], target_item_type=ItemType.Auto)
+
+    def get_plural(self, suffix: AutoName = AUTO, caption_prefix: str = 'list of ', **kwargs):
+        name = self.get_name()
+        plural_name = get_plural(name, suffix) if Auto.is_defined(suffix) else get_plural(name)
+        meta = self.get_meta()
+        meta['name'] = plural_name
+        meta['caption_prefix'] = caption_prefix + self.get_caption()
+        meta['field_type'] = FieldType.Tuple
+        meta.update(kwargs)
+        return AdvancedField(**meta)
 
     def get_str_headers(self) -> Generator:
         yield self.get_brief_repr()

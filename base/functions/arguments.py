@@ -62,6 +62,10 @@ def get_names(iterable: Union[Iterable, Any, None], or_callable: bool = True) ->
         return iterable
 
 
+def get_plural(name: str, suffix: str = '_list'):
+    return '{name}{suffix}'.format(name=name, suffix=suffix)
+
+
 def get_generated_name(prefix='snakee', include_random: Union[bool, int] = DEFAULT_RANDOM_LEN, include_datetime=True):
     name_parts = [prefix]
     if include_random:
