@@ -7,7 +7,7 @@ try:  # Assume we're a submodule in a package.
         AUTO, Auto, AutoCount, AutoBool, Columns, Array, Count,
     )
     from base.functions.arguments import get_name, get_str_from_args_kwargs
-    from base.constants.chars import EMPTY, CROP_SUFFIX, DEFAULT_ITEMS_DELIMITER, DEFAULT_LINE_LEN
+    from base.constants.chars import EMPTY, CROP_SUFFIX, ITEMS_DELIMITER, DEFAULT_LINE_LEN
     from base.mixin.line_output_mixin import AutoOutput
     from functions.primary import dates as dt
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -16,7 +16,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         AUTO, Auto, AutoCount, AutoBool, Columns, Array, Count,
     )
     from ...base.functions.arguments import get_name, get_str_from_args_kwargs
-    from ...base.constants.chars import EMPTY, CROP_SUFFIX, DEFAULT_ITEMS_DELIMITER, DEFAULT_LINE_LEN
+    from ...base.constants.chars import EMPTY, CROP_SUFFIX, ITEMS_DELIMITER, DEFAULT_LINE_LEN
     from ...base.mixin.line_output_mixin import AutoOutput
     from ...functions.primary import dates as dt
 
@@ -202,7 +202,7 @@ class ActualizeMixin(ABC):
                 message = 'dataset not exists, expected {count} columns: {columns}'
         else:
             message = 'expected'
-        return message.format(count=self.get_column_count(), columns=DEFAULT_ITEMS_DELIMITER.join(self.get_columns()))
+        return message.format(count=self.get_column_count(), columns=ITEMS_DELIMITER.join(self.get_columns()))
 
     def get_str_headers(self, actualize: bool = False) -> Generator:
         cls = self.__class__.__name__
@@ -276,6 +276,8 @@ class ActualizeMixin(ABC):
             example_item, example_stream, example_comment = example_tuple
         elif is_actual:
             message = '[NOT_EXISTS] dataset is not created yet, expected {} columns:'.format(self.get_column_count())
+        else:
+            message = '[EXPECTED] connection not established, expected {} columns:'.format(self.get_column_count())
         title = '{time} {msg}'.format(time=self.get_datetime_str(actualize=actualize), msg=message)
         return title, example_item, example_stream, example_comment
 
