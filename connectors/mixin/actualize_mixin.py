@@ -7,7 +7,7 @@ try:  # Assume we're a submodule in a package.
         AUTO, Auto, AutoCount, AutoBool, Columns, Array, Count,
     )
     from base.functions.arguments import get_name, get_str_from_args_kwargs
-    from base.constants.chars import CROP_SUFFIX, DEFAULT_LINE_LEN
+    from base.constants.chars import EMPTY, CROP_SUFFIX, DEFAULT_ITEMS_DELIMITER, DEFAULT_LINE_LEN
     from base.mixin.line_output_mixin import AutoOutput
     from functions.primary import dates as dt
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -16,7 +16,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         AUTO, Auto, AutoCount, AutoBool, Columns, Array, Count,
     )
     from ...base.functions.arguments import get_name, get_str_from_args_kwargs
-    from ...base.constants.chars import CROP_SUFFIX, DEFAULT_LINE_LEN
+    from ...base.constants.chars import EMPTY, CROP_SUFFIX, DEFAULT_ITEMS_DELIMITER, DEFAULT_LINE_LEN
     from ...base.mixin.line_output_mixin import AutoOutput
     from ...functions.primary import dates as dt
 
@@ -104,12 +104,12 @@ class ActualizeMixin(ABC):
             else:
                 return 'future'
 
-    def get_datetime_str(self) -> str:
-        if self.is_existing():
-            times = self.get_modification_time_str(), self.get_file_age_str(), dt.get_current_time_str()
-            return '{} + {} = {}'.format(*times)
-        else:
-            return dt.get_current_time_str()
+    def get_datetime_str(self, actualize: bool = True) -> str:
+        if actualize:
+            if self.is_existing():
+                times = self.get_modification_time_str(), self.get_file_age_str(), dt.get_current_time_str()
+                return '{} + {} = {}'.format(*times)
+        return dt.get_current_time_str()
 
     @staticmethod
     def _get_current_timestamp() -> float:
@@ -183,26 +183,32 @@ class ActualizeMixin(ABC):
             message = '[DEPRECATED] {}'.format(message)
         return message
 
-    def get_shape_repr(self) -> str:
-        return self.get_columns_repr()
+    def get_shape_repr(self, actualize: bool = False) -> str:
+        return self.get_columns_repr(actualize=actualize)
 
-    def get_columns_repr(self) -> str:
-        if self.is_existing():
-            rows_count = self.get_count(allow_slow_mode=False)
-            if rows_count:
-                cols_count = self.get_column_count() or 0
-                invalid_count = self.get_invalid_fields_count() or 0
-                valid_count = cols_count - invalid_count
-                message = '{} rows, {} columns = {} valid + {} invalid'
-                return message.format(rows_count, cols_count, valid_count, invalid_count)
+    def get_columns_repr(self, actualize: bool = True) -> str:
+        if actualize:
+            if self.is_existing():
+                rows_count = self.get_count(allow_slow_mode=False)
+                if rows_count:
+                    cols_count = self.get_column_count() or 0
+                    invalid_count = self.get_invalid_fields_count() or 0
+                    valid_count = cols_count - invalid_count
+                    message = '{} rows, {} columns = {} valid + {} invalid'
+                    return message.format(rows_count, cols_count, valid_count, invalid_count)
+                else:
+                    message = 'empty dataset, expected {count} columns: {columns}'
             else:
-                message = 'empty file, expected {} columns: {}'
+                message = 'dataset not exists, expected {count} columns: {columns}'
         else:
-            message = 'file not exists, expected {} columns: {}'
-        return message.format(self.get_column_count(), ', '.join(self.get_columns()))
+            message = 'expected'
+        return message.format(count=self.get_column_count(), columns=DEFAULT_ITEMS_DELIMITER.join(self.get_columns()))
 
-    def get_str_headers(self) -> Generator:
-        str_header = "{}('{}') {}".format(self.__class__.__name__, self.get_name(), self.get_shape_repr())
+    def get_str_headers(self, actualize: bool = False) -> Generator:
+        cls = self.__class__.__name__
+        name = self.get_name()
+        shape = self.get_shape_repr(actualize=actualize)
+        str_header = "{cls}('{name}') {shape}".format(cls=cls, name=name, shape=shape)
         if len(str_header) > DEFAULT_LINE_LEN:
             str_header = str_header[:DEFAULT_LINE_LEN - len(CROP_SUFFIX)] + CROP_SUFFIX
         yield str_header
@@ -240,12 +246,46 @@ class ActualizeMixin(ABC):
             str_meta = get_str_from_args_kwargs(*description_args)
         return super().get_one_line_repr(str_meta=str_meta, max_len=max_len, crop=crop)
 
+    def _prepare_examples_with_title(
+            self,
+            *filters,
+            safe_filter: bool = True,
+            example_row_count: Count = None,
+            example_str_len: int = EXAMPLE_STR_LEN,
+            actualize: AutoBool = AUTO,
+            **filter_kwargs
+    ) -> tuple:
+        example_item, example_stream, example_comment = dict(), None, EMPTY
+        is_existing, is_empty = None, None
+        is_actual = self.is_actual()
+        actualize = Auto.acquire(actualize, not is_actual)
+        if actualize or is_actual:
+            is_existing = self.is_existing()
+        if actualize and is_existing:
+            self.actualize()
+            is_actual = True
+            is_empty = self.is_empty()
+        if is_empty:
+            message = '[EMPTY] dataset is empty, expected {} columns:'.format(self.get_column_count())
+        elif is_existing:
+            message = self.get_validation_message()
+            example_tuple = self._prepare_examples(
+                *filters, **filter_kwargs, safe_filter=safe_filter,
+                example_row_count=example_row_count, example_str_len=example_str_len,
+            )
+            example_item, example_stream, example_comment = example_tuple
+        elif is_actual:
+            message = '[NOT_EXISTS] dataset is not created yet, expected {} columns:'.format(self.get_column_count())
+        title = '{time} {msg}'.format(time=self.get_datetime_str(actualize=actualize), msg=message)
+        return title, example_item, example_stream, example_comment
+
     def _prepare_examples(
             self,
             *filters,
             safe_filter: bool = True,
             example_row_count: Count = None,
             example_str_len: int = EXAMPLE_STR_LEN,
+            crop_suffix: str = CROP_SUFFIX,
             **filter_kwargs
     ) -> tuple:
         filters = filters or list()
@@ -277,7 +317,7 @@ class ActualizeMixin(ABC):
                 for k, v in item_example.items():
                     v = str(v)
                     if len(v) > example_str_len:
-                        item_example[k] = str(v)[:example_str_len - 2] + '..'
+                        item_example[k] = str(v)[:example_str_len - len(crop_suffix)] + crop_suffix
         else:
             item_example = dict()
             stream_example = None
@@ -289,14 +329,14 @@ class ActualizeMixin(ABC):
             count: int = EXAMPLE_ROW_COUNT,
             example: Optional[Stream] = None,
             columns: Optional[Array] = None,
-            comment: str = '',
+            comment: str = EMPTY,
             output: AutoOutput = AUTO,
     ):
         if not Auto.is_defined(example):
             example = self.to_record_stream()
         stream_example = example.take(count).collect()
         if comment:
-            self.output_line('', output=output)
+            self.output_line(EMPTY, output=output)
             self.output_line(comment, output=output)
         if stream_example:
             example = stream_example.get_demo_example(columns=columns)
@@ -340,22 +380,13 @@ class ActualizeMixin(ABC):
     ):
         output = Auto.acquire(output, print)
         if show_header:
-            for line in self.get_str_headers():
+            for line in self.get_str_headers(actualize=False):
                 self.output_line(line, output=output)
-        example_item, example_stream, example_comment = dict(), None, ''
-        if self.is_existing():
-            if Auto.acquire(actualize, not self.is_actual()):
-                self.actualize()
-            if self.is_empty():
-                message = '[EMPTY] file is empty, expected {} columns:'.format(self.get_column_count())
-            else:
-                message = self.get_validation_message()
-                example_tuple = self._prepare_examples(safe_filter=safe_filter, filters=filter_args, **filter_kwargs)
-                example_item, example_stream, example_comment = example_tuple
-        else:
-            message = '[NOT_EXISTS] file is not created yet, expected {} columns:'.format(self.get_column_count())
-        if show_header:
-            self.output_line('{} {}'.format(self.get_datetime_str(), message), output=output)
+            struct_title, example_item, example_stream, example_comment = self._prepare_examples_with_title(
+                *filter_args, **filter_kwargs, safe_filter=safe_filter,
+                example_row_count=count, actualize=actualize,
+            )
+            self.output_line(struct_title, output=output)
             if self.get_invalid_fields_count():
                 line = 'Invalid columns: {}'.format(get_str_from_args_kwargs(*self.get_invalid_columns()))
                 self.output_line(line, output=output)
