@@ -68,7 +68,11 @@ class ColumnarMixin(ContextualDataWrapper, IterableMixin, ColumnarInterface, ABC
         )
         return self._assume_native(stream)
 
+    # @deprecated_with_alternative('having_columns()')
     def assert_has_columns(self, *columns, skip_columns=('*', '-', ''), skip_missing: bool = False, **kwargs) -> Native:
+        return self.having_columns(*columns, skip_columns=skip_columns, skip_missing=skip_missing, **kwargs)
+
+    def having_columns(self, *columns, skip_columns=('*', '-', ''), skip_missing: bool = False, **kwargs) -> Native:
         missing_columns = list()
         for c in columns:
             c_name = get_name(c)

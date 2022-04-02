@@ -34,6 +34,7 @@ class TreeItem(ContextualDataWrapper, TreeInterface):
     def __init__(
             self,
             name: str,
+            caption: str = '',
             parent: Parent = None,
             children: Optional[dict] = None,
             context: Context = None,
@@ -42,7 +43,7 @@ class TreeItem(ContextualDataWrapper, TreeInterface):
         self._assert_is_appropriate_parent(parent, skip_missing=True)
         if not children:
             children = dict()
-        super().__init__(name=name, data=children, source=parent, context=context, check=check)
+        super().__init__(name=name, caption=caption, data=children, source=parent, context=context, check=check)
 
     @classmethod
     def _is_tree_item(cls, item):
@@ -98,11 +99,15 @@ class TreeItem(ContextualDataWrapper, TreeInterface):
         yield from self.get_children().values()
 
     def close(self) -> int:
-        count = 0
+        total_closed_count = 0
         for child in self.get_children().values():
             if hasattr(child, 'close'):
-                count += child.close()
-        return count
+                try:
+                    current_closed_count = child.close(recursively=False)
+                except TypeError:
+                    current_closed_count = child.close()
+                total_closed_count += current_closed_count or 0
+        return total_closed_count
 
     def forget_child(
             self,

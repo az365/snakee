@@ -44,6 +44,14 @@ class TreeInterface(ContextualDataInterface, ABC):
     def forget_child(self, child_or_name: Union[ContextualDataInterface, str], skip_errors=False):
         pass
 
+    @abstractmethod
+    def close(self) -> int:
+        """Close connection(s) or fileholder(s) if it's opened.
+
+        :return: count of closed connections.
+        """
+        pass
+
     @staticmethod
     def has_hierarchy():
         return True

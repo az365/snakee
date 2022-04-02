@@ -64,6 +64,9 @@ class AbstractField(SimpleDataWrapper, FieldInterface, ABC):
         else:
             return default
 
+    def get_sql_expression(self) -> str:
+        return self.get_name()
+
     def get_str_repr(self) -> str:
         return self.get_name()
 

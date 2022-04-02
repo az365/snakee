@@ -3,10 +3,12 @@ from typing import Union
 try:  # Assume we're a submodule in a package.
     from base.classes.typing import AUTO, Auto, Value, AutoCount
     from base.constants.chars import FILL_CHAR, DEFAULT_STR, CROP_SUFFIX
+    from functions.secondary.cast_functions import number
     from content.representations.abstract_repr import AbstractRepresentation, ReprType, OptKey
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.classes.typing import AUTO, Auto, Value, AutoCount
     from ...base.constants.chars import FILL_CHAR, DEFAULT_STR, CROP_SUFFIX
+    from ...functions.secondary.cast_functions import number
     from .abstract_repr import AbstractRepresentation, ReprType, OptKey
 
 DEFAULT_PRECISION = 3
@@ -18,6 +20,7 @@ class NumericRepresentation(AbstractRepresentation):
             precision: int = DEFAULT_PRECISION,
             use_percent: bool = False,
             use_plus: Union[bool, str] = False,
+            use_letter: bool = False,
             allow_exp: bool = False,
             align_right: bool = True,
             min_len: AutoCount = AUTO,
@@ -32,6 +35,7 @@ class NumericRepresentation(AbstractRepresentation):
         self._precision = precision
         self._use_percent = use_percent
         self._use_plus = use_plus
+        self._use_letter = use_letter
         self._allow_exp = allow_exp
         super().__init__(
             min_len=min_len, max_len=max_len, including_framing=including_framing,
@@ -47,10 +51,16 @@ class NumericRepresentation(AbstractRepresentation):
     def using_percent(self) -> bool:
         return self._use_percent
 
-    def using_plus(self) -> bool:
+    def using_plus(self) -> Union[bool, str]:
         return self._use_plus
 
-    def get_precision(self):
+    def using_letter(self) -> bool:
+        return self._use_letter
+
+    def get_fill_char(self) -> str:
+        return self._fill
+
+    def get_precision(self) -> int:
         return self._precision
 
     def format(self, value: Value, skip_errors: bool = True) -> str:
@@ -58,6 +68,8 @@ class NumericRepresentation(AbstractRepresentation):
 
     def parse(self, line: str, skip_errors: bool = False) -> Union[int, float, None]:
         value = super().parse(line)
+        if self.using_letter() or self.using_percent():
+            raise NotImplementedError
         try:
             if self.get_precision():
                 if '.' in line:
@@ -74,7 +86,13 @@ class NumericRepresentation(AbstractRepresentation):
     def convert_value(self, value: Value) -> Value:
         int_precision = -2 if self.using_percent() else 0
         try:
-            if self.get_precision() > int_precision:
+            if self.using_letter():
+                cast_func = number(
+                    str, round_digits=self.get_precision(),
+                    show_plus=self.using_plus(), default_value=self.get_default(),
+                )
+                return cast_func(value)
+            elif self.get_precision() > int_precision:
                 return float(value)
             else:
                 return int(value)
@@ -98,9 +116,12 @@ class NumericRepresentation(AbstractRepresentation):
         precision = self.get_precision_str()
         type_str = self.get_type_str()
         if width or sign or precision is not None or type_str != 'd':
-            template = ':{fill}{align}{sign}{width}{precision}{type}'
+            if self.using_letter():  # isinstance(value, str)
+                template = ':{}{align}{width}'
+            else:  # isinstance(value, float)
+                template = ':{fill}{align}{sign}{width}{precision}{type}'
             return template.format(
-                fill=self._fill, align=self.get_align_str(), sign=sign,
+                fill=self.get_fill_char(), align=self.get_align_str(), sign=sign,
                 width=width, precision=precision, type=type_str,
             )
         else:

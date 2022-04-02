@@ -2,6 +2,7 @@ from typing import Optional, Callable, Iterable, Generator, Union, NoReturn
 
 try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
+    from utils.decorators import deprecated_with_alternative
     from functions.primary import dates as dt
     from functions.primary.numeric import plot
     from functions.secondary.date_functions import round_date, date_range
@@ -19,6 +20,7 @@ try:  # Assume we're a submodule in a package.
     from series.pairs.sorted_numeric_key_value_series import SortedNumericKeyValueSeries
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils import arguments as arg
+    from ...utils.decorators import deprecated_with_alternative
     from ...functions.primary import dates as dt
     from ...functions.primary.numeric import plot
     from ...functions.secondary.date_functions import round_date, date_range
@@ -123,11 +125,11 @@ class DateNumericSeries(SortedNumericKeyValueSeries, DateSeries, DateNumericSeri
         series = self.map_dates(func, inplace=inplace) or self
         return self._assume_native(series.mean_by_keys())
 
-    # @deprecated_with_alternative('round_to(scale=DateScale.Week)')
+    @deprecated_with_alternative('round_to(scale=DateScale.Week)')
     def round_to_weeks(self, inplace: bool = False) -> Native:
         return self.round_to(DateScale.Week, inplace=inplace)
 
-    # @deprecated_with_alternative('round_to(scale=DateScale.Month)')
+    @deprecated_with_alternative('round_to(scale=DateScale.Month)')
     def round_to_months(self, inplace: bool = False) -> Native:
         return self.round_to(DateScale.Month, inplace=inplace)
 
@@ -191,6 +193,11 @@ class DateNumericSeries(SortedNumericKeyValueSeries, DateSeries, DateNumericSeri
                 result.append_pair(d, weighted_value, inplace=True)
         return result
 
+    def to_int_date(self, scale: DateScale, inplace: bool = False) -> SortedNumericKeyValueSeries:
+        result = super().to_int(scale, inplace)
+        assert isinstance(result, SortedNumericKeyValueSeries)
+        return result
+
     def interpolate_to_scale(
             self,
             scale: DateScale,
@@ -201,11 +208,11 @@ class DateNumericSeries(SortedNumericKeyValueSeries, DateSeries, DateNumericSeri
         dates = func(self.get_first_date(), self.get_last_date())
         return self.interpolate(dates, how=how, *args, **kwargs)
 
-    # @deprecated_with_alternative('interpolate_to_scale(scale=DateScale.Week)')
+    @deprecated_with_alternative('interpolate_to_scale(scale=DateScale.Week)')
     def interpolate_to_weeks(self, how: InterpolationType = InterpolationType.Spline, *args, **kwargs) -> Series:
         return self.interpolate_to_scale(scale=DateScale.Week, how=how, *args, **kwargs)
 
-    # @deprecated_with_alternative('interpolate_to_scale(scale=DateScale.Month)')
+    @deprecated_with_alternative('interpolate_to_scale(scale=DateScale.Month)')
     def interpolate_to_months(self, how: InterpolationType = InterpolationType.Spline, *args, **kwargs) -> Series:
         return self.interpolate_to_scale(scale=DateScale.Month, how=how, *args, **kwargs)
 
