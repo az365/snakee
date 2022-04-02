@@ -96,6 +96,15 @@ class AliasDescription(SingleFieldDescription):
     def get_output_field_types(self, struct) -> list:
         return [struct.get_field_description(f).get_type() for f in self.get_input_field_names()]
 
+    def get_selection_tuple(self, including_target: bool = False) -> tuple:
+        if including_target:
+            return self.get_target_field_name(), self.get_source_name()
+        else:
+            return self.get_source_name(),
+
+    def get_sql_expression(self) -> str:
+        return '{source} as {target}'.format(source=self.get_source_name(), target=self.get_target_field_name())
+
     def __str__(self):
         source = self.get_source_name()
         alias = self.get_target_field_name()

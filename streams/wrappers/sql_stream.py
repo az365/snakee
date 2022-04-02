@@ -1,28 +1,34 @@
 from enum import Enum
-from typing import Optional, Callable, Iterable, Generator, Union
+from typing import Optional, Callable, Iterable, Generator, Sequence, Union
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         ContextInterface, LeafConnectorInterface, StreamInterface, StructInterface,
-        ConnType, LoggingLevel, StreamType, Stream, RegularStream,
+        ConnType, LoggingLevel, ItemType, StreamType, Stream, RegularStream,
         AutoContext, AutoStreamType, AutoName, AutoBool, Auto, AUTO,
-        Item, Name, Links, Columns, OptionalFields, Array, ARRAY_TYPES,
+        Item, Name, Links, Columns, OptionalFields, Array,
     )
     from base.functions.arguments import get_names, get_name, get_generated_name, get_str_from_args_kwargs
+    from base.constants.chars import EMPTY, ALL, CROP_SUFFIX, ITEMS_DELIMITER
     from functions.primary.text import remove_extra_spaces
     from content.fields.abstract_field import AbstractField
+    from content.selection.abstract_expression import AbstractDescription
+    from content.selection.concrete_expression import AliasDescription
     from content.struct.flat_struct import FlatStruct
     from streams.abstract.wrapper_stream import WrapperStream
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         ContextInterface, LeafConnectorInterface, StreamInterface, StructInterface,
-        ConnType, LoggingLevel, StreamType, Stream, RegularStream,
+        ConnType, LoggingLevel, ItemType, StreamType, Stream, RegularStream,
         AutoContext, AutoStreamType, AutoName, AutoBool, Auto, AUTO,
-        Item, Name, Links, Columns, OptionalFields, Array, ARRAY_TYPES,
+        Item, Name, Links, Columns, OptionalFields, Array,
     )
     from ...base.functions.arguments import get_names, get_name, get_generated_name, get_str_from_args_kwargs
+    from ...base.constants.chars import EMPTY, ALL, CROP_SUFFIX, ITEMS_DELIMITER
     from ...functions.primary.text import remove_extra_spaces
     from ...content.fields.abstract_field import AbstractField
+    from ...content.selection.abstract_expression import AbstractDescription
+    from ...content.selection.concrete_expression import AliasDescription
     from ...content.struct.flat_struct import FlatStruct
     from ..abstract.wrapper_stream import WrapperStream
 
@@ -31,8 +37,6 @@ TableOrQuery = Union[LeafConnectorInterface, StreamInterface, None]
 
 IS_DEFINED = '{field} <> 0 and {field} NOT NULL'
 MSG_NOT_IMPL = '{method}() operation is not defined for SqlStream, try to use .to_record_stream().{method}() instead'
-STAR = '*'
-ETC_SYMBOL = '..'
 DICT_FUNC_NAMES = dict(len='COUNT')
 DICT_TYPE_NAMES = dict(int='integer')
 
@@ -59,13 +63,19 @@ class SqlStream(WrapperStream):
             source: TableOrQuery = None,
             context: AutoContext = AUTO,
     ):
+        if not Auto.is_defined(data):
+            data = dict()
         super().__init__(
             name=name,
-            data=data or dict(),
+            data=data,
             source=source,
             context=context,
             check=False,
         )
+
+    @staticmethod
+    def get_item_type() -> ItemType:
+        return ItemType.Row
 
     def get_source_table(self) -> LeafConnectorInterface:
         source = self.get_source()
@@ -114,10 +124,10 @@ class SqlStream(WrapperStream):
         stream.get_expressions_for(section).append(expression)
         return stream
 
-    def get_select_lines(self) -> Iterable:
+    def get_select_lines(self) -> Generator:
         descriptions = self.get_expressions_for(SqlSection.Select)
         if not descriptions:
-            yield STAR
+            yield ALL
         for desc in descriptions:
             if isinstance(desc, str):
                 yield desc
@@ -126,7 +136,9 @@ class SqlStream(WrapperStream):
                     yield desc.get_sql_expression()
                 else:
                     yield desc.get_name()
-            elif isinstance(desc, ARRAY_TYPES):
+            elif isinstance(desc, AbstractDescription):
+                yield desc.get_sql_expression()
+            elif isinstance(desc, Sequence):
                 target_field = desc[0]
                 expression = desc[1:]
                 if len(expression) == 1:
@@ -159,7 +171,7 @@ class SqlStream(WrapperStream):
             else:
                 raise ValueError('expected field name or tuple, got {}'.format(desc))
 
-    def get_where_lines(self) -> Iterable:
+    def get_where_lines(self) -> Generator:
         for description in self.get_expressions_for(SqlSection.Where):
             if isinstance(description, str):
                 yield IS_DEFINED.format(field=description)
@@ -168,7 +180,7 @@ class SqlStream(WrapperStream):
                     yield description.get_sql_expression()
                 else:
                     yield IS_DEFINED.format(field=description.get_name())
-            elif isinstance(description, ARRAY_TYPES):
+            elif isinstance(description, Sequence):
                 target_field = description[0]
                 expression = description[1:]
                 if len(expression) == 1:
@@ -193,7 +205,7 @@ class SqlStream(WrapperStream):
             else:
                 raise ValueError('expected field name or tuple, got {}'.format(description))
 
-    def get_from_lines(self) -> Iterable:
+    def get_from_lines(self) -> Generator:
         from_section = list(self.get_expressions_for(SqlSection.From))
         if len(from_section) == 1:
             from_obj = from_section[0]
@@ -210,13 +222,15 @@ class SqlStream(WrapperStream):
         else:
             yield from from_section
 
-    def get_groupby_lines(self) -> Iterable:
-        yield from self.get_expressions_for(SqlSection.GroupBy)
+    def get_groupby_lines(self) -> Generator:
+        for f in self.get_expressions_for(SqlSection.GroupBy):
+            yield get_name(f)
 
-    def get_orderby_lines(self) -> Iterable:
-        yield from self.get_expressions_for(SqlSection.OrderBy)
+    def get_orderby_lines(self) -> Generator:
+        for f in self.get_expressions_for(SqlSection.OrderBy):
+            yield get_name(f)
 
-    def get_limit_lines(self) -> Iterable:
+    def get_limit_lines(self) -> Generator:
         yield from self.get_expressions_for(SqlSection.Limit)
 
     def get_section_lines(self, section: SqlSection) -> Iterable:
@@ -246,9 +260,9 @@ class SqlStream(WrapperStream):
             if section == SqlSection.Where:
                 delimiter = '\n    AND '
             elif section == SqlSection.From:
-                delimiter = ''
+                delimiter = EMPTY
             else:
-                delimiter = ', '
+                delimiter = ITEMS_DELIMITER
             for n, line in enumerate(lines):
                 is_last = n == len(lines) - 1
                 template = '    {}' if is_last else '    {}' + delimiter
@@ -280,7 +294,7 @@ class SqlStream(WrapperStream):
             assert isinstance(stream, SqlStream)
             list_expressions = list(fields)
             for target, source in expressions.items():
-                if isinstance(source, ARRAY_TYPES):
+                if isinstance(source, Sequence):
                     list_expressions.append((target, *source))
                 else:
                     list_expressions.append((target, source))
@@ -328,7 +342,7 @@ class SqlStream(WrapperStream):
         return self.add_expression_for(SqlSection.Limit, count, inplace=False)
 
     def get_count(self) -> int:
-        transform = self.select(cnt=(len, STAR))
+        transform = self.select(cnt=(len, ALL))
         assert isinstance(transform, SqlStream)
         data = transform.execute_query()
         count = list(data)[0]
@@ -371,8 +385,12 @@ class SqlStream(WrapperStream):
         if select_expressions:
             columns = list()
             for i in select_expressions:
-                if len(i) == 1 or isinstance(i, str):
-                    if i == STAR or i[0] == STAR:
+                if isinstance(i, AbstractDescription):
+                    columns.append(i.get_target_field_name())
+                elif isinstance(i, AbstractField):
+                    columns.append(i.get_name())
+                elif len(i) == 1 or isinstance(i, str):
+                    if i == ALL or i[0] == ALL:
                         for source_column in self.get_input_columns():
                             columns.append(source_column)
                     else:
@@ -455,24 +473,34 @@ class SqlStream(WrapperStream):
             sm_repr = repr(source)
         filter_expressions = self.get_expressions_for(SqlSection.Where)
         if filter_expressions:
-            filter_expressions = ['{}={}'.format(i[0], i[1] if len(i) == 2 else i[1:]) for i in filter_expressions]
-            sm_repr += '.filter({})'.format(', '.join(filter_expressions))
+            str_filter_expressions = list()
+            for i in filter_expressions:
+                if isinstance(i, (AbstractDescription, AbstractField)) or hasattr(i, 'get_brief_repr'):
+                    str_filter_expressions.append(i.get_brief_repr())
+                elif isinstance(i, Sequence):
+                    str_filter_expressions.append('{}={}'.format(get_name(i[0]), repr(i[1]) if len(i) == 2 else i[1:]))
+            sm_repr += '.filter({})'.format(ITEMS_DELIMITER.join(str_filter_expressions))
         groupby_expressions = self.get_expressions_for(SqlSection.GroupBy)
         if groupby_expressions:
-            sm_repr += '.group_by({})'.format(', '.join(groupby_expressions))
+            sm_repr += '.group_by({})'.format(ITEMS_DELIMITER.join(get_names(groupby_expressions)))
         sort_expressions = self.get_expressions_for(SqlSection.OrderBy)
         if sort_expressions:
-            sm_repr += '.sort({})'.format(', '.join(sort_expressions))
+            sm_repr += '.sort({})'.format(ITEMS_DELIMITER.join(get_names(sort_expressions)))
         select_expressions = self.get_expressions_for(SqlSection.Select)
         if select_expressions:
-            select_expressions = ['{}={}'.format(i[0], i[1] if len(i) == 2 else i[1:]) for i in select_expressions]
-            sm_repr += '.select({})'.format(', '.join(select_expressions))
+            str_select_expressions = list()
+            for i in select_expressions:
+                if isinstance(i, (AbstractDescription, AbstractField)) or hasattr(i, 'get_brief_repr'):
+                    str_select_expressions.append(i.get_brief_repr())
+                elif isinstance(i, Sequence):
+                    str_select_expressions.append('{}={}'.format(get_name(i[0]), repr(i[1]) if len(i) == 2 else i[1:]))
+            sm_repr += '.select({})'.format(ITEMS_DELIMITER.join(str_select_expressions))
         return sm_repr
 
     def get_data_representation(self, max_len: int = 50) -> str:
         data_repr = self.get_stream_representation()
         if len(data_repr) > max_len:
-            data_repr = data_repr[:max_len - len(ETC_SYMBOL)] + ETC_SYMBOL
+            data_repr = data_repr[:max_len - len(CROP_SUFFIX)] + CROP_SUFFIX
         return data_repr
 
     def get_one_line_representation(self) -> str:

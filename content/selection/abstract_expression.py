@@ -8,8 +8,9 @@ try:  # Assume we're a submodule in a package.
         AUTO, Auto,
     )
     from base.functions.arguments import get_name, get_names
+    from base.constants.chars import ITEMS_DELIMITER, CROP_SUFFIX, JUPYTER_LINE_LEN
     from base.abstract.abstract_base import AbstractBaseObject
-    from base.mixin.describe_mixin import DescribeMixin, AutoOutput, JUPYTER_LINE_LEN, CROP_SUFFIX
+    from base.mixin.describe_mixin import DescribeMixin, AutoOutput
     from functions.primary import items as it
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
@@ -18,9 +19,13 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         AUTO, Auto,
     )
     from ...base.functions.arguments import get_name, get_names
+    from ...base.constants.chars import ITEMS_DELIMITER, CROP_SUFFIX, JUPYTER_LINE_LEN
     from ...base.abstract.abstract_base import AbstractBaseObject
-    from ...base.mixin.describe_mixin import DescribeMixin, AutoOutput, JUPYTER_LINE_LEN, CROP_SUFFIX
+    from ...base.mixin.describe_mixin import DescribeMixin, AutoOutput
     from ...functions.primary import items as it
+
+SQL_FUNC_NAMES_DICT = dict(len='COUNT')
+SQL_TYPE_NAMES_DICT = dict(int='INTEGER')
 
 
 class AbstractDescription(DescribeMixin, AbstractBaseObject, ABC):
@@ -96,6 +101,27 @@ class AbstractDescription(DescribeMixin, AbstractBaseObject, ABC):
             return (self.get_target_field_name(), self.get_function(), *self.get_input_field_names())
         else:
             return (self.get_function(), *self.get_input_field_names())
+
+    def get_sql_expression(self) -> str:
+        function = self.get_function()
+        target_field = self.get_target_field_name()
+        input_fields = self.get_input_field_names()
+        if hasattr(function, 'get_sql_expr'):
+            sql_function_expr = function.get_sql_expr(*input_fields)
+        else:
+            function_name = function.__name__
+            sql_type_name = SQL_TYPE_NAMES_DICT.get(function_name)
+            if sql_type_name:
+                assert len(input_fields) == 1, 'got {}'.format(input_fields)
+                sql_function_expr = '{field}::{type}'.format(field=input_fields[0], type=sql_type_name)
+            else:
+                sql_function_name = SQL_FUNC_NAMES_DICT.get(function_name)
+                if not sql_function_name:
+                    self.get_logger().warning('Unsupported function call: {}'.format(function_name))
+                    sql_function_name = function_name
+                input_fields = ITEMS_DELIMITER.join(input_fields)
+                sql_function_expr = '{func}({fields})'.format(func=sql_function_name, fields=input_fields)
+        return '{func} AS {target}'.format(func=sql_function_expr, target=target_field)
 
     @abstractmethod
     def apply_inplace(self, item: Item) -> None:
