@@ -34,6 +34,7 @@ class TreeItem(ContextualDataWrapper, TreeInterface):
     def __init__(
             self,
             name: str,
+            caption: str = '',
             parent: Parent = None,
             children: Optional[dict] = None,
             context: Context = None,
@@ -42,7 +43,7 @@ class TreeItem(ContextualDataWrapper, TreeInterface):
         self._assert_is_appropriate_parent(parent, skip_missing=True)
         if not children:
             children = dict()
-        super().__init__(name=name, data=children, source=parent, context=context, check=check)
+        super().__init__(name=name, caption=caption, data=children, source=parent, context=context, check=check)
 
     @classmethod
     def _is_tree_item(cls, item):

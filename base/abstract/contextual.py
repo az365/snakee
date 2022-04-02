@@ -23,9 +23,9 @@ Source = Union[Context, Sourced]
 
 class Contextual(Sourced, ContextualInterface, ABC):
     def __init__(
-            self, name: str = AUTO,
-            source: Source = None,
-            context: Context = None,
+            self,
+            name: str = AUTO, caption: str = '',
+            source: Source = None, context: Context = None,
             check: bool = True,
     ):
         name = Auto.delayed_acquire(name, get_generated_name, self._get_default_name_prefix())
@@ -34,7 +34,7 @@ class Contextual(Sourced, ContextualInterface, ABC):
                 source.set_context(context)
             else:
                 source = context
-        super().__init__(name=name, source=source, check=check)
+        super().__init__(name=name, caption=caption, source=source, check=check)
         if Auto.is_defined(self.get_context()):
             self.put_into_context(check=check)
 

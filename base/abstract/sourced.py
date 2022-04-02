@@ -23,10 +23,15 @@ SPECIFIC_MEMBERS = ('_source', )
 
 
 class Sourced(AbstractNamed, SourcedInterface, ABC):
-    def __init__(self, name: str = AUTO, source: Optional[SourcedInterface] = None, check: bool = True):
+    def __init__(
+            self,
+            name: str = AUTO, caption: str = '',
+            source: Optional[SourcedInterface] = None,
+            check: bool = True,
+    ):
         name = Auto.acquire(name, get_generated_name(self._get_default_name_prefix()))
         self._source = source
-        super().__init__(name=name)
+        super().__init__(name=name, caption=caption)
         if Auto.is_defined(source):
             self.register(check=check)
 

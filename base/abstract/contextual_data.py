@@ -1,11 +1,12 @@
 from abc import ABC
-from typing import Union, Optional, Iterable, Any
+from typing import Union, Optional, Iterable, Generator, Any
 
 try:  # Assume we're a submodule in a package.
     from base.classes.auto import AUTO, Auto
     from base.interfaces.context_interface import ContextInterface
     from base.interfaces.contextual_interface import ContextualInterface
     from base.interfaces.data_interface import ContextualDataInterface
+    from base.constants.chars import EMPTY, PY_INDENT, REPR_DELIMITER
     from base.abstract.abstract_base import AbstractBaseObject
     from base.abstract.simple_data import SimpleDataWrapper
     from base.abstract.contextual import Contextual
@@ -14,6 +15,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..interfaces.context_interface import ContextInterface
     from ..interfaces.contextual_interface import ContextualInterface
     from ..interfaces.data_interface import ContextualDataInterface
+    from ..constants.chars import EMPTY, PY_INDENT, REPR_DELIMITER
     from .abstract_base import AbstractBaseObject
     from .simple_data import SimpleDataWrapper
     from .contextual import Contextual
@@ -25,17 +27,22 @@ Context = Optional[ContextInterface]
 
 DATA_MEMBER_NAMES = ('_data', )
 DYNAMIC_META_FIELDS = tuple()
+COLS_FOR_META = [
+    ('prefix', 3), ('defined', 3),
+    ('key', 20), ('value', 30), ('actual_type', 14), ('expected_type', 20), ('default', 20),
+]
 
 
 class ContextualDataWrapper(Contextual, ContextualDataInterface, ABC):
     def __init__(
-            self, data, name: str,
+            self, data,
+            name: str, caption: str = EMPTY,
             source: Source = None,
             context: Context = None,
             check: bool = True,
     ):
         self._data = data
-        super().__init__(name=name, source=source, context=context, check=check)
+        super().__init__(name=name, caption=caption, source=source, context=context, check=check)
 
     def is_defined(self) -> bool:
         return bool(self.get_data())
@@ -91,3 +98,21 @@ class ContextualDataWrapper(Contextual, ContextualDataInterface, ABC):
         if not Auto.is_defined(count):
             count = default
         return '{} items'.format(count)
+
+    def get_meta_description(
+            self,
+            with_title: bool = True,
+            with_summary: bool = True,
+            prefix: str = PY_INDENT,
+            delimiter: str = REPR_DELIMITER,
+    ) -> Generator:
+        if with_summary:
+            count = len(list(self.get_meta_records()))
+            yield '{name} has {count} attributes in meta-data:'.format(name=repr(self), count=count)
+        yield from self._get_columnar_lines(
+            records=self.get_meta_records(),
+            columns=COLS_FOR_META,
+            with_title=with_title,
+            prefix=prefix,
+            delimiter=delimiter,
+        )
