@@ -11,6 +11,7 @@ try:  # Assume we're a submodule in a package.
     from base.constants.chars import ITEMS_DELIMITER, CROP_SUFFIX, JUPYTER_LINE_LEN
     from base.abstract.abstract_base import AbstractBaseObject
     from base.mixin.describe_mixin import DescribeMixin, AutoOutput
+    from loggers.fallback_logger import FallbackLogger
     from functions.primary import items as it
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
@@ -22,6 +23,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.constants.chars import ITEMS_DELIMITER, CROP_SUFFIX, JUPYTER_LINE_LEN
     from ...base.abstract.abstract_base import AbstractBaseObject
     from ...base.mixin.describe_mixin import DescribeMixin, AutoOutput
+    from ...loggers.fallback_logger import FallbackLogger
     from ...functions.primary import items as it
 
 SQL_FUNC_NAMES_DICT = dict(len='COUNT')
@@ -121,7 +123,7 @@ class AbstractDescription(DescribeMixin, AbstractBaseObject, ABC):
             else:
                 sql_function_name = SQL_FUNC_NAMES_DICT.get(function_name)
                 if not sql_function_name:
-                    self.get_logger().warning('Unsupported function call: {}'.format(function_name))
+                    self.warning('Unsupported function call: {}'.format(function_name))
                     sql_function_name = function_name
                 input_fields = ITEMS_DELIMITER.join(input_fields)
                 sql_function_expr = '{func}({fields})'.format(func=sql_function_name, fields=input_fields)
@@ -130,6 +132,12 @@ class AbstractDescription(DescribeMixin, AbstractBaseObject, ABC):
     @abstractmethod
     def apply_inplace(self, item: Item) -> None:
         pass
+
+    def warning(self, msg: str) -> None:
+        logger = self.get_logger()
+        if not (isinstance(logger, LoggerInterface) or hasattr(logger, 'warning')):
+            logger = FallbackLogger()
+        return logger.warning(msg)
 
     def get_output(self, output: AutoOutput = AUTO) -> Optional[Class]:
         if Auto.is_defined(output) and not isinstance(output, (LoggingLevel, int)):
