@@ -10,7 +10,6 @@ try:  # Assume we're a submodule in a package.
         AUTO, Auto, AutoBool,
     )
     from base.functions.arguments import get_name, get_names, update
-    from base.abstract.contextual_data import ContextualDataWrapper
     from base.mixin.iterable_mixin import IterableMixin
     from functions.secondary import item_functions as fs
     from content.fields import field_classes as fc
@@ -26,7 +25,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         AUTO, Auto, AutoBool,
     )
     from ...base.functions.arguments import get_name, get_names, update
-    from ...base.abstract.contextual_data import ContextualDataWrapper
     from ...base.mixin.iterable_mixin import IterableMixin
     from ...functions.secondary import item_functions as fs
     from ...content.fields import field_classes as fc
@@ -193,7 +191,7 @@ class ColumnarMixin(IterableMixin, ABC):
         return function(self, *args, **kwargs)
 
     def get_selection_logger(self) -> SelectionLogger:
-        if isinstance(self, ContextualDataWrapper) or hasattr(self, 'get_context'):
+        if hasattr(self, 'get_context'):
             context = self.get_context()
         else:
             context = None

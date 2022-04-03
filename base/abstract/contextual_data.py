@@ -59,7 +59,7 @@ class ContextualDataWrapper(Sourced, ContextualMixin, DataMixin):
 
     def apply_to_data(self, function, *args, dynamic=False, **kwargs):
         return self.__class__(
-            data=function(self.get_data(), *args, **kwargs),
+            data=function(self._get_data(), *args, **kwargs),
             **self.get_static_meta() if dynamic else self.get_meta()
         )
 
