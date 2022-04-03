@@ -176,6 +176,20 @@ class AnyField(SimpleDataWrapper, MultiMapDataMixin, SelectableMixin, FieldInter
             field = self.set_outplace(example_value=value)
             return self._assume_native(field)
 
+    def get_default_value(self) -> Any:
+        return self._default_value
+
+    def set_default_value(self, value: Any) -> Native:
+        self._default_value = value
+        return self
+
+    def get_default_item_type(self) -> ItemType:
+        return self._default_item_type
+
+    def set_default_item_type(self, item_type: ItemType) -> Native:
+        self._default_item_type = item_type
+        return self
+
     @classmethod
     def set_struct_builder(cls, struct_builder: Callable) -> None:
         cls._struct_builder = struct_builder
@@ -247,26 +261,43 @@ class AnyField(SimpleDataWrapper, MultiMapDataMixin, SelectableMixin, FieldInter
             return self._assume_native(field)
 
     def to(self, target: Union[str, FieldInterface]) -> ae.AbstractDescription:
-        if self._transform:
+        if hasattr(self, '_transform'):
+            default_transform = self._transform or (lambda i: i)
+        else:
+            default_transform = None
+        if default_transform:
             return ce.RegularDescription(
-                target=target, target_item_type=self._target_item_type,
+                target=target, target_item_type=self.get_default_item_type(),
                 inputs=[self], input_item_type=ItemType.Auto,
-                function=self._transform, default=self._default,
+                function=default_transform, default=self.get_default_value(),
                 skip_errors=self._skip_errors, logger=self._logger,
             )
         else:
             return ce.AliasDescription(
-                alias=target, target_item_type=self._target_item_type,
+                alias=target, target_item_type=self.get_default_item_type(),
                 source=self, input_item_type=ItemType.Auto,
-                default=self._default,
+                default=self.get_default_value(),
                 skip_errors=self._skip_errors, logger=self._logger,
             )
 
     def as_type(self, field_type: ValueType) -> ce.RegularDescription:
         return ce.RegularDescription(
-            target=self.get_name(), target_item_type=self._target_item_type,
+            target=self.get_name(), target_item_type=self.get_default_item_type(),
             inputs=[self], input_item_type=ItemType.Auto,
-            function=field_type.convert, default=self._default,
+            function=field_type.convert, default=self.get_default_value(),
+            skip_errors=self._skip_errors, logger=self._logger,
+        )
+
+    def filter(self, value_or_func: Union[Callable, Any], tmp_field: Optional[str] = None) -> ce.RegularDescription:
+        if isinstance(value_or_func, Callable):
+            function = value_or_func
+        else:
+            value = value_or_func
+            function = (lambda v: v == value)
+        return ce.RegularDescription(
+            target=tmp_field, target_item_type=self.get_default_item_type(),
+            inputs=[self], input_item_type=ItemType.Auto,
+            function=function, default=None,
             skip_errors=self._skip_errors, logger=self._logger,
         )
 
