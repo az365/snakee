@@ -3,23 +3,27 @@ from typing import Optional, Union
 
 try:  # Assume we're a submodule in a package.
     from base.classes.auto import Auto, AUTO
+    from base.constants.chars import EMPTY
     from base.functions.arguments import get_generated_name
     from base.interfaces.context_interface import ContextInterface
+    from base.mixin.contextual_mixin import ContextualMixin
     from base.abstract.sourced import Sourced
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.auto import Auto, AUTO
+    from ..constants.chars import EMPTY
     from ..functions.arguments import get_generated_name
     from ..interfaces.context_interface import ContextInterface
+    from ..mixin.contextual_mixin import ContextualMixin
     from .sourced import Sourced
 
-Source = Union[ContextInterface, Sourced]
 
-
-class Contextual(Sourced, ABC):
+class Contextual(Sourced, ContextualMixin, ABC):
     def __init__(
             self,
-            name: str = AUTO, caption: str = '',
-            source: Source = None, context: ContextInterface = None,
+            name: Union[str, Auto] = AUTO,
+            caption: str = EMPTY,
+            source: Union[ContextInterface, Sourced, None] = None,
+            context: Optional[ContextInterface] = None,
             check: bool = True,
     ):
         name = Auto.delayed_acquire(name, get_generated_name, self._get_default_name_prefix())
@@ -31,64 +35,3 @@ class Contextual(Sourced, ABC):
         super().__init__(name=name, caption=caption, source=source, check=check)
         if Auto.is_defined(self.get_context()):
             self.put_into_context(check=check)
-
-    def get_source(self) -> Source:
-        source = self._source
-        return source
-
-    def _has_context_as_source(self) -> bool:
-        source = self.get_source()
-        if hasattr(source, 'is_context'):
-            return source.is_context()
-        return False
-
-    def get_context(self) -> ContextInterface:
-        source = self.get_source()
-        if self._has_context_as_source():
-            return source
-        if hasattr(source, 'get_context'):
-            return source.get_context()
-
-    def set_context(self, context: ContextInterface, reset: bool = True, inplace: bool = True):
-        if inplace:
-            if self._is_stub_instance(context):
-                return self
-            elif self._has_context_as_source():
-                if reset:
-                    # assert isinstance(context, ContextInterface)
-                    # assert isinstance(context, AbstractNamed)
-                    self.set_source(context)
-            elif Auto.is_defined(self.get_source()):
-                self.get_source().set_context(context, reset=reset)
-            return self.put_into_context(check=not reset)
-        else:
-            contextual = self.set_outplace(context=context)
-            return self._assume_native(contextual)
-
-    def put_into_context(self, check: bool = True):
-        context = self.get_context()
-        if self._is_stub_instance(context):
-            pass
-        elif context:
-            known_child = context.get_child(self.get_name())
-            if known_child:
-                if check:
-                    if known_child != self:
-                        message = 'Object with name {} already registered in context ({} != {})'
-                        raise ValueError(message.format(self.get_name(), known_child, self))
-                else:
-                    return context.add_child(self, reset=True, inplace=True) or self
-            else:
-                return context.add_child(self) or self
-        elif check:
-            msg = 'for put_into_context context must be defined (got object {} with source {}'
-            raise ValueError(msg.format(self, self.get_source()))
-        return self
-
-    @staticmethod
-    def _is_stub_instance(context) -> bool:
-        return hasattr(context, '_method_stub')
-
-    @staticmethod
-    def _assume_native(contextual):
-        return contextual

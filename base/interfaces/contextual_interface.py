@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
-from typing import Optional, NoReturn
+from typing import Optional
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from base.interfaces.base_interface import BaseInterface
     from base.interfaces.sourced_interface import SourcedInterface
     from base.interfaces.context_interface import ContextInterface
@@ -23,5 +23,9 @@ class ContextualInterface(SourcedInterface, ABC):
         pass
 
     @abstractmethod
-    def set_context(self, context: Context) -> NoReturn:
+    def set_context(self, context: Context):
+        pass
+
+    @abstractmethod
+    def put_into_context(self):
         pass

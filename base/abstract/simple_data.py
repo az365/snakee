@@ -10,6 +10,7 @@ try:  # Assume we're a submodule in a package.
     from base.interfaces.contextual_interface import ContextualInterface
     from base.interfaces.data_interface import SimpleDataInterface
     from base.mixin.line_output_mixin import LineOutputMixin, PREFIX_FIELD, DEFAULT_ROWS_COUNT
+    from base.mixin.data_mixin import DataMixin
     from base.abstract.named import AbstractNamed
     from base.abstract.contextual import Contextual
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -21,11 +22,12 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..interfaces.contextual_interface import ContextualInterface
     from ..interfaces.data_interface import SimpleDataInterface
     from ..mixin.line_output_mixin import LineOutputMixin, PREFIX_FIELD, DEFAULT_ROWS_COUNT
+    from ..mixin.data_mixin import DataMixin
     from .named import AbstractNamed
     from .contextual import Contextual
 
 Native = SimpleDataInterface
-Data = Union[Iterable, Any]
+Data = Any
 OptionalFields = Optional[Union[str, Iterable]]
 Source = Optional[ContextualInterface]
 Context = Optional[ContextInterface]
@@ -42,7 +44,7 @@ COLS_FOR_META = [
 MAX_OUTPUT_ROW_COUNT, MAX_DATAFRAME_ROW_COUNT = 200, 20
 
 
-class SimpleDataWrapper(AbstractNamed, SimpleDataInterface, ABC):
+class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
     def __init__(self, data, name: str, caption: str = EMPTY):
         self._data = data
         super().__init__(name=name, caption=caption)
@@ -56,7 +58,7 @@ class SimpleDataWrapper(AbstractNamed, SimpleDataInterface, ABC):
 
     def set_data(self, data: Data, inplace: bool, reset_dynamic_meta: bool = True, safe=True, **kwargs) -> Native:
         if inplace:
-            self._data = data
+            self._set_data_inplace(data)
             if reset_dynamic_meta:
                 meta = self.get_static_meta()
             else:
@@ -77,6 +79,10 @@ class SimpleDataWrapper(AbstractNamed, SimpleDataInterface, ABC):
                 return self.__class__(data, **meta)
             except TypeError as e:  # __init__() got an unexpected keyword argument '...'
                 self._raise_init_error(e, type(data), reset_dynamic_meta=reset_dynamic_meta, inplace=inplace, **meta)
+
+    def _set_data_inplace(self, data: Data) -> Native:
+        self._data = data
+        return self
 
     def _raise_init_error(self, msg: str, *args, **kwargs) -> NoReturn:
         class_name = self.__class__.__name__

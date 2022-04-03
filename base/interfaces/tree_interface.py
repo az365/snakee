@@ -18,7 +18,7 @@ OptionalFields = Optional[Union[str, Iterable]]
 META_MEMBER_MAPPING = dict(_data='children', _source='parent')
 
 
-class TreeInterface(SimpleDataInterface, ABC):
+class TreeInterface(SimpleDataInterface, ContextualInterface, ABC):
     @abstractmethod
     def get_parent(self) -> Parent:
         pass
