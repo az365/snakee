@@ -3,7 +3,7 @@ from typing import Callable, Union, Any
 try:  # Assume we're a submodule in a package.
     from base.classes.auto import Auto
     from utils.algo import JoinType
-    from content.fields.field_interface import FieldInterface, FieldType
+    from content.fields.field_interface import FieldInterface, ValueType
     from content.fields.field_role_type import FieldRoleType
     from content.format.format_interface import ContentFormatInterface, Compress
     from content.items.item_classes import *
@@ -14,7 +14,7 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..base.classes.auto import Auto
     from ..utils.algo import JoinType
-    from .fields.field_interface import FieldInterface, FieldType
+    from .fields.field_interface import FieldInterface, ValueType
     from .fields.field_role_type import FieldRoleType
     from .format.format_interface import ContentFormatInterface, Compress
     from .items.item_classes import *

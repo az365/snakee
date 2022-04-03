@@ -1,9 +1,9 @@
 from typing import Optional, Callable, Iterable, Union, Any
 
 try:  # Assume we're a submodule in a package.
-    from content.fields.any_field import AnyField, RepresentationInterface, SelectionLogger, FieldType, ItemType, AUTO
+    from content.fields.any_field import AnyField, RepresentationInterface, SelectionLogger, ValueType, ItemType, AUTO
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from .any_field import AnyField, RepresentationInterface, SelectionLogger, FieldType, ItemType, AUTO
+    from .any_field import AnyField, RepresentationInterface, SelectionLogger, ValueType, ItemType, AUTO
 
 
 class AdvancedField(AnyField):
@@ -31,7 +31,7 @@ class AdvancedField(AnyField):
         super().__init__(
             name=name,
             caption=caption,
-            value_type=AUTO.multi_acquire(value_type, field_type, FieldType.Any),
+            value_type=AUTO.multi_acquire(value_type, field_type, ValueType.Any),
             representation=representation,
             default_value=default_value or default,
             default_item_type=AUTO.multi_acquire(default_item_type, target_item_type, ItemType.Any),

@@ -6,15 +6,15 @@ try:  # Assume we're a submodule in a package.
     from base.interfaces.data_interface import SimpleDataInterface
     from connectors.databases.dialect_type import DialectType
     from content.representations.repr_interface import RepresentationInterface
+    from content.value_type import ValueType
     from content.fields.field_role_type import FieldRoleType
-    from content.fields.field_type import FieldType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.classes.typing import AUTO, Auto, AutoName, AutoBool, Class
     from ...base.interfaces.data_interface import SimpleDataInterface
     from ...connectors.databases.dialect_type import DialectType
     from ..representations.repr_interface import RepresentationInterface
+    from ..value_type import ValueType
     from .field_role_type import FieldRoleType
-    from .field_type import FieldType
 
 Native = SimpleDataInterface
 Transform = Any
@@ -32,7 +32,7 @@ class FieldInterface(SimpleDataInterface, ABC):
         pass
 
     @abstractmethod
-    def get_value_type(self) -> FieldType:
+    def get_value_type(self) -> ValueType:
         pass
 
     @abstractmethod
@@ -48,7 +48,7 @@ class FieldInterface(SimpleDataInterface, ABC):
         pass
 
     @abstractmethod
-    def set_value_type(self, value_type: FieldType, inplace: bool) -> Native:
+    def set_value_type(self, value_type: ValueType, inplace: bool) -> Native:
         pass
 
     @abstractmethod
@@ -122,7 +122,7 @@ class FieldInterface(SimpleDataInterface, ABC):
         pass
 
     @abstractmethod
-    def as_type(self, field_type: FieldType) -> Transform:
+    def as_type(self, field_type: ValueType) -> Transform:
         pass
 
     @abstractmethod

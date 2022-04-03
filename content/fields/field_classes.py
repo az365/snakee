@@ -6,7 +6,8 @@ try:  # Assume we're a submodule in a package.
         Auto, AUTO,
     )
     from base.functions.arguments import update
-    from content.fields.field_type import FieldType
+    from content.value_type import ValueType
+    from content.fields.field_type import FieldType  # deprecated
     from content.fields.field_role_type import FieldRoleType
     from content.struct.flat_struct import FlatStruct
     from content.fields.any_field import AnyField
@@ -31,7 +32,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         Auto, AUTO,
     )
     from ...base.functions.arguments import update
-    from .field_type import FieldType
+    from ..value_type import ValueType
+    from .field_type import FieldType  # deprecated
     from .field_role_type import FieldRoleType
     from ..struct.flat_struct import FlatStruct
     from .any_field import AnyField
@@ -51,7 +53,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..selection.abstract_expression import AbstractDescription
     from ..selection import concrete_expression as ce
 
-Type = Union[FieldType, FieldRoleType, type, Auto]
+Type = Union[ValueType, FieldRoleType, type, Auto]
 
 _logger = None
 

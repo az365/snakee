@@ -3,7 +3,7 @@ from typing import Type, Optional, Callable, Generator, Union, Any
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         FieldInterface, RepresentationInterface, StructInterface, ExtLogger, SelectionLogger,
-        FieldType, FieldRoleType, ReprType, ItemType, DialectType,
+        ValueType, FieldRoleType, ReprType, ItemType, DialectType,
         ARRAY_TYPES, AUTO, Auto, AutoBool, AutoName, Class,
     )
     from base.functions.arguments import get_name, get_value, get_plural
@@ -15,7 +15,7 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         FieldInterface, RepresentationInterface, StructInterface, ExtLogger, SelectionLogger,
-        FieldType, FieldRoleType, ReprType, ItemType, DialectType,
+        ValueType, FieldRoleType, ReprType, ItemType, DialectType,
         ARRAY_TYPES, AUTO, Auto, AutoBool, AutoName, Class,
     )
     from ...base.functions.arguments import get_name, get_value, get_plural
@@ -35,7 +35,7 @@ class AnyField(SimpleDataWrapper, MultiMapDataMixin, SelectableMixin, FieldInter
     def __init__(
             self,
             name: str,
-            value_type: FieldType = FieldType.Any,
+            value_type: ValueType = ValueType.Any,
             representation: Union[RepresentationInterface, str, None] = None,
             caption: str = EMPTY,
             default_item_type: ItemType = ItemType.Any,
@@ -49,9 +49,9 @@ class AnyField(SimpleDataWrapper, MultiMapDataMixin, SelectableMixin, FieldInter
             data: Optional[dict] = None
     ):
         data = Auto.delayed_acquire(data, dict)
-        value_type = Auto.delayed_acquire(value_type, FieldType.detect_by_name, field_name=name)
-        value_type = FieldType.get_canonic_type(value_type, ignore_missing=True)
-        assert isinstance(value_type, FieldType), 'Expected FieldType, got {}'.format(value_type)
+        value_type = Auto.delayed_acquire(value_type, ValueType.detect_by_name, field_name=name)
+        value_type = ValueType.get_canonic_type(value_type, ignore_missing=True)
+        assert isinstance(value_type, ValueType), 'Expected ValueType, got {}'.format(value_type)
         self._value_type = value_type
         self._representation = representation
         self._default_value = default_value
@@ -109,16 +109,16 @@ class AnyField(SimpleDataWrapper, MultiMapDataMixin, SelectableMixin, FieldInter
         else:
             return ReprType.StringRepr.get_class()
 
-    def get_type(self) -> FieldType:  # deprecated
+    def get_type(self) -> ValueType:  # deprecated
         return self.get_value_type()  # self.get_field_role() = self.get_role_type() will be used
 
-    def set_type(self, value_type: FieldType, inplace: bool) -> Native:  # deprecated
+    def set_type(self, value_type: ValueType, inplace: bool) -> Native:  # deprecated
         return self.set_value_type(value_type=value_type, inplace=inplace)
 
-    def get_value_type(self) -> FieldType:
+    def get_value_type(self) -> ValueType:
         return self._value_type
 
-    def set_value_type(self, value_type: FieldType, inplace: bool) -> Native:
+    def set_value_type(self, value_type: ValueType, inplace: bool) -> Native:
         if inplace:
             self._value_type = value_type
             return self
@@ -145,13 +145,13 @@ class AnyField(SimpleDataWrapper, MultiMapDataMixin, SelectableMixin, FieldInter
             return self.get_value_type().get_type_in(dialect)
 
     def is_numeric(self) -> bool:
-        return self.get_value_type() in (FieldType.Int, FieldType.Float)
+        return self.get_value_type() in (ValueType.Int, ValueType.Float)
 
     def is_boolean(self) -> bool:
-        return self.get_value_type() == FieldType.Bool
+        return self.get_value_type() == ValueType.Bool
 
     def is_string(self) -> bool:
-        return self.get_value_type() == FieldType.Str
+        return self.get_value_type() == ValueType.Str
 
     def get_converter(self, source: DialectType, target: DialectType) -> Callable:
         return self.get_value_type().get_converter(source, target)
@@ -253,7 +253,7 @@ class AnyField(SimpleDataWrapper, MultiMapDataMixin, SelectableMixin, FieldInter
                 skip_errors=self._skip_errors, logger=self._logger,
             )
 
-    def as_type(self, field_type: FieldType) -> ce.RegularDescription:
+    def as_type(self, field_type: ValueType) -> ce.RegularDescription:
         return ce.RegularDescription(
             target=self.get_name(), target_item_type=self._target_item_type,
             inputs=[self], input_item_type=ItemType.Auto,
@@ -270,7 +270,7 @@ class AnyField(SimpleDataWrapper, MultiMapDataMixin, SelectableMixin, FieldInter
         meta = self.get_meta()
         meta['name'] = plural_name
         meta['caption'] = caption_prefix + self.get_caption()
-        meta['value_type'] = FieldType.Tuple
+        meta['value_type'] = ValueType.Tuple
         meta.update(kwargs)
         return AnyField(**meta)
 

@@ -3,14 +3,14 @@ from typing import Optional, Union, Any
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         RepresentationInterface, SelectionLogger,
-        FieldType, FieldRoleType, ItemType,
+        ValueType, FieldRoleType, ItemType,
         AutoBool, Auto, AUTO,
     )
     from content.fields.any_field import AnyField, EMPTY
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         RepresentationInterface, SelectionLogger,
-        FieldType, FieldRoleType, ItemType,
+        ValueType, FieldRoleType, ItemType,
         AutoBool, Auto, AUTO,
     )
     from .any_field import AnyField, EMPTY
@@ -20,7 +20,7 @@ class IdsField(AnyField):
     def __init__(
             self,
             name: str,
-            value_type: FieldType = FieldType.Tuple,
+            value_type: ValueType = ValueType.Tuple,
             representation: Union[RepresentationInterface, str, None] = None,
             caption: Optional[str] = None,
             default_value: Any = None,
