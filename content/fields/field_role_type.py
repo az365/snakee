@@ -51,8 +51,3 @@ class FieldRoleType(ClassType):
 
 FieldRoleType.prepare()
 FieldRoleType.set_default(FieldRoleType.Undefined)
-FieldRoleType.add_classes(
-    id=int, name=str, repr=str, key=str, ids=tuple,
-    count=int, share=float, rate=float,
-    value=float, mean=float, norm=float,
-)

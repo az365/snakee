@@ -9,7 +9,7 @@ try:  # Assume we're a submodule in a package.
     from base.abstract.simple_data import SimpleDataWrapper
     from base.mixin.data_mixin import IterDataMixin
     from utils import selection as sf
-    from content.fields.simple_field import SimpleField
+    from content.fields.any_field import AnyField
     from functions.primary import items as it
     from content.selection import selection_classes as sn
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -21,7 +21,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.abstract.simple_data import SimpleDataWrapper
     from ...base.mixin.data_mixin import IterDataMixin
     from ...utils import selection as sf
-    from ..fields.simple_field import SimpleField
+    from ..fields.any_field import AnyField
     from ...functions.primary import items as it
     from . import selection_classes as sn
 
@@ -248,8 +248,8 @@ class SelectionDescription(SimpleDataWrapper, IterDataMixin):
     def get_output_field_descriptions(self, struct: Union[Struct, Auto] = AUTO) -> Iterable:
         dict_output_field_types = self.get_dict_output_field_types(struct)
         for name in self.get_output_field_names(struct):
-            field_type = dict_output_field_types.get(name)
-            yield SimpleField(name, field_type=field_type)
+            value_type = dict_output_field_types.get(name)
+            yield AnyField(name, value_type=value_type)
 
     def select_output_fields(self, item: Item) -> Item:
         return it.simple_select_fields(
