@@ -8,6 +8,7 @@ try:  # Assume we're a submodule in a package.
     from content.representations.repr_interface import RepresentationInterface
     from content.value_type import ValueType
     from content.fields.field_role_type import FieldRoleType
+    from content.fields.field_edge_type import FieldEdgeType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.classes.typing import AUTO, Auto, AutoName, AutoBool, Class
     from ...base.interfaces.data_interface import SimpleDataInterface
@@ -15,6 +16,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..representations.repr_interface import RepresentationInterface
     from ..value_type import ValueType
     from .field_role_type import FieldRoleType
+    from .field_edge_type import FieldEdgeType
 
 Native = SimpleDataInterface
 Transform = Any

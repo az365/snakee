@@ -5,6 +5,7 @@ try:  # Assume we're a submodule in a package.
     from utils.algo import JoinType
     from content.fields.field_interface import FieldInterface, ValueType
     from content.fields.field_role_type import FieldRoleType
+    from content.fields.field_edge_type import FieldEdgeType
     from content.format.format_interface import ContentFormatInterface, Compress
     from content.items.item_classes import *
     from content.struct.struct_interface import StructInterface, StructMixinInterface
@@ -16,6 +17,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..utils.algo import JoinType
     from .fields.field_interface import FieldInterface, ValueType
     from .fields.field_role_type import FieldRoleType
+    from .fields.field_edge_type import FieldEdgeType
     from .format.format_interface import ContentFormatInterface, Compress
     from .items.item_classes import *
     from .struct.struct_interface import StructInterface, StructMixinInterface

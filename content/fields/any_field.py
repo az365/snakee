@@ -7,11 +7,11 @@ try:  # Assume we're a submodule in a package.
         ARRAY_TYPES, AUTO, Auto, AutoBool, AutoName, Class,
     )
     from base.functions.arguments import get_name, get_value, get_plural
-    from base.classes.enum import DynamicEnum
     from base.abstract.simple_data import SimpleDataWrapper, EMPTY
     from base.mixin.data_mixin import MultiMapDataMixin
     from content.selection.selectable_mixin import SelectableMixin
     from content.selection import abstract_expression as ae, concrete_expression as ce
+    from content.fields.field_edge_type import FieldEdgeType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         FieldInterface, RepresentationInterface, StructInterface, ExtLogger, SelectionLogger,
@@ -19,23 +19,14 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         ARRAY_TYPES, AUTO, Auto, AutoBool, AutoName, Class,
     )
     from ...base.functions.arguments import get_name, get_value, get_plural
-    from ...base.classes.enum import DynamicEnum
     from ...base.abstract.simple_data import SimpleDataWrapper, EMPTY
     from ...base.mixin.data_mixin import MultiMapDataMixin
     from ..selection.selectable_mixin import SelectableMixin
     from ..selection import abstract_expression as ae, concrete_expression as ce
+    from .field_edge_type import FieldEdgeType
 
 Native = Union[SimpleDataWrapper, MultiMapDataMixin, FieldInterface]
 AutoRepr = Union[RepresentationInterface, str, Auto]
-
-
-class FieldEdgeType(DynamicEnum):
-    Terms = 'terms'
-    ItemTypes = 'item_types'
-    Enum = 'enum'
-
-
-FieldEdgeType.prepare()
 
 
 class AnyField(SimpleDataWrapper, MultiMapDataMixin, SelectableMixin, FieldInterface):
