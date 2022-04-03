@@ -20,7 +20,7 @@ class IdsField(AnyField):
     def __init__(
             self,
             name: str,
-            value_type: ValueType = ValueType.Tuple,
+            value_type: ValueType = ValueType.Sequence,
             representation: Union[RepresentationInterface, str, None] = None,
             caption: Optional[str] = None,
             default_value: Any = None,

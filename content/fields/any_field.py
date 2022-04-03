@@ -270,7 +270,7 @@ class AnyField(SimpleDataWrapper, MultiMapDataMixin, SelectableMixin, FieldInter
         meta = self.get_meta()
         meta['name'] = plural_name
         meta['caption'] = caption_prefix + self.get_caption()
-        meta['value_type'] = ValueType.Tuple
+        meta['value_type'] = ValueType.Sequence
         meta.update(kwargs)
         return AnyField(**meta)
 

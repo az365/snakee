@@ -26,7 +26,7 @@ class FieldRoleType(ClassType):
         name=ValueType.Str,
         repr=ValueType.Str,
         key=ValueType.Str,
-        ids=ValueType.Tuple,
+        ids=ValueType.Sequence,
         count=ValueType.Int,
         share=ValueType.Float,
         rate=ValueType.Float,

@@ -1,17 +1,16 @@
 from typing import Optional, Callable, Iterable, Generator, Union
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.auto import Auto, AUTO
+    from interfaces import (
+        LoggerInterface, StreamInterface, FieldInterface, StructInterface, StructRowInterface,
+        LoggingLevel, StreamType, ValueType, ItemType, JoinType, How,
+        Field, Name, FieldName, FieldNo, UniKey, Item, Row, ROW_SUBCLASSES,
+        AUTO, Auto, AutoBool, Source, Context, TmpFiles, Count, Columns, AutoColumns, Array, ARRAY_TYPES,
+    )
     from base.functions.arguments import get_name, get_names
     from utils import selection as sf
     from utils.decorators import deprecated_with_alternative
     from utils.external import pd, DataFrame, get_use_objects_for_output
-    from interfaces import (
-        LoggerInterface, StreamInterface, FieldInterface, StructInterface, StructRowInterface,
-        LoggingLevel, StreamType, FieldType, ItemType, JoinType, How,
-        Field, Name, FieldName, FieldNo, UniKey, Item, Row, ROW_SUBCLASSES,
-        AUTO, Auto, AutoBool, Source, Context, TmpFiles, Count, Columns, AutoColumns, Array, ARRAY_TYPES,
-    )
     from loggers.fallback_logger import FallbackLogger
     from streams import stream_classes as sm
     from functions.secondary import all_secondary_functions as fs
@@ -20,17 +19,16 @@ try:  # Assume we're a submodule in a package.
     from content.struct.struct_mixin import StructMixin
     from content.struct.struct_row import StructRow
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...base.classes.auto import Auto, AUTO
+    from ...interfaces import (
+        LoggerInterface, StreamInterface, FieldInterface, StructInterface, StructRowInterface,
+        LoggingLevel, StreamType, ValueType, ItemType, JoinType, How,
+        Field, Name, FieldName, FieldNo, UniKey, Item, Row, ROW_SUBCLASSES,
+        AUTO, Auto, AutoBool, Source, Context, TmpFiles, Count, Columns, AutoColumns, Array, ARRAY_TYPES,
+    )
     from ...base.functions.arguments import get_name, get_names
     from ...utils import selection as sf
     from ...utils.decorators import deprecated_with_alternative
     from ...utils.external import pd, DataFrame, get_use_objects_for_output
-    from ...interfaces import (
-        LoggerInterface, StreamInterface, FieldInterface, StructInterface, StructRowInterface,
-        LoggingLevel, StreamType, FieldType, ItemType, JoinType, How,
-        Field, Name, FieldName, FieldNo, UniKey, Item, Row, ROW_SUBCLASSES,
-        AUTO, Auto, AutoBool, Source, Context, TmpFiles, Count, Columns, AutoColumns, Array, ARRAY_TYPES,
-    )
     from ...loggers.fallback_logger import FallbackLogger
     from .. import stream_classes as sm
     from ...functions.secondary import all_secondary_functions as fs
@@ -51,28 +49,6 @@ DEFAULT_EXAMPLE_COUNT = 10
 
 def is_row(row: Row) -> bool:
     return isinstance(row, StructRow) or isinstance(row, ROW_SUBCLASSES)
-
-
-# deprecated
-def is_valid(row: Row, struct: OptStruct) -> bool:
-    if is_row(row):
-        if isinstance(struct, Struct):
-            return struct.is_valid_row(row)
-        elif isinstance(struct, Iterable):
-            types = list()
-            default_type = str
-            for description in struct:
-                field_type = description[TYPE_POS]
-                if field_type in fs.DICT_CAST_TYPES.values():
-                    types.append(field_type)
-                else:
-                    types.append(fs.DICT_CAST_TYPES.get(field_type, default_type))
-            for value, field_type in zip(row, types):
-                if not isinstance(value, field_type):
-                    return False
-            return True
-        elif struct is None:
-            return True
 
 
 # deprecated
@@ -106,8 +82,6 @@ def get_validation_errors(row: Row, struct: OptStruct) -> list:
             row = row.get_data()
         if isinstance(struct, FlatStruct):
             return struct.get_validation_errors(row)
-        elif isinstance(struct, Iterable):
-            return get_legacy_validation_errors(row, struct)
     else:
         msg = 'Expected row as list or tuple, got {} (row={})'.format(type(row), row)
         return [msg]
@@ -383,9 +357,9 @@ class StructStream(sm.RowStream, StructMixin, sm.ConvertMixin):
                 else:
                     field_name = get_name(f)
                 if f in values:
-                    field_type = FieldType.Tuple
-                elif isinstance(f, FieldInterface) or hasattr(f, 'get_type'):
-                    field_type = f.get_type()
+                    field_type = ValueType.Sequence
+                elif isinstance(f, FieldInterface) or hasattr(f, 'get_value_type'):
+                    field_type = f.get_value_type()
                 else:
                     field_type = AUTO
                 output_struct.append_field(field_name, field_type)

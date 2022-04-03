@@ -26,7 +26,7 @@ class ValueType(DynamicEnum):
     Float = 'float'
     IsoDate = 'date'
     Bool = 'bool'
-    Tuple = 'tuple'
+    Sequence = 'sequence'
     Dict = 'dict'
 
     _dict_heuristic_suffix_to_type = dict()
@@ -142,13 +142,13 @@ ValueType._dict_dialect_types = {
     ValueType.Float: dict(py=float, pg='numeric', ch='Float32', str_to_py=safe_converter(float)),
     ValueType.IsoDate: dict(py=str, pg='date', ch='Date', str_to_py=str),
     ValueType.Bool: dict(py=bool, pg='bool', ch='UInt8', str_to_py=any_to_bool, py_to_ch=safe_converter(int)),
-    ValueType.Tuple: dict(py=tuple, pg='text', str_to_py=safe_converter(eval, tuple())),
+    ValueType.Sequence: dict(py=tuple, pg='text', str_to_py=safe_converter(eval, tuple())),
     ValueType.Dict: dict(py=dict, pg='text', str_to_py=safe_converter(eval, dict())),
 }
 ValueType._dict_heuristic_suffix_to_type = {
     'hist': ValueType.Dict,
-    'names': ValueType.Tuple,
-    'ids': ValueType.Tuple,
+    'names': ValueType.Sequence,
+    'ids': ValueType.Sequence,
     'id': ValueType.Int,
     'hits': ValueType.Int,
     'count': ValueType.Int,
