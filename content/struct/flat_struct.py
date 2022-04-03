@@ -13,7 +13,7 @@ try:  # Assume we're a submodule in a package.
     from base.mixin.data_mixin import IterDataMixin
     from functions.secondary import array_functions as fs
     from utils.external import pd, get_use_objects_for_output, DataFrame
-    from content.fields.advanced_field import AdvancedField
+    from content.fields.any_field import AnyField
     from content.items.simple_items import SelectableItem, is_row, is_record
     from content.selection.abstract_expression import AbstractDescription
     from content.selection.selectable_mixin import SelectableMixin
@@ -30,7 +30,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.mixin.data_mixin import IterDataMixin
     from ...functions.secondary import array_functions as fs
     from ...utils.external import pd, get_use_objects_for_output, DataFrame
-    from ..fields.advanced_field import AdvancedField
+    from ..fields.any_field import AnyField
     from ..items.simple_items import SelectableItem, is_row, is_record
     from ..selection.abstract_expression import AbstractDescription
     from ..selection.selectable_mixin import SelectableMixin
@@ -119,8 +119,11 @@ class FlatStruct(SimpleDataWrapper, IterDataMixin, SelectableMixin, StructInterf
             return struct
 
     @staticmethod
-    def _is_field(field):
-        return hasattr(field, 'get_name') and hasattr(field, 'get_type')
+    def _is_field(field) -> bool:
+        if isinstance(field, (FieldInterface, AnyField)):
+            return True
+        else:
+            return hasattr(field, 'get_name') and hasattr(field, 'get_value_type')
 
     def append_field(
             self,
@@ -135,11 +138,11 @@ class FlatStruct(SimpleDataWrapper, IterDataMixin, SelectableMixin, StructInterf
         if self._is_field(field):
             field_desc = field
         elif isinstance(field, str):
-            field_desc = AdvancedField(field, default_type)
+            field_desc = AnyField(field, value_type=default_type)
         elif isinstance(field, ARRAY_TYPES):
-            field_desc = AdvancedField(*field)
+            field_desc = AnyField(*field)
         elif isinstance(field, dict):
-            field_desc = AdvancedField(**field)
+            field_desc = AnyField(**field)
         elif skip_missing and field is None:
             return None
         else:
@@ -147,7 +150,7 @@ class FlatStruct(SimpleDataWrapper, IterDataMixin, SelectableMixin, StructInterf
         if exclude_duplicates and field_desc.get_name() in self.get_field_names():
             return self
         else:
-            if isinstance(field_desc, AdvancedField):
+            if isinstance(field_desc, (FieldInterface, AnyField)):
                 if reassign_struct_name or not Auto.is_defined(field_desc.get_group_name()):
                     field_desc.set_group_name(self.get_name(), inplace=True)
                     field_desc.set_group_caption(self.get_caption(), inplace=True)
@@ -229,16 +232,16 @@ class FlatStruct(SimpleDataWrapper, IterDataMixin, SelectableMixin, StructInterf
         field_type_name = get_name(field_type, or_callable=False)
         for f in self.get_fields():
             if by_prefix:
-                is_selected_type = f.get_type_name().startswith(field_type_name)
+                is_selected_type = f.get_value_type_name().startswith(field_type_name)
             else:
-                is_selected_type = f.get_type_name() == field_type_name
+                is_selected_type = f.get_value_type_name() == field_type_name
             if is_selected_type:
                 count += 1
         return count
 
     def get_field_representations(self) -> Generator:
         for f in self.get_fields():
-            if isinstance(f, AdvancedField) or hasattr(f, 'get_representation'):
+            if isinstance(f, (FieldInterface, AnyField)) or hasattr(f, 'get_representation'):
                 yield f.get_representation()
             else:
                 yield None
@@ -292,7 +295,7 @@ class FlatStruct(SimpleDataWrapper, IterDataMixin, SelectableMixin, StructInterf
         if Auto.is_defined(dialect):
             return [f.get_type_in(dialect) for f in self.get_fields()]
         else:
-            return [f.get_type() for f in self.get_fields()]
+            return [f.get_value_type() for f in self.get_fields()]
 
     def get_types_dict(self, dialect: Union[DialectType, Auto] = AUTO) -> dict:
         names = map(lambda f: get_name(f), self.get_fields())
@@ -321,8 +324,8 @@ class FlatStruct(SimpleDataWrapper, IterDataMixin, SelectableMixin, StructInterf
     def types(self, dict_field_types: Optional[dict] = None, **kwargs) -> Native:
         for field_name, field_type in list((dict_field_types or {}).items()) + list(kwargs.items()):
             field = self.get_field_description(field_name)
-            assert hasattr(field, 'set_type'), 'Expected SimpleField or FieldDescription, got {}'.format(field)
-            field.set_type(FieldType.detect_by_type(field_type), inplace=True)
+            assert hasattr(field, 'set_value_type'), 'Expected SimpleField or FieldDescription, got {}'.format(field)
+            field.set_value_type(FieldType.detect_by_type(field_type), inplace=True)
         return self
 
     def common_type(self, field_type: Union[FieldType, type]) -> Native:
@@ -385,7 +388,7 @@ class FlatStruct(SimpleDataWrapper, IterDataMixin, SelectableMixin, StructInterf
         validation_errors = list()
         for value, field_description in zip(row, self.get_fields_descriptions()):
             assert isinstance(field_description, FieldInterface)
-            field_type = field_description.get_type()
+            field_type = field_description.get_value_type()
             if not field_type.isinstance(value):
                 template = '(FlatStruct) Field {}: type {} expected, got {} (value={})'
                 msg = template.format(field_description.get_name(), field_type, type(value), value)
@@ -431,7 +434,7 @@ class FlatStruct(SimpleDataWrapper, IterDataMixin, SelectableMixin, StructInterf
         assert isinstance(remaining_struct, FlatStruct), 'got {}'.format(remaining_struct)
         updated_struct = FlatStruct([])
         for pos_received, f_received in enumerate(self.get_fields()):
-            assert isinstance(f_received, AdvancedField)
+            assert isinstance(f_received, (FieldInterface, AnyField))
             f_name = f_received.get_name()
             if f_name in updated_struct.get_field_names():
                 is_valid = False
@@ -488,7 +491,7 @@ class FlatStruct(SimpleDataWrapper, IterDataMixin, SelectableMixin, StructInterf
         struct = FlatStruct([])
         for name in title_row:
             field_type = FieldType.detect_by_name(name)
-            struct.append_field(AdvancedField(name, field_type))
+            struct.append_field(AnyField(name, value_type=field_type))
         return struct
 
     def copy(self) -> Native:
@@ -507,7 +510,7 @@ class FlatStruct(SimpleDataWrapper, IterDataMixin, SelectableMixin, StructInterf
                 value = item.get(get_name(f))
             else:
                 raise TypeError('Expected item as Row or Record, got {}'.format(item))
-            if isinstance(f, AdvancedField) or hasattr(f, 'format'):
+            if isinstance(f, (FieldInterface, AnyField)) or hasattr(f, 'format'):
                 str_value = f.format(value, skip_errors=skip_errors)
             else:
                 str_value = str(value)
@@ -521,9 +524,9 @@ class FlatStruct(SimpleDataWrapper, IterDataMixin, SelectableMixin, StructInterf
 
     def get_fields_tuples(self) -> Iterable[tuple]:  # (name, type, caption, is_valid, group_caption)
         for f in self.get_fields():
-            if isinstance(f, AdvancedField):
+            if isinstance(f, (FieldInterface, AnyField)):
                 field_name = f.get_name()
-                field_type_name = f.get_type_name()
+                field_type_name = f.get_value_type_name()
                 field_caption = f.get_caption() or ''
                 field_is_valid = str(f.is_valid())
                 group_name = f.get_group_name()
@@ -540,7 +543,7 @@ class FlatStruct(SimpleDataWrapper, IterDataMixin, SelectableMixin, StructInterf
             str_field_is_valid = DICT_VALID_SIGN.get(field_is_valid, field_is_valid[:1])
             yield field_name, field_type_name, field_caption, str_field_is_valid, group_name, group_caption
 
-    def get_field_description(self, field_name: Name, skip_missing: bool = False) -> Union[Field, AdvancedField]:
+    def get_field_description(self, field_name: Name, skip_missing: bool = False) -> Union[Field, FieldInterface]:
         field_position = self.get_field_position(field_name)
         if field_position is not None:
             return self.get_fields()[field_position]
@@ -675,4 +678,4 @@ class FlatStruct(SimpleDataWrapper, IterDataMixin, SelectableMixin, StructInterf
             raise TypeError('Expected other as field or struct, got {} as {}'.format(other, type(other)))
 
 
-AdvancedField.set_struct_builder(FlatStruct)
+AnyField.set_struct_builder(FlatStruct)

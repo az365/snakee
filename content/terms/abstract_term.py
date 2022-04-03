@@ -12,7 +12,7 @@ try:  # Assume we're a submodule in a package.
     from base.abstract.simple_data import SimpleDataWrapper
     from base.mixin.data_mixin import MultiMapDataMixin
     from base.classes.enum import ClassType
-    from content.fields.advanced_field import AdvancedField
+    from content.fields.any_field import AnyField
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         TermInterface, FieldInterface,
@@ -24,7 +24,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.abstract.simple_data import SimpleDataWrapper
     from ...base.mixin.data_mixin import MultiMapDataMixin
     from ...base.classes.enum import ClassType
-    from ..fields.advanced_field import AdvancedField
+    from ..fields.any_field import AnyField
 
 Native = SimpleDataWrapper
 Field = Union[FieldInterface, str]
@@ -72,7 +72,7 @@ class AbstractTerm(SimpleDataWrapper, MultiMapDataMixin, TermInterface, ABC):
             TermDataAttribute.Relations,
         )
 
-    def add_field(self, field: AdvancedField, role: FieldRoleType) -> Native:
+    def add_field(self, field: AnyField, role: FieldRoleType) -> Native:
         return self.add_fields({role: field})
 
     def add_fields(self, value: Optional[dict] = None, **kwargs) -> Native:
@@ -126,7 +126,7 @@ class AbstractTerm(SimpleDataWrapper, MultiMapDataMixin, TermInterface, ABC):
         if role_value in fields_by_roles:
             field = fields_by_roles[role_value]
             if kwargs:
-                assert isinstance(field, AdvancedField)
+                assert isinstance(field, AnyField)
                 field = field.set_outplace(**kwargs)
         else:
             field_class = self._get_default_field_class_by_role(role)
@@ -139,7 +139,7 @@ class AbstractTerm(SimpleDataWrapper, MultiMapDataMixin, TermInterface, ABC):
 
     @staticmethod
     def _get_default_field_class():
-        return AdvancedField
+        return AnyField
 
     def _get_default_field_class_by_role(self, role: FieldRoleType):
         default = self._get_default_field_class()

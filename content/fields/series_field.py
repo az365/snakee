@@ -16,7 +16,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .any_field import AnyField, EMPTY
 
 
-class IdsField(AnyField):
+class SeriesField(AnyField):
     def __init__(
             self,
             name: str,
@@ -43,7 +43,7 @@ class IdsField(AnyField):
 
     @staticmethod
     def get_role() -> FieldRoleType:
-        return FieldRoleType.Ids
+        return FieldRoleType.Series
 
 
-FieldRoleType.add_classes(ids=IdsField)
+FieldRoleType.add_classes(series=SeriesField)

@@ -1,9 +1,9 @@
 try:  # Assume we're a submodule in a package.
     from base.classes.enum import ClassType
-    from content.fields.field_type import FieldType
+    from content.value_type import ValueType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.classes.enum import ClassType
-    from .field_type import FieldType
+    from ..value_type import ValueType
 
 
 class FieldRoleType(ClassType):
@@ -19,27 +19,31 @@ class FieldRoleType(ClassType):
     Value = 'value'
     Mean = 'mean'
     Norm = 'norm'
+    Cat = 'cat'
+    Series = 'series'
 
     _dict_value_types = dict(
-        undef=FieldType.Any,
-        id=FieldType.Int,
-        name=FieldType.Str,
-        repr=FieldType.Str,
-        key=FieldType.Str,
-        ids=FieldType.Tuple,
-        count=FieldType.Int,
-        share=FieldType.Float,
-        rate=FieldType.Float,
-        value=FieldType.Float,
-        mean=FieldType.Float,
-        norm=FieldType.Float,
+        undef=ValueType.Any,
+        id=ValueType.Int,
+        name=ValueType.Str,
+        repr=ValueType.Str,
+        key=ValueType.Str,
+        ids=ValueType.Sequence,
+        count=ValueType.Int,
+        share=ValueType.Float,
+        rate=ValueType.Float,
+        value=ValueType.Float,
+        mean=ValueType.Float,
+        norm=ValueType.Float,
+        cat=ValueType.Str,
+        series=ValueType.Sequence,
     )
 
     @classmethod
     def get_dict_value_types(cls) -> dict:
         return cls._dict_value_types
 
-    def get_default_value_type(self, default: FieldType = FieldType.Any) -> FieldType:
+    def get_default_value_type(self, default: ValueType = ValueType.Any) -> ValueType:
         dict_types = self.get_dict_value_types()
         assert dict_types, 'value-types must be defined by set_dict_classes() method'
         found_type = dict_types.get(self)
@@ -51,8 +55,3 @@ class FieldRoleType(ClassType):
 
 FieldRoleType.prepare()
 FieldRoleType.set_default(FieldRoleType.Undefined)
-FieldRoleType.add_classes(
-    id=int, name=str, repr=str, key=str, ids=tuple,
-    count=int, share=float, rate=float,
-    value=float, mean=float, norm=float,
-)

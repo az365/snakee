@@ -6,11 +6,13 @@ try:  # Assume we're a submodule in a package.
         Auto, AUTO,
     )
     from base.functions.arguments import update
-    from content.fields.field_type import FieldType
+    from content.value_type import ValueType
+    from content.fields.field_type import FieldType  # deprecated
     from content.fields.field_role_type import FieldRoleType
     from content.struct.flat_struct import FlatStruct
-    from content.fields.abstract_field import AbstractField
-    from content.fields.advanced_field import AdvancedField
+    from content.fields.any_field import AnyField, FieldEdgeType
+    from content.fields.abstract_field import AbstractField  # deprecated
+    from content.fields.advanced_field import AdvancedField  # deprecated
     from content.fields.id_field import IdField
     from content.fields.name_field import NameField
     from content.fields.repr_field import ReprField
@@ -21,6 +23,9 @@ try:  # Assume we're a submodule in a package.
     from content.fields.value_field import ValueField
     from content.fields.mean_field import MeanField
     from content.fields.norm_field import NormField
+    from content.fields.rate_field import RateField
+    from content.fields.cat_field import CatField
+    from content.fields.series_field import SeriesField
     from content.selection.abstract_expression import AbstractDescription
     from content.selection import concrete_expression as ce
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -29,11 +34,13 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         Auto, AUTO,
     )
     from ...base.functions.arguments import update
-    from .field_type import FieldType
+    from ..value_type import ValueType
+    from .field_type import FieldType  # deprecated
     from .field_role_type import FieldRoleType
     from ..struct.flat_struct import FlatStruct
-    from .abstract_field import AbstractField
-    from .advanced_field import AdvancedField
+    from .any_field import AnyField, FieldEdgeType
+    from .abstract_field import AbstractField  # deprecated
+    from .advanced_field import AdvancedField  # deprecated
     from .id_field import IdField
     from .name_field import NameField
     from .repr_field import ReprField
@@ -44,12 +51,22 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .value_field import ValueField
     from .mean_field import MeanField
     from .norm_field import NormField
+    from .rate_field import RateField
+    from .cat_field import CatField
+    from .series_field import SeriesField
     from ..selection.abstract_expression import AbstractDescription
     from ..selection import concrete_expression as ce
 
-Type = Union[FieldType, FieldRoleType, type, Auto]
+Type = Union[ValueType, FieldRoleType, type, Auto]
 
 _logger = None
+
+FieldRoleType.add_classes(
+    id=IdField, name=NameField, repr=ReprField, key=KeyField, ids=IdsField,
+    count=CountField, share=ShareField, rate=RateField,
+    value=ValueField, mean=MeanField, norm=NormField,
+    cat=CatField, series=SeriesField,
+)
 
 
 def get_logger() -> Optional[SelectionLoggerInterface]:
@@ -65,17 +82,28 @@ def set_logger(logger: SelectionLoggerInterface):
 def field(
         name: str,
         field_type: Type = AUTO,
+        role: FieldRoleType = FieldRoleType.Undefined,
         representation: RepresentationInterface = None,
         default: Optional[Any] = None,
         caption: Optional[str] = None,
-) -> AdvancedField:
-    return AdvancedField(
+        **kwargs
+) -> AnyField:
+    if field_type:
+        assert 'value_type' not in kwargs
+        kwargs['value_type'] = field_type
+    if default:
+        assert 'default_value' not in kwargs
+        kwargs['default_value'] = default
+    if role in (FieldRoleType.Undefined, AUTO, None):
+        field_class = AnyField
+    else:
+        field_class = role.get_class()
+    return field_class(
         name,
-        field_type=field_type,
         representation=representation,
         caption=caption,
-        default=default,
         logger=_logger,
+        **kwargs,
     )
 
 

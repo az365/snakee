@@ -1,4 +1,4 @@
-from typing import Optional, Union, Any
+from typing import Optional, Sequence, Union, Any
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
@@ -6,21 +6,26 @@ try:  # Assume we're a submodule in a package.
         ValueType, FieldRoleType, ItemType,
         AutoBool, Auto, AUTO,
     )
-    from content.fields.any_field import AnyField, EMPTY
+    from base.classes.enum import DynamicEnum
+    from content.fields.any_field import AnyField, FieldEdgeType, EMPTY
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         RepresentationInterface, SelectionLogger,
         ValueType, FieldRoleType, ItemType,
         AutoBool, Auto, AUTO,
     )
-    from .any_field import AnyField, EMPTY
+    from ...base.classes.enum import DynamicEnum
+    from .any_field import AnyField, FieldEdgeType, EMPTY
+
+Native = AnyField
+OptEnum = Union[DynamicEnum, Sequence, None]
 
 
-class IdsField(AnyField):
+class CatField(AnyField):
     def __init__(
             self,
             name: str,
-            value_type: ValueType = ValueType.Sequence,
+            value_type: ValueType = ValueType.Str,
             representation: Union[RepresentationInterface, str, None] = None,
             caption: Optional[str] = None,
             default_value: Any = None,
@@ -30,6 +35,7 @@ class IdsField(AnyField):
             is_valid: AutoBool = AUTO,
             group_name: Optional[str] = None,
             group_caption: Optional[str] = None,
+            enum: OptEnum = None,
             data: Optional[dict] = None,
     ):
         super().__init__(
@@ -40,10 +46,23 @@ class IdsField(AnyField):
             group_name=group_name, group_caption=group_caption,
             data=data,
         )
+        self.set_enum(enum)
 
     @staticmethod
     def get_role() -> FieldRoleType:
-        return FieldRoleType.Ids
+        return FieldRoleType.Cat
+
+    def get_enum(self) -> OptEnum:
+        enum_value = self.get_from_data(key=FieldEdgeType.Enum)
+        return enum_value
+
+    def set_enum(self, enum: OptEnum) -> Native:
+        field = self.add_to_data(key=FieldEdgeType.Enum, value=enum)
+        return self._assume_native(field)
+
+    @staticmethod
+    def _assume_native(field) -> Native:
+        return field
 
 
-FieldRoleType.add_classes(ids=IdsField)
+FieldRoleType.add_classes(cat=CatField)

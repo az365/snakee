@@ -10,7 +10,7 @@ try:  # Assume we're a submodule in a package.
     from functions.secondary.basic_functions import same
     from utils import selection as sf
     from content.items.simple_items import SelectableItem
-    from content.fields.field_interface import FieldInterface, FieldType
+    from content.fields.field_interface import FieldInterface, ValueType
     from content.struct.struct_interface import StructInterface
     from content.selection.abstract_expression import AbstractDescription, MultipleFieldDescription
     from content.selection.concrete_expression import AliasDescription, RegularDescription
@@ -23,7 +23,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...functions.secondary.basic_functions import same
     from ...utils import selection as sf
     from ..items.simple_items import SelectableItem
-    from ..fields.field_interface import FieldInterface, FieldType
+    from ..fields.field_interface import FieldInterface, ValueType
     from ..struct.struct_interface import StructInterface
     from .abstract_expression import AbstractDescription, MultipleFieldDescription
     from .concrete_expression import AliasDescription, RegularDescription

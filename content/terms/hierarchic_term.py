@@ -5,7 +5,7 @@ try:  # Assume we're a submodule in a package.
     from base.functions.arguments import get_name, get_names, get_value
     from base.classes.enum import DynamicEnum
     from base.constants.chars import EMPTY, PY_INDENT, IDS_DELIMITER, REPR_DELIMITER
-    from content.fields.field_type import FieldType
+    from content.value_type import ValueType
     from content.terms.discrete_term import DiscreteTerm, TermType, Field, FieldRoleType
     from content.terms.object_term import ObjectTerm
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -13,7 +13,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.functions.arguments import get_name, get_names, get_value
     from ...base.classes.enum import DynamicEnum
     from ...base.constants.chars import EMPTY, PY_INDENT, IDS_DELIMITER, REPR_DELIMITER
-    from ..fields.field_type import FieldType
+    from ..value_type import ValueType
     from .discrete_term import DiscreteTerm, TermType, Field, FieldRoleType
     from .object_term import ObjectTerm
 
@@ -170,7 +170,7 @@ class HierarchicTerm(DiscreteTerm):
         assert got_depth >= expected_depth, 'Expected level {e}, got {g}'.format(e=expected_depth, g=got_depth)
         return delimiter.join(map(str, ids[:expected_depth + 1]))
 
-    def get_key_field(self, level: Level = AUTO, default_type: FieldType = FieldType.Str, **kwargs) -> Field:
+    def get_key_field(self, level: Level = AUTO, default_type: ValueType = ValueType.Str, **kwargs) -> Field:
         if Auto.is_auto(level) or level is None:
             key_field = self.get_field_by_role(FieldRoleType.Key, value_type=default_type, **kwargs)
         else:
@@ -178,7 +178,7 @@ class HierarchicTerm(DiscreteTerm):
             key_field = level_term.get_field_by_role(FieldRoleType.Key, value_type=default_type, **kwargs)
         return key_field
 
-    def get_ids_field(self, level: Level = AUTO, default_type: FieldType = FieldType.Tuple, **kwargs) -> Field:
+    def get_ids_field(self, level: Level = AUTO, default_type: ValueType = ValueType.Sequence, **kwargs) -> Field:
         if Auto.is_auto(level) or level is None:
             key_field = self.get_field_by_role(FieldRoleType.Ids, value_type=default_type, **kwargs)
         else:
@@ -201,14 +201,14 @@ class HierarchicTerm(DiscreteTerm):
         selector = [lambda *a: delimiter.join(a)]
         selector += self.get_id_fields(level)
         if including_target:
-            selector = [self.get_key_field(level, default_type=FieldType.Str), *selector]
+            selector = [self.get_key_field(level, default_type=ValueType.Str), *selector]
         return tuple(selector)
 
     def get_ids_selection_tuple(self, including_target: bool, level: Level = AUTO):
         selector = [lambda *a: a]
         selector += self.get_id_fields(level)
         if including_target:
-            selector = [self.get_key_field(level, default_type=FieldType.Tuple), *selector]
+            selector = [self.get_key_field(level, default_type=ValueType.Sequence), *selector]
         return tuple(selector)
 
     def get_meta_description(
