@@ -1,10 +1,11 @@
 from abc import ABC
-from typing import Optional
+from typing import Optional, Generator
 
 try:  # Assume we're a submodule in a package.
     from utils.arguments import get_generated_name
     from loggers.logger_interface import LoggerInterface, LoggingLevel
     from base.classes.auto import Auto, AUTO
+    from base.constants.chars import EMPTY, PY_INDENT, REPR_DELIMITER
     from base.interfaces.context_interface import ContextInterface
     from base.interfaces.sourced_interface import SourcedInterface
     from base.abstract.named import AbstractNamed
@@ -12,6 +13,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils.arguments import get_generated_name
     from ...loggers.logger_interface import LoggerInterface, LoggingLevel
     from ..classes.auto import Auto, AUTO
+    from ..constants.chars import EMPTY, PY_INDENT, REPR_DELIMITER
     from ..interfaces.context_interface import ContextInterface
     from ..interfaces.sourced_interface import SourcedInterface
     from .named import AbstractNamed
@@ -20,6 +22,10 @@ Source = Optional[AbstractNamed]
 Logger = Optional[LoggerInterface]
 
 SPECIFIC_MEMBERS = ('_source', )
+COLS_FOR_META = [
+    ('prefix', 3), ('defined', 3),
+    ('key', 20), ('value', 30), ('actual_type', 14), ('expected_type', 20), ('default', 20),
+]
 
 
 class Sourced(AbstractNamed, SourcedInterface, ABC):
@@ -90,3 +96,21 @@ class Sourced(AbstractNamed, SourcedInterface, ABC):
         logger = self.get_logger()
         if logger:
             return logger.log(*args, **kwargs)
+
+    def get_meta_description(
+            self,
+            with_title: bool = True,
+            with_summary: bool = True,
+            prefix: str = PY_INDENT,
+            delimiter: str = REPR_DELIMITER,
+    ) -> Generator:
+        if with_summary:
+            count = len(list(self.get_meta_records()))
+            yield '{name} has {count} attributes in meta-data:'.format(name=repr(self), count=count)
+        yield from self._get_columnar_lines(
+            records=self.get_meta_records(),
+            columns=COLS_FOR_META,
+            with_title=with_title,
+            prefix=prefix,
+            delimiter=delimiter,
+        )

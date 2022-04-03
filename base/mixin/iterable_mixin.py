@@ -6,23 +6,24 @@ from datetime import datetime
 try:  # Assume we're a submodule in a package.
     from functions.secondary import item_functions as fs
     from utils.algo import map_side_join
+    from base.classes.typing import ARRAY_TYPES, AUTO, Auto
     from base.functions.arguments import get_names, update, is_in_memory, get_str_from_args_kwargs
-    from base.classes.auto import Auto, AUTO
-    from base.classes.typing import ARRAY_TYPES
+    from base.mixin.data_mixin import IterDataMixin
     from base.interfaces.iterable_interface import IterableInterface, OptionalFields, Item, JoinType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...functions.secondary import item_functions as fs
     from ...utils.algo import map_side_join
+    from ..classes.typing import ARRAY_TYPES, AUTO, Auto
     from ..functions.arguments import get_names, update, is_in_memory, get_str_from_args_kwargs
-    from ..classes.auto import Auto, AUTO
-    from ..classes.typing import ARRAY_TYPES
+    from ..mixin.data_mixin import IterDataMixin
     from ..interfaces.iterable_interface import IterableInterface, OptionalFields, Item, JoinType
 
 Native = IterableInterface
 How = Union[JoinType, str]
 
 
-class IterableMixin(IterableInterface, ABC):
+# @deprecated
+class IterableMixin(IterDataMixin, ABC):
     def is_sequence(self) -> bool:
         return isinstance(self.get_items(), Sequence)
 

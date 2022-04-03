@@ -3,7 +3,7 @@ from typing import Optional, Union
 try:  # Assume we're a submodule in a package.
     from utils.decorators import singleton
     from interfaces import (
-        ContextInterface, ContextualInterface,
+        ContextInterface, SourcedInterface,
         LoggerInterface, ExtendedLoggerInterface,
         AUTO, Auto, Name,
     )
@@ -13,7 +13,7 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils.decorators import singleton
     from ..interfaces import (
-        ContextInterface, ContextualInterface,
+        ContextInterface, SourcedInterface,
         LoggerInterface, ExtendedLoggerInterface,
         AUTO, Auto, Name,
     )
@@ -22,7 +22,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .message_collector import SelectionMessageCollector
 
 Native = ContextInterface
-Child = ContextualInterface
+Child = SourcedInterface
 
 NAME = 'logging_context_stub'
 

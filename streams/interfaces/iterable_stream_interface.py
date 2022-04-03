@@ -14,7 +14,7 @@ Native = StreamInterface
 Stream = StreamInterface
 
 
-class IterableStreamInterface(StreamInterface, IterableInterface, ABC):
+class IterableStreamInterface(StreamInterface, ABC):
     @abstractmethod
     def get_count(self) -> Optional[int]:
         """Returns count of items in stream if it's known, otherwise returns None.

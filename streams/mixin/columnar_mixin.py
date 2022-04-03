@@ -44,7 +44,7 @@ DEFAULT_DETECT_COUNT = 100
 LOGGING_LEVEL_INFO = 20
 
 
-class ColumnarMixin(ContextualDataWrapper, IterableMixin, ColumnarInterface, ABC):
+class ColumnarMixin(IterableMixin, ABC):
     @classmethod
     def is_valid_item(cls, item: Item) -> bool:
         return cls.get_item_type().isinstance(item)

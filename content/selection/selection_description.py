@@ -1,22 +1,26 @@
 from typing import Optional, Callable, Iterable, Union
 
 try:  # Assume we're a submodule in a package.
-    from utils import selection as sf
     from interfaces import (
-        StructInterface, StructRowInterface, LoggerInterface,
+        StructInterface, LoggerInterface,
         ItemType, Item, Row, Record, Field, Name, Array, ARRAY_TYPES,
         AUTO, Auto,
     )
+    from base.abstract.simple_data import SimpleDataWrapper
+    from base.mixin.data_mixin import IterDataMixin
+    from utils import selection as sf
     from content.fields.simple_field import SimpleField
     from functions.primary import items as it
     from content.selection import selection_classes as sn
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import selection as sf
     from ...interfaces import (
-        StructInterface, StructRowInterface, LoggerInterface,
+        StructInterface, LoggerInterface,
         ItemType, Item, Row, Record, Field, Name, Array, ARRAY_TYPES,
         AUTO, Auto,
     )
+    from ...base.abstract.simple_data import SimpleDataWrapper
+    from ...base.mixin.data_mixin import IterDataMixin
+    from ...utils import selection as sf
     from ..fields.simple_field import SimpleField
     from ...functions.primary import items as it
     from . import selection_classes as sn
@@ -26,6 +30,8 @@ Struct = Union[Optional[StructInterface], Iterable]
 Description = sn.AbstractDescription
 NAME_TYPES = int, str
 DESC_TYPES = int, str, Description
+
+META_MEMBER_MAPPING = dict(_data='descriptions')
 
 
 def is_selection_tuple(t) -> bool:
@@ -102,7 +108,7 @@ def translate_names_to_columns(expression, struct: StructInterface) -> tuple:
         return expression
 
 
-class SelectionDescription:
+class SelectionDescription(SimpleDataWrapper, IterDataMixin):
     def __init__(
             self,
             descriptions: Array,
@@ -111,8 +117,9 @@ class SelectionDescription:
             input_struct: Struct = None,
             logger: Logger = None,
             selection_logger: Union[Logger, Auto] = AUTO,
+            name: str = 'select',
+            caption: str = '',
     ):
-        self._descriptions = descriptions
         self._target_item_type = target_item_type
         self._input_item_type = input_item_type
         self._input_struct = input_struct
@@ -120,6 +127,7 @@ class SelectionDescription:
         self._selection_logger = Auto.acquire(selection_logger, getattr(logger, 'get_selection_logger', None))
         self._has_trivial_multiple_selectors = AUTO
         self._output_field_names = AUTO
+        super().__init__(data=descriptions, name=name, caption=caption)
 
     @classmethod
     def with_expressions(
@@ -143,8 +151,14 @@ class SelectionDescription:
             logger=logger, selection_logger=selection_logger,
         )
 
+    @classmethod
+    def _get_meta_member_mapping(cls) -> dict:
+        meta_member_mapping = super()._get_meta_member_mapping()
+        meta_member_mapping.update(META_MEMBER_MAPPING)
+        return meta_member_mapping
+
     def get_descriptions(self) -> Iterable:
-        return self._descriptions
+        return self._get_data()
 
     def get_logger(self) -> Logger:
         return self._logger

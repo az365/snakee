@@ -10,6 +10,7 @@ try:  # Assume we're a submodule in a package.
     from base.functions.arguments import update, get_generated_name, get_name, get_names
     from base.constants.chars import REPR_DELIMITER, TITLE_PREFIX, JUPYTER_LINE_LEN
     from base.abstract.simple_data import SimpleDataWrapper, DEFAULT_ROWS_COUNT
+    from base.mixin.data_mixin import IterDataMixin
     from functions.secondary import array_functions as fs
     from utils.external import pd, get_use_objects_for_output, DataFrame
     from content.fields.advanced_field import AdvancedField
@@ -26,6 +27,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.functions.arguments import update, get_generated_name, get_name, get_names
     from ...base.constants.chars import REPR_DELIMITER, TITLE_PREFIX, JUPYTER_LINE_LEN
     from ...base.abstract.simple_data import SimpleDataWrapper, DEFAULT_ROWS_COUNT
+    from ...base.mixin.data_mixin import IterDataMixin
     from ...functions.secondary import array_functions as fs
     from ...utils.external import pd, get_use_objects_for_output, DataFrame
     from ..fields.advanced_field import AdvancedField
@@ -45,7 +47,7 @@ GROUP_TYPE_STR = 'GROUP'
 DICT_VALID_SIGN = {'True': '-', 'False': 'x', 'None': '-', AUTO.get_value(): '~'}
 
 
-class FlatStruct(SimpleDataWrapper, SelectableMixin, StructInterface):
+class FlatStruct(SimpleDataWrapper, IterDataMixin, SelectableMixin, StructInterface):
     def __init__(
             self,
             fields: Iterable,
@@ -77,7 +79,7 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, StructInterface):
     def get_caption(self) -> str:
         return self._caption
 
-    def set_caption(self, caption: str, inplace: bool) -> Native:
+    def set_caption(self, caption: str, inplace: bool = True) -> Native:
         if inplace:
             self._caption = caption
             return self

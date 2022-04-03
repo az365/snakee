@@ -3,11 +3,14 @@ from typing import Optional, Iterable, Sequence, Union, Any
 
 try:  # Assume we're a submodule in a package.
     from content.items.simple_items import Class
-    from base.interfaces.data_interface import ContextualDataInterface
+    from base.interfaces.data_interface import SimpleDataInterface
+    from base.interfaces.sourced_interface import SourcedInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...content.items.simple_items import Class
-    from ..interfaces.data_interface import ContextualDataInterface
+    from .data_interface import SimpleDataInterface
+    from .sourced_interface import SourcedInterface
 
+ContextualDataInterface = Union[SimpleDataInterface, SourcedInterface]
 Parent = Optional[Union[ContextualDataInterface, Any]]
 Child = Optional[ContextualDataInterface]
 OptionalFields = Optional[Union[str, Iterable]]
@@ -15,7 +18,7 @@ OptionalFields = Optional[Union[str, Iterable]]
 META_MEMBER_MAPPING = dict(_data='children', _source='parent')
 
 
-class TreeInterface(ContextualDataInterface, ABC):
+class TreeInterface(SimpleDataInterface, SourcedInterface, ABC):
     @abstractmethod
     def get_parent(self) -> Parent:
         pass
@@ -71,10 +74,6 @@ class TreeInterface(ContextualDataInterface, ABC):
 
     @abstractmethod
     def get_context(self):
-        pass
-
-    @abstractmethod
-    def set_context(self, context, reset=False):
         pass
 
     @classmethod

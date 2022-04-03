@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Optional, Union
+from typing import Optional, Callable, Union
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
@@ -238,3 +238,34 @@ class LeafConnector(
         copy.set_declared_format(self.get_declared_format().copy(), inplace=True)
         copy.set_detected_format(self.get_detected_format().copy(), inplace=True)
         return copy
+
+    def map(self, function: Callable, inplace: bool = False) -> Optional[Native]:
+        if inplace and isinstance(self.get_items(), list):
+            return self._apply_map_inplace(function) or self
+        else:
+            items = self._get_mapped_items(function, flat=False)
+            return self.set_items(items, count=self.get_count(), inplace=inplace)
+
+    def filter(self, function: Callable, inplace: bool = False) -> Optional[Native]:
+        items = self._get_filtered_items(function)
+        return self.set_items(items, inplace=inplace)
+
+    def skip(self, count: int = 1, inplace: bool = False) -> Optional[Native]:
+        if self.get_count() and count >= self.get_count():
+            items = list()
+        else:
+            items = self.get_items()[count:] if self.is_in_memory() else self._get_second_items(count)
+        result_count = None
+        if self._has_count_attribute():
+            old_count = self.get_count()
+            if old_count:
+                result_count = old_count - count
+                if result_count < 0:
+                    result_count = 0
+        return self.set_items(items, count=result_count, inplace=inplace)
+
+    def get_one_item(self):
+        if self.is_sequence() and self.has_items():
+            return self.get_list()[0]
+        for i in self.get_iter():
+            return i

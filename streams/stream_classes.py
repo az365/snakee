@@ -5,7 +5,7 @@ from random import randint
 TMP_FILES_TEMPLATE = 'stream_{}.tmp'
 TMP_FILES_ENCODING = 'utf8'
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
     from utils.decorators import deprecated_with_alternative
     from interfaces import (
