@@ -10,7 +10,7 @@ try:  # Assume we're a submodule in a package.
     from content.fields.field_type import FieldType  # deprecated
     from content.fields.field_role_type import FieldRoleType
     from content.struct.flat_struct import FlatStruct
-    from content.fields.any_field import AnyField
+    from content.fields.any_field import AnyField, FieldEdgeType
     from content.fields.abstract_field import AbstractField  # deprecated
     from content.fields.advanced_field import AdvancedField  # deprecated
     from content.fields.id_field import IdField
@@ -24,6 +24,8 @@ try:  # Assume we're a submodule in a package.
     from content.fields.mean_field import MeanField
     from content.fields.norm_field import NormField
     from content.fields.rate_field import RateField
+    from content.fields.cat_field import CatField
+    from content.fields.series_field import SeriesField
     from content.selection.abstract_expression import AbstractDescription
     from content.selection import concrete_expression as ce
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -36,7 +38,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .field_type import FieldType  # deprecated
     from .field_role_type import FieldRoleType
     from ..struct.flat_struct import FlatStruct
-    from .any_field import AnyField
+    from .any_field import AnyField, FieldEdgeType
     from .abstract_field import AbstractField  # deprecated
     from .advanced_field import AdvancedField  # deprecated
     from .id_field import IdField
@@ -50,6 +52,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .mean_field import MeanField
     from .norm_field import NormField
     from .rate_field import RateField
+    from .cat_field import CatField
+    from .series_field import SeriesField
     from ..selection.abstract_expression import AbstractDescription
     from ..selection import concrete_expression as ce
 
@@ -61,6 +65,7 @@ FieldRoleType.add_classes(
     id=IdField, name=NameField, repr=ReprField, key=KeyField, ids=IdsField,
     count=CountField, share=ShareField, rate=RateField,
     value=ValueField, mean=MeanField, norm=NormField,
+    cat=CatField, series=SeriesField,
 )
 
 

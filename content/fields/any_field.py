@@ -29,6 +29,15 @@ Native = Union[SimpleDataWrapper, MultiMapDataMixin, FieldInterface]
 AutoRepr = Union[RepresentationInterface, str, Auto]
 
 
+class FieldEdgeType(DynamicEnum):
+    Terms = 'terms'
+    ItemTypes = 'item_types'
+    Enum = 'enum'
+
+
+FieldEdgeType.prepare()
+
+
 class AnyField(SimpleDataWrapper, MultiMapDataMixin, SelectableMixin, FieldInterface):
     _struct_builder: Optional[Callable] = None
 
@@ -272,7 +281,8 @@ class AnyField(SimpleDataWrapper, MultiMapDataMixin, SelectableMixin, FieldInter
         meta['caption'] = caption_prefix + self.get_caption()
         meta['value_type'] = ValueType.Sequence
         meta.update(kwargs)
-        return AnyField(**meta)
+        field_class = FieldRoleType.Series.get_class()
+        return field_class(**meta)
 
     def get_str_headers(self) -> Generator:
         yield self.get_brief_repr()

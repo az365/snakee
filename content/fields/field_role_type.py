@@ -19,6 +19,8 @@ class FieldRoleType(ClassType):
     Value = 'value'
     Mean = 'mean'
     Norm = 'norm'
+    Cat = 'cat'
+    Series = 'series'
 
     _dict_value_types = dict(
         undef=ValueType.Any,
@@ -33,6 +35,8 @@ class FieldRoleType(ClassType):
         value=ValueType.Float,
         mean=ValueType.Float,
         norm=ValueType.Float,
+        cat=ValueType.Str,
+        series=ValueType.Sequence,
     )
 
     @classmethod
