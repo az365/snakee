@@ -5,23 +5,22 @@ try:  # Assume we're a submodule in a package.
     from base.classes.auto import AUTO, Auto
     from base.interfaces.context_interface import ContextInterface
     from base.interfaces.contextual_interface import ContextualInterface
-    from base.interfaces.data_interface import ContextualDataInterface
     from base.constants.chars import EMPTY, PY_INDENT, REPR_DELIMITER
     from base.abstract.abstract_base import AbstractBaseObject
     from base.abstract.simple_data import SimpleDataWrapper
-    from base.abstract.contextual import Contextual
+    from base.abstract.sourced import Sourced
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.auto import AUTO, Auto
     from ..interfaces.context_interface import ContextInterface
     from ..interfaces.contextual_interface import ContextualInterface
-    from ..interfaces.data_interface import ContextualDataInterface
     from ..constants.chars import EMPTY, PY_INDENT, REPR_DELIMITER
     from .abstract_base import AbstractBaseObject
     from .simple_data import SimpleDataWrapper
-    from .contextual import Contextual
+    from .sourced import Sourced
 
-Data = Union[Iterable, Any]
-OptionalFields = Optional[Union[str, Iterable]]
+Native = Sourced
+Data = Any
+OptionalFields = Union[str, Iterable, None]
 Source = Optional[ContextualInterface]
 Context = Optional[ContextInterface]
 
@@ -33,19 +32,20 @@ COLS_FOR_META = [
 ]
 
 
-class ContextualDataWrapper(Contextual, ContextualDataInterface, ABC):
+class ContextualDataWrapper(Sourced, ABC):
     def __init__(
-            self, data,
-            name: str, caption: str = EMPTY,
+            self,
+            data: Data,
+            name: str,
+            caption: str = EMPTY,
             source: Source = None,
             context: Context = None,
             check: bool = True,
     ):
         self._data = data
-        super().__init__(name=name, caption=caption, source=source, context=context, check=check)
-
-    def is_defined(self) -> bool:
-        return bool(self.get_data())
+        super().__init__(name=name, caption=caption, source=source, check=check)
+        if Auto.is_defined(context) and hasattr(self, 'set_context'):
+            self.set_context(context, reset=False, inplace=True)
 
     @classmethod
     def _get_data_member_names(cls):
@@ -54,10 +54,10 @@ class ContextualDataWrapper(Contextual, ContextualDataInterface, ABC):
     def get_data(self) -> Data:
         return self._data
 
-    def set_data(self, data: Data, inplace: bool):
+    def set_data(self, data: Data, inplace: bool, **kwargs) -> Native:
         if inplace:
             self._data = data
-            self.set_meta(**self.get_static_meta())
+            return self.set_meta(**self.get_static_meta())
         else:
             return ContextualDataWrapper(data, **self.get_static_meta())
 

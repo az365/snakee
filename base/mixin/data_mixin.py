@@ -1,4 +1,4 @@
-from abc import ABC, abstractmethod
+from abc import ABC
 from typing import Type, Optional, Callable, Iterable, Generator, Sequence, Union, Any
 from itertools import chain
 
@@ -8,18 +8,16 @@ try:  # Assume we're a submodule in a package.
     from base.constants.chars import EMPTY, PY_INDENT, REPR_DELIMITER
     from base.classes.enum import DynamicEnum, ClassType
     from base.interfaces.data_interface import SimpleDataInterface
-    from base.abstract.abstract_base import AbstractBaseObject
-    from base.abstract.simple_data import SimpleDataWrapper, LineOutputMixin
+    from base.mixin.line_output_mixin import LineOutputMixin
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.typing import AUTO, Auto, AutoBool, AutoCount
     from ..functions.arguments import get_name
     from ..constants.chars import EMPTY, PY_INDENT, REPR_DELIMITER
     from ..classes.enum import DynamicEnum, ClassType
     from ..interfaces.data_interface import SimpleDataInterface
-    from ..abstract.abstract_base import AbstractBaseObject
-    from ..abstract.simple_data import SimpleDataWrapper, LineOutputMixin
+    from .line_output_mixin import LineOutputMixin
 
-Native = SimpleDataWrapper
+Native = SimpleDataInterface
 Key = Union[DynamicEnum, str]
 Item = Any
 ItemType = Union[Type, DynamicEnum, str]
@@ -32,7 +30,7 @@ DESCRIPTION_COLS = list(zip(DESCRIPTION_COL_NAMES, DESCRIPTION_COL_LENS))
 
 class DataMixin(LineOutputMixin, ABC):
     def _get_data(self) -> Iterable:
-        assert isinstance(self, SimpleDataWrapper) or hasattr(self, 'get_data')
+        assert isinstance(self, SimpleDataInterface) or hasattr(self, 'get_data')
         return self.get_data()
 
     @staticmethod
@@ -40,9 +38,8 @@ class DataMixin(LineOutputMixin, ABC):
         return 0
 
     @staticmethod
-    @abstractmethod
     def get_root_data_class() -> Class:
-        pass
+        return Any
 
     def get_item_classes(self, level: int = -1) -> tuple:
         if level < 0:
@@ -61,15 +58,24 @@ class DataMixin(LineOutputMixin, ABC):
             return item_classes[0]
 
     def set_data(self, data: Iterable, inplace: bool, **kwargs) -> Native:
-        data_root_type = self.get_root_data_class()
-        if Auto.is_defined(data_root_type):
-            assert isinstance(data, data_root_type)
+        data_root_class = self.get_root_data_class()
+        if Auto.is_defined(data_root_class):
+            assert isinstance(data, data_root_class)
         parent = super()
         if isinstance(parent, SimpleDataInterface) or hasattr(parent, 'set_data'):
             kwargs['inplace'] = inplace
             return parent.set_data(data, **kwargs)
         else:
             raise AttributeError(self._get_call_prefix(self.set_data) + 'parent method not found')
+
+    def has_data(self) -> bool:
+        return bool(self._get_data())
+
+    def is_defined(self) -> bool:
+        return self.has_data()
+
+    def is_empty(self) -> bool:
+        return not self.has_data()
 
     def _get_call_prefix(self, method: Union[Callable, str, None] = None, arg: Any = '', delimiter: str = ': ') -> str:
         if method:
@@ -132,7 +138,7 @@ class IterDataMixin(DataMixin, ABC):
 
 class MapDataMixin(IterDataMixin, ABC):
     def _get_data(self) -> dict:
-        assert isinstance(self, SimpleDataWrapper) or hasattr(self, 'get_data')
+        assert isinstance(self, SimpleDataInterface) or hasattr(self, 'get_data')
         return self.get_data()
 
     @staticmethod
@@ -152,7 +158,7 @@ class MapDataMixin(IterDataMixin, ABC):
     def get_first_level_key_default_order() -> Optional[Iterable]:
         return None
 
-    def get_casted_first_level_key(self, key: Key, strict: bool = False) -> Union[Key, Any]:
+    def get_casted_first_level_key(self, key: Key, strict: bool = False) -> Key:
         key_default_class = self.get_first_level_key_default_class()
         if key_default_class:
             if strict:

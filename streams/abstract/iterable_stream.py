@@ -3,7 +3,6 @@ import gc
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
-        IterableStreamInterface,
         StreamType, LoggingLevel, JoinType, How,
         Stream, Source, ExtLogger, SelectionLogger, Context, Connector, LeafConnector,
         AUTO, Auto, AutoName, AutoCount, Count, OptionalFields, Message, Array, UniKey,
@@ -16,7 +15,6 @@ try:  # Assume we're a submodule in a package.
     from streams.abstract.abstract_stream import AbstractStream
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
-        IterableStreamInterface,
         StreamType, LoggingLevel, JoinType, How,
         Stream, Source, ExtLogger, SelectionLogger, Context, Connector, LeafConnector,
         AUTO, Auto, AutoName, AutoCount, Count, OptionalFields, Message, Array, UniKey,
@@ -28,13 +26,13 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...functions.secondary import item_functions as fs
     from .abstract_stream import AbstractStream
 
-Native = IterableStreamInterface
+Native = Union[AbstractStream, IterableMixin]
 
 DYNAMIC_META_FIELDS = ('count', 'less_than')
 MAX_ITEMS_IN_MEMORY = 5000000
 
 
-class IterableStream(AbstractStream, IterableMixin, IterableStreamInterface):
+class IterableStream(AbstractStream, IterableMixin):
     def __init__(
             self,
             data: Iterable,
@@ -320,7 +318,7 @@ class IterableStream(AbstractStream, IterableMixin, IterableStreamInterface):
         yield from stream.get_items()
 
     def get_selection_logger(self) -> SelectionLogger:
-        if isinstance(self, IterableStreamInterface) or hasattr(self, 'get_context'):
+        if hasattr(self, 'get_context'):
             context = self.get_context()
         else:
             context = None

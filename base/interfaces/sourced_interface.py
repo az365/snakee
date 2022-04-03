@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Optional, NoReturn
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from base.interfaces.base_interface import BaseInterface
     from loggers.logger_interface import LoggerInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -12,13 +12,13 @@ Source = BaseInterface
 Logger = Optional[LoggerInterface]
 
 
-class SourcedInterface(BaseInterface, ABC):
+class SourcedInterface(ABC):
     @abstractmethod
     def get_name(self) -> str:
         pass
 
     @abstractmethod
-    def set_name(self, name: str, inplace=True):
+    def set_name(self, name: str, inplace=True) -> Optional[Source]:
         pass
 
     @abstractmethod
@@ -26,7 +26,7 @@ class SourcedInterface(BaseInterface, ABC):
         pass
 
     @abstractmethod
-    def set_source(self, source: Source, reset: bool = True):
+    def set_source(self, source: Source, reset: bool = True) -> Optional[Source]:
         pass
 
     @abstractmethod

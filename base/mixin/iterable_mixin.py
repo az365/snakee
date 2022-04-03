@@ -23,7 +23,7 @@ How = Union[JoinType, str]
 
 
 # @deprecated
-class IterableMixin(IterableInterface, IterDataMixin, ABC):
+class IterableMixin(IterDataMixin, ABC):
     def is_sequence(self) -> bool:
         return isinstance(self.get_items(), Sequence)
 

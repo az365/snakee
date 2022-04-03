@@ -25,7 +25,3 @@ class ContextualInterface(SourcedInterface, ABC):
     @abstractmethod
     def set_context(self, context: Context) -> NoReturn:
         pass
-
-    @abstractmethod
-    def put_into_context(self) -> NoReturn:
-        pass

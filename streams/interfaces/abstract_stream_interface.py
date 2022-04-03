@@ -208,14 +208,6 @@ class StreamInterface(SourcedInterface, ABC):
         pass
 
     @abstractmethod
-    def get_context(self):
-        """Returns common SnakeeContext object.
-
-        :returns: SnakeeContext singleton instance
-        """
-        pass
-
-    @abstractmethod
     def get_links(self) -> Iterable:
         """Returns links to related connections.
         For Stream object only one connection is possible, but get_links() returns iterable for compatibility.

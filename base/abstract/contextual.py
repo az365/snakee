@@ -5,27 +5,21 @@ try:  # Assume we're a submodule in a package.
     from base.classes.auto import Auto, AUTO
     from base.functions.arguments import get_generated_name
     from base.interfaces.context_interface import ContextInterface
-    from base.interfaces.contextual_interface import ContextualInterface
-    from base.abstract.named import AbstractNamed
     from base.abstract.sourced import Sourced
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.auto import Auto, AUTO
     from ..functions.arguments import get_generated_name
     from ..interfaces.context_interface import ContextInterface
-    from ..interfaces.contextual_interface import ContextualInterface
-    from .named import AbstractNamed
     from .sourced import Sourced
 
-Native = ContextualInterface
-Context = Optional[ContextInterface]
-Source = Union[Context, Sourced]
+Source = Union[ContextInterface, Sourced]
 
 
-class Contextual(Sourced, ContextualInterface, ABC):
+class Contextual(Sourced, ABC):
     def __init__(
             self,
             name: str = AUTO, caption: str = '',
-            source: Source = None, context: Context = None,
+            source: Source = None, context: ContextInterface = None,
             check: bool = True,
     ):
         name = Auto.delayed_acquire(name, get_generated_name, self._get_default_name_prefix())
@@ -38,7 +32,7 @@ class Contextual(Sourced, ContextualInterface, ABC):
         if Auto.is_defined(self.get_context()):
             self.put_into_context(check=check)
 
-    def get_source(self) -> Union[Native, Source]:
+    def get_source(self) -> Source:
         source = self._source
         return source
 
@@ -48,21 +42,21 @@ class Contextual(Sourced, ContextualInterface, ABC):
             return source.is_context()
         return False
 
-    def get_context(self) -> Context:
+    def get_context(self) -> ContextInterface:
         source = self.get_source()
         if self._has_context_as_source():
             return source
         if hasattr(source, 'get_context'):
             return source.get_context()
 
-    def set_context(self, context: ContextInterface, reset: bool = True, inplace: bool = True) -> Native:
+    def set_context(self, context: ContextInterface, reset: bool = True, inplace: bool = True):
         if inplace:
             if self._is_stub_instance(context):
                 return self
             elif self._has_context_as_source():
                 if reset:
-                    assert isinstance(context, ContextInterface)
-                    assert isinstance(context, AbstractNamed)
+                    # assert isinstance(context, ContextInterface)
+                    # assert isinstance(context, AbstractNamed)
                     self.set_source(context)
             elif Auto.is_defined(self.get_source()):
                 self.get_source().set_context(context, reset=reset)
@@ -71,7 +65,7 @@ class Contextual(Sourced, ContextualInterface, ABC):
             contextual = self.set_outplace(context=context)
             return self._assume_native(contextual)
 
-    def put_into_context(self, check: bool = True) -> Native:
+    def put_into_context(self, check: bool = True):
         context = self.get_context()
         if self._is_stub_instance(context):
             pass
@@ -96,5 +90,5 @@ class Contextual(Sourced, ContextualInterface, ABC):
         return hasattr(context, '_method_stub')
 
     @staticmethod
-    def _assume_native(contextual) -> Native:
+    def _assume_native(contextual):
         return contextual

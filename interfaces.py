@@ -24,7 +24,6 @@ try:  # Assume we're a submodule in a package.
     from streams.interfaces.stream_builder_interface import StreamBuilderInterface  # inherits Stream
     from base.interfaces.context_interface import ContextInterface  # inherits Base; uses Stream, Logger, ExtendedLog..
     from base.interfaces.contextual_interface import ContextualInterface  # inherits Sourced; uses Base, Context
-    from base.interfaces.data_interface import ContextualDataInterface  # inherits SimpleData, Contextual
     from base.interfaces.tree_interface import TreeInterface  # inherits ContextualData
     from content.representations.repr_interface import RepresentationInterface
     from content.fields.field_interface import FieldInterface  # inherits SimpleData
@@ -64,7 +63,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .streams.interfaces.stream_builder_interface import StreamBuilderInterface  # inherits Stream
     from .base.interfaces.context_interface import ContextInterface  # inherits Base; uses Stream, Logger, ExtendedLog..
     from .base.interfaces.contextual_interface import ContextualInterface  # inherits Sourced; uses Base, Context
-    from .base.interfaces.data_interface import ContextualDataInterface  # inherits SimpleData, Contextual
     from .base.interfaces.tree_interface import TreeInterface  # inherits ContextualData
     from .content.representations.repr_interface import RepresentationInterface
     from .content.fields.field_interface import FieldInterface  # inherits SimpleData

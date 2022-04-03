@@ -6,18 +6,16 @@ try:  # Assume we're a submodule in a package.
     from base.constants.chars import CROP_SUFFIX, DEFAULT_LINE_LEN
     from base.interfaces.base_interface import BaseInterface, AutoOutput
     from base.interfaces.line_output_interface import LineOutputInterface
-    from base.interfaces.contextual_interface import ContextualInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.typing import AUTO, Auto, AutoCount, OptionalFields
     from ..constants.chars import CROP_SUFFIX, DEFAULT_LINE_LEN
     from .base_interface import BaseInterface, AutoOutput
     from .line_output_interface import LineOutputInterface
-    from .contextual_interface import ContextualInterface
 
 Data = Union[Iterable, Any]
 
 
-class SimpleDataInterface(BaseInterface, LineOutputInterface, ABC):
+class SimpleDataInterface(BaseInterface, ABC):
     @abstractmethod
     def get_name(self) -> Optional[str]:
         pass
@@ -65,14 +63,4 @@ class SimpleDataInterface(BaseInterface, LineOutputInterface, ABC):
             as_dataframe: bool = Auto,
             **kwargs
     ):
-        pass
-
-
-class ContextualDataInterface(ContextualInterface, SimpleDataInterface, ABC):
-    @abstractmethod
-    def get_str_count(self, default: str = '<iter>') -> str:
-        pass
-
-    @abstractmethod
-    def get_count_repr(self, default: str = '<iter>') -> str:
         pass

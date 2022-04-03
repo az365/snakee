@@ -2,7 +2,7 @@ try:  # Assume we're a submodule in a package.
     from base.interfaces.base_interface import BaseInterface
     from base.interfaces.sourced_interface import SourcedInterface
     from base.interfaces.contextual_interface import ContextualInterface
-    from base.interfaces.data_interface import SimpleDataInterface, ContextualDataInterface
+    from base.interfaces.data_interface import SimpleDataInterface
     from base.interfaces.tree_interface import TreeInterface
     from base.interfaces.context_interface import ContextInterface
     from base.abstract.abstract_base import AbstractBaseObject
@@ -21,7 +21,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .interfaces.base_interface import BaseInterface
     from .interfaces.sourced_interface import SourcedInterface
     from .interfaces.contextual_interface import ContextualInterface
-    from .interfaces.data_interface import SimpleDataInterface, ContextualDataInterface
+    from .interfaces.data_interface import SimpleDataInterface
     from .interfaces.tree_interface import TreeInterface
     from .interfaces.context_interface import ContextInterface
     from .abstract.abstract_base import AbstractBaseObject

@@ -7,7 +7,6 @@ try:  # Assume we're a submodule in a package.
     from base.constants.chars import DEFAULT_ENCODING, DEFAULT_LINE_LEN, LONG_LINE_LEN, CROP_SUFFIX, ELLIPSIS, SPACE
     from base.functions.arguments import get_name, get_value, update
     from base.interfaces.context_interface import ContextInterface
-    from base.interfaces.data_interface import ContextualDataInterface
     from base.abstract.named import AbstractNamed
     from base.abstract.tree_item import TreeItem
     from utils.decorators import singleton
@@ -21,7 +20,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..base.constants.chars import DEFAULT_ENCODING, DEFAULT_LINE_LEN, LONG_LINE_LEN, CROP_SUFFIX, ELLIPSIS, SPACE
     from ..base.functions.arguments import get_name, get_value, update
     from ..base.interfaces.context_interface import ContextInterface
-    from ..base.interfaces.data_interface import ContextualDataInterface
     from ..base.abstract.named import AbstractNamed
     from ..base.abstract.tree_item import TreeItem
     from ..utils.decorators import singleton
@@ -220,7 +218,6 @@ class ExtendedLogger(BaseLoggerWrapper, ExtendedLoggerInterface):
 
     def set_selection_logger(self, selection_logger: SelectionLoggerInterface, skip_errors: bool = True) -> Native:
         try:
-            assert isinstance(selection_logger, ContextualDataInterface)
             self.add_child(selection_logger)
             return self
         except ValueError as e:
@@ -265,7 +262,7 @@ class ExtendedLogger(BaseLoggerWrapper, ExtendedLoggerInterface):
         if category:
             category_name = get_name(category)
             msg = [category_name] + msg
-        if stacklevel:
+        if Auto.is_defined(stacklevel):
             caller = getframeinfo(stack()[stacklevel + 1][0])
             file_name_without_path = caller.filename.split('\\')[-1].split('/')[-1]
             msg = ['{}:{}:'.format(file_name_without_path, caller.lineno)] + msg

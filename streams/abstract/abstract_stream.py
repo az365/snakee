@@ -210,6 +210,11 @@ class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
         else:
             return '<{}>'.format(title)
 
+    def get_context(self):
+        source = self.get_source()
+        if hasattr(source, 'get_context'):
+            return source.get_context()
+
     @abstractmethod
     def get_demo_example(self, *args, **kwargs):
         pass
