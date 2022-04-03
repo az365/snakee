@@ -4,28 +4,26 @@ from typing import Union, Optional, Iterable, Generator, Any
 try:  # Assume we're a submodule in a package.
     from base.classes.auto import AUTO, Auto
     from base.interfaces.context_interface import ContextInterface
-    from base.interfaces.contextual_interface import ContextualInterface
     from base.constants.chars import EMPTY, PY_INDENT, REPR_DELIMITER
     from base.mixin.data_mixin import DataMixin
     from base.mixin.contextual_mixin import ContextualMixin
     from base.abstract.abstract_base import AbstractBaseObject
     from base.abstract.simple_data import SimpleDataWrapper
-    from base.abstract.sourced import Sourced
+    from base.abstract.sourced import Sourced, SourcedInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.auto import AUTO, Auto
     from ..interfaces.context_interface import ContextInterface
-    from ..interfaces.contextual_interface import ContextualInterface
     from ..constants.chars import EMPTY, PY_INDENT, REPR_DELIMITER
     from ..mixin.data_mixin import DataMixin
     from ..mixin.contextual_mixin import ContextualMixin
     from .abstract_base import AbstractBaseObject
     from .simple_data import SimpleDataWrapper
-    from .sourced import Sourced
+    from .sourced import Sourced, SourcedInterface
 
 Native = Union[Sourced, ContextualMixin, DataMixin]
 Data = Any
 OptionalFields = Union[str, Iterable, None]
-Source = Optional[ContextualInterface]
+Source = Optional[SourcedInterface]
 Context = Optional[ContextInterface]
 
 DATA_MEMBER_NAMES = ('_data', )

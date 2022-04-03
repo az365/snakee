@@ -1,7 +1,6 @@
 try:  # Assume we're a submodule in a package.
     from base.interfaces.base_interface import BaseInterface
     from base.interfaces.sourced_interface import SourcedInterface
-    from base.interfaces.contextual_interface import ContextualInterface
     from base.interfaces.data_interface import SimpleDataInterface
     from base.interfaces.tree_interface import TreeInterface
     from base.interfaces.context_interface import ContextInterface
@@ -20,7 +19,6 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from .interfaces.base_interface import BaseInterface
     from .interfaces.sourced_interface import SourcedInterface
-    from .interfaces.contextual_interface import ContextualInterface
     from .interfaces.data_interface import SimpleDataInterface
     from .interfaces.tree_interface import TreeInterface
     from .interfaces.context_interface import ContextInterface

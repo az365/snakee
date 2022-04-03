@@ -4,22 +4,20 @@ from typing import Optional, Union
 try:  # Assume we're a submodule in a package.
     from base.classes.auto import Auto, AUTO
     from base.interfaces.context_interface import ContextInterface
-    from base.interfaces.contextual_interface import ContextualInterface
     from base.abstract.named import AbstractNamed
     from base.abstract.sourced import Sourced
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.auto import Auto, AUTO
     from ..interfaces.context_interface import ContextInterface
-    from ..interfaces.contextual_interface import ContextualInterface
     from ..abstract.named import AbstractNamed
     from ..abstract.sourced import Sourced
 
-Native = ContextualInterface
+Native = Sourced
 Context = Optional[ContextInterface]
 Source = Union[Context, Sourced]
 
 
-class ContextualMixin(ContextualInterface, ABC):
+class ContextualMixin(ABC):
     def get_source_of_context(self) -> Union[Native, Source]:
         if hasattr(self, 'get_source'):
             source = self.get_source()

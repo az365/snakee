@@ -6,30 +6,28 @@ try:  # Assume we're a submodule in a package.
     from base.constants.chars import EMPTY, REPR_DELIMITER, SMALL_INDENT, CROP_SUFFIX, DEFAULT_LINE_LEN
     from base.functions.arguments import get_str_from_annotation, get_str_from_args_kwargs
     from base.interfaces.base_interface import BaseInterface
+    from base.interfaces.sourced_interface import SourcedInterface
     from base.interfaces.context_interface import ContextInterface
-    from base.interfaces.contextual_interface import ContextualInterface
     from base.interfaces.data_interface import SimpleDataInterface
     from base.mixin.line_output_mixin import LineOutputMixin, PREFIX_FIELD, DEFAULT_ROWS_COUNT
     from base.mixin.data_mixin import DataMixin
     from base.abstract.named import AbstractNamed
-    from base.abstract.contextual import Contextual
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.typing import AUTO, Auto, AutoCount, AutoBool
     from ..constants.chars import EMPTY, REPR_DELIMITER, SMALL_INDENT, CROP_SUFFIX, DEFAULT_LINE_LEN
     from ..functions.arguments import get_str_from_annotation, get_str_from_args_kwargs
     from ..interfaces.base_interface import BaseInterface
+    from ..interfaces.sourced_interface import SourcedInterface
     from ..interfaces.context_interface import ContextInterface
-    from ..interfaces.contextual_interface import ContextualInterface
     from ..interfaces.data_interface import SimpleDataInterface
     from ..mixin.line_output_mixin import LineOutputMixin, PREFIX_FIELD, DEFAULT_ROWS_COUNT
     from ..mixin.data_mixin import DataMixin
     from .named import AbstractNamed
-    from .contextual import Contextual
 
 Native = SimpleDataInterface
 Data = Any
 OptionalFields = Optional[Union[str, Iterable]]
-Source = Optional[ContextualInterface]
+Source = Optional[SourcedInterface]
 Context = Optional[ContextInterface]
 AutoOutput = Union[LineOutputMixin, Auto]
 
