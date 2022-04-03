@@ -5,17 +5,19 @@ try:  # Assume we're a submodule in a package.
     from base.classes.auto import Auto, AUTO
     from base.functions.arguments import get_name, get_value
     from base.abstract.simple_data import SimpleDataWrapper, EMPTY
+    from base.mixin.data_mixin import MultiMapDataMixin
     from interfaces import FieldInterface, StructInterface, FieldType, DialectType, ARRAY_TYPES
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.classes.auto import Auto, AUTO
     from ...base.functions.arguments import get_name, get_value
     from ...base.abstract.simple_data import SimpleDataWrapper, EMPTY
+    from ...base.mixin.data_mixin import MultiMapDataMixin
     from ...interfaces import FieldInterface, StructInterface, FieldType, DialectType, ARRAY_TYPES
 
 Native = Union[SimpleDataWrapper, FieldInterface]
 
 
-class AbstractField(SimpleDataWrapper, FieldInterface, ABC):
+class AbstractField(SimpleDataWrapper, MultiMapDataMixin, FieldInterface, ABC):
     _struct_builder: Optional[Callable] = None
 
     def __init__(self, name: str, field_type: FieldType = FieldType.Any, caption: str = EMPTY, properties=None):

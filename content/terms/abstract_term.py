@@ -10,6 +10,7 @@ try:  # Assume we're a submodule in a package.
     from base.functions.arguments import get_name, get_names, get_value
     from base.constants.chars import EMPTY, UNDER, SMALL_INDENT, REPR_DELIMITER, JUPYTER_LINE_LEN
     from base.abstract.simple_data import SimpleDataWrapper
+    from base.mixin.data_mixin import MultiMapDataMixin
     from base.classes.enum import ClassType
     from content.fields.advanced_field import AdvancedField
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -21,6 +22,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.functions.arguments import get_name, get_names, get_value
     from ...base.constants.chars import EMPTY, UNDER, SMALL_INDENT, REPR_DELIMITER, JUPYTER_LINE_LEN
     from ...base.abstract.simple_data import SimpleDataWrapper
+    from ...base.mixin.data_mixin import MultiMapDataMixin
     from ...base.classes.enum import ClassType
     from ..fields.advanced_field import AdvancedField
 
@@ -34,7 +36,7 @@ FIELD_CAPTION_TEMPLATE = '{role} of {term} ({caption})'
 DESCRIPTION_COLUMN_LENS = 3, 10, 20, 85  # prefix, key, value, caption
 
 
-class AbstractTerm(SimpleDataWrapper, TermInterface, ABC):
+class AbstractTerm(SimpleDataWrapper, MultiMapDataMixin, TermInterface, ABC):
     def __init__(
             self,
             name: str,
@@ -59,43 +61,16 @@ class AbstractTerm(SimpleDataWrapper, TermInterface, ABC):
     def get_type(self) -> TermType:
         return self.get_term_type()
 
-    def get_caption(self) -> str:
-        return self._caption
+    @staticmethod
+    def get_first_level_key_classes() -> tuple:
+        return TermDataAttribute,
 
-    def add_to_data(self, key: Union[TermDataAttribute, str], value: Optional[dict] = None, **kwargs) -> Native:
-        if not (value or kwargs):
-            return self
-        if not isinstance(key, TermDataAttribute):
-            key = TermDataAttribute(key)
-        data = self.get_data()
-        assert isinstance(data, dict), 'AbstractTerm.add_to_data(): Expected data as dict, got {}'.format(data)
-        if key not in data:
-            data[key] = dict()
-        data_dict = data[key]
-        assert isinstance(data_dict, dict), 'AbstractTerm.add_to_data(): Expected data as dict, got {}'.format(data)
-        added_items = list()
-        if value:
-            added_items += list(value.items())
-        added_items += list(kwargs.items())
-        if isinstance(key, ClassType) or hasattr(key, 'get_class'):
-            subkey_class = key.get_class()
-        else:
-            subkey_class = str
-        for k, v in added_items:
-            if isinstance(k, str) and subkey_class != str:
-                k = subkey_class(k)
-            data_dict[k] = v
-        return self
-
-    def get_from_data(self, key: Union[TermDataAttribute], subkey=None) -> dict:
-        data = self.get_data()
-        assert isinstance(data, dict), 'AbstractTerm.get_from_data(): Expected data as dict, got {}'.format(data)
-        if key not in data:
-            data[key] = dict()
-        if subkey is None:
-            return data[key]
-        else:
-            return data[key].get(subkey)
+    @staticmethod
+    def get_first_level_key_default_order() -> tuple:
+        return (
+            TermDataAttribute.Fields, TermDataAttribute.Datasets, TermDataAttribute.Mappers,
+            TermDataAttribute.Relations,
+        )
 
     def add_field(self, field: AdvancedField, role: FieldRoleType) -> Native:
         return self.add_fields({role: field})
@@ -120,30 +95,6 @@ class AbstractTerm(SimpleDataWrapper, TermInterface, ABC):
             assert isinstance(v, TermRelation), 'update_relations(): expected TermRelation, got {}'.format(v)
             reversed_relation = v.get_reversed()
             k.add_relations({self: reversed_relation}, update_relations=False)
-        return self
-
-    def get_item(self, key: TermDataAttribute, subkey, skip_missing: Union[bool, Auto] = AUTO, default=None):
-        skip_missing = Auto.acquire(skip_missing, default is not None)
-        data_dict = self.get_from_data(key)
-        if subkey in data_dict:
-            return data_dict[subkey]
-        elif skip_missing:
-            return default
-        else:
-            formatter = '{cls}.get_item({key}, {subkey}): item {subkey} not exists: {existing}'
-            msg = formatter.format(cls=self.__class__.__name__, key=key, subkey=subkey)
-            raise IndexError(msg)
-
-    def add_item(self, key: TermDataAttribute, subkey, value, allow_override: bool = False) -> Native:
-        data_dict = self.get_from_data(key)
-        if not allow_override:
-            if subkey in data_dict:
-                existing = data_dict[subkey]
-                formatter = '{cls}.add_item({key}, {subkey}, {value}): item {subkey} already exists: {existing}'
-                cls = self.__class__.__name__
-                msg = formatter.format(cls=cls, key=key, subkey=subkey, value=value, existing=existing)
-                raise ValueError(msg)
-        data_dict[subkey] = value
         return self
 
     def field(
@@ -260,9 +211,7 @@ class AbstractTerm(SimpleDataWrapper, TermInterface, ABC):
             max_len: AutoCount = AUTO,
     ) -> Generator:
         count = Auto.acquire(count, None)
-        max_len = Auto.acquire(max_len, JUPYTER_LINE_LEN)
-        data_keys = sorted(self.get_data().keys())
-        for key in data_keys:
+        for key in self.get_sorted_first_level_keys():
             key_name, value_name = key.get_dict_names()
             column_names = 'prefix', key_name, value_name, 'caption'
             columns = list(zip(column_names, DESCRIPTION_COLUMN_LENS))
