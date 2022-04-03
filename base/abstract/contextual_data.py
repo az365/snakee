@@ -4,7 +4,6 @@ from typing import Union, Optional, Iterable, Generator, Any
 try:  # Assume we're a submodule in a package.
     from base.classes.auto import AUTO, Auto
     from base.interfaces.context_interface import ContextInterface
-    from base.constants.chars import EMPTY, PY_INDENT, REPR_DELIMITER
     from base.mixin.data_mixin import DataMixin
     from base.mixin.contextual_mixin import ContextualMixin
     from base.abstract.abstract_base import AbstractBaseObject
@@ -13,7 +12,6 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.auto import AUTO, Auto
     from ..interfaces.context_interface import ContextInterface
-    from ..constants.chars import EMPTY, PY_INDENT, REPR_DELIMITER
     from ..mixin.data_mixin import DataMixin
     from ..mixin.contextual_mixin import ContextualMixin
     from .abstract_base import AbstractBaseObject
@@ -28,10 +26,6 @@ Context = Optional[ContextInterface]
 
 DATA_MEMBER_NAMES = ('_data', )
 DYNAMIC_META_FIELDS = tuple()
-COLS_FOR_META = [
-    ('prefix', 3), ('defined', 3),
-    ('key', 20), ('value', 30), ('actual_type', 14), ('expected_type', 20), ('default', 20),
-]
 
 
 class ContextualDataWrapper(Sourced, ContextualMixin, DataMixin):
@@ -39,7 +33,7 @@ class ContextualDataWrapper(Sourced, ContextualMixin, DataMixin):
             self,
             data: Data,
             name: str,
-            caption: str = EMPTY,
+            caption: str = '',
             source: Source = None,
             context: Context = None,
             check: bool = True,
@@ -61,7 +55,7 @@ class ContextualDataWrapper(Sourced, ContextualMixin, DataMixin):
             self._data = data
             return self.set_meta(**self.get_static_meta())
         else:
-            return ContextualDataWrapper(data, **self.get_static_meta())
+            return self.__class__(data, **self.get_static_meta())
 
     def apply_to_data(self, function, *args, dynamic=False, **kwargs):
         return self.__class__(
@@ -100,21 +94,3 @@ class ContextualDataWrapper(Sourced, ContextualMixin, DataMixin):
         if not Auto.is_defined(count):
             count = default
         return '{} items'.format(count)
-
-    def get_meta_description(
-            self,
-            with_title: bool = True,
-            with_summary: bool = True,
-            prefix: str = PY_INDENT,
-            delimiter: str = REPR_DELIMITER,
-    ) -> Generator:
-        if with_summary:
-            count = len(list(self.get_meta_records()))
-            yield '{name} has {count} attributes in meta-data:'.format(name=repr(self), count=count)
-        yield from self._get_columnar_lines(
-            records=self.get_meta_records(),
-            columns=COLS_FOR_META,
-            with_title=with_title,
-            prefix=prefix,
-            delimiter=delimiter,
-        )
