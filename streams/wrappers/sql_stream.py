@@ -6,12 +6,12 @@ try:  # Assume we're a submodule in a package.
         ContextInterface, LeafConnectorInterface, StreamInterface, StructInterface,
         ConnType, LoggingLevel, ItemType, StreamType, Stream, RegularStream,
         AutoContext, AutoStreamType, AutoName, AutoBool, Auto, AUTO,
-        Item, Name, Links, Columns, OptionalFields, Array, ARRAY_TYPES,
+        Item, Name, FieldName, FieldNo, Links, Columns, OptionalFields, Array, ARRAY_TYPES,
     )
     from base.functions.arguments import get_names, get_name, get_generated_name, get_str_from_args_kwargs
     from base.constants.chars import EMPTY, ALL, CROP_SUFFIX, ITEMS_DELIMITER
     from functions.primary.text import remove_extra_spaces
-    from content.fields.abstract_field import AbstractField
+    from content.fields.any_field import AnyField
     from content.selection.abstract_expression import AbstractDescription
     from content.selection.concrete_expression import AliasDescription
     from content.struct.flat_struct import FlatStruct
@@ -21,12 +21,12 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         ContextInterface, LeafConnectorInterface, StreamInterface, StructInterface,
         ConnType, LoggingLevel, ItemType, StreamType, Stream, RegularStream,
         AutoContext, AutoStreamType, AutoName, AutoBool, Auto, AUTO,
-        Item, Name, Links, Columns, OptionalFields, Array, ARRAY_TYPES,
+        Item, Name, FieldName, FieldNo, Links, Columns, OptionalFields, Array, ARRAY_TYPES,
     )
     from ...base.functions.arguments import get_names, get_name, get_generated_name, get_str_from_args_kwargs
     from ...base.constants.chars import EMPTY, ALL, CROP_SUFFIX, ITEMS_DELIMITER
     from ...functions.primary.text import remove_extra_spaces
-    from ...content.fields.abstract_field import AbstractField
+    from ...content.fields.any_field import AnyField
     from ...content.selection.abstract_expression import AbstractDescription
     from ...content.selection.concrete_expression import AliasDescription
     from ...content.struct.flat_struct import FlatStruct
@@ -110,7 +110,7 @@ class SqlStream(WrapperStream):
     def add_expression_for(
             self,
             section: SqlSection,
-            expression: Union[str, int, Array, LeafConnectorInterface, Native],
+            expression: Union[FieldName, FieldNo, Array, LeafConnectorInterface, Native],
             inplace: bool = True,
     ) -> Native:
         if inplace:
@@ -128,9 +128,9 @@ class SqlStream(WrapperStream):
         if not descriptions:
             yield ALL
         for desc in descriptions:
-            if isinstance(desc, str):
+            if isinstance(desc, FieldName):
                 yield desc
-            elif isinstance(desc, (AbstractField, AbstractDescription)) or hasattr(desc, 'get_sql_expression'):
+            elif isinstance(desc, (AnyField, AbstractDescription)) or hasattr(desc, 'get_sql_expression'):
                 yield desc.get_sql_expression()
             elif isinstance(desc, Sequence):
                 target_field = desc[0]
@@ -167,9 +167,9 @@ class SqlStream(WrapperStream):
 
     def get_where_lines(self) -> Generator:
         for description in self.get_expressions_for(SqlSection.Where):
-            if isinstance(description, str):
+            if isinstance(description, FieldName):
                 yield IS_DEFINED.format(field=description)
-            elif isinstance(description, AbstractField):
+            elif isinstance(description, AnyField):
                 if hasattr(description, 'get_sql_expression'):
                     yield description.get_sql_expression()
                 else:
@@ -179,7 +179,7 @@ class SqlStream(WrapperStream):
                 expression = description[1:]
                 if len(expression) == 1:
                     value = expression[0]
-                    if isinstance(value, str):
+                    if isinstance(value, FieldName):
                         yield "{} = '{}'".format(target_field, value)
                     elif isinstance(value, Callable):
                         func = value
@@ -203,7 +203,7 @@ class SqlStream(WrapperStream):
         from_section = list(self.get_expressions_for(SqlSection.From))
         if len(from_section) == 1:
             from_obj = from_section[0]
-            if isinstance(from_obj, str):
+            if isinstance(from_obj, FieldName):
                 yield from_obj
             elif hasattr(from_obj, 'get_path'):  # isinstance(from_obj, Table):
                 yield from_obj.get_path()
@@ -212,20 +212,20 @@ class SqlStream(WrapperStream):
                 yield from from_obj.get_query_lines(finish=False)
                 yield ') AS {}'.format(get_generated_name('subquery', include_random=True, include_datetime=False))
             else:
-                raise ValueError('from-section data must be Table or str, got {}'.format(from_obj))
+                raise ValueError('from-section data must be Table or Name(str), got {}'.format(from_obj))
         else:
             yield from from_section
 
     def get_groupby_lines(self) -> Generator:
         for f in self.get_expressions_for(SqlSection.GroupBy):
-            if isinstance(f, (AbstractField, AbstractDescription)) or hasattr(f, 'get_sql_expression'):
+            if isinstance(f, (AnyField, AbstractDescription)) or hasattr(f, 'get_sql_expression'):
                 yield f.get_sql_expression()
             else:
                 yield get_name(f)
 
     def get_orderby_lines(self) -> Generator:
         for f in self.get_expressions_for(SqlSection.OrderBy):
-            if isinstance(f, (AbstractField, AbstractDescription)) or hasattr(f, 'get_sql_expression'):
+            if isinstance(f, (AnyField, AbstractDescription)) or hasattr(f, 'get_sql_expression'):
                 yield f.get_sql_expression()
             else:
                 yield get_name(f)
@@ -291,7 +291,7 @@ class SqlStream(WrapperStream):
             return self.new().select(*fields, **expressions)
         else:
             stream = self.copy()
-            assert isinstance(stream, SqlStream)
+            assert isinstance(stream, SqlStream) or hasattr(stream, 'add_expressions_for'), 'got {}'.format(stream)
             list_expressions = list(fields)
             for target, source in expressions.items():
                 if isinstance(source, ARRAY_TYPES):
@@ -307,7 +307,7 @@ class SqlStream(WrapperStream):
             return self.new().filter(*fields, **expressions)
         else:
             stream = self.copy()
-            assert isinstance(stream, SqlStream)
+            assert isinstance(stream, SqlStream) or hasattr(stream, 'add_expressions_for'), 'got {}'.format(stream)
             list_expressions = list(fields) + [(field, value) for field, value in expressions.items()]
             for expressions in list_expressions:
                 stream.add_expression_for(SqlSection.Where, expressions)
@@ -323,17 +323,17 @@ class SqlStream(WrapperStream):
             stream = self.new().group_by(*fields)
         else:
             stream = self.copy()
-            assert isinstance(stream, SqlStream)
+            assert isinstance(stream, SqlStream) or hasattr(stream, 'add_expressions_for'), 'got {}'.format(stream)
             for f in fields:
                 stream.add_expression_for(SqlSection.GroupBy, f)
         if values:
-            assert isinstance(stream, SqlStream)
+            assert isinstance(stream, SqlStream) or hasattr(stream, 'select'), 'got {}'.format(stream)
             stream = stream.select(*fields, *values)
         return stream
 
     def sort(self, *fields) -> Native:
         stream = self.copy()
-        assert isinstance(stream, SqlStream)
+        assert isinstance(stream, SqlStream) or hasattr(stream, 'add_expressions_for'), 'got {}'.format(stream)
         for f in fields:
             stream.add_expression_for(SqlSection.OrderBy, f)
         return stream
@@ -387,7 +387,7 @@ class SqlStream(WrapperStream):
             for i in select_expressions:
                 if isinstance(i, AbstractDescription):
                     columns.append(i.get_target_field_name())
-                elif isinstance(i, AbstractField):
+                elif isinstance(i, AnyField):
                     columns.append(i.get_name())
                 elif len(i) == 1 or isinstance(i, str):
                     if i == ALL or i[0] == ALL:
@@ -453,12 +453,12 @@ class SqlStream(WrapperStream):
 
     def get_demo_example(self, count: int = 10) -> Iterable:
         stream = self.copy().take(count)
-        assert isinstance(stream, SqlStream)
+        assert isinstance(stream, SqlStream) or hasattr(stream, 'collect'), 'got {}'.format(stream)
         return stream.collect().get_items()
 
     def one(self) -> Stream:
         stream = self.copy().take(1)
-        assert isinstance(stream, SqlStream)
+        assert isinstance(stream, SqlStream) or hasattr(stream, 'collect'), 'got {}'.format(stream)
         return stream.collect()
 
     def get_one_item(self) -> Item:
@@ -475,7 +475,7 @@ class SqlStream(WrapperStream):
         if filter_expressions:
             str_filter_expressions = list()
             for i in filter_expressions:
-                if isinstance(i, (AbstractDescription, AbstractField)) or hasattr(i, 'get_brief_repr'):
+                if isinstance(i, (AbstractDescription, AnyField)) or hasattr(i, 'get_brief_repr'):
                     str_filter_expressions.append(i.get_brief_repr())
                 elif isinstance(i, ARRAY_TYPES):
                     str_filter_expressions.append('{}={}'.format(get_name(i[0]), repr(i[1]) if len(i) == 2 else i[1:]))
@@ -490,7 +490,7 @@ class SqlStream(WrapperStream):
         if select_expressions:
             str_select_expressions = list()
             for i in select_expressions:
-                if isinstance(i, (AbstractDescription, AbstractField)) or hasattr(i, 'get_brief_repr'):
+                if isinstance(i, (AbstractDescription, AnyField)) or hasattr(i, 'get_brief_repr'):
                     str_select_expressions.append(i.get_brief_repr())
                 elif isinstance(i, ARRAY_TYPES):
                     str_select_expressions.append('{}={}'.format(get_name(i[0]), repr(i[1]) if len(i) == 2 else i[1:]))
