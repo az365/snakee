@@ -29,11 +29,10 @@ class LineOutputMixin(LineOutputInterface, ABC):
             return print
 
     def output_line(self, line: str, output: AutoOutput = AUTO) -> None:
+        logger_kwargs = dict(stacklevel=None)
         if isinstance(output, LoggingLevel):
-            logger_kwargs = dict(level=output)
+            logger_kwargs['level'] = output
             output = AUTO
-        else:
-            logger_kwargs = dict()
         if Auto.is_auto(output):
             if hasattr(self, 'log'):
                 return self.log(msg=line, **logger_kwargs)
