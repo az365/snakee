@@ -8,11 +8,11 @@ try:  # Assume we're a submodule in a package.
     from connectors.databases.dialect_type import DialectType
     from functions.primary import numeric as nm
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from utils.arguments import any_to_bool, safe_converter, get_value
-    from utils.decorators import deprecated_with_alternative
-    from base.classes.enum import DynamicEnum
-    from connectors.databases.dialect_type import DialectType
-    from functions.primary import numeric as nm
+    from ..utils.arguments import any_to_bool, safe_converter, get_value
+    from ..utils.decorators import deprecated_with_alternative
+    from ..base.classes.enum import DynamicEnum
+    from ..connectors.databases.dialect_type import DialectType
+    from ..functions.primary import numeric as nm
 
 
 class ValueType(DynamicEnum):
