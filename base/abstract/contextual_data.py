@@ -1,5 +1,4 @@
-from abc import ABC
-from typing import Union, Optional, Iterable, Generator, Any
+from typing import Union, Optional, Iterable, Any
 
 try:  # Assume we're a submodule in a package.
     from base.classes.auto import AUTO, Auto
