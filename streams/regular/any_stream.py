@@ -2,27 +2,27 @@ from typing import Union, Iterable, Generator, Callable, Optional
 from inspect import isclass
 
 try:  # Assume we're a submodule in a package.
-    from utils import arguments as arg, selection as sf
-    from utils.decorators import deprecated_with_alternative
     from interfaces import (
         Stream, LocalStream, RegularStreamInterface, Context, Connector, TmpFiles,
         StreamType, ItemType,
         Name, Count, Columns, OptionalFields, Source, Array, ARRAY_TYPES,
         AUTO, Auto, AutoCount,
     )
+    from utils.decorators import deprecated_with_alternative
+    from utils import selection as sf
     from functions.primary import items as it
     from content.selection import selection_classes as sn
     from streams.abstract.local_stream import LocalStream
     from streams.mixin.convert_mixin import ConvertMixin
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg, selection as sf
-    from ...utils.decorators import deprecated_with_alternative
     from ...interfaces import (
         Stream, LocalStream, RegularStreamInterface, Context, Connector, TmpFiles,
         StreamType, ItemType,
         Name, Count, Columns, OptionalFields, Source, Array, ARRAY_TYPES,
         AUTO, Auto, AutoCount,
     )
+    from ...utils.decorators import deprecated_with_alternative
+    from ...utils import selection as sf
     from ...functions.primary import items as it
     from ...content.selection import selection_classes as sn
     from ..abstract.local_stream import LocalStream
@@ -35,14 +35,20 @@ AutoStreamType = Union[Auto, StreamType]
 
 class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
     def __init__(
-            self, data, name: Name = AUTO,
-            count: Count = None, less_than: Count = None,
-            source: Source = None, context: Context = None,
+            self,
+            data,
+            name: Name = AUTO,
+            caption: str = '',
+            count: Count = None,
+            less_than: Count = None,
+            source: Source = None,
+            context: Context = None,
             max_items_in_memory: Count = AUTO, tmp_files: TmpFiles = AUTO,
             check: bool = False,
     ):
         super().__init__(
-            data, name=name, check=check,
+            data, check=check,
+            name=name, caption=caption,
             count=count, less_than=less_than,
             source=source, context=context,
             max_items_in_memory=max_items_in_memory,
@@ -100,7 +106,7 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
         return self._assume_native(stream)
 
     def map(self, function: Callable, to: AutoStreamType = AUTO) -> Native:
-        if arg.is_defined(to):
+        if Auto.is_defined(to):
             self.get_logger().warning('to-argument for map() is deprecated, use map_to() instead')
             stream = super().map_to(function, stream_type=to)
         else:
@@ -108,7 +114,7 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
         return self._assume_native(stream)
 
     def flat_map(self, function: Callable, to: AutoStreamType = AUTO) -> Stream:
-        if arg.is_defined(to):
+        if Auto.is_defined(to):
             stream_class = StreamType.detect(to).get_class()
         else:
             stream_class = self.__class__
@@ -232,7 +238,7 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
             ex: OptionalFields = None,
             **kwargs
     ) -> Stream:
-        stream_type = arg.delayed_acquire(stream_type, self.get_stream_type)
+        stream_type = Auto.delayed_acquire(stream_type, self.get_stream_type)
         if isinstance(stream_type, str):
             stream_class = StreamType(stream_type).get_class()
         elif isclass(stream_type):
@@ -241,7 +247,7 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
             stream_class = stream_type.get_class()
         else:
             raise TypeError('AnyStream.to_stream(data, stream_type): expected StreamType, got {}'.format(stream_type))
-        if not arg.is_defined(data):
+        if not Auto.is_defined(data):
             if hasattr(self, 'get_items_of_type'):
                 item_type = stream_class.get_item_type()
                 data = self.get_items_of_type(item_type)

@@ -60,17 +60,16 @@ class SqlStream(WrapperStream):
             self,
             data: Links = None,
             name: AutoName = AUTO,
+            caption: str = EMPTY,
             source: TableOrQuery = None,
             context: AutoContext = AUTO,
     ):
         if not Auto.is_defined(data):
             data = dict()
         super().__init__(
-            name=name,
-            data=data,
-            source=source,
-            context=context,
-            check=False,
+            data=data, check=False,
+            name=name, caption=caption,
+            source=source, context=context,
         )
 
     @staticmethod

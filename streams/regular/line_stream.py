@@ -26,14 +26,13 @@ class LineStream(AnyStream):
             tmp_files=AUTO,
     ):
         super().__init__(
-            data,
-            name=name, check=check,
+            data, check=check,
+            name=name, caption=caption,
             count=count, less_than=less_than,
             source=source, context=context,
             max_items_in_memory=max_items_in_memory,
             tmp_files=tmp_files,
         )
-        self._caption = caption
 
     @staticmethod
     def get_item_type() -> ItemType:

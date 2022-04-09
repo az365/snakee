@@ -37,6 +37,7 @@ class IterableStream(AbstractStream, IterableMixin):
             self,
             data: Iterable,
             name: AutoName = AUTO,
+            caption: str = '',
             source: Source = None, context: Context = None,
             count: Count = None, less_than: Count = None,
             check: bool = False,
@@ -46,12 +47,12 @@ class IterableStream(AbstractStream, IterableMixin):
         self._less_than = less_than or count
         self.check = check
         self.max_items_in_memory = Auto.acquire(max_items_in_memory, MAX_ITEMS_IN_MEMORY)
+        if check:
+            data = self._get_typing_validated_items(data, context=context)
         super().__init__(
-            data=self._get_typing_validated_items(data, context=context) if check else data,
-            name=name,
-            source=source,
-            context=context,
-            check=False,
+            data=data, check=False,
+            name=name, caption=caption,
+            source=source, context=context,
         )
 
     def get_stream_data(self) -> Iterable:

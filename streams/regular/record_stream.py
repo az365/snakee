@@ -1,9 +1,6 @@
 from typing import Optional, Iterable, Callable, Union
 
 try:  # Assume we're a submodule in a package.
-    from utils import arguments as arg, selection as sf
-    from utils.decorators import deprecated_with_alternative
-    from utils.external import pd, DataFrame, get_use_objects_for_output
     from interfaces import (
         Stream, RegularStream, RowStream, KeyValueStream, StructStream, FieldInterface,
         ItemType, StreamType,
@@ -11,13 +8,14 @@ try:  # Assume we're a submodule in a package.
         Count, Name, Field, Columns, Array, ARRAY_TYPES,
         AUTO, Auto, AutoCount, AutoName, AutoBool,
     )
+    from base.functions.arguments import get_name, get_names, update
+    from utils.external import pd, DataFrame, get_use_objects_for_output
+    from utils.decorators import deprecated_with_alternative
+    from utils import selection as sf
     from streams import stream_classes as sm
     from functions.secondary import all_secondary_functions as fs
     from content.selection import selection_classes as sn
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg, selection as sf
-    from ...utils.decorators import deprecated_with_alternative
-    from ...utils.external import pd, DataFrame, get_use_objects_for_output
     from ...interfaces import (
         Stream, RegularStream, RowStream, KeyValueStream, StructStream, FieldInterface,
         ItemType, StreamType,
@@ -25,6 +23,10 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         Count, Name, Field, Columns, Array, ARRAY_TYPES,
         AUTO, Auto, AutoCount, AutoName, AutoBool,
     )
+    from ...base.functions.arguments import get_name, get_names, update
+    from ...utils.external import pd, DataFrame, get_use_objects_for_output
+    from ...utils.decorators import deprecated_with_alternative
+    from ...utils import selection as sf
     from .. import stream_classes as sm
     from ...functions.secondary import all_secondary_functions as fs
     from ...content.selection import selection_classes as sn
@@ -39,27 +41,31 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
     def __init__(
             self,
             data: Iterable,
-            name: AutoName = AUTO, check: bool = True,
-            count: Count = None, less_than: Count = None,
-            source: Connector = None, context: Context = None,
+            name: AutoName = AUTO,
+            caption: str = '',
+            count: Count = None,
+            less_than: Count = None,
+            source: Connector = None,
+            context: Context = None,
             max_items_in_memory: AutoCount = AUTO,
             tmp_files: TmpFiles = AUTO,
+            check: bool = True,
     ):
         super().__init__(
-            data=data, name=name,
+            data=data, check=check,
+            name=name, caption=caption,
             count=count, less_than=less_than,
             source=source, context=context,
             max_items_in_memory=max_items_in_memory,
             tmp_files=tmp_files,
         )
-        self.check = check
 
     @staticmethod
     def get_item_type() -> ItemType:
         return ItemType.Record
 
     def _get_key_function(self, descriptions: Array, take_hash: bool = False) -> Callable:
-        descriptions = arg.get_names(descriptions)
+        descriptions = get_names(descriptions)
         if len(descriptions) == 0:
             raise ValueError('key must be defined')
         elif len(descriptions) == 1:
@@ -72,7 +78,7 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
             return key_function
 
     def get_one_column_values(self, column: Field, as_list: bool = False) -> Iterable:
-        column = arg.get_name(column)
+        column = get_name(column)
         if as_list:
             return list(self.get_one_column_values(column, as_list=False))
         else:
@@ -95,7 +101,7 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
         if columns == AUTO:
             return self.get_items()
         else:
-            columns = arg.get_names(columns)
+            columns = get_names(columns)
             return self.select(*columns).get_items()
 
     def get_enumerated_records(self, field: str = '#', first: int = 1) -> Iterable:
@@ -139,7 +145,7 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
         return stream
 
     def add_column(self, name: Field, values: Iterable, ignore_errors: bool = False) -> Native:
-        name = arg.get_name(name)
+        name = get_name(name)
         items = map(lambda i, v: fs.merge_two_items()(i, {name: v}), self.get_items(), values)
         stream = self.stream(items)
         if self.is_in_memory():
@@ -153,7 +159,7 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
 
     def sort(self, *keys, reverse: bool = False, step: AutoCount = AUTO, verbose: bool = True) -> Native:
         key_function = self._get_key_function(keys)
-        step = arg.delayed_acquire(step, self.get_limit_items_in_memory)
+        step = Auto.delayed_acquire(step, self.get_limit_items_in_memory)
         if self.can_be_in_memory(step=step):
             stream = self.memory_sort(key_function, reverse, verbose=verbose)
         else:
@@ -167,9 +173,9 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
             as_pairs: bool = False,
             skip_missing: bool = False,
     ) -> Stream:
-        keys = arg.update(keys)
-        keys = arg.get_names(keys, or_callable=True)
-        values = arg.get_names(values)
+        keys = update(keys)
+        keys = get_names(keys, or_callable=True)
+        values = get_names(values)
         key_function = self._get_key_function(keys)
         iter_groups = self._get_groups(key_function, as_pairs=as_pairs)
         if as_pairs:
@@ -195,12 +201,12 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
             step: AutoCount = AUTO,
             verbose: bool = True,
     ) -> Stream:
-        keys = arg.update(keys)
-        keys = arg.get_names(keys)
-        values = arg.get_names(values)
+        keys = update(keys)
+        keys = get_names(keys)
+        values = get_names(values)
         if hasattr(keys[0], 'get_field_names'):  # if isinstance(keys[0], FieldGroup)
             keys = keys[0].get_field_names()
-        step = arg.delayed_acquire(step, self.get_limit_items_in_memory)
+        step = Auto.delayed_acquire(step, self.get_limit_items_in_memory)
         if as_pairs:
             key_for_sort = keys
         else:
@@ -225,8 +231,8 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
         return self._assume_pairs(grouped_stream)
 
     def _get_uniq_records(self, *keys) -> Iterable:
-        keys = arg.update(keys)
-        key_fields = arg.get_names(keys)
+        keys = update(keys)
+        key_fields = get_names(keys)
         key_function = self._get_key_function(key_fields)
         prev_value = AUTO
         for r in self.get_records():
@@ -246,8 +252,8 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
     def get_dataframe(self, columns: Columns = None) -> DataFrame:
         if pd and get_use_objects_for_output():
             dataframe = DataFrame(self.get_items())
-            if arg.is_defined(columns):
-                columns = arg.get_names(columns)
+            if Auto.is_defined(columns):
+                columns = get_names(columns)
                 dataframe = dataframe[columns]
             return dataframe
 
@@ -256,7 +262,7 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
             filters: Columns = None, columns: Columns = None,
             as_dataframe: AutoBool = AUTO,
     ) -> Union[DataFrame, list, None]:
-        as_dataframe = arg.acquire(as_dataframe, get_use_objects_for_output())
+        as_dataframe = Auto.acquire(as_dataframe, get_use_objects_for_output())
         sm_sample = self.filter(*filters) if filters else self
         sm_sample = sm_sample.take(count)
         if as_dataframe:
@@ -265,8 +271,8 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
             return sm_sample.get_list()
 
     def get_rows(self, columns: Union[Columns, Auto] = AUTO, add_title_row=False) -> Iterable:
-        columns = arg.delayed_acquire(columns, self.get_columns)
-        columns = arg.get_names(columns)
+        columns = Auto.delayed_acquire(columns, self.get_columns)
+        columns = get_names(columns)
         if add_title_row:
             yield columns
         for r in self.get_items():
@@ -279,8 +285,8 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
             msg = 'columns can be provided by args or kwargs, not both (got args={}, kwargs.columns={})'
             assert not columns, msg.format(columns, kwarg_columns)
             columns = kwarg_columns
-        if columns == [arg.AUTO]:
-            columns = arg.AUTO
+        if columns == [AUTO]:
+            columns = AUTO
         assert columns, 'columns for convert RecordStream to RowStream must be defined'
         if kwargs:
             raise ValueError('to_row_stream(): {} arguments are not supported'.format(kwargs.keys()))
@@ -403,7 +409,7 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
             of_lists: bool = False,
             skip_errors: bool = False,
     ) -> dict:
-        key = arg.get_names(key)
+        key = get_names(key)
         key_value_stream = self.to_key_value_stream(key, value, skip_errors=skip_errors)
         return key_value_stream.get_dict(of_lists=of_lists)
 
