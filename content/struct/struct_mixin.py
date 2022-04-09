@@ -4,15 +4,15 @@ from typing import Optional, Iterable, Union, Type, Callable
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         StructInterface, StructMixinInterface,
-        ItemType, DialectType, FieldType, Field, FieldName, FieldNo,
-        AUTO, Auto, AutoBool, Row, Array, ARRAY_TYPES,
+        ItemType, DialectType, ValueType, Field, FieldName, FieldNo,
+        AUTO, Auto, AutoBool, AutoLinks, Row, Array, ARRAY_TYPES,
     )
     from base.functions.arguments import get_name
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         StructInterface, StructMixinInterface,
-        ItemType, DialectType, FieldType, Field, FieldName, FieldNo,
-        AUTO, Auto, AutoBool, Row, Array, ARRAY_TYPES,
+        ItemType, DialectType, ValueType, Field, FieldName, FieldNo,
+        AUTO, Auto, AutoBool, AutoLinks, Row, Array, ARRAY_TYPES,
     )
     from ...base.functions.arguments import get_name
 
@@ -71,7 +71,7 @@ class StructMixin(StructMixinInterface, ABC):
     def _get_struct_detected_by_title_row(
             cls,
             title_row: Iterable,
-            types: Union[dict, Auto, None] = None,
+            types: AutoLinks = None,
     ) -> StructInterface:
         struct_class = cls._get_struct_class()
         if not Auto.is_defined(types):
@@ -79,9 +79,9 @@ class StructMixin(StructMixinInterface, ABC):
         detected_struct = struct_class([])
         for name in title_row:
             if name in types:
-                field_type = FieldType.convert(types[name])
+                field_type = ValueType.convert(types[name])
             else:
-                field_type = FieldType.detect_by_name(name)
+                field_type = ValueType.detect_by_name(name)
             detected_struct.append_field(name, default_type=field_type, exclude_duplicates=False, inplace=True)
         return detected_struct
 

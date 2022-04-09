@@ -1,10 +1,10 @@
 from typing import Optional, Iterable, Callable, Union
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from utils import arguments as arg
     from interfaces import (
         FieldInterface, StructInterface,
-        FieldType, DialectType, ItemType,
+        ValueType, DialectType, ItemType,
         RECORD_SUBCLASSES, ROW_SUBCLASSES, Row, Line, Name, Field, FieldNo, Value, Auto, AUTO,
     )
     from base.abstract.simple_data import SimpleDataWrapper
@@ -15,7 +15,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils import arguments as arg
     from ...interfaces import (
         FieldInterface, StructInterface,
-        FieldType, DialectType, ItemType,
+        ValueType, DialectType, ItemType,
         RECORD_SUBCLASSES, ROW_SUBCLASSES, Row, Line, Name, Field, FieldNo, Value, Auto, AUTO,
     )
     from ...base.abstract.simple_data import SimpleDataWrapper
@@ -84,7 +84,7 @@ class StructRow(SimpleDataWrapper, StructMixin, StructRowInterface):
             self,
             field: Field,
             value: Value,
-            field_type: Union[FieldType, Auto] = AUTO,
+            field_type: Union[ValueType, Auto] = AUTO,
             update_struct: bool = False,
             inplace: bool = True,
     ) -> Optional[StructRowInterface]:

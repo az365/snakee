@@ -4,7 +4,7 @@ try:  # Assume we're a submodule in a package.
     from interfaces import (
         StructInterface, StructRowInterface, FieldInterface, RepresentationInterface,
         SelectionLoggerInterface, ExtLogger,
-        FieldType, DialectType,
+        ValueType, DialectType,
         AUTO, Auto, Name, Array, ARRAY_TYPES, ROW_SUBCLASSES, RECORD_SUBCLASSES,
     )
     from base.functions.arguments import update, get_generated_name, get_name, get_names
@@ -21,7 +21,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...interfaces import (
         StructInterface, StructRowInterface, FieldInterface, RepresentationInterface,
         SelectionLoggerInterface, ExtLogger,
-        FieldType, DialectType,
+        ValueType, DialectType,
         AUTO, Auto, Name, Array, ARRAY_TYPES, ROW_SUBCLASSES, RECORD_SUBCLASSES,
     )
     from ...base.functions.arguments import update, get_generated_name, get_name, get_names
@@ -39,7 +39,7 @@ Native = StructInterface
 Group = Union[Native, Iterable]
 StructName = Optional[Name]
 Field = Union[Name, dict, FieldInterface]
-Type = Union[FieldType, type, Auto]
+Type = Union[ValueType, type, Auto]
 Comment = Union[StructName, Auto]
 
 META_MEMBER_MAPPING = dict(_data='fields')
@@ -128,7 +128,7 @@ class FlatStruct(SimpleDataWrapper, IterDataMixin, SelectableMixin, StructInterf
     def append_field(
             self,
             field: Field,
-            default_type: FieldType = FieldType.Any,
+            default_type: ValueType = ValueType.Any,
             before: bool = False,
             exclude_duplicates: bool = True,
             reassign_struct_name: bool = False,
@@ -325,10 +325,10 @@ class FlatStruct(SimpleDataWrapper, IterDataMixin, SelectableMixin, StructInterf
         for field_name, field_type in list((dict_field_types or {}).items()) + list(kwargs.items()):
             field = self.get_field_description(field_name)
             assert hasattr(field, 'set_value_type'), 'Expected SimpleField or FieldDescription, got {}'.format(field)
-            field.set_value_type(FieldType.detect_by_type(field_type), inplace=True)
+            field.set_value_type(ValueType.detect_by_type(field_type), inplace=True)
         return self
 
-    def common_type(self, field_type: Union[FieldType, type]) -> Native:
+    def common_type(self, field_type: Union[ValueType, type]) -> Native:
         for f in self.get_fields_descriptions():
             assert isinstance(f, FieldInterface)
             f.set_type(field_type, inplace=True)
@@ -490,7 +490,7 @@ class FlatStruct(SimpleDataWrapper, IterDataMixin, SelectableMixin, StructInterf
     def get_struct_detected_by_title_row(title_row: Iterable) -> Native:
         struct = FlatStruct([])
         for name in title_row:
-            field_type = FieldType.detect_by_name(name)
+            field_type = ValueType.detect_by_name(name)
             struct.append_field(AnyField(name, value_type=field_type))
         return struct
 
@@ -533,12 +533,12 @@ class FlatStruct(SimpleDataWrapper, IterDataMixin, SelectableMixin, StructInterf
                 group_caption = f.get_group_caption()
             elif isinstance(f, tuple) and len(f) == 2:  # old-style FieldDescription
                 field_name = f[0]
-                field_type_name = FieldType(f[1]).get_name()
+                field_type_name = ValueType(f[1]).get_name()
                 field_is_valid = '?'
                 field_caption, group_name, group_caption = '', '', ''
             else:
                 field_name = str(f)
-                field_type_name = FieldType.get_default()
+                field_type_name = ValueType.get_default()
                 field_caption, field_is_valid, group_name, group_caption = '', '', '', ''
             str_field_is_valid = DICT_VALID_SIGN.get(field_is_valid, field_is_valid[:1])
             yield field_name, field_type_name, field_caption, str_field_is_valid, group_name, group_caption

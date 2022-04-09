@@ -4,16 +4,16 @@ from typing import Optional, Callable, Union
 try:  # Assume we're a submodule in a package.
     from base.interfaces.data_interface import SimpleDataInterface
     from base.classes.auto import AUTO, Auto
-    from content.fields.field_type import FieldType
+    from content.value_type import ValueType
     from content.fields.field_role_type import FieldRoleType
     from content.fields.field_interface import FieldInterface
     from content.terms.term_type import TermType, TermDataAttribute
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.interfaces.data_interface import SimpleDataInterface
     from ...base.classes.auto import AUTO, Auto
-    from ..fields.field_type import FieldType
+    from ..value_type import ValueType
     from ..fields.field_role_type import FieldRoleType
-    from ..fields.field_interface import FieldInterface, FieldType
+    from ..fields.field_interface import FieldInterface
     from .term_type import TermType, TermDataAttribute
 
 Native = SimpleDataInterface
@@ -73,7 +73,7 @@ class TermInterface(SimpleDataInterface, ABC):
     def field(
             self,
             name: str,
-            value_type: Union[FieldType, Auto] = AUTO,
+            value_type: Union[ValueType, Auto] = AUTO,
             role: Union[FieldRoleType, str, Auto] = AUTO,
             caption: Union[str, Auto] = AUTO,
             **kwargs
@@ -84,7 +84,7 @@ class TermInterface(SimpleDataInterface, ABC):
     def get_field_by_role(
             self,
             role: FieldRoleType,
-            value_type: Union[FieldType, Auto] = AUTO,
+            value_type: Union[ValueType, Auto] = AUTO,
             name: Union[str, Auto] = AUTO,
             caption: Union[str, Auto] = AUTO,
             **kwargs
