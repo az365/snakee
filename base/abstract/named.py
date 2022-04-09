@@ -44,7 +44,7 @@ class AbstractNamed(AbstractBaseObject, LineOutputMixin, ABC):
         return self._caption
 
     def set_caption(self, caption: str, inplace: bool = True) -> Native:
-        named = self.update_meta(caption=caption, inplace=inplace)
+        named = self.set_props(caption=caption, inplace=inplace)
         return self._assume_native(named)
 
     def is_defined(self) -> bool:
@@ -58,7 +58,7 @@ class AbstractNamed(AbstractBaseObject, LineOutputMixin, ABC):
     def _get_meta_member_names(cls) -> list:
         return cls._get_key_member_names()
 
-    def get_brief_meta_description(self, prefix: str = PY_INDENT):
+    def get_brief_meta_description(self, prefix: str = PY_INDENT) -> Generator:
         yield BRIEF_META_ROW_FORMATTER.format(prefix=prefix, key='name:', value=self.get_name())
         yield BRIEF_META_ROW_FORMATTER.format(prefix=prefix, key='caption:', value=self.get_caption())
         meta = self.get_meta(ex=['name', 'caption'])

@@ -18,14 +18,26 @@ OptionalFields = Union[str, Iterable, None]
 
 
 class AbstractBaseObject(BaseInterface, ABC):
+    def set_props(self, inplace: bool, **kwargs) -> Native:
+        if inplace:
+            return self.set_inplace(**kwargs)
+        else:
+            return self.set_outplace(**kwargs)
+
     def set_inplace(self, **kwargs) -> Native:
         for k, v in kwargs.items():
+            method_name = 'set_{prop}'.format(prop=k)
             try:
-                method_name = 'set_{}'.format(k)
                 method = self.__getattribute__(method_name)
-                method(v)
-            except AttributeError:
-                self.__dict__[k] = v
+                method(v, inplace=True)
+            except AttributeError as e:
+                protected_name = PROTECTED + k
+                if k in __dict__:
+                    self.__dict__[k] = v
+                elif protected_name in __dict__:
+                    self.__dict__[protected_name] = v
+                else:
+                    raise AttributeError(e)
         return self
 
     def set_outplace(self, **kwargs) -> Native:
@@ -276,7 +288,7 @@ class AbstractBaseObject(BaseInterface, ABC):
     ):
         detailed_repr = self.get_detailed_repr()
         if hasattr(output, 'output_line'):
-            output_method = output.output_line(detailed_repr)
+            output_method = output.output_line
         else:
             output_method = print
         output_method(detailed_repr)
