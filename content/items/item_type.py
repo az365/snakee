@@ -1,29 +1,25 @@
 from typing import Optional, Callable, Union, Any
 
 try:  # Assume we're a submodule in a package.
-    from utils import arguments as arg
-    from utils.decorators import deprecated_with_alternative
     from base.classes.enum import SubclassesType
+    from utils.decorators import deprecated_with_alternative
     from content.fields.field_interface import FieldInterface
     from content.struct.struct_interface import StructInterface
     from content.struct.struct_row_interface import StructRowInterface
     from content.items.simple_items import (
-        STAR, ROW_SUBCLASSES, RECORD_SUBCLASSES,
-        Row, Record, Line, SimpleItem, SimpleSelectableItem,
-        FieldNo, FieldName, FieldID, Value, Array,
+        STAR, ROW_SUBCLASSES, RECORD_SUBCLASSES, AUTO, Auto,
+        SimpleItem, FieldNo, FieldName, FieldID, Value, Array,
         get_field_value_from_record, get_field_value_from_row, get_field_value_from_struct_row,
     )
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
-    from ...utils.decorators import deprecated_with_alternative
     from ...base.classes.enum import SubclassesType
+    from ...utils.decorators import deprecated_with_alternative
     from ..fields.field_interface import FieldInterface
     from ..struct.struct_interface import StructInterface
     from ..struct.struct_row_interface import StructRowInterface
     from .simple_items import (
-        STAR, ROW_SUBCLASSES, RECORD_SUBCLASSES,
-        Row, Record, Line, SimpleItem, SimpleSelectableItem,
-        FieldNo, FieldName, FieldID, Value, Array,
+        STAR, ROW_SUBCLASSES, RECORD_SUBCLASSES, AUTO, Auto,
+        SimpleItem, FieldNo, FieldName, FieldID, Value, Array,
         get_field_value_from_record, get_field_value_from_row, get_field_value_from_struct_row,
     )
 
@@ -38,7 +34,7 @@ class ItemType(SubclassesType):
     Record = 'record'
     StructRow = 'struct_row'
     Any = 'any'
-    Auto = arg.AUTO
+    Auto = AUTO
 
     _auto_value = False  # option: do not update auto-value for ItemType.Auto
 
@@ -54,17 +50,17 @@ class ItemType(SubclassesType):
         if isinstance(field, Callable):
             return field(item)
         if skip_errors:
-            if self == ItemType.Row or isinstance(field, FieldNo) or isinstance(item, ROW_SUBCLASSES):
+            is_row = self == ItemType.Row or isinstance(field, FieldNo) or isinstance(item, ROW_SUBCLASSES)
+            is_record = self == ItemType.Record or isinstance(field, FieldName) or isinstance(item, RECORD_SUBCLASSES)
+            if is_row:
                 if field < len(item):
                     return item[field]
-            elif self == ItemType.Record or isinstance(field, FieldName) or isinstance(item, RECORD_SUBCLASSES):
+            elif is_record:
                 return item.get(field)
         else:
-            assert (
-                self == ItemType.Row and isinstance(field, FieldNo) and isinstance(item, ROW_SUBCLASSES)
-            ) or (
-                self == ItemType.Record and isinstance(field, FieldName) and isinstance(item, RECORD_SUBCLASSES)
-            )
+            is_row = self == ItemType.Row and isinstance(field, FieldNo) and isinstance(item, ROW_SUBCLASSES)
+            is_record = self == ItemType.Record and isinstance(field, FieldName) and isinstance(item, RECORD_SUBCLASSES)
+            assert is_row or is_record
             return item[field]
 
     def get_value_from_item(
@@ -73,7 +69,7 @@ class ItemType(SubclassesType):
             struct: Optional[StructInterface] = None,
             default: Value = None, skip_unsupported_types: bool = False,
     ) -> Value:
-        if arg.is_defined(struct):
+        if Auto.is_defined(struct):
             if self in (ItemType.Row, ItemType.StructRow):
                 if isinstance(field, str):
                     field = struct.get_field_position(field)
