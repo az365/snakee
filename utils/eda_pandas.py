@@ -1,13 +1,25 @@
 from typing import Optional, Iterable, Sequence, Union
 
 try:  # Assume we're a submodule in a package.
+    from base.classes.enum import DynamicEnum
     from utils.external import np, pd, DataFrame, plt, mp
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
+    from ..base.classes.enum import DynamicEnum
     from .external import np, pd, DataFrame, plt, mp
 
 Limit = Union[str, int, float, tuple]
 
 DEFAULT_BOUNDS = (0, 1, 10, 100, 1000, 10000, 100000)
+
+
+class PlotType(DynamicEnum):
+    line = 'line'
+    plot = 'line'
+    log = 'loglog'
+    loglog = 'loglog'
+    stackplot = 'stackplot'
+    stack = 'stackplot'
+    bar = 'bar'
 
 
 def get_aggregate(data, dimensions, measures=('cnt', 'revenue'), aggregator='sum', relation_field='price', add_x=-1):
@@ -232,16 +244,6 @@ def process_lim(limit: Limit, series: Iterable) -> tuple:
     return limit
 
 
-class PlotType(Enum):
-    line = 'line'
-    plot = 'line'
-    log = 'loglog'
-    loglog = 'loglog'
-    stackplot = 'stackplot'
-    stack = 'stackplot'
-    bar = 'bar'
-
-
 def plot_series(x_values: Iterable, y_values: Iterable, plot=plt, plot_type=PlotType.line, **plot_kws):
     plot_xy = list(x_values), list(y_values)
     if plot_type == PlotType.line:
@@ -415,14 +417,14 @@ def plot_multiple(
     if verbose:
         if cols_count > 1:
             x_range_values = x_range_values or data_agg[x_range_field].unique()
-            print('{} {} in columns: {}'.format(
-                cols_count, x_range_field, ', '.join([str(v) for v in x_range_values])
-            ), ' ' * 25)
+            template = '{} {} in columns: {}'
+            msg = template.format(cols_count, x_range_field, ', '.join([str(v) for v in x_range_values]), ' ' * 25)
+            print(msg)
         if rows_count > 1:
             y_range_values = y_range_values or data_agg[y_range_field].unique()
-            print('{} {} in rows: {}'.format(
-                rows_count, y_range_field, ', '.join([str(v) for v in y_range_values])
-            ))
+            template = '{} {} in rows: {}'
+            msg = template.format(rows_count, y_range_field, ', '.join([str(v) for v in y_range_values]))
+            print(msg)
 
 
 def plot_hist(series, log=False, bins=None, max_bins=75, default_bins=10, max_value=1e3):
