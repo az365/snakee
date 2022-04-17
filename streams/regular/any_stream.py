@@ -5,12 +5,12 @@ try:  # Assume we're a submodule in a package.
     from interfaces import (
         Stream, LocalStream, RegularStreamInterface, Context, Connector, TmpFiles,
         StreamType, ItemType,
-        Name, Count, Columns, OptionalFields, Source, Array, ARRAY_TYPES,
+        Name, Count, Struct, Columns, OptionalFields, Source, Array, ARRAY_TYPES,
         AUTO, Auto, AutoCount,
     )
+    from base.functions.arguments import update
     from utils.decorators import deprecated_with_alternative
-    from utils import selection as sf
-    from functions.primary import items as it
+    from functions.secondary.array_functions import fold_lists
     from content.selection import selection_classes as sn
     from streams.abstract.local_stream import LocalStream
     from streams.mixin.convert_mixin import ConvertMixin
@@ -18,12 +18,12 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...interfaces import (
         Stream, LocalStream, RegularStreamInterface, Context, Connector, TmpFiles,
         StreamType, ItemType,
-        Name, Count, Columns, OptionalFields, Source, Array, ARRAY_TYPES,
+        Name, Count, Struct, Columns, OptionalFields, Source, Array, ARRAY_TYPES,
         AUTO, Auto, AutoCount,
     )
+    from ...base.functions.arguments import update
     from ...utils.decorators import deprecated_with_alternative
-    from ...utils import selection as sf
-    from ...functions.primary import items as it
+    from ...functions.secondary.array_functions import fold_lists
     from ...content.selection import selection_classes as sn
     from ..abstract.local_stream import LocalStream
     from ..mixin.convert_mixin import ConvertMixin
@@ -41,13 +41,15 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
             caption: str = '',
             count: Count = None,
             less_than: Count = None,
+            struct: Struct = None,
             source: Source = None,
             context: Context = None,
             max_items_in_memory: Count = AUTO, tmp_files: TmpFiles = AUTO,
             check: bool = False,
     ):
+        self._struct = struct
         super().__init__(
-            data, check=check,
+            data=data, check=check,
             name=name, caption=caption,
             count=count, less_than=less_than,
             source=source, context=context,
@@ -58,6 +60,17 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
     @staticmethod
     def get_item_type() -> ItemType:
         return ItemType.Any
+
+    def get_struct(self) -> Struct:
+        return self._struct
+
+    def set_struct(self, struct: Struct, check: bool = False, inplace: bool = False) -> Native:
+        if inplace:
+            self._struct = struct
+            return self
+        else:
+            stream = self.stream(self.get_data(), struct=struct)
+            return self._assume_native(stream)
 
     def get_columns(self) -> Optional[Iterable]:
         return None
@@ -87,19 +100,12 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
             target_stream_type = StreamType.AnyStream
             target_item_type = ItemType.Auto
             input_item_type = ItemType.Auto
-        if use_extended_method:
-            selection_method = sn.select
-        else:
-            selection_method = sf.get_selection_mapper
-        select_function = selection_method(
-            *columns, **expressions,
+        select_function = sn.get_selection_function(
+            *columns, **expressions, use_extended_method=use_extended_method,
             target_item_type=target_item_type, input_item_type=input_item_type,
             logger=self.get_logger(), selection_logger=self.get_selection_logger(),
         )
-        return self.map_to_type(
-            function=select_function,
-            stream_type=target_stream_type,
-        )
+        return self.map_to_type(function=select_function, stream_type=target_stream_type)
 
     def map_to_type(self, function: Callable, stream_type: AutoStreamType = AUTO) -> Native:
         stream = super().map_to(function=function, stream_type=stream_type)
@@ -145,24 +151,9 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
             ex=self._get_dynamic_meta_fields() if dynamic else None,
         )
 
-    @staticmethod
-    def _get_tuple_function(*functions) -> Callable:
-        return lambda r: tuple([f(r) for f in functions])
-
+    # @deprecated_with_alternative('item_type.get_key_function()')
     def _get_key_function(self, functions: Array, take_hash: bool = False) -> Callable:
-        if functions:
-            msg = 'Expected Sequence[Callable], got {}'
-            assert min([isinstance(f, Callable) for f in functions]), msg.format(functions)
-        if len(functions) == 0:
-            raise ValueError('key function must be defined')
-        elif len(functions) == 1:
-            key_function = functions[0]
-        else:
-            key_function = self._get_tuple_function(functions)
-        if take_hash:
-            return lambda r: hash(key_function(r))
-        else:
-            return key_function
+        return self.get_item_type().get_key_function(*functions, struct=self.get_struct(), take_hash=take_hash)
 
     def _get_groups(self, key_function: Callable, as_pairs: bool) -> Generator:
         accumulated = list()
@@ -182,11 +173,13 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
     def sorted_group_by(
             self,
             *keys,
-            values: Optional[Iterable] = None,
+            values: Columns = None,
+            skip_missing: bool = False,
             as_pairs: bool = False,
+            output_struct: Struct = None,
             take_hash: bool = False,
     ) -> Stream:
-        assert not values, 'For AnyStream.sorted_group_by() values option not supported'
+        keys = update(keys)
         key_function = self._get_key_function(keys, take_hash=take_hash)
         iter_groups = self._get_groups(key_function, as_pairs=as_pairs)
         if as_pairs:
@@ -195,6 +188,21 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
         else:
             stream_builder = StreamType.RowStream.get_class()
             stream_groups = stream_builder(iter_groups, check=False)
+        if values:
+            stream_type = self.get_stream_type()
+            item_type = self.get_item_type()
+            if item_type == ItemType.Any:
+                raise TypeError('For AnyStream.sorted_group_by() values option not supported')
+            elif item_type == ItemType.Row and hasattr(self, '_get_field_getter'):
+                keys = [self._get_field_getter(f) for f in keys]
+                values = [self._get_field_getter(f, item_type=item_type) for f in values]
+            fold_mapper = fold_lists(keys=keys, values=values, skip_missing=skip_missing, item_type=item_type)
+            stream_groups = stream_groups.map_to_type(fold_mapper, stream_type=stream_type)
+            if output_struct:
+                if hasattr(stream_groups, 'structure'):
+                    stream_groups = stream_groups.structure(output_struct)
+                else:
+                    stream_groups.set_struct(output_struct, check=False, inplace=True)
         if self.is_in_memory():
             return stream_groups.to_memory()
         else:

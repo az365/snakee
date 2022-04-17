@@ -7,12 +7,9 @@ try:  # Assume we're a submodule in a package.
     )
     from base.functions.arguments import update
     from content.value_type import ValueType
-    from content.fields.field_type import FieldType  # deprecated
     from content.fields.field_role_type import FieldRoleType
     from content.struct.flat_struct import FlatStruct
     from content.fields.any_field import AnyField, FieldEdgeType
-    from content.fields.abstract_field import AbstractField  # deprecated
-    from content.fields.advanced_field import AdvancedField  # deprecated
     from content.fields.id_field import IdField
     from content.fields.name_field import NameField
     from content.fields.repr_field import ReprField
@@ -35,12 +32,9 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     )
     from ...base.functions.arguments import update
     from ..value_type import ValueType
-    from .field_type import FieldType  # deprecated
     from .field_role_type import FieldRoleType
     from ..struct.flat_struct import FlatStruct
     from .any_field import AnyField, FieldEdgeType
-    from .abstract_field import AbstractField  # deprecated
-    from .advanced_field import AdvancedField  # deprecated
     from .id_field import IdField
     from .name_field import NameField
     from .repr_field import ReprField

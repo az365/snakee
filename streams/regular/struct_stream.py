@@ -8,16 +8,17 @@ try:  # Assume we're a submodule in a package.
         AUTO, Auto, AutoBool, Source, Context, TmpFiles, Count, Columns, AutoColumns, Array, ARRAY_TYPES,
     )
     from base.functions.arguments import get_name, get_names
-    from utils import selection as sf
     from utils.decorators import deprecated_with_alternative
     from utils.external import pd, DataFrame, get_use_objects_for_output
     from loggers.fallback_logger import FallbackLogger
-    from streams import stream_classes as sm
     from functions.secondary import all_secondary_functions as fs
+    from content.items.item_getters import value_from_struct_row
     from content.selection import selection_classes as sn
     from content.struct.flat_struct import FlatStruct
     from content.struct.struct_mixin import StructMixin
     from content.struct.struct_row import StructRow
+    from streams.mixin.convert_mixin import ConvertMixin
+    from streams.regular.row_stream import RowStream
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         LoggerInterface, StreamInterface, FieldInterface, StructInterface, StructRowInterface,
@@ -26,16 +27,17 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         AUTO, Auto, AutoBool, Source, Context, TmpFiles, Count, Columns, AutoColumns, Array, ARRAY_TYPES,
     )
     from ...base.functions.arguments import get_name, get_names
-    from ...utils import selection as sf
     from ...utils.decorators import deprecated_with_alternative
     from ...utils.external import pd, DataFrame, get_use_objects_for_output
     from ...loggers.fallback_logger import FallbackLogger
-    from .. import stream_classes as sm
     from ...functions.secondary import all_secondary_functions as fs
+    from ...content.items.item_getters import value_from_struct_row
     from ...content.selection import selection_classes as sn
     from ...content.struct.flat_struct import FlatStruct
     from ...content.struct.struct_mixin import StructMixin
     from ...content.struct.struct_row import StructRow
+    from ..mixin.convert_mixin import ConvertMixin
+    from .row_stream import RowStream
 
 Native = Union[StreamInterface, StructRowInterface]
 Struct = StructInterface
@@ -49,31 +51,6 @@ DEFAULT_EXAMPLE_COUNT = 10
 
 def is_row(row: Row) -> bool:
     return isinstance(row, StructRow) or isinstance(row, ROW_SUBCLASSES)
-
-
-# deprecated
-def get_legacy_validation_errors(row: Iterable, struct: Union[StructInterface, Iterable], default_type=str):
-    if isinstance(struct, StructInterface) or hasattr(struct, 'get_fields_descriptions'):
-        iter_struct = struct.get_fields_descriptions()
-    else:
-        assert isinstance(struct, Iterable)
-        iter_struct = struct
-    validation_errors = list()
-    names = list()
-    types = list()
-    for description in iter_struct:
-        field_name = description[NAME_POS]
-        field_type = description[TYPE_POS]
-        names.append(field_name)
-        if field_type not in DICT_CAST_TYPES.values():
-            field_type = DICT_CAST_TYPES.get(field_type, default_type)
-        types.append(field_type)
-    for value, field_name, field_type in zip(row, names, types):
-        if not isinstance(value, field_type):
-            template = 'Field {}: type {} expected, got {} (value={})'
-            msg = template.format(field_name, field_type, type(value), value)
-            validation_errors.append(msg)
-    return validation_errors
 
 
 def get_validation_errors(row: Row, struct: OptStruct) -> list:
@@ -136,23 +113,27 @@ def apply_struct_to_row(row, struct: OptStruct, skip_bad_values=False, logger=No
         raise TypeError
 
 
-class StructStream(sm.RowStream, StructMixin, sm.ConvertMixin):
+class StructStream(RowStream, StructMixin, ConvertMixin):
     def __init__(
             self,
             data: Iterable,
             struct: OptStruct = None,
-            name: Union[Name, Auto] = AUTO, check: bool = True,
-            count: Count = None, less_than: Count = None,
-            source: Source = None, context: Context = None,
+            name: Union[Name, Auto] = AUTO,
+            caption: str = '',
+            count: Count = None,
+            less_than: Count = None,
+            source: Source = None,
+            context: Context = None,
             max_items_in_memory: Count = AUTO,
             tmp_files: TmpFiles = AUTO,
+            check: bool = True,
     ):
         self._struct = struct or list()
         if check:
             data = self._get_validated_items(data, struct=struct)
         super().__init__(
-            data=data,
-            name=name, check=False,
+            data=data, check=False,
+            name=name, caption=caption,
             count=count, less_than=less_than,
             source=source, context=context,
             max_items_in_memory=max_items_in_memory,
@@ -170,7 +151,7 @@ class StructStream(sm.RowStream, StructMixin, sm.ConvertMixin):
     def get_field_getter(self, field: Field) -> Callable:
         if isinstance(field, Callable):
             func = field
-        elif isinstance(field, sn.AbstractDescription) or hasattr(field, 'get_functions'):
+        elif isinstance(field, sn.AbstractDescription) or hasattr(field, 'get_function'):
             func = field.get_function()
         else:  # isinstance(field, Field)
             if isinstance(field, FieldNo):  # int
@@ -184,29 +165,9 @@ class StructStream(sm.RowStream, StructMixin, sm.ConvertMixin):
             func = fs.partial(lambda r, n: r[n], field_no)
         return func
 
+    # @deprecated_with_alternative('item_type.get_key_function()')
     def _get_key_function(self, descriptions: Array, take_hash: bool = False) -> Callable:
-        descriptions = get_names(descriptions, or_callable=True)
-        if len(descriptions) == 0:
-            raise ValueError('key must be defined')
-        elif len(descriptions) == 1:
-            desc = descriptions[0]
-            key_function = self.get_field_getter(desc)
-        else:
-            if isinstance(descriptions[0], Callable):
-                func = descriptions[0]
-                fields = descriptions[1:]
-            elif isinstance(descriptions[-1], Callable):
-                func = descriptions[-1]
-                fields = descriptions[:-1]
-            else:
-                func = tuple
-                fields = descriptions
-            arg_getters = [self.get_field_getter(f) for f in fields]
-            key_function = lambda r: func([f(r) for f in arg_getters])
-        if take_hash:
-            return lambda r: hash(key_function(r))
-        else:
-            return key_function
+        return self.get_item_type().get_key_function(*descriptions, struct=self.get_struct(), take_hash=take_hash)
 
     @classmethod
     def is_valid_item_type(cls, item: Item) -> bool:
@@ -308,8 +269,8 @@ class StructStream(sm.RowStream, StructMixin, sm.ConvertMixin):
             struct=struct,
         )
 
-    def skip(self, count: int = 1):
-        return super().skip(count).update_meta(struct=self.get_struct())
+    def skip(self, count: int = 1, inplace: bool = False) -> Native:
+        return super().skip(count, inplace=inplace).update_meta(struct=self.get_struct())
 
     def select(self, *args, **kwargs):
         selection_description = sn.SelectionDescription.with_expressions(
@@ -320,17 +281,14 @@ class StructStream(sm.RowStream, StructMixin, sm.ConvertMixin):
         )
         selection_function = selection_description.get_mapper()
         output_struct = selection_description.get_output_struct()
-        return self.struct_map(
-            function=selection_function,
-            struct=output_struct,
-        )
+        return self.struct_map(function=selection_function, struct=output_struct)
 
     def filter(self, *fields, **expressions) -> Native:
         primitives = (str, int, float, bool)
         expressions_list = [(k, fs.equal(v) if isinstance(v, primitives) else v) for k, v in expressions.items()]
         expressions_list = list(fields) + expressions_list
         expressions_list = [sn.translate_names_to_columns(e, struct=self.get_struct()) for e in expressions_list]
-        selection_method = sf.value_from_struct_row
+        selection_method = value_from_struct_row
 
         def filter_function(r):
             for f in expressions_list:

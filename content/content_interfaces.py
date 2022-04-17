@@ -1,4 +1,4 @@
-from typing import Callable, Union, Any
+from typing import Optional, Callable, Union, Any
 
 try:  # Assume we're a submodule in a package.
     from base.classes.auto import Auto
@@ -26,7 +26,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .terms.term_interface import TermInterface
 
 Field = Union[FieldID, FieldInterface]
-Struct = StructInterface
+Struct = Optional[StructInterface]
+AutoStruct = Union[Struct, Auto]
 Group = Union[Struct, Array]
 FieldOrStruct = Union[FieldInterface, StructInterface]
 FieldOrGroup = Union[Field, Group]

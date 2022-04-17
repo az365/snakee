@@ -11,11 +11,11 @@ try:  # Assume we're a submodule in a package.
     )
     from base.functions.arguments import get_name, get_names, update
     from base.mixin.iterable_mixin import IterableMixin
-    from functions.secondary import item_functions as fs
+    from functions.secondary.item_functions import composite_key, merge_two_items, items_to_dict
     from content.fields import field_classes as fc
+    from content.items.item_getters import filter_items
     from utils import algo
     from utils.external import pd, DataFrame, get_use_objects_for_output
-    from utils import selection as sf
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         Context, LoggerInterface, SelectionLogger, ExtLogger, LoggingLevel,
@@ -26,11 +26,11 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     )
     from ...base.functions.arguments import get_name, get_names, update
     from ...base.mixin.iterable_mixin import IterableMixin
-    from ...functions.secondary import item_functions as fs
+    from ...functions.secondary.item_functions import composite_key, merge_two_items, items_to_dict
     from ...content.fields import field_classes as fc
+    from ...content.items.item_getters import filter_items
     from ...utils import algo
     from ...utils.external import pd, DataFrame, get_use_objects_for_output
-    from ...utils import selection as sf
 
 Native = Union[RegularStreamInterface, ColumnarInterface]
 Struct = Optional[StructInterface]
@@ -114,11 +114,7 @@ class ColumnarMixin(IterableMixin, ABC):
     ) -> Iterable:
         logger = Auto.delayed_acquire(logger, self.get_logger)
         item_type = Auto.delayed_acquire(item_type, self.get_item_type)
-        filter_function = sf.filter_items(
-            *args, item_type=item_type,
-            skip_errors=skip_errors, logger=logger,
-            **kwargs,
-        )
+        filter_function = filter_items(*args, **kwargs, item_type=item_type, skip_errors=skip_errors, logger=logger)
         return filter(filter_function, self.get_items())
 
     def filter(self, *args, item_type: ItemType = ItemType.Auto, skip_errors: bool = False, **kwargs) -> Native:
@@ -161,9 +157,9 @@ class ColumnarMixin(IterableMixin, ABC):
         joined_items = algo.map_side_join(
             iter_left=self.get_items(),
             iter_right=right.get_items(),
-            key_function=fs.composite_key(keys),
-            merge_function=fs.merge_two_items(),
-            dict_function=fs.items_to_dict(),
+            key_function=composite_key(keys),
+            merge_function=merge_two_items(),
+            dict_function=items_to_dict(),
             how=how,
             uniq_right=right_is_uniq,
         )
@@ -289,10 +285,11 @@ class ColumnarMixin(IterableMixin, ABC):
     def _get_field_getter(self, field: UniKey, item_type: Union[ItemType, Auto] = AUTO, default=None):
         if isinstance(self, RegularStreamInterface) or hasattr(self, 'get_item_type'):
             item_type = Auto.delayed_acquire(item_type, self.get_item_type)
-        return lambda i: fs.it.get_field_value_from_item(
-            field=field, item=i, item_type=item_type,
-            default=default, logger=self.get_selection_logger(),
-        )
+        if hasattr(self, 'get_struct'):
+            struct = self.get_struct()
+        else:
+            struct = None
+        return item_type.get_field_getter(field=field, struct=struct, default=default)
 
     def get_dict(self, key: UniKey, value: UniKey) -> dict:
         key_getter = self._get_field_getter(key)

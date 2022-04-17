@@ -1,31 +1,31 @@
-from typing import Optional, Callable, Iterable, Generator, Union
+from typing import Iterable, Generator, Union
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
-        Stream, RegularStream, StructStream, StructInterface,
+        Stream, RegularStream, StructStream, StructInterface, Struct,
         Context, Connector, TmpFiles, ItemType, StreamType,
         Name, Count, Columns, Array, ARRAY_TYPES,
         AUTO, Auto, AutoCount, AutoColumns,
     )
-    from utils import arguments as arg, selection as sf
+    from base.functions.arguments import get_names, update
     from utils.decorators import deprecated_with_alternative
     from functions.primary import numeric as nm
-    from functions.secondary import all_secondary_functions as fs
-    from content.selection import selection_classes as sn
+    from functions.secondary.array_functions import fold_lists
+    from content.selection import selection_classes as sn, selection_functions as sf
     from streams.mixin.columnar_mixin import ColumnarMixin
     from streams.regular.any_stream import AnyStream
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
-        Stream, RegularStream, StructStream, StructInterface,
+        Stream, RegularStream, StructStream, StructInterface, Struct,
         Context, Connector, TmpFiles, ItemType, StreamType,
         Name, Count, Columns, Array, ARRAY_TYPES,
         AUTO, Auto, AutoCount, AutoColumns,
     )
-    from ...utils import arguments as arg, selection as sf
+    from ...base.functions.arguments import get_names, update
     from ...utils.decorators import deprecated_with_alternative
     from ...functions.primary import numeric as nm
-    from ...functions.secondary import all_secondary_functions as fs
-    from ...content.selection import selection_classes as sn
+    from ...functions.secondary.array_functions import fold_lists
+    from ...content.selection import selection_classes as sn, selection_functions as sf
     from ..mixin.columnar_mixin import ColumnarMixin
     from .any_stream import AnyStream
 
@@ -42,6 +42,7 @@ class RowStream(AnyStream, ColumnarMixin):
             caption: str = '',
             count: Count = None,
             less_than: Count = None,
+            struct: Struct = None,
             source: Connector = None,
             context: Context = None,
             max_items_in_memory: AutoCount = AUTO,
@@ -49,7 +50,7 @@ class RowStream(AnyStream, ColumnarMixin):
             check: bool = True,
     ):
         super().__init__(
-            data, check=check,
+            data=data, struct=struct, check=check,
             name=name, caption=caption,
             count=count, less_than=less_than,
             source=source, context=context,
@@ -60,19 +61,6 @@ class RowStream(AnyStream, ColumnarMixin):
     @staticmethod
     def get_item_type() -> ItemType:
         return ItemType.Row
-
-    def _get_key_function(self, descriptions: Array, take_hash: bool = False) -> Callable:
-        descriptions = arg.get_names(descriptions)
-        if len(descriptions) == 0:
-            raise ValueError('key must be defined')
-        elif len(descriptions) == 1:
-            key_function = fs.partial(sf.value_from_row, descriptions[0])
-        else:
-            key_function = fs.partial(sf.row_from_row, descriptions)
-        if take_hash:
-            return lambda r: hash(key_function(r))
-        else:
-            return key_function
 
     def get_column_count(self, take: Count = DEFAULT_EXAMPLE_COUNT, get_max: bool = True, get_min: bool = False) -> int:
         if self.is_in_memory() and (get_max or get_min):
@@ -98,17 +86,10 @@ class RowStream(AnyStream, ColumnarMixin):
         for row in self.select(column).get_items():
             yield row[0]
 
-    @staticmethod
-    def _get_selection_method(extended: bool = True) -> Callable:
-        if extended:
-            return sn.select
-        else:
-            return sf.get_selection_mapper
-
     def select(self, *columns, use_extended_method: bool = True) -> Native:
-        selection_method = self._get_selection_method(extended=use_extended_method)
-        select_function = selection_method(
+        select_function = sn.get_selection_function(
             *columns,
+            use_extended_method=use_extended_method,
             target_item_type=ItemType.Row, input_item_type=ItemType.Row,
             logger=self.get_logger(), selection_logger=self.get_selection_logger(),
         )
@@ -117,29 +98,34 @@ class RowStream(AnyStream, ColumnarMixin):
     def sorted_group_by(
             self,
             *keys,
-            values: Optional[Iterable] = None,
-            as_pairs: bool = False,
-            output_struct: Optional[StructInterface] = None,
+            values: Columns = None,
             skip_missing: bool = True,  # tmp
+            as_pairs: bool = False,
+            output_struct: Struct = None,
+            take_hash: bool = False,
     ) -> Stream:
-        keys = arg.update(keys)
-        key_function = self._get_key_function(keys, take_hash=False)
-        output_keys = [self._get_field_getter(f) for f in keys]
-        groups = self._get_groups(key_function, as_pairs=as_pairs)
+        keys = update(keys)
+        key_function = self._get_key_function(keys, take_hash=take_hash)
+        iter_groups = self._get_groups(key_function, as_pairs=as_pairs)
         if as_pairs:
             stream_builder = StreamType.KeyValueStream.get_class()
-            stream_groups = stream_builder(groups, value_stream_type=self.get_stream_type())
+            stream_groups = stream_builder(iter_groups, value_stream_type=self.get_stream_type())
         else:
             stream_builder = StreamType.RowStream.get_class()
-            stream_groups = stream_builder(groups, check=False)
+            stream_groups = stream_builder(iter_groups, check=False)
         if values:
+            stream_type = self.get_stream_type()
             item_type = self.get_item_type()
-            values = [self._get_field_getter(f, item_type=item_type) for f in values]
-            fold_func = fs.fold_lists(keys=output_keys, values=values, skip_missing=skip_missing, item_type=item_type)
-            stream_type = StreamType.RowStream if output_struct else self.get_stream_type()
-            stream_groups = stream_groups.map_to_type(fold_func, stream_type=stream_type)
+            if item_type == ItemType.Row or stream_type == StreamType.RowStream:
+                keys = [self._get_field_getter(f) for f in keys]
+                values = [self._get_field_getter(f, item_type=item_type) for f in values]
+            fold_mapper = fold_lists(keys=keys, values=values, skip_missing=skip_missing, item_type=item_type)
+            stream_groups = stream_groups.map_to_type(fold_mapper, stream_type=stream_type)
             if output_struct:
-                stream_groups = stream_groups.structure(output_struct)
+                if hasattr(stream_groups, 'structure'):
+                    stream_groups = stream_groups.structure(output_struct)
+                else:
+                    stream_groups.set_struct(output_struct, check=False, inplace=True)
         if self.is_in_memory():
             return stream_groups.to_memory()
         else:
@@ -153,7 +139,7 @@ class RowStream(AnyStream, ColumnarMixin):
             return nm.DataFrame(self.get_data())
 
     def to_line_stream(self, delimiter: str = '\t', columns: AutoColumns = AUTO, add_title_row=False) -> Stream:
-        input_stream = self.select(columns) if arg.is_defined(columns) else self
+        input_stream = self.select(columns) if Auto.is_defined(columns) else self
         lines = map(lambda r: '\t'.join([str(c) for c in r]), input_stream.get_items())
         line_stream_class = StreamType.LineStream.get_class()
         return line_stream_class(lines, count=self.get_count())
@@ -161,7 +147,7 @@ class RowStream(AnyStream, ColumnarMixin):
     def get_records(self, columns: AutoColumns = AUTO) -> Generator:
         if columns == AUTO:
             columns = self.get_columns()
-        column_names = arg.get_names(columns)
+        column_names = get_names(columns)
         for row in self.get_rows():
             yield {k: v for k, v in zip(column_names, row)}
 
