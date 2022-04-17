@@ -42,6 +42,14 @@ class TrivialDescription(SingleFieldDescription):
             skip_errors=self.must_skip_errors(), logger=self.get_logger(), default=self.get_default_value(),
         )
 
+    def get_mapper(self, struct: Optional[StructInterface] = None, default: Value = None) -> Callable:  ###
+        field = self.get_target_field_name()
+        item_type = self.get_input_item_type()
+        if Auto.is_defined(item_type):
+            return item_type.get_field_getter(field, struct=struct, default=default)
+        else:
+            return lambda i: item_type.get_value_from_item(item=i, field=field, struct=struct, default=default)
+
     def get_output_field_types(self, struct: StructInterface) -> list:
         field_name = self.get_target_field_name()
         return [struct.get_field_description(field_name).get_value_type()]
@@ -50,7 +58,7 @@ class TrivialDescription(SingleFieldDescription):
         return [self.get_target_field()]
 
     def get_brief_repr(self) -> str:
-        return "'{}'".format(self.get_target_field_name())
+        return repr(self.get_target_field_name())
 
     def get_detailed_repr(self) -> str:
         return '{}({})'.format(self.__class__.__name__, repr(self.get_target_field()))
@@ -76,6 +84,14 @@ class AliasDescription(SingleFieldDescription):
 
     def get_function(self) -> Callable:
         return lambda i: i
+
+    def get_mapper(self, struct: Optional[StructInterface] = None, default: Value = None) -> Callable:  ###
+        field = self.get_source_name()
+        item_type = self.get_input_item_type()
+        if Auto.is_defined(item_type):
+            return item_type.get_field_getter(field, struct=struct, default=default)
+        else:
+            return lambda i: item_type.get_value_from_item(item=i, field=field, struct=struct, default=default)
 
     def get_source_field(self) -> Field:
         return self._source_field

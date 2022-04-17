@@ -98,6 +98,10 @@ class ItemType(SubclassesType):
         else:
             raise TypeError('type {} not supported'.format(self.get_name()))
 
+    def get_single_mapper(self, function: Callable, *fields, struct: Optional[StructInterface] = None) -> Callable:
+        arg_getters = [self.get_field_getter(f, struct=struct) for f in fields]
+        return lambda i: function(*[g(i) for g in arg_getters])
+
     def set_to_item_inplace(self, field: Field, value: Any, item: Item) -> None:
         if self == ItemType.Record:
             item[field] = value

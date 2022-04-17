@@ -105,6 +105,14 @@ class AbstractDescription(AbstractBaseObject, LineOutputMixin, ABC):
         else:
             return (self.get_function(), *self.get_input_field_names())
 
+    def get_mapper(self, struct: Optional[StructInterface] = None) -> Callable:  ###
+        field_names = self.get_input_field_names()
+        item_type = self.get_input_item_type()
+        if Auto.is_defined(item_type):
+            return item_type.get_single_mapper(self.get_function(), *field_names, struct=struct)
+        else:
+            raise ValueError('item_type must be defined')
+
     def get_sql_expression(self) -> str:
         function = self.get_function()
         target_field = self.get_target_field_name()
