@@ -32,7 +32,7 @@ class AbstractBaseObject(BaseInterface, ABC):
                 method(v, inplace=True)
             except AttributeError as e:
                 protected_name = PROTECTED + k
-                if k in __dict__:
+                if k in self.__dict__:
                     self.__dict__[k] = v
                 elif protected_name in __dict__:
                     self.__dict__[protected_name] = v
