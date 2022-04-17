@@ -12,9 +12,11 @@ try:  # Assume we're a submodule in a package.
     from utils.external import pd, DataFrame, get_use_objects_for_output
     from utils.decorators import deprecated_with_alternative
     from utils import selection as sf
-    from streams import stream_classes as sm
     from functions.secondary import all_secondary_functions as fs
     from content.selection import selection_classes as sn
+    from streams.mixin.convert_mixin import ConvertMixin
+    from streams.mixin.columnar_mixin import ColumnarMixin
+    from streams.regular.any_stream import AnyStream
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         Stream, RegularStream, RowStream, KeyValueStream, StructStream, FieldInterface,
@@ -27,9 +29,11 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils.external import pd, DataFrame, get_use_objects_for_output
     from ...utils.decorators import deprecated_with_alternative
     from ...utils import selection as sf
-    from .. import stream_classes as sm
     from ...functions.secondary import all_secondary_functions as fs
     from ...content.selection import selection_classes as sn
+    from ..mixin.convert_mixin import ConvertMixin
+    from ..mixin.columnar_mixin import ColumnarMixin
+    from .any_stream import AnyStream
 
 Native = RegularStream
 
@@ -37,7 +41,7 @@ DEFAULT_EXAMPLE_COUNT = 10
 DEFAULT_ANALYZE_COUNT = 100
 
 
-class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
+class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
     def __init__(
             self,
             data: Iterable,
@@ -179,9 +183,11 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
         key_function = self._get_key_function(keys)
         iter_groups = self._get_groups(key_function, as_pairs=as_pairs)
         if as_pairs:
-            stream_groups = sm.KeyValueStream(iter_groups, value_stream_type=StreamType.RowStream)
+            stream_class = StreamType.KeyValueStream.get_class()
+            stream_groups = stream_class(iter_groups, value_stream_type=StreamType.RowStream)
         else:
-            stream_groups = sm.RowStream(iter_groups, check=False)
+            stream_class = StreamType.RowStream.get_class()
+            stream_groups = stream_class(iter_groups, check=False)
         if values:
             item_type = self.get_item_type()  # ItemType.Record
             fold_mapper = fs.fold_lists(keys=keys, values=values, skip_missing=skip_missing, item_type=item_type)
@@ -370,7 +376,8 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
             skip_first_line=True, check=AUTO,
             expected_count=AUTO, verbose=True,
     ) -> Native:
-        return sm.LineStream.from_text_file(
+        stream_class = StreamType.LineStream.get_class()
+        return stream_class.from_text_file(
             filename, skip_first_line=skip_first_line,
             check=check, expected_count=expected_count, verbose=verbose,
         ).to_row_stream(
@@ -385,7 +392,8 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
             default_value=None, max_count=None,
             check=True, verbose=False,
     ) -> Native:
-        parsed_stream = sm.LineStream.from_text_file(
+        stream_class = StreamType.LineStream.get_class()
+        parsed_stream = stream_class.from_text_file(
             filename,
             max_count=max_count, check=check, verbose=verbose,
         ).parse_json(

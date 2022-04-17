@@ -12,12 +12,13 @@ try:  # Assume we're a submodule in a package.
     from utils.decorators import deprecated_with_alternative
     from utils.external import pd, DataFrame, get_use_objects_for_output
     from loggers.fallback_logger import FallbackLogger
-    from streams import stream_classes as sm
     from functions.secondary import all_secondary_functions as fs
     from content.selection import selection_classes as sn
     from content.struct.flat_struct import FlatStruct
     from content.struct.struct_mixin import StructMixin
     from content.struct.struct_row import StructRow
+    from streams.mixin.convert_mixin import ConvertMixin
+    from streams.regular.row_stream import RowStream
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         LoggerInterface, StreamInterface, FieldInterface, StructInterface, StructRowInterface,
@@ -30,12 +31,13 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils.decorators import deprecated_with_alternative
     from ...utils.external import pd, DataFrame, get_use_objects_for_output
     from ...loggers.fallback_logger import FallbackLogger
-    from .. import stream_classes as sm
     from ...functions.secondary import all_secondary_functions as fs
     from ...content.selection import selection_classes as sn
     from ...content.struct.flat_struct import FlatStruct
     from ...content.struct.struct_mixin import StructMixin
     from ...content.struct.struct_row import StructRow
+    from ..mixin.convert_mixin import ConvertMixin
+    from .row_stream import RowStream
 
 Native = Union[StreamInterface, StructRowInterface]
 Struct = StructInterface
@@ -49,31 +51,6 @@ DEFAULT_EXAMPLE_COUNT = 10
 
 def is_row(row: Row) -> bool:
     return isinstance(row, StructRow) or isinstance(row, ROW_SUBCLASSES)
-
-
-# deprecated
-def get_legacy_validation_errors(row: Iterable, struct: Union[StructInterface, Iterable], default_type=str):
-    if isinstance(struct, StructInterface) or hasattr(struct, 'get_fields_descriptions'):
-        iter_struct = struct.get_fields_descriptions()
-    else:
-        assert isinstance(struct, Iterable)
-        iter_struct = struct
-    validation_errors = list()
-    names = list()
-    types = list()
-    for description in iter_struct:
-        field_name = description[NAME_POS]
-        field_type = description[TYPE_POS]
-        names.append(field_name)
-        if field_type not in DICT_CAST_TYPES.values():
-            field_type = DICT_CAST_TYPES.get(field_type, default_type)
-        types.append(field_type)
-    for value, field_name, field_type in zip(row, names, types):
-        if not isinstance(value, field_type):
-            template = 'Field {}: type {} expected, got {} (value={})'
-            msg = template.format(field_name, field_type, type(value), value)
-            validation_errors.append(msg)
-    return validation_errors
 
 
 def get_validation_errors(row: Row, struct: OptStruct) -> list:
@@ -136,23 +113,27 @@ def apply_struct_to_row(row, struct: OptStruct, skip_bad_values=False, logger=No
         raise TypeError
 
 
-class StructStream(sm.RowStream, StructMixin, sm.ConvertMixin):
+class StructStream(RowStream, StructMixin, ConvertMixin):
     def __init__(
             self,
             data: Iterable,
             struct: OptStruct = None,
-            name: Union[Name, Auto] = AUTO, check: bool = True,
-            count: Count = None, less_than: Count = None,
-            source: Source = None, context: Context = None,
+            name: Union[Name, Auto] = AUTO,
+            caption: str = '',
+            count: Count = None,
+            less_than: Count = None,
+            source: Source = None,
+            context: Context = None,
             max_items_in_memory: Count = AUTO,
             tmp_files: TmpFiles = AUTO,
+            check: bool = True,
     ):
         self._struct = struct or list()
         if check:
             data = self._get_validated_items(data, struct=struct)
         super().__init__(
-            data=data,
-            name=name, check=False,
+            data=data, check=False,
+            name=name, caption=caption,
             count=count, less_than=less_than,
             source=source, context=context,
             max_items_in_memory=max_items_in_memory,
@@ -308,8 +289,8 @@ class StructStream(sm.RowStream, StructMixin, sm.ConvertMixin):
             struct=struct,
         )
 
-    def skip(self, count: int = 1):
-        return super().skip(count).update_meta(struct=self.get_struct())
+    def skip(self, count: int = 1, inplace: bool = False) -> Native:
+        return super().skip(count, inplace=inplace).update_meta(struct=self.get_struct())
 
     def select(self, *args, **kwargs):
         selection_description = sn.SelectionDescription.with_expressions(

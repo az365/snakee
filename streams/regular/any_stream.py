@@ -9,8 +9,6 @@ try:  # Assume we're a submodule in a package.
         AUTO, Auto, AutoCount,
     )
     from utils.decorators import deprecated_with_alternative
-    from utils import selection as sf
-    from functions.primary import items as it
     from content.selection import selection_classes as sn
     from streams.abstract.local_stream import LocalStream
     from streams.mixin.convert_mixin import ConvertMixin
@@ -22,8 +20,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         AUTO, Auto, AutoCount,
     )
     from ...utils.decorators import deprecated_with_alternative
-    from ...utils import selection as sf
-    from ...functions.primary import items as it
     from ...content.selection import selection_classes as sn
     from ..abstract.local_stream import LocalStream
     from ..mixin.convert_mixin import ConvertMixin
