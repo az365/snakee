@@ -87,7 +87,6 @@ try:  # Assume we're a submodule in a package.
     from content.format.content_type import ContentType  # inherits ClassType(DynamicEnum)
     from content.representations.repr_type import ReprType  # inherits ClassType(DynamicEnum)
     from content.value_type import ValueType  # inherits DynamicEnum
-    from content.fields.field_type import FieldType  # DEPRECATED
     from content.fields.field_role_type import FieldRoleType  # inherits ClassType(DynamicEnum)
     from content.fields.field_edge_type import FieldEdgeType  # inherits ClassType(DynamicEnum)
     from content.items.item_type import ItemType  # inherits SubclassesType(ClassType)
@@ -105,7 +104,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .content.format.content_type import ContentType  # inherits ClassType(DynamicEnum)
     from .content.representations.repr_type import ReprType  # inherits ClassType(DynamicEnum)
     from .content.value_type import ValueType  # inherits DynamicEnum
-    from .content.fields.field_type import FieldType  # DEPRECATED
     from .content.fields.field_role_type import FieldRoleType  # inherits ClassType(DynamicEnum)
     from .content.fields.field_edge_type import FieldEdgeType  # inherits ClassType(DynamicEnum)
     from .content.items.item_type import ItemType  # inherits SubclassesType(ClassType)
