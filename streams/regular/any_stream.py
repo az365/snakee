@@ -5,7 +5,7 @@ try:  # Assume we're a submodule in a package.
     from interfaces import (
         Stream, LocalStream, RegularStreamInterface, Context, Connector, TmpFiles,
         StreamType, ItemType,
-        Name, Count, Columns, OptionalFields, Source, Array, ARRAY_TYPES,
+        Name, Count, Struct, Columns, OptionalFields, Source, Array, ARRAY_TYPES,
         AUTO, Auto, AutoCount,
     )
     from utils.decorators import deprecated_with_alternative
@@ -16,7 +16,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...interfaces import (
         Stream, LocalStream, RegularStreamInterface, Context, Connector, TmpFiles,
         StreamType, ItemType,
-        Name, Count, Columns, OptionalFields, Source, Array, ARRAY_TYPES,
+        Name, Count, Struct, Columns, OptionalFields, Source, Array, ARRAY_TYPES,
         AUTO, Auto, AutoCount,
     )
     from ...utils.decorators import deprecated_with_alternative
@@ -54,6 +54,10 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
     @staticmethod
     def get_item_type() -> ItemType:
         return ItemType.Any
+
+    def get_struct(self) -> Struct:
+        if hasattr(self, '_struct'):
+            return self._struct
 
     def get_columns(self) -> Optional[Iterable]:
         return None
@@ -134,24 +138,9 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
             ex=self._get_dynamic_meta_fields() if dynamic else None,
         )
 
-    @staticmethod
-    def _get_tuple_function(*functions) -> Callable:
-        return lambda r: tuple([f(r) for f in functions])
-
+    # @deprecated_with_alternative('item_type.get_key_function()')
     def _get_key_function(self, functions: Array, take_hash: bool = False) -> Callable:
-        if functions:
-            msg = 'Expected Sequence[Callable], got {}'
-            assert min([isinstance(f, Callable) for f in functions]), msg.format(functions)
-        if len(functions) == 0:
-            raise ValueError('key function must be defined')
-        elif len(functions) == 1:
-            key_function = functions[0]
-        else:
-            key_function = self._get_tuple_function(functions)
-        if take_hash:
-            return lambda r: hash(key_function(r))
-        else:
-            return key_function
+        return self.get_item_type().get_key_function(*functions, struct=self.get_struct(), take_hash=take_hash)
 
     def _get_groups(self, key_function: Callable, as_pairs: bool) -> Generator:
         accumulated = list()

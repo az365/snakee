@@ -3,6 +3,7 @@ from typing import Optional, Callable, Union, Any
 try:  # Assume we're a submodule in a package.
     from base.classes.enum import SubclassesType
     from base.constants.chars import STAR, EMPTY, MINUS
+    from base.functions.arguments import get_names
     from utils.decorators import deprecated_with_alternative
     from content.fields.field_interface import FieldInterface
     from content.struct.struct_interface import StructInterface
@@ -15,6 +16,7 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.classes.enum import SubclassesType
     from ...base.constants.chars import STAR, EMPTY, MINUS
+    from ...base.functions.arguments import get_names
     from ...utils.decorators import deprecated_with_alternative
     from ..fields.field_interface import FieldInterface
     from ..struct.struct_interface import StructInterface
@@ -28,6 +30,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 RegularItem = Union[SimpleItem, StructRowInterface]
 Item = Union[RegularItem, Any]
 Field = Union[FieldID, FieldInterface]
+Struct = Optional[StructInterface]
 
 
 class ItemType(SubclassesType):
@@ -52,7 +55,7 @@ class ItemType(SubclassesType):
             self,
             item: RegularItem,
             field: Field,
-            struct: Optional[StructInterface] = None,
+            struct: Struct = None,
             default: Value = None,
             skip_unsupported_types: bool = False,
     ) -> Value:
@@ -75,22 +78,30 @@ class ItemType(SubclassesType):
         else:
             raise TypeError('type {} not supported'.format(self.get_name()))
 
-    def get_field_getter(
-            self,
-            field: Field,
-            struct: Optional[StructInterface] = None,
-            default: Value = None,
-    ) -> Callable:
+    def get_field_getter(self, field: Union[Field, Callable], struct: Struct = None, default: Value = None) -> Callable:
+        """
+        Returns field getter for one simple field.
+
+        Used in ItemType.get_single_mapper(), ColumnarMixin._get_field_getter().
+        ColumnarMixin._get_field_getter() used in ColumnarMixin.get_dict(), RowStream.sorted_group_by()
+        """
         if Auto.is_defined(struct):
             if self in (ItemType.Row, ItemType.StructRow):
                 if isinstance(field, str):
                     field = struct.get_field_position(field)
-        if self == ItemType.Record:
+        if hasattr(field, 'get_mapper'):  # isinstance(field, AbstractDescription)
+            try:
+                return field.get_mapper(struct=struct, item_type=self)
+            except TypeError:
+                return field.get_mapper()
+        elif self == ItemType.Record:
             return lambda i: get_field_value_from_record(field=field, record=i, default=default, skip_missing=True)
         elif self == ItemType.Row:
             return lambda i: get_field_value_from_row(column=field, row=i, default=default, skip_missing=False)
         elif self == ItemType.StructRow:
             return lambda i: get_field_value_from_struct_row(field=field, row=i, default=default, skip_missing=False)
+        elif isinstance(field, Callable):
+            return field
         elif field == STAR:
             return lambda i: i
         elif field is None or field in (MINUS, EMPTY):
@@ -98,9 +109,32 @@ class ItemType(SubclassesType):
         else:
             raise TypeError('type {} not supported'.format(self.get_name()))
 
-    def get_single_mapper(self, function: Callable, *fields, struct: Optional[StructInterface] = None) -> Callable:
+    def get_single_mapper(self, *fields, function: Callable = tuple, struct: Struct = None) -> Callable:
+        """
+        Returns value getter for selection tuple (function and fields for its arguments).
+
+        Used in AbstractDescription.get_mapper().
+        """
         arg_getters = [self.get_field_getter(f, struct=struct) for f in fields]
         return lambda i: function(*[g(i) for g in arg_getters])
+
+    def get_key_function(self, *fields, struct: Struct = None, take_hash: bool = False) -> Callable:
+        """
+        Returns key getter for single field or tuple of fields.
+        Key getter returns single value or tuple of values from item.
+        For use in *Stream.[sorted_]group_by().
+        """
+        fields = get_names(fields, or_callable=True)
+        if len(fields) == 0:
+            raise ValueError('key must be defined')
+        elif len(fields) == 1:
+            key_function = self.get_field_getter(fields[0], struct=struct)
+        else:
+            key_function = self.get_single_mapper(*fields, function=tuple, struct=struct)
+        if take_hash:
+            return lambda r: hash(key_function(r))
+        else:
+            return key_function
 
     def set_to_item_inplace(self, field: Field, value: Any, item: Item) -> None:
         if self == ItemType.Record:

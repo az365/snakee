@@ -5,13 +5,13 @@ try:  # Assume we're a submodule in a package.
     from base.functions.arguments import get_name
     from functions.primary import items as it
     from content.selection.selection_functions import process_description, safe_apply_function
-    from content.selection.abstract_expression import SingleFieldDescription, TrivialMultipleDescription
+    from content.selection.abstract_expression import SingleFieldDescription, TrivialMultipleDescription, Struct
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import ItemType, StructInterface, Item, Name, Field, Value, LoggerInterface, Array, Auto, AUTO
     from ...base.functions.arguments import get_name
     from ...functions.primary import items as it
     from .selection_functions import process_description, safe_apply_function
-    from .abstract_expression import SingleFieldDescription, TrivialMultipleDescription
+    from .abstract_expression import SingleFieldDescription, TrivialMultipleDescription, Struct
 
 GIVE_SAME_FIELD_FOR_FUNCTION_DESCRIPTION = False
 
@@ -42,9 +42,9 @@ class TrivialDescription(SingleFieldDescription):
             skip_errors=self.must_skip_errors(), logger=self.get_logger(), default=self.get_default_value(),
         )
 
-    def get_mapper(self, struct: Optional[StructInterface] = None, default: Value = None) -> Callable:  ###
+    def get_mapper(self, struct: Struct = None, item_type: Union[ItemType, Auto] = AUTO, default: Value = None) -> Callable:  ###
         field = self.get_target_field_name()
-        item_type = self.get_input_item_type()
+        item_type = Auto.delayed_acquire(item_type, self.get_input_item_type)
         if Auto.is_defined(item_type):
             return item_type.get_field_getter(field, struct=struct, default=default)
         else:
@@ -85,9 +85,9 @@ class AliasDescription(SingleFieldDescription):
     def get_function(self) -> Callable:
         return lambda i: i
 
-    def get_mapper(self, struct: Optional[StructInterface] = None, default: Value = None) -> Callable:  ###
+    def get_mapper(self, struct: Struct = None, item_type: Union[ItemType, Auto] = AUTO, default: Value = None) -> Callable:  ###
         field = self.get_source_name()
-        item_type = self.get_input_item_type()
+        item_type = Auto.delayed_acquire(item_type, self.get_source_name)
         if Auto.is_defined(item_type):
             return item_type.get_field_getter(field, struct=struct, default=default)
         else:

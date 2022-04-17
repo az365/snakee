@@ -4,7 +4,7 @@ from typing import Optional, Callable, Iterable, Generator, Union, Any
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         StructRowInterface, StructInterface, LoggerInterface, LoggingLevel,
-        ItemType, Item, UniKey, FieldInterface, FieldName, FieldNo, Field, Name, Value, Class, Array,
+        ItemType, Item, Struct, UniKey, FieldInterface, FieldName, FieldNo, Field, Name, Value, Class, Array,
         AUTO, Auto,
     )
     from base.functions.arguments import get_name, get_names
@@ -16,7 +16,7 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         StructRowInterface, StructInterface, LoggerInterface, LoggingLevel,
-        ItemType, Item, UniKey, FieldInterface, FieldName, FieldNo, Field, Name, Value, Class, Array,
+        ItemType, Item, Struct, UniKey, FieldInterface, FieldName, FieldNo, Field, Name, Value, Class, Array,
         AUTO, Auto,
     )
     from ...base.functions.arguments import get_name, get_names
@@ -105,11 +105,11 @@ class AbstractDescription(AbstractBaseObject, LineOutputMixin, ABC):
         else:
             return (self.get_function(), *self.get_input_field_names())
 
-    def get_mapper(self, struct: Optional[StructInterface] = None) -> Callable:  ###
+    def get_mapper(self, struct: Struct = None, item_type: Union[ItemType, Auto] = AUTO) -> Callable:
         field_names = self.get_input_field_names()
-        item_type = self.get_input_item_type()
+        item_type = Auto.delayed_acquire(item_type, self.get_input_item_type)
         if Auto.is_defined(item_type):
-            return item_type.get_single_mapper(self.get_function(), *field_names, struct=struct)
+            return item_type.get_single_mapper(*field_names, function=self.get_function(), struct=struct)
         else:
             raise ValueError('item_type must be defined')
 

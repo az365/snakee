@@ -165,29 +165,9 @@ class StructStream(RowStream, StructMixin, ConvertMixin):
             func = fs.partial(lambda r, n: r[n], field_no)
         return func
 
+    # @deprecated_with_alternative('item_type.get_key_function()')
     def _get_key_function(self, descriptions: Array, take_hash: bool = False) -> Callable:
-        descriptions = get_names(descriptions, or_callable=True)
-        if len(descriptions) == 0:
-            raise ValueError('key must be defined')
-        elif len(descriptions) == 1:
-            desc = descriptions[0]
-            key_function = self.get_field_getter(desc)
-        else:
-            if isinstance(descriptions[0], Callable):  # deprecated
-                func = descriptions[0]
-                fields = descriptions[1:]
-            elif isinstance(descriptions[-1], Callable):  # deprecated
-                func = descriptions[-1]
-                fields = descriptions[:-1]
-            else:  # actual
-                func = tuple
-                fields = descriptions
-            arg_getters = [self.get_field_getter(f) for f in fields]
-            key_function = lambda r: func([f(r) for f in arg_getters])
-        if take_hash:
-            return lambda r: hash(key_function(r))
-        else:
-            return key_function
+        return self.get_item_type().get_key_function(*descriptions, struct=self.get_struct(), take_hash=take_hash)
 
     @classmethod
     def is_valid_item_type(cls, item: Item) -> bool:

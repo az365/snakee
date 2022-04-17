@@ -11,7 +11,6 @@ try:  # Assume we're a submodule in a package.
     from utils.decorators import deprecated_with_alternative
     from functions.primary import numeric as nm
     from functions.secondary import all_secondary_functions as fs
-    from content.items.item_getters import value_from_row, row_from_row
     from content.selection import selection_classes as sn, selection_functions as sf
     from streams.mixin.columnar_mixin import ColumnarMixin
     from streams.regular.any_stream import AnyStream
@@ -26,7 +25,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils.decorators import deprecated_with_alternative
     from ...functions.primary import numeric as nm
     from ...functions.secondary import all_secondary_functions as fs
-    from ...content.items.item_getters import value_from_row, row_from_row
     from ...content.selection import selection_classes as sn, selection_functions as sf
     from ..mixin.columnar_mixin import ColumnarMixin
     from .any_stream import AnyStream
@@ -63,18 +61,9 @@ class RowStream(AnyStream, ColumnarMixin):
     def get_item_type() -> ItemType:
         return ItemType.Row
 
+    # @deprecated_with_alternative('item_type.get_key_function()')
     def _get_key_function(self, descriptions: Array, take_hash: bool = False) -> Callable:
-        descriptions = get_names(descriptions)
-        if len(descriptions) == 0:
-            raise ValueError('key must be defined')
-        elif len(descriptions) == 1:
-            key_function = fs.partial(value_from_row, descriptions[0])
-        else:
-            key_function = fs.partial(row_from_row, descriptions)
-        if take_hash:
-            return lambda r: hash(key_function(r))
-        else:
-            return key_function
+        return self.get_item_type().get_key_function(*descriptions, take_hash=take_hash)
 
     def get_column_count(self, take: Count = DEFAULT_EXAMPLE_COUNT, get_max: bool = True, get_min: bool = False) -> int:
         if self.is_in_memory() and (get_max or get_min):

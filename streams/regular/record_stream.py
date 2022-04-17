@@ -68,18 +68,9 @@ class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
     def get_item_type() -> ItemType:
         return ItemType.Record
 
+    # @deprecated_with_alternative('item_type.get_key_function()')
     def _get_key_function(self, descriptions: Array, take_hash: bool = False) -> Callable:
-        descriptions = get_names(descriptions)
-        if len(descriptions) == 0:
-            raise ValueError('key must be defined')
-        elif len(descriptions) == 1:
-            key_function = fs.partial(value_from_record, descriptions[0])
-        else:
-            key_function = fs.partial(tuple_from_record, descriptions)
-        if take_hash:
-            return lambda r: hash(key_function(r))
-        else:
-            return key_function
+        return self.get_item_type().get_key_function(*descriptions, take_hash=take_hash)
 
     def get_one_column_values(self, column: Field, as_list: bool = False) -> Iterable:
         column = get_name(column)
@@ -162,7 +153,7 @@ class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
         return stream
 
     def sort(self, *keys, reverse: bool = False, step: AutoCount = AUTO, verbose: bool = True) -> Native:
-        key_function = self._get_key_function(keys)
+        key_function = self._get_key_function(keys, take_hash=False)
         step = Auto.delayed_acquire(step, self.get_limit_items_in_memory)
         if self.can_be_in_memory(step=step):
             stream = self.memory_sort(key_function, reverse, verbose=verbose)
@@ -180,7 +171,7 @@ class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
         keys = update(keys)
         keys = get_names(keys, or_callable=True)
         values = get_names(values)
-        key_function = self._get_key_function(keys)
+        key_function = self._get_key_function(keys, take_hash=False)
         iter_groups = self._get_groups(key_function, as_pairs=as_pairs)
         if as_pairs:
             stream_class = StreamType.KeyValueStream.get_class()
@@ -239,7 +230,7 @@ class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
     def _get_uniq_records(self, *keys) -> Iterable:
         keys = update(keys)
         key_fields = get_names(keys)
-        key_function = self._get_key_function(key_fields)
+        key_function = self._get_key_function(key_fields, take_hash=False)
         prev_value = AUTO
         for r in self.get_records():
             value = key_function(r)
