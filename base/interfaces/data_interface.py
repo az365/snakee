@@ -44,14 +44,6 @@ class SimpleDataInterface(BaseInterface, ABC):
     def get_count_repr(self, default: str = '<iter>') -> str:
         pass
 
-    def get_one_line_repr(
-            self,
-            str_meta: Union[str, Auto, None] = AUTO,
-            max_len: int = DEFAULT_LINE_LEN,
-            crop: str = CROP_SUFFIX,
-    ) -> str:
-        pass
-
     @abstractmethod
     def describe(
             self,

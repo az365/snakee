@@ -138,23 +138,6 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
             dimensions_repr.append(column_repr)
         return ', '.join(dimensions_repr)
 
-    def get_one_line_repr(
-            self,
-            str_meta: Union[str, Auto, None] = AUTO,
-            max_len: int = DEFAULT_LINE_LEN,
-            crop: str = CROP_SUFFIX,
-    ) -> str:
-        template = '{cls}({meta})'
-        class_name = self.__class__.__name__
-        str_meta = Auto.delayed_acquire(str_meta, self.get_str_meta)
-        one_line_repr = template.format(cls=class_name, meta=str_meta)
-        full_line_len = len(one_line_repr)
-        if full_line_len > max_len:
-            exceeded_len = full_line_len + len(crop) - max_len
-            str_meta = str_meta[:-exceeded_len]
-            one_line_repr = template.format(cls=class_name, meta=str_meta + crop)
-        return one_line_repr
-
     def get_str_headers(self) -> Generator:
         yield self.get_one_line_repr()
 

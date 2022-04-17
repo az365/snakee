@@ -3,14 +3,20 @@ from typing import Type, Optional, Callable, Iterable, Generator, Union
 
 try:  # Assume we're a submodule in a package.
     from base.classes.auto import AUTO, Auto
+    from base.constants.chars import CROP_SUFFIX, DEFAULT_LINE_LEN
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.auto import AUTO, Auto
+    from ..constants.chars import CROP_SUFFIX, DEFAULT_LINE_LEN
 
 OptionalFields = Union[str, Iterable, None]
 AutoOutput = Union[Type, Callable, int, Auto]
 
 
 class BaseInterface(ABC):
+    @abstractmethod
+    def set_props(self, inplace: bool, **kwargs):
+        pass
+
     @abstractmethod
     def set_inplace(self, **kwargs):
         pass
@@ -74,6 +80,15 @@ class BaseInterface(ABC):
 
     @abstractmethod
     def get_detailed_repr(self) -> str:
+        pass
+
+    @abstractmethod
+    def get_one_line_repr(
+            self,
+            str_meta: Union[str, Auto, None] = AUTO,
+            max_len: int = DEFAULT_LINE_LEN,
+            crop: str = CROP_SUFFIX,
+    ) -> str:
         pass
 
     @abstractmethod
