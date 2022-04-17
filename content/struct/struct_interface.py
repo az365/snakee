@@ -92,6 +92,10 @@ class StructInterface(StructMixinInterface, ABC):
         pass
 
     @abstractmethod
+    def __len__(self):
+        pass
+
+    @abstractmethod
     def __iter__(self):
         pass
 

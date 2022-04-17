@@ -677,5 +677,8 @@ class FlatStruct(SimpleDataWrapper, IterDataMixin, SelectableMixin, StructInterf
         else:
             raise TypeError('Expected other as field or struct, got {} as {}'.format(other, type(other)))
 
+    def __len__(self):
+        return self.get_count()
+
 
 AnyField.set_struct_builder(FlatStruct)
