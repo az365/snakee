@@ -1,12 +1,12 @@
+from typing import Type, Optional, Callable, Iterable, Union
 from inspect import isclass
 from functools import total_ordering
-from typing import Optional, Callable, Iterable, Union, Type
 
 try:  # Assume we're a submodule in a package.
-    from utils.arguments import get_name, get_str_from_args_kwargs
+    from base.functions.arguments import get_name, get_str_from_args_kwargs
     from base.classes.auto import Auto, AUTO
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils.arguments import get_name, get_str_from_args_kwargs
+    from ..functions.arguments import get_name, get_str_from_args_kwargs
     from .auto import Auto, AUTO
 
 Name = str
@@ -252,7 +252,7 @@ class ClassType(DynamicEnum):
                 return isinstance(obj, native_class)
 
     @classmethod
-    def detect(cls, obj, default: Union[Optional[DynamicEnum], Name] = None) -> EnumItem:
+    def detect(cls, obj, default: Union[DynamicEnum, Name, None] = None) -> EnumItem:
         for item in cls.get_enum_items():
             assert isinstance(item, ClassType), '{} expected, got {} as {}'.format(cls.__name__, item, type(item))
             if item.isinstance(obj):
