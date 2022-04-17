@@ -2,26 +2,22 @@ from abc import ABC
 from typing import Optional, Iterable, Callable, Union
 
 try:  # Assume we're a submodule in a package.
-    from utils import arguments as arg
-    from utils.external import pd, DataFrame
     from interfaces import (
         Stream, RegularStream, LineStream, RowStream, RecordStream, KeyValueStream, StructStream,
-        StreamType,
-        Array, Columns, OptionalFields,
-        AUTO, Auto,
+        StreamType, Array, Columns, OptionalFields, Auto, AUTO,
     )
+    from base.functions.arguments import get_list, update
     from functions.secondary import all_secondary_functions as fs
+    from utils.external import pd, DataFrame
     from streams.abstract.iterable_stream import IterableStream
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
-    from ...utils.external import pd, DataFrame
     from ...interfaces import (
         Stream, RegularStream, LineStream, RowStream, RecordStream, KeyValueStream, StructStream,
-        StreamType,
-        Array, Columns, OptionalFields,
-        AUTO, Auto,
+        StreamType, Array, Columns, OptionalFields, Auto, AUTO,
     )
+    from ...base.functions.arguments import get_list, update
     from ...functions.secondary import all_secondary_functions as fs
+    from ...utils.external import pd, DataFrame
     from ..abstract.iterable_stream import IterableStream
 
 Native = RegularStream
@@ -65,7 +61,7 @@ class ConvertMixin(IterableStream, ABC):
             save_count: bool = True,
             **kwargs
     ) -> Stream:
-        if arg.is_defined(stream_type):
+        if Auto.is_defined(stream_type):
             if isinstance(stream_type, str):
                 stream_class = StreamType(stream_type).get_class()
             else:
@@ -86,7 +82,7 @@ class ConvertMixin(IterableStream, ABC):
         return stream
 
     def map_to_type(self, function: Callable, stream_type: AutoStreamType = AUTO) -> Stream:
-        stream_type = arg.acquire(stream_type, self.get_stream_type())
+        stream_type = Auto.acquire(stream_type, self.get_stream_type())
         result = self.stream(
             map(function, self.get_items()),
             stream_type=stream_type,
@@ -124,12 +120,12 @@ class ConvertMixin(IterableStream, ABC):
             add_title_row: Union[bool, Auto] = AUTO,
     ) -> LineStream:
         stream_type = self.get_stream_type()
-        delimiter = arg.acquire(delimiter, '\t' if stream_type == StreamType.RowStream else None)
+        delimiter = Auto.acquire(delimiter, '\t' if stream_type == StreamType.RowStream else None)
         stream = self
         if stream.get_stream_type() == StreamType.RecordStream:
             assert isinstance(stream, RegularStream) or hasattr(stream, 'get_columns'), 'got {}'.format(stream)
-            columns = arg.acquire(columns, stream.get_columns, delayed=True)
-            add_title_row = arg.acquire(add_title_row, True)
+            columns = Auto.acquire(columns, stream.get_columns, delayed=True)
+            add_title_row = Auto.acquire(add_title_row, True)
             stream = stream.to_row_stream(columns=columns, add_title_row=add_title_row)
         if delimiter:
             func = delimiter.join
@@ -142,10 +138,8 @@ class ConvertMixin(IterableStream, ABC):
         return self._assume_native(stream)
 
     def to_json(self, *args, **kwargs) -> LineStream:
-        stream = self.stream(
-            self._get_mapped_items(fs.json_dumps(*args, **kwargs)),
-            stream_type=StreamType.LineStream,
-        )
+        items = self._get_mapped_items(fs.json_dumps(*args, **kwargs))
+        stream = self.stream(items, stream_type=StreamType.LineStream)
         return self._assume_native(stream)
 
     def to_record_stream(self, *args, **kwargs) -> RecordStream:
@@ -191,7 +185,7 @@ class ConvertMixin(IterableStream, ABC):
                 delimiter, args = args[0], args[1:]
         elif self.get_stream_type() == StreamType.RecordStream:
             add_title_row = kwargs.pop('add_title_row', None)
-            columns = arg.update(args, kwargs.pop('columns', None))
+            columns = update(args, kwargs.pop('columns', None))
             assert isinstance(self, RecordStream)
             if not columns:
                 columns = self.get_columns()
@@ -230,7 +224,7 @@ class ConvertMixin(IterableStream, ABC):
             return self.to_key_value_stream(*args, **kwargs)
 
     def to_stream(self, stream_type: AutoStreamType = AUTO, *args, **kwargs) -> Stream:
-        stream_type = arg.acquire(stream_type, self.get_stream_type())
+        stream_type = Auto.acquire(stream_type, self.get_stream_type())
         method_suffix = StreamType.of(stream_type).get_method_suffix()
         method_name = 'to_{}'.format(method_suffix)
         stream_method = self.__getattribute__(method_name)
