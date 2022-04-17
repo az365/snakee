@@ -3,7 +3,7 @@ from inspect import isclass
 try:  # Assume we're a submodule in a package.
     from base.classes.enum import ClassType, Auto, AUTO
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from base.classes.enum import ClassType, Auto, AUTO
+    from ..base.classes.enum import ClassType, Auto, AUTO
 
 MAX_ITEMS_IN_MEMORY = 5000000
 TMP_FILES_TEMPLATE = 'stream_{}.tmp'
