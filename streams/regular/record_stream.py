@@ -122,7 +122,7 @@ class RecordStream(sm.AnyStream, sm.ColumnarMixin, sm.ConvertMixin):
             )
 
     def select(self, *fields, use_extended_method: bool = False, **expressions) -> Native:
-        selection_mapper = sn.select(
+        selection_mapper = sn.get_selection_function(
             *fields, **expressions,
             target_item_type=ItemType.Record, input_item_type=ItemType.Record,
             logger=self.get_logger(), selection_logger=self.get_selection_logger(),

@@ -87,19 +87,12 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
             target_stream_type = StreamType.AnyStream
             target_item_type = ItemType.Auto
             input_item_type = ItemType.Auto
-        if use_extended_method:
-            selection_method = sn.select
-        else:
-            selection_method = sf.get_selection_mapper
-        select_function = selection_method(
-            *columns, **expressions,
+        select_function = sn.get_selection_function(
+            *columns, **expressions, use_extended_method=use_extended_method,
             target_item_type=target_item_type, input_item_type=input_item_type,
             logger=self.get_logger(), selection_logger=self.get_selection_logger(),
         )
-        return self.map_to_type(
-            function=select_function,
-            stream_type=target_stream_type,
-        )
+        return self.map_to_type(function=select_function, stream_type=target_stream_type)
 
     def map_to_type(self, function: Callable, stream_type: AutoStreamType = AUTO) -> Native:
         stream = super().map_to(function=function, stream_type=stream_type)

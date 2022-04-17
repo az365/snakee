@@ -7,7 +7,8 @@ try:  # Assume we're a submodule in a package.
         Name, Count, Columns, Array, ARRAY_TYPES,
         AUTO, Auto, AutoCount, AutoColumns,
     )
-    from utils import arguments as arg, selection as sf
+    from base.functions.arguments import get_names, update
+    from utils import selection as sf
     from utils.decorators import deprecated_with_alternative
     from functions.primary import numeric as nm
     from functions.secondary import all_secondary_functions as fs
@@ -21,7 +22,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         Name, Count, Columns, Array, ARRAY_TYPES,
         AUTO, Auto, AutoCount, AutoColumns,
     )
-    from ...utils import arguments as arg, selection as sf
+    from ...base.functions.arguments import get_names, update
+    from ...utils import selection as sf
     from ...utils.decorators import deprecated_with_alternative
     from ...functions.primary import numeric as nm
     from ...functions.secondary import all_secondary_functions as fs
@@ -62,7 +64,7 @@ class RowStream(AnyStream, ColumnarMixin):
         return ItemType.Row
 
     def _get_key_function(self, descriptions: Array, take_hash: bool = False) -> Callable:
-        descriptions = arg.get_names(descriptions)
+        descriptions = get_names(descriptions)
         if len(descriptions) == 0:
             raise ValueError('key must be defined')
         elif len(descriptions) == 1:
@@ -98,17 +100,10 @@ class RowStream(AnyStream, ColumnarMixin):
         for row in self.select(column).get_items():
             yield row[0]
 
-    @staticmethod
-    def _get_selection_method(extended: bool = True) -> Callable:
-        if extended:
-            return sn.select
-        else:
-            return sf.get_selection_mapper
-
     def select(self, *columns, use_extended_method: bool = True) -> Native:
-        selection_method = self._get_selection_method(extended=use_extended_method)
-        select_function = selection_method(
+        select_function = sn.get_selection_function(
             *columns,
+            use_extended_method=use_extended_method,
             target_item_type=ItemType.Row, input_item_type=ItemType.Row,
             logger=self.get_logger(), selection_logger=self.get_selection_logger(),
         )
@@ -122,7 +117,7 @@ class RowStream(AnyStream, ColumnarMixin):
             output_struct: Optional[StructInterface] = None,
             skip_missing: bool = True,  # tmp
     ) -> Stream:
-        keys = arg.update(keys)
+        keys = update(keys)
         key_function = self._get_key_function(keys, take_hash=False)
         output_keys = [self._get_field_getter(f) for f in keys]
         groups = self._get_groups(key_function, as_pairs=as_pairs)
@@ -153,7 +148,7 @@ class RowStream(AnyStream, ColumnarMixin):
             return nm.DataFrame(self.get_data())
 
     def to_line_stream(self, delimiter: str = '\t', columns: AutoColumns = AUTO, add_title_row=False) -> Stream:
-        input_stream = self.select(columns) if arg.is_defined(columns) else self
+        input_stream = self.select(columns) if Auto.is_defined(columns) else self
         lines = map(lambda r: '\t'.join([str(c) for c in r]), input_stream.get_items())
         line_stream_class = StreamType.LineStream.get_class()
         return line_stream_class(lines, count=self.get_count())
@@ -161,7 +156,7 @@ class RowStream(AnyStream, ColumnarMixin):
     def get_records(self, columns: AutoColumns = AUTO) -> Generator:
         if columns == AUTO:
             columns = self.get_columns()
-        column_names = arg.get_names(columns)
+        column_names = get_names(columns)
         for row in self.get_rows():
             yield {k: v for k, v in zip(column_names, row)}
 

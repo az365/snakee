@@ -73,7 +73,7 @@ def get_compatible_expression_tuples(expressions: dict) -> dict:
     return prepared_expressions
 
 
-def select(
+def get_selection_function(
         *fields,
         target_item_type=ItemType.Auto,
         input_item_type=ItemType.Auto,
@@ -83,16 +83,15 @@ def select(
         **expressions
 ):
     if use_extended_method:
-        return SelectionDescription.with_expressions(
+        transform = SelectionDescription.with_expressions(
             fields=list(fields),
             expressions=expressions,
             target_item_type=target_item_type,
             input_item_type=input_item_type,
             logger=logger,
             selection_logger=selection_logger,
-        ).get_mapper(
-            logger=selection_logger,
         )
+        return transform.get_mapper(logger=selection_logger)
     else:
         fields = [get_selection_tuple(f) for f in fields]
         expressions = get_compatible_expression_tuples(expressions)
