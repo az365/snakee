@@ -8,7 +8,9 @@ try:  # Assume we're a submodule in a package.
         Name, Count, Struct, Columns, OptionalFields, Source, Array, ARRAY_TYPES,
         AUTO, Auto, AutoCount,
     )
+    from base.functions.arguments import update
     from utils.decorators import deprecated_with_alternative
+    from functions.secondary.array_functions import fold_lists
     from content.selection import selection_classes as sn
     from streams.abstract.local_stream import LocalStream
     from streams.mixin.convert_mixin import ConvertMixin
@@ -19,7 +21,9 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         Name, Count, Struct, Columns, OptionalFields, Source, Array, ARRAY_TYPES,
         AUTO, Auto, AutoCount,
     )
+    from ...base.functions.arguments import update
     from ...utils.decorators import deprecated_with_alternative
+    from ...functions.secondary.array_functions import fold_lists
     from ...content.selection import selection_classes as sn
     from ..abstract.local_stream import LocalStream
     from ..mixin.convert_mixin import ConvertMixin
@@ -37,13 +41,15 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
             caption: str = '',
             count: Count = None,
             less_than: Count = None,
+            struct: Struct = None,
             source: Source = None,
             context: Context = None,
             max_items_in_memory: Count = AUTO, tmp_files: TmpFiles = AUTO,
             check: bool = False,
     ):
+        self._struct = struct
         super().__init__(
-            data, check=check,
+            data=data, check=check,
             name=name, caption=caption,
             count=count, less_than=less_than,
             source=source, context=context,
@@ -56,8 +62,15 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
         return ItemType.Any
 
     def get_struct(self) -> Struct:
-        if hasattr(self, '_struct'):
-            return self._struct
+        return self._struct
+
+    def set_struct(self, struct: Struct, check: bool = False, inplace: bool = False) -> Native:
+        if inplace:
+            self._struct = struct
+            return self
+        else:
+            stream = self.stream(self.get_data(), struct=struct)
+            return self._assume_native(stream)
 
     def get_columns(self) -> Optional[Iterable]:
         return None
@@ -160,11 +173,13 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
     def sorted_group_by(
             self,
             *keys,
-            values: Optional[Iterable] = None,
+            values: Columns = None,
+            skip_missing: bool = False,
             as_pairs: bool = False,
+            output_struct: Struct = None,
             take_hash: bool = False,
     ) -> Stream:
-        assert not values, 'For AnyStream.sorted_group_by() values option not supported'
+        keys = update(keys)
         key_function = self._get_key_function(keys, take_hash=take_hash)
         iter_groups = self._get_groups(key_function, as_pairs=as_pairs)
         if as_pairs:
@@ -173,6 +188,21 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
         else:
             stream_builder = StreamType.RowStream.get_class()
             stream_groups = stream_builder(iter_groups, check=False)
+        if values:
+            stream_type = self.get_stream_type()
+            item_type = self.get_item_type()
+            if item_type == ItemType.Any:
+                raise TypeError('For AnyStream.sorted_group_by() values option not supported')
+            elif item_type == ItemType.Row and hasattr(self, '_get_field_getter'):
+                keys = [self._get_field_getter(f) for f in keys]
+                values = [self._get_field_getter(f, item_type=item_type) for f in values]
+            fold_mapper = fold_lists(keys=keys, values=values, skip_missing=skip_missing, item_type=item_type)
+            stream_groups = stream_groups.map_to_type(fold_mapper, stream_type=stream_type)
+            if output_struct:
+                if hasattr(stream_groups, 'structure'):
+                    stream_groups = stream_groups.structure(output_struct)
+                else:
+                    stream_groups.set_struct(output_struct, check=False, inplace=True)
         if self.is_in_memory():
             return stream_groups.to_memory()
         else:

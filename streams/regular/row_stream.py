@@ -1,8 +1,8 @@
-from typing import Optional, Callable, Iterable, Generator, Union
+from typing import Iterable, Generator, Union
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
-        Stream, RegularStream, StructStream, StructInterface,
+        Stream, RegularStream, StructStream, StructInterface, Struct,
         Context, Connector, TmpFiles, ItemType, StreamType,
         Name, Count, Columns, Array, ARRAY_TYPES,
         AUTO, Auto, AutoCount, AutoColumns,
@@ -10,13 +10,13 @@ try:  # Assume we're a submodule in a package.
     from base.functions.arguments import get_names, update
     from utils.decorators import deprecated_with_alternative
     from functions.primary import numeric as nm
-    from functions.secondary import all_secondary_functions as fs
+    from functions.secondary.array_functions import fold_lists
     from content.selection import selection_classes as sn, selection_functions as sf
     from streams.mixin.columnar_mixin import ColumnarMixin
     from streams.regular.any_stream import AnyStream
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
-        Stream, RegularStream, StructStream, StructInterface,
+        Stream, RegularStream, StructStream, StructInterface, Struct,
         Context, Connector, TmpFiles, ItemType, StreamType,
         Name, Count, Columns, Array, ARRAY_TYPES,
         AUTO, Auto, AutoCount, AutoColumns,
@@ -24,7 +24,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.functions.arguments import get_names, update
     from ...utils.decorators import deprecated_with_alternative
     from ...functions.primary import numeric as nm
-    from ...functions.secondary import all_secondary_functions as fs
+    from ...functions.secondary.array_functions import fold_lists
     from ...content.selection import selection_classes as sn, selection_functions as sf
     from ..mixin.columnar_mixin import ColumnarMixin
     from .any_stream import AnyStream
@@ -42,6 +42,7 @@ class RowStream(AnyStream, ColumnarMixin):
             caption: str = '',
             count: Count = None,
             less_than: Count = None,
+            struct: Struct = None,
             source: Connector = None,
             context: Context = None,
             max_items_in_memory: AutoCount = AUTO,
@@ -49,7 +50,7 @@ class RowStream(AnyStream, ColumnarMixin):
             check: bool = True,
     ):
         super().__init__(
-            data, check=check,
+            data=data, struct=struct, check=check,
             name=name, caption=caption,
             count=count, less_than=less_than,
             source=source, context=context,
@@ -60,10 +61,6 @@ class RowStream(AnyStream, ColumnarMixin):
     @staticmethod
     def get_item_type() -> ItemType:
         return ItemType.Row
-
-    # @deprecated_with_alternative('item_type.get_key_function()')
-    def _get_key_function(self, descriptions: Array, take_hash: bool = False) -> Callable:
-        return self.get_item_type().get_key_function(*descriptions, take_hash=take_hash)
 
     def get_column_count(self, take: Count = DEFAULT_EXAMPLE_COUNT, get_max: bool = True, get_min: bool = False) -> int:
         if self.is_in_memory() and (get_max or get_min):
@@ -101,29 +98,34 @@ class RowStream(AnyStream, ColumnarMixin):
     def sorted_group_by(
             self,
             *keys,
-            values: Optional[Iterable] = None,
-            as_pairs: bool = False,
-            output_struct: Optional[StructInterface] = None,
+            values: Columns = None,
             skip_missing: bool = True,  # tmp
+            as_pairs: bool = False,
+            output_struct: Struct = None,
+            take_hash: bool = False,
     ) -> Stream:
         keys = update(keys)
-        key_function = self._get_key_function(keys, take_hash=False)
-        output_keys = [self._get_field_getter(f) for f in keys]
-        groups = self._get_groups(key_function, as_pairs=as_pairs)
+        key_function = self._get_key_function(keys, take_hash=take_hash)
+        iter_groups = self._get_groups(key_function, as_pairs=as_pairs)
         if as_pairs:
             stream_builder = StreamType.KeyValueStream.get_class()
-            stream_groups = stream_builder(groups, value_stream_type=self.get_stream_type())
+            stream_groups = stream_builder(iter_groups, value_stream_type=self.get_stream_type())
         else:
             stream_builder = StreamType.RowStream.get_class()
-            stream_groups = stream_builder(groups, check=False)
+            stream_groups = stream_builder(iter_groups, check=False)
         if values:
+            stream_type = self.get_stream_type()
             item_type = self.get_item_type()
-            values = [self._get_field_getter(f, item_type=item_type) for f in values]
-            fold_func = fs.fold_lists(keys=output_keys, values=values, skip_missing=skip_missing, item_type=item_type)
-            stream_type = StreamType.RowStream if output_struct else self.get_stream_type()
-            stream_groups = stream_groups.map_to_type(fold_func, stream_type=stream_type)
+            if item_type == ItemType.Row or stream_type == StreamType.RowStream:
+                keys = [self._get_field_getter(f) for f in keys]
+                values = [self._get_field_getter(f, item_type=item_type) for f in values]
+            fold_mapper = fold_lists(keys=keys, values=values, skip_missing=skip_missing, item_type=item_type)
+            stream_groups = stream_groups.map_to_type(fold_mapper, stream_type=stream_type)
             if output_struct:
-                stream_groups = stream_groups.structure(output_struct)
+                if hasattr(stream_groups, 'structure'):
+                    stream_groups = stream_groups.structure(output_struct)
+                else:
+                    stream_groups.set_struct(output_struct, check=False, inplace=True)
         if self.is_in_memory():
             return stream_groups.to_memory()
         else:

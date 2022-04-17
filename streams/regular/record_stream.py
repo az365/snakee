@@ -5,13 +5,14 @@ try:  # Assume we're a submodule in a package.
         Stream, RegularStream, RowStream, KeyValueStream, StructStream, FieldInterface,
         ItemType, StreamType,
         Context, Connector, AutoConnector, LeafConnectorInterface, TmpFiles,
-        Count, Name, Field, Columns, Array, ARRAY_TYPES,
+        Count, Name, Field, Struct, Columns, Array, ARRAY_TYPES,
         AUTO, Auto, AutoCount, AutoName, AutoBool,
     )
     from base.functions.arguments import get_name, get_names, update
     from utils.external import pd, DataFrame, get_use_objects_for_output
     from utils.decorators import deprecated_with_alternative
-    from functions.secondary import all_secondary_functions as fs
+    from functions.primary.items import merge_two_items
+    from functions.secondary.array_functions import fold_lists
     from content.selection import selection_classes as sn, selection_functions as sf
     from content.items.item_getters import value_from_record, tuple_from_record, filter_items
     from streams.mixin.convert_mixin import ConvertMixin
@@ -22,13 +23,14 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         Stream, RegularStream, RowStream, KeyValueStream, StructStream, FieldInterface,
         ItemType, StreamType,
         Context, Connector, AutoConnector, LeafConnectorInterface, TmpFiles,
-        Count, Name, Field, Columns, Array, ARRAY_TYPES,
+        Count, Name, Field, Struct, Columns, Array, ARRAY_TYPES,
         AUTO, Auto, AutoCount, AutoName, AutoBool,
     )
     from ...base.functions.arguments import get_name, get_names, update
     from ...utils.external import pd, DataFrame, get_use_objects_for_output
     from ...utils.decorators import deprecated_with_alternative
-    from ...functions.secondary import all_secondary_functions as fs
+    from ...functions.primary.items import merge_two_items
+    from ...functions.secondary.array_functions import fold_lists
     from ...content.selection import selection_classes as sn, selection_functions as sf
     from ...content.items.item_getters import value_from_record, tuple_from_record, filter_items
     from ..mixin.convert_mixin import ConvertMixin
@@ -49,6 +51,7 @@ class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
             caption: str = '',
             count: Count = None,
             less_than: Count = None,
+            struct: Struct = None,
             source: Connector = None,
             context: Context = None,
             max_items_in_memory: AutoCount = AUTO,
@@ -56,7 +59,7 @@ class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
             check: bool = True,
     ):
         super().__init__(
-            data=data, check=check,
+            data=data, struct=struct, check=check,
             name=name, caption=caption,
             count=count, less_than=less_than,
             source=source, context=context,
@@ -67,10 +70,6 @@ class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
     @staticmethod
     def get_item_type() -> ItemType:
         return ItemType.Record
-
-    # @deprecated_with_alternative('item_type.get_key_function()')
-    def _get_key_function(self, descriptions: Array, take_hash: bool = False) -> Callable:
-        return self.get_item_type().get_key_function(*descriptions, take_hash=take_hash)
 
     def get_one_column_values(self, column: Field, as_list: bool = False) -> Iterable:
         column = get_name(column)
@@ -137,11 +136,11 @@ class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
             count = None
             less_than = self.get_estimated_count()
         stream = self.stream(filtered_items, count=count, less_than=less_than)
-        return stream
+        return self._assume_native(stream)
 
     def add_column(self, name: Field, values: Iterable, ignore_errors: bool = False) -> Native:
         name = get_name(name)
-        items = map(lambda i, v: fs.merge_two_items()(i, {name: v}), self.get_items(), values)
+        items = map(lambda i, v: merge_two_items(i, {name: v}), self.get_items(), values)
         stream = self.stream(items)
         if self.is_in_memory():
             if not ignore_errors:
@@ -165,28 +164,34 @@ class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
             self,
             *keys,
             values: Columns = None,
-            as_pairs: bool = False,
             skip_missing: bool = False,
+            as_pairs: bool = False,
+            output_struct: Struct = None,
+            take_hash: bool = False,
     ) -> Stream:
         keys = update(keys)
-        keys = get_names(keys, or_callable=True)
-        values = get_names(values)
-        key_function = self._get_key_function(keys, take_hash=False)
+        key_function = self._get_key_function(keys, take_hash=take_hash)
         iter_groups = self._get_groups(key_function, as_pairs=as_pairs)
         if as_pairs:
-            stream_class = StreamType.KeyValueStream.get_class()
-            stream_groups = stream_class(iter_groups, value_stream_type=StreamType.RowStream)
+            stream_builder = StreamType.KeyValueStream.get_class()
+            stream_groups = stream_builder(iter_groups, value_stream_type=self.get_stream_type())
         else:
-            stream_class = StreamType.RowStream.get_class()
-            stream_groups = stream_class(iter_groups, check=False)
+            stream_builder = StreamType.RowStream.get_class()
+            stream_groups = stream_builder(iter_groups, check=False)
         if values:
-            item_type = self.get_item_type()  # ItemType.Record
-            fold_mapper = fs.fold_lists(keys=keys, values=values, skip_missing=skip_missing, item_type=item_type)
-            stream_groups = stream_groups.map_to_type(fold_mapper, stream_type=StreamType.RecordStream)
+            stream_type = self.get_stream_type()
+            item_type = self.get_item_type()
+            fold_mapper = fold_lists(keys=keys, values=values, skip_missing=skip_missing, item_type=item_type)
+            stream_groups = stream_groups.map_to_type(fold_mapper, stream_type=stream_type)
+            if output_struct:
+                if hasattr(stream_groups, 'structure'):
+                    stream_groups = stream_groups.structure(output_struct)
+                else:
+                    stream_groups.set_struct(output_struct, check=False, inplace=True)
         if self.is_in_memory():
             return stream_groups.to_memory()
         else:
-            stream_groups.set_estimated_count(self.get_count() or self.get_estimated_count())
+            stream_groups.set_estimated_count(self.get_count() or self.get_estimated_count(), inplace=True)
             return stream_groups
 
     def group_by(
@@ -199,8 +204,6 @@ class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
             verbose: bool = True,
     ) -> Stream:
         keys = update(keys)
-        keys = get_names(keys)
-        values = get_names(values)
         if hasattr(keys[0], 'get_field_names'):  # if isinstance(keys[0], FieldGroup)
             keys = keys[0].get_field_names()
         step = Auto.delayed_acquire(step, self.get_limit_items_in_memory)

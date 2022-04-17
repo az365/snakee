@@ -1,15 +1,13 @@
 from typing import Optional, Iterable, Union
 
 try:  # Assume we're a submodule in a package.
-    from utils import arguments as arg
     from utils.decorators import deprecated_with_alternative
-    from interfaces import Stream, StreamInterface, StreamType, ItemType, ConnType, Name, AutoBool, Auto, AUTO
+    from interfaces import Stream, StreamInterface, StreamType, ItemType, ConnType, Name, Struct, AutoBool, Auto, AUTO
     from functions.secondary import item_functions as fs
     from streams.regular.any_stream import AnyStream
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
     from ...utils.decorators import deprecated_with_alternative
-    from ...interfaces import Stream, StreamInterface, StreamType, ItemType, ConnType, Name, AutoBool, Auto, AUTO
+    from ...interfaces import Stream, StreamInterface, StreamType, ItemType, ConnType, Name, Struct, AutoBool, Auto, AUTO
     from ...functions.secondary import item_functions as fs
     from .any_stream import AnyStream
 
@@ -18,15 +16,19 @@ class LineStream(AnyStream):
     def __init__(
             self,
             data: Iterable,
-            name: str = AUTO, caption: str = '',
+            name: str = AUTO,
+            caption: str = '',
+            struct: Struct = None,
             check: bool = True,
-            count=None, less_than=None,
-            source=None, context=None,
+            count=None,
+            less_than=None,
+            source=None,
+            context=None,
             max_items_in_memory=AUTO,
             tmp_files=AUTO,
     ):
         super().__init__(
-            data, check=check,
+            data=data, struct=struct, check=check,
             name=name, caption=caption,
             count=count, less_than=less_than,
             source=source, context=context,

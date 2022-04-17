@@ -2,13 +2,13 @@ from typing import Union, Callable, Iterable, Optional
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
-        RegularStreamInterface, PairStreamInterface, StreamType,
+        RegularStreamInterface, PairStreamInterface, StreamType, Struct,
         AUTO, Auto, AutoName, AutoCount,
     )
     from streams.regular.row_stream import RowStream
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
-        RegularStreamInterface, PairStreamInterface, StreamType,
+        RegularStreamInterface, PairStreamInterface, StreamType, Struct,
         AUTO, Auto, AutoName, AutoCount,
     )
     from ..regular.row_stream import RowStream
@@ -25,6 +25,7 @@ class KeyValueStream(RowStream, PairStreamInterface):
             caption: str = '',
             count=None,
             less_than=None,
+            struct: Struct = None,
             value_stream_type: Union[StreamType, str] = None,
             source=None, context=None,
             max_items_in_memory: AutoCount = AUTO,
@@ -32,7 +33,7 @@ class KeyValueStream(RowStream, PairStreamInterface):
             check=True,
     ):
         super().__init__(
-            data=data, check=check,
+            data=data, struct=struct, check=check,
             name=name, caption=caption,
             count=count, less_than=less_than,
             source=source, context=context,
