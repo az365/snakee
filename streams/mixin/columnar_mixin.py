@@ -12,8 +12,8 @@ try:  # Assume we're a submodule in a package.
     from base.functions.arguments import get_name, get_names, update
     from base.mixin.iterable_mixin import IterableMixin
     from functions.secondary.item_functions import composite_key, merge_two_items, items_to_dict
-    from content.selection import selection_functions as sf
     from content.fields import field_classes as fc
+    from content.items.item_getters import filter_items
     from utils import algo
     from utils.external import pd, DataFrame, get_use_objects_for_output
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -27,8 +27,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.functions.arguments import get_name, get_names, update
     from ...base.mixin.iterable_mixin import IterableMixin
     from ...functions.secondary.item_functions import composite_key, merge_two_items, items_to_dict
-    from ...content.selection import selection_functions as sf
     from ...content.fields import field_classes as fc
+    from ...content.items.item_getters import filter_items
     from ...utils import algo
     from ...utils.external import pd, DataFrame, get_use_objects_for_output
 
@@ -114,11 +114,7 @@ class ColumnarMixin(IterableMixin, ABC):
     ) -> Iterable:
         logger = Auto.delayed_acquire(logger, self.get_logger)
         item_type = Auto.delayed_acquire(item_type, self.get_item_type)
-        filter_function = sf.filter_items(
-            *args, item_type=item_type,
-            skip_errors=skip_errors, logger=logger,
-            **kwargs,
-        )
+        filter_function = filter_items(*args, **kwargs, item_type=item_type, skip_errors=skip_errors, logger=logger)
         return filter(filter_function, self.get_items())
 
     def filter(self, *args, item_type: ItemType = ItemType.Auto, skip_errors: bool = False, **kwargs) -> Native:

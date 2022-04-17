@@ -3,7 +3,9 @@ from typing import Iterable, Callable, Union
 try:  # Assume we're a submodule in a package.
     from base.classes.auto import AUTO
     from base.functions.arguments import get_name
+    from base.constants.chars import STAR
     from content.items.item_type import ItemType
+    from content.items.item_getters import get_selection_mapper
     from content.selection import selection_functions as sf
     from content.selection.abstract_expression import (
         AbstractDescription, SingleFieldDescription, MultipleFieldDescription, TrivialMultipleDescription,
@@ -12,12 +14,13 @@ try:  # Assume we're a submodule in a package.
         TrivialDescription, AliasDescription, RegularDescription, FunctionDescription,
         StarDescription, DropDescription,
     )
-    from content.selection.abstract_expression import AbstractDescription, SingleFieldDescription, MultipleFieldDescription
     from content.selection.selection_description import SelectionDescription, translate_names_to_columns
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.classes.auto import AUTO
     from ...base.functions.arguments import get_name
+    from ...base.constants.chars import STAR
     from ..items.item_type import ItemType
+    from ..items.item_getters import get_selection_mapper
     from . import selection_functions as sf
     from .abstract_expression import (
         AbstractDescription, SingleFieldDescription, MultipleFieldDescription, TrivialMultipleDescription,
@@ -28,7 +31,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     )
     from .selection_description import SelectionDescription, translate_names_to_columns
 
-STAR = '*'
 
 
 # @deprecated
@@ -98,7 +100,7 @@ def get_selection_function(  # used in Any|Row|RecordStream
     else:
         fields = [get_selection_tuple(f) for f in fields]
         expressions = get_compatible_expression_tuples(expressions)
-        return sf.get_selection_mapper(
+        return get_selection_mapper(
             *fields,
             target_item_type=target_item_type,
             input_item_type=input_item_type,

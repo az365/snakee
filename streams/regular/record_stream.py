@@ -13,6 +13,7 @@ try:  # Assume we're a submodule in a package.
     from utils.decorators import deprecated_with_alternative
     from functions.secondary import all_secondary_functions as fs
     from content.selection import selection_classes as sn, selection_functions as sf
+    from content.items.item_getters import value_from_record, tuple_from_record, filter_items
     from streams.mixin.convert_mixin import ConvertMixin
     from streams.mixin.columnar_mixin import ColumnarMixin
     from streams.regular.any_stream import AnyStream
@@ -29,6 +30,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils.decorators import deprecated_with_alternative
     from ...functions.secondary import all_secondary_functions as fs
     from ...content.selection import selection_classes as sn, selection_functions as sf
+    from ...content.items.item_getters import value_from_record, tuple_from_record, filter_items
     from ..mixin.convert_mixin import ConvertMixin
     from ..mixin.columnar_mixin import ColumnarMixin
     from .any_stream import AnyStream
@@ -71,9 +73,9 @@ class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
         if len(descriptions) == 0:
             raise ValueError('key must be defined')
         elif len(descriptions) == 1:
-            key_function = fs.partial(sf.value_from_record, descriptions[0])
+            key_function = fs.partial(value_from_record, descriptions[0])
         else:
-            key_function = fs.partial(sf.tuple_from_record, descriptions)
+            key_function = fs.partial(tuple_from_record, descriptions)
         if take_hash:
             return lambda r: hash(key_function(r))
         else:
@@ -134,7 +136,7 @@ class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
         return self._assume_native(stream)
 
     def filter(self, *fields, **expressions) -> Native:
-        filter_function = sf.filter_items(*fields, **expressions, item_type=ItemType.Record, skip_errors=True)
+        filter_function = filter_items(*fields, **expressions, item_type=ItemType.Record, skip_errors=True)
         filtered_items = self._get_filtered_items(filter_function)
         if self.is_in_memory():
             filtered_items = list(filtered_items)
@@ -312,8 +314,8 @@ class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
 
     def get_key_value_pairs(self, key: Field, value: Field, **kwargs) -> Iterable:
         for i in self.get_records():
-            k = sf.value_from_record(i, key, **kwargs)
-            v = i if value is None else sf.value_from_record(i, value, **kwargs)
+            k = value_from_record(i, key, **kwargs)
+            v = i if value is None else value_from_record(i, value, **kwargs)
             yield k, v
 
     def to_key_value_stream(self, key: Field = 'key', value: Field = None, skip_errors: bool = False) -> KeyValueStream:

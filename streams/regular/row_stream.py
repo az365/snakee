@@ -11,6 +11,7 @@ try:  # Assume we're a submodule in a package.
     from utils.decorators import deprecated_with_alternative
     from functions.primary import numeric as nm
     from functions.secondary import all_secondary_functions as fs
+    from content.items.item_getters import value_from_row, row_from_row
     from content.selection import selection_classes as sn, selection_functions as sf
     from streams.mixin.columnar_mixin import ColumnarMixin
     from streams.regular.any_stream import AnyStream
@@ -25,6 +26,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils.decorators import deprecated_with_alternative
     from ...functions.primary import numeric as nm
     from ...functions.secondary import all_secondary_functions as fs
+    from ...content.items.item_getters import value_from_row, row_from_row
     from ...content.selection import selection_classes as sn, selection_functions as sf
     from ..mixin.columnar_mixin import ColumnarMixin
     from .any_stream import AnyStream
@@ -66,9 +68,9 @@ class RowStream(AnyStream, ColumnarMixin):
         if len(descriptions) == 0:
             raise ValueError('key must be defined')
         elif len(descriptions) == 1:
-            key_function = fs.partial(sf.value_from_row, descriptions[0])
+            key_function = fs.partial(value_from_row, descriptions[0])
         else:
-            key_function = fs.partial(sf.row_from_row, descriptions)
+            key_function = fs.partial(row_from_row, descriptions)
         if take_hash:
             return lambda r: hash(key_function(r))
         else:

@@ -12,7 +12,8 @@ try:  # Assume we're a submodule in a package.
     from utils.external import pd, DataFrame, get_use_objects_for_output
     from loggers.fallback_logger import FallbackLogger
     from functions.secondary import all_secondary_functions as fs
-    from content.selection import selection_classes as sn, selection_functions as sf
+    from content.items.item_getters import value_from_struct_row
+    from content.selection import selection_classes as sn
     from content.struct.flat_struct import FlatStruct
     from content.struct.struct_mixin import StructMixin
     from content.struct.struct_row import StructRow
@@ -30,7 +31,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils.external import pd, DataFrame, get_use_objects_for_output
     from ...loggers.fallback_logger import FallbackLogger
     from ...functions.secondary import all_secondary_functions as fs
-    from ...content.selection import selection_classes as sn, selection_functions as sf
+    from ...content.items.item_getters import value_from_struct_row
+    from ...content.selection import selection_classes as sn
     from ...content.struct.flat_struct import FlatStruct
     from ...content.struct.struct_mixin import StructMixin
     from ...content.struct.struct_row import StructRow
@@ -149,7 +151,7 @@ class StructStream(RowStream, StructMixin, ConvertMixin):
     def get_field_getter(self, field: Field) -> Callable:
         if isinstance(field, Callable):
             func = field
-        elif isinstance(field, sn.AbstractDescription) or hasattr(field, 'get_functions'):
+        elif isinstance(field, sn.AbstractDescription) or hasattr(field, 'get_function'):
             func = field.get_function()
         else:  # isinstance(field, Field)
             if isinstance(field, FieldNo):  # int
@@ -171,13 +173,13 @@ class StructStream(RowStream, StructMixin, ConvertMixin):
             desc = descriptions[0]
             key_function = self.get_field_getter(desc)
         else:
-            if isinstance(descriptions[0], Callable):
+            if isinstance(descriptions[0], Callable):  # deprecated
                 func = descriptions[0]
                 fields = descriptions[1:]
-            elif isinstance(descriptions[-1], Callable):
+            elif isinstance(descriptions[-1], Callable):  # deprecated
                 func = descriptions[-1]
                 fields = descriptions[:-1]
-            else:
+            else:  # actual
                 func = tuple
                 fields = descriptions
             arg_getters = [self.get_field_getter(f) for f in fields]
@@ -299,17 +301,14 @@ class StructStream(RowStream, StructMixin, ConvertMixin):
         )
         selection_function = selection_description.get_mapper()
         output_struct = selection_description.get_output_struct()
-        return self.struct_map(
-            function=selection_function,
-            struct=output_struct,
-        )
+        return self.struct_map(function=selection_function, struct=output_struct)
 
     def filter(self, *fields, **expressions) -> Native:
         primitives = (str, int, float, bool)
         expressions_list = [(k, fs.equal(v) if isinstance(v, primitives) else v) for k, v in expressions.items()]
         expressions_list = list(fields) + expressions_list
         expressions_list = [sn.translate_names_to_columns(e, struct=self.get_struct()) for e in expressions_list]
-        selection_method = sf.value_from_struct_row
+        selection_method = value_from_struct_row
 
         def filter_function(r):
             for f in expressions_list:
