@@ -1,18 +1,12 @@
-from typing import Optional, Iterable, Sized
+from typing import Optional, Iterable, Sized, Union
 import gc
 
 try:  # Assume we're a submodule in a package.
-    from interfaces import (
-        ConnType, DialectType, LoggingLevel,
-        AUTO, Auto, AutoBool, Count, Array, ARRAY_TYPES,
-    )
+    from interfaces import ConnType, DialectType, LoggingLevel, AUTO, Auto, AutoBool, Count, Array, ARRAY_TYPES
     from utils.external import psycopg2
     from connectors.databases.abstract_database import AbstractDatabase, TEST_QUERY, DEFAULT_STEP, DEFAULT_GROUP
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...interfaces import (
-        ConnType, DialectType, LoggingLevel,
-        AUTO, Auto, AutoBool, Count, Array, ARRAY_TYPES,
-    )
+    from ...interfaces import ConnType, DialectType, LoggingLevel, AUTO, Auto, AutoBool, Count, Array, ARRAY_TYPES
     from ...utils.external import psycopg2
     from ..databases.abstract_database import AbstractDatabase, TEST_QUERY, DEFAULT_STEP, DEFAULT_GROUP
 
@@ -76,6 +70,20 @@ class PostgresDatabase(AbstractDatabase):
             self.connection = None
             return 1
 
+    def _get_execution_message(self, query: str, verbose: Union[str, bool]) -> str:
+        query_repr = self._get_compact_query_view(query)
+        db_repr = self.get_name()
+        template = verbose if isinstance(verbose, str) else '{db}.execute({query})'
+        if '{query}' in template:
+            if '{db}' in template:
+                return template.format(db=db_repr, query=query_repr)
+            else:
+                return template.format(query=query_repr)
+        elif '{}' in template:
+            return template.format(query_repr)
+        else:
+            return template
+
     def execute(
             self,
             query: str = TEST_QUERY,
@@ -85,9 +93,7 @@ class PostgresDatabase(AbstractDatabase):
             verbose: AutoBool = AUTO,
     ):
         verbose = Auto.acquire(verbose, self.verbose)
-        message = verbose if isinstance(verbose, str) else 'Execute: {}'
-        if '{}' in message:
-            message = message.format(self._get_compact_query_view(query))
+        message = self._get_execution_message(query, verbose=verbose)
         self.log(message, level=LoggingLevel.Debug, end='\r', verbose=verbose)
         if get_data == AUTO:
             if 'SELECT' in query and 'GRANT' not in query:
@@ -109,7 +115,7 @@ class PostgresDatabase(AbstractDatabase):
         cur.close()
         if not has_connection:
             self.connection.close()
-        self.log('{} {}'.format(message, 'successful'), end='\r', verbose=bool(verbose))
+        self.log('Successful: {}'.format(message), end='\r', verbose=bool(verbose))
         if get_data:
             return result
 

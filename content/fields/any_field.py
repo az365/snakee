@@ -311,9 +311,11 @@ class AnyField(SimpleDataWrapper, MultiMapDataMixin, SelectableMixin, FieldInter
         yield from self.get_brief_meta_description()
         yield EMPTY
 
-    @staticmethod
-    def _assume_native(field) -> Native:
-        return field
+    def get_count(self) -> int:
+        return 1
+
+    def __len__(self):
+        return self.get_count()
 
     def __str__(self):
         return self.get_detailed_repr()
@@ -335,5 +337,5 @@ class AnyField(SimpleDataWrapper, MultiMapDataMixin, SelectableMixin, FieldInter
             raise TypeError('Expected other as field or struct, got {} as {}'.format(other, type(other)))
 
     @staticmethod
-    def _assume_native(obj) -> Native:
-        return obj
+    def _assume_native(field) -> Native:
+        return field

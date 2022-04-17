@@ -1,13 +1,25 @@
-from enum import Enum
-import pandas as pd
-import numpy as np
-from matplotlib import (
-    pyplot as plt,
-    patches as mp,
-)
+from typing import Optional, Iterable, Sequence, Union
 
+try:  # Assume we're a submodule in a package.
+    from base.classes.enum import DynamicEnum
+    from utils.external import np, pd, DataFrame, plt, mp
+except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
+    from ..base.classes.enum import DynamicEnum
+    from .external import np, pd, DataFrame, plt, mp
+
+Limit = Union[str, int, float, tuple]
 
 DEFAULT_BOUNDS = (0, 1, 10, 100, 1000, 10000, 100000)
+
+
+class PlotType(DynamicEnum):
+    line = 'line'
+    plot = 'line'
+    log = 'loglog'
+    loglog = 'loglog'
+    stackplot = 'stackplot'
+    stack = 'stackplot'
+    bar = 'bar'
 
 
 def get_aggregate(data, dimensions, measures=('cnt', 'revenue'), aggregator='sum', relation_field='price', add_x=-1):
@@ -27,7 +39,7 @@ def get_aggregate(data, dimensions, measures=('cnt', 'revenue'), aggregator='sum
     return result
 
 
-def get_split_aggregate(data, by, values=None):
+def get_split_aggregate(data: DataFrame, by: str, values: Optional[Iterable] = None):
     split_aggregate = list()
     if by:
         if not values:
@@ -41,7 +53,7 @@ def get_split_aggregate(data, by, values=None):
     return split_aggregate
 
 
-def get_vstack_dataset(datasets):
+def get_vstack_dataset(datasets) -> DataFrame:
     stack = list()
     new_columns = ['dataset']
     for i in datasets:
@@ -57,10 +69,10 @@ def get_vstack_dataset(datasets):
         stack.append(
             new_part[new_columns]
         )
-    return pd.DataFrame(np.vstack(stack), columns=new_columns)
+    return DataFrame(np.vstack(stack), columns=new_columns)
 
 
-def get_unpivot(dataframe, fields_from=('cnt', 'revenue'), field_to='measure', value_to='value'):
+def get_unpivot(dataframe: DataFrame, fields_from: Iterable = ('cnt', 'revenue'), field_to='measure', value_to='value'):
     stack = list()
     new_columns = list()
     for cur_field in fields_from:
@@ -70,10 +82,10 @@ def get_unpivot(dataframe, fields_from=('cnt', 'revenue'), field_to='measure', v
         stack.append(new_part)
         if True:  # not new_columns:
             new_columns = new_part.columns
-    return pd.DataFrame(np.vstack(stack), columns=new_columns)
+    return DataFrame(np.vstack(stack), columns=new_columns)
 
 
-def get_top_n_by(dataframe, field='cat_id', n=10, by='cnt'):
+def get_top_n_by(dataframe: DataFrame, field: str = 'cat_id', n: int = 10, by: str = 'cnt') -> list:
     if by:
         cat_sizes = dataframe.groupby(field).agg({by: 'sum'}).sort_values(by, ascending=False)
     else:
@@ -97,7 +109,7 @@ def get_tops(dataframe, fields=('shop', 'cat', 'item'), n=8, by='cnt', dict_ids=
     return result
 
 
-def convert_64_to_32(dataframe):
+def convert_64_to_32(dataframe: DataFrame) -> DataFrame:
     float_columns = [c for c in dataframe if dataframe[c].dtype == "float64"]
     dataframe[float_columns] = dataframe[float_columns].astype(np.float32)
     int_columns = [c for c in dataframe if dataframe[c].dtype == "int64"]
@@ -144,7 +156,14 @@ def get_bin_by_value(value, bounds=DEFAULT_BOUNDS, bin_format='{:03}: {}', outpu
     return result
 
 
-def meld_other(dataframe, cat_field, cat_values, minor_value='other', save_ones=False, sort_by_cat=True):
+def meld_other(
+        dataframe: DataFrame,
+        cat_field: str,
+        cat_values: Iterable,
+        minor_value: str = 'other',
+        save_ones: bool = False,
+        sort_by_cat: bool = True,
+):
     actual_cats = dataframe[cat_field].unique()
     major_cats = [c for c in cat_values if c in actual_cats]
     minor_cats = [c for c in actual_cats if c not in major_cats]
@@ -162,7 +181,7 @@ def meld_other(dataframe, cat_field, cat_values, minor_value='other', save_ones=
     return result
 
 
-def get_brief_caption(value, max_len=10):
+def get_brief_caption(value: Union[int, float, str], max_len: int = 10) -> str:
     if isinstance(value, (int, float)):
         if value > 10:
             value = int(value)
@@ -178,7 +197,7 @@ def get_brief_caption(value, max_len=10):
     return value
 
 
-def get_cum_sum_for_stackplot(dataframe, x_field, y_field, cat_field, reverse_cat=True):
+def get_cum_sum_for_stackplot(dataframe: DataFrame, x_field, y_field, cat_field, reverse_cat=True):
     data = dataframe.copy()
     x_values = data[x_field].unique()
     cat_values = data[cat_field].unique()
@@ -199,7 +218,7 @@ def get_cum_sum_for_stackplot(dataframe, x_field, y_field, cat_field, reverse_ca
     return data
 
 
-def get_subplot_title(dataframe, x_range_field, y_range_field, title):
+def get_subplot_title(dataframe: DataFrame, x_range_field, y_range_field, title):
     if title:
         title_blocks = list()
         if title != 'auto':
@@ -213,7 +232,7 @@ def get_subplot_title(dataframe, x_range_field, y_range_field, title):
         return ', '.join(title_blocks)
 
 
-def process_lim(limit, series):
+def process_lim(limit: Limit, series: Iterable) -> tuple:
     if isinstance(limit, str):
         max_value = max(series)
         if limit[-1:] == '%':
@@ -225,21 +244,8 @@ def process_lim(limit, series):
     return limit
 
 
-class PlotType(Enum):
-    line = 'line'
-    plot = 'line'
-    log = 'loglog'
-    loglog = 'loglog'
-    stackplot = 'stackplot'
-    stack = 'stackplot'
-    bar = 'bar'
-
-
-def plot_series(x_values, y_values, plot=plt, plot_type=PlotType.line, **plot_kws):
-    plot_xy = (
-        list(x_values),
-        list(y_values),
-    )
+def plot_series(x_values: Iterable, y_values: Iterable, plot=plt, plot_type=PlotType.line, **plot_kws):
+    plot_xy = list(x_values), list(y_values)
     if plot_type == PlotType.line:
         plot.plot(*plot_xy, **plot_kws)
     elif plot_type == PlotType.loglog:
@@ -252,7 +258,7 @@ def plot_series(x_values, y_values, plot=plt, plot_type=PlotType.line, **plot_kw
         raise ValueError('Unsupported plot type: {}'.format(plot_type))
 
 
-def plot_captions(plot, x_values, y_values, y_captions, y_offset_rate=40, y_min_size=25):
+def plot_captions(plot, x_values: Iterable, y_values: Iterable, y_captions: Iterable, y_offset_rate=40, y_min_size=25):
     max_y = max(y_values)
     offset_y = max_y / y_offset_rate
     for c, x, y in zip(y_captions, x_values, y_values):
@@ -266,14 +272,20 @@ def plot_captions(plot, x_values, y_values, y_captions, y_offset_rate=40, y_min_
 
 
 def plot_single(
-        dataframe, x_field='x', y_field='y',
-        relative_y=False, caption_field=None,
-        cat_field=None, cat_values=None, cat_colors=None,
-        plot_type=PlotType.line,
-        plot_legend=False, legend_location='best',
+        dataframe: DataFrame,
+        x_field: str = 'x',
+        y_field: str = 'y',
+        relative_y: bool = False,
+        caption_field: Optional[str] = None,
+        cat_field: Optional[str] = None,
+        cat_values: Optional[Iterable] = None,
+        cat_colors: Optional[dict] = None,
+        plot_type: PlotType = PlotType.line,
+        plot_legend: bool = False,
+        legend_location: str = 'best',  # loc: best, upper right, ...
         bbox_to_anchor=None,
-        ylim=None,
-        title=None,
+        ylim: Optional[Limit] = None,
+        title: Optional[str] = None,
         plot=plt,
 ):
     graph_kws = dict(plot=plot, plot_type=plot_type)
@@ -327,14 +339,21 @@ def plot_single(
 
 
 def plot_multiple(
-        dataframe,
-        x_range_field='shop_id', y_range_field='cat_id', x_range_values=None, y_range_values=None,
-        x_axis_field='x', y_axis_field='cnt',
-        cat_field=None, cat_values=None, cat_colors=None,
-        y_caption_field=None,
-        plot_type=PlotType.line,
-        relative_y=False,
-        xlim='max', ylim='max',
+        dataframe: DataFrame,
+        x_range_field: str = 'shop_id',
+        y_range_field: str = 'cat_id',
+        x_range_values: Optional[Sequence] = None,
+        y_range_values: Optional[Sequence] = None,
+        x_axis_field: str = 'x',
+        y_axis_field: str = 'cnt',
+        cat_field: Optional[str] = None,
+        cat_values: Optional[Sequence] = None,
+        cat_colors: Optional[dict] = None,
+        y_caption_field: Optional[str] = None,
+        plot_type: PlotType = PlotType.line,
+        relative_y: bool = False,
+        xlim: Limit = 'max',
+        ylim: Limit = 'max',
         max_cells_count=(16, 16),
         figsize=(15, 8),
         agg='sum',
@@ -398,14 +417,14 @@ def plot_multiple(
     if verbose:
         if cols_count > 1:
             x_range_values = x_range_values or data_agg[x_range_field].unique()
-            print('{} {} in columns: {}'.format(
-                cols_count, x_range_field, ', '.join([str(v) for v in x_range_values])
-            ), ' ' * 25)
+            template = '{} {} in columns: {}'
+            msg = template.format(cols_count, x_range_field, ', '.join([str(v) for v in x_range_values]), ' ' * 25)
+            print(msg)
         if rows_count > 1:
             y_range_values = y_range_values or data_agg[y_range_field].unique()
-            print('{} {} in rows: {}'.format(
-                rows_count, y_range_field, ', '.join([str(v) for v in y_range_values])
-            ))
+            template = '{} {} in rows: {}'
+            msg = template.format(rows_count, y_range_field, ', '.join([str(v) for v in y_range_values]))
+            print(msg)
 
 
 def plot_hist(series, log=False, bins=None, max_bins=75, default_bins=10, max_value=1e3):

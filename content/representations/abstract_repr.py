@@ -3,22 +3,20 @@ from abc import ABC
 try:  # Assume we're a submodule in a package.
     from base.classes.auto import Auto, AUTO
     from base.classes.typing import Value, Count
-    from base.constants.chars import FILL_CHAR, DEFAULT_STR, CROP_SUFFIX
+    from base.constants.chars import EMPTY, FILL_CHAR, DEFAULT_STR, CROP_SUFFIX
     from base.abstract.abstract_base import AbstractBaseObject
-    from base.mixin.describe_mixin import DescribeMixin
     from content.representations.repr_interface import RepresentationInterface, ReprType, OptKey
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.classes.auto import Auto, AUTO
     from ...base.classes.typing import Value, Count
-    from ...base.constants.chars import FILL_CHAR, DEFAULT_STR, CROP_SUFFIX
+    from ...base.constants.chars import EMPTY, FILL_CHAR, DEFAULT_STR, CROP_SUFFIX
     from ...base.abstract.abstract_base import AbstractBaseObject
-    from ...base.mixin.describe_mixin import DescribeMixin
     from .repr_interface import RepresentationInterface, ReprType, OptKey
 
 Native = RepresentationInterface
 
 
-class AbstractRepresentation(AbstractBaseObject, DescribeMixin, RepresentationInterface, ABC):
+class AbstractRepresentation(AbstractBaseObject, RepresentationInterface, ABC):
     def __init__(
             self,
             align_right: bool = False,
@@ -27,8 +25,8 @@ class AbstractRepresentation(AbstractBaseObject, DescribeMixin, RepresentationIn
             including_framing: bool = False,
             crop: str = CROP_SUFFIX,
             fill: str = FILL_CHAR,
-            prefix: str = '',
-            suffix: str = '',
+            prefix: str = EMPTY,
+            suffix: str = EMPTY,
             default: str = DEFAULT_STR,
     ):
         if Auto.is_defined(max_len):
@@ -55,6 +53,9 @@ class AbstractRepresentation(AbstractBaseObject, DescribeMixin, RepresentationIn
     @classmethod
     def get_type(cls) -> ReprType:
         return cls.get_repr_type()
+
+    def get_fill_char(self):
+        return self._fill
 
     def get_min_value_len(self, or_max: bool = True) -> Count:
         min_value_len = self._min_len
@@ -168,7 +169,7 @@ class AbstractRepresentation(AbstractBaseObject, DescribeMixin, RepresentationIn
             template = ':{fill}{align}{width}'
             return template.format(fill=self._fill, align=self.get_align_str(), width=width)
         else:
-            return ''
+            return EMPTY
 
     def get_align_str(self) -> str:
         if self._align_right:
@@ -181,4 +182,4 @@ class AbstractRepresentation(AbstractBaseObject, DescribeMixin, RepresentationIn
         return representation
 
     def __repr__(self):
-        return "'" + self.get_template() + "'"
+        return repr(self.get_template())

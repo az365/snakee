@@ -4,28 +4,40 @@ from inspect import getfullargspec
 
 try:  # Assume we're a submodule in a package.
     from base.classes.auto import Auto, AUTO
-    from base.constants.chars import EMPTY, PLUS, MINUS, CROSS, DEFAULT_STR, COVERT, PROTECTED
     from base.functions.arguments import get_name, get_list, get_str_from_args_kwargs
-    from base.interfaces.base_interface import BaseInterface, AutoOutput
+    from base.constants.chars import EMPTY, PLUS, MINUS, CROSS, COVERT, PROTECTED, DEFAULT_STR
+    from base.interfaces.base_interface import BaseInterface, AutoOutput, CROP_SUFFIX, DEFAULT_LINE_LEN
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.auto import Auto, AUTO
-    from ..constants.chars import EMPTY, PLUS, MINUS, CROSS, DEFAULT_STR, COVERT, PROTECTED
     from ..functions.arguments import get_name, get_list, get_str_from_args_kwargs
-    from ..interfaces.base_interface import BaseInterface, AutoOutput
+    from ..constants.chars import EMPTY, PLUS, MINUS, CROSS, COVERT, PROTECTED, DEFAULT_STR
+    from ..interfaces.base_interface import BaseInterface, AutoOutput, CROP_SUFFIX, DEFAULT_LINE_LEN
 
 Native = BaseInterface
 OptionalFields = Union[str, Iterable, None]
 
 
 class AbstractBaseObject(BaseInterface, ABC):
+    def set_props(self, inplace: bool, **kwargs) -> Native:
+        if inplace:
+            return self.set_inplace(**kwargs)
+        else:
+            return self.set_outplace(**kwargs)
+
     def set_inplace(self, **kwargs) -> Native:
         for k, v in kwargs.items():
+            method_name = 'set_{prop}'.format(prop=k)
             try:
-                method_name = 'set_{}'.format(k)
                 method = self.__getattribute__(method_name)
-                method(v)
-            except AttributeError:
-                self.__dict__[k] = v
+                method(v, inplace=True)
+            except AttributeError as e:
+                protected_name = PROTECTED + k
+                if k in self.__dict__:
+                    self.__dict__[k] = v
+                elif protected_name in self.__dict__:
+                    self.__dict__[protected_name] = v
+                else:
+                    raise AttributeError(e)
         return self
 
     def set_outplace(self, **kwargs) -> Native:
@@ -251,6 +263,23 @@ class AbstractBaseObject(BaseInterface, ABC):
     def get_detailed_repr(self) -> str:
         return '{}({})'.format(self.__class__.__name__, self.get_str_meta())
 
+    def get_one_line_repr(
+            self,
+            str_meta: Union[str, Auto, None] = AUTO,
+            max_len: int = DEFAULT_LINE_LEN,
+            crop: str = CROP_SUFFIX,
+    ) -> str:
+        template = '{cls}({meta})'
+        class_name = self.__class__.__name__
+        str_meta = Auto.delayed_acquire(str_meta, self.get_str_meta)
+        one_line_repr = template.format(cls=class_name, meta=str_meta)
+        full_line_len = len(one_line_repr)
+        if full_line_len > max_len:
+            exceeded_len = full_line_len + len(crop) - max_len
+            str_meta = str_meta[:-exceeded_len]
+            one_line_repr = template.format(cls=class_name, meta=str_meta + crop)
+        return one_line_repr
+
     def make_new(self, *args, ex: OptionalFields = None, safe: bool = True, **kwargs) -> Native:
         meta = self.get_meta(ex=ex)
         meta.update(kwargs)
@@ -276,7 +305,7 @@ class AbstractBaseObject(BaseInterface, ABC):
     ):
         detailed_repr = self.get_detailed_repr()
         if hasattr(output, 'output_line'):
-            output_method = output.output_line(detailed_repr)
+            output_method = output.output_line
         else:
             output_method = print
         output_method(detailed_repr)
@@ -286,7 +315,7 @@ class AbstractBaseObject(BaseInterface, ABC):
         return self.get_detailed_repr()
 
     def __str__(self):
-        return '<{}>'.format(self.get_detailed_repr())
+        return self.get_one_line_repr()
 
     def __eq__(self, other):
         if isinstance(other, BaseInterface) or hasattr(other, 'get_key_member_values'):

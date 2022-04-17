@@ -1,17 +1,15 @@
 from typing import Union, Callable, Iterable, Optional
 
-try:  # Assume we're a sub-module in a package.
-    from utils import arguments as arg
+try:  # Assume we're a submodule in a package.
     from interfaces import (
         RegularStreamInterface, PairStreamInterface, StreamType,
-        AUTO, Auto,
+        AUTO, Auto, AutoName, AutoCount,
     )
     from streams.regular.row_stream import RowStream
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
     from ...interfaces import (
         RegularStreamInterface, PairStreamInterface, StreamType,
-        AUTO, Auto,
+        AUTO, Auto, AutoName, AutoCount,
     )
     from ..regular.row_stream import RowStream
 
@@ -23,16 +21,19 @@ class KeyValueStream(RowStream, PairStreamInterface):
     def __init__(
             self,
             data,
-            name=AUTO, check=True,
-            count=None, less_than=None,
+            name: AutoName = AUTO,
+            caption: str = '',
+            count=None,
+            less_than=None,
             value_stream_type: Union[StreamType, str] = None,
             source=None, context=None,
-            max_items_in_memory=AUTO,
+            max_items_in_memory: AutoCount = AUTO,
             tmp_files=AUTO,
+            check=True,
     ):
         super().__init__(
-            data,
-            name=name, check=check,
+            data=data, check=check,
+            name=name, caption=caption,
             count=count, less_than=less_than,
             source=source, context=context,
             max_items_in_memory=max_items_in_memory,
@@ -70,7 +71,7 @@ class KeyValueStream(RowStream, PairStreamInterface):
         return list(values) if self.is_in_memory() else values
 
     def map(self, function: Callable, to: Union[StreamType, Auto] = AUTO) -> Native:
-        if arg.is_defined(to):
+        if Auto.is_defined(to):
             self.log('to-argument for map() is deprecated, use map_to_type() method instead', level=30)
             stream = super().map_to_type(function, stream_type=to)
         else:
@@ -96,7 +97,7 @@ class KeyValueStream(RowStream, PairStreamInterface):
     def keys(self, uniq, stream_type=AUTO) -> RegularStreamInterface:
         stream = self.stream(
             self.get_uniq_keys() if uniq else self.get_keys(),
-            stream_type=arg.acquire(stream_type, StreamType.AnyStream),
+            stream_type=Auto.acquire(stream_type, StreamType.AnyStream),
         )
         return self._assume_regular(stream)
 
@@ -141,7 +142,7 @@ class KeyValueStream(RowStream, PairStreamInterface):
         return self._assume_native(stream)
 
     def disk_sort_by_key(self, reverse=False, step=AUTO) -> Native:
-        step = arg.acquire(step, self.max_items_in_memory)
+        step = Auto.delayed_acquire(step, self.get_limit_items_in_memory)
         stream = self.disk_sort(
             key=self._get_key,
             reverse=reverse,

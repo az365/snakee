@@ -4,8 +4,8 @@ from typing import Optional, Union
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         LeafConnectorInterface, StructInterface, IterableStreamInterface,
-        ItemType, FieldType, DialectType, StreamType, ContentType,
-        AUTO, Auto, AutoBool, Columns, Array, ARRAY_TYPES,
+        ItemType, StreamType, ContentType,
+        AUTO, Auto, AutoBool,
     )
     from content.struct.struct_mixin import StructMixin
     from content.format.text_format import AbstractFormat, ParsedFormat, TextFormat
@@ -14,8 +14,8 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         LeafConnectorInterface, StructInterface, IterableStreamInterface,
-        ItemType, FieldType, DialectType, StreamType, ContentType,
-        AUTO, Auto, AutoBool, Columns, Array, ARRAY_TYPES,
+        ItemType, StreamType, ContentType,
+        AUTO, Auto, AutoBool,
     )
     from ...content.struct.struct_mixin import StructMixin
     from ...content.format.text_format import AbstractFormat, ParsedFormat, TextFormat
@@ -26,7 +26,7 @@ Native = Union[LeafConnectorInterface, IterableStreamInterface]
 Struct = Optional[StructInterface]
 
 
-class ConnectorFormatMixin(LeafConnectorInterface, StructMixin, ABC):
+class ConnectorFormatMixin(StructMixin, LeafConnectorInterface, ABC):
     def get_initial_struct(self) -> Struct:
         initial_format = self.get_declared_format()
         if isinstance(initial_format, FlatStructFormat) or hasattr(initial_format, 'get_struct'):
@@ -169,7 +169,7 @@ class ConnectorFormatMixin(LeafConnectorInterface, StructMixin, ABC):
                 if isinstance(declared_struct, StructInterface) or hasattr(declared_struct, 'get_types_dict'):
                     declared_types = declared_struct.get_types_dict()
         struct = self._get_struct_from_source(types=declared_types, verbose=verbose)
-        message = 'Struct for {} detected by title row: {}'.format(self.get_name(), struct.get_struct_str(None))
+        message = 'Struct for {} detected from source: {}'.format(self.get_name(), struct.get_struct_str(None))
         self.log(message, end='\n', verbose=verbose)
         if set_struct:
             self.set_struct(struct, inplace=True)

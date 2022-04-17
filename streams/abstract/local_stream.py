@@ -36,18 +36,23 @@ class LocalStream(IterableStream, LocalStreamInterface):
     def __init__(
             self,
             data: Iterable,
-            name: AutoName = AUTO, check: bool = False,
-            count: AutoCount = None, less_than: AutoCount = None,
-            source: Connector = None, context: Context = None,
+            name: AutoName = AUTO,
+            caption: str = '',
+            count: AutoCount = None,
+            less_than: AutoCount = None,
+            source: Connector = None,
+            context: Context = None,
             max_items_in_memory: AutoCount = AUTO,
             tmp_files: TmpMask = AUTO,
+            check: bool = False,
     ):
         count = get_optional_len(data, count)
         if count and Auto.is_defined(count) and not Auto.is_defined(less_than):
             less_than = count
         self._tmp_files = None
         super().__init__(
-            data=data, name=name, check=check,
+            data=data, check=check,
+            name=name, caption=caption,
             source=source, context=context,
             count=count, less_than=less_than,
             max_items_in_memory=max_items_in_memory,
@@ -401,7 +406,7 @@ class LocalStream(IterableStream, LocalStreamInterface):
     def get_str_description(self) -> str:
         return '{} items with meta {}'.format(self.get_str_count(), self.get_meta())
 
-    # @deprecated_with_alternative('get_str_description()')
+    # @deprecated_with_alternative('get_shape_repr()')
     def get_description(self) -> str:
         return self.get_str_description()
 

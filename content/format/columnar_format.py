@@ -1,24 +1,24 @@
 from typing import Optional, Union, Iterable, Generator, Callable
 
-try:  # Assume we're a sub-module in a package.
-    from utils import arguments as arg
-    from utils.decorators import deprecated_with_alternative
+try:  # Assume we're a submodule in a package.
     from interfaces import (
-        Item, Record, Row, StructRow, StructInterface,
+        Item, Row, StructInterface,
         ItemType, StreamType, ContentType,
         AUTO, Auto, AutoBool, Array, ARRAY_TYPES,
     )
+    from base.functions.arguments import get_name
     from functions.secondary import item_functions as fs
+    from utils.decorators import deprecated_with_alternative
     from content.format.text_format import TextFormat, Compress, DEFAULT_ENDING, DEFAULT_ENCODING
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
-    from ...utils.decorators import deprecated_with_alternative
     from ...interfaces import (
-        Item, Record, Row, StructRow, StructInterface,
+        Item, Row, StructInterface,
         ItemType, StreamType, ContentType,
         AUTO, Auto, AutoBool, Array, ARRAY_TYPES,
     )
+    from ...base.functions.arguments import get_name
     from ...functions.secondary import item_functions as fs
+    from ...utils.decorators import deprecated_with_alternative
     from .text_format import TextFormat, Compress, DEFAULT_ENDING, DEFAULT_ENCODING
 
 DEFAULT_IS_FIRST_LINE_TITLE = True
@@ -52,7 +52,7 @@ class ColumnarFormat(TextFormat):
         return self._first_line_is_title
 
     def set_first_line_title(self, first_line_is_title: AutoBool) -> TextFormat:
-        self._first_line_is_title = arg.acquire(first_line_is_title, DEFAULT_IS_FIRST_LINE_TITLE)
+        self._first_line_is_title = Auto.acquire(first_line_is_title, DEFAULT_IS_FIRST_LINE_TITLE)
         return self
 
     def get_delimiter(self) -> str:
@@ -84,7 +84,7 @@ class ColumnarFormat(TextFormat):
             return FlatStructFormat(struct=struct, **self.get_props())
 
     def get_formatted_item(self, item: Item, item_type: Union[ItemType, Auto] = AUTO) -> str:
-        if not arg.is_defined(item_type):
+        if not Auto.is_defined(item_type):
             item_type = ItemType.detect(item)
         if item_type in (ItemType.Row, ItemType.StructRow):
             row = item
@@ -109,7 +109,7 @@ class ColumnarFormat(TextFormat):
             item_type: Union[ItemType, Auto] = AUTO,
             struct: Union[Array, StructInterface, Auto] = AUTO,
     ) -> Item:
-        item_type = arg.delayed_acquire(item_type, self.get_default_item_type)
+        item_type = Auto.delayed_acquire(item_type, self.get_default_item_type)
         if item_type == ItemType.Line:
             return line
         line_parser = fs.csv_loads(delimiter=self.get_delimiter())
@@ -120,11 +120,11 @@ class ColumnarFormat(TextFormat):
             row = row_converter(row)
         if item_type in (ItemType.Row, ItemType.Any, ItemType.Auto):
             return row
-        if not arg.is_defined(struct, check_name=False):
+        if not Auto.is_defined(struct, check_name=False):
             column_count = len(row)
             struct = list(range(column_count))
         if item_type == ItemType.Record:
-            return {arg.get_name(k): v for k, v in zip(struct, row)}
+            return {get_name(k): v for k, v in zip(struct, row)}
         elif item_type == ItemType.StructRow:
             return ItemType.StructRow.build(data=row, struct=struct)
         else:
@@ -137,7 +137,7 @@ class ColumnarFormat(TextFormat):
             item_type: Union[ItemType, Auto] = AUTO,
             struct: Union[Array, StructInterface, Auto] = AUTO,
     ) -> Generator:
-        item_type = arg.delayed_acquire(item_type, self.get_default_item_type)
+        item_type = Auto.delayed_acquire(item_type, self.get_default_item_type)
         if item_type in (ItemType.Record, ItemType.Row, ItemType.StructRow, ItemType.Any, ItemType.Auto):
             iter_parser = fs.csv_reader(delimiter=self.get_delimiter())
             rows = iter_parser(lines)
@@ -158,7 +158,7 @@ class ColumnarFormat(TextFormat):
                     else:
                         yield {k: v for k, v in enumerate(r)}
             elif item_type == ItemType.StructRow:
-                assert arg.is_defined(struct, check_name=False)
+                assert Auto.is_defined(struct, check_name=False)
                 for r in rows:
                     yield ItemType.StructRow.build(data=r, struct=struct)
         else:  # item_type == ItemType.Line
@@ -208,7 +208,7 @@ class FlatStructFormat(ColumnarFormat):
             self,
             struct: Union[Array, StructInterface, Auto] = AUTO,
     ) -> Union[Array, StructInterface]:
-        if arg.is_defined(struct, check_name=False):
+        if Auto.is_defined(struct, check_name=False):
             if isinstance(struct, ARRAY_TYPES):
                 assert struct == self.get_struct().get_columns()
         else:
@@ -216,7 +216,7 @@ class FlatStructFormat(ColumnarFormat):
         return struct
 
     def get_lines(self, items: Iterable, item_type: ItemType, add_title_row: AutoBool = AUTO) -> Generator:
-        add_title_row = arg.undefault(add_title_row, self.is_first_line_title())
+        add_title_row = Auto.delayed_acquire(add_title_row, self.is_first_line_title)
         if add_title_row:
             assert self.is_first_line_title()
             title_row = self.get_struct().get_columns()
@@ -225,7 +225,7 @@ class FlatStructFormat(ColumnarFormat):
             yield self.get_formatted_item(i, item_type=item_type)
 
     def get_formatted_item(self, item: Item, item_type: Union[ItemType, Auto] = AUTO, validate=True) -> str:
-        if not arg.is_defined(item_type):
+        if not Auto.is_defined(item_type):
             item_type = ItemType.detect(item)
         if item_type == ItemType.Record:
             row = [str(item.get(f)) for f in self.get_struct().get_columns()]

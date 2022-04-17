@@ -21,9 +21,13 @@ except ImportError:
     pd = None
 
 try:  # Assume MatPlotLib installed
-    from matplotlib import pyplot as plt
+    from matplotlib import (
+        pyplot as plt,
+        patches as mp,
+    )
 except ImportError:
     plt = None
+    mp = None
 
 try:  # Assume psycopg2 installed
     import psycopg2

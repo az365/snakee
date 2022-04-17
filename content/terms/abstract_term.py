@@ -4,7 +4,7 @@ from typing import Optional, Callable, Generator, Union
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         TermInterface, FieldInterface,
-        TermType, TermDataAttribute, TermRelation, FieldRoleType, FieldType,
+        TermType, TermDataAttribute, TermRelation, FieldRoleType, ValueType,
         AUTO, Auto, AutoCount,
     )
     from base.functions.arguments import get_name, get_names, get_value
@@ -16,7 +16,7 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         TermInterface, FieldInterface,
-        TermType, TermDataAttribute, TermRelation, FieldRoleType, FieldType,
+        TermType, TermDataAttribute, TermRelation, FieldRoleType, ValueType,
         AUTO, Auto, AutoCount,
     )
     from ...base.functions.arguments import get_name, get_names, get_value
@@ -41,7 +41,7 @@ class AbstractTerm(SimpleDataWrapper, MultiMapDataMixin, TermInterface, ABC):
             self,
             name: str,
             caption: str = EMPTY,
-            fields: Optional[dict] = None,
+            fields: Optional[dict] = None,  # Dict[FieldRoleType, AdvancedField]
             mappers: Optional[dict] = None,
             datasets: Optional[dict] = None,
             relations: Optional[dict] = None,
@@ -100,7 +100,7 @@ class AbstractTerm(SimpleDataWrapper, MultiMapDataMixin, TermInterface, ABC):
     def field(
             self,
             name: str,
-            value_type: Union[FieldType, Auto] = AUTO,
+            value_type: Union[ValueType, Auto] = AUTO,
             role: Union[FieldRoleType, str, Auto] = AUTO,
             caption: Union[str, Auto] = AUTO,
             **kwargs
@@ -116,7 +116,7 @@ class AbstractTerm(SimpleDataWrapper, MultiMapDataMixin, TermInterface, ABC):
     def get_field_by_role(
             self,
             role: FieldRoleType,
-            value_type: Union[FieldType, Auto] = AUTO,
+            value_type: Union[ValueType, Auto] = AUTO,
             name: Union[str, Auto] = AUTO,
             caption: Union[str, Auto] = AUTO,
             **kwargs
@@ -170,7 +170,7 @@ class AbstractTerm(SimpleDataWrapper, MultiMapDataMixin, TermInterface, ABC):
         return field_caption
 
     @staticmethod
-    def _get_default_value_type_by_role(role: FieldRoleType, default_type: FieldType = FieldType.Any) -> FieldType:
+    def _get_default_value_type_by_role(role: FieldRoleType, default_type: ValueType = ValueType.Any) -> ValueType:
         if not isinstance(role, FieldRoleType):
             role = FieldRoleType.detect(role)
         return role.get_default_value_type(default=default_type)

@@ -1,20 +1,16 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Union, Type
+from typing import Type, Optional, Iterable, Union
 
 try:  # Assume we're a submodule in a package.
-    from utils import arguments as arg
     from connectors.databases.dialect_type import DialectType
     from content.fields.field_interface import FieldInterface
-    from content.items.simple_items import FieldNo, FieldName, FieldID
+    from content.items.simple_items import FieldNo, FieldID
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
     from ...connectors.databases.dialect_type import DialectType
-    from ...content.fields.field_interface import FieldInterface
-    from ..items.simple_items import FieldNo, FieldName, FieldID
+    from ..fields.field_interface import FieldInterface
+    from ..items.simple_items import FieldNo, FieldID
 
 Field = Union[FieldID, FieldInterface]
-Array = Union[list, tuple]
-ARRAY_SUBTYPES = list, tuple
 
 
 class StructMixinInterface(ABC):
@@ -51,7 +47,7 @@ class StructMixinInterface(ABC):
         pass
 
     @abstractmethod
-    def get_fields_positions(self, names: Array):
+    def get_fields_positions(self, names: Iterable):
         pass
 
     @abstractmethod
@@ -92,7 +88,11 @@ class StructInterface(StructMixinInterface, ABC):
         pass
 
     @abstractmethod
-    def simple_select_fields(self, fields: Array):
+    def simple_select_fields(self, fields: Iterable):
+        pass
+
+    @abstractmethod
+    def __len__(self):
         pass
 
     @abstractmethod
@@ -102,6 +102,3 @@ class StructInterface(StructMixinInterface, ABC):
     @abstractmethod
     def __add__(self, other):
         pass
-
-
-SchemaInterface = StructInterface

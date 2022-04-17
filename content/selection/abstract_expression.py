@@ -8,9 +8,9 @@ try:  # Assume we're a submodule in a package.
         AUTO, Auto,
     )
     from base.functions.arguments import get_name, get_names
-    from base.constants.chars import ITEMS_DELIMITER, CROP_SUFFIX, JUPYTER_LINE_LEN
+    from base.constants.chars import ITEMS_DELIMITER, CROP_SUFFIX, DEFAULT_LINE_LEN
     from base.abstract.abstract_base import AbstractBaseObject
-    from base.mixin.describe_mixin import DescribeMixin, AutoOutput
+    from base.mixin.line_output_mixin import LineOutputMixin
     from loggers.fallback_logger import FallbackLogger
     from functions.primary import items as it
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -20,9 +20,9 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         AUTO, Auto,
     )
     from ...base.functions.arguments import get_name, get_names
-    from ...base.constants.chars import ITEMS_DELIMITER, CROP_SUFFIX, JUPYTER_LINE_LEN
+    from ...base.constants.chars import ITEMS_DELIMITER, CROP_SUFFIX, DEFAULT_LINE_LEN
     from ...base.abstract.abstract_base import AbstractBaseObject
-    from ...base.mixin.describe_mixin import DescribeMixin, AutoOutput
+    from ...base.mixin.line_output_mixin import LineOutputMixin
     from ...loggers.fallback_logger import FallbackLogger
     from ...functions.primary import items as it
 
@@ -31,7 +31,7 @@ SQL_TYPE_NAMES_DICT = dict(int='INTEGER')
 ALIAS_FUNCTION = '_same'
 
 
-class AbstractDescription(DescribeMixin, AbstractBaseObject, ABC):
+class AbstractDescription(AbstractBaseObject, LineOutputMixin, ABC):
     def __init__(
             self,
             target_item_type: ItemType,
@@ -139,25 +139,19 @@ class AbstractDescription(DescribeMixin, AbstractBaseObject, ABC):
             logger = FallbackLogger()
         return logger.warning(msg)
 
-    def get_output(self, output: AutoOutput = AUTO) -> Optional[Class]:
-        if Auto.is_defined(output) and not isinstance(output, (LoggingLevel, int)):
-            return output
-        else:
-            return print
-
     def _get_linked_fields_descriptions(
             self,
             fields: Union[Iterable, Auto] = AUTO,
             group_name: str = 'used',
             prefix: str = '    - ',
-            max_len: int = JUPYTER_LINE_LEN,
+            max_len: int = DEFAULT_LINE_LEN,
     ) -> Generator:
         fields = list(Auto.delayed_acquire(fields, self.get_linked_fields))
         count = len(fields)
         yield '{count} {name} fields:'.format(count=count, name=group_name)
         for f in fields:
-            if isinstance(f, DescribeMixin) or hasattr(f, 'get_one_line_repr'):
-                f_repr = f.get_one_line_repr(max_len=120)
+            if isinstance(f, FieldInterface) or hasattr(f, 'get_one_line_repr'):
+                f_repr = f.get_one_line_repr(max_len=max_len)
             else:
                 f_repr = repr(f)
             f_repr = prefix + f_repr
@@ -174,18 +168,20 @@ class AbstractDescription(DescribeMixin, AbstractBaseObject, ABC):
     def get_data_description(
             self,
             count: Optional[int] = None,
-            title: Optional[str] = 'Linked fields:',
-            max_len: int = JUPYTER_LINE_LEN,
+            title: Optional[str] = 'Detailed fields descriptions',
+            max_len: int = DEFAULT_LINE_LEN,
     ) -> Generator:
         input_fields = self.get_input_fields()
         output_fields = self.get_output_fields()
         if input_fields:
-            yield from self._get_linked_fields_descriptions(fields=input_fields, group_name='input')
+            yield from self._get_linked_fields_descriptions(fields=input_fields, group_name='input', max_len=max_len)
         if output_fields:
-            yield from self._get_linked_fields_descriptions(fields=output_fields, group_name='output')
+            yield from self._get_linked_fields_descriptions(fields=output_fields, group_name='output', max_len=max_len)
         detailed_description = list(self.get_detailed_fields_description())
         if detailed_description:
-            yield '\nDetailed fields descriptions:\n'
+            if count:
+                detailed_description = detailed_description[:count]
+            yield '\n{title}:\n'.format(title=title)
             yield from detailed_description
 
     def get_brief_repr(self) -> str:
@@ -328,7 +324,7 @@ class TrivialMultipleDescription(MultipleFieldDescription, ABC):
 
     def get_output_field_types(self, struct: UniKey) -> list:
         names = self.get_output_field_names(struct)
-        types = [struct.get_field_description(f).get_type() for f in names]
+        types = [struct.get_field_description(f).get_value_type() for f in names]
         return types
 
     def apply_inplace(self, item: Item) -> None:

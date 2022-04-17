@@ -15,14 +15,13 @@ class WrapperStream(AbstractStream, ABC):
             self,
             data,
             name: AutoName = Auto,
+            caption: str = '',
             source: Connector = None,
             context: Context = None,
             check: bool = False,
     ):
         super().__init__(
-            data=data,
-            name=name,
-            source=source,
-            context=context,
-            check=check,
+            data=data, check=check,
+            name=name, caption=caption,
+            source=source, context=context,
         )

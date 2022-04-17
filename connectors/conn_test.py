@@ -1,9 +1,11 @@
+from datetime import datetime
+
 try:  # Assume we're a submodule in a package.
     from context import SnakeeContext
-    from content.struct.flat_struct import FlatStruct, DialectType
+    from content.struct.flat_struct import FlatStruct, DialectType, AnyField
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..context import SnakeeContext
-    from ..content.struct.flat_struct import FlatStruct, DialectType
+    from ..content.struct.flat_struct import FlatStruct, DialectType, AnyField
 
 
 def test_detect_struct_by_title_row():
@@ -67,11 +69,32 @@ def test_job():
     assert not job.is_done()
 
 
+def test_table():
+    test_rows = [
+        (datetime(2022, 1, 2, 0, 0), 'A', 123.456),
+        (datetime(2022, 1, 3, 0, 0), 'B', 987.654),
+    ]
+    test_records = [
+        dict(time=datetime(2022, 1, 2), cat_name='A', sum=123.456),
+        dict(time=datetime(2022, 1, 3), cat_name='B', sum=987.654),
+    ]
+    struct = FlatStruct([AnyField('time', str), AnyField('cat_name', str), AnyField('sum', float)])
+    cx = SnakeeContext()
+    test_db = cx.ct.DatabaseTestStub('test_stub', 'test_host', 5432, 'test_db')
+    test_db.test_stub_response = test_rows
+    table = test_db.table('test_schema.test_table', struct=struct)
+    record_stream = table.to_record_stream()
+    received_data = list(record_stream.get_items())
+    expected_data = test_records
+    assert received_data == expected_data, '{} != {}'.format(received_data, expected_data)
+
+
 def main():
     test_detect_struct_by_title_row()
     test_local_file()
     test_take_credentials_from_file()
     test_job()
+    test_table()
 
 
 if __name__ == '__main__':

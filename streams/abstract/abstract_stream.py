@@ -38,6 +38,7 @@ class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
             self,
             data: Any,
             name: AutoName = AUTO,
+            caption: str = '',
             source: Connector = None,
             context: Context = None,
             check: bool = False,
@@ -50,7 +51,7 @@ class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
             context = source.get_context()
         if not context:
             context = sm.get_context()
-        super().__init__(name=name, data=data, source=source, context=context, check=check)
+        super().__init__(name=name, caption=caption, data=data, source=source, context=context, check=check)
 
     def set_name(self, name: str, register: bool = True, inplace: bool = False) -> Optional[Native]:
         if register:
@@ -209,11 +210,6 @@ class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
             return '<{title} {desc}>'.format(title=title, desc=description)
         else:
             return '<{}>'.format(title)
-
-    def get_context(self):
-        source = self.get_source()
-        if hasattr(source, 'get_context'):
-            return source.get_context()
 
     @abstractmethod
     def get_demo_example(self, *args, **kwargs):

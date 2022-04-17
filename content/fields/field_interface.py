@@ -140,5 +140,13 @@ class FieldInterface(SimpleDataInterface, ABC):
         pass
 
     @abstractmethod
+    def get_count(self) -> int:
+        pass
+
+    @abstractmethod
+    def __len__(self):
+        pass
+
+    @abstractmethod
     def __add__(self, other):
         pass

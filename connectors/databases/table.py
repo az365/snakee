@@ -221,7 +221,7 @@ class Table(LeafConnector):
                 row_class = ItemType.StructRow.get_class()
                 items = map(lambda i: row_class(i, self.get_struct()), rows)
             elif item_type == ItemType.Record:
-                items = map(lambda r: {c: v for c, v in zip(r, self.get_columns())}, rows)
+                items = map(lambda r: {c: v for c, v in zip(self.get_columns(), r)}, rows)
             elif item_type == ItemType.Line:
                 items = map(lambda r: '\t'.join([str(v) for v in r]), rows)
             else:
