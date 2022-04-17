@@ -8,10 +8,13 @@ try:  # Assume we're a submodule in a package.
     )
     from base.abstract.simple_data import SimpleDataWrapper
     from base.mixin.data_mixin import IterDataMixin
-    from utils import selection as sf
-    from content.fields.any_field import AnyField
     from functions.primary import items as it
-    from content.selection import selection_classes as sn
+    from content.fields.any_field import AnyField
+    from content.selection.selection_classes import (
+        AbstractDescription, SingleFieldDescription,
+        TrivialDescription, StarDescription, AliasDescription, FunctionDescription, RegularDescription,
+    )
+    from content.selection.selection_functions import topologically_sorted
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         StructInterface, LoggerInterface,
@@ -20,14 +23,17 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     )
     from ...base.abstract.simple_data import SimpleDataWrapper
     from ...base.mixin.data_mixin import IterDataMixin
-    from ...utils import selection as sf
-    from ..fields.any_field import AnyField
     from ...functions.primary import items as it
-    from . import selection_classes as sn
+    from ..fields.any_field import AnyField
+    from .selection_classes import (
+        AbstractDescription, SingleFieldDescription,
+        TrivialDescription, StarDescription, AliasDescription, FunctionDescription, RegularDescription,
+    )
+    from .selection_functions import topologically_sorted
 
 Logger = Optional[LoggerInterface]
 Struct = Union[Optional[StructInterface], Iterable]
-Description = sn.AbstractDescription
+Description = AbstractDescription
 NAME_TYPES = int, str
 DESC_TYPES = int, str, Description
 
@@ -38,8 +44,15 @@ def is_selection_tuple(t) -> bool:
     return t and isinstance(t, ARRAY_TYPES)
 
 
+def is_expression_description(obj) -> bool:
+    if isinstance(obj, AbstractDescription):
+        return True
+    else:
+        return hasattr(obj, 'get_selection_tuple')
+
+
 def build_expression_description(left: Field, right: Union[Optional[Array], Callable] = None, **kwargs) -> Description:
-    if sn.is_expression_description(left):
+    if is_expression_description(left):
         assert right is None
         return left
     elif is_selection_tuple(left):
@@ -49,18 +62,18 @@ def build_expression_description(left: Field, right: Union[Optional[Array], Call
         target, desc = left, right
     if is_selection_tuple(desc):
         if len(desc) > 1:
-            return sn.RegularDescription.from_list(target, list_description=desc, **kwargs)
+            return RegularDescription.from_list(target, list_description=desc, **kwargs)
         else:
             desc = desc[0]
     if isinstance(desc, Callable):
-        return sn.FunctionDescription(target, function=desc, **kwargs)
+        return FunctionDescription(target, function=desc, **kwargs)
     elif desc is not None:
         assert isinstance(desc, (int, str)), 'int or str expected, got {}'.format(desc)
-        return sn.AliasDescription(alias=target, source=desc, **kwargs)
+        return AliasDescription(alias=target, source=desc, **kwargs)
     elif target == '*':
-        return sn.StarDescription(**kwargs)
+        return StarDescription(**kwargs)
     else:
-        return sn.TrivialDescription(target, **kwargs)
+        return TrivialDescription(target, **kwargs)
 
 
 def compose_descriptions(
@@ -88,7 +101,7 @@ def compose_descriptions(
         else:
             yield cur_desc
     ignore_cycles = logger is not None
-    for args in sf.topologically_sorted(expressions, ignore_cycles=ignore_cycles, logger=logger):
+    for args in topologically_sorted(expressions, ignore_cycles=ignore_cycles, logger=logger):
         yield build_expression_description(*args, **kwargs)
     yield from finish_descriptions
 
@@ -265,7 +278,7 @@ class SelectionDescription(SimpleDataWrapper, IterDataMixin):
     def apply_outplace(self, item: Item, target_item_type: ItemType) -> Item:
         output_item = target_item_type.build()
         for d in self.get_descriptions():
-            assert isinstance(d, sn.SingleFieldDescription)
+            assert isinstance(d, SingleFieldDescription)
             it.set_to_item_inplace(
                 field=d.get_target_field_name(),
                 value=d.get_value_from_item(item),

@@ -1,16 +1,16 @@
-from typing import Optional, Callable, Iterable, Union
+from typing import Optional, Callable, Union
 
 try:  # Assume we're a submodule in a package.
     from interfaces import ItemType, StructInterface, Item, Name, Field, Value, LoggerInterface, Array, Auto, AUTO
     from base.functions.arguments import get_name
     from functions.primary import items as it
-    from utils import selection as sf
+    from content.selection.selection_functions import process_description, safe_apply_function
     from content.selection.abstract_expression import SingleFieldDescription, TrivialMultipleDescription
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import ItemType, StructInterface, Item, Name, Field, Value, LoggerInterface, Array, Auto, AUTO
     from ...base.functions.arguments import get_name
     from ...functions.primary import items as it
-    from ...utils import selection as sf
+    from .selection_functions import process_description, safe_apply_function
     from .abstract_expression import SingleFieldDescription, TrivialMultipleDescription
 
 GIVE_SAME_FIELD_FOR_FUNCTION_DESCRIPTION = False
@@ -44,7 +44,7 @@ class TrivialDescription(SingleFieldDescription):
 
     def get_output_field_types(self, struct: StructInterface) -> list:
         field_name = self.get_target_field_name()
-        return [struct.get_field_description(field_name).get_type()]
+        return [struct.get_field_description(field_name).get_value_type()]
 
     def get_linked_fields(self) -> list:
         return [self.get_target_field()]
@@ -94,7 +94,7 @@ class AliasDescription(SingleFieldDescription):
         )
 
     def get_output_field_types(self, struct) -> list:
-        return [struct.get_field_description(f).get_type() for f in self.get_input_field_names()]
+        return [struct.get_field_description(f).get_value_type() for f in self.get_input_field_names()]
 
     def get_selection_tuple(self, including_target: bool = False) -> tuple:
         if including_target:
@@ -133,7 +133,7 @@ class RegularDescription(SingleFieldDescription):
 
     @classmethod
     def from_list(cls, target: Field, list_description, **kwargs) -> SingleFieldDescription:
-        function, inputs = sf.process_description(list_description)
+        function, inputs = process_description(list_description)
         return cls(target=target, function=function, inputs=inputs, **kwargs)
 
     def get_function(self) -> Callable:
@@ -149,7 +149,7 @@ class RegularDescription(SingleFieldDescription):
         return [self.get_return_type()]
 
     def get_value_from_item(self, item: Item) -> Value:
-        return sf.safe_apply_function(
+        return safe_apply_function(
             function=self.get_function(),
             fields=self.get_input_field_names(),
             values=self.get_input_values(item),
@@ -200,7 +200,7 @@ class FunctionDescription(SingleFieldDescription):
         return field_types
 
     def get_value_from_item(self, item) -> Value:
-        return sf.safe_apply_function(
+        return safe_apply_function(
             function=self.get_function(),
             fields=self.get_input_field_names(),
             values=self.get_input_values(item),

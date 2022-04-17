@@ -3,19 +3,19 @@ from typing import Optional, Callable, Union, Any
 try:  # Assume we're a submodule in a package.
     from base.classes.auto import AUTO, Auto
     from base.functions.arguments import get_names, update
-    from content.items.item_type import ItemType
     from loggers.logger_interface import LoggerInterface
-    from functions.primary import items as it
+    from functions.primary.items import STAR, get_field_value_from_item, get_fields_values_from_item
     from utils import algo
     from utils.decorators import deprecated_with_alternative
+    from content.items.item_type import ItemType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..base.classes.auto import AUTO, Auto
-    from ..base.functions.arguments import get_names, update
-    from ..content.items.item_type import ItemType
-    from ..loggers.logger_interface import LoggerInterface
-    from ..functions.primary import items as it
-    from . import algo
-    from .decorators import deprecated_with_alternative
+    from ...base.classes.auto import AUTO, Auto
+    from ...base.functions.arguments import get_names, update
+    from ...loggers.logger_interface import LoggerInterface
+    from ...functions.primary.items import STAR, get_field_value_from_item, get_fields_values_from_item
+    from ...utils import algo
+    from ...utils.decorators import deprecated_with_alternative
+    from ..items.item_type import ItemType
 
 Description = Union[Callable, list, tuple]
 
@@ -140,10 +140,10 @@ def value_from_any(item, description: Description, logger=None, skip_errors=True
         return description(item)
     elif isinstance(description, (list, tuple)):
         function, fields = process_description(description)
-        values = it.get_fields_values_from_item(fields, item)
+        values = get_fields_values_from_item(fields, item)
         return safe_apply_function(function, fields, values, item=item, logger=logger, skip_errors=skip_errors)
     else:
-        return it.get_field_value_from_item(description, item)
+        return get_field_value_from_item(description, item)
 
 
 def value_from_item(item, description: Description, item_type=AUTO, logger=None, skip_errors=True, default=None):
@@ -152,14 +152,14 @@ def value_from_item(item, description: Description, item_type=AUTO, logger=None,
     if isinstance(description, Callable):
         return description(item)
     elif isinstance(description, (int, str)):
-        return it.get_field_value_from_item(
+        return get_field_value_from_item(
             field=description, item=item, item_type=item_type,
             skip_errors=skip_errors, logger=logger, default=default,
         )
     elif isinstance(description, (list, tuple)):
         function, fields = process_description(description)
         fields = get_names(fields, or_callable=True)
-        values = it.get_fields_values_from_item(
+        values = get_fields_values_from_item(
             fields, item, item_type=item_type,
             skip_errors=skip_errors, logger=logger, default=default,
         )
@@ -190,7 +190,7 @@ def row_from_row(row_in: Union[list, tuple], *descriptions) -> tuple:
     row_out = [None] * len(descriptions)
     c = 0
     for d in descriptions:
-        if d == it.STAR:
+        if d == STAR:
             row_out = row_out[:c] + list(row_in) + row_out[c + 1:]
             c += len(row_in)
         else:
@@ -203,8 +203,8 @@ def row_from_any(item_in, *descriptions) -> tuple:
     row_out = [None] * len(descriptions)
     c = 0
     for desc in descriptions:
-        if desc == it.STAR:
-            if it.ItemType.Row.isinstance(item_in):
+        if desc == STAR:
+            if ItemType.Row.isinstance(item_in):
                 row_out = row_out[:c] + list(item_in) + row_out[c + 1:]
                 c += len(item_in)
             else:
@@ -237,7 +237,7 @@ def record_from_record(rec_in: dict, *descriptions, logger=None) -> dict:
     record = rec_in.copy()
     fields_out = list()
     for desc in descriptions:
-        if desc == it.STAR:
+        if desc == STAR:
             fields_out += list(rec_in.keys())
         elif isinstance(desc, (list, tuple)):
             if len(desc) > 1:
@@ -257,10 +257,10 @@ def record_from_record(rec_in: dict, *descriptions, logger=None) -> dict:
 
 
 def auto_to_auto(item, *descriptions, logger=None) -> Any:
-    item_type = it.ItemType.detect(item, default=it.ItemType.Any)
-    if item_type == it.ItemType.Record:
+    item_type = ItemType.detect(item, default=ItemType.Any)
+    if item_type == ItemType.Record:
         return record_from_record(item, *descriptions, logger=logger)
-    elif item_type == it.ItemType.Row:
+    elif item_type == ItemType.Row:
         return row_from_row(item, *descriptions)
     else:
         return get_composite_key(item, descriptions)
@@ -278,19 +278,19 @@ def get_selection_mapper(
         logger: Optional[LoggerInterface] = None,
         selection_logger: Union[LoggerInterface, Auto] = AUTO,
         **expressions
-):
+) -> Callable:
     descriptions = flatten_descriptions(
         *fields,
         logger=logger,
         **expressions,
     )
-    if target_item_type == it.ItemType.Record and input_item_type == it.ItemType.Record:
+    if target_item_type == ItemType.Record and input_item_type == ItemType.Record:
         return lambda r: record_from_record(r, *descriptions, logger=selection_logger)
-    elif target_item_type == it.ItemType.Row and input_item_type == it.ItemType.Row:
+    elif target_item_type == ItemType.Row and input_item_type == ItemType.Row:
         return lambda r: row_from_row(r, *descriptions)
-    elif target_item_type == it.ItemType.Row and input_item_type == it.ItemType.Any:
+    elif target_item_type == ItemType.Row and input_item_type == ItemType.Any:
         return lambda i: row_from_any(i, *descriptions)
-    elif target_item_type == it.ItemType.Record and input_item_type == it.ItemType.Any:
+    elif target_item_type == ItemType.Record and input_item_type == ItemType.Any:
         return lambda i: record_from_any(i, *descriptions, logger=logger)
     else:
         return lambda i: auto_to_auto(i, *descriptions, logger=logger)

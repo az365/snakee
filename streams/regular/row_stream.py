@@ -8,11 +8,10 @@ try:  # Assume we're a submodule in a package.
         AUTO, Auto, AutoCount, AutoColumns,
     )
     from base.functions.arguments import get_names, update
-    from utils import selection as sf
     from utils.decorators import deprecated_with_alternative
     from functions.primary import numeric as nm
     from functions.secondary import all_secondary_functions as fs
-    from content.selection import selection_classes as sn
+    from content.selection import selection_classes as sn, selection_functions as sf
     from streams.mixin.columnar_mixin import ColumnarMixin
     from streams.regular.any_stream import AnyStream
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -23,11 +22,10 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         AUTO, Auto, AutoCount, AutoColumns,
     )
     from ...base.functions.arguments import get_names, update
-    from ...utils import selection as sf
     from ...utils.decorators import deprecated_with_alternative
     from ...functions.primary import numeric as nm
     from ...functions.secondary import all_secondary_functions as fs
-    from ...content.selection import selection_classes as sn
+    from ...content.selection import selection_classes as sn, selection_functions as sf
     from ..mixin.columnar_mixin import ColumnarMixin
     from .any_stream import AnyStream
 

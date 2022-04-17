@@ -8,12 +8,11 @@ try:  # Assume we're a submodule in a package.
         AUTO, Auto, AutoBool, Source, Context, TmpFiles, Count, Columns, AutoColumns, Array, ARRAY_TYPES,
     )
     from base.functions.arguments import get_name, get_names
-    from utils import selection as sf
     from utils.decorators import deprecated_with_alternative
     from utils.external import pd, DataFrame, get_use_objects_for_output
     from loggers.fallback_logger import FallbackLogger
     from functions.secondary import all_secondary_functions as fs
-    from content.selection import selection_classes as sn
+    from content.selection import selection_classes as sn, selection_functions as sf
     from content.struct.flat_struct import FlatStruct
     from content.struct.struct_mixin import StructMixin
     from content.struct.struct_row import StructRow
@@ -27,12 +26,11 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         AUTO, Auto, AutoBool, Source, Context, TmpFiles, Count, Columns, AutoColumns, Array, ARRAY_TYPES,
     )
     from ...base.functions.arguments import get_name, get_names
-    from ...utils import selection as sf
     from ...utils.decorators import deprecated_with_alternative
     from ...utils.external import pd, DataFrame, get_use_objects_for_output
     from ...loggers.fallback_logger import FallbackLogger
     from ...functions.secondary import all_secondary_functions as fs
-    from ...content.selection import selection_classes as sn
+    from ...content.selection import selection_classes as sn, selection_functions as sf
     from ...content.struct.flat_struct import FlatStruct
     from ...content.struct.struct_mixin import StructMixin
     from ...content.struct.struct_row import StructRow

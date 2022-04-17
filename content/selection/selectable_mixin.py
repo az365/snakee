@@ -8,7 +8,6 @@ try:  # Assume we're a submodule in a package.
     from base.constants.chars import ALL, NOT_SET
     from functions.primary import items as it
     from functions.secondary.basic_functions import same
-    from utils import selection as sf
     from content.items.simple_items import SelectableItem
     from content.fields.field_interface import FieldInterface, ValueType
     from content.struct.struct_interface import StructInterface
@@ -21,7 +20,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.constants.chars import ALL, NOT_SET
     from ...functions.primary import items as it
     from ...functions.secondary.basic_functions import same
-    from ...utils import selection as sf
     from ..items.simple_items import SelectableItem
     from ..fields.field_interface import FieldInterface, ValueType
     from ..struct.struct_interface import StructInterface

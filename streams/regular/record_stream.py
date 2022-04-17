@@ -11,9 +11,8 @@ try:  # Assume we're a submodule in a package.
     from base.functions.arguments import get_name, get_names, update
     from utils.external import pd, DataFrame, get_use_objects_for_output
     from utils.decorators import deprecated_with_alternative
-    from utils import selection as sf
     from functions.secondary import all_secondary_functions as fs
-    from content.selection import selection_classes as sn
+    from content.selection import selection_classes as sn, selection_functions as sf
     from streams.mixin.convert_mixin import ConvertMixin
     from streams.mixin.columnar_mixin import ColumnarMixin
     from streams.regular.any_stream import AnyStream
@@ -28,9 +27,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.functions.arguments import get_name, get_names, update
     from ...utils.external import pd, DataFrame, get_use_objects_for_output
     from ...utils.decorators import deprecated_with_alternative
-    from ...utils import selection as sf
     from ...functions.secondary import all_secondary_functions as fs
-    from ...content.selection import selection_classes as sn
+    from ...content.selection import selection_classes as sn, selection_functions as sf
     from ..mixin.convert_mixin import ConvertMixin
     from ..mixin.columnar_mixin import ColumnarMixin
     from .any_stream import AnyStream

@@ -3,11 +3,15 @@ import sys
 import json
 import csv
 
-try:  # Assume we're a sub-module in a package.
-    from utils import arguments as arg, selection as sf
+try:  # Assume we're a submodule in a package.
+    from base.classes.auto import AUTO, Auto
+    from base.functions.arguments import update
+    from content.selection import selection_functions as sf
     from functions.primary import items as it
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg, selection as sf
+    from ...base.classes.auto import AUTO, Auto
+    from ...base.functions.arguments import update
+    from ...content.selection import selection_functions as sf
     from ..primary import items as it
 
 max_int = sys.maxsize
@@ -20,7 +24,7 @@ while True:  # To prevent _csv.Error: field larger than field limit (131072)
 
 
 def composite_key(*functions) -> Callable:
-    key_functions = arg.update(functions)
+    key_functions = update(functions)
 
     def func(item) -> tuple:
         return sf.get_composite_key(item=item, keys_descriptions=key_functions)
@@ -98,7 +102,7 @@ def json_loads(default=None, skip_errors: bool = False) -> Callable:
     return func
 
 
-def csv_loads(delimiter: Union[str, arg.Auto, None] = arg.AUTO) -> Callable:
+def csv_loads(delimiter: Union[str, Auto, None] = AUTO) -> Callable:
     reader = csv_reader(delimiter=delimiter)
 
     def func(line: str) -> Union[list, tuple]:
@@ -107,8 +111,8 @@ def csv_loads(delimiter: Union[str, arg.Auto, None] = arg.AUTO) -> Callable:
     return func
 
 
-def csv_reader(delimiter: Union[str, arg.Auto, None] = arg.AUTO, *args, **kwargs) -> Callable:
-    if arg.is_defined(delimiter):
+def csv_reader(delimiter: Union[str, Auto, None] = AUTO, *args, **kwargs) -> Callable:
+    if Auto.is_defined(delimiter):
         return lambda a: csv.reader(a, delimiter=delimiter, *args, **kwargs)
     else:
         return csv.reader
