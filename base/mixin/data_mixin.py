@@ -189,6 +189,7 @@ class MapDataMixin(IterDataMixin, ABC):
             for k in keys:
                 if k not in sorted_keys:
                     sorted_keys.append(k)
+            return sorted_keys
         else:
             return sorted(keys)
 
