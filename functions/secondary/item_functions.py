@@ -6,11 +6,13 @@ import csv
 try:  # Assume we're a submodule in a package.
     from base.classes.auto import AUTO, Auto
     from base.functions.arguments import update
+    from content.items.item_type import ItemType
     from content.selection import selection_functions as sf
     from functions.primary import items as it
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.classes.auto import AUTO, Auto
     from ...base.functions.arguments import update
+    from ...content.items.item_type import ItemType
     from ...content.selection import selection_functions as sf
     from ..primary import items as it
 
@@ -44,6 +46,10 @@ def values_by_keys(keys, default=None) -> Callable:
     def func(item) -> list:
         return [value_by_key(k, default)(item) for k in keys]
     return func
+
+
+def value_by_field(field, item_type: ItemType, struct=None, default=None) -> Callable:
+    return item_type.get_field_getter(field, struct=struct, default=default)
 
 
 def is_in_sample(sample_rate, sample_bucket=1, as_str=True, hash_func=hash) -> Callable:

@@ -11,7 +11,6 @@ try:  # Assume we're a submodule in a package.
     )
     from base.functions.arguments import get_name, get_names, update
     from base.mixin.iterable_mixin import IterableMixin
-    from functions.primary.items import get_field_value_from_item
     from functions.secondary.item_functions import composite_key, merge_two_items, items_to_dict
     from content.selection import selection_functions as sf
     from content.fields import field_classes as fc
@@ -27,7 +26,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     )
     from ...base.functions.arguments import get_name, get_names, update
     from ...base.mixin.iterable_mixin import IterableMixin
-    from ...functions.primary.items import get_field_value_from_item
     from ...functions.secondary.item_functions import composite_key, merge_two_items, items_to_dict
     from ...content.selection import selection_functions as sf
     from ...content.fields import field_classes as fc
@@ -291,10 +289,11 @@ class ColumnarMixin(IterableMixin, ABC):
     def _get_field_getter(self, field: UniKey, item_type: Union[ItemType, Auto] = AUTO, default=None):
         if isinstance(self, RegularStreamInterface) or hasattr(self, 'get_item_type'):
             item_type = Auto.delayed_acquire(item_type, self.get_item_type)
-        return lambda i: get_field_value_from_item(
-            field=field, item=i, item_type=item_type,
-            default=default, logger=self.get_selection_logger(),
-        )
+        if hasattr(self, 'get_struct'):
+            struct = self.get_struct()
+        else:
+            struct = None
+        return item_type.get_field_getter(field=field, struct=struct, default=default)
 
     def get_dict(self, key: UniKey, value: UniKey) -> dict:
         key_getter = self._get_field_getter(key)
