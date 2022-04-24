@@ -43,6 +43,12 @@ except ImportError:
     boto_core_client = None
 
 
+try:  # Assume IPython installed
+    from IPython.core.display import display, HTML, Markdown
+except ImportError:
+    display, HTML, Markdown = print, None, None
+
+
 class FallbackFake:
     library_name = None
     raise_warnings = True

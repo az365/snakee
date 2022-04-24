@@ -12,6 +12,8 @@ class ContentType(ClassType):
     ColumnFile = 'ColumnFile'
     CsvFile = 'CsvFile'
     TsvFile = 'TsvFile'
+    Markdown = 'md'
+    Html = 'html'
 
     @staticmethod
     def _get_dict_extensions():
@@ -20,6 +22,8 @@ class ContentType(ClassType):
             'json': ContentType.JsonFile,
             'csv': ContentType.CsvFile,
             'tsv': ContentType.TsvFile,
+            'md': ContentType.Markdown,
+            'html': ContentType.Html
         }
 
     @classmethod
