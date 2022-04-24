@@ -169,11 +169,8 @@ class SqlStream(WrapperStream):
         for description in self.get_expressions_for(SqlSection.Where):
             if isinstance(description, FieldName):
                 yield IS_DEFINED.format(field=description)
-            elif isinstance(description, AnyField):
-                if hasattr(description, 'get_sql_expression'):
-                    yield description.get_sql_expression()
-                else:
-                    yield IS_DEFINED.format(field=description.get_name())
+            elif isinstance(description, (AnyField, AbstractDescription)) or hasattr(description, 'get_sql_expression'):
+                yield description.get_sql_expression()
             elif isinstance(description, Sequence):
                 target_field = description[0]
                 expression = description[1:]
@@ -291,7 +288,7 @@ class SqlStream(WrapperStream):
             return self.new().select(*fields, **expressions)
         else:
             stream = self.copy()
-            assert isinstance(stream, SqlStream) or hasattr(stream, 'add_expressions_for'), 'got {}'.format(stream)
+            assert isinstance(stream, SqlStream) or hasattr(stream, 'add_expression_for'), 'got {}'.format(stream)
             list_expressions = list(fields)
             for target, source in expressions.items():
                 if isinstance(source, ARRAY_TYPES):
@@ -307,7 +304,7 @@ class SqlStream(WrapperStream):
             return self.new().filter(*fields, **expressions)
         else:
             stream = self.copy()
-            assert isinstance(stream, SqlStream) or hasattr(stream, 'add_expressions_for'), 'got {}'.format(stream)
+            assert isinstance(stream, SqlStream) or hasattr(stream, 'add_expression_for'), 'got {}'.format(stream)
             list_expressions = list(fields) + [(field, value) for field, value in expressions.items()]
             for expressions in list_expressions:
                 stream.add_expression_for(SqlSection.Where, expressions)
@@ -323,7 +320,7 @@ class SqlStream(WrapperStream):
             stream = self.new().group_by(*fields)
         else:
             stream = self.copy()
-            assert isinstance(stream, SqlStream) or hasattr(stream, 'add_expressions_for'), 'got {}'.format(stream)
+            assert isinstance(stream, SqlStream) or hasattr(stream, 'add_expression_for'), 'got {}'.format(stream)
             for f in fields:
                 stream.add_expression_for(SqlSection.GroupBy, f)
         if values:
@@ -333,7 +330,7 @@ class SqlStream(WrapperStream):
 
     def sort(self, *fields) -> Native:
         stream = self.copy()
-        assert isinstance(stream, SqlStream) or hasattr(stream, 'add_expressions_for'), 'got {}'.format(stream)
+        assert isinstance(stream, SqlStream) or hasattr(stream, 'add_expression_for'), 'got {}'.format(stream)
         for f in fields:
             stream.add_expression_for(SqlSection.OrderBy, f)
         return stream
@@ -389,7 +386,7 @@ class SqlStream(WrapperStream):
                     columns.append(i.get_target_field_name())
                 elif isinstance(i, AnyField):
                     columns.append(i.get_name())
-                elif len(i) == 1 or isinstance(i, str):
+                elif len(i) == 1 or isinstance(i, FieldName):
                     if i == ALL or i[0] == ALL:
                         for source_column in self.get_input_columns():
                             columns.append(source_column)
