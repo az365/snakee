@@ -204,15 +204,6 @@ class ActualizeMixin(ABC):
             message = 'expected'
         return message.format(count=self.get_column_count(), columns=ITEMS_DELIMITER.join(self.get_columns()))
 
-    def get_str_headers(self, actualize: bool = False) -> Generator:
-        cls = self.__class__.__name__
-        name = self.get_name()
-        shape = self.get_shape_repr(actualize=actualize)
-        str_header = "{cls}('{name}') {shape}".format(cls=cls, name=name, shape=shape)
-        if len(str_header) > DEFAULT_LINE_LEN:
-            str_header = str_header[:DEFAULT_LINE_LEN - len(CROP_SUFFIX)] + CROP_SUFFIX
-        yield str_header
-
     def get_useful_props(self) -> dict:
         if self.is_existing():
             return dict(
@@ -367,43 +358,3 @@ class ActualizeMixin(ABC):
             count=count, as_dataframe=as_dataframe,
             filters=filters or list(), columns=columns,
         )
-
-    def describe(
-            self,
-            *filter_args,
-            count: Optional[int] = EXAMPLE_ROW_COUNT,
-            columns: Optional[Array] = None,
-            show_header: bool = True,
-            struct_as_dataframe: bool = False,
-            safe_filter: bool = True,
-            actualize: AutoBool = AUTO,
-            output: AutoOutput = AUTO,
-            **filter_kwargs
-    ):
-        output = Auto.acquire(output, print)
-        if show_header:
-            for line in self.get_str_headers(actualize=False):
-                self.output_line(line, output=output)
-            struct_title, example_item, example_stream, example_comment = self._prepare_examples_with_title(
-                *filter_args, **filter_kwargs, safe_filter=safe_filter,
-                example_row_count=count, actualize=actualize,
-            )
-            self.output_line(struct_title, output=output)
-            if self.get_invalid_fields_count():
-                line = 'Invalid columns: {}'.format(get_str_from_args_kwargs(*self.get_invalid_columns()))
-                self.output_line(line, output=output)
-            self.output_blank_line(output=output)
-        struct = self.get_struct()
-        struct_dataframe = struct.describe(
-            show_header=False,
-            as_dataframe=struct_as_dataframe, example=example_item,
-            output=output, comment=example_comment,
-        )
-        if struct_dataframe is not None:
-            return struct_dataframe
-        if example_stream and count:
-            return self.show_example(
-                count=count, example=example_stream,
-                columns=columns, comment=example_comment,
-                output=output,
-            )

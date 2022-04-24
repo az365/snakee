@@ -8,7 +8,7 @@ try:  # Assume we're a submodule in a package.
         AUTO, Auto,
     )
     from base.functions.arguments import get_name, get_names
-    from base.constants.chars import ITEMS_DELIMITER, CROP_SUFFIX, DEFAULT_LINE_LEN
+    from base.constants.chars import ITEMS_DELIMITER, CROP_SUFFIX, NOT_SET, DEFAULT_LINE_LEN
     from base.abstract.abstract_base import AbstractBaseObject
     from base.mixin.line_output_mixin import LineOutputMixin
     from loggers.fallback_logger import FallbackLogger
@@ -20,7 +20,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         AUTO, Auto,
     )
     from ...base.functions.arguments import get_name, get_names
-    from ...base.constants.chars import ITEMS_DELIMITER, CROP_SUFFIX, DEFAULT_LINE_LEN
+    from ...base.constants.chars import ITEMS_DELIMITER, CROP_SUFFIX, NOT_SET, DEFAULT_LINE_LEN
     from ...base.abstract.abstract_base import AbstractBaseObject
     from ...base.mixin.line_output_mixin import LineOutputMixin
     from ...loggers.fallback_logger import FallbackLogger
@@ -127,7 +127,7 @@ class AbstractDescription(AbstractBaseObject, LineOutputMixin, ABC):
                 sql_function_expr = '{field}::{type}'.format(field=input_fields[0], type=sql_type_name)
             elif function_name == ALIAS_FUNCTION:
                 assert len(input_fields) == 1, 'got {}'.format(input_fields)
-                return '{source} AS {alias}'.format(source=input_fields[0], alias=target_field)
+                sql_function_expr = input_fields[0]
             else:
                 sql_function_name = SQL_FUNC_NAMES_DICT.get(function_name)
                 if not sql_function_name:
@@ -135,7 +135,10 @@ class AbstractDescription(AbstractBaseObject, LineOutputMixin, ABC):
                     sql_function_name = function_name
                 input_fields = ITEMS_DELIMITER.join(input_fields)
                 sql_function_expr = '{func}({fields})'.format(func=sql_function_name, fields=input_fields)
-        return '{func} AS {target}'.format(func=sql_function_expr, target=target_field)
+        if target_field in (NOT_SET, None):
+            return sql_function_expr
+        else:
+            return '{func} AS {target}'.format(func=sql_function_expr, target=target_field)
 
     @abstractmethod
     def apply_inplace(self, item: Item) -> None:
@@ -195,10 +198,13 @@ class AbstractDescription(AbstractBaseObject, LineOutputMixin, ABC):
     def get_brief_repr(self) -> str:
         inputs = ', '.join(map(get_name, self.get_input_field_names()))
         target = get_name(self.get_target_field_name())
-        func = self.get_function().__name__
-        if func == '<lambda>':
-            func = 'lambda'
-        return '{target}={func}({inputs})'.format(target=target, func=func, inputs=inputs)
+        try:
+            func_name = get_name(self.get_function(), or_callable=False)
+        except AttributeError as e:
+            raise AttributeError('{func}: {e}'.format(func=repr(self.get_function()), e=e))
+        if func_name == '<lambda>':
+            func_name = 'lambda'
+        return f'{target}={func_name}({inputs})'
 
     def __repr__(self):
         return self.get_brief_repr()
@@ -267,12 +273,15 @@ class SingleFieldDescription(AbstractDescription, ABC):
         else:
             return self.make_new(field=field)
 
-    def to(self, field: Field):
-        if self.get_target_field() in ('_', AUTO, None):
-            self.set_target_field(field, inplace=True)
+    def to(self, field: Field) -> AbstractDescription:
+        known_target_field = self.get_target_field()
+        if known_target_field in ('_', AUTO, None):
+            return self.set_target_field(field, inplace=True) or self
+        elif field == known_target_field:
             return self
         else:
-            raise NotImplementedError
+            msg = f'[Multi]SelectionDescription not implemented, got {field} = {known_target_field}'
+            raise NotImplementedError(msg)
 
     @abstractmethod
     def get_value_from_item(self, item: Item) -> Value:

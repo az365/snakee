@@ -217,7 +217,7 @@ def get_selection_mapper(
     return lambda i: auto_to_auto(i, *descriptions, logger=logger)
 
 
-def filter_items(*fields, item_type=AUTO, skip_errors=False, logger=None, **expressions) -> Callable:
+def get_filter_function(*fields, item_type=AUTO, skip_errors=False, logger=None, **expressions) -> Callable:
     extended_filters_list = support_simple_filter_expressions(*fields, **expressions)
     return lambda i: apply_filter_list_to_item(
         item=i, filter_list=extended_filters_list,

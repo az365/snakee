@@ -6,7 +6,6 @@ try:  # Assume we're a submodule in a package.
     from base.mixin.data_mixin import DataMixin
     from base.mixin.contextual_mixin import ContextualMixin
     from base.abstract.abstract_base import AbstractBaseObject
-    from base.abstract.simple_data import SimpleDataWrapper
     from base.abstract.sourced import Sourced, SourcedInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.auto import AUTO, Auto
@@ -14,7 +13,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..mixin.data_mixin import DataMixin
     from ..mixin.contextual_mixin import ContextualMixin
     from .abstract_base import AbstractBaseObject
-    from .simple_data import SimpleDataWrapper
     from .sourced import Sourced, SourcedInterface
 
 Native = Union[Sourced, ContextualMixin, DataMixin]
@@ -40,7 +38,7 @@ class ContextualDataWrapper(Sourced, ContextualMixin, DataMixin):
         self._data = data
         super().__init__(name=name, caption=caption, source=source, check=check)
         if Auto.is_defined(context):
-            self.set_context(context, reset=False, inplace=True)
+            self.set_context(context, reset=not check, inplace=True)
 
     @classmethod
     def _get_data_member_names(cls):

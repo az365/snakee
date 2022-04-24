@@ -1,24 +1,34 @@
 from abc import ABC
-from typing import Optional, Callable, Union
+from typing import Optional, Callable, Generator, Union
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
-        ConnectorInterface, LeafConnectorInterface, StructInterface,
-        ContentFormatInterface, ContentType, Context, Stream, Name,
+        ConnectorInterface, LeafConnectorInterface, StructInterface, ContentFormatInterface,
+        ItemType, StreamType, ContentType, Context, Stream, Name, Array,
         AUTO, Auto, AutoBool, AutoCount, AutoConnector, AutoContext,
     )
+    from base.functions.arguments import get_name, get_str_from_args_kwargs
+    from base.constants.chars import EMPTY, CROP_SUFFIX, ITEMS_DELIMITER, DEFAULT_LINE_LEN
     from connectors.abstract.abstract_connector import AbstractConnector
-    from connectors.mixin.actualize_mixin import ActualizeMixin
+    from connectors.mixin.actualize_mixin import (
+        ActualizeMixin, AutoOutput,
+        EXAMPLE_STR_LEN, EXAMPLE_ROW_COUNT, COUNT_ITEMS_TO_LOG_COLLECT_OPERATION,
+    )
     from connectors.mixin.connector_format_mixin import ConnectorFormatMixin
     from connectors.mixin.streamable_mixin import StreamableMixin
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
-        ConnectorInterface, LeafConnectorInterface, StructInterface,
-        ContentFormatInterface, ContentType, Context, Stream, Name,
+        ConnectorInterface, LeafConnectorInterface, StructInterface, ContentFormatInterface,
+        ItemType, StreamType, ContentType, Context, Stream, Name, Array,
         AUTO, Auto, AutoBool, AutoCount, AutoConnector, AutoContext,
     )
+    from ...base.functions.arguments import get_name, get_str_from_args_kwargs
+    from ...base.constants.chars import EMPTY, CROP_SUFFIX, ITEMS_DELIMITER, DEFAULT_LINE_LEN
     from .abstract_connector import AbstractConnector
-    from ..mixin.actualize_mixin import ActualizeMixin
+    from ..mixin.actualize_mixin import (
+        ActualizeMixin, AutoOutput,
+        EXAMPLE_STR_LEN, EXAMPLE_ROW_COUNT, COUNT_ITEMS_TO_LOG_COLLECT_OPERATION,
+    )
     from ..mixin.connector_format_mixin import ConnectorFormatMixin
     from ..mixin.streamable_mixin import StreamableMixin
 
@@ -63,8 +73,8 @@ class LeafConnector(
             self.log(msg.format(name, content_format, content_format.__class__.__name__), level=30)
             content_format = content_format.get_value()
         if isinstance(content_format, str):
-            content_format = ContentType(content_format)  # ContentType.detect(content_format) ?
-        if isinstance(content_format, ContentType):  # tmp fix
+            content_format = ContentType(content_format)
+        if isinstance(content_format, ContentType):
             content_class = content_format.get_class()
             content_format = content_class(**kwargs)
         elif isinstance(content_format, ContentFormatInterface):
@@ -138,13 +148,14 @@ class LeafConnector(
             self.reset_detected_format(use_declared_types=True, skip_missing=skip_missing)
         return self._detected_format
 
-    def set_detected_format(self, content_format: ContentFormatInterface, inplace: bool) -> Optional[Native]:
+    def set_detected_format(self, content_format: ContentFormatInterface, inplace: bool) -> Native:
         if inplace:
             self._detected_format = content_format
             if not self.get_declared_format():
-                self.set_declared_format(content_format, inplace=True)
+                return self.set_declared_format(content_format, inplace=True) or self
         else:
-            return self.make_new(content_format=content_format)
+            detected_format = self.make_new(content_format=content_format)
+            return self._assume_native(detected_format)
 
     def reset_detected_format(self, use_declared_types: bool = True, skip_missing: bool = False) -> Native:
         if self.is_existing():
@@ -197,13 +208,6 @@ class LeafConnector(
     def get_links(self) -> dict:
         return self.get_children()
 
-    def get_caption(self) -> Optional[str]:
-        return self._caption
-
-    def set_caption(self, caption: str) -> Native:
-        self._caption = caption
-        return self
-
     def is_in_memory(self) -> bool:
         return False
 
@@ -246,9 +250,13 @@ class LeafConnector(
             items = self._get_mapped_items(function, flat=False)
             return self.set_items(items, count=self.get_count(), inplace=inplace)
 
-    def filter(self, function: Callable, inplace: bool = False) -> Optional[Native]:
-        items = self._get_filtered_items(function)
-        return self.set_items(items, inplace=inplace)
+    def filter(self, *args, item_type: ItemType = ItemType.Auto, skip_errors: bool = False, **kwargs) -> Stream:
+        item_type = Auto.delayed_acquire(item_type, self.get_item_type)
+        stream_type = self.get_stream_type()
+        assert isinstance(stream_type, StreamType), f'Expected StreamType, got {stream_type}'
+        filtered_items = self._get_filtered_items(*args, item_type=item_type, skip_errors=skip_errors, **kwargs)
+        stream = self.to_stream(data=filtered_items, stream_type=stream_type)
+        return self._assume_stream(stream)
 
     def skip(self, count: int = 1, inplace: bool = False) -> Optional[Native]:
         if self.get_count() and count >= self.get_count():
@@ -269,3 +277,58 @@ class LeafConnector(
             return self.get_list()[0]
         for i in self.get_iter():
             return i
+
+    def get_str_headers(self, actualize: bool = False) -> Generator:
+        cls = self.__class__.__name__
+        name = repr(self.get_name())
+        shape = self.get_shape_repr(actualize=actualize)
+        str_header = f'{cls}({name}) {shape}'
+        if len(str_header) > DEFAULT_LINE_LEN:
+            str_header = str_header[:DEFAULT_LINE_LEN - len(CROP_SUFFIX)] + CROP_SUFFIX
+        yield str_header
+
+    def describe(
+            self,
+            *filter_args,
+            count: Optional[int] = EXAMPLE_ROW_COUNT,
+            columns: Optional[Array] = None,
+            show_header: bool = True,
+            struct_as_dataframe: bool = False,
+            safe_filter: bool = True,
+            actualize: AutoBool = AUTO,
+            output: AutoOutput = AUTO,
+            **filter_kwargs
+    ):
+        output = Auto.acquire(output, print)
+        if show_header:
+            for line in self.get_str_headers(actualize=False):
+                self.output_line(line, output=output)
+            struct_title, example_item, example_stream, example_comment = self._prepare_examples_with_title(
+                *filter_args, **filter_kwargs, safe_filter=safe_filter,
+                example_row_count=count, actualize=actualize,
+            )
+            self.output_line(struct_title, output=output)
+            if self.get_invalid_fields_count():
+                line = 'Invalid columns: {}'.format(get_str_from_args_kwargs(*self.get_invalid_columns()))
+                self.output_line(line, output=output)
+            self.output_blank_line(output=output)
+        else:
+            example_item, example_stream, example_comment = None, None, None
+        struct = self.get_struct()
+        struct_dataframe = struct.describe(
+            show_header=False,
+            as_dataframe=struct_as_dataframe, example=example_item,
+            output=output, comment=example_comment,
+        )
+        if struct_dataframe is not None:
+            return struct_dataframe
+        if example_stream and count:
+            return self.show_example(
+                count=count, example=example_stream,
+                columns=columns, comment=example_comment,
+                output=output,
+            )
+
+    @staticmethod
+    def _assume_native(connector) -> Native:
+        return connector

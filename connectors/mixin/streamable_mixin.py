@@ -6,7 +6,7 @@ try:  # Assume we're a submodule in a package.
         IterableStreamInterface, StructInterface, Context, LeafConnectorInterface, StructMixinInterface,
         RegularStream, RowStream, StructStream, RecordStream, LineStream,
         ItemType, StreamType,
-        Auto, AUTO, AutoBool, AutoCount, AutoName, Array, OptionalFields,
+        AUTO, Auto, AutoStreamType, AutoBool, AutoCount, AutoName, Array, OptionalFields,
     )
     from base.functions.arguments import get_generated_name
     from streams.mixin.columnar_mixin import ColumnarMixin
@@ -15,7 +15,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         IterableStreamInterface, StructInterface, Context, LeafConnectorInterface, StructMixinInterface,
         RegularStream, RowStream, StructStream, RecordStream, LineStream,
         ItemType, StreamType,
-        Auto, AUTO, AutoBool, AutoCount, AutoName, Array, OptionalFields,
+        AUTO, Auto, AutoStreamType, AutoBool, AutoCount, AutoName, Array, OptionalFields,
     )
     from ...base.functions.arguments import get_generated_name
     from ...streams.mixin.columnar_mixin import ColumnarMixin
@@ -28,13 +28,14 @@ Native = Union[Stream, LeafConnectorInterface]
 class StreamableMixin(ColumnarMixin, ABC):
     @staticmethod
     def get_default_item_type() -> ItemType:
+        """Returns ItemType expected while parsing this file/content"""
         return ItemType.Any
 
     @classmethod
     def get_stream_type(cls):
         return StreamType.AnyStream
 
-    def _get_stream_type(self, stream_type: Union[StreamType, Auto] = AUTO) -> StreamType:
+    def _get_stream_type(self, stream_type: AutoStreamType = AUTO) -> StreamType:
         if not Auto.is_defined(stream_type):
             if hasattr(self, 'get_stream_type'):
                 stream_type = self.get_stream_type()
@@ -45,11 +46,11 @@ class StreamableMixin(ColumnarMixin, ABC):
                 stream_type = StreamType.detect(item_type)
         return stream_type
 
-    def _get_stream_class(self, stream_type: Union[StreamType, Auto] = AUTO):
+    def _get_stream_class(self, stream_type: AutoStreamType = AUTO):
         stream_type = self._get_stream_type(stream_type)
         return stream_type.get_class()
 
-    def _get_item_type(self, stream: Union[StreamType, RegularStream, Auto] = AUTO) -> ItemType:
+    def _get_item_type(self, stream: Union[AutoStreamType, RegularStream] = AUTO) -> ItemType:
         if isinstance(stream, StreamType) or hasattr(stream, 'get_class'):
             stream_class = self._get_stream_class(stream)
         elif Auto.is_defined(stream):
@@ -67,8 +68,11 @@ class StreamableMixin(ColumnarMixin, ABC):
         return get_generated_name('{}:stream'.format(self.get_name()), include_random=True, include_datetime=False)
 
     def _get_fast_count(self) -> Optional[int]:
-        if 'allow_slow_mode' in self.get_count.__annotations__:
+        if isinstance(self, LeafConnectorInterface):
             return self.get_count(allow_slow_mode=False)
+        if hasattr(self.get_count, '__annotations__'):
+            if isinstance(self, LeafConnectorInterface) or 'allow_slow_mode' in self.get_count.__annotations__:
+                return self.get_count(allow_slow_mode=False)
         else:
             return self.get_count()
 
@@ -103,6 +107,10 @@ class StreamableMixin(ColumnarMixin, ABC):
             message: AutoName = AUTO,
             **kwargs
     ) -> dict:
+        """Returns kwargs for stream builder call.
+
+        :returns: dict with kwargs for provide in stream builder arguments, i.e. *Stream(**self.get_stream_kwargs(data))
+        """
         name = Auto.delayed_acquire(name, self._get_generated_stream_name)
         if not Auto.is_defined(data):
             item_type = self._get_item_type()
@@ -116,7 +124,7 @@ class StreamableMixin(ColumnarMixin, ABC):
 
     def stream(
             self, data: Union[Iterable, Auto] = AUTO,
-            stream_type: Union[StreamType, Auto] = AUTO,
+            stream_type: AutoStreamType = AUTO,
             ex: OptionalFields = None,
             **kwargs
     ) -> Stream:
@@ -126,7 +134,7 @@ class StreamableMixin(ColumnarMixin, ABC):
             self,
             data: Union[Iterable, Auto] = AUTO,
             name: AutoName = AUTO,
-            stream_type: Union[StreamType, Auto] = AUTO,
+            stream_type: AutoStreamType = AUTO,
             ex: OptionalFields = None,
             step: AutoCount = AUTO,
             **kwargs

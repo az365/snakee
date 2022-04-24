@@ -56,19 +56,14 @@ class ClickhouseDatabase(AbstractDatabase):
             db=self.db,
             query=query,
         )
-        auth = {
-            'X-ClickHouse-User': self.user,
-            'X-ClickHouse-Key': self.password,
-        }
+        auth = {'X-ClickHouse-User': self.user, 'X-ClickHouse-Key': self.password}
         request_props = {'headers': auth}
         cert_filename = self.conn_kwargs.get('cert_filename') or self.conn_kwargs.get('verify')
         if cert_filename:
             request_props['verify'] = cert_filename
-        self.log('Execute query: {}'. format(query), verbose=verbose)
-        res = requests.get(
-            url,
-            **request_props
-        )
+        message = self._get_execution_message(query, verbose=verbose)
+        self.log(message, verbose=verbose)
+        res = requests.get(url, **request_props)
         res.raise_for_status()
         if get_data:
             return res.text

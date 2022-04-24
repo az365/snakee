@@ -18,25 +18,42 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 Array = Union[list, tuple]
 
 
-def is_in(*list_values, or_none: bool = False) -> Callable:
+@sql_compatible
+def is_in(*list_values, or_none: bool = False, _as_sql: bool = False) -> Callable:
     if list_values == (None, ) or not list_values:
         if or_none:
             return lambda v: True
         else:
             return lambda v: False
     list_values = update(list_values)
+    assert list_values, 'fs.is_in(): non-empty list expected'
 
-    def func(value: Any) -> bool:
+    def _is_in(value: Any) -> bool:
         return value in list_values
-    return func
+
+    def get_sql_repr(field: str) -> str:
+        if len(list_values) == 1:
+            return '{field} = {value}'.format(field=field, value=repr(list_values[0]))
+        else:
+            return '{field} IN ({values})'.format(field=field, values=', '.join(map(repr, list_values)))
+
+    return get_sql_repr if _as_sql else _is_in
 
 
-def not_in(*list_values) -> Callable:
+@sql_compatible
+def not_in(*list_values, _as_sql: bool = False) -> Callable:
     list_values = update(list_values)
 
-    def func(value: Any) -> bool:
+    def _not_in(value: Any) -> bool:
         return value not in list_values
-    return func
+
+    def get_sql_repr(field: str) -> str:
+        if len(list_values) == 1:
+            return '{field} = {value}'.format(field=field, value=repr(list_values[0]))
+        else:
+            return '{field} NOT IN ({values})'.format(field=field, values=', '.join(map(repr, list_values)))
+
+    return get_sql_repr if _as_sql else _not_in
 
 
 def uniq(save_order: bool = True) -> Callable:

@@ -100,6 +100,20 @@ class AbstractDatabase(AbstractStorage, ABC):
     def describe_table(self, name: Name, verbose: AutoBool = AUTO) -> Iterable:
         pass
 
+    def _get_execution_message(self, query: str, verbose: Union[str, bool]) -> str:
+        query_repr = repr(self._get_compact_query_view(query))
+        db_name = self.get_name()
+        template = verbose if isinstance(verbose, str) else '{db}.execute({query})'
+        if '{query}' in template:
+            if '{db}' in template:
+                return template.format(db=db_name, query=query_repr)
+            else:
+                return template.format(query=query_repr)
+        elif '{}' in template:
+            return template.format(query_repr)
+        else:
+            return template
+
     @abstractmethod
     def execute(
             self, query: str,

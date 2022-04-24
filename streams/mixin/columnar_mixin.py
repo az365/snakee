@@ -13,7 +13,7 @@ try:  # Assume we're a submodule in a package.
     from base.mixin.iterable_mixin import IterableMixin
     from functions.secondary.item_functions import composite_key, merge_two_items, items_to_dict
     from content.fields import field_classes as fc
-    from content.items.item_getters import filter_items
+    from content.items.item_getters import get_filter_function
     from utils import algo
     from utils.external import pd, DataFrame, get_use_objects_for_output
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -28,7 +28,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.mixin.iterable_mixin import IterableMixin
     from ...functions.secondary.item_functions import composite_key, merge_two_items, items_to_dict
     from ...content.fields import field_classes as fc
-    from ...content.items.item_getters import filter_items
+    from ...content.items.item_getters import get_filter_function
     from ...utils import algo
     from ...utils.external import pd, DataFrame, get_use_objects_for_output
 
@@ -98,6 +98,26 @@ class ColumnarMixin(IterableMixin, ABC):
     def get_column_count(self) -> int:
         return len(list(self.get_columns()))
 
+    def _get_items_of_type(self, item_type: ItemType) -> Iterable:
+        if item_type == ItemType.Auto:
+            is_native_type = True
+        elif hasattr(self, 'get_item_type'):
+            is_native_type = item_type == self.get_item_type()
+        else:
+            is_native_type = False
+        if is_native_type:
+            return self.get_items()
+        elif hasattr(self, 'get_items_of_type'):
+            return self.get_items_of_type(item_type)
+        else:
+            formatter = '{obj} is not supporting items converting from {src} to {dst}'
+            if hasattr(self, 'get_item_type'):
+                src = self.get_item_type()
+            else:
+                src = repr(self)
+            msg = formatter.format(obj=self, src=src, dst=item_type)
+            raise AttributeError(msg)
+
     def select(self, *args, **kwargs) -> Stream:
         stream = self.to_stream()
         assert isinstance(stream, RegularStreamInterface) or hasattr(stream, 'select')
@@ -114,8 +134,11 @@ class ColumnarMixin(IterableMixin, ABC):
     ) -> Iterable:
         logger = Auto.delayed_acquire(logger, self.get_logger)
         item_type = Auto.delayed_acquire(item_type, self.get_item_type)
-        filter_function = filter_items(*args, **kwargs, item_type=item_type, skip_errors=skip_errors, logger=logger)
-        return filter(filter_function, self.get_items())
+        filter_function = get_filter_function(
+            *args, **kwargs, item_type=item_type,
+            skip_errors=skip_errors, logger=logger,
+        )
+        return filter(filter_function, self._get_items_of_type(item_type))
 
     def filter(self, *args, item_type: ItemType = ItemType.Auto, skip_errors: bool = False, **kwargs) -> Native:
         item_type = Auto.delayed_acquire(item_type, self.get_item_type)

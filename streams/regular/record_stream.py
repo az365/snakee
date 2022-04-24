@@ -14,7 +14,7 @@ try:  # Assume we're a submodule in a package.
     from functions.primary.items import merge_two_items
     from functions.secondary.array_functions import fold_lists
     from content.selection import selection_classes as sn, selection_functions as sf
-    from content.items.item_getters import value_from_record, tuple_from_record, filter_items
+    from content.items.item_getters import value_from_record, tuple_from_record, get_filter_function
     from streams.mixin.convert_mixin import ConvertMixin
     from streams.mixin.columnar_mixin import ColumnarMixin
     from streams.regular.any_stream import AnyStream
@@ -32,7 +32,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...functions.primary.items import merge_two_items
     from ...functions.secondary.array_functions import fold_lists
     from ...content.selection import selection_classes as sn, selection_functions as sf
-    from ...content.items.item_getters import value_from_record, tuple_from_record, filter_items
+    from ...content.items.item_getters import value_from_record, tuple_from_record, get_filter_function
     from ..mixin.convert_mixin import ConvertMixin
     from ..mixin.columnar_mixin import ColumnarMixin
     from .any_stream import AnyStream
@@ -56,7 +56,7 @@ class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
             context: Context = None,
             max_items_in_memory: AutoCount = AUTO,
             tmp_files: TmpFiles = AUTO,
-            check: bool = True,
+            check: bool = False,
     ):
         super().__init__(
             data=data, struct=struct, check=check,
@@ -126,7 +126,7 @@ class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
         return self._assume_native(stream)
 
     def filter(self, *fields, **expressions) -> Native:
-        filter_function = filter_items(*fields, **expressions, item_type=ItemType.Record, skip_errors=True)
+        filter_function = get_filter_function(*fields, **expressions, item_type=ItemType.Record, skip_errors=True)
         filtered_items = self._get_filtered_items(filter_function)
         if self.is_in_memory():
             filtered_items = list(filtered_items)
@@ -421,11 +421,3 @@ class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
             self.get_column_count(),
             ', '.join([str(c) for c in self.get_columns()]),
         )
-
-    def __str__(self):
-        title = self.__repr__()
-        description = self.get_description()
-        if description:
-            return '<{title} {desc}>'.format(title=title, desc=description)
-        else:
-            return '<{}>'.format(title)

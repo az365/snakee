@@ -1,17 +1,24 @@
 from typing import Callable, Iterable, Union, Any
 
 try:  # Assume we're a submodule in a package.
+    from utils.decorators import sql_compatible
     from functions.primary import numeric as nm
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
+    from ...utils.decorators import sql_compatible
     from ..primary import numeric as nm
 
 ZERO_VALUES = None, 'None', '', '-', 0
 
 
-def same() -> Callable:
+@sql_compatible
+def same(_as_sql: bool = False) -> Callable:
     def _same(item):
         return item
-    return _same
+
+    def get_sql_repr(field: str) -> str:
+        return field
+
+    return get_sql_repr if _as_sql else _same
 
 
 def partial(function, *args, **kwargs) -> Callable:
@@ -20,38 +27,64 @@ def partial(function, *args, **kwargs) -> Callable:
     return _partial
 
 
-def const(value: Any) -> Callable:
+@sql_compatible
+def const(value: Any, _as_sql: bool = False) -> Callable:
     def _const(*_) -> Any:
         return value
-    return _const
+
+    def get_sql_repr(field) -> str:
+        return '{value} as {field}'.format(value=repr(value), field=field)
+
+    return get_sql_repr if _as_sql else _const
 
 
-def defined() -> Callable:
+@sql_compatible
+def defined(_as_sql: bool = False) -> Callable:
     def _defined(value: Any) -> bool:
         return value is not None
-    return _defined
+
+    def get_sql_repr(field) -> str:
+        return f'{field} NOT NONE'
+
+    return get_sql_repr if _as_sql else _defined
 
 
-def is_none() -> Callable:
+@sql_compatible
+def is_none(_as_sql: bool = False) -> Callable:
     def _is_none(value: Any) -> bool:
         return nm.is_none(value)
-    return _is_none
+
+    def get_sql_repr(field) -> str:
+        return f'{field} IS NONE'
+
+    return get_sql_repr if _as_sql else _is_none
 
 
-def not_none() -> Callable:
+@sql_compatible
+def not_none(_as_sql: bool = False) -> Callable:
     def _not_none(value: Any) -> bool:
         return nm.is_defined(value)
-    return _not_none
+
+    def get_sql_repr(field) -> str:
+        return f'{field} NOT NONE'
+
+    return get_sql_repr if _as_sql else _not_none
 
 
-def nonzero(zero_values: Union[set, list, tuple] = ZERO_VALUES) -> Callable:
+@sql_compatible
+def nonzero(zero_values: Union[set, list, tuple] = ZERO_VALUES, _as_sql: bool = False) -> Callable:
     def _nonzero(value: Any) -> bool:
         if nm.is_defined(value):
             return value not in zero_values
-    return _nonzero
+
+    def get_sql_repr(field) -> str:
+        return f"{field} != 0 AND {field} != ''"
+
+    return get_sql_repr if _as_sql else _nonzero
 
 
-def equal(*args) -> Callable:
+@sql_compatible
+def equal(*args, _as_sql: bool = False) -> Callable:
     if len(args) == 0:
         benchmark = None
         is_benchmark_defined = False
@@ -59,7 +92,7 @@ def equal(*args) -> Callable:
         is_benchmark_defined = True
         benchmark = args[0]
     else:
-        raise ValueError('fs.equals() accepts 0 or 1 argument, got {}'.format(args))
+        raise ValueError('fs.equal() accepts 0 or 1 argument, got {}'.format(args))
 
     def _equal(*a) -> bool:
         if len(a) == 1 and is_benchmark_defined:
@@ -69,40 +102,75 @@ def equal(*args) -> Callable:
         else:
             raise ValueError('fs.equal() accepts 1 benchmark and 1 value, got benchmark={}, value={}'.format(args, a))
         return value == other
-    return _equal
+
+    def get_sql_repr(*fields, _sign: str = '=') -> str:
+        if len(fields) == 1:
+            assert is_benchmark_defined
+            return '{field} {sign} {benchmark}'.format(field=fields[0], sign=_sign, benchmark=repr(benchmark))
+        elif len(fields) == 2:
+            assert not is_benchmark_defined
+            return '{field} {sign} {benchmark}'.format(field=fields[0], sign=_sign, benchmark=fields[1])
+        else:
+            raise ValueError('fs.equal() operates 1 or 2 fields, got {}'.format(fields))
+
+    return get_sql_repr if _as_sql else _equal
 
 
-def not_equal(*args) -> Callable:
-    _func = equal(*args)
+@sql_compatible
+def not_equal(*args, _as_sql: bool = False) -> Callable:
+    _func = equal(*args, _as_sql=_as_sql)
 
     def _not_equal(*a) -> bool:
         return not _func(*a)
-    return _not_equal
+
+    def get_sql_repr(*fields) -> str:
+        return _func(*fields, _sign='!=')
+
+    return get_sql_repr if _as_sql else _not_equal
 
 
-def less_than(other: Any, including: bool = False) -> Callable:
+@sql_compatible
+def less_than(other: Any, including: bool = False, _as_sql: bool = False) -> Callable:
     def _less_than(value: Any) -> bool:
         if including:
             return value <= other
         else:
             return value < other
-    return _less_than
+
+    def get_sql_repr(*fields) -> str:
+        _func = equal(other, _as_sql=True)
+        if including:
+            return _func(*fields, _sign='<=')
+        else:
+            return _func(*fields, _sign='<')
+
+    return get_sql_repr if _as_sql else _less_than
 
 
-def more_than(other: Any, including: bool = False) -> Callable:
+@sql_compatible
+def more_than(other: Any, including: bool = False, _as_sql: bool = False) -> Callable:
     def _more_than(value: Any) -> bool:
         if including:
             return value >= other
         else:
             return value > other
-    return _more_than
+
+    def get_sql_repr(*fields) -> str:
+        _func = equal(other, _as_sql=True)
+        if including:
+            return _func(*fields, _sign='>=')
+        else:
+            return _func(*fields, _sign='>')
+
+    return get_sql_repr if _as_sql else _more_than
 
 
-def at_least(number: Any) -> Callable:
-    return more_than(number, including=True)
+@sql_compatible
+def at_least(number: Any, _as_sql: bool = False) -> Callable:
+    return more_than(number, including=True, _as_sql=_as_sql)
 
 
-def safe_more_than(other: Any, including: bool = False) -> Callable:
+def safe_more_than(other: Any, including: bool = False, _as_sql: bool = False) -> Callable:
     def _safe_more_than(value) -> bool:
         first, second = value, other
         if type(first) != type(second):
@@ -132,6 +200,7 @@ def safe_more_than(other: Any, including: bool = False) -> Callable:
                 return False
             else:
                 raise TypeError('{}: {} vs {}'.format(e, first, second))
+
     return _safe_more_than
 
 
@@ -146,21 +215,31 @@ def is_ordered(reverse: bool = False, including: bool = True) -> Callable:
     return _is_ordered
 
 
-def between(min_value, max_value, including=False) -> Callable:
+@sql_compatible
+def between(min_value, max_value, including=False, _as_sql: bool = False) -> Callable:
     def _between(value) -> bool:
         if including:
             return min_value <= value <= max_value
         else:
             return min_value < value < max_value
-    return _between
+
+    def get_sql_repr(field) -> str:
+        return f'{field} BETWEEN {min_value} AND {max_value}'
+
+    return get_sql_repr if _as_sql else _between
 
 
-def not_between(min_value, max_value, including=False) -> Callable:
+@sql_compatible
+def not_between(min_value, max_value, including=False, _as_sql: bool = False) -> Callable:
     func_between = between(min_value, max_value, including)
 
     def _not_between(value) -> bool:
         return not func_between(value)
-    return _not_between
+
+    def get_sql_repr(field) -> str:
+        return f'{field} NOT BETWEEN {min_value} AND {max_value}'
+
+    return get_sql_repr if _as_sql else _not_between
 
 
 def apply_dict(dictionary, default=None) -> Callable:

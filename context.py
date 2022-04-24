@@ -107,12 +107,14 @@ class SnakeeContext(bs.AbstractNamed, ContextInterface):
     def log(
             self,
             msg: str, level: Union[LoggingLevel, int, Auto] = AUTO,
+            stacklevel: Optional[int] = None,
             end: Union[str, Auto] = AUTO, verbose: bool = True,
     ) -> None:
         logger = self.get_logger()
         if logger is not None:
             logger.log(
                 msg=msg, level=level,
+                stacklevel=stacklevel,
                 end=end, verbose=verbose,
             )
 
@@ -174,7 +176,15 @@ class SnakeeContext(bs.AbstractNamed, ContextInterface):
             conn_object = conn
         else:
             conn_class = ct.get_class(conn)
-            conn_object = conn_class(context=self, **kwargs)
+            try:
+                if conn_class == ct.LocalFolder or hasattr(conn_class, 'get_default_storage'):  # TMP workaround fix
+                    if Auto.is_defined(name) and 'path' not in kwargs:
+                        kwargs['path'] = name
+                    conn_object = conn_class(context=self, **kwargs)  # TMP workaround fix
+                else:
+                    conn_object = conn_class(context=self, name=name, **kwargs)
+            except TypeError as e:
+                raise TypeError(f'{conn}: {e}')
         self.conn_instances[name] = conn_object
         if check and hasattr(conn_object, 'check'):
             conn_object.check()
