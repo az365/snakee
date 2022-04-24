@@ -42,6 +42,10 @@ class LineOutputMixin(LineOutputInterface, ABC):
             return output(line)
         elif output:
             if hasattr(output, 'output_line'):
+                try:
+                    return output.output_line(line=line)
+                except TypeError as e:
+                    raise TypeError(f'{output}.output_line({line}): {e}')
                 return output.output_line(line)
             elif hasattr(output, 'log'):
                 return output.log(msg=line, **logger_kwargs)
@@ -148,3 +152,14 @@ class LineOutputMixin(LineOutputInterface, ABC):
                 r[PREFIX_FIELD] = prefix
             r = cls._get_cropped_record(r, columns=columns, max_len=max_len)
             yield formatter.format(**r)
+
+    def output_table(
+            self,
+            records: Iterable,
+            columns: Sequence,
+            count: AutoCount = None,
+            with_title: bool = True,
+    ) -> None:
+        columnar_lines = self._get_columnar_lines(records, columns=columns, count=count, with_title=with_title)
+        for line in columnar_lines:
+            self.output_line(line)

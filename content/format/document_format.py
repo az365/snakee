@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Iterable, Generator, Sequence
 
 try:  # Assume we're a submodule in a package.
     from interfaces import Item, ItemType, ContentType, AutoCount, Auto, AUTO
@@ -50,6 +50,21 @@ class HtmlFormat(DocumentFormat):
             html_obj = str(html_code)
         return self.output_line(html_obj, output=output)
 
+    def output_table(
+            self,
+            records: Iterable,
+            columns: Sequence,
+            count: AutoCount = None,
+            with_title: bool = True,
+            output: AutoOutput = AUTO,
+    ) -> None:
+        html_code = '\n'.join(self.get_html_table_code(records, columns, count, with_title))
+        if HTML:
+            html_obj = HTML(html_code)
+        else:
+            html_obj = str(html_code)
+        return self.output_line(html_obj, output=output)
+
     @staticmethod
     def get_html_text_code(text: str, level: Optional[int] = None, style=None) -> str:
         if level:
@@ -59,3 +74,24 @@ class HtmlFormat(DocumentFormat):
         open_tag = f'<{tag} style="{style}">' if style else f'<{tag}>'
         close_tag = f'</{tag}>'
         return f'{open_tag}{text}{close_tag}'
+
+    @staticmethod
+    def get_html_table_code(
+            records: Iterable,
+            columns: Sequence,
+            count: AutoCount = None,
+            with_title: bool = True,
+    ) -> Generator:
+        yield '<table>'
+        if with_title:
+            for c in columns:
+                yield f'<th>{c}</th>'
+        for n, r in enumerate(records):
+            if count:
+                if n >= count:
+                    break
+            yield '<tr>'
+            for c in columns:
+                yield f'<td>{c}</td>'
+            yield '</tr>'
+        yield '</table>'
