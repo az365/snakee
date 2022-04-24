@@ -170,12 +170,12 @@ class HierarchicTerm(DiscreteTerm):
         assert got_depth >= expected_depth, 'Expected level {e}, got {g}'.format(e=expected_depth, g=got_depth)
         return delimiter.join(map(str, ids[:expected_depth + 1]))
 
-    def get_key_field(self, level: Level = AUTO, default_type: ValueType = ValueType.Str, **kwargs) -> Field:
+    def get_key_field(self, level: Level = AUTO, value_type: ValueType = ValueType.Str, **kwargs) -> Field:
         if Auto.is_auto(level) or level is None:
-            key_field = self.get_field_by_role(FieldRoleType.Key, value_type=default_type, **kwargs)
+            key_field = self.get_field_by_role(FieldRoleType.Key, value_type=value_type, **kwargs)
         else:
             level_term = self.get_level_term(level)
-            key_field = level_term.get_field_by_role(FieldRoleType.Key, value_type=default_type, **kwargs)
+            key_field = level_term.get_field_by_role(FieldRoleType.Key, value_type=value_type, **kwargs)
         return key_field
 
     def get_ids_field(self, level: Level = AUTO, default_type: ValueType = ValueType.Sequence, **kwargs) -> Field:
@@ -201,14 +201,14 @@ class HierarchicTerm(DiscreteTerm):
         selector = [lambda *a: delimiter.join(a)]
         selector += self.get_id_fields(level)
         if including_target:
-            selector = [self.get_key_field(level, default_type=ValueType.Str), *selector]
+            selector = [self.get_key_field(level, value_type=ValueType.Str), *selector]
         return tuple(selector)
 
     def get_ids_selection_tuple(self, including_target: bool, level: Level = AUTO):
         selector = [lambda *a: a]
         selector += self.get_id_fields(level)
         if including_target:
-            selector = [self.get_key_field(level, default_type=ValueType.Sequence), *selector]
+            selector = [self.get_key_field(level, value_type=ValueType.Sequence), *selector]
         return tuple(selector)
 
     def get_meta_description(
