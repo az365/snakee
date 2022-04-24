@@ -57,9 +57,6 @@ class NumericRepresentation(AbstractRepresentation):
     def using_letter(self) -> bool:
         return self._use_letter
 
-    def get_fill_char(self) -> str:
-        return self._fill
-
     def get_precision(self) -> int:
         return self._precision
 
@@ -68,20 +65,23 @@ class NumericRepresentation(AbstractRepresentation):
 
     def parse(self, line: str, skip_errors: bool = False) -> Union[int, float, None]:
         value = super().parse(line)
-        if self.using_letter() or self.using_percent():
-            raise NotImplementedError
-        try:
-            if self.get_precision():
-                if '.' in line:
-                    value = float(value)
-            else:
-                value = int(value)
-            return value
-        except ValueError as e:
-            if skip_errors or line == self.get_default():
-                return None
-            else:
-                raise ValueError(e)
+        if value:
+            if self.using_letter():
+                raise NotImplementedError
+            try:
+                if value[-1] == '%':  # or self.using_percent()
+                    value = self.parse(value[:-1], skip_errors=skip_errors) / 100
+                else:
+                    if '.' in value:
+                        value = float(value)
+                    if not self.get_precision():
+                        value = int(value)
+                return value
+            except ValueError as e:
+                if skip_errors or value == self.get_default() or line == self.get_default():
+                    return None
+                else:
+                    raise ValueError(e)
 
     def convert_value(self, value: Value) -> Value:
         int_precision = -2 if self.using_percent() else 0
@@ -136,7 +136,7 @@ class NumericRepresentation(AbstractRepresentation):
             return '-'
 
     def get_precision_str(self) -> str:
-        if self.get_precision() > 0:
+        if self.get_precision() >= 0:
             return '.{}'.format(self.get_precision())
         else:
             return ''
