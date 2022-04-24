@@ -56,7 +56,7 @@ class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
             context: Context = None,
             max_items_in_memory: AutoCount = AUTO,
             tmp_files: TmpFiles = AUTO,
-            check: bool = True,
+            check: bool = False,
     ):
         super().__init__(
             data=data, struct=struct, check=check,
@@ -421,11 +421,3 @@ class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
             self.get_column_count(),
             ', '.join([str(c) for c in self.get_columns()]),
         )
-
-    def __str__(self):
-        title = self.__repr__()
-        description = self.get_description()
-        if description:
-            return '<{title} {desc}>'.format(title=title, desc=description)
-        else:
-            return '<{}>'.format(title)

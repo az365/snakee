@@ -11,6 +11,7 @@ try:  # Assume we're a submodule in a package.
         AUTO, Auto, AutoName, OptionalFields, Message,
     )
     from base.functions.arguments import get_generated_name
+    from base.constants.chars import CROP_SUFFIX, DEFAULT_LINE_LEN
     from base.abstract.contextual_data import ContextualDataWrapper
     from utils.decorators import deprecated_with_alternative
     from loggers.fallback_logger import FallbackLogger
@@ -23,6 +24,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         AUTO, Auto, AutoName, OptionalFields, Message,
     )
     from ...base.functions.arguments import get_generated_name
+    from ...base.constants.chars import CROP_SUFFIX, DEFAULT_LINE_LEN
     from ...base.abstract.contextual_data import ContextualDataWrapper
     from ...utils.decorators import deprecated_with_alternative
     from ...loggers.fallback_logger import FallbackLogger
@@ -200,16 +202,20 @@ class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
     def get_description(self) -> str:
         return 'with meta {}'.format(self.get_meta())
 
+    def get_one_line_repr(
+            self,
+            str_meta: Union[str, Auto, None] = AUTO,
+            max_len: int = DEFAULT_LINE_LEN,
+            crop: str = CROP_SUFFIX,
+    ) -> str:
+        str_meta = Auto.delayed_acquire(str_meta, self.get_str_meta)
+        return '{}({}, {})'.format(self.__class__.__name__, self.get_name(), str_meta)
+
     def __repr__(self):
-        return "{cls}('{name}')".format(cls=self.__class__.__name__, name=self.get_name())
+        return self.get_brief_repr()
 
     def __str__(self):
-        title = self.__repr__()
-        description = self.get_description()
-        if description:
-            return '<{title} {desc}>'.format(title=title, desc=description)
-        else:
-            return '<{}>'.format(title)
+        return self.get_one_line_repr()
 
     @abstractmethod
     def get_demo_example(self, *args, **kwargs):
