@@ -130,7 +130,7 @@ class ItemType(SubclassesType):
         elif len(fields) == 1:
             key_function = self.get_field_getter(fields[0], struct=struct)
         else:
-            key_function = self.get_single_mapper(*fields, function=tuple, struct=struct)
+            key_function = self.get_single_mapper(*fields, function=lambda *a: tuple(a), struct=struct)
         if take_hash:
             return lambda r: hash(key_function(r))
         else:
