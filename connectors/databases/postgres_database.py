@@ -70,20 +70,6 @@ class PostgresDatabase(AbstractDatabase):
             self.connection = None
             return 1
 
-    def _get_execution_message(self, query: str, verbose: Union[str, bool]) -> str:
-        query_repr = self._get_compact_query_view(query)
-        db_repr = self.get_name()
-        template = verbose if isinstance(verbose, str) else '{db}.execute({query})'
-        if '{query}' in template:
-            if '{db}' in template:
-                return template.format(db=db_repr, query=query_repr)
-            else:
-                return template.format(query=query_repr)
-        elif '{}' in template:
-            return template.format(query_repr)
-        else:
-            return template
-
     def execute(
             self,
             query: str = TEST_QUERY,
