@@ -51,16 +51,16 @@ class ConnectorFormatMixin(StructMixin, LeafConnectorInterface, ABC):
         self.set_initial_struct(struct, inplace=True)
         return self._assume_native(self)
 
-    def get_struct(self) -> Struct:
+    def get_struct(self, verbose: AutoBool = AUTO) -> Struct:
         content_format = self.get_content_format()
         if isinstance(content_format, FlatStructFormat) or hasattr(content_format, 'get_struct'):
             struct = content_format.get_struct()
         else:
             struct = None
         if struct is None:
-            if hasattr(self, 'is_accessible'):
+            if self.is_accessible(verbose=verbose):
                 struct = AUTO  # detect struct from source
-        return self._get_native_struct(struct, save_if_not_yet=True)
+        return self._get_native_struct(struct, save_if_not_yet=True, verbose=verbose)
 
     def set_struct(self, struct: Struct, inplace: bool) -> Optional[Native]:
         struct = self._get_native_struct(struct, verbose=False)
