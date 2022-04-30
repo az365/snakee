@@ -90,7 +90,8 @@ class LeafConnector(
         self.set_first_line_title(first_line_is_title)
         if struct is not None:
             if struct == AUTO:
-                struct = self._get_detected_struct(use_declared_types=False)
+                if self.is_accessible():
+                    struct = self._get_detected_struct(use_declared_types=False)
             if Auto.is_defined(struct, check_name=False):
                 self.set_struct(struct, inplace=True)
 
@@ -276,6 +277,7 @@ class LeafConnector(
         lines = self.get_lines(skip_first=self.is_first_line_title(), step=step, verbose=verbose, message=message)
         items = content_format.get_items_from_lines(lines, item_type=item_type)
         return items
+
     def map(self, function: Callable, inplace: bool = False) -> Optional[Native]:
         if inplace and isinstance(self.get_items(), list):
             return self._apply_map_inplace(function) or self
@@ -326,16 +328,16 @@ class LeafConnector(
             count: Optional[int] = EXAMPLE_ROW_COUNT,
             columns: Optional[Array] = None,
             show_header: bool = True,
-            struct_as_dataframe: bool = False,
+            struct_as_dataframe: bool = False,  # deprecated
             safe_filter: bool = True,
             actualize: AutoBool = AUTO,
-            output: AutoOutput = AUTO,
+            output: AutoOutput = AUTO,  # deprecated
             **filter_kwargs
     ):
-        output = Auto.acquire(output, print)
+        display = self.get_display()
         if show_header:
-            for line in self.get_str_headers(actualize=False):
-                self.output_line(line, output=output)
+            display.display_paragraph(self.get_name(), level=1)
+            display.display_paragraph(self.get_str_headers(actualize=False))
             struct_title, example_item, example_stream, example_comment = self._prepare_examples_with_title(
                 *filter_args, **filter_kwargs, safe_filter=safe_filter,
                 example_row_count=count, actualize=actualize,

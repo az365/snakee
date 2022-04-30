@@ -20,7 +20,7 @@ _display = DefaultDisplay()
 class LineOutputMixin(LineOutputInterface, ABC):
     @classmethod
     def get_display(cls, display: Optional[DefaultDisplay] = None) -> DefaultDisplay:
-        if isinstance(display, DefaultDisplay):
+        if isinstance(display, DefaultDisplay) or hasattr(display, 'display_paragraph'):
             return display
         else:
             global _display
@@ -75,17 +75,7 @@ class LineOutputMixin(LineOutputInterface, ABC):
             max_len: int = DEFAULT_LINE_LEN,
             ex: Union[str, Sequence, None] = None,
     ) -> dict:
-        if ex is None:
-            ex = []
-        elif isinstance(ex, str):
-            ex = [ex]
-        names = list(cls._get_column_names(columns, ex=ex))
-        lens = cls._get_column_lens(columns, max_len=max_len)
-        if isinstance(item, dict):
-            values = [str(get_value(item.get(k))) if k not in ex else '' for k in names]
-        else:
-            values = [str(v) if k not in ex else '' for k, v in zip(names, item)]
-        return {c: str(v)[:s] for c, v, s in zip(names, values, lens)}
+        return cls.get_display()._get_cropped_record(item, columns=columns, max_len=max_len, ex=ex)
 
     # @deprecated
     @classmethod

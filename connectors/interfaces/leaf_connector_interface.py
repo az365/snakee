@@ -2,19 +2,21 @@ from abc import ABC, abstractmethod
 from typing import Optional, Union
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.typing import AUTO, Auto, AutoBool, AutoCount
+    from base.classes.typing import AUTO, Auto, AutoBool, AutoCount, Array
     from streams.interfaces.abstract_stream_interface import StreamInterface
     from content.format.content_type import ContentType
     from content.format.format_interface import ContentFormatInterface
     from connectors.interfaces.connector_interface import ConnectorInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...base.classes.typing import AUTO, Auto, AutoBool, AutoCount
+    from ...base.classes.typing import AUTO, Auto, AutoBool, AutoCount, Array
     from ...streams.interfaces.abstract_stream_interface import StreamInterface
     from ...content.format.content_type import ContentType
     from ...content.format.format_interface import ContentFormatInterface
     from .connector_interface import ConnectorInterface
 
 Native = Union[ConnectorInterface, StreamInterface]
+
+EXAMPLE_ROW_COUNT = 10
 
 
 class LeafConnectorInterface(ConnectorInterface, StreamInterface, ABC):
@@ -78,6 +80,10 @@ class LeafConnectorInterface(ConnectorInterface, StreamInterface, ABC):
         pass
 
     @abstractmethod
+    def get_struct(self):
+        pass
+
+    @abstractmethod
     def get_struct_from_source(
             self,
             set_struct: bool = False,
@@ -87,7 +93,7 @@ class LeafConnectorInterface(ConnectorInterface, StreamInterface, ABC):
         pass
 
     @abstractmethod
-    def set_first_line_title(self, first_line_is_titls: AutoBool) -> Native:
+    def set_first_line_title(self, first_line_is_title: AutoBool) -> Native:
         pass
 
     @abstractmethod
@@ -100,7 +106,7 @@ class LeafConnectorInterface(ConnectorInterface, StreamInterface, ABC):
 
     @abstractmethod
     def is_existing(self) -> bool:
-        """Checks that file/table is existing in storage/filesystem.
+        """Checks that file/table is existing in storage/database.
         """
         pass
 
@@ -147,4 +153,19 @@ class LeafConnectorInterface(ConnectorInterface, StreamInterface, ABC):
 
         :returns: Stream with data from connected object.
         """
+        pass
+
+    @abstractmethod
+    def describe(
+            self,
+            *filter_args,
+            count: Optional[int] = EXAMPLE_ROW_COUNT,
+            columns: Optional[Array] = None,
+            show_header: bool = True,
+            struct_as_dataframe: bool = False,  # deprecated
+            safe_filter: bool = True,
+            actualize: AutoBool = AUTO,
+            output=AUTO,  # deprecated
+            **filter_kwargs
+    ):
         pass
