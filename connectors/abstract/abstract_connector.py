@@ -42,6 +42,13 @@ class AbstractConnector(TreeItem, ConnectorInterface, ABC):
     def is_defined(self) -> bool:
         return self.get_name() is not None
 
+    def is_accessible(self, verbose: bool = False) -> bool:
+        parent = self.get_parent()
+        if hasattr(parent, 'is_accessible'):
+            return parent.is_accessible(verbose=verbose)
+        else:
+            return True
+
     def get_conn_type(self) -> ConnType:
         conn_type = ConnType.detect(self)
         if isinstance(conn_type, ConnType):
