@@ -77,10 +77,10 @@ def diff(
 
     def get_sql_repr(*fields) -> str:
         if constant is None:
-            assert len(fields) == 2, 'Expected two values (constant={}), got {}'.format(constant, args)
+            assert len(fields) == 2, 'Expected two values (constant={}), got {}'.format(constant, fields)
             v, c = fields
         else:
-            assert len(fields) == 1, 'Expected one value (constant={}), got {}'.format(constant, args)
+            assert len(fields) == 1, 'Expected one value (constant={}), got {}'.format(constant, fields)
             c = constant
             v = fields[0]
         if reverse:
