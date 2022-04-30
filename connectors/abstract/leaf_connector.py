@@ -1,14 +1,15 @@
 from abc import ABC
-from typing import Optional, Callable, Generator, Union
+from typing import Optional, Callable, Iterable, Generator, Union
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         ConnectorInterface, LeafConnectorInterface, StructInterface, ContentFormatInterface,
         ItemType, StreamType, ContentType, Context, Stream, Name, Array,
-        AUTO, Auto, AutoBool, AutoCount, AutoConnector, AutoContext,
+        AUTO, Auto, AutoBool, AutoName, AutoCount, AutoConnector, AutoContext,
     )
     from base.functions.arguments import get_name, get_str_from_args_kwargs
     from base.constants.chars import EMPTY, CROP_SUFFIX, ITEMS_DELIMITER, DEFAULT_LINE_LEN
+    from content.format.format_classes import ParsedFormat
     from connectors.abstract.abstract_connector import AbstractConnector
     from connectors.mixin.actualize_mixin import (
         ActualizeMixin, AutoOutput,
@@ -20,10 +21,11 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...interfaces import (
         ConnectorInterface, LeafConnectorInterface, StructInterface, ContentFormatInterface,
         ItemType, StreamType, ContentType, Context, Stream, Name, Array,
-        AUTO, Auto, AutoBool, AutoCount, AutoConnector, AutoContext,
+        AUTO, Auto, AutoBool, AutoName, AutoCount, AutoConnector, AutoContext,
     )
     from ...base.functions.arguments import get_name, get_str_from_args_kwargs
     from ...base.constants.chars import EMPTY, CROP_SUFFIX, ITEMS_DELIMITER, DEFAULT_LINE_LEN
+    from ...content.format.format_classes import ParsedFormat
     from .abstract_connector import AbstractConnector
     from ..mixin.actualize_mixin import (
         ActualizeMixin, AutoOutput,
@@ -154,8 +156,8 @@ class LeafConnector(
             if not self.get_declared_format():
                 return self.set_declared_format(content_format, inplace=True) or self
         else:
-            detected_format = self.make_new(content_format=content_format)
-            return self._assume_native(detected_format)
+            connector = self.make_new(content_format=content_format)
+            return self._assume_native(connector)
 
     def reset_detected_format(self, use_declared_types: bool = True, skip_missing: bool = False) -> Native:
         if self.is_existing():
@@ -243,6 +245,37 @@ class LeafConnector(
         copy.set_detected_format(self.get_detected_format().copy(), inplace=True)
         return copy
 
+    def get_items(
+            self,
+            verbose: AutoBool = AUTO,
+            step: AutoCount = AUTO,
+    ) -> Iterable:
+        return self.get_items_of_type(item_type=AUTO, verbose=verbose, step=step)
+
+    def get_items_of_type(
+            self,
+            item_type: Union[ItemType, Auto],
+            verbose: AutoBool = AUTO,
+            message: AutoName = AUTO,
+            step: AutoCount = AUTO,
+    ) -> Iterable:
+        item_type = Auto.acquire(item_type, self.get_default_item_type())
+        verbose = Auto.acquire(verbose, self.is_verbose())
+        content_format = self.get_content_format()
+        assert isinstance(content_format, ParsedFormat)
+        count = self.get_count(allow_slow_mode=False)
+        if isinstance(verbose, str):
+            if Auto.is_defined(message):
+                self.log(verbose, verbose=bool(verbose))
+            else:
+                message = verbose
+        elif (count or 0) > 0:
+            template = '{count} lines expected from file {name}...'
+            msg = template.format(count=count, name=self.get_name())
+            self.log(msg, verbose=verbose)
+        lines = self.get_lines(skip_first=self.is_first_line_title(), step=step, verbose=verbose, message=message)
+        items = content_format.get_items_from_lines(lines, item_type=item_type)
+        return items
     def map(self, function: Callable, inplace: bool = False) -> Optional[Native]:
         if inplace and isinstance(self.get_items(), list):
             return self._apply_map_inplace(function) or self

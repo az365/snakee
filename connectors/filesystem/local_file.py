@@ -142,6 +142,7 @@ class LocalFile(LeafConnector, ActualizeMixin):
         return self
 
     def get_default_file_extension(self) -> str:
+        """Returns expected (recommended) file extension for files with this content format."""
         return self.get_content_type().get_default_file_extension()
 
     def is_directly_in_parent_folder(self) -> bool:
@@ -316,38 +317,6 @@ class LocalFile(LeafConnector, ActualizeMixin):
                 count = self.get_count(allow_slow_mode=False)
             lines = self.get_logger().progress(lines, name=message, count=count, step=step)
         return lines
-
-    def get_items(
-            self,
-            verbose: AutoBool = AUTO,
-            step: AutoCount = AUTO,
-    ) -> Iterable:
-        return self.get_items_of_type(item_type=AUTO, verbose=verbose, step=step)
-
-    def get_items_of_type(
-            self,
-            item_type: Union[ItemType, Auto],
-            verbose: AutoBool = AUTO,
-            message: AutoName = AUTO,
-            step: AutoCount = AUTO,
-    ) -> Iterable:
-        item_type = Auto.acquire(item_type, self.get_default_item_type())
-        verbose = Auto.acquire(verbose, self.is_verbose())
-        content_format = self.get_content_format()
-        assert isinstance(content_format, ParsedFormat)
-        count = self.get_count(allow_slow_mode=False)
-        if isinstance(verbose, str):
-            if Auto.is_defined(message):
-                self.log(verbose, verbose=bool(verbose))
-            else:
-                message = verbose
-        elif (count or 0) > 0:
-            template = '{count} lines expected from file {name}...'
-            msg = template.format(count=count, name=self.get_name())
-            self.log(msg, verbose=verbose)
-        lines = self.get_lines(skip_first=self.is_first_line_title(), step=step, verbose=verbose, message=message)
-        items = content_format.get_items_from_lines(lines, item_type=item_type)
-        return items
 
     def get_chunks(self, chunk_size=CHUNK_SIZE) -> Iterable:
         return iter(lambda: self.get_fileholder().read(chunk_size), '')
