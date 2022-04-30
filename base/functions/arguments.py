@@ -96,57 +96,51 @@ def get_optional_len(obj: Iterable, default=None) -> Optional[int]:
 
 def get_str_from_args_kwargs(
         *args,
-        delimiter: str = '=',
-        remove_prefixes: Optional[Iterable] = None,
-        kwargs_order: Optional[Iterable] = None,
+        _delimiter: str = '=',
+        _remove_prefixes: Optional[Iterable] = None,
+        _kwargs_order: Optional[Iterable] = None,
         **kwargs
 ) -> str:
     list_str_from_kwargs = list()
-    if kwargs_order is None:
+    if _kwargs_order is None:
         ordered_kwargs_items = kwargs.items()
     else:
-        kwargs_order = list(kwargs_order)
+        _kwargs_order = list(_kwargs_order)
         ordered_kwargs_items = list()
-        for k in kwargs_order:
+        for k in _kwargs_order:
             if k in kwargs:
                 ordered_kwargs_items.append((k, kwargs[k]))
         for k, v in kwargs.items():
-            if k not in kwargs_order:
+            if k not in _kwargs_order:
                 ordered_kwargs_items.append((k, v))
     for k, v in ordered_kwargs_items:
         if isclass(v):
             v_str = v.__name__
         else:
             v_str = v.__repr__()
-        # try:
-        #     v_str = v.__repr__()
-        # except TypeError:
-        #     v_str = str(v)
-        for prefix in remove_prefixes or []:
+        for prefix in _remove_prefixes or []:
             if v_str.startswith(prefix):
                 v_str = v_str[len(prefix):]
-        list_str_from_kwargs.append('{}{}{}'.format(k, delimiter, v_str))
+        list_str_from_kwargs.append('{}{}{}'.format(k, _delimiter, v_str))
     list_str_from_args = [str(i) for i in args]
     return ', '.join(list_str_from_args + list_str_from_kwargs)
-    # list_str_from_args_kwargs = [str(i) for i in args] + ['{}={}'.format(k, v) for k, v in kwargs.items()]
-    # return ', '.join(list_str_from_args_kwargs)
 
 
 def get_str_from_annotation(class_or_func: Union[Callable, Type]) -> str:
     if isclass(class_or_func):
-        func = class_or_func.__init__
+        func = class_or_func
         name = class_or_func.__name__
     elif isinstance(class_or_func, Callable):
         func = class_or_func
         name = class_or_func.__name__
     elif isinstance(class_or_func, object):
-        func = class_or_func.__class__.__init__
+        func = class_or_func.__class__
         name = class_or_func.__class__.__name__
     else:
         raise TypeError
     if hasattr(func, '__annotations__'):
         ann_dict = func.__annotations__
-        ann_str = get_str_from_args_kwargs(**ann_dict, delimiter=': ', remove_prefixes=['typing.'])
+        ann_str = get_str_from_args_kwargs(**ann_dict, _delimiter=': ', _remove_prefixes=['typing.'])
     else:
         ann_str = '*args, **kwargs'
     return '{}({})'.format(name, ann_str)
