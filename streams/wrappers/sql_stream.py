@@ -3,13 +3,13 @@ from typing import Optional, Callable, Iterable, Generator, Sequence, Union
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
-        ContextInterface, LeafConnectorInterface, StreamInterface, StructInterface,
-        ConnType, LoggingLevel, ItemType, StreamType, Stream, RegularStream,
+        ContextInterface, LeafConnectorInterface, StructInterface, StreamInterface, Stream, RegularStream,
+        ConnType, LoggingLevel, ItemType, StreamType, JoinType,
         AutoContext, AutoStreamType, AutoName, AutoBool, Auto, AUTO,
         Item, Name, FieldName, FieldNo, Links, Columns, OptionalFields, Array, ARRAY_TYPES,
     )
     from base.functions.arguments import get_names, get_name, get_generated_name, get_str_from_args_kwargs
-    from base.constants.chars import EMPTY, ALL, CROP_SUFFIX, ITEMS_DELIMITER
+    from base.constants.chars import EMPTY, ALL, CROP_SUFFIX, ITEMS_DELIMITER, PY_INDENT
     from functions.primary.text import remove_extra_spaces
     from content.fields.any_field import AnyField
     from content.selection.abstract_expression import AbstractDescription
@@ -18,13 +18,13 @@ try:  # Assume we're a submodule in a package.
     from streams.abstract.wrapper_stream import WrapperStream
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
-        ContextInterface, LeafConnectorInterface, StreamInterface, StructInterface,
-        ConnType, LoggingLevel, ItemType, StreamType, Stream, RegularStream,
+        ContextInterface, LeafConnectorInterface, StructInterface, StreamInterface, Stream, RegularStream,
+        ConnType, LoggingLevel, ItemType, StreamType, JoinType,
         AutoContext, AutoStreamType, AutoName, AutoBool, Auto, AUTO,
         Item, Name, FieldName, FieldNo, Links, Columns, OptionalFields, Array, ARRAY_TYPES,
     )
     from ...base.functions.arguments import get_names, get_name, get_generated_name, get_str_from_args_kwargs
-    from ...base.constants.chars import EMPTY, ALL, CROP_SUFFIX, ITEMS_DELIMITER
+    from ...base.constants.chars import EMPTY, ALL, CROP_SUFFIX, ITEMS_DELIMITER, PY_INDENT
     from ...functions.primary.text import remove_extra_spaces
     from ...content.fields.any_field import AnyField
     from ...content.selection.abstract_expression import AbstractDescription
@@ -37,13 +37,15 @@ TableOrQuery = Union[LeafConnectorInterface, StreamInterface, None]
 
 IS_DEFINED = '{field} <> 0 and {field} NOT NULL'
 MSG_NOT_IMPL = '{method}() operation is not defined for SqlStream, try to use .to_record_stream().{method}() instead'
+CODE_HTML_STYLE = "background-color: RGB(48, 56, 69); line-height: 1.0em; padding-top: 2.0em; padding-bottom: 2.0em;'"
 DICT_FUNC_NAMES = dict(len='COUNT')
-DICT_TYPE_NAMES = dict(int='integer')
+DICT_TYPE_NAMES = dict(int='integer', str='varchar')
 
 
 class SqlSection(Enum):
     Select = 'SELECT'
     From = 'FROM'
+    Join = 'JOIN'
     Where = 'WHERE'
     GroupBy = 'GROUP BY'
     OrderBy = 'ORDER BY'
@@ -51,7 +53,8 @@ class SqlSection(Enum):
 
 
 SECTIONS_ORDER = (
-    SqlSection.Select, SqlSection.From, SqlSection.Where, SqlSection.GroupBy, SqlSection.OrderBy, SqlSection.Limit,
+    SqlSection.Select, SqlSection.From, SqlSection.Join,
+    SqlSection.Where, SqlSection.GroupBy, SqlSection.OrderBy, SqlSection.Limit,
 )
 
 
@@ -66,6 +69,8 @@ class SqlStream(WrapperStream):
     ):
         if not Auto.is_defined(data):
             data = dict()
+        if not Auto.is_defined(name):
+            name = self._get_generated_name()
         self._count = None
         super().__init__(
             data=data, check=False,
@@ -162,7 +167,18 @@ class SqlStream(WrapperStream):
                             sql_function_expr = '{}({})'.format(sql_function_name, source_field)
                     yield '{} AS {}'.format(sql_function_expr, target_field)
                 else:
-                    raise NotImplementedError('got {}'.format(desc))
+                    if isinstance(expression[0], Callable):
+                        function, *fields = expression
+                    elif isinstance(expression[-1], Callable):
+                        *fields, function = expression
+                    else:
+                        msg = 'Expected tuple (function, *fields) or (*fields, function), got {}'
+                        raise ValueError(msg.format(expression))
+                    if hasattr(function, 'get_sql_expr'):
+                        sql_function_expr = function.get_sql_expr(*fields)
+                    else:
+                        raise ValueError(f'Expected @sql_compatible function, got {function}')
+                    yield '{} AS {}'.format(sql_function_expr, target_field)
             else:
                 raise ValueError('expected field name or tuple, got {}'.format(desc))
 
@@ -197,10 +213,14 @@ class SqlStream(WrapperStream):
             else:
                 raise ValueError('expected field name or tuple, got {}'.format(description))
 
-    def get_from_lines(self) -> Generator:
+    def get_from_lines(self, subquery_name: AutoName = AUTO) -> Generator:
         from_section = list(self.get_expressions_for(SqlSection.From))
         if len(from_section) == 1:
             from_obj = from_section[0]
+            if Auto.is_auto(subquery_name) and (isinstance(from_obj, SqlStream) or hasattr(from_obj, 'get_query_name')):
+                subquery_name = from_obj.get_query_name()
+            if not (subquery_name or Auto.is_defined(subquery_name)):
+                subquery_name = self._get_generated_name()
             if isinstance(from_obj, FieldName):
                 yield from_obj
             elif hasattr(from_obj, 'get_path'):  # isinstance(from_obj, Table):
@@ -208,11 +228,41 @@ class SqlStream(WrapperStream):
             elif hasattr(from_obj, 'get_query_lines'):  # isinstance(from_obj, SqlTransform)
                 yield '('
                 yield from from_obj.get_query_lines(finish=False)
-                yield ') AS {}'.format(get_generated_name('subquery', include_random=True, include_datetime=False))
+                yield ') AS {}'.format(subquery_name)
             else:
                 raise ValueError('from-section data must be Table or Name(str), got {}'.format(from_obj))
         else:
             yield from from_section
+
+    def get_join_lines(self, left_subquery_name: AutoName = AUTO, right_subquery_name: AutoName = AUTO) -> Generator:
+        join_section = list(self.get_expressions_for(SqlSection.Join))
+        if join_section:
+            assert len(join_section) == 1
+            indent = PY_INDENT
+            table_or_query, key, how = join_section[0]
+            field_name = get_name(key)
+            subquery_name = self._get_generated_name()
+            if Auto.is_auto(left_subquery_name):
+                left_subquery_name = self.get_source().get_query_name()
+            if Auto.is_auto(right_subquery_name):
+                if isinstance(table_or_query, SqlStream) or hasattr(table_or_query, 'get_query_name'):
+                    right_subquery_name = table_or_query.get_query_name()
+            if not Auto.is_defined(right_subquery_name):
+                right_subquery_name = f'{subquery_name}_right'
+            section_title = '{} JOIN'.format(get_name(how).upper())
+            if isinstance(table_or_query, FieldName):
+                yield section_title
+                yield indent + table_or_query
+            elif hasattr(table_or_query, 'get_path'):  # isinstance(from_obj, Table):
+                yield section_title
+                yield indent + table_or_query.get_path()
+            elif hasattr(table_or_query, 'get_query_lines'):  # isinstance(from_obj, SqlTransform)
+                yield f'{section_title} ('
+                yield from map(lambda s: f'{indent}{s}', table_or_query.get_query_lines(finish=False))
+                yield f') AS {right_subquery_name}'
+            else:
+                raise ValueError('join-section data must be Table or Subquery, got {}'.format(table_or_query))
+            yield f'ON {left_subquery_name}.{field_name} = {right_subquery_name}.{field_name}'
 
     def get_groupby_lines(self) -> Generator:
         for f in self.get_expressions_for(SqlSection.GroupBy):
@@ -345,6 +395,16 @@ class SqlStream(WrapperStream):
         assert isinstance(stream, SqlStream) or hasattr(stream, 'add_expression_for'), 'got {}'.format(stream)
         for f in fields:
             stream.add_expression_for(SqlSection.OrderBy, f)
+        return stream
+
+    def join(self, table_or_stream: TableOrQuery, key: AnyField, how: JoinType = JoinType.Left) -> Native:
+        assert isinstance(key, (AnyField, str)), f'got {key}'
+        if self.has_any_section():
+            return self.new().join(table_or_stream, key=key, how=how)
+        else:
+            stream = self.copy()
+            join_tuple = (table_or_stream, key, how)
+            stream.add_expression_for(SqlSection.Join, join_tuple)
         return stream
 
     def take(self, count: int) -> Native:
