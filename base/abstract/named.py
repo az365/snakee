@@ -84,14 +84,14 @@ class AbstractNamed(AbstractBaseObject, LineOutputMixin, ABC):
             comment: Optional[str] = None,
             depth: int = 1,
             output: AutoOutput = AUTO,  # deprecated
-    ):
+    ) -> None:
         display = self.get_display(output)
         if show_header:
             display.display_paragraph(self.get_name(), level=1)
-            for line in self.get_str_headers():
-                display.output_line(line)
-        display.output_line(comment)
-        display.output_line(self.get_meta_description())
+            display.display_paragraph(self.get_str_headers())
+        if comment:
+            display.output_line(comment)
+        display.display_paragraph(self.get_meta_description())
         if depth > 0:
             for attribute, value in self.get_meta_items():
                 if isinstance(value, AbstractBaseObject) or hasattr(value, 'describe'):
