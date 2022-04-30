@@ -1,4 +1,4 @@
-from typing import Optional, Iterable, Sized, Union
+from typing import Optional, Iterable, Sized
 import gc
 
 try:  # Assume we're a submodule in a package.
@@ -70,6 +70,13 @@ class PostgresDatabase(AbstractDatabase):
             self.connection = None
             return 1
 
+    def is_accessible(self, verbose: bool = False) -> bool:
+        try:
+            self.execute(query=TEST_QUERY, verbose=verbose)
+            return True
+        except psycopg2.OperationalError:
+            return False
+
     def execute(
             self,
             query: str = TEST_QUERY,
@@ -125,10 +132,10 @@ class PostgresDatabase(AbstractDatabase):
             verbose=message if verbose is True else verbose,
         )
 
-    def post_create_action(self, name: str, verbose=AUTO) -> None:
+    def post_create_action(self, name: str, verbose: AutoBool = AUTO) -> None:
         self.grant_permission(name, verbose=verbose)
 
-    def exists_table(self, name: str, verbose=AUTO) -> bool:
+    def exists_table(self, name: str, verbose: AutoBool = AUTO) -> bool:
         schema_name, table_name = self._get_schema_and_table_name(name, default_schema='public')
         template = """
             SELECT 1

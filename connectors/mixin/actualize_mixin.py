@@ -328,17 +328,20 @@ class ActualizeMixin(ABC):
         if not Auto.is_defined(example):
             example = self.to_record_stream()
         stream_example = example.take(count).collect()
-        if comment:
-            self.output_line(EMPTY, output=output)
-            self.output_line(comment, output=output)
-        if stream_example:
-            example = stream_example.get_demo_example(columns=columns)
-            is_dataframe = hasattr(example, 'shape')
-            if is_dataframe:
-                return example
-            else:
-                for line in example:
-                    self.output_line(line, output=output)
+        if stream_example or comment:
+            display = self.get_display()
+            display.display_paragraph('Example', level=3)
+            if comment:
+                display.display_paragraph(comment)
+            if stream_example:
+                example = stream_example.get_demo_example(columns=columns)
+                is_dataframe = hasattr(example, 'shape')
+                if is_dataframe:
+                    return example
+                else:
+                    for line in example:
+                        display.output_line(line, output=output)
+                    display.display_paragraph()
 
     def show(
             self,

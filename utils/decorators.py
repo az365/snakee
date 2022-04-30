@@ -79,12 +79,12 @@ def singleton(cls):
 
 def sql_compatible(func):
     class SqlCompatibleFunction(Callable):
-        _name = None
-
         @wraps(func)
         def __init__(self, *args, **kwargs):
+            if '_as_sql' in kwargs:
+                kwargs.pop('_as_sql')
             self._name = func.__name__
-            self._py_func = func(*args, **kwargs)
+            self._py_func = func(*args, **kwargs, _as_sql=False)
             self._sql_func = func(*args, **kwargs, _as_sql=True)
             self._repr = '{}({})'.format(self._name, arg.get_str_from_args_kwargs(*args, **kwargs))
 

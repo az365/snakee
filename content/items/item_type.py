@@ -37,7 +37,9 @@ class ItemType(SubclassesType):
     Line = 'line'
     Row = 'row'
     Record = 'record'
-    StructRow = 'struct_row'
+    StructRow = 'struct_row'  # deprecated
+    Paragraph = 'paragraph'
+    Sheet = 'sheet'
     Any = 'any'
     Auto = AUTO
 

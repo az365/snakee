@@ -1,4 +1,4 @@
-from typing import Optional, Iterable, Generator, Union
+from typing import Optional, Iterable, Iterator, Generator, Union
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
@@ -45,6 +45,15 @@ Comment = Union[StructName, Auto]
 META_MEMBER_MAPPING = dict(_data='fields')
 GROUP_TYPE_STR = 'GROUP'
 DICT_VALID_SIGN = {'True': '-', 'False': 'x', 'None': '-', AUTO.get_value(): '~'}
+
+COMPARISON_TAGS = dict(
+    this_only='THIS_ONLY', other_only='OTHER_ONLY', moved='MOVED',
+    this_duplicated='DUPLICATED_HERE', other_duplicated='DUPLICATED_THERE', both_duplicated='DUPLICATED',
+)
+VALIDATION_TAGS = dict(
+    this_only='UNEXPECTED', other_only='MISSING_IN_DATA', moved='MOVED',
+    this_duplicated='DUPLICATE_IN_DATA', other_duplicated='DUPLICATE_IN_STRUCT', both_duplicated='DUPLICATED',
+)
 
 
 class FlatStruct(SimpleDataWrapper, IterDataMixin, SelectableMixin, StructInterface):
@@ -427,8 +436,9 @@ class FlatStruct(SimpleDataWrapper, IterDataMixin, SelectableMixin, StructInterf
         else:
             yield '{}: Struct is actual, will not be changed'.format(title)
 
-    def validate_about(self, standard: StructInterface, ignore_moved: bool = False) -> Native:
-        expected_struct = self.convert_to_native(standard)
+    def compare_with(self, other: StructInterface, ignore_moved: bool = True, tags: dict = AUTO, set_valid: bool = False) -> Native:
+        tags = Auto.acquire(tags, COMPARISON_TAGS)
+        expected_struct = self.convert_to_native(other)
         remaining_struct = expected_struct.copy()
         assert isinstance(expected_struct, FlatStruct), 'got {}'.format(expected_struct)
         assert isinstance(remaining_struct, FlatStruct), 'got {}'.format(remaining_struct)
@@ -438,23 +448,21 @@ class FlatStruct(SimpleDataWrapper, IterDataMixin, SelectableMixin, StructInterf
             f_name = f_received.get_name()
             if f_name in updated_struct.get_field_names():
                 is_valid = False
-                warning = 'DUPLICATE_IN_DATA' if f_name in remaining_struct.get_field_names() else 'DUPLICATE'
+                tag = tags['this_duplicated'] if f_name in remaining_struct.get_field_names() else tags['both_duplicated']
                 f_expected = updated_struct.get_field_description(f_name)
-                f_updated = f_expected.set_valid(is_valid, inplace=False)
+                f_updated = f_expected.set_valid(is_valid, inplace=False) if set_valid else f_expected
             elif f_name in expected_struct.get_field_names():
                 is_valid = True
                 pos_expected = expected_struct.get_field_position(f_name)
-                warning = None if pos_received == pos_expected or ignore_moved else 'MOVED'
+                tag = None if pos_received == pos_expected or ignore_moved else tags['moved']
                 f_expected = expected_struct.get_field_description(f_name)
-                f_updated = f_expected.set_valid(is_valid, inplace=False)
+                f_updated = f_expected.set_valid(is_valid, inplace=False) if set_valid else f_expected
             else:
                 is_valid = False
-                warning = 'UNEXPECTED'
-                message = 'field has been found in actual struct, but not in expected standard struct'
-                caption = '{} ({})'.format(f_received.get_caption(), message)
-                f_updated = f_received.set_valid(is_valid, inplace=False).set_caption(caption, inplace=False)
-            if warning:
-                caption = '[{}] {}'.format(warning, f_updated.get_caption() or '')
+                tag = tags['this_only']
+                f_updated = f_received.set_valid(is_valid, inplace=False) if set_valid else f_received
+            if tag:
+                caption = '[{}] {}'.format(tag, f_updated.get_caption() or '')
                 f_updated = f_updated.set_caption(caption, inplace=False)
             updated_struct.append_field(f_updated, exclude_duplicates=ignore_moved)
             if f_name in remaining_struct.get_field_names():
@@ -464,15 +472,22 @@ class FlatStruct(SimpleDataWrapper, IterDataMixin, SelectableMixin, StructInterf
             f_name = get_name(f_remaining)
             is_valid = False
             f_expected = expected_struct.get_field_description(f_name)
+            caption = f_expected.get_caption() or ''
             if f_name in updated_struct.get_field_names():
-                warning = 'DUPLICATE_IN_STRUCT'
+                tag = tags['other_duplicated']
             else:
-                warning = 'MISSING_IN_FILE'
-            caption = '[{}] {}'.format(warning, f_expected.get_caption() or '')
-            f_updated = f_expected.set_valid(is_valid, inplace=False).set_caption(caption, inplace=False)
+                tag = tags['other_only']
+            if tag not in caption:
+                caption = '[{}] {}'.format(tag, caption or '')
+            f_updated = f_expected.set_valid(is_valid, inplace=False) if set_valid else f_expected
+            f_updated = f_updated.set_caption(caption, inplace=False)
             updated_struct.append_field(f_updated, exclude_duplicates=ignore_moved)
         self.set_fields(updated_struct.get_fields(), inplace=True)
         return self
+
+    def validate_about(self, standard: StructInterface, ignore_moved: bool = False) -> Native:
+        tags = VALIDATION_TAGS
+        return self.compare_with(standard, ignore_moved=ignore_moved, tags=tags, set_valid=True)
 
     def get_validation_message(self, standard: Union[StructInterface, Auto, None] = AUTO) -> str:
         if Auto.is_defined(standard):
@@ -522,7 +537,7 @@ class FlatStruct(SimpleDataWrapper, IterDataMixin, SelectableMixin, StructInterf
             [self.get_field_description(f) for f in fields]
         )
 
-    def get_fields_tuples(self) -> Iterable[tuple]:  # (name, type, caption, is_valid, group_caption)
+    def get_fields_tuples(self) -> Iterator[tuple]:  # (name, type, caption, is_valid, group_caption)
         for f in self.get_fields():
             if isinstance(f, (FieldInterface, AnyField)):
                 field_name = f.get_name()
@@ -551,7 +566,7 @@ class FlatStruct(SimpleDataWrapper, IterDataMixin, SelectableMixin, StructInterf
             message = 'Field {} not found (existing fields: {})'
             raise IndexError(message.format(field_name, ', '.join(self.get_field_names())))
 
-    def get_struct_description(self, include_header: bool = False) -> Iterable[tuple]:
+    def get_struct_description_rows(self, include_header: bool = False) -> Iterator[tuple]:
         group_name = self.get_name()
         group_caption = self.get_caption()
         if include_header:
@@ -559,13 +574,10 @@ class FlatStruct(SimpleDataWrapper, IterDataMixin, SelectableMixin, StructInterf
         prev_group_name = group_name
         for n, field_tuple in enumerate(self.get_fields_tuples()):
             f_name, f_type_name, f_caption, f_valid, group_name, group_caption = field_tuple
-            is_next_group = group_name != prev_group_name
-            if is_next_group:
-                yield TITLE_PREFIX, GROUP_TYPE_STR, group_name, group_caption, ''
             yield n, f_type_name, f_name or '', f_caption, f_valid
             prev_group_name = group_name
 
-    def get_group_header(self, name: Comment = AUTO, caption: Comment = AUTO, comment: Comment = None) -> Iterable[str]:
+    def get_group_header(self, name: Comment = AUTO, caption: Comment = AUTO, comment: Comment = None) -> Iterator[str]:
         is_title_row = name == AUTO
         name = Auto.acquire(name, self.get_name())
         caption = Auto.acquire(caption, self.get_caption())
@@ -588,17 +600,30 @@ class FlatStruct(SimpleDataWrapper, IterDataMixin, SelectableMixin, StructInterf
             template = ' {:<1}  {:<3} {:<8} {:<28} {:<72}'
         return columns, template
 
+    @staticmethod
+    def _get_describe_columns(example, with_lens: bool = True) -> tuple:
+        if example:
+            columns = ('valid', 'n', 'type', 'name', 'example', 'caption')
+            lens = (1, 3, 8, 28, 14, 56)
+        else:
+            columns = ('valid', 'n', 'type', 'name', 'caption')
+            lens = (1, 3, 8, 28, 72)
+        if with_lens:
+            return tuple(zip(columns, lens))
+        else:
+            return columns
+
     def get_struct_repr_lines(
             self,
             example: Optional[dict] = None,
             delimiter: str = REPR_DELIMITER,
             select_fields: Optional[Array] = None,
             count: Optional[int] = None
-    ) -> Generator:
+    ) -> Iterator[str]:
         columns, template = self._get_describe_template(example)
         separate_by_tabs = delimiter == '\t'
         yield '\t'.join(columns) if separate_by_tabs else template.format(*columns)
-        for (n, type_name, name, caption, is_valid) in self.get_struct_description(include_header=False):
+        for (n, type_name, name, caption, is_valid) in self.get_struct_description_rows(include_header=False):
             if type_name == GROUP_TYPE_STR:
                 yield ''
                 for line in self.get_group_header(name, caption=caption):
@@ -613,6 +638,23 @@ class FlatStruct(SimpleDataWrapper, IterDataMixin, SelectableMixin, StructInterf
                     row = (is_valid, n, type_name, name, caption)
                 row = map(str, row)
                 yield '\t'.join(row) if separate_by_tabs else template.format(*row)
+            if Auto.is_defined(count):
+                if n >= count - 1:
+                    break
+
+    def get_struct_repr_records(
+            self,
+            example: Optional[dict] = None,
+            select_fields: Optional[Array] = None,
+            count: Optional[int] = None
+    ) -> Iterator[dict]:
+        value = None
+        for (n, type_name, name, caption, is_valid) in self.get_struct_description_rows(include_header=False):
+            if name in (select_fields or []):
+                is_valid = '>' if is_valid == '.' else str(is_valid).upper()
+            if example:
+                value = str(example.get(name))
+            yield dict(n=n, name=name, type_name=type_name, example=value, valid=is_valid, caption=caption)
             if Auto.is_defined(count):
                 if n >= count - 1:
                     break
@@ -633,8 +675,22 @@ class FlatStruct(SimpleDataWrapper, IterDataMixin, SelectableMixin, StructInterf
         for line in struct_description_lines:
             yield line[:max_len]
 
+    def display_data_sheet(
+            self,
+            count: int = DEFAULT_ROWS_COUNT,
+            title: Optional[str] = 'Columns',
+            example: Optional[dict] = None,
+            select_fields: Optional[Array] = None,
+    ) -> None:
+        display = self.get_display()
+        columns = self._get_describe_columns(example, with_lens=True)
+        records = self.get_struct_repr_records(example=example, select_fields=select_fields, count=count)
+        if title:
+            display.display_paragraph(title, level=3)
+        return display.display_sheet(records, columns=columns, count=count)
+
     def get_dataframe(self) -> DataFrame:
-        data = self.get_struct_description(include_header=True)
+        data = self.get_struct_description_rows(include_header=True)
         columns = ('n', 'type', 'name', 'caption', 'valid')
         return DataFrame(data, columns=columns)
 

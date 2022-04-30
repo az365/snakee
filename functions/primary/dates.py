@@ -138,7 +138,7 @@ def get_py_date(d: Date) -> PyDate:
 
 def get_iso_date(d: Date) -> IsoDate:
     if is_py_date(d):
-        return d.isoformat()
+        return d.isoformat()[:10]
     elif is_iso_date(d):
         return d[:10]
     elif is_gost_date(d):

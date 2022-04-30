@@ -45,5 +45,7 @@ ContentType.set_dict_classes(
         ContentType.ColumnFile: ColumnarFormat,
         ContentType.CsvFile: CsvFormat,
         ContentType.TsvFile: FlatStructFormat,
+        ContentType.Markdown: MarkdownFormat,
+        ContentType.Html: HtmlFormat,
     }
 )

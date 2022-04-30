@@ -1,15 +1,15 @@
 from abc import ABC, abstractmethod
 from typing import Optional, Iterable, Union
 
-try:  # Assume we're a sub-module in a package.
-    from utils import arguments as arg
+try:  # Assume we're a submodule in a package.
+    from base.classes.auto import Auto, AUTO
     from base.interfaces.sourced_interface import SourcedInterface
     from loggers.logger_interface import LoggerInterface, LoggingLevel
     from loggers.extended_logger_interface import ExtendedLoggerInterface
     from loggers.progress_interface import ProgressInterface
     from connectors.conn_type import ConnType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
+    from ...base.classes.auto import Auto, AUTO
     from ...base.interfaces.sourced_interface import SourcedInterface
     from ...loggers.logger_interface import LoggerInterface, LoggingLevel
     from ...loggers.extended_logger_interface import ExtendedLoggerInterface
@@ -19,7 +19,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 Logger = Union[LoggerInterface, ExtendedLoggerInterface]
 OptionalParent = Optional[SourcedInterface]
 
-AUTO = arg.AUTO
 DEFAULT_PATH_DELIMITER = '/'
 CHUNK_SIZE = 8192
 
@@ -35,6 +34,11 @@ class ConnectorInterface(SourcedInterface, ABC):
         S3Storage, S3Bucket, S3Folder, S3Object, TwinSync,
         etc.
         """
+        pass
+
+    @abstractmethod
+    def is_accessible(self, verbose: bool = False) -> bool:
+        """Checks if the object is available to connect."""
         pass
 
     @abstractmethod
@@ -203,8 +207,8 @@ class ConnectorInterface(SourcedInterface, ABC):
     def log(
             self,
             msg: str,
-            level: Union[LoggingLevel, int, arg.Auto] = AUTO,
-            end: Union[str, arg.Auto] = AUTO,
+            level: Union[LoggingLevel, int, Auto] = AUTO,
+            end: Union[str, Auto] = AUTO,
             verbose: bool = True,
     ) -> None:
         """Log message with using current common logger

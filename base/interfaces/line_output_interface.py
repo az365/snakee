@@ -11,8 +11,9 @@ Native = Union[Type, Callable, int, Auto]
 
 
 class LineOutputInterface(ABC):
+    @classmethod
     @abstractmethod
-    def get_output(self, output: Native = AUTO) -> Native:
+    def get_output(cls, output: Native = AUTO) -> Native:
         pass
 
     @abstractmethod

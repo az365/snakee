@@ -27,12 +27,12 @@ while True:  # To prevent _csv.Error: field larger than field limit (131072)
         max_int = int(max_int / 10)
 
 
-def composite_key(*functions) -> Callable:
+def composite_key(*functions, item_type: ItemType = ItemType.Auto) -> Callable:
     key_functions = update(functions)
 
-    def func(item) -> tuple:
-        return get_composite_key(item=item, keys_descriptions=key_functions)
-    return func
+    def _composite_key(item) -> tuple:
+        return get_composite_key(item=item, keys_descriptions=key_functions, item_type=item_type)
+    return _composite_key
 
 
 def value_by_key(key, default=None) -> Callable:

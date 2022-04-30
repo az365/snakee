@@ -1,17 +1,17 @@
-from typing import Optional, Generator, Union
+from typing import Optional, Generator, Iterator, Union
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         ConnectorInterface, ContentFormatInterface, Stream, StructInterface,
         ContentType, ConnType, StreamType,
-        AUTO, Auto, AutoContext, AutoBool, AutoCount, Name,
+        AUTO, Auto, AutoContext, AutoBool, AutoCount, AutoName, Name,
     )
     from connectors.abstract.leaf_connector import LeafConnector
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         ConnectorInterface, ContentFormatInterface, Stream, StructInterface,
         ContentType, ConnType, StreamType,
-        AUTO, Auto, AutoContext, AutoBool, AutoCount, Name,
+        AUTO, Auto, AutoContext, AutoBool, AutoCount, AutoName, Name,
     )
     from ..abstract.leaf_connector import LeafConnector
 
@@ -38,6 +38,9 @@ class S3Object(LeafConnector):
             expected_count=expected_count,
             parent=folder, context=context, verbose=verbose,
         )
+
+    def is_accessible(self, verbose: bool = False) -> bool:
+        return self.get_bucket().is_accessible(verbose=verbose)
 
     def get_content_type(self) -> ContentType:
         return ContentType.TextFile
@@ -83,11 +86,53 @@ class S3Object(LeafConnector):
             self.close()
         return first_line
 
-    def get_lines(self) -> Generator:
-        for line in self.get_body():
-            yield line.decode('utf8', errors='ignore')
+    def get_next_lines(self, count: AutoCount = None) -> Iterator[str]:
+        prev_line = ''
+        for b, buffer in enumerate(self.get_body()):
+            lines = buffer.decode('utf8', errors='ignore').split('\n')
+            cnt = len(lines)
+            for n, line in enumerate(lines):
+                if n == 0:
+                    line = prev_line + line
+                is_last = n >= cnt - 1
+                if is_last:
+                    prev_line = line
+                else:
+                    yield line
+            if b >= count:
+                break
+        if prev_line:
+            yield prev_line
 
-    def get_data(self) -> Generator:
+    def get_lines(
+            self,
+            count: Optional[int] = None,
+            skip_first: bool = False,
+            verbose: AutoBool = AUTO,
+            message: AutoName = AUTO,
+            step: AutoCount = AUTO,
+    ) -> Iterator[str]:
+        lines = self.get_next_lines()
+        verbose = Auto.acquire(verbose, self.is_verbose())
+        if verbose or Auto.is_defined(message):
+            if not Auto.is_defined(message):
+                message = 'Reading {}'
+            if '{}' in message:
+                message = message.format(self.get_name())
+            logger = self.get_logger()
+            assert hasattr(logger, 'progress'), '{} has no progress in {}'.format(self, logger)
+            if not count:
+                count = self.get_count(allow_slow_mode=False)
+            lines = self.get_logger().progress(lines, name=message, count=count, step=step)
+        for n, i in enumerate(lines):
+            if n >= count:
+                break
+            if skip_first and n == 0:
+                pass
+            else:
+                yield i
+
+    def get_data(self) -> Iterator[str]:
         return self.get_lines()
 
     def put_object(self, data, storage_class=DEFAULT_STORAGE_CLASS) -> Response:
@@ -149,11 +194,18 @@ class S3Object(LeafConnector):
     def get_expected_count(self) -> Optional[int]:
         return self._count
 
-    def get_count(self) -> Optional[int]:
+    def get_count(self, *args, **kwargs) -> Optional[int]:
         return None  # not available property
 
     def is_empty(self) -> bool:
         return None  # not available property
+
+    def get_modification_timestamp(self):
+        path = self.get_object_path_in_bucket()
+        bucket = self.get_bucket()
+        for i in bucket.yield_objects():
+            if i['Key'] == path:
+                return i['LastModified']
 
 
 ConnType.add_classes(S3Object)

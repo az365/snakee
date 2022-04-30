@@ -5,12 +5,10 @@ try:  # Assume we're a submodule in a package.
     from base.classes.typing import AUTO, Auto, AutoCount, OptionalFields
     from base.constants.chars import CROP_SUFFIX, DEFAULT_LINE_LEN
     from base.interfaces.base_interface import BaseInterface, AutoOutput
-    from base.interfaces.line_output_interface import LineOutputInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.typing import AUTO, Auto, AutoCount, OptionalFields
     from ..constants.chars import CROP_SUFFIX, DEFAULT_LINE_LEN
     from .base_interface import BaseInterface, AutoOutput
-    from .line_output_interface import LineOutputInterface
 
 Data = Union[Iterable, Any]
 

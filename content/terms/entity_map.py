@@ -42,6 +42,16 @@ class EntityMap(SimpleDataWrapper):
         yield '{prefix}{count}:'.format(prefix=prefix, count=self.get_count_repr())
         yield EMPTY
 
+    def display_meta_description(
+            self,
+            with_title: bool = True,
+            with_summary: bool = True,
+            prefix: str = SMALL_INDENT,
+            delimiter: str = REPR_DELIMITER,
+    ):
+        display = self.get_display()
+        display.display_paragraph('{prefix}{count}:'.format(prefix=prefix, count=self.get_count_repr()))
+
     def get_data_description(
             self,
             count: AutoCount = AUTO,
@@ -57,8 +67,20 @@ class EntityMap(SimpleDataWrapper):
             max_len=max_len,
         )
 
+    def display_data_sheet(
+            self,
+            count: AutoCount = AUTO,
+            title: Optional[str] = 'Data:',
+            max_len: AutoCount = AUTO,
+    ):
+        display = self.get_display()
+        return display.display_sheet(
+            records=self.get_entity_records(),
+            columns=COLS_FOR_ENTITY,
+            with_title=True,
+        )
+
     def get_str_headers(self) -> Generator:
-        yield self.get_brief_repr()
         yield from self.get_brief_meta_description()
         yield EMPTY
 

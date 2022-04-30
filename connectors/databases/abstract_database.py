@@ -74,6 +74,13 @@ class AbstractDatabase(AbstractStorage, ABC):
         if hasattr(self, 'disconnect'):
             return self.disconnect()
 
+    def is_accessible(self, verbose: bool = False) -> bool:
+        try:
+            self.execute(query=TEST_QUERY, verbose=verbose)
+            return True
+        except:  # OperationalError
+            return False
+
     def get_links(self) -> Iterable:
         for item in self.get_items():
             yield from item.get_links()

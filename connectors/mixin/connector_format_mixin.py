@@ -51,13 +51,16 @@ class ConnectorFormatMixin(StructMixin, LeafConnectorInterface, ABC):
         self.set_initial_struct(struct, inplace=True)
         return self._assume_native(self)
 
-    def get_struct(self) -> Struct:
+    def get_struct(self, verbose: AutoBool = AUTO) -> Struct:
         content_format = self.get_content_format()
         if isinstance(content_format, FlatStructFormat) or hasattr(content_format, 'get_struct'):
             struct = content_format.get_struct()
         else:
             struct = None
-        return self._get_native_struct(struct, save_if_not_yet=True)
+        if struct is None:
+            if self.is_accessible(verbose=verbose):
+                struct = AUTO  # detect struct from source
+        return self._get_native_struct(struct, save_if_not_yet=True, verbose=verbose)
 
     def set_struct(self, struct: Struct, inplace: bool) -> Optional[Native]:
         struct = self._get_native_struct(struct, verbose=False)
@@ -83,11 +86,11 @@ class ConnectorFormatMixin(StructMixin, LeafConnectorInterface, ABC):
 
     def reset_struct_to_initial(self, verbose: bool = True, message: Optional[str] = None) -> Native:
         if not Auto.is_defined(message):
-            message = self.__repr__()
+            message = f'in {repr(self)}'
         initial_struct = self.get_initial_struct()
         if verbose:
             for line in self.get_struct().get_struct_comparison_iter(initial_struct, message=message):
-                self.log(line)
+                self.log(f'Updated struct: {line}')
         return self.struct(initial_struct)
 
     def get_delimiter(self) -> str:
@@ -157,10 +160,14 @@ class ConnectorFormatMixin(StructMixin, LeafConnectorInterface, ABC):
             self,
             set_struct: bool = False,
             use_declared_types: bool = True,
+            skip_disconnected: bool = True,
             verbose: AutoBool = AUTO,
-    ) -> Struct:
-        assert self.is_existing(), 'For detect struct file/object must be existing: {}'.format(self.get_path())
+    ) -> Optional[Struct]:
         verbose = Auto.acquire(verbose, self.is_verbose())
+        if skip_disconnected:
+            if not self.is_accessible(verbose=verbose):
+                return None
+        assert self.is_existing(), 'For detect struct file/object must be existing: {}'.format(self.get_path())
         declared_types = dict()
         if use_declared_types:
             declared_format = self.get_declared_format()

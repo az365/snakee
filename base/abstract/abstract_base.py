@@ -258,7 +258,7 @@ class AbstractBaseObject(BaseInterface, ABC):
     def get_str_meta(self) -> str:
         args_str = [i.__repr__() for i in self._get_meta_args()]
         meta_kwargs = self._get_meta_kwargs(except_covert=True)
-        return get_str_from_args_kwargs(*args_str, **meta_kwargs, kwargs_order=self.get_ordered_meta_names())
+        return get_str_from_args_kwargs(*args_str, **meta_kwargs, _kwargs_order=self.get_ordered_meta_names())
 
     def get_detailed_repr(self) -> str:
         return '{}({})'.format(self.__class__.__name__, self.get_str_meta())
