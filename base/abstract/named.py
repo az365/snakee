@@ -70,7 +70,7 @@ class AbstractNamed(AbstractBaseObject, LineOutputMixin, ABC):
         yield from self.get_brief_meta_description(prefix=prefix)
 
     def get_brief_repr(self) -> str:
-        return "{}('{}')".format(self.__class__.__name__, self.get_name())
+        return "{cls}('{name}')".format(cls=self.__class__.__name__, name=self.get_name())
 
     def __repr__(self):
         return self.get_brief_repr()
@@ -83,22 +83,21 @@ class AbstractNamed(AbstractBaseObject, LineOutputMixin, ABC):
             show_header: bool = True,
             comment: Optional[str] = None,
             depth: int = 1,
-            output: AutoOutput = AUTO,
+            output: AutoOutput = AUTO,  # deprecated
     ):
+        display = self.get_display(output)
         if show_header:
+            display.display_paragraph(self.get_name(), level=1)
             for line in self.get_str_headers():
-                self.output_line(line, output=output)
-            self.output_blank_line(output=output)
-        if comment:
-            self.output_line(comment, output=output)
-        for line in self.get_meta_description():
-            self.output_line(line, output=output)
+                display.output_line(line)
+        display.output_line(comment)
+        display.output_line(self.get_meta_description())
         if depth > 0:
             for attribute, value in self.get_meta_items():
                 if isinstance(value, AbstractBaseObject) or hasattr(value, 'describe'):
-                    self.output_blank_line(output=output)
-                    self.output_line('{attribute}:'.format(attribute=attribute), output=output)
+                    display.display_paragraph(attribute, level=3)
                     value.describe(show_header=False, depth=depth - 1, output=output)
+        display.display_paragraph()
 
     @staticmethod
     def _assume_native(obj) -> Native:

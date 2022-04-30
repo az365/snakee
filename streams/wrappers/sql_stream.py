@@ -66,6 +66,7 @@ class SqlStream(WrapperStream):
     ):
         if not Auto.is_defined(data):
             data = dict()
+        self._count = None
         super().__init__(
             data=data, check=False,
             name=name, caption=caption,
@@ -249,21 +250,32 @@ class SqlStream(WrapperStream):
         if finish:
             yield ';'
 
+    def get_query_name(self) -> str:
+        return self.get_name().split('.')[-1].split(':')[-1]
+
+    @staticmethod
+    def _get_generated_name() -> str:
+        return get_generated_name('subquery', include_random=True, include_datetime=False)
+
     @staticmethod
     def _format_section_lines(section: SqlSection, lines: Iterable) -> Iterable:
         lines = list(lines)
         if lines:
-            yield section.value
+            section_name = section.value
+            if section == SqlSection.Join:
+                indent = EMPTY
+            else:
+                indent = PY_INDENT
+                yield section_name
             if section == SqlSection.Where:
-                delimiter = '\n    AND '
-            elif section == SqlSection.From:
+                delimiter = f'\n{indent}AND '
+            elif section in (SqlSection.From, SqlSection.Join):
                 delimiter = EMPTY
             else:
                 delimiter = ITEMS_DELIMITER
             for n, line in enumerate(lines):
                 is_last = n == len(lines) - 1
-                template = '    {}' if is_last else '    {}' + delimiter
-                yield template.format(line)
+                yield f'{indent}{line}' if is_last else f'{indent}{line}{delimiter}'
 
     def has_any_section(self) -> bool:
         for section in SECTIONS_ORDER:
@@ -338,12 +350,16 @@ class SqlStream(WrapperStream):
     def take(self, count: int) -> Native:
         return self.add_expression_for(SqlSection.Limit, count, inplace=False)
 
-    def get_count(self) -> int:
-        transform = self.select(cnt=(len, ALL))
-        assert isinstance(transform, SqlStream)
-        data = transform.execute_query()
-        count = list(data)[0]
-        return count
+    def get_count(self, recalc: bool = False) -> Optional[int]:
+        if self._count:
+            return self._count
+        elif recalc:
+            transform = self.select(cnt=(len, ALL))
+            assert isinstance(transform, SqlStream)
+            data = transform.execute_query()
+            count = list(data)[0]
+            self._count = count
+            return count
 
     def get_items(self) -> Iterable:
         return self.execute_query()
@@ -358,26 +374,55 @@ class SqlStream(WrapperStream):
         source = self.get_source_table().get_struct()
         return source
 
-    def get_input_struct(self) -> StructInterface:
+    def get_input_struct(self, skip_missing: bool = False) -> Optional[StructInterface]:
         source = self.get_source()
-        assert isinstance(source, (SqlStream, LeafConnectorInterface)) or hasattr(source, 'get_struct')
-        return source.get_struct()
+        if isinstance(source, SqlStream) or hasattr(source, 'get_output_struct'):
+            return source.get_output_struct(skip_missing=skip_missing)
+        elif isinstance(source, LeafConnectorInterface) or hasattr(source, 'get_struct'):
+            return source.get_struct()
+        elif not skip_missing:
+            method = 'SqlStream.get_input_struct(skip_missing=False)'
+            msg = f'{method}: expected source as SqlStream or LeafConnector, got {source} from {self}'
+            raise TypeError(msg)
 
-    def get_output_struct(self) -> StructInterface:
-        input_struct = self.get_input_struct()
-        output_columns = self.get_output_columns()
-        types = {f: t for f, t in input_struct.get_types_dict().items() if f in output_columns}
-        struct = FlatStruct(output_columns).set_types(types)
-        assert isinstance(struct, FlatStruct)
-        struct.validate_about(input_struct, ignore_moved=True)
-        return struct
+    def get_output_struct(self, skip_missing: bool = False) -> StructInterface:
+        output_columns = self.get_output_columns(skip_missing=skip_missing)
+        if output_columns is not None:
+            input_struct = self.get_input_struct(skip_missing=skip_missing)
+            output_struct = FlatStruct(output_columns)
+            if input_struct:
+                types = {f: t for f, t in input_struct.get_types_dict().items() if f in output_columns}
+                output_struct = output_struct.set_types(types)
+                assert isinstance(output_struct, FlatStruct)
+                comparison_tags = dict(
+                    this_only='OUTPUT_ONLY', other_only='SOURCE_ONLY',
+                    this_duplicated='DUPLICATED_IN_OUTPUT', other_duplicated='DUPLICATED_IN_SOURCE',
+                    both_duplicated='DUPLICATED',
+                )
+                output_struct.compare_with(input_struct, tags=comparison_tags, set_valid=True)
+            return output_struct
 
-    def get_input_columns(self) -> Columns:
+    def get_input_columns(self, skip_missing: bool = False) -> Columns:
         source = self.get_source()
         assert isinstance(source, (SqlStream, LeafConnectorInterface)) or hasattr(source, 'get_columns')
-        return source.get_columns()
+        return source.get_columns(skip_missing=skip_missing)
 
-    def get_output_columns(self) -> Columns:
+    def get_output_columns(self, skip_missing: bool = False) -> Columns:
+        columns = self.get_selected_columns()
+        if columns is None:
+            columns = self.get_input_columns(skip_missing=skip_missing)
+        if columns is not None:
+            join_expressions = self.get_expressions_for(SqlSection.Join)
+            if join_expressions:
+                join_tuple = join_expressions[0]
+                join_columns = join_tuple[0].get_columns(skip_missing=skip_missing)
+                if join_columns:
+                    for c in join_columns:
+                        if c not in columns:
+                            columns.append(c)
+        return columns
+
+    def get_selected_columns(self) -> Columns:
         select_expressions = self.get_expressions_for(SqlSection.Select)
         if select_expressions:
             columns = list()
@@ -397,11 +442,9 @@ class SqlStream(WrapperStream):
                 else:
                     raise ValueError(i)
             return columns
-        else:
-            return list(self.get_input_columns())
 
-    def get_columns(self) -> Columns:
-        return self.get_output_columns()
+    def get_columns(self, skip_missing: bool = False) -> Columns:
+        return self.get_output_columns(skip_missing=skip_missing)
 
     def get_struct(self) -> StructInterface:
         return self.get_output_struct()
@@ -494,15 +537,29 @@ class SqlStream(WrapperStream):
             sm_repr += '.select({})'.format(ITEMS_DELIMITER.join(str_select_expressions))
         return sm_repr
 
+    # @deprecated
     def get_data_representation(self, max_len: int = 50) -> str:
+        return self.get_data_repr()
+
+    def get_data_repr(self, max_len: int = 50) -> str:
         data_repr = self.get_stream_representation()
         if len(data_repr) > max_len:
             data_repr = data_repr[:max_len - len(CROP_SUFFIX)] + CROP_SUFFIX
         return data_repr
 
+    # @deprecated
     def get_one_line_representation(self) -> str:
+        return self.get_one_line_repr()
+
+    def get_one_line_repr(self) -> str:
         message = '{}({}, {})'.format(self.__class__.__name__, self.get_name(), self.get_str_meta())
         return message
+
+    def display_query_sheet(self):
+        query_records = [dict(no=n + 1, query=e) for n, e in enumerate(self.get_query_lines())]
+        sheet_columns = ('no', 3), ('query', 120)
+        display = self.get_display()
+        return display.display_sheet(query_records, columns=sheet_columns, style="font-family: monospace")
 
     def get_description_lines(self) -> Generator:
         yield repr(self)
@@ -515,14 +572,29 @@ class SqlStream(WrapperStream):
         if hasattr(struct, 'get_struct_repr_lines'):
             yield from struct.get_struct_repr_lines(select_fields=self.get_output_columns())
 
-    def describe(self) -> Native:
-        for line in self.get_description_lines():
-            self.log(msg=line, level=LoggingLevel.Info)
-        return self
+    def describe(self, as_dataframe: bool = False, **kwargs) -> Native:
+        display = self.get_display()
+        display.display_paragraph(self.get_query_name(), level=1)
+        display.output_line(repr(self))
+        display.output_line(self.get_stream_representation())
+        display.output_line('Generated SQL query:')
+        display.display_paragraph('Query', level=3)
+        if as_dataframe:
+            self.display_query_sheet()
+        else:
+            display.display_paragraph(self.get_query_lines(), style=CODE_HTML_STYLE)
+        display.display_paragraph('Columns', level=3)
+        display.output_line('Expected output columns: {}'.format(self.get_output_columns(skip_missing=True)))
+        display.output_line('Expected input struct: {}'.format(self.get_source_table().get_struct()))
+        struct = self.get_output_struct(skip_missing=True)
+        if struct:
+            struct.display_data_sheet(title=None)
+        else:
+            display.display_paragraph('(Undefined struct)')
 
     @staticmethod
     def _assume_native(stream) -> Native:
         return stream
 
     def __str__(self):
-        return self.get_one_line_representation()
+        return self.get_one_line_repr()

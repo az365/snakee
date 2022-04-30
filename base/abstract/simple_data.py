@@ -193,6 +193,48 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
         else:
             yield '(data attribute not found)'
 
+    def display_data_sheet(
+            self,
+            count: int = DEFAULT_ROWS_COUNT,
+            title: Optional[str] = 'Data:',
+            max_len: AutoCount = AUTO,
+    ) -> Generator:
+        display = self.get_display()
+        max_len = Auto.acquire(max_len, DEFAULT_LINE_LEN)
+        display.display_paragraph(title, level=3)
+        if hasattr(self, 'get_data_caption'):
+            display.output_line(self.get_data_caption())
+        if hasattr(self, 'get_data'):
+            data = self.get_data()
+            if data:
+                shape_repr = self.get_shape_repr()
+                if Auto.is_defined(count) and shape_repr:
+                    line = 'First {count} data items from {shape}:'.format(count=count, shape=shape_repr)
+                    display.output_line(line)
+                if isinstance(data, dict):
+                    records = map(
+                        lambda i: dict(key=i[0], value=i[1], defined='+' if Auto.is_defined(i[1]) else '-'),
+                        data.items(),
+                    )
+                    display.display_sheet(records, columns=COLS_FOR_DICT, count=count)
+                elif isinstance(data, Iterable):
+                    for n, item in enumerate(data):
+                        if Auto.is_defined(count):
+                            if n >= count:
+                                break
+                        line = '    - ' + str(item)
+                        display.output_line(line[:max_len])
+                elif isinstance(data, SimpleDataInterface) or hasattr(data, 'get_meta_description'):
+                    for line in data.get_meta_description():
+                        yield line
+                else:
+                    line = str(data)
+                    display.output_line(line[:max_len])
+            else:
+                display.display_paragraph('(data attribute is empty)')
+        else:
+            display.display_paragraph('(data attribute not found)')
+
     def get_meta_description(
             self,
             with_title: bool = True,
@@ -211,6 +253,24 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
             delimiter=delimiter,
         )
 
+    def display_meta_description(
+            self,
+            with_title: bool = True,
+            with_summary: bool = True,
+            prefix: str = SMALL_INDENT,  # deprecated
+            delimiter: str = REPR_DELIMITER,  # deprecated
+    ) -> Generator:
+        display = self.get_display()
+        if with_summary:
+            count = len(list(self.get_meta_records()))
+            line = '{name} has {count} attributes in meta-data:'.format(name=repr(self), count=count)
+        display.output_line(line)
+        display.display_sheet(
+            records=self.get_meta_records(),
+            columns=COLS_FOR_META,
+            with_title=with_title,
+        )
+
     def describe(
             self,
             show_header: bool = True,
@@ -221,6 +281,7 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
             as_dataframe: AutoBool = Auto,
             **kwargs
     ):
+        display = self.get_display(output)
         fact_count = Auto.delayed_acquire(count, self.get_count)
         if fact_count > MAX_OUTPUT_ROW_COUNT:
             fact_count = MAX_OUTPUT_ROW_COUNT
@@ -231,23 +292,20 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
                 as_dataframe = False
         show_meta = show_header or not self.has_data()
         if show_header:
-            for line in self.get_str_headers():
-                self.output_line(line, output=output)
-        if comment:
-            self.output_line(comment, output=output)
+            display.display_paragraph(self.get_name(), level=1)
+            display.output_line(comment)
+            display.display_paragraph(self.get_str_headers())
+        elif comment:
+            display.display_paragraph(comment)
         if show_meta:
-            for line in self.get_meta_description():
-                self.output_line(line, output=output)
+            self.display_meta_description()
         if self.has_data():
             if not as_dataframe:
-                self.output_blank_line(output=output)
-                for line in self.get_data_description(count=count, **kwargs):
-                    self.output_line(line, output=output)
+                self.display_data_sheet(count=count, **kwargs)
         elif depth > 0:
             for attribute, value in self.get_meta_items():
                 if isinstance(value, BaseInterface) or hasattr(value, 'describe'):
-                    self.output_blank_line(output=output)
-                    self.output_line('{attribute}:'.format(attribute=attribute), output=output)
+                    display.display_paragraph('{attribute}:'.format(attribute=attribute), level=3)
                     value.describe(show_header=False, depth=depth - 1, output=output)
         if self.has_data() and as_dataframe:
             if hasattr(self, 'show_example'):
@@ -256,3 +314,4 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
                 return self.show(count=count, **kwargs)
             else:
                 raise AttributeError('{} does not support dataframe'.format(self))
+        display.display_paragraph()

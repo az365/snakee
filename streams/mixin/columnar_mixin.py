@@ -399,15 +399,16 @@ class ColumnarMixin(IterableMixin, ABC):
             columns: Columns = None,
             allow_collect: bool = True,
             show_header: bool = True,
-            struct_as_dataframe: bool = False,
+            struct_as_dataframe: bool = False,  # deprecated
             delimiter: str = ' ',
-            output=AUTO,
+            output=AUTO,  # deprecated
             **filter_kwargs
     ):
-        output = Auto.delayed_acquire(output, self.get_logger)
+        display = self.get_display()
         if show_header:
+            display.display_paragraph(self.get_name(), level=1)
             for line in self.get_str_headers():
-                self.output_line(line, output=output)
+                display.output_line(line)
         example = self.example(*filters, **filter_kwargs, count=count)
         if hasattr(self, 'get_struct'):
             expected_struct = self.get_struct()
@@ -418,18 +419,21 @@ class ColumnarMixin(IterableMixin, ABC):
         else:
             expected_struct = self.get_detected_struct()
             source_str = 'detected from example items'
-        expected_struct = fc.FlatStruct.convert_to_native(expected_struct)
         detected_struct = example.get_detected_struct(count)
-        assert isinstance(expected_struct, fc.FlatStruct) or hasattr(expected_struct, 'describe'), expected_struct
-        assert isinstance(detected_struct, fc.FlatStruct) or hasattr(expected_struct, 'describe'), expected_struct
-        detected_struct.validate_about(expected_struct)
-        validation_message = '{} {}'.format(source_str, expected_struct.get_validation_message())
-        struct_as_dataframe = struct_as_dataframe and get_use_objects_for_output()
-        struct_dataframe = expected_struct.describe(
-            as_dataframe=struct_as_dataframe, show_header=False, output=output,
-            delimiter=delimiter, example=example.get_one_item(), comment=validation_message,
-        )
-        if struct_as_dataframe:
-            return struct_dataframe
+        if expected_struct:
+            expected_struct = fc.FlatStruct.convert_to_native(expected_struct)
+            assert isinstance(expected_struct, fc.FlatStruct) or hasattr(expected_struct, 'describe'), expected_struct
+            assert isinstance(detected_struct, fc.FlatStruct) or hasattr(expected_struct, 'describe'), expected_struct
+            detected_struct.validate_about(expected_struct)
+            validation_message = '{} {}'.format(source_str, expected_struct.get_validation_message())
+            display.output_line(validation_message)
+            expected_struct.display_data_sheet(example=example.get_one_item())
+        else:
+            validation_message = 'Expected struct not defined, displaying detected struct:'
+            display.output_line(validation_message)
+            detected_struct.display_data_sheet(example=example.get_one_item())
+        display.display_paragraph('Rows sample', level=3)
+        if hasattr(self, 'display_data_sheet'):
+            self.display_data_sheet()
         else:
             return example.get_demo_example(as_dataframe=get_use_objects_for_output())
