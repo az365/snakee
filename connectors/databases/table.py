@@ -146,8 +146,15 @@ class Table(LeafConnector):
         count = database.select_count(self.get_name(), verbose=verbose)
         return count
 
-    def get_columns(self) -> list:
-        return self.get_struct().get_columns()
+    def get_columns(self, skip_missing: bool = False) -> Optional[list]:
+        struct = self.get_struct()
+        if struct:
+            return struct.get_columns()
+        elif skip_missing:
+            return None
+        else:
+            name = self.get_name()
+            raise ValueError(f'Table.get_columns(skip_missing=False): Struct for {name} is not defined: {self}.')
 
     def set_struct(self, struct: GeneralizedStruct, inplace: bool) -> Optional[Native]:
         if isinstance(struct, StructInterface) or struct is None:
@@ -293,7 +300,7 @@ class Table(LeafConnector):
             ex: OptionalFields = None,
             step: AutoCount = AUTO,
             **kwargs
-    ) -> Stream:
+    ) -> Stream:  # SqlStream
         stream_type = Auto.acquire(stream_type, StreamType.SqlStream)
         if stream_type == StreamType.SqlStream:
             assert not Auto.is_defined(data)
