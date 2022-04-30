@@ -71,14 +71,18 @@ class ColumnarMixin(IterableMixin, ABC):
         return self.having_columns(*columns, skip_columns=skip_columns, skip_missing=skip_missing, **kwargs)
 
     def having_columns(self, *columns, skip_columns=('*', '-', ''), skip_missing: bool = False, **kwargs) -> Native:
+        existing_columns = get_names(self.get_columns(**kwargs))
         missing_columns = list()
         for c in columns:
             c_name = get_name(c)
             if c_name not in get_names(skip_columns):
-                if c_name not in get_names(self.get_columns(**kwargs)):
+                if c_name not in existing_columns:
                     missing_columns.append(c)
         if missing_columns:
-            msg = '{} has no declared columns: {}'.format(repr(self), ', '.join(map(str, get_names(missing_columns))))
+            dataset = repr(self)
+            missing = ', '.join(map(str, get_names(missing_columns)))
+            existing = ', '.join(map(str, get_names(existing_columns)))
+            msg = f'{dataset} has no declared columns: [{missing}]; existing columns are [{existing}]'
             if skip_missing:
                 self.log(msg, level=LoggingLevel.Warning)
             else:
@@ -180,7 +184,7 @@ class ColumnarMixin(IterableMixin, ABC):
         joined_items = algo.map_side_join(
             iter_left=self.get_items(),
             iter_right=right.get_items(),
-            key_function=composite_key(keys),
+            key_function=composite_key(keys, item_type=self.get_item_type()),
             merge_function=merge_two_items(),
             dict_function=items_to_dict(),
             how=how,
