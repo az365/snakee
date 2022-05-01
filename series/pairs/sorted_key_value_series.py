@@ -25,12 +25,13 @@ class SortedKeyValueSeries(KeyValueSeries, SortedSeries, SortedKeyValueSeriesInt
             self,
             keys: Optional[Iterable] = None,
             values: Optional[Iterable] = None,
+            caption: str = '',
             set_closure: bool = False,
             validate: bool = False,
             sort_items: bool = True,
             name: Name = None,
     ):
-        super().__init__(keys=keys, values=values, set_closure=set_closure, validate=False, name=name)
+        super().__init__(keys=keys, caption=caption, values=values, set_closure=set_closure, validate=False, name=name)
         if sort_items:
             self.sort_by_keys(inplace=True)
         if validate:
@@ -97,12 +98,13 @@ class SortedKeyValueSeries(KeyValueSeries, SortedSeries, SortedKeyValueSeriesInt
             series = series.sort()
         return series.assert_numeric()
 
-    def copy(self) -> Native:
-        series = self.new(
+    def copy(self, validate: bool = False, **kwargs) -> Native:
+        series = self.make_new(
             keys=self.get_keys().copy(),
             values=self.get_values().copy(),
             sort_items=False,
-            validate=False,
+            validate=validate,
+            **kwargs,
         )
         return self._assume_native(series)
 

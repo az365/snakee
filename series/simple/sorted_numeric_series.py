@@ -23,11 +23,12 @@ class SortedNumericSeries(SortedSeries, NumericSeries, SortedNumericSeriesInterf
     def __init__(
             self,
             values: Optional[Iterable] = None,
+            caption: str = '',
             set_closure: bool = False,
             validate: bool = False,
             name: Optional[str] = None,
     ):
-        super().__init__(values=values, set_closure=set_closure, validate=validate, name=name)
+        super().__init__(values=values, caption=caption, set_closure=set_closure, validate=validate, name=name)
 
     def get_errors(self) -> Generator:
         if not self.is_sorted(check=True):
@@ -67,7 +68,7 @@ class SortedNumericSeries(SortedSeries, NumericSeries, SortedNumericSeriesInterf
         if got_one_value:
             return self.distance_for_value(v, take_abs=take_abs, inplace=inplace)
         else:
-            v_series = self.new(v, validate=False, sort_items=True)
+            v_series = self.make_new(v, validate=False, sort_items=True)
             distances = self.value_series().map(lambda i: v_series.get_distance_for_nearest_value(i, take_abs))
             series_class = SeriesType.SortedNumericKeyValueSeries.get_class()
             result = series_class(self.get_values(), distances, sort_items=False, validate=False)

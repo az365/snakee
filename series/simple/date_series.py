@@ -37,6 +37,7 @@ class DateSeries(SortedSeries, DateSeriesInterface):
     def __init__(
             self,
             values: Optional[Iterable] = None,
+            caption: str = '',
             set_closure: bool = False,
             validate: bool = True,
             sort_items: bool = False,
@@ -44,6 +45,7 @@ class DateSeries(SortedSeries, DateSeriesInterface):
     ):
         super().__init__(
             values=values,
+            caption=caption,
             set_closure=set_closure,
             validate=validate,
             sort_items=sort_items,
@@ -222,7 +224,7 @@ class DateSeries(SortedSeries, DateSeriesInterface):
         if dt.is_date(d):
             distance_series = self.distance_for_date(d, take_abs=take_abs)
         elif self._is_native(d):
-            arg_date_series = self.new(d, validate=False, sort_items=False, set_closure=True)
+            arg_date_series = self.make_new(d, validate=False, sort_items=False, set_closure=True)
             self_date_series = self.date_series(inplace=inplace, set_closure=inplace)
             func = arg_date_series.get_distance_for_nearest_date
             distances = self_date_series.map(lambda i: func(i, take_abs), inplace=inplace) or self_date_series

@@ -2,17 +2,17 @@ from abc import ABC, abstractmethod
 from typing import Optional, Iterable, Union
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.auto import AUTO, Auto
-    from base.classes.typing import ARRAY_TYPES, Value
+    from base.classes.typing import ARRAY_TYPES, AUTO, Auto, Value
     from base.abstract.simple_data import SimpleDataWrapper
     from base.mixin.iterable_mixin import IterableMixin, IterableInterface
+    from utils.decorators import deprecated_with_alternative
     from functions.primary.numeric import MUTABLE, Mutable
     from series.series_type import SeriesType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..base.classes.auto import AUTO, Auto
-    from ..base.classes.typing import ARRAY_TYPES, Value
+    from ..base.classes.typing import ARRAY_TYPES, AUTO, Auto, Value
     from ..base.abstract.simple_data import SimpleDataWrapper
     from ..base.mixin.iterable_mixin import IterableMixin, IterableInterface
+    from ..utils.decorators import deprecated_with_alternative
     from ..functions.primary.numeric import MUTABLE, Mutable
     from .series_type import SeriesType
 
@@ -23,16 +23,17 @@ META_MEMBER_MAPPING = dict(_data='values')
 DEFAULT_NAME = '-'
 
 
-class AbstractSeries(IterableMixin, SimpleDataWrapper, ABC):
+class AbstractSeries(SimpleDataWrapper, IterableMixin, ABC):
     def __init__(
             self,
             values: Iterable,
+            caption: str = '',
             set_closure: bool = False,
             validate: bool = False,
             name: Optional[str] = None,
     ):
         values = self._get_optional_copy(values, role='values', set_closure=set_closure)
-        super().__init__(data=values, name=name or DEFAULT_NAME)
+        super().__init__(data=values, caption=caption, name=name or DEFAULT_NAME)
         if validate:
             self.validate()
 
@@ -74,15 +75,22 @@ class AbstractSeries(IterableMixin, SimpleDataWrapper, ABC):
     def get_class_name(self) -> str:
         return self.__class__.__name__
 
-    # @deprecated_with_alternative('make_new()')
+    @deprecated_with_alternative('make_new()')
     def new(self, *args, save_meta: bool = False, **kwargs) -> Native:
         new = self.__class__(*args, **kwargs)
         if save_meta:
-            new.set_meta(
-                **self.get_meta(),
-                inplace=True,
-            )
+            new.set_meta(**self.get_meta(), inplace=True)
         return new
+
+    def make_new(self, *args, save_meta: bool = False, **kwargs) -> Native:
+        if save_meta:
+            meta = self.get_meta()
+            meta.update(kwargs)
+        else:
+            meta = kwargs
+        if 'safe' in meta:
+            meta.pop('safe')
+        return self.__class__(*args, **meta)
 
     def copy(self, validate: bool = False, **kwargs) -> Native:
         return super().copy(validate=validate, **kwargs)

@@ -23,6 +23,7 @@ class SortedSeries(AnySeries, SortedSeriesInterface):
     def __init__(
             self,
             values: Optional[Iterable] = None,
+            caption: str = '',
             set_closure: bool = False,
             validate: bool = True,
             sort_items: bool = False,
@@ -30,7 +31,7 @@ class SortedSeries(AnySeries, SortedSeriesInterface):
     ):
         if sort_items:
             values = sorted(values)
-        super().__init__(values=values, set_closure=set_closure, validate=validate, name=name)
+        super().__init__(values=values, caption=caption, set_closure=set_closure, validate=validate, name=name)
 
     def get_series_type(self) -> SeriesType:
         return SeriesType.SortedSeries
@@ -47,7 +48,7 @@ class SortedSeries(AnySeries, SortedSeriesInterface):
             return DEFAULT_SORTED
 
     def copy(self, validate: bool = False, **kwargs) -> Native:
-        series = self.new(validate=validate, **kwargs)
+        series = self.make_new(validate=validate, **kwargs)
         return self._assume_native(series)
 
     def assume_numeric(self, validate: bool = False) -> SortedNumericSeriesInterface:
@@ -74,7 +75,7 @@ class SortedSeries(AnySeries, SortedSeriesInterface):
                     n += 1
             return self
         else:
-            series = self.new(save_meta=True)
+            series = self.make_new(save_meta=True)
             series = self._assume_native(series)
             for item in self.get_items():
                 if prev is None or item != prev:
@@ -144,9 +145,9 @@ class SortedSeries(AnySeries, SortedSeriesInterface):
 
     def borders(self, other: Native = None) -> Native:
         if other:
-            result = self.new(self.get_mutual_borders(other))
+            result = self.make_new(self.get_mutual_borders(other))
         else:
-            result = self.new(self.get_borders())
+            result = self.make_new(self.get_borders())
         return self._assume_native(result)
 
     @staticmethod
