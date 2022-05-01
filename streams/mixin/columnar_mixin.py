@@ -15,6 +15,7 @@ try:  # Assume we're a submodule in a package.
     from content.fields import field_classes as fc
     from content.items.item_getters import get_filter_function
     from utils import algo
+    from utils.decorators import deprecated
     from utils.external import pd, DataFrame, get_use_objects_for_output
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
@@ -30,6 +31,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...content.fields import field_classes as fc
     from ...content.items.item_getters import get_filter_function
     from ...utils import algo
+    from ...utils.decorators import deprecated
     from ...utils.external import pd, DataFrame, get_use_objects_for_output
 
 Native = Union[RegularStreamInterface, ColumnarInterface]
@@ -92,6 +94,7 @@ class ColumnarMixin(IterableMixin, ABC):
     def get_shape(self) -> tuple:
         return self.get_count(), self.get_column_count()
 
+    @deprecated
     def get_description(self) -> str:
         return '{} rows, {} columns: {}'.format(
             self.get_str_count(),
@@ -362,16 +365,20 @@ class ColumnarMixin(IterableMixin, ABC):
         return self._assume_native(example)
 
     def get_demo_example(
-            self, count: int = DEFAULT_SHOW_COUNT,
-            as_dataframe: AutoBool = AUTO,
-            filters: Optional[Array] = None, columns: Optional[Array] = None,
+            self,
+            count: int = DEFAULT_SHOW_COUNT,
+            as_dataframe: bool = False,  # deprecated
+            filters: Optional[Array] = None,
+            columns: Optional[Array] = None,
     ) -> Union[DataFrame, Iterable]:
-        as_dataframe = Auto.acquire(as_dataframe, get_use_objects_for_output())
+        as_dataframe = Auto.acquire(as_dataframe, get_use_objects_for_output())  # deprecated
         sm_sample = self.filter(*filters or []) if filters else self
         sm_sample = sm_sample.take(count)
-        if hasattr(sm_sample, 'get_dataframe') and as_dataframe:
+        if as_dataframe and hasattr(sm_sample, 'get_dataframe'):
             return sm_sample.get_dataframe(columns)
-        elif hasattr(sm_sample, 'select') and columns:
+        else:
+            sm_sample = sm_sample.to_record_stream()
+        if hasattr(sm_sample, 'select') and columns:
             return sm_sample.select(*columns).get_items()
         elif hasattr(sm_sample, 'get_items'):
             return sm_sample.get_items()
@@ -381,16 +388,19 @@ class ColumnarMixin(IterableMixin, ABC):
             count: int = DEFAULT_SHOW_COUNT,
             filters: Columns = None,
             columns: Columns = None,
-            as_dataframe: AutoBool = AUTO,
+            as_dataframe: AutoBool = AUTO,  # deprecated
             output=AUTO,
     ):
-        self.log(self.get_str_description(), level=LOGGING_LEVEL_INFO, truncate=False, force=True)
+        display = self.get_display(output)
+        display.append(self.get_str_description())
         demo_example = self.get_demo_example(count=count, filters=filters, columns=columns, as_dataframe=as_dataframe)
-        if not as_dataframe:
-            output = Auto.delayed_acquire(output, self.get_logger)
-            for item in demo_example:
-                self.output_line(str(item), output=output)
-        return demo_example
+        if not Auto.is_defined(columns):
+            demo_example = list(demo_example)
+            if isinstance(demo_example, dict):
+                columns = demo_example[0].keys()
+            else:
+                return display.display_paragraph(demo_example)
+        return display.display_sheet(demo_example, columns=columns)
 
     def describe(
             self, *filters,
@@ -408,7 +418,7 @@ class ColumnarMixin(IterableMixin, ABC):
         if show_header:
             display.display_paragraph(self.get_name(), level=1)
             for line in self.get_str_headers():
-                display.output_line(line)
+                display.append(line)
         example = self.example(*filters, **filter_kwargs, count=count)
         if hasattr(self, 'get_struct'):
             expected_struct = self.get_struct()
@@ -426,14 +436,18 @@ class ColumnarMixin(IterableMixin, ABC):
             assert isinstance(detected_struct, fc.FlatStruct) or hasattr(expected_struct, 'describe'), expected_struct
             detected_struct.validate_about(expected_struct)
             validation_message = '{} {}'.format(source_str, expected_struct.get_validation_message())
-            display.output_line(validation_message)
+            display.append(validation_message)
             expected_struct.display_data_sheet(example=example.get_one_item())
         else:
             validation_message = 'Expected struct not defined, displaying detected struct:'
-            display.output_line(validation_message)
+            display.append(validation_message)
             detected_struct.display_data_sheet(example=example.get_one_item())
         display.display_paragraph('Rows sample', level=3)
         if hasattr(self, 'display_data_sheet'):
             self.display_data_sheet()
         else:
-            return example.get_demo_example(as_dataframe=get_use_objects_for_output())
+            records = example.get_demo_example(columns=columns)
+            if not Auto.is_defined(columns):
+                records = list(records)
+                columns = records[0].keys()
+            return display.display_sheet(records, columns=columns)

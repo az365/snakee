@@ -1,4 +1,4 @@
-from typing import Optional, Iterable, Generator, Sequence, Union
+from typing import Optional, Iterable, Generator, Sequence, Union, Any
 
 try:  # Assume we're a submodule in a package.
     from base.classes.typing import AUTO, Auto, AutoCount, Class
@@ -12,7 +12,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..interfaces.display_interface import DisplayInterface, AutoStyle
 
 AutoDisplay = Union[Auto, DisplayInterface]
-LoggingLevel = int
+Item = Any
 
 DEFAULT_ROWS_COUNT = 10
 DEFAULT_INT_WIDTH, DEFAULT_FLOAT_WIDTH = 7, 12
@@ -36,13 +36,13 @@ class DefaultDisplay(DisplayInterface):
 
     # @deprecated_with_alternative('display_paragraph()')
     def output_blank_line(self, output: AutoDisplay = AUTO) -> None:
-        self.output_line(EMPTY, output=output)
+        self.get_display(output).display_paragraph(EMPTY)
 
-    # @deprecated_with_alternative('add_to_paragraph()')
+    # @deprecated_with_alternative('append()')
     def output_line(self, line: str, output: AutoDisplay = AUTO) -> None:
-        return self.add_to_paragraph(line)
+        return self.append(line)
 
-    def add_to_paragraph(self, text: str) -> None:
+    def append(self, text: str) -> None:
         self.display(text)
 
     def display_paragraph(
@@ -50,14 +50,13 @@ class DefaultDisplay(DisplayInterface):
             paragraph: Optional[Iterable] = None,
             level: Optional[int] = None,
             style: AutoStyle = AUTO,
-            output: AutoDisplay = AUTO,
     ) -> None:
         if paragraph:
             if isinstance(paragraph, str):
-                return self.output_line(paragraph, output=output)
+                return self.display(paragraph)
             elif isinstance(paragraph, Iterable):
                 for line in paragraph:
-                    return self.output_line(line, output=output)
+                    return self.display(line)
             else:
                 raise TypeError(f'Expected paragraph as Paragraph, str or Iterable, got {paragraph}')
 
@@ -68,23 +67,16 @@ class DefaultDisplay(DisplayInterface):
             count: AutoCount = None,
             with_title: bool = True,
             style: AutoStyle = AUTO,
-            output: AutoDisplay = AUTO,
     ) -> None:
         columnar_lines = self._get_columnar_lines(records, columns=columns, count=count, with_title=with_title)
         for line in columnar_lines:
-            self.output_line(line, output=output)
+            self.display(line)
 
-    def display_item(self, item, item_type='paragraph', output=AUTO, **kwargs) -> None:
-        if hasattr(output, 'get_class'):
-            output = output.get_class()
-        elif Auto.is_auto(output):
-            output = self.get_output()
+    def display_item(self, item: Item, item_type='paragraph', **kwargs) -> None:
         item_type_value = get_value(item_type)
-        if item_type_value == 'sheet':
-            return self.display_sheet(item, output=output, **kwargs)
         method_name = 'display_{item_type}'.format(item_type=item_type_value)
         method = getattr(self, method_name, self.display_paragraph())
-        return method(item, output=output, **kwargs)
+        return method(item, **kwargs)
 
     @classmethod
     def _get_formatter(cls, columns: Sequence, delimiter: str = REPR_DELIMITER) -> str:
@@ -184,9 +176,9 @@ class DefaultDisplay(DisplayInterface):
             r = cls._get_cropped_record(r, columns=columns, max_len=max_len)
             yield formatter.format(**r)
 
-    @staticmethod
-    def display(obj) -> None:
-        print(obj)
+    def display(self, item: Item = AUTO) -> None:
+        item = Auto.acquire(item, self)
+        print(item)
 
     def __call__(self, obj) -> None:
         return self.display(obj)

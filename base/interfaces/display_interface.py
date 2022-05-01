@@ -21,7 +21,7 @@ class DisplayInterface(ABC):
         pass
 
     @abstractmethod
-    def add_to_paragraph(self, text: str) -> None:
+    def append(self, text: str) -> None:
         pass
 
     @abstractmethod

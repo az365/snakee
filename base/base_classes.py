@@ -9,7 +9,7 @@ try:  # Assume we're a submodule in a package.
     from base.abstract.sourced import Sourced
     from base.abstract.simple_data import SimpleDataWrapper
     from base.abstract.tree_item import TreeItem
-    from base.mixin.line_output_mixin import LineOutputMixin
+    from base.mixin.display_mixin import DisplayMixin
     from base.mixin.data_mixin import DataMixin, IterDataMixin, MapDataMixin, MultiMapDataMixin
     from base.mixin.iterable_mixin import IterableInterface, IterableMixin
     from base.classes.auto import Auto, AUTO
@@ -25,7 +25,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .abstract.sourced import Sourced
     from .abstract.simple_data import SimpleDataWrapper
     from .abstract.tree_item import TreeItem
-    from .mixin.line_output_mixin import LineOutputMixin
+    from .mixin.display_mixin import DisplayMixin
     from .mixin.data_mixin import DataMixin, IterDataMixin, MapDataMixin, MultiMapDataMixin
     from .mixin.iterable_mixin import IterableInterface, IterableMixin
     from .classes.auto import Auto, AUTO

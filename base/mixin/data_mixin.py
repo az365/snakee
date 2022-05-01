@@ -8,14 +8,14 @@ try:  # Assume we're a submodule in a package.
     from base.constants.chars import EMPTY, PY_INDENT, REPR_DELIMITER
     from base.classes.enum import DynamicEnum, ClassType
     from base.interfaces.data_interface import SimpleDataInterface
-    from base.mixin.line_output_mixin import LineOutputMixin
+    from base.mixin.display_mixin import DisplayMixin
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.typing import AUTO, Auto, AutoBool, AutoCount
     from ..functions.arguments import get_name
     from ..constants.chars import EMPTY, PY_INDENT, REPR_DELIMITER
     from ..classes.enum import DynamicEnum, ClassType
     from ..interfaces.data_interface import SimpleDataInterface
-    from .line_output_mixin import LineOutputMixin
+    from .display_mixin import DisplayMixin
 
 Native = SimpleDataInterface
 Key = Union[DynamicEnum, str]
@@ -28,7 +28,7 @@ DESCRIPTION_COL_LENS = 3, 10, 20, 85  # prefix, key, value, caption
 DESCRIPTION_COLS = list(zip(DESCRIPTION_COL_NAMES, DESCRIPTION_COL_LENS))
 
 
-class DataMixin(LineOutputMixin, ABC):
+class DataMixin(DisplayMixin, ABC):
     def _get_data(self) -> Iterable:
         assert isinstance(self, SimpleDataInterface) or hasattr(self, 'get_data')
         return self.get_data()

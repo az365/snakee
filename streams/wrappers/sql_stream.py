@@ -635,17 +635,17 @@ class SqlStream(WrapperStream):
     def describe(self, as_dataframe: bool = False, **kwargs) -> Native:
         display = self.get_display()
         display.display_paragraph(self.get_query_name(), level=1)
-        display.output_line(repr(self))
-        display.output_line(self.get_stream_representation())
-        display.output_line('Generated SQL query:')
+        display.append(repr(self))
+        display.append(self.get_stream_representation())
+        display.append('Generated SQL query:')
         display.display_paragraph('Query', level=3)
         if as_dataframe:
             self.display_query_sheet()
         else:
             display.display_paragraph(self.get_query_lines(), style=CODE_HTML_STYLE)
         display.display_paragraph('Columns', level=3)
-        display.output_line('Expected output columns: {}'.format(self.get_output_columns(skip_missing=True)))
-        display.output_line('Expected input struct: {}'.format(self.get_source_table().get_struct()))
+        display.append('Expected output columns: {}'.format(self.get_output_columns(skip_missing=True)))
+        display.append('Expected input struct: {}'.format(self.get_source_table().get_struct()))
         struct = self.get_output_struct(skip_missing=True)
         if struct:
             struct.display_data_sheet(title=None)

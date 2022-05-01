@@ -8,7 +8,6 @@ try:  # Assume we're a submodule in a package.
     )
     from base.functions.arguments import get_name, get_str_from_args_kwargs
     from base.constants.chars import EMPTY, CROP_SUFFIX, ITEMS_DELIMITER, DEFAULT_LINE_LEN
-    from base.mixin.line_output_mixin import AutoOutput
     from functions.primary import dates as dt
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
@@ -17,7 +16,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     )
     from ...base.functions.arguments import get_name, get_str_from_args_kwargs
     from ...base.constants.chars import EMPTY, CROP_SUFFIX, ITEMS_DELIMITER, DEFAULT_LINE_LEN
-    from ...base.mixin.line_output_mixin import AutoOutput
     from ...functions.primary import dates as dt
 
 Native = LeafConnectorInterface
@@ -25,49 +23,6 @@ Native = LeafConnectorInterface
 EXAMPLE_STR_LEN = 12
 EXAMPLE_ROW_COUNT = 10
 COUNT_ITEMS_TO_LOG_COLLECT_OPERATION = 500000
-
-
-class AppropriateInterface(LeafConnectorInterface, ABC):
-    @abstractmethod
-    def get_modification_timestamp(self, reset: bool = True) -> Optional[float]:
-        pass
-
-    @abstractmethod
-    def get_actual_lines_count(self, allow_reopen: bool = True, allow_slow_mode: bool = True) -> AutoCount:
-        pass
-
-    @abstractmethod
-    def is_gzip(self) -> bool:
-        pass
-
-    @abstractmethod
-    def is_opened(self) -> bool:
-        pass
-
-    @abstractmethod
-    def set_struct(self, struct: StructInterface, inplace: bool):
-        pass
-
-    @abstractmethod
-    def get_struct(self) -> StructInterface:
-        pass
-
-    @abstractmethod
-    def get_initial_struct(self) -> StructInterface:
-        """Returns initial expected struct from connector settings."""
-        pass
-
-    @abstractmethod
-    def is_first_line_title(self) -> bool:
-        pass
-
-    @abstractmethod
-    def is_empty(self) -> bool:
-        pass
-
-    @abstractmethod
-    def to_record_stream(self, message: Optional[str] = None) -> RecordStream:
-        pass
 
 
 class ActualizeMixin(ABC):
@@ -323,13 +278,13 @@ class ActualizeMixin(ABC):
             example: Optional[Stream] = None,
             columns: Optional[Array] = None,
             comment: str = EMPTY,
-            output: AutoOutput = AUTO,
+            output=AUTO,  # deprecated
     ):
         if not Auto.is_defined(example):
             example = self.to_record_stream()
         stream_example = example.take(count).collect()
         if stream_example or comment:
-            display = self.get_display()
+            display = self.get_display(output)
             display.display_paragraph('Example', level=3)
             if comment:
                 display.display_paragraph(comment)
@@ -340,7 +295,7 @@ class ActualizeMixin(ABC):
                     return example
                 else:
                     for line in example:
-                        display.output_line(line, output=output)
+                        display.append(line)
                     display.display_paragraph()
 
     def show(

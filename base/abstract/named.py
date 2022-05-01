@@ -5,22 +5,22 @@ try:  # Assume we're a submodule in a package.
     from base.classes.auto import AUTO, Auto
     from base.constants.chars import EMPTY, PY_INDENT, REPR_DELIMITER, DEFAULT_LINE_LEN
     from base.functions.arguments import get_str_from_args_kwargs
-    from base.mixin.line_output_mixin import LineOutputMixin, AutoOutput
+    from base.mixin.display_mixin import DisplayMixin
     from base.abstract.abstract_base import AbstractBaseObject
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.auto import AUTO, Auto
     from ..constants.chars import EMPTY, PY_INDENT, REPR_DELIMITER, DEFAULT_LINE_LEN
     from ..functions.arguments import get_str_from_args_kwargs
-    from ..mixin.line_output_mixin import LineOutputMixin, AutoOutput
+    from ..mixin.display_mixin import DisplayMixin
     from .abstract_base import AbstractBaseObject
 
-Native = Union[AbstractBaseObject, LineOutputMixin]
+Native = Union[AbstractBaseObject, DisplayMixin]
 
 SPECIFIC_MEMBERS = ('_name', )
 BRIEF_META_ROW_FORMATTER = '{prefix}{key:10} {value}'
 
 
-class AbstractNamed(AbstractBaseObject, LineOutputMixin, ABC):
+class AbstractNamed(AbstractBaseObject, DisplayMixin, ABC):
     def __init__(self, name: str, caption: Optional[str] = EMPTY):
         super().__init__()
         self._name = name
@@ -83,14 +83,14 @@ class AbstractNamed(AbstractBaseObject, LineOutputMixin, ABC):
             show_header: bool = True,
             comment: Optional[str] = None,
             depth: int = 1,
-            output: AutoOutput = AUTO,  # deprecated
+            output=AUTO,  # deprecated
     ) -> None:
         display = self.get_display(output)
         if show_header:
             display.display_paragraph(self.get_name(), level=1)
             display.display_paragraph(self.get_str_headers())
         if comment:
-            display.output_line(comment)
+            display.append(comment)
         display.display_paragraph(self.get_meta_description())
         if depth > 0:
             for attribute, value in self.get_meta_items():
