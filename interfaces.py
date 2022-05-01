@@ -2,7 +2,7 @@ from typing import Optional, Union
 
 try:  # Assume we're a submodule in a package.
     from base.interfaces.base_interface import BaseInterface  # ROOT
-    from base.interfaces.line_output_interface import LineOutputInterface  # ROOT
+    from base.interfaces.display_interface import DisplayInterface  # ROOT
     from base.interfaces.sourced_interface import SourcedInterface  # inherits Base[Interface]
     from base.interfaces.data_interface import SimpleDataInterface  # inherits Base[Interface]
     from base.interfaces.iterable_interface import IterableInterface  # inherits SimpleDataInterface
@@ -40,7 +40,7 @@ try:  # Assume we're a submodule in a package.
     from content.struct.struct_row_interface import StructRowInterface  # inherits SimpleData; uses StructInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from .base.interfaces.base_interface import BaseInterface  # ROOT
-    from .base.interfaces.line_output_interface import LineOutputInterface  # ROOT
+    from .base.interfaces.display_interface import DisplayInterface  # ROOT
     from .base.interfaces.sourced_interface import SourcedInterface  # inherits Base[Interface]
     from .base.interfaces.data_interface import SimpleDataInterface  # inherits Base[Interface]
     from .base.interfaces.iterable_interface import IterableInterface  # inherits SimpleDataInterface

@@ -1,70 +1,90 @@
-from typing import Optional, Callable, Iterable, Generator, Sequence, Union
+from typing import Optional, Iterable, Generator, Sequence, Union
 
 try:  # Assume we're a submodule in a package.
     from base.classes.typing import AUTO, Auto, AutoCount, Class
     from base.functions.arguments import get_name, get_value
     from base.constants.chars import DEFAULT_LINE_LEN, REPR_DELIMITER, SMALL_INDENT, EMPTY
+    from base.interfaces.display_interface import DisplayInterface, AutoStyle
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.typing import AUTO, Auto, AutoCount, Class
     from ..functions.arguments import get_name, get_value
     from ..constants.chars import DEFAULT_LINE_LEN, REPR_DELIMITER, SMALL_INDENT, EMPTY
+    from ..interfaces.display_interface import DisplayInterface, AutoStyle
+
+AutoDisplay = Union[Auto, DisplayInterface]
+LoggingLevel = int
 
 DEFAULT_ROWS_COUNT = 10
 DEFAULT_INT_WIDTH, DEFAULT_FLOAT_WIDTH = 7, 12
 PREFIX_FIELD = 'prefix'
 
-LoggingLevel = int
 
-
-class DefaultDisplay:
-    def get_display(self, display=AUTO) -> Optional[Class]:
-        if Auto.is_defined(display) and not isinstance(display, LoggingLevel):
+class DefaultDisplay(DisplayInterface):
+    def get_display(self, display: AutoDisplay = AUTO) -> DisplayInterface:
+        if isinstance(display, DisplayInterface):
             return display
-        if hasattr(self, 'get_logger'):
-            logger = self.get_logger()
-            if Auto.is_defined(logger):
-                return logger
-        elif Auto.is_auto(display):
+        elif not Auto.is_defined(display):
             if hasattr(self, '_display'):
                 return self._display
             else:
-                return print
+                return self
+        else:
+            raise TypeError(f'expected Display, got {display}')
 
-    @staticmethod
-    def display(obj) -> None:
-        print(obj)
-
-    def __call__(self, obj) -> None:
-        return self.display(obj)
-
-    def get_output(self, output=AUTO) -> Optional[Class]:
+    def get_output(self, output: AutoDisplay = AUTO) -> DisplayInterface:
         return self.get_display(output)
 
-    def output_line(self, line: str, output=AUTO) -> None:
-        logger_kwargs = dict(stacklevel=None)
-        if isinstance(output, LoggingLevel):
-            logger_kwargs['level'] = output
-            output = AUTO
-        if Auto.is_auto(output):
-            if hasattr(self, 'log'):
-                return self.log(msg=line, **logger_kwargs)
-            else:
-                output = self.get_output()
-        if isinstance(output, Callable):
-            return output(line)
-        elif output:
-            if hasattr(output, 'output_line'):
-                try:
-                    return output.output_line(line=line)
-                except TypeError as e:
-                    raise TypeError(f'{output}.output_line({line}): {e}')
-            elif hasattr(output, 'log'):
-                return output.log(msg=line, **logger_kwargs)
-            else:
-                raise TypeError('Expected Output, Logger or Auto, got {}'.format(output))
-
-    def output_blank_line(self, output=AUTO) -> None:
+    # @deprecated_with_alternative('display_paragraph()')
+    def output_blank_line(self, output: AutoDisplay = AUTO) -> None:
         self.output_line(EMPTY, output=output)
+
+    # @deprecated_with_alternative('add_to_paragraph()')
+    def output_line(self, line: str, output: AutoDisplay = AUTO) -> None:
+        return self.add_to_paragraph(line)
+
+    def add_to_paragraph(self, text: str) -> None:
+        self.display(text)
+
+    def display_paragraph(
+            self,
+            paragraph: Optional[Iterable] = None,
+            level: Optional[int] = None,
+            style: AutoStyle = AUTO,
+            output: AutoDisplay = AUTO,
+    ) -> None:
+        if paragraph:
+            if isinstance(paragraph, str):
+                return self.output_line(paragraph, output=output)
+            elif isinstance(paragraph, Iterable):
+                for line in paragraph:
+                    return self.output_line(line, output=output)
+            else:
+                raise TypeError(f'Expected paragraph as Paragraph, str or Iterable, got {paragraph}')
+
+    def display_sheet(
+            self,
+            records: Iterable,
+            columns: Sequence,
+            count: AutoCount = None,
+            with_title: bool = True,
+            style: AutoStyle = AUTO,
+            output: AutoDisplay = AUTO,
+    ) -> None:
+        columnar_lines = self._get_columnar_lines(records, columns=columns, count=count, with_title=with_title)
+        for line in columnar_lines:
+            self.output_line(line, output=output)
+
+    def display_item(self, item, item_type='paragraph', output=AUTO, **kwargs) -> None:
+        if hasattr(output, 'get_class'):
+            output = output.get_class()
+        elif Auto.is_auto(output):
+            output = self.get_output()
+        item_type_value = get_value(item_type)
+        if item_type_value == 'sheet':
+            return self.display_sheet(item, output=output, **kwargs)
+        method_name = 'display_{item_type}'.format(item_type=item_type_value)
+        method = getattr(self, method_name, self.display_paragraph())
+        return method(item, output=output, **kwargs)
 
     @classmethod
     def _get_formatter(cls, columns: Sequence, delimiter: str = REPR_DELIMITER) -> str:
@@ -164,37 +184,9 @@ class DefaultDisplay:
             r = cls._get_cropped_record(r, columns=columns, max_len=max_len)
             yield formatter.format(**r)
 
-    def display_sheet(
-            self,
-            records: Iterable,
-            columns: Sequence,
-            count: AutoCount = None,
-            with_title: bool = True,
-            style=AUTO,
-            output=AUTO,
-    ) -> None:
-        columnar_lines = self._get_columnar_lines(records, columns=columns, count=count, with_title=with_title)
-        for line in columnar_lines:
-            self.output_line(line, output=output)
+    @staticmethod
+    def display(obj) -> None:
+        print(obj)
 
-    def display_paragraph(self, paragraph: Iterable, level: Optional[int] = None, style=AUTO, output=AUTO) -> None:
-        if paragraph:
-            if isinstance(paragraph, str):
-                return self.output_line(paragraph, output=output)
-            elif isinstance(paragraph, Iterable):
-                for line in paragraph:
-                    return self.output_line(line, output=output)
-            else:
-                raise TypeError(f'Expected paragraph as Paragraph, str or Iterable, got {paragraph}')
-
-    def display_item(self, item, item_type='line', output=AUTO, **kwargs) -> None:
-        if hasattr(output, 'get_class'):
-            output = output.get_class()
-        elif Auto.is_auto(output):
-            output = self.get_output()
-        item_type_value = get_value(item_type)
-        if item_type_value == 'sheet':
-            return self.display_sheet(item, output=output, **kwargs)
-        method_name = 'output_{item_type}'.format(item_type=item_type_value)
-        method = getattr(self, method_name, self.output_line)
-        return method(item, output=output, **kwargs)
+    def __call__(self, obj) -> None:
+        return self.display(obj)
