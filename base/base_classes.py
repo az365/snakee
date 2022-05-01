@@ -10,7 +10,8 @@ try:  # Assume we're a submodule in a package.
     from base.abstract.simple_data import SimpleDataWrapper
     from base.abstract.tree_item import TreeItem
     from base.mixin.display_mixin import DisplayMixin
-    from base.mixin.data_mixin import DataMixin, IterDataMixin, MapDataMixin, MultiMapDataMixin
+    from base.mixin.data_mixin import DataMixin, IterDataMixin
+    from base.mixin.map_data_mixin import MapDataMixin, MultiMapDataMixin
     from base.mixin.iterable_mixin import IterableInterface, IterableMixin
     from base.classes.auto import Auto, AUTO
     from base.classes.enum import EnumItem, DynamicEnum, ClassType, SubclassesType
@@ -26,7 +27,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .abstract.simple_data import SimpleDataWrapper
     from .abstract.tree_item import TreeItem
     from .mixin.display_mixin import DisplayMixin
-    from .mixin.data_mixin import DataMixin, IterDataMixin, MapDataMixin, MultiMapDataMixin
+    from .mixin.data_mixin import DataMixin, IterDataMixin
+    from .mixin.map_data_mixin import MapDataMixin, MultiMapDataMixin
     from .mixin.iterable_mixin import IterableInterface, IterableMixin
     from .classes.auto import Auto, AUTO
     from .classes.enum import EnumItem, DynamicEnum, ClassType, SubclassesType

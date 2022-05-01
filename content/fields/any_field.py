@@ -8,7 +8,7 @@ try:  # Assume we're a submodule in a package.
     )
     from base.functions.arguments import get_name, get_value, get_plural
     from base.abstract.simple_data import SimpleDataWrapper, EMPTY
-    from base.mixin.data_mixin import MultiMapDataMixin
+    from base.mixin.map_data_mixin import MultiMapDataMixin
     from content.selection.selectable_mixin import SelectableMixin
     from content.selection import abstract_expression as ae, concrete_expression as ce
     from content.fields.field_edge_type import FieldEdgeType
@@ -20,7 +20,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     )
     from ...base.functions.arguments import get_name, get_value, get_plural
     from ...base.abstract.simple_data import SimpleDataWrapper, EMPTY
-    from ...base.mixin.data_mixin import MultiMapDataMixin
+    from ...base.mixin.map_data_mixin import MultiMapDataMixin
     from ..selection.selectable_mixin import SelectableMixin
     from ..selection import abstract_expression as ae, concrete_expression as ce
     from .field_edge_type import FieldEdgeType

@@ -10,7 +10,7 @@ try:  # Assume we're a submodule in a package.
     from base.functions.arguments import get_name, get_names, get_value
     from base.constants.chars import EMPTY, UNDER, SMALL_INDENT, REPR_DELIMITER, JUPYTER_LINE_LEN
     from base.abstract.simple_data import SimpleDataWrapper
-    from base.mixin.data_mixin import MultiMapDataMixin
+    from base.mixin.map_data_mixin import MultiMapDataMixin
     from base.classes.enum import ClassType
     from content.fields.any_field import AnyField
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -22,7 +22,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.functions.arguments import get_name, get_names, get_value
     from ...base.constants.chars import EMPTY, UNDER, SMALL_INDENT, REPR_DELIMITER, JUPYTER_LINE_LEN
     from ...base.abstract.simple_data import SimpleDataWrapper
-    from ...base.mixin.data_mixin import MultiMapDataMixin
+    from ...base.mixin.map_data_mixin import MultiMapDataMixin
     from ...base.classes.enum import ClassType
     from ..fields.any_field import AnyField
 
