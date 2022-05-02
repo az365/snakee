@@ -37,11 +37,15 @@ class DisplayMixin(DisplayInterface, ABC):
         cls.set_display_inplace(display)
         return cls
 
-    def set_display_inplace(self, display: DefaultDisplay):
+    def _set_display_inplace(self, display: DefaultDisplay):
+        self.set_display_inplace(display)
+
+    @classmethod
+    def set_display_inplace(cls, display: DefaultDisplay):
         global _display
         _display = display
 
-    display = property(get_display, set_display_inplace)
+    display = property(get_display, _set_display_inplace)
 
     @deprecated_with_alternative('get_display()')
     def get_output(self, output: AutoOutput = AUTO) -> Optional[Class]:

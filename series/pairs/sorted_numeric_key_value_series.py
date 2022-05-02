@@ -12,7 +12,7 @@ try:  # Assume we're a submodule in a package.
     from series.simple.sorted_numeric_series import SortedNumericSeries
     from series.pairs.sorted_key_value_series import SortedKeyValueSeries
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from base.functions.arguments import get_value
+    from ...base.functions.arguments import get_value
     from ...functions.primary import numeric as nm, dates as dt
     from ..interpolation_type import InterpolationType
     from ..series_type import SeriesType
