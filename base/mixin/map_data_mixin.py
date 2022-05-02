@@ -8,14 +8,16 @@ try:  # Assume we're a submodule in a package.
     from base.constants.chars import EMPTY, PY_INDENT, REPR_DELIMITER
     from base.classes.enum import DynamicEnum, ClassType
     from base.interfaces.data_interface import SimpleDataInterface
-    from base.mixin.data_mixin import IterDataMixin, Key, Item, KEY, VALUE, DESCRIPTION_COLS
+    from base.mixin.data_mixin import Key, Item, KEY, VALUE, DESCRIPTION_COLS
+    from base.mixin.iter_data_mixin import IterDataMixin
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.typing import AUTO, Auto, AutoBool, AutoCount, Class
     from ..functions.arguments import get_name
     from ..constants.chars import EMPTY, PY_INDENT, REPR_DELIMITER
     from ..classes.enum import DynamicEnum, ClassType
     from ..interfaces.data_interface import SimpleDataInterface
-    from .data_mixin import IterDataMixin, Key, Item, KEY, VALUE, DESCRIPTION_COLS
+    from .data_mixin import Key, Item, KEY, VALUE, DESCRIPTION_COLS
+    from .iter_data_mixin import IterDataMixin
 
 Native = Union[SimpleDataInterface, IterDataMixin]
 
@@ -26,7 +28,7 @@ class MapDataMixin(IterDataMixin, ABC):
         return self.get_data()
 
     @staticmethod
-    def get_root_data_class() -> Class:
+    def _get_root_data_class() -> Class:
         return dict
 
     @staticmethod
@@ -77,20 +79,20 @@ class MapDataMixin(IterDataMixin, ABC):
         else:
             return sorted(keys)
 
-    def get_first_level_iter(self, as_pairs: bool = False) -> Generator:
-        yield from self.get_first_level_items(as_pairs=as_pairs)
+    def _get_first_level_iter(self, as_pairs: bool = False) -> Generator:
+        yield from self._get_first_level_items(as_pairs=as_pairs)
 
-    def get_first_level_items(self, as_pairs: bool = False) -> Iterable:
+    def _get_first_level_items(self, as_pairs: bool = False) -> Iterable:
         if as_pairs:
             return self._get_data().items()
         else:
             return self._get_data().values()
 
-    def get_first_level_list(self, as_pairs: bool = False) -> list:
-        return list(self.get_first_level_items(as_pairs=as_pairs))
+    def _get_first_level_list(self, as_pairs: bool = False) -> list:
+        return list(self._get_first_level_items(as_pairs=as_pairs))
 
-    def get_first_level_seq(self, as_pairs: bool = False) -> Sequence:
-        first_level_items = self.get_first_level_items(as_pairs=as_pairs)
+    def _get_first_level_seq(self, as_pairs: bool = False) -> Sequence:
+        first_level_items = self._get_first_level_items(as_pairs=as_pairs)
         if isinstance(first_level_items, Sequence):
             return first_level_items
         else:
@@ -106,10 +108,10 @@ class MapDataMixin(IterDataMixin, ABC):
         return self.get_first_level_keys()
 
     def values(self) -> Iterable:
-        return self.get_first_level_items(as_pairs=False)
+        return self._get_first_level_items(as_pairs=False)
 
     def items(self) -> Iterable:
-        return self.get_first_level_items(as_pairs=True)
+        return self._get_first_level_items(as_pairs=True)
 
     def __getitem__(self, item) -> Item:
         return self._get_data()[item]
@@ -117,10 +119,10 @@ class MapDataMixin(IterDataMixin, ABC):
 
 class MultiMapDataMixin(MapDataMixin, ABC):
     @staticmethod
-    def get_max_depth() -> int:
+    def _get_max_depth() -> int:
         return 1
 
-    def get_first_level_item_classes(self) -> tuple:
+    def _get_first_level_item_classes(self) -> tuple:
         return dict, MapDataMixin
 
     @staticmethod
@@ -140,7 +142,7 @@ class MultiMapDataMixin(MapDataMixin, ABC):
         for key in keys:
             second_level_data = self._get_data()[key]
             if isinstance(second_level_data, MapDataMixin):
-                iter_values.append(second_level_data.get_first_level_items(as_pairs=as_pairs))
+                iter_values.append(second_level_data._get_first_level_items(as_pairs=as_pairs))
             elif isinstance(second_level_data, dict):
                 if as_pairs:
                     iter_values.append(second_level_data.items())
@@ -160,7 +162,7 @@ class MultiMapDataMixin(MapDataMixin, ABC):
         for key in keys:
             second_level_data = self._get_data()[key]
             if isinstance(second_level_data, MapDataMixin):
-                yield from second_level_data.get_first_level_items(as_pairs=as_pairs)
+                yield from second_level_data._get_first_level_items(as_pairs=as_pairs)
             elif isinstance(second_level_data, dict):
                 if as_pairs:
                     yield from second_level_data.items()
@@ -172,7 +174,7 @@ class MultiMapDataMixin(MapDataMixin, ABC):
                 raise TypeError(self._get_call_prefix(self.get_second_level_iter, arg=key) + msg)
 
     def get_second_level_value_by_key(self, key: Key, default: Item = None) -> Item:
-        for i in self.get_first_level_items(as_pairs=False):
+        for i in self._get_first_level_items(as_pairs=False):
             result = i.get(key)
             if result is not None:
                 return result
@@ -247,16 +249,16 @@ class MultiMapDataMixin(MapDataMixin, ABC):
         return chain(self.get_first_level_keys(), self.get_second_level_keys())
 
     def values(self) -> Iterable:
-        return chain(self.get_first_level_items(as_pairs=False), self.get_second_level_items())
+        return chain(self._get_first_level_items(as_pairs=False), self.get_second_level_items())
 
     def items(self) -> Iterable:
-        return self.get_first_level_items(as_pairs=True)
+        return self._get_first_level_items(as_pairs=True)
 
-    def get_item_classes(self, level: int = -1) -> tuple:
+    def _get_item_classes(self, level: int = -1) -> tuple:
         if level == 2:
             return self.get_second_level_item_classes()
         else:
-            return super().get_item_classes(level)
+            return super()._get_item_classes(level)
 
     # @deprecated
     def get_data_description(

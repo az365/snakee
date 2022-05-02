@@ -10,7 +10,7 @@ try:  # Assume we're a submodule in a package.
         AUTO, Auto, AutoBool,
     )
     from base.functions.arguments import get_name, get_names, update
-    from base.mixin.iterable_mixin import IterableMixin
+    from base.mixin.iter_data_mixin import IterDataMixin
     from functions.secondary.item_functions import composite_key, merge_two_items, items_to_dict
     from content.fields import field_classes as fc
     from content.items.item_getters import get_filter_function
@@ -26,7 +26,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         AUTO, Auto, AutoBool,
     )
     from ...base.functions.arguments import get_name, get_names, update
-    from ...base.mixin.iterable_mixin import IterableMixin
+    from ...base.mixin.iter_data_mixin import IterDataMixin
     from ...functions.secondary.item_functions import composite_key, merge_two_items, items_to_dict
     from ...content.fields import field_classes as fc
     from ...content.items.item_getters import get_filter_function
@@ -44,7 +44,7 @@ DEFAULT_DETECT_COUNT = 100
 LOGGING_LEVEL_INFO = 20
 
 
-class ColumnarMixin(IterableMixin, ABC):
+class ColumnarMixin(IterDataMixin, ABC):
     @classmethod
     def is_valid_item(cls, item: Item) -> bool:
         return cls.get_item_type().isinstance(item)
@@ -180,14 +180,14 @@ class ColumnarMixin(IterableMixin, ABC):
             right_is_uniq: bool = True,
             inplace: bool = False,
     ) -> Optional[Native]:
-        key = get_names(key)
         keys = update([key])
+        keys = get_names(keys, or_callable=True)
         if not isinstance(how, JoinType):
             how = JoinType(how)
         joined_items = algo.map_side_join(
             iter_left=self.get_items(),
             iter_right=right.get_items(),
-            key_function=composite_key(keys, item_type=self.get_item_type()),
+            key_function=composite_key(*keys, item_type=self.get_item_type()),
             merge_function=merge_two_items(),
             dict_function=items_to_dict(),
             how=how,
@@ -388,7 +388,7 @@ class ColumnarMixin(IterableMixin, ABC):
             count: int = DEFAULT_SHOW_COUNT,
             filters: Columns = None,
             columns: Columns = None,
-            as_dataframe: AutoBool = AUTO,  # deprecated
+            as_dataframe: AutoBool = False,  # deprecated
             output=AUTO,
     ):
         display = self.get_display(output)
@@ -446,8 +446,10 @@ class ColumnarMixin(IterableMixin, ABC):
         if hasattr(self, 'display_data_sheet'):
             self.display_data_sheet()
         else:
-            records = example.get_demo_example(columns=columns)
+            records = example.get_records()
             if not Auto.is_defined(columns):
                 records = list(records)
+                if not isinstance(records[0], dict):
+                    records = [{'item': i} for i in records]
                 columns = records[0].keys()
             return display.display_sheet(records, columns=columns)

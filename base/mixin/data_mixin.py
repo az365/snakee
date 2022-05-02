@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Type, Optional, Callable, Iterable, Generator, Sequence, Union, Any
+from typing import Type, Optional, Callable, Iterable, Union, Any
 
 try:  # Assume we're a submodule in a package.
     from base.classes.typing import AUTO, Auto, AutoBool, AutoCount, Class
@@ -32,31 +32,31 @@ class DataMixin(DisplayMixin, ABC):
         return self.get_data()
 
     @staticmethod
-    def get_max_depth() -> int:
+    def _get_max_depth() -> int:
         return 0
 
     @staticmethod
-    def get_root_data_class() -> Class:
+    def _get_root_data_class() -> Class:
         return Any
 
-    def get_item_classes(self, level: int = -1) -> tuple:
+    def _get_item_classes(self, level: int = -1) -> tuple:
         if level < 0:
-            level = 1 + self.get_max_depth() - level
-            return self.get_item_classes(level)
+            level = 1 + self._get_max_depth() - level
+            return self._get_item_classes(level)
         if level == 0:
-            return self.get_root_data_class(),
+            return self._get_root_data_class(),
         else:
             template = 'Expected level from -{limit} to {limit}, got {value}'
-            msg = template.format(limit=self.get_max_depth(), value=level)
-            raise ValueError(self._get_call_prefix(self.get_item_classes, arg=level) + msg)
+            msg = template.format(limit=self._get_max_depth(), value=level)
+            raise ValueError(self._get_call_prefix(self._get_item_classes, arg=level) + msg)
 
     def get_default_item_class(self, level: int = -1) -> Optional[Class]:
-        item_classes = self.get_item_classes(level)
+        item_classes = self._get_item_classes(level)
         if item_classes:
             return item_classes[0]
 
     def set_data(self, data: Iterable, inplace: bool, **kwargs) -> Native:
-        data_root_class = self.get_root_data_class()
+        data_root_class = self._get_root_data_class()
         if Auto.is_defined(data_root_class):
             assert isinstance(data, data_root_class)
         parent = super()
@@ -87,50 +87,3 @@ class DataMixin(DisplayMixin, ABC):
         else:
             prefix = repr(self)
         return prefix + delimiter
-
-
-class IterDataMixin(DataMixin, ABC):
-    @staticmethod
-    def get_max_depth() -> int:
-        return 1
-
-    @staticmethod
-    def get_root_data_class() -> Class:
-        return Iterable
-
-    @staticmethod
-    def get_first_level_item_classes() -> tuple:
-        return str, DynamicEnum
-
-    def get_default_first_level_item_class(self) -> Optional[Class]:
-        item_classes = self.get_first_level_item_classes()
-        if item_classes:
-            return item_classes[0]
-
-    def get_first_level_iter(self) -> Generator:
-        yield from self._get_data()
-
-    def get_first_level_items(self) -> Iterable:
-        return self._get_data()
-
-    def get_first_level_list(self) -> list:
-        first_level_items = self.get_first_level_items()
-        if isinstance(first_level_items, list):
-            return first_level_items
-        else:
-            return list(first_level_items)
-
-    def get_first_level_seq(self) -> Sequence:
-        first_level_items = self.get_first_level_items()
-        if isinstance(first_level_items, Sequence):
-            return first_level_items
-        else:
-            return list(first_level_items)
-
-    def get_item_classes(self, level: int = -1) -> tuple:
-        if level == 1:
-            return self.get_first_level_item_classes()
-        else:
-            return super().get_item_classes(level)
-
-

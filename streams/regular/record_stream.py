@@ -411,7 +411,6 @@ class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
             of_lists: bool = False,
             skip_errors: bool = False,
     ) -> dict:
-        key = get_names(key)
         key_value_stream = self.to_key_value_stream(key, value, skip_errors=skip_errors)
         return key_value_stream.get_dict(of_lists=of_lists)
 

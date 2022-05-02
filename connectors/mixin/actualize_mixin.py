@@ -289,14 +289,9 @@ class ActualizeMixin(ABC):
             if comment:
                 display.display_paragraph(comment)
             if stream_example:
-                example = stream_example.get_demo_example(columns=columns)
-                is_dataframe = hasattr(example, 'shape')
-                if is_dataframe:
-                    return example
-                else:
-                    for line in example:
-                        display.append(line)
-                    display.display_paragraph()
+                if not Auto.is_defined(columns):
+                    columns = stream_example.get_columns()
+                return display.display_sheet(example, columns=columns)
 
     def show(
             self,

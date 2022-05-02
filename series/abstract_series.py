@@ -4,26 +4,26 @@ from typing import Optional, Iterable, Union
 try:  # Assume we're a submodule in a package.
     from base.classes.typing import ARRAY_TYPES, AUTO, Auto, Value
     from base.abstract.simple_data import SimpleDataWrapper
-    from base.mixin.iterable_mixin import IterableMixin, IterableInterface
+    from base.mixin.iter_data_mixin import IterDataMixin, IterableInterface
     from utils.decorators import deprecated_with_alternative
     from functions.primary.numeric import MUTABLE, Mutable
     from series.series_type import SeriesType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..base.classes.typing import ARRAY_TYPES, AUTO, Auto, Value
     from ..base.abstract.simple_data import SimpleDataWrapper
-    from ..base.mixin.iterable_mixin import IterableMixin, IterableInterface
+    from ..base.mixin.iter_data_mixin import IterDataMixin, IterableInterface
     from ..utils.decorators import deprecated_with_alternative
     from ..functions.primary.numeric import MUTABLE, Mutable
     from .series_type import SeriesType
 
-Native = Union[SimpleDataWrapper, IterableMixin, IterableInterface]
+Native = Union[SimpleDataWrapper, IterDataMixin, IterableInterface]
 Item = Value  # Any
 
 META_MEMBER_MAPPING = dict(_data='values')
 DEFAULT_NAME = '-'
 
 
-class AbstractSeries(SimpleDataWrapper, IterableMixin, ABC):
+class AbstractSeries(SimpleDataWrapper, IterDataMixin, ABC):
     def __init__(
             self,
             values: Iterable,

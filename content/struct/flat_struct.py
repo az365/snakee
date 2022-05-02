@@ -10,7 +10,7 @@ try:  # Assume we're a submodule in a package.
     from base.functions.arguments import update, get_generated_name, get_name, get_names
     from base.constants.chars import REPR_DELIMITER, TITLE_PREFIX, JUPYTER_LINE_LEN
     from base.abstract.simple_data import SimpleDataWrapper, DEFAULT_ROWS_COUNT
-    from base.mixin.data_mixin import IterDataMixin
+    from base.mixin.iter_data_mixin import IterDataMixin
     from functions.secondary import array_functions as fs
     from utils.external import pd, get_use_objects_for_output, DataFrame
     from content.fields.any_field import AnyField
@@ -27,7 +27,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.functions.arguments import update, get_generated_name, get_name, get_names
     from ...base.constants.chars import REPR_DELIMITER, TITLE_PREFIX, JUPYTER_LINE_LEN
     from ...base.abstract.simple_data import SimpleDataWrapper, DEFAULT_ROWS_COUNT
-    from ...base.mixin.data_mixin import IterDataMixin
+    from ...base.mixin.iter_data_mixin import IterDataMixin
     from ...functions.secondary import array_functions as fs
     from ...utils.external import pd, get_use_objects_for_output, DataFrame
     from ..fields.any_field import AnyField

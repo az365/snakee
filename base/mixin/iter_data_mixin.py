@@ -6,24 +6,68 @@ from datetime import datetime
 try:  # Assume we're a submodule in a package.
     from functions.secondary import item_functions as fs
     from utils.algo import map_side_join
-    from base.classes.typing import ARRAY_TYPES, AUTO, Auto
+    from base.classes.typing import ARRAY_TYPES, AUTO, Auto, Class
+    from base.classes.enum import DynamicEnum
     from base.functions.arguments import get_names, update, is_in_memory, get_str_from_args_kwargs
-    from base.mixin.data_mixin import IterDataMixin
     from base.interfaces.iterable_interface import IterableInterface, OptionalFields, Item, JoinType
+    from base.mixin.data_mixin import DataMixin
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...functions.secondary import item_functions as fs
     from ...utils.algo import map_side_join
-    from ..classes.typing import ARRAY_TYPES, AUTO, Auto
+    from ..classes.typing import ARRAY_TYPES, AUTO, Auto, Class
+    from ..classes.enum import DynamicEnum
     from ..functions.arguments import get_names, update, is_in_memory, get_str_from_args_kwargs
-    from ..mixin.data_mixin import IterDataMixin
     from ..interfaces.iterable_interface import IterableInterface, OptionalFields, Item, JoinType
+    from .data_mixin import DataMixin
 
-Native = IterableInterface
+Native = Union[IterableInterface, DataMixin]
 How = Union[JoinType, str]
 
 
-# @deprecated
-class IterableMixin(IterDataMixin, ABC):
+class IterDataMixin(DataMixin, ABC):
+    @staticmethod
+    def _get_max_depth() -> int:
+        return 1
+
+    @staticmethod
+    def _get_root_data_class() -> Class:
+        return Iterable
+
+    @staticmethod
+    def _get_first_level_item_classes() -> tuple:
+        return str, DynamicEnum
+
+    def _get_default_first_level_item_class(self) -> Optional[Class]:
+        item_classes = self._get_first_level_item_classes()
+        if item_classes:
+            return item_classes[0]
+
+    def _get_first_level_iter(self) -> Generator:
+        yield from self._get_data()
+
+    def _get_first_level_items(self) -> Iterable:
+        return self._get_data()
+
+    def _get_first_level_list(self) -> list:
+        first_level_items = self._get_first_level_items()
+        if isinstance(first_level_items, list):
+            return first_level_items
+        else:
+            return list(first_level_items)
+
+    def _get_first_level_seq(self) -> Sequence:
+        first_level_items = self._get_first_level_items()
+        if isinstance(first_level_items, Sequence):
+            return first_level_items
+        else:
+            return list(first_level_items)
+
+    def _get_item_classes(self, level: int = -1) -> tuple:
+        if level == 1:
+            return self._get_first_level_item_classes()
+        else:
+            return super()._get_item_classes(level)
+
     def is_sequence(self) -> bool:
         return isinstance(self.get_items(), Sequence)
 
@@ -107,10 +151,10 @@ class IterableMixin(IterDataMixin, ABC):
             if Auto.is_defined(count):
                 self._set_count(count, inplace=True)
         else:
+            obj = self.set_data(items, inplace=False)
             if Auto.is_defined(count):
-                return self.make_new(items, count=count)
-            else:
-                return self.make_new(items)
+                obj = obj.set_count(count, inplace=False)
+            return obj
 
     def get_items(self) -> Iterable:
         return self.get_data()
@@ -119,7 +163,9 @@ class IterableMixin(IterDataMixin, ABC):
         return list(self.get_items())
 
     def get_iter(self) -> Generator:
-        yield from self.get_items()
+        items = self.get_items()
+        if items:
+            yield from items
 
     def __iter__(self):
         return self.get_iter()
@@ -236,7 +282,7 @@ class IterableMixin(IterDataMixin, ABC):
         elif 'items' in kwargs:
             items = kwargs['items']
         else:
-            raise AttributeError('items is mandatory argument for IterableMixin.make_new()')
+            raise AttributeError('items is mandatory argument for IterDataMixin.make_new()')
         if self._has_count_attribute():
             if count is None and isinstance(items, ARRAY_TYPES):
                 count = len(items)
@@ -259,7 +305,7 @@ class IterableMixin(IterDataMixin, ABC):
         elif hasattr(obj_or_items, 'get_items'):
             items = obj_or_items.get_items()
         else:
-            raise TypeError('Expected Iterable or IterableMixin, got {}'.format(self))
+            raise TypeError('Expected Iterable or IterDataMixin, got {}'.format(self))
         return self.add_items(items, before=before, inplace=inplace)
 
     def add_items(self, items: Iterable, before: bool = False, inplace: bool = False) -> Optional[Native]:
@@ -362,7 +408,7 @@ class IterableMixin(IterDataMixin, ABC):
             items[k] = function(v)
         return self
 
-    def map(self, function: Callable, inplace: bool = False) -> Optional[Native]:
+    def map(self, function: Callable, inplace: bool = False) -> Native:
         if inplace and isinstance(self.get_items(), list):
             return self._apply_map_inplace(function) or self
         else:
@@ -446,13 +492,14 @@ class IterableMixin(IterDataMixin, ABC):
             stream_function: Union[Callable, str] = 'get_count',
             key: Optional[str] = None, show=False,
     ) -> Native:
+        display = self.get_display()
         value = self._get_property(stream_function)
         if key is not None:
             value = {key: value}
         if hasattr(self, 'log'):
             self.log(value, verbose=show)
         elif show:
-            print(value)
+            display.display_item(value)
 
         if isinstance(external_object, Callable):
             external_object(value)
@@ -474,6 +521,7 @@ class IterableMixin(IterDataMixin, ABC):
             assert_not_none: bool = True,
             *args, **kwargs
     ) -> Native:
+        display = self.get_display()
         value = self._get_property(stream_function, *args, **kwargs)
         if value is None:
             if assert_not_none:
@@ -485,5 +533,5 @@ class IterableMixin(IterDataMixin, ABC):
         if hasattr(self, 'log'):
             self.log(value, end='\n', verbose=True)
         else:
-            print(value)
+            display.display_item(value)
         return self

@@ -29,7 +29,7 @@ Native = Union[SimpleDataWrapper, MultiMapDataMixin, FieldInterface]
 AutoRepr = Union[RepresentationInterface, str, Auto]
 
 
-class AnyField(SimpleDataWrapper, MultiMapDataMixin, SelectableMixin, FieldInterface):
+class AnyField(SimpleDataWrapper, SelectableMixin, MultiMapDataMixin, FieldInterface):
     _struct_builder: Optional[Callable] = None
 
     def __init__(
@@ -250,6 +250,12 @@ class AnyField(SimpleDataWrapper, MultiMapDataMixin, SelectableMixin, FieldInter
         else:
             field = self.make_new(group_caption=group_caption)
             return self._assume_native(field)
+
+    def get_value_from_item(self, item, item_type: ItemType, struct: Union[Auto, StructInterface] = AUTO) -> Any:
+        if item_type == ItemType.Record:
+            return item.get(self.get_name())
+        else:
+            raise ValueError(item_type)
 
     def to(self, target: Union[str, FieldInterface]) -> ae.AbstractDescription:
         if hasattr(self, '_transform'):
