@@ -1,4 +1,4 @@
-from typing import Optional, Iterable, Generator, Sequence, Union, Any
+from typing import Optional, Iterable, Generator, Iterator, Sequence, Union, Any
 
 try:  # Assume we're a submodule in a package.
     from base.classes.typing import AUTO, Auto, AutoCount, Class
@@ -175,6 +175,9 @@ class DefaultDisplay(DisplayInterface):
                 r[PREFIX_FIELD] = prefix
             r = cls._get_cropped_record(r, columns=columns, max_len=max_len)
             yield formatter.format(**r)
+
+    def get_encoded_sheet(self, records, columns, count, with_title, style=AUTO) -> Iterator[str]:
+        return self._get_columnar_lines(records, columns=columns, count=count, with_title=with_title)
 
     def display(self, item: Item = AUTO) -> None:
         item = Auto.acquire(item, self)

@@ -1,4 +1,4 @@
-from typing import Optional, Callable, Iterable, Generator, Sequence, Union
+from typing import Optional, Callable, Iterable, Iterator, Generator, Sequence, Union
 
 try:  # Assume we're a submodule in a package.
     from interfaces import Item, ItemType, ContentType, AutoCount, Auto, AUTO
@@ -41,7 +41,13 @@ class DocumentFormat(TextFormat, DefaultDisplay):
     def clear_current_paragraph(self):
         return self.set_current_paragraph(list())
 
-    def get_encoded_paragraph(self, paragraph: Optional[Iterable] = None, level: Optional[int] = None, style=AUTO, clear: bool = False) -> str:
+    def get_encoded_paragraph(
+            self,
+            paragraph: Optional[Iterable] = None,
+            level: Optional[int] = None,
+            style=AUTO,
+            clear: bool = False,
+    ) -> str:
         if paragraph and isinstance(paragraph, str):
             encoded_paragraph = paragraph
         else:
@@ -55,7 +61,9 @@ class DocumentFormat(TextFormat, DefaultDisplay):
         return str
 
     @classmethod
-    def _get_display_object(cls, data: str) -> str:
+    def _get_display_object(cls, data: Union[str, Iterable]) -> str:
+        if not isinstance(data, str):
+            data = '\n'.join(data)
         display_class = cls._get_display_class()
         if display_class:
             return display_class(data)
@@ -65,7 +73,7 @@ class DocumentFormat(TextFormat, DefaultDisplay):
     def append_to_current_paragraph(self, line: str) -> None:
         self._current_paragraph.append(line)
 
-    # @deprecated
+    @deprecated
     def output_line(self, line: str, output: AutoOutput = AUTO) -> None:
         if line:
             return self.append(line)
@@ -88,6 +96,20 @@ class DocumentFormat(TextFormat, DefaultDisplay):
         if data:
             obj = self._get_display_object(data)
             return display(obj)
+
+    def display_sheet(
+            self,
+            records: Iterable,
+            columns: Sequence,
+            count: AutoCount = None,
+            with_title: bool = True,
+            style: Union[str, Auto, None] = AUTO,
+            output: AutoOutput = AUTO,
+    ):
+        self.display_paragraph()
+        data = self.get_encoded_sheet(records, columns=columns, count=count, with_title=with_title, style=style)
+        sheet = self._get_display_object(data)
+        return display(sheet)
 
 
 class MarkdownFormat(DocumentFormat):
@@ -121,24 +143,10 @@ class HtmlFormat(DocumentFormat):
         else:
             return ''
 
-    def get_encoded_sheet(self, records, columns, count, with_title, style=AUTO) -> str:
+    def get_encoded_sheet(self, records, columns, count, with_title, style=AUTO) -> Iterator[str]:
         columns = [c if isinstance(c, str) else c[0] for c in columns if c[0] != PREFIX_FIELD]  ###
         html_code_lines = self.get_html_table_code(records, columns, count, with_title, style=style)
-        return '\n'.join(html_code_lines).replace(SPACE * 2, HTML_SPACE * 2)
-
-    def display_sheet(
-            self,
-            records: Iterable,
-            columns: Sequence,
-            count: AutoCount = None,
-            with_title: bool = True,
-            style: Union[str, Auto, None] = AUTO,
-            output: AutoOutput = AUTO,
-    ):
-        self.display_paragraph()
-        data = self.get_encoded_sheet(records, columns=columns, count=count, with_title=with_title, style=style)
-        sheet_html = self._get_display_object(data)
-        return display(sheet_html)
+        return map(lambda i: i.replace(SPACE * 2, HTML_SPACE * 2, html_code_lines))
 
     @staticmethod
     def get_html_text_code(text: Iterable, level: Optional[int] = None, style=AUTO) -> str:
