@@ -4,18 +4,18 @@ from typing import Optional, Iterable, Callable, Union
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         Stream, RegularStream, LineStream, RowStream, RecordStream, KeyValueStream, StructStream,
-        StreamType, Array, Columns, OptionalFields, Auto, AUTO,
+        StreamType, ItemType, Array, Columns, OptionalFields, Auto, AUTO,
     )
-    from base.functions.arguments import get_list, update
+    from base.functions.arguments import get_names, get_list, update
     from functions.secondary import all_secondary_functions as fs
     from utils.external import pd, DataFrame
     from streams.abstract.iterable_stream import IterableStream
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         Stream, RegularStream, LineStream, RowStream, RecordStream, KeyValueStream, StructStream,
-        StreamType, Array, Columns, OptionalFields, Auto, AUTO,
+        StreamType, ItemType, Array, Columns, OptionalFields, Auto, AUTO,
     )
-    from ...base.functions.arguments import get_list, update
+    from ...base.functions.arguments import get_names, get_list, update
     from ...functions.secondary import all_secondary_functions as fs
     from ...utils.external import pd, DataFrame
     from ..abstract.iterable_stream import IterableStream
@@ -39,12 +39,28 @@ class ConvertMixin(IterableStream, ABC):
             return self._get_mapped_items(fs.composite_key(columns))
 
     def get_records(self, columns: Columns = AUTO) -> Iterable:
-        if columns == AUTO:
-            return self._get_mapped_items(lambda i: dict(item=i))
+        item_type = self.get_item_type()
+        struct = self.get_struct()
+        assert isinstance(item_type, ItemType)
+        if Auto.is_defined(columns):
+            if item_type == ItemType.Record:
+                return self.select(*columns).get_items()
+            else:
+                func = item_type.get_key_function(*columns, struct=self.get_struct())
+                columns = get_names(columns)
+                if len(columns) == 1:
+                    return self._get_mapped_items(lambda i: {columns[0]: func(i)})
+                else:
+                    return self._get_mapped_items(lambda i: dict(zip(columns, func(i))))
         else:
-            return self._get_mapped_items(lambda i: dict(zip(columns, fs.composite_key(columns)(i))))
+            if item_type == ItemType.Record:
+                return self.get_items()
+            elif Auto.is_defined(struct):
+                return self.get_records(struct.get_columns())
+            else :
+                return self._get_mapped_items(lambda i: dict(item=i))
 
-    def get_dataframe(self, columns: Optional[Iterable] = None) -> DataFrame:
+    def get_dataframe(self, columns: Columns = None) -> DataFrame:
         if columns and hasattr(self, 'select'):
             data = self.select(*columns).get_data()
         else:
@@ -77,12 +93,11 @@ class ConvertMixin(IterableStream, ABC):
         meta.update(kwargs)
         if 'context' not in meta and hasattr(self, 'get_context'):
             meta['context'] = self.get_context()
-        meta = self.get_compatible_meta(stream_class, ex=ex, **meta)
         stream = stream_class(data, **meta)
         return stream
 
     def map_to_type(self, function: Callable, stream_type: AutoStreamType = AUTO) -> Stream:
-        stream_type = Auto.acquire(stream_type, self.get_stream_type())
+        stream_type = Auto.delayed_acquire(stream_type, self.get_stream_type)
         result = self.stream(
             map(function, self.get_items()),
             stream_type=stream_type,

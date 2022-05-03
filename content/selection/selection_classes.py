@@ -1,9 +1,10 @@
-from typing import Iterable, Callable, Union
+from typing import Iterable, Union
 
 try:  # Assume we're a submodule in a package.
     from base.classes.auto import AUTO
     from base.functions.arguments import get_name
     from base.constants.chars import STAR
+    from utils.decorators import deprecated
     from content.items.item_type import ItemType
     from content.items.item_getters import get_selection_mapper
     from content.selection import selection_functions as sf
@@ -19,6 +20,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.classes.auto import AUTO
     from ...base.functions.arguments import get_name
     from ...base.constants.chars import STAR
+    from ...utils.decorators import deprecated
     from ..items.item_type import ItemType
     from ..items.item_getters import get_selection_mapper
     from . import selection_functions as sf
@@ -32,21 +34,9 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .selection_description import SelectionDescription, translate_names_to_columns
 
 
-
-# @deprecated
-def is_expression_description(obj) -> bool:  # moved to SelectionDescription
-    if isinstance(obj, AbstractDescription):
-        return True
-    else:
-        return hasattr(obj, 'get_selection_tuple')
-
-
-# @deprecated
-def get_name_or_function(field) -> Union[int, str, Callable]:  # not used
-    if isinstance(field, Callable):
-        return field
-    else:
-        return get_name(field)
+@deprecated
+def is_expression_description(obj) -> bool:  # not used
+    return isinstance(obj, AbstractDescription) or hasattr(obj, 'get_selection_tuple')
 
 
 # used in this module only
@@ -70,7 +60,7 @@ def get_compatible_expression_tuples(expressions: dict) -> dict:  # used in get_
         name = get_name(k)
         if isinstance(v, (list, tuple)):
             value = get_selection_tuple(v)
-        elif is_expression_description(v):
+        elif isinstance(v, AbstractDescription) or hasattr(v, 'get_selection_tuple'):
             value = v.get_selection_tuple()
         else:
             value = get_name(v, or_callable=True)
@@ -110,6 +100,6 @@ def get_selection_function(  # used in Any|Row|RecordStream
         )
 
 
-# @deprecated
+@deprecated
 def drop(*fields, **kwargs):  # not used
     return DropDescription(fields, **kwargs)

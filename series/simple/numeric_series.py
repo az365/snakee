@@ -30,11 +30,12 @@ class NumericSeries(AnySeries, NumericSeriesInterface):
     def __init__(
             self,
             values: Optional[Iterable] = None,
+            caption: str = '',
             set_closure: bool = False,
             validate: bool = False,
             name: Optional = None,
     ):
-        super().__init__(values=values, set_closure=set_closure, validate=validate, name=name)
+        super().__init__(values=values, caption=caption, set_closure=set_closure, validate=validate, name=name)
 
     def get_series_type(self) -> SeriesType:
         return SeriesType.NumericSeries
@@ -180,7 +181,7 @@ class NumericSeries(AnySeries, NumericSeriesInterface):
     def smooth_simple_linear(self, window_len: int = 3, exclude_center: bool = False) -> Native:
         center = int((window_len - 1) / 2)
         count = self.get_count()
-        result = self._assume_native(self.new())
+        result = self._assume_native(self.make_new())
         for n in self.get_range_numbers():
             is_edge = n < center or n >= count - center
             if is_edge:

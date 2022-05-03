@@ -7,7 +7,7 @@ try:  # Assume we're a submodule in a package.
         AUTO, Auto,
     )
     from base.abstract.simple_data import SimpleDataWrapper
-    from base.mixin.data_mixin import IterDataMixin
+    from base.mixin.iter_data_mixin import IterDataMixin
     from functions.primary import items as it
     from content.fields.any_field import AnyField
     from content.selection.selection_classes import (
@@ -22,7 +22,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         AUTO, Auto,
     )
     from ...base.abstract.simple_data import SimpleDataWrapper
-    from ...base.mixin.data_mixin import IterDataMixin
+    from ...base.mixin.iter_data_mixin import IterDataMixin
     from ...functions.primary import items as it
     from ..fields.any_field import AnyField
     from .selection_classes import (

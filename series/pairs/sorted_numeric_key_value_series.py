@@ -1,7 +1,9 @@
 from typing import Optional, Callable, Iterable, Generator, Union
 
 try:  # Assume we're a submodule in a package.
+    from base.functions.arguments import get_value
     from functions.primary import numeric as nm, dates as dt
+    from series.interpolation_type import InterpolationType
     from series.series_type import SeriesType
     from series.interfaces.numeric_series_interface import NumericSeriesInterface, NumericValue, OptNumeric
     from series.interfaces.key_value_series_interface import KeyValueSeriesInterface
@@ -10,7 +12,9 @@ try:  # Assume we're a submodule in a package.
     from series.simple.sorted_numeric_series import SortedNumericSeries
     from series.pairs.sorted_key_value_series import SortedKeyValueSeries
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
+    from ...base.functions.arguments import get_value
     from ...functions.primary import numeric as nm, dates as dt
+    from ..interpolation_type import InterpolationType
     from ..series_type import SeriesType
     from ..interfaces.numeric_series_interface import NumericSeriesInterface, NumericValue, OptNumeric
     from ..interfaces.key_value_series_interface import KeyValueSeriesInterface
@@ -29,20 +33,23 @@ class SortedNumericKeyValueSeries(SortedKeyValueSeries, SortedNumericSeries, Sor
             self,
             keys: Optional[Iterable] = None,
             values: Optional[Iterable] = None,
+            cached_spline: Optional[Iterable] = None,
+            caption: str = '',
             set_closure: bool = False,
             validate: bool = False,
             sort_items: bool = True,
             name: Name = None,
     ):
+        self.cached_spline = cached_spline
         super().__init__(
             keys=keys,
             values=values,
+            caption=caption,
             set_closure=set_closure,
             validate=validate,
             sort_items=sort_items,
             name=name,
         )
-        self.cached_spline = None
 
     def get_series_type(self) -> SeriesType:
         return SeriesType.SortedNumericKeyValueSeries
@@ -141,7 +148,7 @@ class SortedNumericKeyValueSeries(SortedKeyValueSeries, SortedNumericSeries, Sor
 
     def get_segment(self, key: NumericValue) -> Native:
         nearest_keys = [i for i in self.get_two_nearest_keys(key) if i]
-        return self.new().from_items(
+        return self.make_new().from_items(
             [(d, self.get_value_by_key(d)) for d in nearest_keys],
         )
 
@@ -156,7 +163,7 @@ class SortedNumericKeyValueSeries(SortedKeyValueSeries, SortedNumericSeries, Sor
             derivative.set_values(values, inplace=True, set_closure=True)
             return derivative
         else:
-            result = self.new(keys=keys, values=values, sort_items=False, validate=False, save_meta=True)
+            result = self.make_new(keys=keys, values=values, sort_items=False, validate=False, save_meta=True)
             return self._assume_native(result)
 
     def get_spline_function(self, from_cache: bool = True, to_cache: bool = True) -> Callable:
@@ -190,32 +197,42 @@ class SortedNumericKeyValueSeries(SortedKeyValueSeries, SortedNumericSeries, Sor
             interpolated_value = value_a + (value_b - value_a) * distance_days / segment_days
             return interpolated_value
 
-    def get_interpolated_value(self, key: NumericValue, how: str = 'linear', *args, **kwargs) -> NumericValue:
-        method_name = 'get_{}_interpolated_value'.format(how)
+    def get_interpolated_value(
+            self,
+            key: NumericValue,
+            how: InterpolationType = InterpolationType.Linear,
+            *args, **kwargs
+    ) -> NumericValue:
+        method_name = 'get_{}_interpolated_value'.format(get_value(how))
         interpolation_method = self.__getattribute__(method_name)
         return interpolation_method(key, *args, **kwargs)
 
-    def interpolate(self, keys: Iterable, how: str = 'linear', *args, **kwargs) -> Native:
-        method_name = '{}_interpolation'.format(how)
+    def interpolate(self, keys: Iterable, how: InterpolationType = InterpolationType.Linear, *args, **kwargs) -> Native:
+        method_name = '{}_interpolation'.format(get_value(how))
         interpolation_method = self.__getattribute__(method_name)
         return interpolation_method(keys, *args, **kwargs)
 
     def linear_interpolation(self, keys: Iterable, near_for_outside: bool = True) -> Native:
-        result = self.new(save_meta=True)
+        result = self.make_new(save_meta=True)
         for k in keys:
             result.append_pair(k, self.get_linear_interpolated_value(k, near_for_outside), inplace=True)
         return self._assume_native(result)
 
     def spline_interpolation(self, keys: Iterable) -> Native:
         spline_function = self.get_spline_function(from_cache=True, to_cache=True)
-        result = self.new(
+        result = self.make_new(
             keys=keys,
             values=spline_function(list(keys)),
             save_meta=True,
         )
         return self._assume_native(result)
 
-    def get_value_by_key(self, key: NumericValue, *args, interpolate: str = 'linear', **kwargs) -> NumericValue:
+    def get_value_by_key(
+            self,
+            key: NumericValue,
+            interpolate: InterpolationType = InterpolationType.Linear,
+            *args, **kwargs
+    ) -> NumericValue:
         value = self.get_dict().get(key)
         if value is None:
             value = self.get_interpolated_value(key, how=interpolate, *args, **kwargs)

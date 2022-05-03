@@ -47,15 +47,20 @@ class DateNumericSeries(SortedNumericKeyValueSeries, DateSeries, DateNumericSeri
             self,
             keys: Optional[list] = None,
             values: Optional[list] = None,
+            cached_yoy: Optional[list] = None,
+            cached_spline: Optional[list] = None,
+            caption: str = '',
             set_closure: bool = False,
             validate: bool = False,
             sort_items: bool = True,
             name: Name = None,
     ):
-        self.cached_yoy = None
+        self.cached_yoy = cached_yoy
         super().__init__(
             keys=keys,
             values=values,
+            cached_spline=cached_spline,
+            caption=caption,
             set_closure=set_closure,
             sort_items=sort_items,
             validate=validate,
@@ -91,7 +96,7 @@ class DateNumericSeries(SortedNumericKeyValueSeries, DateSeries, DateNumericSeri
         if inplace:
             result = self.set_keys(dates, inplace=True, set_closure=set_closure) or self
         else:
-            result = self.new(
+            result = self.make_new(
                 keys=dates,
                 values=self.get_values(),
                 set_closure=set_closure,
@@ -136,7 +141,7 @@ class DateNumericSeries(SortedNumericKeyValueSeries, DateSeries, DateNumericSeri
     def get_segment(self, date: Date) -> Series:
         nearest_dates = [i for i in self.get_two_nearest_dates(date) if i]
         items = [(d, self.get_value_by_key(d)) for d in nearest_dates]
-        return self.new().from_items(items)
+        return self.make_new().from_items(items)
 
     def get_nearest_value(self, value: NumericValue, distance_func: Optional[Callable] = None) -> NumericValue:
         return self.value_series().sort().get_nearest_value(value, distance_func)
@@ -150,7 +155,7 @@ class DateNumericSeries(SortedNumericKeyValueSeries, DateSeries, DateNumericSeri
         method_name = 'get_{}_interpolated_value'.format(arg.get_value(how))
         requires_numeric_keys = how in (InterpolationType.Linear, InterpolationType.Spline)
         if requires_numeric_keys:
-            numeric_series = self.to_days()
+            numeric_series = self.to_int(scale=DateScale.Day, inplace=False)
             interpolation_method = numeric_series.__getattribute__(method_name)
             numeric_key = dt.get_day_abs_from_date(date)
             return interpolation_method(numeric_key, *args, **kwargs)
@@ -179,7 +184,7 @@ class DateNumericSeries(SortedNumericKeyValueSeries, DateSeries, DateNumericSeri
         assert isinstance(weight_benchmark, DateNumericSeriesInterface), 'got {}'.format(weight_benchmark)
         list_dates = dates.get_dates() if isinstance(dates, DateNumericSeriesInterface) else dates
         border_dates = self.get_mutual_border_dates(weight_benchmark)
-        result = self.new(save_meta=True)
+        result = self.make_new(save_meta=True)
         assert isinstance(result, DateNumericSeriesInterface), 'got {}'.format(result)
         for d in list_dates:
             yearly_dates = dt.get_yearly_dates(d, *border_dates)
@@ -228,7 +233,7 @@ class DateNumericSeries(SortedNumericKeyValueSeries, DateSeries, DateNumericSeri
         window_days_is_even = half_window_days == int_half_window_days
         left_days = int_half_window_days
         right_days = int_half_window_days if window_days_is_even else int_half_window_days + 1
-        result = self.new(save_meta=True)
+        result = self.make_new(save_meta=True)
         if for_full_window_only:
             dates = self.crop(left_days, right_days).get_dates()
         else:
@@ -250,7 +255,7 @@ class DateNumericSeries(SortedNumericKeyValueSeries, DateSeries, DateNumericSeri
             input_as_list: bool = False,
             for_full_window_only: bool = False,
     ):
-        result = self.new(save_meta=True)
+        result = self.make_new(save_meta=True)
         left_days = min(window_days_list)
         right_days = max(window_days_list)
         if for_full_window_only:
@@ -285,7 +290,7 @@ class DateNumericSeries(SortedNumericKeyValueSeries, DateSeries, DateNumericSeri
         assert isinstance(series, (DateNumericSeries, DateNumericSeriesInterface)), 'got {}'.format(series)
         if isinstance(interpolation_kwargs, (list, tuple)):
             interpolation_kwargs = dict(interpolation_kwargs)
-        result = self.new(save_meta=True)
+        result = self.make_new(save_meta=True)
         for d, v in self.get_items():
             if v is not None:
                 v0 = series.get_interpolated_value(d, **interpolation_kwargs)
@@ -331,7 +336,7 @@ class DateNumericSeries(SortedNumericKeyValueSeries, DateSeries, DateNumericSeri
             yoy = yoy.smooth(**yoy_smooth_kwargs)
         if isinstance(interpolation_kwargs, (list, tuple)):
             interpolation_kwargs = dict(interpolation_kwargs)
-        result = self.new()
+        result = self.make_new()
         for d in dates:
             base_date, increment = self.find_base_date(d, max_distance=max_distance, return_increment=True)
             if not increment:

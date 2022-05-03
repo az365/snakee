@@ -24,6 +24,8 @@ PRIMITIVE_TYPES = str, int, float, bool
 
 
 def process_description(d) -> tuple:
+    if not d:
+        raise ValueError(f'got empty description: {d}')
     if isinstance(d, Callable):
         function, inputs = d, list()
     elif isinstance(d, (list, tuple)):
@@ -35,7 +37,7 @@ def process_description(d) -> tuple:
             inputs, function = d, lambda *a: tuple(a)
     else:
         inputs, function = [d], lambda v: v
-    return function, inputs
+    return function, get_names(inputs)
 
 
 def topologically_sorted(expressions: dict, ignore_cycles: bool = IGNORE_CYCLIC_DEPENDENCIES, logger=None) -> list:

@@ -9,9 +9,10 @@ try:  # Assume we're a submodule in a package.
     from base.abstract.sourced import Sourced
     from base.abstract.simple_data import SimpleDataWrapper
     from base.abstract.tree_item import TreeItem
-    from base.mixin.line_output_mixin import LineOutputMixin
-    from base.mixin.data_mixin import DataMixin, IterDataMixin, MapDataMixin, MultiMapDataMixin
-    from base.mixin.iterable_mixin import IterableInterface, IterableMixin
+    from base.mixin.display_mixin import DisplayMixin
+    from base.mixin.data_mixin import DataMixin
+    from base.mixin.map_data_mixin import MapDataMixin, MultiMapDataMixin
+    from base.mixin.iter_data_mixin import IterableInterface, IterDataMixin
     from base.classes.auto import Auto, AUTO
     from base.classes.enum import EnumItem, DynamicEnum, ClassType, SubclassesType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -25,8 +26,9 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .abstract.sourced import Sourced
     from .abstract.simple_data import SimpleDataWrapper
     from .abstract.tree_item import TreeItem
-    from .mixin.line_output_mixin import LineOutputMixin
-    from .mixin.data_mixin import DataMixin, IterDataMixin, MapDataMixin, MultiMapDataMixin
-    from .mixin.iterable_mixin import IterableInterface, IterableMixin
+    from .mixin.display_mixin import DisplayMixin
+    from .mixin.data_mixin import DataMixin
+    from .mixin.map_data_mixin import MapDataMixin, MultiMapDataMixin
+    from .mixin.iter_data_mixin import IterableInterface, IterDataMixin
     from .classes.auto import Auto, AUTO
     from .classes.enum import EnumItem, DynamicEnum, ClassType, SubclassesType

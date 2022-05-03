@@ -7,7 +7,7 @@ try:  # Assume we're a submodule in a package.
         Stream, Source, ExtLogger, SelectionLogger, Context, Connector, LeafConnector,
         AUTO, Auto, AutoName, AutoCount, Count, OptionalFields, Message, Array, UniKey,
     )
-    from base.mixin.iterable_mixin import IterableMixin
+    from base.mixin.iter_data_mixin import IterDataMixin, IterableInterface
     from utils import algo
     from utils.external import pd, DataFrame, get_use_objects_for_output
     from utils.decorators import deprecated_with_alternative
@@ -19,20 +19,20 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         Stream, Source, ExtLogger, SelectionLogger, Context, Connector, LeafConnector,
         AUTO, Auto, AutoName, AutoCount, Count, OptionalFields, Message, Array, UniKey,
     )
-    from ...base.mixin.iterable_mixin import IterableMixin
+    from ...base.mixin.iter_data_mixin import IterDataMixin, IterableInterface
     from ...utils import algo
     from ...utils.external import pd, DataFrame, get_use_objects_for_output
     from ...utils.decorators import deprecated_with_alternative
     from ...functions.secondary import item_functions as fs
     from .abstract_stream import AbstractStream
 
-Native = Union[AbstractStream, IterableMixin]
+Native = Union[AbstractStream, IterDataMixin, IterableInterface]
 
 DYNAMIC_META_FIELDS = ('count', 'less_than')
 MAX_ITEMS_IN_MEMORY = 5000000
 
 
-class IterableStream(AbstractStream, IterableMixin):
+class IterableStream(AbstractStream, IterDataMixin):
     def __init__(
             self,
             data: Iterable,
@@ -66,12 +66,12 @@ class IterableStream(AbstractStream, IterableMixin):
     def get_items(self) -> Iterable:  # list or generator (need for inherited subclasses)
         return self.get_stream_data()
 
-    @deprecated_with_alternative('IterableMixin.copy()')
+    @deprecated_with_alternative('IterDataMixin.copy()')
     def tee_stream(self) -> Native:
         stream = self.copy()
         return self._assume_native(stream)
 
-    @deprecated_with_alternative('IterableMixin.get_tee_clones()')
+    @deprecated_with_alternative('IterDataMixin.get_tee_clones()')
     def tee_streams(self, n: int = 2) -> list:
         return self.get_tee_clones(n)
 
@@ -109,7 +109,7 @@ class IterableStream(AbstractStream, IterableMixin):
                 else:
                     raise TypeError(message)
 
-    def _get_validated_items(self, items: Iterable, skip_errors: bool = False, context: Context = None) -> Iterable:
+    def _get_validated_items(self, items: Iterable, struct=AUTO, skip_errors: bool = False, context: Context = None) -> Iterable:
         for i in items:
             if self._is_valid_item(i):
                 yield i
@@ -205,7 +205,7 @@ class IterableStream(AbstractStream, IterableMixin):
         if inplace:
             self._count = count
         else:
-            stream = self.make_new(count=count)
+            stream = self.set_props(count=count, inplace=False)
             return self._assume_native(stream)
 
     def get_less_than(self) -> Count:
@@ -225,7 +225,7 @@ class IterableStream(AbstractStream, IterableMixin):
         return self.set_less_than(count, inplace=inplace)
 
     def add_items(self, items: Iterable, before: bool = False, inplace: bool = False) -> Optional[Native]:
-        stream = super().add_items(items, before=before, inplace=inplace)  # IterableMixin
+        stream = super().add_items(items, before=before, inplace=inplace)  # IterDataMixin
         estimated_count = self.get_estimated_count()
         if isinstance(items, Sized) and estimated_count is not None and not stream.get_count():
             added_count = len(items)

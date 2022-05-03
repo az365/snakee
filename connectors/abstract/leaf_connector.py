@@ -11,10 +11,7 @@ try:  # Assume we're a submodule in a package.
     from base.constants.chars import EMPTY, CROP_SUFFIX, ITEMS_DELIMITER, DEFAULT_LINE_LEN
     from content.format.format_classes import ParsedFormat
     from connectors.abstract.abstract_connector import AbstractConnector
-    from connectors.mixin.actualize_mixin import (
-        ActualizeMixin, AutoOutput,
-        EXAMPLE_STR_LEN, EXAMPLE_ROW_COUNT, COUNT_ITEMS_TO_LOG_COLLECT_OPERATION,
-    )
+    from connectors.mixin.actualize_mixin import ActualizeMixin, EXAMPLE_ROW_COUNT
     from connectors.mixin.connector_format_mixin import ConnectorFormatMixin
     from connectors.mixin.streamable_mixin import StreamableMixin
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -27,10 +24,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.constants.chars import EMPTY, CROP_SUFFIX, ITEMS_DELIMITER, DEFAULT_LINE_LEN
     from ...content.format.format_classes import ParsedFormat
     from .abstract_connector import AbstractConnector
-    from ..mixin.actualize_mixin import (
-        ActualizeMixin, AutoOutput,
-        EXAMPLE_STR_LEN, EXAMPLE_ROW_COUNT, COUNT_ITEMS_TO_LOG_COLLECT_OPERATION,
-    )
+    from ..mixin.actualize_mixin import ActualizeMixin, EXAMPLE_ROW_COUNT
     from ..mixin.connector_format_mixin import ConnectorFormatMixin
     from ..mixin.streamable_mixin import StreamableMixin
 
@@ -331,10 +325,10 @@ class LeafConnector(
             struct_as_dataframe: bool = False,  # deprecated
             safe_filter: bool = True,
             actualize: AutoBool = AUTO,
-            output: AutoOutput = AUTO,  # deprecated
+            output=AUTO,  # deprecated
             **filter_kwargs
     ):
-        display = self.get_display()
+        display = self.get_display(output)
         if show_header:
             display.display_paragraph(self.get_name(), level=1)
             display.display_paragraph(self.get_str_headers(actualize=False))
@@ -342,11 +336,11 @@ class LeafConnector(
                 *filter_args, **filter_kwargs, safe_filter=safe_filter,
                 example_row_count=count, actualize=actualize,
             )
-            self.output_line(struct_title, output=output)
+            display.append(struct_title)
             if self.get_invalid_fields_count():
                 line = 'Invalid columns: {}'.format(get_str_from_args_kwargs(*self.get_invalid_columns()))
-                self.output_line(line, output=output)
-            self.output_blank_line(output=output)
+                display.append(line)
+            display.display_paragraph()
         else:
             example_item, example_stream, example_comment = None, None, None
         struct = self.get_struct()

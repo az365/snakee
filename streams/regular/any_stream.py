@@ -1,4 +1,4 @@
-from typing import Union, Iterable, Generator, Callable, Optional
+from typing import Union, Iterable, Generator, Sequence, Callable, Optional
 from inspect import isclass
 
 try:  # Assume we're a submodule in a package.
@@ -31,6 +31,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 Native = Union[LocalStream, RegularStreamInterface]
 Data = Union[Auto, Iterable]
 AutoStreamType = Union[Auto, StreamType]
+
+DEFAULT_ANALYZE_COUNT = 100
 
 
 class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
@@ -69,14 +71,61 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
             self._struct = struct
             return self
         else:
-            stream = self.stream(self.get_data(), struct=struct)
+            items = self.get_items()
+            if check:
+                items = self._get_validated_items(self.get_items(), struct=struct)
+            stream = self.stream(items, struct=struct)
             return self._assume_native(stream)
 
-    def get_columns(self) -> Optional[Iterable]:
-        return None
+    def get_columns(self) -> Optional[list]:
+        declared_columns = self.get_declared_columns()
+        detected_columns = self.get_detected_columns()
+        if declared_columns:
+            if set(declared_columns) == set(detected_columns):
+                return declared_columns
+            else:
+                columns = declared_columns.copy()
+                for c in detected_columns:
+                    if c not in columns:
+                        columns.append(c)
+                return columns
+        else:
+            return list(detected_columns)
 
-    def get_detected_columns(self, count) -> list:
-        return [self.get_item_type().get_value()]
+    def get_detected_columns(self, by_items_count: int = DEFAULT_ANALYZE_COUNT, sort: bool = True, get_max: bool = True) -> Sequence:
+        item_type = self.get_item_type()
+        if item_type in (ItemType.Any, ItemType.Line):
+            return [self.get_item_type().get_value()]
+        example = self.example(count=by_items_count)
+        if item_type == ItemType.Record:
+            columns = set()
+            for r in example.get_items():
+                columns.update(r.keys())
+            if sort:
+                columns = sorted(columns)
+            return columns
+        elif item_type == ItemType.Row:
+            count = 0
+            for row in example.get_items():
+                row_len = len(row)
+                if get_max:
+                    if row_len > count:
+                        count = row_len
+                else:  # elif get_min:
+                    if row_len < count:
+                        count = row_len
+            return range(count)
+        else:
+            raise NotImplementedError(item_type)
+
+
+    def get_declared_columns(self) -> Optional[list]:
+        struct = self.get_struct()
+        if struct:
+            return self.get_struct().get_columns()
+
+    def get_column_count(self) -> int:
+        return len(self.get_columns())
 
     def filter(self, *functions) -> Native:
         def filter_function(item):
@@ -154,6 +203,14 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
     # @deprecated_with_alternative('item_type.get_key_function()')
     def _get_key_function(self, functions: Array, take_hash: bool = False) -> Callable:
         return self.get_item_type().get_key_function(*functions, struct=self.get_struct(), take_hash=take_hash)
+
+    def get_one_column_values(self, column, as_list: bool = False) -> Iterable:
+        column_getter = self.get_item_type().get_key_function(column, struct=self.get_struct(), take_hash=False)
+        values = map(column_getter, self.get_items())
+        if as_list:
+            return list(values)
+        else:
+            return values
 
     def _get_groups(self, key_function: Callable, as_pairs: bool) -> Generator:
         accumulated = list()

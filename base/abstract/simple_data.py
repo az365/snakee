@@ -9,7 +9,7 @@ try:  # Assume we're a submodule in a package.
     from base.interfaces.sourced_interface import SourcedInterface
     from base.interfaces.context_interface import ContextInterface
     from base.interfaces.data_interface import SimpleDataInterface
-    from base.mixin.line_output_mixin import LineOutputMixin, PREFIX_FIELD, DEFAULT_ROWS_COUNT
+    from base.mixin.display_mixin import DisplayMixin, PREFIX_FIELD, DEFAULT_ROWS_COUNT
     from base.mixin.data_mixin import DataMixin
     from base.abstract.named import AbstractNamed
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -20,7 +20,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..interfaces.sourced_interface import SourcedInterface
     from ..interfaces.context_interface import ContextInterface
     from ..interfaces.data_interface import SimpleDataInterface
-    from ..mixin.line_output_mixin import LineOutputMixin, PREFIX_FIELD, DEFAULT_ROWS_COUNT
+    from ..mixin.display_mixin import DisplayMixin, PREFIX_FIELD, DEFAULT_ROWS_COUNT
     from ..mixin.data_mixin import DataMixin
     from .named import AbstractNamed
 
@@ -29,7 +29,6 @@ Data = Any
 OptionalFields = Optional[Union[str, Iterable]]
 Source = Optional[SourcedInterface]
 Context = Optional[ContextInterface]
-AutoOutput = Union[LineOutputMixin, Auto]
 
 DATA_MEMBER_NAMES = ('_data', )
 DYNAMIC_META_FIELDS = tuple()
@@ -203,14 +202,14 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
         max_len = Auto.acquire(max_len, DEFAULT_LINE_LEN)
         display.display_paragraph(title, level=3)
         if hasattr(self, 'get_data_caption'):
-            display.output_line(self.get_data_caption())
+            display.append(self.get_data_caption())
         if hasattr(self, 'get_data'):
             data = self.get_data()
             if data:
                 shape_repr = self.get_shape_repr()
                 if Auto.is_defined(count) and shape_repr:
                     line = 'First {count} data items from {shape}:'.format(count=count, shape=shape_repr)
-                    display.output_line(line)
+                    display.append(line)
                 if isinstance(data, dict):
                     records = map(
                         lambda i: dict(key=i[0], value=i[1], defined='+' if Auto.is_defined(i[1]) else '-'),
@@ -223,17 +222,18 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
                             if n >= count:
                                 break
                         line = '    - ' + str(item)
-                        display.output_line(line[:max_len])
+                        display.append(line[:max_len])
                 elif isinstance(data, SimpleDataInterface) or hasattr(data, 'get_meta_description'):
                     for line in data.get_meta_description():
                         yield line
                 else:
                     line = str(data)
-                    display.output_line(line[:max_len])
+                    display.append(line[:max_len])
             else:
-                display.display_paragraph('(data attribute is empty)')
+                display.append('(data attribute is empty)')
         else:
-            display.display_paragraph('(data attribute not found)')
+            display.append('(data attribute not found)')
+        display.display_paragraph()
 
     def get_meta_description(
             self,
@@ -264,7 +264,7 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
         if with_summary:
             count = len(list(self.get_meta_records()))
             line = '{name} has {count} attributes in meta-data:'.format(name=repr(self), count=count)
-        display.output_line(line)
+        display.append(line)
         display.display_sheet(
             records=self.get_meta_records(),
             columns=COLS_FOR_META,
@@ -277,7 +277,7 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
             count: AutoCount = AUTO,
             comment: Optional[str] = None,
             depth: int = 1,
-            output: AutoOutput = AUTO,
+            output=AUTO,  # deprecated
             as_dataframe: AutoBool = Auto,
             **kwargs
     ):
@@ -293,7 +293,7 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
         show_meta = show_header or not self.has_data()
         if show_header:
             display.display_paragraph(self.get_name(), level=1)
-            display.output_line(comment)
+            display.append(comment)
             display.display_paragraph(self.get_str_headers())
         elif comment:
             display.display_paragraph(comment)

@@ -26,12 +26,13 @@ class KeyValueSeries(AnySeries, KeyValueSeriesInterface):
             self,
             keys: Optional[Iterable] = None,
             values: Optional[Iterable] = None,
+            caption: str = '',
             set_closure: bool = False,
             validate: bool = True,
             name: Optional[str] = None,
     ):
         self._keys = self._get_optional_copy(keys, role='keys', set_closure=set_closure)
-        super().__init__(values=values, set_closure=set_closure, validate=validate, name=name)
+        super().__init__(values=values, caption=caption, set_closure=set_closure, validate=validate, name=name)
 
     def get_errors(self) -> Generator:
         yield from super().get_errors()
@@ -85,7 +86,7 @@ class KeyValueSeries(AnySeries, KeyValueSeriesInterface):
             keys = self._get_optional_copy(keys, role='keys', set_closure=set_closure)
             self._keys = keys
         else:
-            result = self.new(keys=keys, values=self.get_values())
+            result = self.make_new(keys=keys, values=self.get_values())
             return self._assume_native(result)
 
     def set_values(self, values: Iterable, inplace: bool, set_closure: bool = False, validate: bool = False) -> Native:
@@ -183,7 +184,7 @@ class KeyValueSeries(AnySeries, KeyValueSeriesInterface):
             self.set_keys(keys, inplace=True)
             self.set_values(values, inplace=True)
         else:
-            result = self.new(
+            result = self.make_new(
                 keys=keys,
                 values=values,
                 save_meta=True,
@@ -201,7 +202,7 @@ class KeyValueSeries(AnySeries, KeyValueSeriesInterface):
             self.set_keys(keys, inplace=True)
             self.set_values(values, inplace=True)
         else:
-            result = self.new(keys=keys, values=values)
+            result = self.make_new(keys=keys, values=values)
             return self._assume_native(result)
 
     def filter_keys(self, function: Callable, inplace: bool = False) -> Native:

@@ -31,11 +31,12 @@ class AnySeries(AbstractSeries, AnySeriesInterface):
     def __init__(
             self,
             values: Iterable,
+            caption: str = '',
             set_closure: bool = False,
             validate: bool = False,
             name: Optional[str] = None,
     ):
-        super().__init__(values=values, set_closure=set_closure, validate=validate, name=name)
+        super().__init__(values=values, caption=caption, set_closure=set_closure, validate=validate, name=name)
 
     def get_series_type(self) -> SeriesType:
         return SeriesType.AnySeries
