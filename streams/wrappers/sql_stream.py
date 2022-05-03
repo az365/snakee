@@ -12,7 +12,7 @@ try:  # Assume we're a submodule in a package.
     from base.constants.chars import EMPTY, ALL, CROP_SUFFIX, ITEMS_DELIMITER, PY_INDENT
     from functions.primary.text import remove_extra_spaces
     from content.fields.any_field import AnyField
-    from content.selection.abstract_expression import AbstractDescription
+    from content.selection.abstract_expression import AbstractDescription, SQL_FUNC_NAMES_DICT, SQL_TYPE_NAMES_DICT
     from content.selection.concrete_expression import AliasDescription
     from content.struct.flat_struct import FlatStruct
     from streams.abstract.wrapper_stream import WrapperStream
@@ -27,7 +27,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.constants.chars import EMPTY, ALL, CROP_SUFFIX, ITEMS_DELIMITER, PY_INDENT
     from ...functions.primary.text import remove_extra_spaces
     from ...content.fields.any_field import AnyField
-    from ...content.selection.abstract_expression import AbstractDescription
+    from ...content.selection.abstract_expression import AbstractDescription, SQL_FUNC_NAMES_DICT, SQL_TYPE_NAMES_DICT
     from ...content.selection.concrete_expression import AliasDescription
     from ...content.struct.flat_struct import FlatStruct
     from ..abstract.wrapper_stream import WrapperStream
@@ -38,8 +38,6 @@ TableOrQuery = Union[LeafConnectorInterface, StreamInterface, None]
 IS_DEFINED = '{field} <> 0 and {field} NOT NULL'
 MSG_NOT_IMPL = '{method}() operation is not defined for SqlStream, try to use .to_record_stream().{method}() instead'
 CODE_HTML_STYLE = "background-color: RGB(48, 56, 69); line-height: 1.0em; padding-top: 2.0em; padding-bottom: 2.0em;'"
-DICT_FUNC_NAMES = dict(len='COUNT')
-DICT_TYPE_NAMES = dict(int='integer', str='varchar')
 
 
 class SqlSection(Enum):
@@ -156,11 +154,11 @@ class SqlStream(WrapperStream):
                         sql_function_expr = function.get_sql_expr(source_field)
                     else:
                         function_name = function.__name__
-                        sql_type_name = DICT_TYPE_NAMES.get(function_name)
+                        sql_type_name = SQL_TYPE_NAMES_DICT.get(function_name)
                         if sql_type_name:
                             sql_function_expr = '{}::{}'.format(source_field, sql_type_name)
                         else:
-                            sql_function_name = DICT_FUNC_NAMES.get(function_name)
+                            sql_function_name = SQL_FUNC_NAMES_DICT.get(function_name)
                             if not sql_function_name:
                                 self.get_logger().warning('Unsupported function call: {}'.format(function_name))
                                 sql_function_name = function_name
@@ -201,7 +199,7 @@ class SqlStream(WrapperStream):
                             yield func.get_sql_expr(target_field)
                         else:
                             func_name = func.__name__
-                            sql_func_name = DICT_FUNC_NAMES.get(func_name)
+                            sql_func_name = SQL_FUNC_NAMES_DICT.get(func_name)
                             if not sql_func_name:
                                 self.get_logger().warning('Unsupported function call: {}'.format(func_name))
                                 sql_func_name = func_name
@@ -655,6 +653,3 @@ class SqlStream(WrapperStream):
     @staticmethod
     def _assume_native(stream) -> Native:
         return stream
-
-    def __str__(self):
-        return self.get_one_line_repr()
