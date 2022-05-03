@@ -10,7 +10,7 @@ try:  # Assume we're a submodule in a package.
     from base.functions.arguments import get_name, get_names
     from base.constants.chars import ITEMS_DELIMITER, CROP_SUFFIX, NOT_SET, DEFAULT_LINE_LEN
     from base.abstract.abstract_base import AbstractBaseObject
-    from base.mixin.display_mixin import DisplayMixin
+    from base.mixin.data_mixin import DataMixin
     from loggers.fallback_logger import FallbackLogger
     from functions.primary import items as it
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -22,16 +22,16 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.functions.arguments import get_name, get_names
     from ...base.constants.chars import ITEMS_DELIMITER, CROP_SUFFIX, NOT_SET, DEFAULT_LINE_LEN
     from ...base.abstract.abstract_base import AbstractBaseObject
-    from ...base.mixin.display_mixin import DisplayMixin
+    from ...base.mixin.data_mixin import DataMixin
     from ...loggers.fallback_logger import FallbackLogger
     from ...functions.primary import items as it
 
 SQL_FUNC_NAMES_DICT = dict(len='COUNT')
-SQL_TYPE_NAMES_DICT = dict(int='INTEGER')
+SQL_TYPE_NAMES_DICT = dict(int='integer', str='varchar')
 ALIAS_FUNCTION = '_same'
 
 
-class AbstractDescription(AbstractBaseObject, DisplayMixin, ABC):
+class AbstractDescription(AbstractBaseObject, DataMixin, ABC):
     def __init__(
             self,
             target_item_type: ItemType,
