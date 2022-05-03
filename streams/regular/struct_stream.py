@@ -182,18 +182,6 @@ class StructStream(RowStream, StructMixin, ConvertMixin):
             struct = self.get_struct()
         return check_rows(items, struct, skip_errors)
 
-    def get_struct(self) -> Struct:
-        return self._struct
-
-    def set_struct(self, struct: Struct, check: bool = True, inplace: bool = False):
-        if inplace:
-            self._struct = struct
-        else:
-            return self.stream(
-                check_rows(self.get_data(), struct=struct) if check else self.get_data(),
-                struct=struct,
-            )
-
     def get_struct_rows(self, rows, struct=AUTO, skip_bad_rows=False, skip_bad_values=False, verbose=True):
         struct = Auto.delayed_acquire(struct, self.get_struct)
         if isinstance(struct, StructInterface):  # actual approach
@@ -222,13 +210,6 @@ class StructStream(RowStream, StructMixin, ConvertMixin):
             check=False,
         )
 
-    def get_columns(self) -> list:
-        struct = self.get_struct()
-        if isinstance(struct, StructInterface):
-            return struct.get_columns()
-        elif isinstance(struct, Iterable):
-            return [c[0] for c in struct]
-
     def get_items(self, item_type: Union[ItemType, Auto] = AUTO) -> Iterable:
         if Auto.is_defined(item_type):
             return self.get_items_of_type(item_type)
@@ -247,7 +228,7 @@ class StructStream(RowStream, StructMixin, ConvertMixin):
                 elif item_type == ItemType.Record:
                     yield {k: v for k, v in zip(columns, i.get_data())}
                 else:
-                    raise TypeError(err_msg.format(item_type))
+                    raise ValueError(err_msg.format(item_type))
             elif isinstance(i, ROW_SUBCLASSES):
                 if item_type == ItemType.Row:
                     yield i
@@ -256,7 +237,7 @@ class StructStream(RowStream, StructMixin, ConvertMixin):
                 elif item_type == ItemType.Record:
                     yield {k: v for k, v in zip(columns, i)}
                 else:
-                    raise TypeError(err_msg.format(item_type))
+                    raise ValueError(err_msg.format(item_type))
             else:
                 msg = 'StructStream.get_items_of_type(item_type={}): Expected items as Row or StructRow, got {} as {}'
                 raise TypeError(msg.format(item_type, i, type(i)))

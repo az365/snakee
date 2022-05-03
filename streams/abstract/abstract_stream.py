@@ -5,9 +5,9 @@ import gc
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
-        StreamInterface, LoggerInterface,
-        StreamType, LoggingLevel,
+        StreamInterface, LoggerInterface, LeafConnectorInterface,
         Stream, ExtLogger, Context, Connector, LeafConnector,
+        StreamType, LoggingLevel,
         AUTO, Auto, AutoName, OptionalFields, Message,
     )
     from base.functions.arguments import get_generated_name
@@ -18,9 +18,9 @@ try:  # Assume we're a submodule in a package.
     from streams import stream_classes as sm
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
-        StreamInterface, LoggerInterface,
-        StreamType, LoggingLevel,
+        StreamInterface, LoggerInterface, LeafConnectorInterface,
         Stream, ExtLogger, Context, Connector, LeafConnector,
+        StreamType, LoggingLevel,
         AUTO, Auto, AutoName, OptionalFields, Message,
     )
     from ...base.functions.arguments import get_generated_name
@@ -81,8 +81,9 @@ class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
         if source:
             yield source
 
-    def set_meta(self, **meta) -> Native:
-        return super().set_meta(**meta)
+    def set_meta(self, inplace: bool = False, **meta) -> Native:  ###
+        stream = super().set_meta(**meta, inplace=inplace)
+        return self._assume_native(stream)
 
     def update_meta(self, **meta) -> Native:
         return super().update_meta(**meta)
@@ -160,7 +161,7 @@ class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
 
     def write_to(self, connector: LeafConnector, verbose: bool = True, return_stream: bool = True) -> Optional[Native]:
         msg = 'connector-argument must be an instance of LeafConnector or have write_stream() method'
-        assert hasattr(connector, 'write_stream'), msg
+        assert isinstance(connector, LeafConnectorInterface) or hasattr(connector, 'write_stream'), msg
         connector.write_stream(self, verbose=verbose)
         if return_stream:
             return connector.to_stream(verbose=verbose).update_meta(**self.get_meta())
@@ -171,7 +172,9 @@ class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
             logger = context.get_logger(create_if_not_yet=skip_missing)
         else:
             logger = None
-        if skip_missing and not logger:
+        # if not logger:
+        if skip_missing and not logger:  # ?
+            # logger = log.get_logger()
             return FallbackLogger()
         return logger
 
@@ -181,7 +184,8 @@ class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
             level: LoggingLevel = AUTO,
             end: str = AUTO,
             truncate: bool = True,
-            force: bool = True,
+            # force: bool = False,  # ?
+            force: bool = True,  # ?
             verbose: bool = True,
     ) -> Native:
         logger = self.get_logger(skip_missing=force)
@@ -228,3 +232,7 @@ class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
         for line in demo_example:
             self.log(line, verbose=False)
         return demo_example
+
+    @staticmethod
+    def _assume_native(stream) -> Native:
+        return stream

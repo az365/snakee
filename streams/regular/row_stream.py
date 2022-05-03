@@ -62,30 +62,6 @@ class RowStream(AnyStream, ColumnarMixin):
     def get_item_type() -> ItemType:
         return ItemType.Row
 
-    def get_column_count(self, take: Count = DEFAULT_EXAMPLE_COUNT, get_max: bool = True, get_min: bool = False) -> int:
-        if self.is_in_memory() and (get_max or get_min):
-            example_stream = self.take(take)
-        else:
-            example_stream = self.tee_stream().take(take)
-        count = 0
-        for row in example_stream.get_items():
-            row_len = len(row)
-            if get_max:
-                if row_len > count:
-                    count = row_len
-            else:  # elif get_min:
-                if row_len < count:
-                    count = row_len
-        return count
-
-    def get_columns(self, **kwargs) -> list:
-        count = self.get_column_count(**kwargs)
-        return list(range(count))
-
-    def get_one_column_values(self, column) -> Iterable:
-        for row in self.select(column).get_items():
-            yield row[0]
-
     def select(self, *columns, use_extended_method: bool = True) -> Native:
         select_function = sn.get_selection_function(
             *columns,

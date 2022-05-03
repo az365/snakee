@@ -109,7 +109,7 @@ class IterableStream(AbstractStream, IterDataMixin):
                 else:
                     raise TypeError(message)
 
-    def _get_validated_items(self, items: Iterable, skip_errors: bool = False, context: Context = None) -> Iterable:
+    def _get_validated_items(self, items: Iterable, struct=AUTO, skip_errors: bool = False, context: Context = None) -> Iterable:
         for i in items:
             if self._is_valid_item(i):
                 yield i

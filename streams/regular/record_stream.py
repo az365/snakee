@@ -71,33 +71,6 @@ class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
     def get_item_type() -> ItemType:
         return ItemType.Record
 
-    def get_one_column_values(self, column: Field, as_list: bool = False) -> Iterable:
-        column = get_name(column)
-        if as_list:
-            return list(self.get_one_column_values(column, as_list=False))
-        else:
-            for r in self.get_records():
-                yield r.get(column)
-
-    def get_detected_columns(self, by_items_count: int = DEFAULT_ANALYZE_COUNT, sort: bool = True) -> Iterable:
-        example = self.example(count=by_items_count)
-        columns = set()
-        for r in example.get_items():
-            columns.update(r.keys())
-        if sort:
-            columns = sorted(columns)
-        return columns
-
-    def get_columns(self, by_items_count: int = DEFAULT_ANALYZE_COUNT) -> Iterable:
-        return self.get_detected_columns(by_items_count=by_items_count)
-
-    def get_records(self, columns: Union[Iterable, Auto] = AUTO) -> Iterable:
-        if columns == AUTO:
-            return self.get_items()
-        else:
-            columns = get_names(columns)
-            return self.select(*columns).get_items()
-
     def get_enumerated_records(self, field: str = '#', first: int = 1) -> Iterable:
         for n, r in enumerate(self.get_data()):
             r[field] = n + first
