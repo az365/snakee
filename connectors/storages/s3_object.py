@@ -99,8 +99,9 @@ class S3Object(LeafConnector):
                     prev_line = line
                 else:
                     yield line
-            if b >= count:
-                break
+            if Auto.is_defined(count):
+                if b >= count:
+                    break
         if prev_line:
             yield prev_line
 
@@ -125,8 +126,9 @@ class S3Object(LeafConnector):
                 count = self.get_count(allow_slow_mode=False)
             lines = self.get_logger().progress(lines, name=message, count=count, step=step)
         for n, i in enumerate(lines):
-            if n >= count:
-                break
+            if Auto.is_defined(count):
+                if n >= count:
+                    break
             if skip_first and n == 0:
                 pass
             else:
@@ -197,7 +199,7 @@ class S3Object(LeafConnector):
     def get_count(self, *args, **kwargs) -> Optional[int]:
         return None  # not available property
 
-    def is_empty(self) -> bool:
+    def is_empty(self) -> Optional[bool]:
         return None  # not available property
 
     def get_modification_timestamp(self):
@@ -205,7 +207,8 @@ class S3Object(LeafConnector):
         bucket = self.get_bucket()
         for i in bucket.yield_objects():
             if i['Key'] == path:
-                return i['LastModified']
+                modification_datetime = i['LastModified']
+                return modification_datetime.timestamp()
 
 
 ConnType.add_classes(S3Object)

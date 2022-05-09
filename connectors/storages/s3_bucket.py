@@ -68,6 +68,7 @@ class S3Bucket(HierarchicFolder):
     def is_accessible(self, verbose: bool = False) -> bool:
         try:
             self.list_objects()
+            return True
         except:  # ConnectionError
             return False
 
