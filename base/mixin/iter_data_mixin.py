@@ -153,7 +153,7 @@ class IterDataMixin(DataMixin, ABC):
         else:
             obj = self.set_data(items, inplace=False)
             if Auto.is_defined(count):
-                obj = obj.set_count(count, inplace=False)
+                obj = obj._set_count(count, inplace=False)
             return obj
 
     def get_items(self) -> Iterable:
