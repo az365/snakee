@@ -21,10 +21,6 @@ class DisplayInterface(ABC):
         pass
 
     @abstractmethod
-    def append(self, text: str) -> None:
-        pass
-
-    @abstractmethod
     def display_paragraph(
             self,
             paragraph: Optional[Iterable] = None,
