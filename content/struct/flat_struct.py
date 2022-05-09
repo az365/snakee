@@ -56,7 +56,7 @@ VALIDATION_TAGS = dict(
 )
 
 
-class FlatStruct(SimpleDataWrapper, IterDataMixin, SelectableMixin, StructInterface):
+class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterface):
     def __init__(
             self,
             fields: Iterable,
@@ -69,17 +69,17 @@ class FlatStruct(SimpleDataWrapper, IterDataMixin, SelectableMixin, StructInterf
         name = Auto.acquire(name, get_generated_name(prefix='FieldGroup'))
         self._caption = caption or ''
         super().__init__(name=name, data=list())
-        for field_or_group in fields:
+        for field_or_struct in fields:
             kwargs = dict(
                 default_type=default_type, exclude_duplicates=exclude_duplicates,
                 reassign_struct_name=reassign_struct_name, inplace=True,
             )
-            if isinstance(field_or_group, StructInterface):  # FieldGroup
-                self.add_fields(field_or_group.get_fields_descriptions(), **kwargs)
-            elif isinstance(field_or_group, list):  # not tuple (tuple can be old-style FieldDescription
-                self.add_fields(*field_or_group, **kwargs)
-            elif field_or_group:
-                self.append_field(field_or_group, **kwargs)
+            if isinstance(field_or_struct, StructInterface) or hasattr(field_or_struct, 'get_fields_descriptions'):
+                self.add_fields(field_or_struct.get_fields_descriptions(), **kwargs)
+            elif isinstance(field_or_struct, list):  # not tuple (tuple can be old-style FieldDescription
+                self.add_fields(*field_or_struct, **kwargs)
+            elif field_or_struct:
+                self.append_field(field_or_struct, **kwargs)
 
     @classmethod
     def _get_meta_member_mapping(cls) -> dict:
@@ -183,9 +183,11 @@ class FlatStruct(SimpleDataWrapper, IterDataMixin, SelectableMixin, StructInterf
         )
         if isinstance(field_or_struct, StructInterface):
             return self.add_fields(*field_or_struct.get_fields_descriptions(), **kwargs)
+        elif isinstance(field_or_struct, FieldInterface) or hasattr(field_or_struct, 'get_value_type'):  ###
+            return self.append_field(field_or_struct, **kwargs)
         elif isinstance(field_or_struct, Iterable) and not isinstance(field_or_struct, str):
             return self.add_fields(*field_or_struct, **kwargs)
-        else:  # isinstance(field_or_struct, Field):
+        else:  # isinstance(field_or_struct, str):  # SimpleField
             return self.append_field(field_or_struct, **kwargs)
 
     def add_fields(
@@ -571,11 +573,9 @@ class FlatStruct(SimpleDataWrapper, IterDataMixin, SelectableMixin, StructInterf
         group_caption = self.get_caption()
         if include_header:
             yield TITLE_PREFIX, GROUP_TYPE_STR, group_name or '', group_caption, ''
-        prev_group_name = group_name
         for n, field_tuple in enumerate(self.get_fields_tuples()):
             f_name, f_type_name, f_caption, f_valid, group_name, group_caption = field_tuple
             yield n, f_type_name, f_name or '', f_caption, f_valid
-            prev_group_name = group_name
 
     def get_group_header(self, name: Comment = AUTO, caption: Comment = AUTO, comment: Comment = None) -> Iterator[str]:
         is_title_row = name == AUTO
