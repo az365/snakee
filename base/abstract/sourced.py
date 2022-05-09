@@ -107,7 +107,7 @@ class Sourced(AbstractNamed, SourcedInterface, ABC):
         if with_summary:
             count = len(list(self.get_meta_records()))
             yield '{name} has {count} attributes in meta-data:'.format(name=repr(self), count=count)
-        yield from self._get_columnar_lines(
+        yield from self.get_display()._get_columnar_lines(
             records=self.get_meta_records(),
             columns=COLS_FOR_META,
             with_title=with_title,
