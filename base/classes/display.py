@@ -5,11 +5,13 @@ try:  # Assume we're a submodule in a package.
     from base.functions.arguments import get_name, get_value
     from base.constants.chars import DEFAULT_LINE_LEN, REPR_DELIMITER, SMALL_INDENT, EMPTY
     from base.interfaces.display_interface import DisplayInterface, AutoStyle
+    from utils.decorators import deprecated_with_alternative
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.typing import AUTO, Auto, AutoCount, Class
     from ..functions.arguments import get_name, get_value
     from ..constants.chars import DEFAULT_LINE_LEN, REPR_DELIMITER, SMALL_INDENT, EMPTY
     from ..interfaces.display_interface import DisplayInterface, AutoStyle
+    from ...utils.decorators import deprecated_with_alternative
 
 AutoDisplay = Union[Auto, DisplayInterface]
 Item = Any
@@ -34,11 +36,11 @@ class DefaultDisplay(DisplayInterface):
     def get_output(self, output: AutoDisplay = AUTO) -> DisplayInterface:
         return self.get_display(output)
 
-    # @deprecated_with_alternative('display_paragraph()')
+    @deprecated_with_alternative('display_paragraph()')
     def output_blank_line(self, output: AutoDisplay = AUTO) -> None:
         self.get_display(output).display_paragraph(EMPTY)
 
-    # @deprecated_with_alternative('append()')
+    @deprecated_with_alternative('append()')
     def output_line(self, line: str, output: AutoDisplay = AUTO) -> None:
         return self.append(line)
 
@@ -178,6 +180,28 @@ class DefaultDisplay(DisplayInterface):
 
     def get_encoded_sheet(self, records, columns, count, with_title, style=AUTO) -> Iterator[str]:
         return self._get_columnar_lines(records, columns=columns, count=count, with_title=with_title)
+
+    def get_encoded_paragraph(
+            self,
+            paragraph: Optional[Iterable] = None,
+            level: Optional[int] = None,
+            style=AUTO,
+            clear: bool = False,
+    ) -> Iterator[str]:
+        if isinstance(paragraph, str):
+            yield paragraph
+        elif isinstance(paragraph, Iterable):
+            yield from paragraph
+        elif paragraph:
+            raise TypeError(paragraph)
+
+    @classmethod
+    def _get_display_object(cls, data: Union[str, Iterable]) -> Optional[str]:
+        if not data:
+            return None
+        if not isinstance(data, str):
+            data = '\n'.join(data)
+        return data
 
     def display(self, item: Item = AUTO) -> None:
         item = Auto.acquire(item, self)

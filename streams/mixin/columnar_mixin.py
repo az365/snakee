@@ -394,13 +394,16 @@ class ColumnarMixin(IterDataMixin, ABC):
         display = self.get_display(output)
         display.append(self.get_str_description())
         demo_example = self.get_demo_example(count=count, filters=filters, columns=columns, as_dataframe=as_dataframe)
-        if not Auto.is_defined(columns):
-            demo_example = list(demo_example)
-            if isinstance(demo_example, dict):
-                columns = demo_example[0].keys()
-            else:
-                return display.display_paragraph(demo_example)
-        return display.display_sheet(demo_example, columns=columns)
+        demo_example = list(demo_example)
+        if demo_example:
+            if not Auto.is_defined(columns):
+                if isinstance(demo_example[0], dict):
+                    columns = demo_example[0].keys()
+                else:
+                    return display.display_paragraph(demo_example)
+            return display.display_sheet(demo_example, columns=columns)
+        else:
+            return display.display_paragraph('[EMPTY] Demo example is empty.')
 
     def describe(
             self, *filters,
