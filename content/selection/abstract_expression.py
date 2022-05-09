@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Optional, Callable, Iterable, Generator, Union, Any
+import inspect
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
@@ -9,9 +10,10 @@ try:  # Assume we're a submodule in a package.
     )
     from base.functions.arguments import get_name, get_names
     from base.constants.chars import ITEMS_DELIMITER, CROP_SUFFIX, NOT_SET, DEFAULT_LINE_LEN
-    from base.abstract.abstract_base import AbstractBaseObject
+    from base.abstract.abstract_base import AbstractBaseObject, BaseInterface
     from base.mixin.data_mixin import DataMixin
     from loggers.fallback_logger import FallbackLogger
+    from utils.decorators import WrappedFunction
     from functions.primary import items as it
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
@@ -21,13 +23,15 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     )
     from ...base.functions.arguments import get_name, get_names
     from ...base.constants.chars import ITEMS_DELIMITER, CROP_SUFFIX, NOT_SET, DEFAULT_LINE_LEN
-    from ...base.abstract.abstract_base import AbstractBaseObject
+    from ...base.abstract.abstract_base import AbstractBaseObject, BaseInterface
     from ...base.mixin.data_mixin import DataMixin
     from ...loggers.fallback_logger import FallbackLogger
+    from ...utils.decorators import WrappedFunction
     from ...functions.primary import items as it
 
 SQL_FUNC_NAMES_DICT = dict(len='COUNT')
 SQL_TYPE_NAMES_DICT = dict(int='integer', str='varchar')
+CODE_HTML_STYLE = "background-color: RGB(48, 56, 69); line-height: 1.0em; padding-top: 2.0em; padding-bottom: 2.0em;'"
 ALIAS_FUNCTION = '_same'
 
 
@@ -176,7 +180,7 @@ class AbstractDescription(AbstractBaseObject, DataMixin, ABC):
                 # yield repr(f) + ':'
                 yield from f.get_meta_description()
 
-    def get_data_description(
+    def get_fields_description(
             self,
             count: Optional[int] = None,
             title: Optional[str] = 'Detailed fields descriptions',
@@ -195,6 +199,43 @@ class AbstractDescription(AbstractBaseObject, DataMixin, ABC):
             yield '\n{title}:\n'.format(title=title)
             yield from detailed_description
 
+    def _get_function_code(self):
+        func = self.get_function()
+        if isinstance(func, WrappedFunction) or hasattr(func, 'get_py_code'):
+            return func.get_py_code()
+        try:
+            return inspect.getsource(func)
+        except TypeError as e:
+            return repr(e)
+
+    def describe(
+            self,
+            show_header: bool = True,
+            comment: Optional[str] = None,
+            depth: int = 1,
+            output=AUTO,
+    ):
+        display = self.get_display(output)
+        if show_header:
+            display.display_paragraph(self.get_brief_repr(), level=1)
+            display.append(comment)
+        elif comment:
+            display.display_paragraph(comment)
+        super().describe(show_header=False, comment=comment)
+        display.display_paragraph('Function', level=3)
+        display.display_paragraph('Python code:')
+        display.display_paragraph(self._get_function_code(), style=CODE_HTML_STYLE)
+        display.display_paragraph('SQL code:')
+        display.display_paragraph(self.get_sql_expression(), style=CODE_HTML_STYLE)
+        display.display_paragraph('Fields', level=3)
+        display.display_paragraph(self.get_fields_description())
+        if depth > 0:
+            for attribute, value in self.get_meta_items():
+                if isinstance(value, BaseInterface) or hasattr(value, 'describe'):
+                    display.display_paragraph('{attribute}:'.format(attribute=attribute), level=3)
+                    value.describe(show_header=False, depth=depth - 1, output=output)
+        display.display_paragraph()
+
     def get_brief_repr(self) -> str:
         inputs = ', '.join(map(get_name, self.get_input_field_names()))
         target = get_name(self.get_target_field_name())
@@ -204,7 +245,10 @@ class AbstractDescription(AbstractBaseObject, DataMixin, ABC):
             raise AttributeError('{func}: {e}'.format(func=repr(self.get_function()), e=e))
         if func_name == '<lambda>':
             func_name = 'lambda'
-        return f'{target}={func_name}({inputs})'
+        if target and target != NOT_SET:
+            return f'{target}={func_name}({inputs})'
+        else:
+            return f'{func_name}({inputs})'
 
     def __repr__(self):
         return self.get_brief_repr()

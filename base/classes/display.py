@@ -189,7 +189,7 @@ class DefaultDisplay(DisplayInterface):
             clear: bool = False,
     ) -> Iterator[str]:
         if isinstance(paragraph, str):
-            yield paragraph
+            yield from paragraph.split('\n')
         elif isinstance(paragraph, Iterable):
             yield from paragraph
         elif paragraph:
