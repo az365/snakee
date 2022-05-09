@@ -1,12 +1,10 @@
 from typing import Optional, Callable
 
-try:  # Assume we're a sub-module in a package.
-    from utils import arguments as arg
-    from interfaces import Name, Options, AutoStreamType, Stream, ConnectorInterface, AutoContext, AUTO
+try:  # Assume we're a submodule in a package.
+    from interfaces import Name, Options, AutoStreamType, Stream, ConnectorInterface, AutoContext, Auto, AUTO
     from connectors.operations.abstract_sync import AbstractSync, SRC_ID, DST_ID
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
-    from ...interfaces import Name, Options, AutoStreamType, Stream, ConnectorInterface, AutoContext, AUTO
+    from ...interfaces import Name, Options, AutoStreamType, Stream, ConnectorInterface, AutoContext, Auto, AUTO
     from .abstract_sync import AbstractSync, SRC_ID, DST_ID
 
 
@@ -55,7 +53,7 @@ class MultiSync(AbstractSync):
             options: Options = None,
             verbose: bool = True,
     ) -> Stream:
-        stream_type = arg.acquire(stream_type, self.get_stream_type())
+        stream_type = Auto.delayed_acquire(stream_type, self.get_stream_type)
         stream = self.get_src().to_stream(stream_type=stream_type)
         if verbose:
             self.log('Running operation: {}'.format(self.get_name()))
@@ -74,7 +72,7 @@ class MultiSync(AbstractSync):
             options: Options = None,
             verbose: bool = True,
     ) -> Optional[Stream]:
-        stream_type = arg.acquire(stream_type, self.get_stream_type())
+        stream_type = Auto.acquire(stream_type, self.get_stream_type())
         if not self.is_done():
             return self.run_now(return_stream=return_stream, stream_type=stream_type, verbose=verbose)
         elif raise_error_if_exists:
@@ -85,7 +83,7 @@ class MultiSync(AbstractSync):
             return self.get_dst().to_stream(stream_type=stream_type)
 
     def to_stream(self, stream_type=AUTO, **kwargs):
-        stream_type = arg.acquire(stream_type, self.get_stream_type())
+        stream_type = Auto.acquire(stream_type, self.get_stream_type())
         return self.run_if_not_yet(raise_error_if_exists=False, return_stream=True, stream_type=stream_type)
 
     def from_stream(self, stream: Stream, rewrite: bool = False) -> Optional[ConnectorInterface]:

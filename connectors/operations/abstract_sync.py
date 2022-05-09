@@ -1,13 +1,13 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Iterable, Callable, Union
+from typing import Optional, Iterable, Callable
 
-try:  # Assume we're a sub-module in a package.
-    from utils import arguments as arg
-    from interfaces import Name, Stream, ConnectorInterface, AutoContext, Options, AutoStreamType, StreamType, AUTO
+try:  # Assume we're a submodule in a package.
+    from base.classes.auto import AUTO, Auto
+    from interfaces import Name, Stream, ConnectorInterface, AutoContext, Options, AutoStreamType, StreamType
     from connectors.operations.operation import Operation
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
-    from ...interfaces import Name, Stream, ConnectorInterface, AutoContext, Options, AutoStreamType, StreamType, AUTO
+    from ...base.classes.auto import AUTO, Auto
+    from ...interfaces import Name, Stream, ConnectorInterface, AutoContext, Options, AutoStreamType, StreamType
     from ...connectors.operations.operation import Operation
 
 SRC_ID = 'src'
@@ -31,7 +31,7 @@ class AbstractSync(Operation, ABC):
             procedure=procedure,
             context=context,
         )
-        stream_type = arg.acquire(stream_type, StreamType.RecordStream)
+        stream_type = Auto.acquire(stream_type, StreamType.RecordStream)
         assert isinstance(stream_type, StreamType)
         self._stream_type = stream_type
         self._apply_to_stream = apply_to_stream
@@ -84,13 +84,13 @@ class AbstractSync(Operation, ABC):
         return self.has_inputs() or self.has_outputs()
 
     def get_stream(self, run_if_not_yet: bool = False, stream_type: AutoStreamType = AUTO) -> Stream:
-        stream_type = arg.acquire(stream_type, self.get_stream_type())
+        stream_type = Auto.acquire(stream_type, self.get_stream_type())
         if run_if_not_yet and not self.is_done():
             self.run_now()
         return self.get_dst().to_stream(stream_type=stream_type)
 
     def to_stream(self, stream_type: AutoStreamType = AUTO):
-        stream_type = arg.acquire(stream_type, self.get_stream_type())
+        stream_type = Auto.acquire(stream_type, self.get_stream_type())
         return self.run_if_not_yet(raise_error_if_exists=False, return_stream=True, stream_type=stream_type)
 
     @abstractmethod
@@ -111,7 +111,7 @@ class AbstractSync(Operation, ABC):
             options: Options = None,
             verbose: bool = True,
     ) -> Optional[Stream]:
-        stream_type = arg.acquire(stream_type, self.get_stream_type())
+        stream_type = Auto.acquire(stream_type, self.get_stream_type())
         if not self.is_done():
             return self.run_now(return_stream=return_stream, stream_type=stream_type, options=options, verbose=verbose)
         elif raise_error_if_exists:

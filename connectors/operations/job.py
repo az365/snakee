@@ -1,21 +1,19 @@
-from typing import Optional, Iterable, Union, NoReturn
+from typing import Optional, Iterable, Union
 
-try:  # Assume we're a sub-module in a package.
-    from utils import arguments as arg
-    from base.interfaces.context_interface import ContextInterface
+try:  # Assume we're a submodule in a package.
+    from base.interfaces.context_interface import ContextInterface, Auto, AUTO
     from connectors.abstract.hierarchic_connector import HierarchicConnector
     from connectors.operations.operation import Operation
     from connectors import connector_classes as ct
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
-    from ...base.interfaces.context_interface import ContextInterface
+    from ...base.interfaces.context_interface import ContextInterface, Auto, AUTO
     from ..abstract.hierarchic_connector import HierarchicConnector
     from .operation import Operation
     from .. import connector_classes as ct
 
 Name = str
 Native = HierarchicConnector
-OptContext = Union[ContextInterface, arg.DefaultArgument]
+AutoContext = Union[ContextInterface, Auto]
 
 
 class Job(HierarchicConnector):
@@ -25,9 +23,9 @@ class Job(HierarchicConnector):
             operations: Optional[dict] = None,
             queue: Optional[list] = None,
             options: Optional[dict] = None,
-            context: OptContext = arg.DEFAULT,
+            context: AutoContext = AUTO,
     ):
-        context = arg.undefault(context, ct.get_context())
+        context = Auto.delayed_acquire(context, ct.get_context)
         super().__init__(
             name=name,
             children=operations,
@@ -74,7 +72,7 @@ class Job(HierarchicConnector):
 
     def get_options(self, including: Union[Operation, Iterable, None] = None, upd: Optional[dict] = None) -> dict:
         defined_options = self._options.copy()
-        if arg.is_defined(upd):
+        if Auto.is_defined(upd):
             defined_options.update(upd)
         if including:
             if hasattr(including, 'get_options'):
@@ -126,17 +124,17 @@ class Job(HierarchicConnector):
     def is_done(self) -> bool:
         return self.has_outputs()
 
-    def check(self) -> NoReturn:
+    def check(self) -> None:
         for c in self.get_connectors():
             c.check()
 
     def run(
             self,
-            operations: Union[list, arg.DefaultArgument] = arg.DEFAULT,
+            operations: Union[list, Auto] = AUTO,
             if_not_yet: bool = True,
             options: Optional[dict] = None,
     ):
-        operations = arg.undefault(operations, self.get_queue())
+        operations = Auto.delayed_acquire(operations, self.get_queue)
         operations = [self.get_operation(op) for op in operations]
         names = [op.get_name() for op in operations]
         for name, operation in zip(names, operations):
