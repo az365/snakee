@@ -344,19 +344,25 @@ class LeafConnector(
         else:
             example_item, example_stream, example_comment = None, None, None
         struct = self.get_struct()
-        struct_dataframe = struct.describe(
-            show_header=False,
-            as_dataframe=struct_as_dataframe, example=example_item,
-            output=output, comment=example_comment,
-        )
-        if struct_dataframe is not None:
-            return struct_dataframe
+        if isinstance(struct, StructInterface) or hasattr(struct, 'describe'):
+            struct_dataframe = struct.describe(
+                show_header=False,
+                as_dataframe=struct_as_dataframe, example=example_item,
+                output=output, comment=example_comment,
+            )
+            if struct_dataframe is not None:
+                return struct_dataframe
+        elif struct:
+            display.append(f'[TYPE_ERROR] Expected struct as StructInterface, got {struct} instead')
+        else:
+            display.append('Struct is not defined.')
         if example_stream and count:
             return self.show_example(
                 count=count, example=example_stream,
                 columns=columns, comment=example_comment,
                 output=output,
             )
+        display.display_paragraph()
 
     @staticmethod
     def _assume_native(connector) -> Native:
