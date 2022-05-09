@@ -1,8 +1,8 @@
-from typing import Optional, Iterable, Callable, Union
+from typing import Optional, Iterable, Union
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
-        Stream, RegularStream, RowStream, KeyValueStream, StructStream, FieldInterface,
+        Stream, RegularStream, RowStream, KeyValueStream, StructStream, StructInterface, FieldInterface,
         ItemType, StreamType,
         Context, Connector, AutoConnector, LeafConnectorInterface, TmpFiles,
         Count, Name, Field, Struct, Columns, Array, ARRAY_TYPES,
@@ -20,7 +20,7 @@ try:  # Assume we're a submodule in a package.
     from streams.regular.any_stream import AnyStream
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
-        Stream, RegularStream, RowStream, KeyValueStream, StructStream, FieldInterface,
+        Stream, RegularStream, RowStream, KeyValueStream, StructStream, StructInterface, FieldInterface,
         ItemType, StreamType,
         Context, Connector, AutoConnector, LeafConnectorInterface, TmpFiles,
         Count, Name, Field, Struct, Columns, Array, ARRAY_TYPES,
@@ -41,6 +41,18 @@ Native = RegularStream
 
 DEFAULT_EXAMPLE_COUNT = 10
 DEFAULT_ANALYZE_COUNT = 100
+
+
+def unfold_structs_to_fields(keys: Iterable) -> list:
+    fields = list()
+    for k in keys:
+        if isinstance(k, list):
+            fields += k
+        elif isinstance(k, StructInterface) or hasattr(k, 'get_field_names'):
+            fields += k.get_field_names()
+        else:
+            fields.append(k)
+    return fields
 
 
 class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
@@ -142,7 +154,7 @@ class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
             output_struct: Struct = None,
             take_hash: bool = False,
     ) -> Stream:
-        keys = update(keys)
+        keys = unfold_structs_to_fields(keys)
         key_function = self._get_key_function(keys, take_hash=take_hash)
         iter_groups = self._get_groups(key_function, as_pairs=as_pairs)
         if as_pairs:
@@ -176,9 +188,7 @@ class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
             step: AutoCount = AUTO,
             verbose: bool = True,
     ) -> Stream:
-        keys = update(keys)
-        if hasattr(keys[0], 'get_field_names'):  # if isinstance(keys[0], FieldGroup)
-            keys = keys[0].get_field_names()
+        keys = unfold_structs_to_fields(keys)
         step = Auto.delayed_acquire(step, self.get_limit_items_in_memory)
         if as_pairs:
             key_for_sort = keys
@@ -204,7 +214,7 @@ class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
         return self._assume_pairs(grouped_stream)
 
     def _get_uniq_records(self, *keys) -> Iterable:
-        keys = update(keys)
+        keys = unfold_structs_to_fields(keys)
         key_fields = get_names(keys)
         key_function = self._get_key_function(key_fields, take_hash=False)
         prev_value = AUTO
