@@ -56,7 +56,7 @@ def get_name(obj, or_callable: bool = True, or_class: bool = True) -> Union[str,
 
 
 def get_names(iterable: Union[Iterable, Any, None], or_callable: bool = True) -> Union[list, Any]:
-    if isinstance(iterable, Iterable) and not isinstance(iterable, str):
+    if isinstance(iterable, Iterable) and not (isinstance(iterable, str) or hasattr(iterable, '_value_type')):  # Field
         return [get_name(i, or_callable=or_callable) for i in iterable]
     else:
         return iterable

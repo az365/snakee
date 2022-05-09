@@ -326,6 +326,9 @@ class AnyField(SimpleDataWrapper, SelectableMixin, MultiMapDataMixin, FieldInter
     def __str__(self):
         return self.get_detailed_repr()
 
+    def __iter__(self):
+        yield self.get_name()
+
     def __add__(self, other: Union[FieldInterface, StructInterface, str]) -> StructInterface:
         struct_builder = self.get_struct_builder()
         field_builder = self.__class__
