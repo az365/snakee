@@ -89,7 +89,7 @@ class ActualizeMixin(ABC):
                 return bool(self.get_count(allow_slow_mode=False))
         return False
 
-    def validate_fields(self, initial: bool = True) -> Native:
+    def validate_fields(self, initial: bool = True, skip_disconnected: bool = False) -> Native:
         if initial:
             expected_struct = self.get_initial_struct()
             if Auto.is_defined(expected_struct):
@@ -99,9 +99,12 @@ class ActualizeMixin(ABC):
         else:
             expected_struct = self.get_struct()
         actual_struct = self.get_struct_from_source(set_struct=False, verbose=False)
-        actual_struct = self._get_native_struct(actual_struct)
-        validated_struct = actual_struct.validate_about(expected_struct)
-        self.set_struct(validated_struct, inplace=True)
+        if actual_struct:
+            actual_struct = self._get_native_struct(actual_struct)
+            validated_struct = actual_struct.validate_about(expected_struct)
+            self.set_struct(validated_struct, inplace=True)
+        elif not skip_disconnected:
+            raise ValueError(f'For validate fields storage/database must be connected: {self.get_storage()}')
         return self
 
     def get_invalid_columns(self) -> Generator:
@@ -123,19 +126,28 @@ class ActualizeMixin(ABC):
             return False
         return True
 
-    def get_validation_message(self) -> str:
-        self.validate_fields()
-        row_count = self.get_count(allow_slow_mode=False)
-        column_count = self.get_column_count()
-        error_count = self.get_invalid_fields_count()
-        if self.is_valid_struct():
-            message = 'file has {} rows, {} valid columns:'.format(row_count, column_count)
+    def get_validation_message(self, skip_disconnected: bool = True) -> str:
+        if self.is_accessible():
+            self.validate_fields()
+            row_count = self.get_count(allow_slow_mode=False)
+            column_count = self.get_column_count()
+            error_count = self.get_invalid_fields_count()
+            if self.is_valid_struct():
+                message = 'file has {} rows, {} valid columns:'.format(row_count, column_count)
+            else:
+                valid_count = column_count - error_count
+                template = '[INVALID] file has {} rows, {} columns = {} valid + {} invalid:'
+                message = template.format(row_count, column_count, valid_count, error_count)
+            if not hasattr(self.get_struct(), 'get_caption'):
+                message = '[DEPRECATED] {}'.format(message)
         else:
-            valid_count = column_count - error_count
-            template = '[INVALID] file has {} rows, {} columns = {} valid + {} invalid:'
-            message = template.format(row_count, column_count, valid_count, error_count)
-        if not hasattr(self.get_struct(), 'get_caption'):
-            message = '[DEPRECATED] {}'.format(message)
+            message = 'Cannot validate struct while dataset source is disconnected'
+            if skip_disconnected:
+                tag = '[DISCONNECTED]'
+                message = f'{tag} {message}'
+            else:
+                message = f'{self}: {message}: {self.get_source()}'
+                raise ValueError(message)
         return message
 
     def get_shape_repr(self, actualize: bool = False) -> str:

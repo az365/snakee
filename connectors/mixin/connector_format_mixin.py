@@ -167,6 +167,8 @@ class ConnectorFormatMixin(StructMixin, LeafConnectorInterface, ABC):
         if skip_disconnected:
             if not self.is_accessible(verbose=verbose):
                 return None
+        else:
+            assert self.is_accessible(), 'For detect struct storage must be connected: {}'.format(self.get_storage())
         assert self.is_existing(), 'For detect struct file/object must be existing: {}'.format(self.get_path())
         declared_types = dict()
         if use_declared_types:
