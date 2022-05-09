@@ -1,6 +1,6 @@
 from typing import Callable, Union
 
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from functions.primary import numeric as nm
     from functions.primary import dates as dt
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -23,7 +23,7 @@ def cast(field_type: FieldType, default_int: int = 0) -> Callable:
 
 def date(as_iso_date: bool = True) -> Callable:
     def func(value):
-        return dt.to_date(value, as_iso_date=as_iso_date)
+        return dt.get_date(value, as_iso_date=as_iso_date)
     return func
 
 
