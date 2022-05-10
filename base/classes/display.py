@@ -90,7 +90,8 @@ class DefaultDisplay(DisplayInterface):
                 formatter = '{name}:{size}'.format(name=name, size=size)
             else:
                 formatter = EMPTY
-            meta_description_placeholders.append('{open}{f}{close}'.format(open='{', f=formatter, close='}'))
+            if name != PREFIX_FIELD:
+                meta_description_placeholders.append('{open}{f}{close}'.format(open='{', f=formatter, close='}'))
         return delimiter.join(meta_description_placeholders)
 
     @staticmethod

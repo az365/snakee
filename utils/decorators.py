@@ -4,10 +4,12 @@ from functools import wraps
 import inspect
 
 try:  # Assume we're a submodule in a package.
+    from base.classes.auto import AUTO, Auto
     from base.functions.arguments import get_name, get_str_from_args_kwargs
     from loggers.logger_interface import LoggerInterface
     from loggers.fallback_logger import FallbackLogger
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
+    from ..base.classes.auto import AUTO, Auto
     from ..base.functions.arguments import get_name, get_str_from_args_kwargs
     from ..loggers.logger_interface import LoggerInterface
     from ..loggers.fallback_logger import FallbackLogger
@@ -80,9 +82,13 @@ def singleton(cls):
 
 
 class WrappedFunction(Callable, ABC):
-    def __init__(self, py_func: Callable):
-        self._name = get_name(py_func)
+    def __init__(self, py_func: Callable, name: Union[str, Auto] = AUTO, *args, **kwargs):
         self._py_func = py_func
+        if not Auto.is_defined(name):
+            name = get_name(py_func)
+        self._name = name
+        self._args = args
+        self._kwargs = kwargs
 
     def __call__(self, *args, **kwargs):
         py_func = self.get_py_func()
@@ -101,6 +107,12 @@ class WrappedFunction(Callable, ABC):
     def get_name(self) -> str:
         return self._name
 
+    def __repr__(self):
+        return '{}({})'.format(self.get_name(), get_str_from_args_kwargs(*self._args, **self._kwargs))
+
+    def __str__(self):
+        return '{cls}({name})'.format(cls=self.__class__.__name__, name=repr(self.get_name()))
+
 
 def sql_compatible(func):
     class SqlCompatibleFunction(WrappedFunction):
@@ -108,17 +120,17 @@ def sql_compatible(func):
         def __init__(self, *args, **kwargs):
             if '_as_sql' in kwargs:
                 kwargs.pop('_as_sql')
-            super().__init__(py_func=func(*args, **kwargs, _as_sql=False))
+            super().__init__(
+                func(*args, **kwargs, _as_sql=False),
+                get_name(func, or_callable=False),
+                *args, **kwargs,
+            )
             self._sql_func = func(*args, **kwargs, _as_sql=True)
-            self._repr = '{}({})'.format(self.get_name(), get_str_from_args_kwargs(*args, **kwargs))
 
         def get_sql_expr(self, *args, **kwargs):
             if isinstance(self, SqlCompatibleFunction):
                 return self._sql_func(*args, **kwargs)
             else:
                 raise TypeError('function must be initialized before using function.get_sql_expr()') from None
-
-        def __repr__(self):
-            return self._repr
 
     return SqlCompatibleFunction
