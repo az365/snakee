@@ -12,7 +12,10 @@ try:  # Assume we're a submodule in a package.
     from base.constants.chars import EMPTY, ALL, CROP_SUFFIX, ITEMS_DELIMITER, PY_INDENT
     from functions.primary.text import remove_extra_spaces
     from content.fields.any_field import AnyField
-    from content.selection.abstract_expression import AbstractDescription, SQL_FUNC_NAMES_DICT, SQL_TYPE_NAMES_DICT
+    from content.selection.abstract_expression import (
+        AbstractDescription,
+        SQL_FUNC_NAMES_DICT, SQL_TYPE_NAMES_DICT, CODE_HTML_STYLE,
+    )
     from content.selection.concrete_expression import AliasDescription
     from content.struct.flat_struct import FlatStruct
     from streams.abstract.wrapper_stream import WrapperStream
@@ -27,7 +30,10 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.constants.chars import EMPTY, ALL, CROP_SUFFIX, ITEMS_DELIMITER, PY_INDENT
     from ...functions.primary.text import remove_extra_spaces
     from ...content.fields.any_field import AnyField
-    from ...content.selection.abstract_expression import AbstractDescription, SQL_FUNC_NAMES_DICT, SQL_TYPE_NAMES_DICT
+    from ...content.selection.abstract_expression import (
+        AbstractDescription,
+        SQL_FUNC_NAMES_DICT, SQL_TYPE_NAMES_DICT, CODE_HTML_STYLE,
+    )
     from ...content.selection.concrete_expression import AliasDescription
     from ...content.struct.flat_struct import FlatStruct
     from ..abstract.wrapper_stream import WrapperStream
@@ -37,7 +43,6 @@ TableOrQuery = Union[LeafConnectorInterface, StreamInterface, None]
 
 IS_DEFINED = '{field} <> 0 and {field} NOT NULL'
 MSG_NOT_IMPL = '{method}() operation is not defined for SqlStream, try to use .to_record_stream().{method}() instead'
-CODE_HTML_STYLE = "background-color: RGB(48, 56, 69); line-height: 1.0em; padding-top: 2.0em; padding-bottom: 2.0em;'"
 
 
 class SqlSection(Enum):

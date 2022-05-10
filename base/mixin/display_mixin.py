@@ -33,15 +33,15 @@ class DisplayMixin(DisplayInterface, ABC):
             return _display
 
     @classmethod
-    def set_display(cls, display: DefaultDisplay):
+    def set_display(cls, display: DisplayInterface):
         cls.set_display_inplace(display)
         return cls
 
-    def _set_display_inplace(self, display: DefaultDisplay):
+    def _set_display_inplace(self, display: DisplayInterface):
         self.set_display_inplace(display)
 
     @classmethod
-    def set_display_inplace(cls, display: DefaultDisplay):
+    def set_display_inplace(cls, display: DisplayInterface):
         global _display
         _display = display
 
@@ -58,10 +58,6 @@ class DisplayMixin(DisplayInterface, ABC):
     @deprecated_with_alternative('get_display().append()')
     def output_line(self, line: str, output=AUTO) -> None:
         return self.get_display(output).append(line)
-
-    @deprecated_with_alternative('get_display().append()')
-    def append(self, line: str) -> None:
-        return self.get_display().append(line)
 
     @deprecated_with_alternative('get_display().display_paragraph()')
     def display_paragraph(

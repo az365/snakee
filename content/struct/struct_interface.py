@@ -80,6 +80,10 @@ class StructInterface(StructMixinInterface, ABC):
         pass
 
     @abstractmethod
+    def get_field_names(self) -> list:
+        pass
+
+    @abstractmethod
     def is_valid_row(self, row) -> bool:
         pass
 

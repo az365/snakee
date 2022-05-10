@@ -1,12 +1,16 @@
-from functools import wraps
+from abc import ABC
 from typing import Type, Callable, Optional, Union
+from functools import wraps
+import inspect
 
 try:  # Assume we're a submodule in a package.
-    from utils import arguments as arg
+    from base.classes.auto import AUTO, Auto
+    from base.functions.arguments import get_name, get_str_from_args_kwargs
     from loggers.logger_interface import LoggerInterface
     from loggers.fallback_logger import FallbackLogger
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..utils import arguments as arg
+    from ..base.classes.auto import AUTO, Auto
+    from ..base.functions.arguments import get_name, get_str_from_args_kwargs
     from ..loggers.logger_interface import LoggerInterface
     from ..loggers.fallback_logger import FallbackLogger
 
@@ -58,7 +62,7 @@ def deprecated_with_alternative(alternative):
         def new_func(*args, **kwargs):
             template = 'Method {}.{}() is deprecated, use {} instead.'
             message = template.format(func.__module__, func.__name__, alternative)
-            _warn(message, category=DeprecationWarning, stacklevel=1)
+            _warn(message, category=DeprecationWarning, stacklevel=2)
             try:
                 return func(*args, **kwargs)
             except TypeError as e:
@@ -77,27 +81,56 @@ def singleton(cls):
     return wrapper
 
 
+class WrappedFunction(Callable, ABC):
+    def __init__(self, py_func: Callable, name: Union[str, Auto] = AUTO, *args, **kwargs):
+        self._py_func = py_func
+        if not Auto.is_defined(name):
+            name = get_name(py_func)
+        self._name = name
+        self._args = args
+        self._kwargs = kwargs
+
+    def __call__(self, *args, **kwargs):
+        py_func = self.get_py_func()
+        return py_func(*args, **kwargs)
+
+    def get_py_func(self) -> Callable:
+        return self._py_func
+
+    def get_py_code(self) -> str:
+        py_func = self.get_py_func()
+        try:
+            return inspect.getsource(py_func)
+        except TypeError as e:
+            return repr(e)
+
+    def get_name(self) -> str:
+        return self._name
+
+    def __repr__(self):
+        return '{}({})'.format(self.get_name(), get_str_from_args_kwargs(*self._args, **self._kwargs))
+
+    def __str__(self):
+        return '{cls}({name})'.format(cls=self.__class__.__name__, name=repr(self.get_name()))
+
+
 def sql_compatible(func):
-    class SqlCompatibleFunction(Callable):
+    class SqlCompatibleFunction(WrappedFunction):
         @wraps(func)
         def __init__(self, *args, **kwargs):
             if '_as_sql' in kwargs:
                 kwargs.pop('_as_sql')
-            self._name = func.__name__
-            self._py_func = func(*args, **kwargs, _as_sql=False)
+            super().__init__(
+                func(*args, **kwargs, _as_sql=False),
+                get_name(func, or_callable=False),
+                *args, **kwargs,
+            )
             self._sql_func = func(*args, **kwargs, _as_sql=True)
-            self._repr = '{}({})'.format(self._name, arg.get_str_from_args_kwargs(*args, **kwargs))
-
-        def __call__(self, *args, **kwargs):
-            return self._py_func(*args, **kwargs)
 
         def get_sql_expr(self, *args, **kwargs):
             if isinstance(self, SqlCompatibleFunction):
                 return self._sql_func(*args, **kwargs)
             else:
                 raise TypeError('function must be initialized before using function.get_sql_expr()') from None
-
-        def __repr__(self):
-            return self._repr
 
     return SqlCompatibleFunction

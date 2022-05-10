@@ -1,4 +1,4 @@
-from typing import Iterable, Union
+from typing import Callable, Iterable, Union
 
 try:  # Assume we're a submodule in a package.
     from base.classes.auto import AUTO
@@ -7,6 +7,7 @@ try:  # Assume we're a submodule in a package.
     from utils.decorators import deprecated
     from content.items.item_type import ItemType
     from content.items.item_getters import get_selection_mapper
+    from content.fields.field_interface import FieldInterface
     from content.selection import selection_functions as sf
     from content.selection.abstract_expression import (
         AbstractDescription, SingleFieldDescription, MultipleFieldDescription, TrivialMultipleDescription,
@@ -23,6 +24,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils.decorators import deprecated
     from ..items.item_type import ItemType
     from ..items.item_getters import get_selection_mapper
+    from ..fields.field_interface import FieldInterface
     from . import selection_functions as sf
     from .abstract_expression import (
         AbstractDescription, SingleFieldDescription, MultipleFieldDescription, TrivialMultipleDescription,
@@ -35,26 +37,29 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 
 
 @deprecated
-def is_expression_description(obj) -> bool:  # not used
+def is_expression_description(obj) -> bool:
     return isinstance(obj, AbstractDescription) or hasattr(obj, 'get_selection_tuple')
 
 
-# used in this module only
 def get_selection_tuple(description: Union[AbstractDescription, Iterable], or_star: bool = True) -> Union[tuple, str]:
     if isinstance(description, AbstractDescription) or hasattr(description, 'get_selection_tuple'):
         return description.get_selection_tuple(including_target=True)
-    elif isinstance(description, Iterable) and not isinstance(description, str):
-        return tuple([get_name(f, or_callable=True) for f in description])
     elif str(description) == STAR:
         if or_star:
             return STAR
         else:
             return description,
+    elif isinstance(description, (str, Callable)):
+        return description
+    elif isinstance(description, FieldInterface) or hasattr(description, 'get_value_type'):
+        return get_name(description)
+    elif isinstance(description, Iterable):
+        return tuple([get_name(f, or_callable=True) for f in description])
     else:
-        return get_name(description, or_callable=True)
+        raise TypeError(f'AbstractDescription or Field expected, got {description}')
 
 
-def get_compatible_expression_tuples(expressions: dict) -> dict:  # used in get_selection_function() only
+def get_compatible_expression_tuples(expressions: dict) -> dict:
     prepared_expressions = dict()
     for k, v in expressions.items():
         name = get_name(k)
@@ -68,7 +73,7 @@ def get_compatible_expression_tuples(expressions: dict) -> dict:  # used in get_
     return prepared_expressions
 
 
-def get_selection_function(  # used in Any|Row|RecordStream
+def get_selection_function(
         *fields,
         target_item_type=ItemType.Auto,
         input_item_type=ItemType.Auto,
@@ -101,5 +106,5 @@ def get_selection_function(  # used in Any|Row|RecordStream
 
 
 @deprecated
-def drop(*fields, **kwargs):  # not used
+def drop(*fields, **kwargs):
     return DropDescription(fields, **kwargs)

@@ -1,12 +1,10 @@
-from typing import Optional, Iterable, Callable, Union, Any, NoReturn
+from typing import Optional, Iterable, Callable, Any
 
-try:  # Assume we're a sub-module in a package.
-    from utils import arguments as arg
-    from interfaces import AUTO, AutoContext, AutoStreamType, Name, Options
+try:  # Assume we're a submodule in a package.
+    from interfaces import AUTO, Auto, AutoContext, AutoStreamType, Name, Options
     from connectors import connector_classes as ct
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
-    from ...interfaces import AUTO, AutoContext, AutoStreamType, Name, Options
+    from ...interfaces import AUTO, Auto, AutoContext, AutoStreamType, Name, Options
     from .. import connector_classes as ct
 
 
@@ -22,7 +20,7 @@ class Operation(ct.HierarchicConnector):
         super().__init__(
             name=name,
             children=connectors,
-            parent=arg.acquire(context, ct.get_context()),
+            parent=Auto.delayed_acquire(context, ct.get_context),
         )
         assert procedure is None or isinstance(procedure, Callable)
         self._procedure = procedure
@@ -52,7 +50,7 @@ class Operation(ct.HierarchicConnector):
     def has_procedure(self) -> bool:
         return isinstance(self.get_procedure(), Callable)
 
-    def check(self) -> NoReturn:
+    def check(self) -> None:
         for conn in self.get_connectors():
             conn.check()
 
@@ -60,10 +58,10 @@ class Operation(ct.HierarchicConnector):
         kwargs = dict()
         kwargs.update(self.get_connectors())
         kwargs.update(self.get_options())
-        if arg.is_defined(ex):
+        if Auto.is_defined(ex):
             for k in ex:
                 kwargs.pop(k)
-        if arg.is_defined(upd):
+        if Auto.is_defined(upd):
             kwargs.update(upd)
         return kwargs
 

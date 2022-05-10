@@ -1,14 +1,14 @@
 from typing import Optional, Iterable, Callable, Union
 
-try:  # Assume we're a sub-module in a package.
-    from utils import arguments as arg
+try:  # Assume we're a submodule in a package.
+    from base.classes.auto import AUTO, Auto
     from connectors import connector_classes as ct
     from connectors.operations.abstract_sync import AbstractSync, SRC_ID, DST_ID
     from base.interfaces.context_interface import ContextInterface
     from streams.interfaces.abstract_stream_interface import StreamInterface
     from streams.stream_type import StreamType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
+    from ...base.classes.auto import AUTO, Auto
     from .. import connector_classes as ct
     from .abstract_sync import AbstractSync, SRC_ID, DST_ID
     from ...base.interfaces.context_interface import ContextInterface
@@ -17,10 +17,10 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 
 Name = str
 Stream = StreamInterface
-OptStreamType = Union[StreamType, arg.DefaultArgument]
-Options = Union[dict, arg.DefaultArgument, None]
+AutoStreamType = Union[StreamType, Auto]
+Options = Union[dict, Auto, None]
 Connector = ct.LeafConnector
-Context = Union[ContextInterface, arg.DefaultArgument, None]
+AutoContext = Union[ContextInterface, Auto, None]
 
 
 class TwinSync(AbstractSync):
@@ -32,10 +32,10 @@ class TwinSync(AbstractSync):
             procedure: Optional[Callable],
             options: Options = None,
             apply_to_stream: bool = True,
-            stream_type: OptStreamType = arg.DEFAULT,
-            context: Context = arg.DEFAULT,
+            stream_type: AutoStreamType = AUTO,
+            context: AutoContext = AUTO,
     ):
-        if not arg.is_defined(options):
+        if not Auto.is_defined(options):
             options = dict()
         super().__init__(
             name=name,
@@ -64,18 +64,18 @@ class TwinSync(AbstractSync):
         if ex:
             for k in ex:
                 kwargs.pop(k)
-        if arg.is_defined(upd):
+        if Auto.is_defined(upd):
             kwargs.update(upd)
         return kwargs
 
     def run_now(
             self,
             return_stream: bool = True,
-            stream_type: OptStreamType = arg.DEFAULT,
+            stream_type: AutoStreamType = AUTO,
             options: Options = None,
             verbose: bool = True,
     ) -> Stream:
-        stream_type = arg.undefault(stream_type, self.get_stream_type())
+        stream_type = Auto.delayed_acquire(stream_type, self.get_stream_type)
         stream = self.get_src().to_stream(stream_type=stream_type)
         if verbose:
             self.log('Running operation: {}'.format(self.get_name()))

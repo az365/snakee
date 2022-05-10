@@ -1,19 +1,24 @@
 from typing import Optional, Callable, Iterable, Iterator, Generator, Sequence, Union
 
 try:  # Assume we're a submodule in a package.
-    from interfaces import Item, ItemType, ContentType, AutoCount, Auto, AUTO
+    from interfaces import Item, ItemType, ContentType, Class, Count, AutoCount, Auto, AUTO
     from base.classes.display import DefaultDisplay, PREFIX_FIELD
     from base.mixin.display_mixin import DisplayMixin, AutoOutput, Class
     from utils.external import display, HTML, Markdown
-    from utils.decorators import deprecated
+    from utils.decorators import deprecated_with_alternative
     from content.format.text_format import TextFormat, Compress, DEFAULT_ENDING, DEFAULT_ENCODING
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...interfaces import Item, ItemType, ContentType, AutoCount, Auto, AUTO
+    from ...interfaces import Item, ItemType, ContentType, Class, Count, AutoCount, Auto, AUTO
     from ...base.classes.display import DefaultDisplay, PREFIX_FIELD
     from ...base.mixin.display_mixin import DisplayMixin, AutoOutput, Class
     from ...utils.external import display, HTML, Markdown
-    from ...utils.decorators import deprecated
+    from ...utils.decorators import deprecated_with_alternative
     from .text_format import TextFormat, Compress, DEFAULT_ENDING, DEFAULT_ENCODING
+
+Native = Union[TextFormat, DefaultDisplay]
+DisplayObject = Union[str, Markdown, HTML]
+Paragraph = Union[str, Iterable, None]
+Style = Union[str, Auto]
 
 H_STYLE = None
 P_STYLE = 'line-height: 1.1em; margin-top: 0em; margin-bottom: 0em; padding-top: 0em; padding-bottom: 0em;'
@@ -31,37 +36,36 @@ class DocumentFormat(TextFormat, DefaultDisplay):
         self._current_paragraph = list()
         super().__init__(ending=ending, encoding=encoding, compress=compress)
 
-    def get_current_paragraph(self) -> Iterable:
+    def get_current_paragraph(self) -> list:
         return self._current_paragraph
 
-    def set_current_paragraph(self, paragraph):
+    def set_current_paragraph(self, paragraph: list) -> Native:
         self._current_paragraph = paragraph
         return self
 
-    def clear_current_paragraph(self):
+    def clear_current_paragraph(self) -> Native:
         return self.set_current_paragraph(list())
 
     def get_encoded_paragraph(
             self,
-            paragraph: Optional[Iterable] = None,
-            level: Optional[int] = None,
-            style=AUTO,
-            clear: bool = False,
-    ) -> str:
-        if paragraph and isinstance(paragraph, str):
-            encoded_paragraph = paragraph
-        else:
-            encoded_paragraph = '\n'.join(self.get_current_paragraph())
-            if clear:
-                self.clear_current_paragraph()
-        return encoded_paragraph
+            paragraph: Paragraph = None,
+            level: Count = None,
+            style: Style = AUTO,
+            clear: bool = True,  # deprecated
+    ) -> Iterator[str]:
+        yield from self.get_current_paragraph()
+        if clear:
+            self.clear_current_paragraph()
+        yield from super().get_encoded_paragraph(paragraph)
 
     @staticmethod
-    def _get_display_class():
+    def _get_display_class() -> Class:
         return str
 
     @classmethod
-    def _get_display_object(cls, data: Union[str, Iterable]) -> str:
+    def _get_display_object(cls, data: Union[str, Iterable, None]) -> Optional[DisplayObject]:
+        if not data:
+            return None
         if not isinstance(data, str):
             data = '\n'.join(data)
         display_class = cls._get_display_class()
@@ -70,17 +74,25 @@ class DocumentFormat(TextFormat, DefaultDisplay):
         else:
             return str(data)
 
-    def append_to_current_paragraph(self, line: str) -> None:
+    @deprecated_with_alternative('append()')
+    def append_to_current_paragraph(self, line: str) -> Native:
         self._current_paragraph.append(line)
+        return self
 
-    @deprecated
+    def append(self, line: str) -> None:
+        if line:
+            self._current_paragraph.append(line)
+        else:
+            return self.display_paragraph()
+
+    @deprecated_with_alternative('append()')
     def output_line(self, line: str, output: AutoOutput = AUTO) -> None:
         if line:
             return self.append(line)
         else:
             return self.display_paragraph()
 
-    @deprecated
+    @deprecated_with_alternative('_get_display_class|object|method()')
     def get_output(self, output: AutoOutput = AUTO):
         if Auto.is_auto(output):
             return self._get_display_method()
@@ -91,8 +103,11 @@ class DocumentFormat(TextFormat, DefaultDisplay):
     def _get_display_method() -> Callable:
         return display
 
-    def display_paragraph(self, paragraph: Optional[Iterable] = None, level: Optional[int] = None, style=AUTO):
+    def display_paragraph(self, paragraph: Optional[Iterable] = None, level: Count = None, style: Style = AUTO):
+        if level and paragraph:
+            self.display_paragraph(None)
         data = self.get_encoded_paragraph(paragraph, level=level, style=style, clear=True)
+        data = list(data)
         if data:
             obj = self._get_display_object(data)
             return display(obj)
@@ -117,17 +132,24 @@ class MarkdownFormat(DocumentFormat):
     def _get_display_class():
         return Markdown
 
-    def get_encoded_paragraph(self, paragraph: Optional[Iterable] = None, level: Optional[int] = None, clear: bool = False) -> str:
-        data = super().get_encoded_paragraph(paragraph)
-        return self.get_md_text_code(data, level=level)
+    def get_encoded_paragraph(
+            self,
+            paragraph: Paragraph = None,
+            level: Count = None,
+            clear: bool = True,  # deprecated
+            style: Style = AUTO,
+    ) -> Iterator[str]:
+        paragraph = super().get_encoded_paragraph(paragraph, clear=clear)
+        yield from self.get_md_text_code(paragraph, level=level)
 
     @staticmethod
-    def get_md_text_code(text: str, level: Optional[int] = None) -> str:
+    def get_md_text_code(lines: Iterable[str], level: Optional[int] = None) -> Iterator[str]:
+        text = '\n'.join(lines)
         if level:
             prefix = '#' * level
-            return f'{prefix} {text}'
+            yield f'{prefix} {text}'
         else:
-            return text
+            yield text
 
 
 class HtmlFormat(DocumentFormat):
@@ -135,25 +157,39 @@ class HtmlFormat(DocumentFormat):
     def _get_display_class():
         return HTML
 
-    def get_encoded_paragraph(self, paragraph=None, level: Optional[int] = None, clear: bool = False, style=AUTO) -> str:
+    def get_encoded_paragraph(
+            self,
+            paragraph: Paragraph = None,
+            level: Optional[int] = None,
+            clear: bool = True,  # deprecated
+            style: Union[str, Auto] = AUTO,
+    ) -> Iterator[str]:
         paragraph = super().get_encoded_paragraph(paragraph, clear=clear)
-        if paragraph:
-            html_code = self.get_html_text_code(paragraph, level=level, style=style)
-            return html_code.replace(SPACE * 2, HTML_SPACE * 2)
-        else:
-            return ''
+        for html_string in self.get_html_text_code(paragraph, level=level, style=style):
+            yield html_string.replace(SPACE * 2, HTML_SPACE * 2)
 
-    def get_encoded_sheet(self, records, columns, count, with_title, style=AUTO) -> Iterator[str]:
-        columns = [c if isinstance(c, str) else c[0] for c in columns if c[0] != PREFIX_FIELD]  ###
+    def get_encoded_sheet(
+            self,
+            records: Iterable,
+            columns: Iterable,
+            count: AutoCount,
+            with_title: bool,
+            style: Style = AUTO,
+    ) -> Iterator[str]:
+        columns = list(self._get_column_names(columns))
         html_code_lines = self.get_html_table_code(records, columns, count, with_title, style=style)
-        return map(lambda i: i.replace(SPACE * 2, HTML_SPACE * 2, html_code_lines))
+        return map(lambda i: i.replace(SPACE * 2, HTML_SPACE * 2), html_code_lines)
 
     @staticmethod
-    def get_html_text_code(text: Iterable, level: Optional[int] = None, style=AUTO) -> str:
-        if isinstance(text, str):
-            text = text.split('\n')
-        assert isinstance(text, Iterable), f'got {text}'
-        text = '<br>\n'.join(text)
+    def get_html_text_code(
+            lines: Iterable[str],
+            level: Optional[int] = None,
+            style: Union[str, Auto] = AUTO,
+    ) -> Iterator[str]:
+        if isinstance(lines, str):
+            lines = lines.split('\n')
+        assert isinstance(lines, Iterable), f'got {lines}'
+        text = '<br>\n'.join(lines)
         if level:
             tag = f'h{level}'
             style = Auto.acquire(style, H_STYLE)
@@ -162,7 +198,8 @@ class HtmlFormat(DocumentFormat):
             style = Auto.acquire(style, P_STYLE)
         open_tag = f'<{tag} style="{style}">' if style else f'<{tag}>'
         close_tag = f'</{tag}>'
-        return f'{open_tag}{text}{close_tag}'
+        if text:
+            yield f'{open_tag}{text}{close_tag}'
 
     @staticmethod
     def get_html_table_code(
@@ -198,4 +235,4 @@ class HtmlFormat(DocumentFormat):
 
 
 if HTML:
-    DisplayMixin.display = HtmlFormat
+    DisplayMixin.set_display(HtmlFormat())

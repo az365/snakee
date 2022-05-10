@@ -177,7 +177,7 @@ def get_month_first_date(d: Date, as_iso_date: AutoBool = AUTO) -> Date:
     as_iso_date = Auto.delayed_acquire(as_iso_date, is_iso_date, d)
     if as_iso_date:
         if not is_iso_date(d):
-            d = to_date(as_iso_date=True)
+            d = get_date(as_iso_date=True)
         return d[:8] + '01'
     else:
         if not is_py_date(d):
@@ -190,7 +190,7 @@ def get_monday_date(d: Date, as_iso_date: AutoBool = AUTO) -> Date:
     if not Auto.is_defined(as_iso_date):
         as_iso_date = is_iso_date(d)
     monday_date = cur_date + timedelta(days=-cur_date.weekday())
-    return to_date(monday_date, as_iso_date)
+    return get_date(monday_date, as_iso_date)
 
 
 def get_year_first_date(d: [Date, int], as_iso_date: AutoBool = True) -> Date:
@@ -216,14 +216,14 @@ def get_year_start_monday(year: Union[int, Date], as_iso_date: AutoBool = True) 
     else:
         year_start_date = get_year_first_date(year, as_iso_date=as_iso_date)
     year_start_monday = year_start_date + timedelta(days=-year_start_date.weekday())
-    return to_date(year_start_monday, as_iso_date)
+    return get_date(year_start_monday, as_iso_date)
 
 
 def get_rounded_date(d: Date, scale: DateScale, as_iso_date: AutoBool = AUTO) -> Date:
     scale = DateScale.convert(scale)
     as_iso_date = Auto.delayed_acquire(as_iso_date, is_iso_date, d)
     if scale == DateScale.Day:
-        return to_date(d, as_iso_date=as_iso_date)
+        return get_date(d, as_iso_date=as_iso_date)
     elif scale == DateScale.Week:
         return get_monday_date(d, as_iso_date=as_iso_date)
     elif scale == DateScale.Month:
@@ -261,7 +261,7 @@ def get_next_year_date(d: Date, step: int = 1, round_to_monday: bool = False) ->
 
 def get_next_month_date(d: Date, step: int = 1, round_to_month: bool = False) -> Date:
     is_iso_format = is_iso_date(d)
-    dt = to_date(d)
+    dt = get_date(d)
     month = dt.month
     year = dt.year
     month += step
@@ -279,7 +279,7 @@ def get_next_month_date(d: Date, step: int = 1, round_to_month: bool = False) ->
         if day > days_in_month:
             day = days_in_month
     dt = date(year=year, month=month, day=day)
-    return to_date(dt, is_iso_format)
+    return get_date(dt, is_iso_format)
 
 
 def get_next_week_date(d: Date, step: int = 1, round_to_monday: bool = False) -> Date:
@@ -295,7 +295,7 @@ def get_next_week_date(d: Date, step: int = 1, round_to_monday: bool = False) ->
     if round_to_monday:
         dt = get_monday_date(d)
     if is_iso_format:
-        return to_date(dt, is_iso_format)
+        return get_date(dt, is_iso_format)
     else:
         return dt
 
@@ -447,14 +447,14 @@ def get_yearly_dates(date_init: Date, date_min: Date, date_max: Date, step: int 
 
 def get_date_from_year_and_month(year: int, month: int, as_iso_date: bool = True) -> Date:
     iso_date = '{}-{:02}-01'.format(year, month)
-    return to_date(iso_date, as_iso_date=as_iso_date)
+    return get_date(iso_date, as_iso_date=as_iso_date)
 
 
 def get_date_from_year_and_week(year: int, week: int, as_iso_date: bool = True) -> Date:
     year_start_monday = get_year_start_monday(year, as_iso_date=False)
     delta_days = week * DAYS_IN_WEEK
     cur_date = year_start_monday + timedelta(days=delta_days)
-    return to_date(cur_date, as_iso_date)
+    return get_date(cur_date, as_iso_date)
 
 
 def get_year_and_week_from_date(d: Date) -> tuple:
