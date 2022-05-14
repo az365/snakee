@@ -138,11 +138,12 @@ class RowStream(AnyStream, ColumnarMixin):
             verbose: bool = True,
     ) -> StructStream:
         struct_stream_class = StreamType.StructStream.get_class()
-        stream = struct_stream_class([], struct, **self.get_meta())
+        stream = struct_stream_class([], struct=struct, **self.get_meta(ex='struct'))
         data = stream.get_struct_rows(self.get_items())
         stream = stream.add_items(data)
         if self.is_in_memory():
             stream = stream.collect()
+        stream.set_struct(struct, inplace=True)
         return stream
 
     @classmethod

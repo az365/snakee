@@ -281,8 +281,13 @@ class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
             if less_than:
                 less_than += 1
         rows = self.get_rows(columns=columns, add_title_row=add_title_row)  # tmp for debug
+        if Auto.is_defined(columns):
+            struct = columns
+        else:
+            struct = self.get_struct()
         stream = self.stream(
             rows,
+            struct=struct,
             stream_type=StreamType.RowStream,
             count=count,
             less_than=less_than,
