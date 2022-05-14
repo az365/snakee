@@ -410,6 +410,7 @@ class ColumnarMixin(IterDataMixin, ABC):
             take_struct_from_source: bool = False,
             count: Count = DEFAULT_SHOW_COUNT,
             columns: Columns = None,
+            comment: Optional[str] = None,
             allow_collect: bool = True,
             show_header: bool = True,
             struct_as_dataframe: bool = False,  # deprecated
@@ -422,6 +423,8 @@ class ColumnarMixin(IterDataMixin, ABC):
             display.display_paragraph(self.get_name(), level=1)
             for line in self.get_str_headers():
                 display.append(line)
+        if comment:
+            display.append(comment)
         example = self.example(*filters, **filter_kwargs, count=count)
         if hasattr(self, 'get_struct'):
             expected_struct = self.get_struct()
@@ -435,24 +438,31 @@ class ColumnarMixin(IterDataMixin, ABC):
         detected_struct = example.get_detected_struct(count)
         if expected_struct:
             expected_struct = fc.FlatStruct.convert_to_native(expected_struct)
-            assert isinstance(expected_struct, fc.FlatStruct) or hasattr(expected_struct, 'describe'), expected_struct
-            assert isinstance(detected_struct, fc.FlatStruct) or hasattr(expected_struct, 'describe'), expected_struct
+            assert isinstance(expected_struct, fc.FlatStruct) or hasattr(expected_struct, 'display_data_sheet'), expected_struct
+            assert isinstance(detected_struct, fc.FlatStruct) or hasattr(expected_struct, 'display_data_sheet'), detected_struct
             detected_struct.validate_about(expected_struct)
-            validation_message = '{} {}'.format(source_str, expected_struct.get_validation_message())
+            validation_message = f'{source_str} {expected_struct.get_validation_message()}'
             display.append(validation_message)
             expected_struct.display_data_sheet(example=example.get_one_item())
-        else:
+        elif detected_struct:
             validation_message = 'Expected struct not defined, displaying detected struct:'
             display.append(validation_message)
+            assert isinstance(detected_struct, fc.FlatStruct) or hasattr(expected_struct, 'display_data_sheet'), detected_struct
             detected_struct.display_data_sheet(example=example.get_one_item())
+        else:
+            validation_message = '[EMPTY] Struct is not detected.]'
+            display.append(validation_message)
         display.display_paragraph('Rows sample', level=3)
         if hasattr(self, 'display_data_sheet'):
             self.display_data_sheet()
         else:
             records = example.get_records()
-            if not Auto.is_defined(columns):
-                records = list(records)
-                if not isinstance(records[0], dict):
-                    records = [{'item': i} for i in records]
-                columns = records[0].keys()
-            return display.display_sheet(records, columns=columns)
+            if records:
+                if not Auto.is_defined(columns):
+                    records = list(records)
+                    if not isinstance(records[0], dict):
+                        records = [{'item': i} for i in records]
+                    columns = records[0].keys()
+                return display.display_sheet(records, columns=columns)
+            else:
+                display.display_paragraph('[EMPTY] Dataset is empty.')
