@@ -73,7 +73,6 @@ class ConnectorFormatMixin(StructMixin, LeafConnectorInterface, ABC):
             if not self.get_initial_struct():
                 self.set_initial_struct(struct, inplace=True)
         else:
-            # return self.make_new(struct=struct)
             copy = self.make_new()
             assert isinstance(copy, ConnectorFormatMixin)
             copy.set_struct(struct, inplace=True)
@@ -142,8 +141,10 @@ class ConnectorFormatMixin(StructMixin, LeafConnectorInterface, ABC):
             types: Union[dict, Auto, None] = AUTO,
             verbose: AutoBool = AUTO,  # deprecated argument
     ) -> Struct:
-        assert self.is_first_line_title(), 'Can detect struct by title row only if first line is a title row'
-        assert self.is_existing(), 'For detect struct file/object must be existing: {}'.format(self.get_path())
+        assert self.is_existing(), f'For detect struct file/object must be existing: {self.get_path()}'
+        if not self.is_first_line_title():
+            path = self.get_full_path()
+            raise AssertionError(f'Can detect struct by title row only if first line is a title row ({path})')
         verbose = Auto.delayed_acquire(verbose, self.is_verbose)
         title_row = self.get_title_row(close=True)
         struct = self._get_struct_detected_by_title_row(title_row, types=types)
@@ -169,7 +170,9 @@ class ConnectorFormatMixin(StructMixin, LeafConnectorInterface, ABC):
                 return None
         else:
             assert self.is_accessible(), 'For detect struct storage must be connected: {}'.format(self.get_storage())
-        assert self.is_existing(), 'For detect struct file/object must be existing: {}'.format(self.get_path())
+        if not self.is_existing():
+            path = self.get_full_path() if hasattr(self, 'get_full_path') else self.get_path()
+            raise FileNotFoundError(f'For detect struct file/object must be existing: {path}')
         declared_types = dict()
         if use_declared_types:
             declared_format = self.get_declared_format()
