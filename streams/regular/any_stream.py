@@ -105,19 +105,20 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
                 columns = sorted(columns)
             return columns
         elif item_type == ItemType.Row:
-            count = 0
+            max_row_len = 0
             for row in example.get_items():
-                row_len = len(row)
+                cur_row_len = len(row)
                 if get_max:
-                    if row_len > count:
-                        count = row_len
+                    if cur_row_len > max_row_len:
+                        max_row_len = cur_row_len
                 else:  # elif get_min:
-                    if row_len < count:
-                        count = row_len
-            return range(count)
+                    if cur_row_len < max_row_len:
+                        max_row_len = cur_row_len
+            return range(max_row_len)
+        elif item_type == ItemType.StructRow:  # deprecated
+            return self.get_struct().get_columns()
         else:
             raise NotImplementedError(item_type)
-
 
     def get_declared_columns(self) -> Optional[list]:
         struct = self.get_struct()
