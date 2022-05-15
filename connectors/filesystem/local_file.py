@@ -275,20 +275,13 @@ class LocalFile(LeafConnector, ActualizeMixin):
                 self.set_prev_modification_timestamp(timestamp)
             return timestamp
 
-    def get_first_line(self, close: bool = True) -> str:
-        assert self.is_existing(), 'For receive first line file/object must be existing: {}'.format(self)
-        content_format = self.get_content_format()
-        assert isinstance(content_format, ParsedFormat), 'For get first line content must be parsed: {}'.format(self)
-        assert content_format.get_defined().is_text(), 'For parse content format must be text: {}'.format(self)
-        assert not self.is_empty(), 'For get line file/object must be non-empty: {}'.format(self)
-        lines = self.get_lines(count=1, skip_first=False, check=False, verbose=False)
-        try:
-            first_line = next(lines)
-        except StopIteration:
-            raise ValueError('Received empty content: {}'.format(self))
-        if close:
-            self.close()
-        return first_line
+    def get_first_line(self, close: bool = True, skip_missing: bool = False, verbose: bool = False) -> str:
+        if not skip_missing:
+            content_format = self.get_content_format()
+            assert isinstance(content_format, ParsedFormat), f'For get first line content must be parsed: {self}'
+            assert content_format.get_defined().is_text(), f'For parse content format must be text: {self}'
+            assert not self.is_empty(), f'For get line file/object must be non-empty: {self}'
+        return super().get_first_line(close=close, skip_missing=skip_missing, verbose=verbose)
 
     def get_next_lines(self, count: Optional[int] = None, skip_first: bool = False, close: bool = False) -> Iterable:
         is_opened = self.is_opened()
@@ -314,10 +307,14 @@ class LocalFile(LeafConnector, ActualizeMixin):
     def get_lines(
             self,
             count: Optional[int] = None,
-            skip_first: bool = False, allow_reopen: bool = True, check: bool = True,
-            verbose: AutoBool = AUTO, message: AutoName = AUTO, step: AutoCount = AUTO,
+            skip_first: bool = False,
+            skip_missing: bool = True,
+            allow_reopen: bool = True,
+            verbose: AutoBool = AUTO,
+            message: AutoName = AUTO,
+            step: AutoCount = AUTO,
     ) -> Generator:
-        if check and not self.is_gzip():
+        if skip_missing and not self.is_gzip():
             assert not self.is_empty(), 'for get_lines() file must be non-empty: {}'.format(self)
         self.open(allow_reopen=allow_reopen)
         lines = self.get_next_lines(count=count, skip_first=skip_first, close=True)

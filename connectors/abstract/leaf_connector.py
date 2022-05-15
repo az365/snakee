@@ -4,7 +4,7 @@ from typing import Optional, Callable, Iterable, Generator, Union
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         ConnectorInterface, LeafConnectorInterface, StructInterface, ContentFormatInterface,
-        ItemType, StreamType, ContentType, Context, Stream, Name, Array,
+        ItemType, StreamType, ContentType, Context, Stream, Name, Count, Array,
         AUTO, Auto, AutoBool, AutoName, AutoCount, AutoConnector, AutoContext,
     )
     from base.functions.arguments import get_name, get_str_from_args_kwargs
@@ -17,7 +17,7 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         ConnectorInterface, LeafConnectorInterface, StructInterface, ContentFormatInterface,
-        ItemType, StreamType, ContentType, Context, Stream, Name, Array,
+        ItemType, StreamType, ContentType, Context, Stream, Name, Count, Array,
         AUTO, Auto, AutoBool, AutoName, AutoCount, AutoConnector, AutoContext,
     )
     from ...base.functions.arguments import get_name, get_str_from_args_kwargs
@@ -230,6 +230,39 @@ class LeafConnector(
         if must_exists:
             assert self.is_existing(), 'object {} must exists'.format(self.get_name())
         return self
+
+    def has_lines(self, skip_missing: bool = True, verbose: AutoBool = AUTO) -> bool:
+        if not self.is_accessible(verbose=verbose):
+            if skip_missing:
+                return False
+            else:
+                raise ValueError(f'For receive first line file/object must be existing: {self}')  # ConnectionError
+        if not self.is_existing():
+            if skip_missing:
+                return False
+            else:
+                raise FileNotFoundError(f'For receive first line file/object must be existing: {self}')
+        if self.is_empty():
+            if skip_missing:
+                return False
+            else:
+                raise ValueError(f'For receive first line file/object must be non-empty: {self}')
+        return True
+
+    def get_first_line(self, close: bool = True, skip_missing: bool = False, verbose: AutoBool = AUTO) -> Optional[str]:
+        if not self.has_lines(skip_missing=skip_missing, verbose=verbose):
+            return None
+        iter_lines = self.get_lines(count=1, skip_first=False, skip_missing=skip_missing, verbose=verbose)
+        try:
+            first_line = next(iter_lines)
+        except StopIteration:
+            if skip_missing:
+                first_line = None
+            else:
+                raise ValueError(f'Received empty content: {self}')
+        if close:
+            self.close()
+        return first_line
 
     def write_stream(self, stream: Stream, verbose: bool = True):
         return self.from_stream(stream, verbose=verbose)

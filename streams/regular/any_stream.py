@@ -5,8 +5,8 @@ try:  # Assume we're a submodule in a package.
     from interfaces import (
         Stream, LocalStream, RegularStreamInterface, Context, Connector, TmpFiles,
         StreamType, ItemType,
-        Name, Count, Struct, Columns, OptionalFields, Source, Array, ARRAY_TYPES,
-        AUTO, Auto, AutoCount,
+        Name, Count, Struct, Columns, OptionalFields, Source, Class, Array, ARRAY_TYPES,
+        AUTO, Auto, AutoBool, AutoCount,
     )
     from base.functions.arguments import update
     from utils.decorators import deprecated_with_alternative
@@ -18,8 +18,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...interfaces import (
         Stream, LocalStream, RegularStreamInterface, Context, Connector, TmpFiles,
         StreamType, ItemType,
-        Name, Count, Struct, Columns, OptionalFields, Source, Array, ARRAY_TYPES,
-        AUTO, Auto, AutoCount,
+        Name, Count, Struct, Columns, OptionalFields, Source, Class, Array, ARRAY_TYPES,
+        AUTO, Auto, AutoBool, AutoCount,
     )
     from ...base.functions.arguments import update
     from ...utils.decorators import deprecated_with_alternative
@@ -31,6 +31,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 Native = Union[LocalStream, RegularStreamInterface]
 Data = Union[Auto, Iterable]
 AutoStreamType = Union[Auto, StreamType]
+StreamItemType = Union[AutoStreamType, ItemType]
 
 DEFAULT_ANALYZE_COUNT = 100
 
@@ -128,6 +129,19 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
     def get_column_count(self) -> int:
         return len(self.get_columns())
 
+    def _get_expected_item_type(self, *columns, **expressions) -> ItemType:
+        input_item_type = self.get_item_type()
+        if input_item_type in (ItemType.Any, ItemType.Auto):
+            if columns and not expressions:
+                target_item_type = ItemType.Row
+            elif expressions and not columns:
+                target_item_type = ItemType.Record
+            else:
+                target_item_type = ItemType.Auto
+        else:
+            target_item_type = input_item_type
+        return target_item_type
+
     def filter(self, *functions) -> Native:
         def filter_function(item):
             for f in functions:
@@ -137,36 +151,19 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
         stream = super().filter(filter_function)
         return self._assume_native(stream)
 
-    def select(self, *columns, use_extended_method: bool = True, **expressions) -> Native:
-        if columns and not expressions:
-            target_stream_type = StreamType.RowStream
-            target_item_type = ItemType.Row
-            input_item_type = ItemType.Any
-        elif expressions and not columns:
-            target_stream_type = StreamType.RecordStream
-            target_item_type = ItemType.Record
-            input_item_type = ItemType.Any
-        else:
-            target_stream_type = StreamType.AnyStream
-            target_item_type = ItemType.Auto
-            input_item_type = ItemType.Auto
+    def select(self, *columns, use_extended_method: AutoBool = AUTO, **expressions) -> Native:
+        if Auto.is_auto(use_extended_method):
+            use_extended_method = self.get_stream_type() in (StreamType.StructStream, StreamType.RowStream)  # TMP
+        input_item_type = self.get_item_type()
+        target_item_type = self._get_expected_item_type(*columns, **expressions)
+        target_struct = sn.get_output_struct(*columns, **expressions)
         select_function = sn.get_selection_function(
-            *columns, **expressions, use_extended_method=use_extended_method,
-            target_item_type=target_item_type, input_item_type=input_item_type,
+            *columns, **expressions,
+            input_item_type=input_item_type, target_item_type=target_item_type,
             logger=self.get_logger(), selection_logger=self.get_selection_logger(),
+            use_extended_method=use_extended_method,
         )
-        return self.map_to_type(function=select_function, stream_type=target_stream_type)
-
-    def map_to_type(self, function: Callable, stream_type: AutoStreamType = AUTO) -> Native:
-        stream = super().map_to(function=function, stream_type=stream_type)
-        return self._assume_native(stream)
-
-    def map(self, function: Callable, to: AutoStreamType = AUTO) -> Native:
-        if Auto.is_defined(to):
-            self.get_logger().warning('to-argument for map() is deprecated, use map_to() instead')
-            stream = super().map_to(function, stream_type=to)
-        else:
-            stream = super().map(function)
+        stream = self.map_to_type(function=select_function, stream_type=target_item_type, struct=target_struct)
         return self._assume_native(stream)
 
     def flat_map(self, function: Callable, to: AutoStreamType = AUTO) -> Stream:
@@ -181,11 +178,30 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
         props = self._get_safe_meta(**props)
         return stream_class(items, **props)
 
-    @deprecated_with_alternative('map()')
-    def native_map(self, function: Callable) -> Native:
-        items = map(function, self.get_items())
-        stream = self.stream(items)
-        return self._assume_native(stream)
+    def _get_stream_class_by_type(self, item_type: StreamItemType) -> Class:
+        if Auto.is_defined(item_type):
+            stream_type = AUTO
+            if isinstance(item_type, str):
+                try:
+                    stream_type = StreamType(item_type)
+                    item_type = stream_type.get_item_type()
+                except ValueError:  # stream_type is not a valid StreamType
+                    item_type = ItemType(stream_type)
+            if Auto.is_auto(stream_type):
+                item_type_name = item_type.get_name()
+                stream_type_name = f'{item_type_name}Stream'
+                stream_type = StreamType(stream_type_name)
+            else:
+                stream_type = item_type
+            if isinstance(stream_type, StreamType) or hasattr(stream_type, 'get_stream_class'):
+                return stream_type.get_stream_class()
+            elif isclass(stream_type):
+                return stream_type
+            else:
+                msg = f'AnyStream.to_stream(data, stream_type): expected ItemType or StreamType, got {stream_type}'
+                raise TypeError(msg)
+        else:
+            return self.__class__
 
     def apply_to_data(
             self,
@@ -300,19 +316,12 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
     def to_stream(
             self,
             data: Data = AUTO,
-            stream_type: AutoStreamType = AUTO,
+            stream_type: StreamItemType = AUTO,
             ex: OptionalFields = None,
             **kwargs
     ) -> Stream:
         stream_type = Auto.delayed_acquire(stream_type, self.get_stream_type)
-        if isinstance(stream_type, str):
-            stream_class = StreamType(stream_type).get_class()
-        elif isclass(stream_type):
-            stream_class = stream_type
-        elif isinstance(stream_type, StreamType) or hasattr(stream_type, 'get_class'):
-            stream_class = stream_type.get_class()
-        else:
-            raise TypeError('AnyStream.to_stream(data, stream_type): expected StreamType, got {}'.format(stream_type))
+        stream_class = self._get_stream_class_by_type(stream_type)
         if not Auto.is_defined(data):
             if hasattr(self, 'get_items_of_type'):
                 item_type = stream_class.get_item_type()

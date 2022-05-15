@@ -28,7 +28,7 @@ class RegularStreamInterface(IterableStreamInterface, ABC):
         return ItemType.Any
 
     @abstractmethod
-    def map_to(self, function: Callable, stream_type: StreamType) -> Stream:
+    def map_to_type(self, function: Callable, stream_type: StreamType, **kwargs) -> Stream:
         pass
 
     @abstractmethod

@@ -62,15 +62,6 @@ class RowStream(AnyStream, ColumnarMixin):
     def get_item_type() -> ItemType:
         return ItemType.Row
 
-    def select(self, *columns, use_extended_method: bool = True) -> Native:
-        select_function = sn.get_selection_function(
-            *columns,
-            use_extended_method=use_extended_method,
-            target_item_type=ItemType.Row, input_item_type=ItemType.Row,
-            logger=self.get_logger(), selection_logger=self.get_selection_logger(),
-        )
-        return self.native_map(select_function)
-
     def sorted_group_by(
             self,
             *keys,

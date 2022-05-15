@@ -268,6 +268,8 @@ class SingleFieldDescription(AbstractDescription, ABC):
             target_item_type=target_item_type, input_item_type=input_item_type,
             skip_errors=skip_errors, logger=logger,
         )
+        if isinstance(field, Callable):
+            field = get_name(field, or_callable=False)
         assert isinstance(field, (FieldName, FieldNo, FieldInterface)), 'got {} as {}'.format(field, type(field))
         self._target = field
         self._default = default

@@ -79,6 +79,9 @@ class StreamType(ClassType):
         if hasattr(stream_class, 'get_item_type'):
             return stream_class.get_item_type()
 
+    def get_stream_class(self):
+        return self.get_class()
+
     def isinstance(self, stream, by_type: bool = True) -> bool:
         if by_type and hasattr(stream, 'get_stream_type'):
             return stream.get_stream_type() == self

@@ -3,7 +3,7 @@ from typing import Optional, Callable, Iterable, Union
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         LocalStreamInterface, ContextInterface, ConnectorInterface, TemporaryFilesMaskInterface,
-        Context, Connector, ContentType, StreamType, JoinType, How,
+        Context, Connector, ContentType, ItemType, StreamType, JoinType, How,
         Array, Count, FieldID, UniKey,
         AUTO, Auto, AutoBool, AutoCount, AutoName, OptionalFields,
     )
@@ -16,7 +16,7 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         LocalStreamInterface, ContextInterface, ConnectorInterface, TemporaryFilesMaskInterface,
-        Context, Connector, ContentType, StreamType, JoinType, How,
+        Context, Connector, ContentType, ItemType, StreamType, JoinType, How,
         Array, Count, FieldID, UniKey,
         AUTO, Auto, AutoBool, AutoCount, AutoName, OptionalFields,
     )
@@ -29,7 +29,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 
 Native = LocalStreamInterface
 TmpMask = Union[TemporaryFilesMaskInterface, Auto]
-OptStreamType = Union[StreamType, Auto]
+StreamItemType = Union[StreamType, ItemType, Auto]
 
 
 class LocalStream(IterableStream, LocalStreamInterface):
@@ -155,7 +155,7 @@ class LocalStream(IterableStream, LocalStreamInterface):
             logger = self.get_logger()
             logger.warning(msg=message, stacklevel=2)
             if not skip_error:
-                raise ValueError(message)
+                raise AssertionError(message)
         return self
 
     def tail(self, count: int = 10, inplace: bool = False) -> Optional[Native]:
@@ -184,25 +184,19 @@ class LocalStream(IterableStream, LocalStreamInterface):
     def get_tee_items(self, mem_copy: bool = False) -> Iterable:
         return self._get_tee_items(mem_copy=mem_copy)
 
-    def map_to(self, function: Callable, stream_type: OptStreamType = AUTO) -> Native:
+    def map_to_type(self, function: Callable, stream_type: StreamItemType = AUTO, **kwargs) -> Native:
         stream_type = Auto.acquire(stream_type, self.get_stream_type, delayed=True)
-        stream = self.stream(
-            map(function, self.get_iter()),
-            stream_type=stream_type,
-        )
+        data = map(function, self.get_iter())
+        stream = self.stream(data, stream_type=stream_type, **kwargs)
         stream = self._assume_native(stream)
         if self.is_in_memory():
             stream = stream.to_memory()
         return stream
 
-    def map(self, function: Callable, to: OptStreamType = AUTO) -> Native:
-        if Auto.is_defined(to):
-            self.get_logger().warning('to-argument for map() is deprecated, use map_to() instead')
-            stream = self.map_to(function, stream_type=to)
-        else:
-            stream = super().map(function)
+    def map(self, function: Callable, inplace: bool = False) -> Native:
+        stream = super().map(function, inplace=inplace) or self
         if self.is_in_memory() and hasattr(stream, 'to_memory'):
-            stream = stream.to_memory()
+            stream = stream.collect(inplace=inplace) or self
         return self._assume_native(stream)
 
     def filter(self, function: Callable, inplace: bool = False) -> Optional[Native]:
