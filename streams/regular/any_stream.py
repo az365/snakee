@@ -151,25 +151,20 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
         stream = super().filter(filter_function)
         return self._assume_native(stream)
 
-    def select(self, *columns, use_extended_method: bool = True, **expressions) -> Native:
-        if columns and not expressions:
-            target_stream_type = StreamType.RowStream
-            target_item_type = ItemType.Row
-            input_item_type = ItemType.Any
-        elif expressions and not columns:
-            target_stream_type = StreamType.RecordStream
-            target_item_type = ItemType.Record
-            input_item_type = ItemType.Any
-        else:
-            target_stream_type = StreamType.AnyStream
-            target_item_type = ItemType.Auto
-            input_item_type = ItemType.Auto
+    def select(self, *columns, use_extended_method: AutoBool = AUTO, **expressions) -> Native:
+        if Auto.is_auto(use_extended_method):
+            use_extended_method = self.get_stream_type() in (StreamType.StructStream, StreamType.RowStream)  # TMP
+        input_item_type = self.get_item_type()
+        target_item_type = self._get_expected_item_type(*columns, **expressions)
+        target_struct = sn.get_output_struct(*columns, **expressions)
         select_function = sn.get_selection_function(
-            *columns, **expressions, use_extended_method=use_extended_method,
-            target_item_type=target_item_type, input_item_type=input_item_type,
+            *columns, **expressions,
+            input_item_type=input_item_type, target_item_type=target_item_type,
             logger=self.get_logger(), selection_logger=self.get_selection_logger(),
+            use_extended_method=use_extended_method,
         )
-        return self.map_to_type(function=select_function, stream_type=target_stream_type)
+        stream = self.map_to_type(function=select_function, stream_type=target_item_type, struct=target_struct)
+        return self._assume_native(stream)
 
     def flat_map(self, function: Callable, to: AutoStreamType = AUTO) -> Stream:
         if Auto.is_defined(to):

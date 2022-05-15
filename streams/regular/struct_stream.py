@@ -252,17 +252,6 @@ class StructStream(RowStream, StructMixin, ConvertMixin):
     def skip(self, count: int = 1, inplace: bool = False) -> Native:
         return super().skip(count, inplace=inplace).update_meta(struct=self.get_struct())
 
-    def select(self, *args, **kwargs):
-        selection_description = sn.SelectionDescription.with_expressions(
-            fields=get_names(args, or_callable=True), expressions=kwargs,
-            input_item_type=self.get_item_type(), target_item_type=self.get_item_type(),
-            input_struct=self.get_struct(),
-            logger=self.get_logger(), selection_logger=self.get_selection_logger(),
-        )
-        selection_function = selection_description.get_mapper()
-        output_struct = selection_description.get_output_struct()
-        return self.map_to_type(function=selection_function, struct=output_struct)
-
     def filter(self, *fields, **expressions) -> Native:
         primitives = (str, int, float, bool)
         expressions_list = [(k, fs.equal(v) if isinstance(v, primitives) else v) for k, v in expressions.items()]

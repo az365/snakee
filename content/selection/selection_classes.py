@@ -77,6 +77,7 @@ def get_selection_function(
         *fields,
         target_item_type=ItemType.Auto,
         input_item_type=ItemType.Auto,
+        input_struct=None,
         logger=None,
         selection_logger=AUTO,
         use_extended_method=True,
@@ -84,25 +85,42 @@ def get_selection_function(
 ):
     if use_extended_method:
         transform = SelectionDescription.with_expressions(
-            fields=list(fields),
-            expressions=expressions,
-            target_item_type=target_item_type,
-            input_item_type=input_item_type,
-            logger=logger,
-            selection_logger=selection_logger,
+            fields=list(fields), expressions=expressions,
+            input_item_type=input_item_type, target_item_type=target_item_type,
+            input_struct=input_struct,
+            logger=logger, selection_logger=selection_logger,
         )
         return transform.get_mapper(logger=selection_logger)
     else:
         fields = [get_selection_tuple(f) for f in fields]
         expressions = get_compatible_expression_tuples(expressions)
         return get_selection_mapper(
-            *fields,
+            *fields, **expressions,
+            input_item_type=input_item_type, target_item_type=target_item_type,
+            logger=logger, selection_logger=selection_logger,
+        )
+
+
+def get_output_struct(
+        *fields,
+        target_item_type=ItemType.Auto,
+        input_item_type=ItemType.Auto,
+        input_struct=None,
+        logger=None,
+        selection_logger=AUTO,
+        **expressions
+):
+    if input_struct:
+        transform = SelectionDescription.with_expressions(
+            fields=list(fields),
+            expressions=expressions,
             target_item_type=target_item_type,
             input_item_type=input_item_type,
+            input_struct=input_struct,
             logger=logger,
             selection_logger=selection_logger,
-            **expressions,
         )
+        return transform.get_output_struct()
 
 
 @deprecated
