@@ -71,14 +71,6 @@ class KeyValueStream(RowStream, PairStreamInterface):
         values = self._get_mapped_items(self._get_value)
         return list(values) if self.is_in_memory() else values
 
-    def map(self, function: Callable, to: Union[StreamType, Auto] = AUTO) -> Native:
-        if Auto.is_defined(to):
-            self.log('to-argument for map() is deprecated, use map_to_type() method instead', level=30)
-            stream = super().map_to_type(function, stream_type=to)
-        else:
-            stream = super().map(function)
-        return self._assume_native(stream)
-
     def map_keys(self, func: Callable) -> Native:
         return self.map(lambda i: (func(i[0]), i[1]))
 

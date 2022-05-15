@@ -23,6 +23,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 Native = RegularStream
 AnyStream = Stream
 AutoStreamType = Union[Auto, StreamType]
+StreamItemType = Union[StreamType, ItemType, Auto]
 OptionalArguments = Optional[Union[str, Iterable]]
 
 
@@ -71,7 +72,7 @@ class ConvertMixin(IterableStream, ABC):
     def stream(
             self,
             data: Iterable,
-            stream_type: AutoStreamType = AUTO,
+            stream_type: StreamItemType = AUTO,
             ex: OptionalArguments = None,
             save_name: bool = True,
             save_count: bool = True,
@@ -79,7 +80,16 @@ class ConvertMixin(IterableStream, ABC):
     ) -> Stream:
         if Auto.is_defined(stream_type):
             if isinstance(stream_type, str):
-                stream_class = StreamType(stream_type).get_class()
+                try:
+                    stream_type = StreamType(stream_type)
+                except ValueError:  # stream_type is not a valid StreamType
+                    stream_type = ItemType(stream_type)
+            if isinstance(stream_type, ItemType):
+                item_type_name = stream_type.get_name()
+                stream_type_name = f'{item_type_name}Stream'
+                stream_type = StreamType(stream_type_name)
+            if isinstance(stream_type, StreamType) or hasattr(stream_type, 'get_stream_class'):
+                stream_class = stream_type.get_stream_class()
             else:
                 stream_class = stream_type.get_class()
             meta = self.get_compatible_meta(stream_class, ex=ex)
@@ -238,6 +248,7 @@ class ConvertMixin(IterableStream, ABC):
         else:
             return self.to_key_value_stream(*args, **kwargs)
 
+    # @deprecated
     def to_stream(self, stream_type: AutoStreamType = AUTO, *args, **kwargs) -> Stream:
         stream_type = Auto.acquire(stream_type, self.get_stream_type())
         method_suffix = StreamType.of(stream_type).get_method_suffix()

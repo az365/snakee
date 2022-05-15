@@ -69,7 +69,7 @@ class RowStream(AnyStream, ColumnarMixin):
             target_item_type=ItemType.Row, input_item_type=ItemType.Row,
             logger=self.get_logger(), selection_logger=self.get_selection_logger(),
         )
-        return self.native_map(select_function)
+        return self.map(select_function)
 
     def sorted_group_by(
             self,
