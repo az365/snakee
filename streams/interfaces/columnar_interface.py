@@ -110,10 +110,6 @@ class ColumnarInterface(RegularStreamInterface, ABC):
         pass
 
     @abstractmethod
-    def map_to(self, function: Callable, stream_type: StreamType) -> Stream:
-        pass
-
-    @abstractmethod
     def map(self, function: Callable) -> Native:
         """Apply function to each item in stream.
 

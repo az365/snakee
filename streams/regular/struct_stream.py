@@ -110,7 +110,7 @@ def apply_struct_to_row(row, struct: OptStruct, skip_bad_values=False, logger=No
             row[c] = new_value
         return row
     else:
-        raise TypeError(f'Expected struct as Struct of Iterable, got {struct}')
+        raise TypeError(f'Expected struct as Struct or Iterable, got {struct}')
 
 
 class StructStream(RowStream, StructMixin, ConvertMixin):
@@ -249,14 +249,6 @@ class StructStream(RowStream, StructMixin, ConvertMixin):
                 msg = 'StructStream.get_items_of_type(item_type={}): Expected items as Row or StructRow, got {} as {}'
                 raise TypeError(msg.format(item_type, i, type(i)))
 
-    def struct_map(self, function: Callable, struct: Struct):
-        return self.__class__(
-            map(function, self.get_items()),
-            count=self.get_count(),
-            less_than=self.get_count() or self.get_estimated_count(),
-            struct=struct,
-        )
-
     def skip(self, count: int = 1, inplace: bool = False) -> Native:
         return super().skip(count, inplace=inplace).update_meta(struct=self.get_struct())
 
@@ -269,7 +261,7 @@ class StructStream(RowStream, StructMixin, ConvertMixin):
         )
         selection_function = selection_description.get_mapper()
         output_struct = selection_description.get_output_struct()
-        return self.struct_map(function=selection_function, struct=output_struct)
+        return self.map_to_type(function=selection_function, struct=output_struct)
 
     def filter(self, *fields, **expressions) -> Native:
         primitives = (str, int, float, bool)

@@ -157,7 +157,7 @@ def stat_by_cat(data: Data, cat_fields, hist_fields):
             ).get_items()
         ),
     ).ungroup_values(
-    ).map_to(
+    ).map_to_type(
         lambda i: _merge_two_records(*i),
         stream_type=StreamType.RecordStream,
     )
