@@ -300,7 +300,7 @@ class SnakeeContext(bs.AbstractNamed, ContextInterface):
             if set_existing_folders >= set_required_folders:
                 return current_folder
             else:
-                current_folder = current_folder.get_parent_folder
+                current_folder = current_folder.get_parent_folder()
 
     def get_tmp_folder(
             self,

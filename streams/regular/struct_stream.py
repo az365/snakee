@@ -128,7 +128,6 @@ class StructStream(RowStream, StructMixin, ConvertMixin):
             tmp_files: TmpFiles = AUTO,
             check: bool = True,
     ):
-        self._struct = struct or list()
         if check:
             data = self._get_validated_items(data, struct=struct)
         super().__init__(
