@@ -158,16 +158,32 @@ class LocalFile(LeafConnector, ActualizeMixin):
             return self.get_name()
         else:
             folder_path = self.get_folder().get_path()
-            if '*' in folder_path:
+            if '*' in folder_path:  # isinstance(self.get_parent(), LocalMask):
                 folder_path = folder_path.replace('*', '{}')
-            if is_formatter(folder_path):
+            if is_formatter(folder_path):  # isinstance(self.get_parent(), LocalMask):
                 return folder_path.format(self.get_name())
             elif folder_path.endswith(self.get_path_delimiter()):
                 return folder_path + self.get_name()
             elif folder_path:
-                return '{}{}{}'.format(folder_path, self.get_path_delimiter(), self.get_name())
+                return f'{folder_path}{self.get_path_delimiter()}{self.get_name()}'
             else:
                 return self.get_name()
+
+    def get_full_path(self) -> str:
+        folder = self.get_folder()
+        if not folder:
+            folder = self.get_storage()  # job_folder
+        folder_path = folder.get_full_path()
+        if '*' in folder_path:  # isinstance(self.get_parent(), LocalMask):
+            folder_path = folder_path.replace('*', '{}')
+        if is_formatter(folder_path):  # isinstance(self.get_parent(), LocalMask):
+            return folder_path.format(self.get_name())
+        elif folder_path.endswith(self.get_path_delimiter()):
+            return folder_path + self.get_name()
+        elif folder_path:
+            return f'{folder_path}{self.get_path_delimiter()}{self.get_name()}'
+        else:
+            return self.get_name()
 
     def get_list_path(self) -> Iterable:
         return self.get_path().split(self.get_path_delimiter())

@@ -157,7 +157,7 @@ class StructRow(SimpleDataWrapper, StructMixin, StructRowInterface):
         return structured_fields
 
     def __iter__(self):
-        return self.get_data()
+        yield from self.get_data()
 
     def __len__(self):
         return self.get_struct().get_column_count()

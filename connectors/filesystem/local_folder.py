@@ -1,4 +1,4 @@
-from typing import Optional, Iterable, Union
+from typing import Optional, Iterable, Generator, Union
 import os
 
 try:  # Assume we're a submodule in a package.
@@ -70,6 +70,7 @@ class LocalFolder(HierarchicFolder):
             try:
                 conn_type = ConnType(type_name)
             except ValueError:
+                raise DeprecationWarning('FolderType is deprecated, use ConnType instead')
                 conn_type = FolderType(type_name)
         child_class = conn_type.get_class()
         return child_class
@@ -95,7 +96,7 @@ class LocalFolder(HierarchicFolder):
             if supposed_type:
                 return supposed_type.get_class()
 
-    def get_files(self) -> Iterable:
+    def get_files(self) -> Generator:
         for item in self.get_items():
             if hasattr(item, 'is_leaf'):
                 if item.is_leaf():
@@ -133,13 +134,16 @@ class LocalFolder(HierarchicFolder):
 
     def folder(self, name: str, folder_type: Union[ConnType, FolderType, Auto] = AUTO, **kwargs) -> ConnectorInterface:
         if not arg.is_defined(folder_type):
-            folder_type = self.get_type_by_name(name)
+            folder_type = self.get_type_by_name(name)  # LocalFolder or LocalMask
             if folder_type == ConnType.LocalFile:
                 folder_type = ConnType.LocalFolder
-        folder_class = ConnType(folder_type).get_class()
-        folder_obj = folder_class(name, parent=self, **kwargs)
-        self.add_folder(folder_obj)
-        return folder_obj
+        if name == '..':
+            return self.get_parent_folder(**kwargs)
+        else:
+            folder_class = ConnType(folder_type).get_class()
+            folder_obj = folder_class(name, parent=self, **kwargs)
+            self.add_folder(folder_obj)
+            return folder_obj
 
     def mask(self, mask: str) -> ConnectorInterface:
         folder_type = ConnType.LocalMask
@@ -171,7 +175,7 @@ class LocalFolder(HierarchicFolder):
                 child.set_suffix(suffix, inplace=True)
         return self
 
-    def get_links(self) -> Iterable:
+    def get_links(self) -> Generator:
         for item in self.get_files():
             yield from item.get_links()
 
@@ -191,7 +195,29 @@ class LocalFolder(HierarchicFolder):
         if hasattr(parent, 'is_folder'):
             return parent.is_folder()
 
-    def is_relative_path(self) -> bool:  # just path this object
+    def get_parent_folder(self, skip_missing: bool = False) -> Connector:
+        if self.has_parent_folder():
+            return self.get_parent()
+        else:
+            current_folder_path = self.get_full_path()
+            default_path_delimiter = self.get_path_delimiter()
+            alternative_path_delimiters = '\\',
+            for cur_path_delimiter in alternative_path_delimiters:
+                current_folder_path = current_folder_path.replace(cur_path_delimiter, default_path_delimiter)
+            path_parts = current_folder_path.split(default_path_delimiter)
+            parent_parts = path_parts[:-1]
+            if parent_parts:
+                parent_path = default_path_delimiter.join(parent_parts)
+                parent_folder = self.get_storage().folder(parent_path)
+                return parent_folder
+            else:
+                msg = f'parent for {current_folder_path} not found'
+                if skip_missing:
+                    return self.log(msg, 30)
+                else:
+                    raise FileNotFoundError(msg)
+
+    def is_relative_path(self) -> bool:
         return self._path_is_relative
 
     def has_relative_path(self) -> bool:  # path including parent folder
@@ -234,16 +260,22 @@ class LocalFolder(HierarchicFolder):
         else:
             return os.listdir(self.get_path())
 
-    def get_existing_file_names(self) -> Iterable:
+    def get_existing_file_names(self) -> Generator:
         for name in self.list_existing_names():
             path = self.get_file_path(name)
             if os.path.isfile(path):
                 yield name
 
+    def get_existing_folder_names(self) -> Generator:
+        for name in self.list_existing_names():
+            path = self.get_file_path(name)
+            if os.path.isdir(path):
+                yield name
+
     def list_existing_file_names(self) -> Iterable:
         return list(self.get_existing_file_names())
 
-    def all_existing_files(self, **kwargs) -> Iterable:
+    def all_existing_files(self, **kwargs) -> Generator:
         for name in self.list_existing_file_names():
             children = self.get_children()
             if name in children:

@@ -19,7 +19,8 @@ def test_local_file():
     file_name = 'test_file_tmp.tsv'
     data = [{'a': 1}, {'a': 2}]
     cx = SnakeeContext()
-    test_folder = cx.conn(cx.ct.ConnType.LocalFolder, name='test_tmp', path='test_tmp')
+    job_folder = cx.find_job_folder(required_folders=['test_tmp'])
+    test_folder = job_folder.folder('test_tmp')
     test_file = test_folder.file(file_name, struct=['a']).set_types(a=int)
     stream = cx.sm.RecordStream(data).to_file(test_file)
     received = stream.get_list()
@@ -50,8 +51,10 @@ def test_take_credentials_from_file():
 
 def test_job():
     cx = SnakeeContext()
-    src = cx.get_job_folder().file('test_file_tmp.tsv')
-    dst = cx.get_job_folder().file('test_dst_tmp.tsv', struct=src.get_struct())
+    job_folder = cx.find_job_folder(required_folders=['test_tmp'])
+    test_folder = job_folder.folder('test_tmp')
+    src = test_folder.file('test_file_tmp.tsv')
+    dst = test_folder.file('test_dst_tmp.tsv', struct=src.get_struct())
     job = cx.ct.Job('test_job')
     op_name = 'test_operation'
     operation = cx.ct.TwinSync(name=op_name, src=src, dst=dst, procedure=lambda s: s)

@@ -52,7 +52,7 @@ def deprecated(func):
         try:
             return func(*args, **kwargs)
         except TypeError as e:
-            raise TypeError('{}: {}'.format(func, e))
+            raise TypeError(f'{get_name(func, or_callable=False)}: {e}')
     return new_func
 
 
@@ -85,7 +85,7 @@ class WrappedFunction(Callable, ABC):
     def __init__(self, py_func: Callable, name: Union[str, Auto] = AUTO, *args, **kwargs):
         self._py_func = py_func
         if not Auto.is_defined(name):
-            name = get_name(py_func)
+            name = get_name(py_func, or_callable=False)
         self._name = name
         self._args = args
         self._kwargs = kwargs

@@ -110,7 +110,7 @@ def apply_struct_to_row(row, struct: OptStruct, skip_bad_values=False, logger=No
             row[c] = new_value
         return row
     else:
-        raise TypeError
+        raise TypeError(f'Expected struct as Struct of Iterable, got {struct}')
 
 
 class StructStream(RowStream, StructMixin, ConvertMixin):
@@ -128,11 +128,11 @@ class StructStream(RowStream, StructMixin, ConvertMixin):
             tmp_files: TmpFiles = AUTO,
             check: bool = True,
     ):
-        self._struct = struct or list()
         if check:
             data = self._get_validated_items(data, struct=struct)
         super().__init__(
             data=data, check=False,
+            struct=struct,
             name=name, caption=caption,
             count=count, less_than=less_than,
             source=source, context=context,
@@ -182,10 +182,17 @@ class StructStream(RowStream, StructMixin, ConvertMixin):
             struct = self.get_struct()
         return check_rows(items, struct, skip_errors)
 
-    def get_struct_rows(self, rows, struct=AUTO, skip_bad_rows=False, skip_bad_values=False, verbose=True):
+    def get_struct_rows(
+            self,
+            rows: Iterable,
+            struct: Union[Struct, Auto] = AUTO,
+            skip_bad_rows: bool = False,
+            skip_bad_values: bool = False,
+            verbose: bool = True,
+    ) -> Generator:
         struct = Auto.delayed_acquire(struct, self.get_struct)
-        if isinstance(struct, StructInterface):  # actual approach
-            converters = struct.get_converters('str', 'py')
+        if isinstance(struct, StructInterface) or hasattr(struct, 'get_converters'):  # actual approach
+            converters = struct.get_converters(src='str', dst='py')
             for r in rows:
                 converted_row = list()
                 for value, converter in zip(r, converters):

@@ -28,7 +28,7 @@ Native = Union[Stream, LeafConnectorInterface]
 class StreamableMixin(ColumnarMixin, ABC):
     @staticmethod
     def get_default_item_type() -> ItemType:
-        """Returns ItemType expected while parsing this file/content"""
+        """Returns ItemType expected while parsing this file/content."""
         return ItemType.Any
 
     @classmethod
@@ -170,8 +170,11 @@ class StreamableMixin(ColumnarMixin, ABC):
     ) -> Stream:
         stream_type = Auto.delayed_acquire(stream_type, self._get_stream_type)
         item_type = self._get_item_type(stream_type)
-        if item_type == ItemType.StructRow and hasattr(self, 'get_struct') and 'struct' not in kwargs:
-            kwargs['struct'] = self.get_struct()
+        if 'struct' not in kwargs:
+            if isinstance(self, LeafConnectorInterface) or hasattr(self, 'get_content_format'):
+                content_format = self.get_content_format()
+                if hasattr(content_format, 'get_struct'):  # isinstance(content_format, ColumnarFormat):
+                    kwargs['struct'] = content_format.get_struct()
         data = kwargs.pop('data', None)
         if not Auto.is_defined(data):
             data = self._get_items_of_type(item_type, step=step, verbose=verbose, message=message)

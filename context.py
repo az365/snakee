@@ -8,7 +8,7 @@ try:  # Assume we're a submodule in a package.
         TemporaryLocationInterface, LoggerInterface, ExtendedLoggerInterface, SelectionLoggerInterface, LoggingLevel,
         AUTO, Auto, Name, ARRAY_TYPES,
     )
-    from base.functions.arguments import get_generated_name
+    from base.functions.arguments import get_names, get_generated_name
     from base import base_classes as bs
     from streams import stream_classes as sm
     from connectors import connector_classes as ct
@@ -21,7 +21,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         TemporaryLocationInterface, LoggerInterface, ExtendedLoggerInterface, SelectionLoggerInterface, LoggingLevel,
         AUTO, Auto, Name, ARRAY_TYPES,
     )
-    from .base.functions.arguments import get_generated_name
+    from .base.functions.arguments import get_names, get_generated_name
     from .base import base_classes as bs
     from .streams import stream_classes as sm
     from .connectors import connector_classes as ct
@@ -290,6 +290,17 @@ class SnakeeContext(bs.AbstractNamed, ContextInterface):
             job_folder_obj = ct.LocalFolder(job_folder_path, parent=self.get_local_storage(), context=self)
             self.conn_instances[instance_name] = job_folder_obj
             return job_folder_obj
+
+    def find_job_folder(self, required_folders: Iterable) -> Connector:
+        set_required_folders = set(get_names(required_folders))
+        current_folder = self.get_job_folder()
+        while True:
+            assert isinstance(current_folder, ct.LocalFolder) or hasattr(current_folder, 'get_existing_folder_names')
+            set_existing_folders = set(current_folder.get_existing_folder_names())
+            if set_existing_folders >= set_required_folders:
+                return current_folder
+            else:
+                current_folder = current_folder.get_parent_folder()
 
     def get_tmp_folder(
             self,
