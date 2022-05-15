@@ -1,15 +1,17 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Union
+from typing import Optional, Iterable, Iterator, Union
 
 try:  # Assume we're a submodule in a package.
     from base.classes.typing import AUTO, Auto, AutoBool, AutoCount, Array
     from streams.interfaces.abstract_stream_interface import StreamInterface
+    from content.items.item_type import ItemType
     from content.format.content_type import ContentType
     from content.format.format_interface import ContentFormatInterface
     from connectors.interfaces.connector_interface import ConnectorInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.classes.typing import AUTO, Auto, AutoBool, AutoCount, Array
     from ...streams.interfaces.abstract_stream_interface import StreamInterface
+    from ...content.items.item_type import ItemType
     from ...content.format.content_type import ContentType
     from ...content.format.format_interface import ContentFormatInterface
     from .connector_interface import ConnectorInterface
@@ -122,9 +124,31 @@ class LeafConnectorInterface(ConnectorInterface, StreamInterface, ABC):
         pass
 
     @abstractmethod
-    def get_first_line(self, close: bool = True) -> Optional[str]:
+    def get_first_line(self, close: bool = True, skip_missing: bool = False, verbose: AutoBool = AUTO) -> Optional[str]:
         """Returns raw, unparsed first line of stored data object.
         """
+        pass
+
+    @abstractmethod
+    def get_lines(
+            self,
+            count: Optional[int] = None,
+            skip_first: bool = False,
+            skip_missing: bool = False,
+            allow_reopen: bool = True,
+            verbose: AutoBool = AUTO,
+            message: Optional[str] = None,
+            step: AutoCount = AUTO,
+    ) -> Iterator[str]:
+        pass
+
+    def get_items_of_type(
+            self,
+            item_type: Union[ItemType, Auto],
+            verbose: AutoBool = AUTO,
+            message: Union[Auto, str] = AUTO,
+            step: AutoCount = AUTO,
+    ) -> Iterable:
         pass
 
     @abstractmethod

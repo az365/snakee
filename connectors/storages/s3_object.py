@@ -76,16 +76,6 @@ class S3Object(LeafConnector):
     def get_body(self):
         return self.get_object_response()['Body']
 
-    def get_first_line(self, close: bool = True) -> Optional[str]:
-        iter_lines = self.get_lines()
-        try:
-            first_line = next(iter_lines)
-        except StopIteration:
-            first_line = None
-        if close:
-            self.close()
-        return first_line
-
     def get_next_lines(self, count: AutoCount = None) -> Iterator[str]:
         prev_line = ''
         for b, buffer in enumerate(self.get_body()):
@@ -109,10 +99,15 @@ class S3Object(LeafConnector):
             self,
             count: Optional[int] = None,
             skip_first: bool = False,
+            skip_missing: bool = False,
+            allow_reopen: bool = True,
             verbose: AutoBool = AUTO,
             message: AutoName = AUTO,
             step: AutoCount = AUTO,
     ) -> Iterator[str]:
+        if skip_missing:
+            if not self.is_existing():
+                return None
         lines = self.get_next_lines()
         verbose = Auto.acquire(verbose, self.is_verbose())
         if verbose or Auto.is_defined(message):

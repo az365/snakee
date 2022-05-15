@@ -1,4 +1,4 @@
-from typing import Optional, Iterable, Union
+from typing import Optional, Iterable, Iterator, Union
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
@@ -165,7 +165,7 @@ class Table(LeafConnector):
             else:
                 struct = FlatStruct.get_struct_detected_by_title_row(struct)
         elif struct == AUTO:
-            struct = self.get_struct_from_database()
+            struct = self._get_struct_from_source()
         else:
             message = 'struct must be StructInterface or tuple with fields_description (got {})'.format(type(struct))
             raise TypeError(message)
@@ -190,7 +190,10 @@ class Table(LeafConnector):
     def _get_struct_from_source(self, types: Union[dict, Auto, None] = AUTO, verbose: bool = False):
         return self.get_struct_from_database(types=types, verbose=verbose)
 
-    def get_first_line(self, close: bool = True, verbose: bool = True) -> Optional[str]:
+    def get_first_line(self, close: bool = True, skip_missing: bool = False, verbose: bool = True) -> Optional[str]:
+        if skip_missing:
+            if not self.is_existing():
+                return None
         iter_lines = self.execute_select(fields='*', count=1, verbose=verbose)
         lines = list(iter_lines)
         if close:
@@ -201,6 +204,22 @@ class Table(LeafConnector):
     def take(self, count: Union[int, bool] = 1, inplace: bool = False) -> Stream:
         iter_lines = self.execute_select(fields='*', count=count, verbose=self.is_verbose())
         return self.stream(iter_lines, count=count)
+
+    def get_lines(
+            self,
+            count: Optional[int] = None,
+            skip_first: bool = False,
+            skip_missing: bool = False,
+            allow_reopen: bool = True,
+            verbose: AutoBool = AUTO,
+            message: AutoName = AUTO,
+            step: AutoCount = AUTO,
+    ) -> Iterator[str]:
+        if skip_missing:
+            if not self.is_existing():
+                yield from []
+        yield from self.execute_select(fields='*', count=count, verbose=verbose)
+        self.close()
 
     def get_rows(self, verbose: AutoBool = AUTO) -> Iterable:
         database = self.get_database()
@@ -223,16 +242,15 @@ class Table(LeafConnector):
         rows = self.get_rows(verbose=verbose)
         if item_type == ItemType.Row:
             items = rows
+        elif item_type == ItemType.StructRow:
+            row_class = ItemType.StructRow.get_class()
+            items = map(lambda i: row_class(i, self.get_struct()), rows)
+        elif item_type == ItemType.Record:
+            items = map(lambda r: {c: v for c, v in zip(self.get_columns(), r)}, rows)
+        elif item_type == ItemType.Line:
+            items = map(lambda r: '\t'.join([str(v) for v in r]), rows)
         else:
-            if item_type == ItemType.StructRow:
-                row_class = ItemType.StructRow.get_class()
-                items = map(lambda i: row_class(i, self.get_struct()), rows)
-            elif item_type == ItemType.Record:
-                items = map(lambda r: {c: v for c, v in zip(self.get_columns(), r)}, rows)
-            elif item_type == ItemType.Line:
-                items = map(lambda r: '\t'.join([str(v) for v in r]), rows)
-            else:
-                raise ValueError('Table.get_items_of_type(): cannot convert Rows to {}'.format(item_type))
+            raise ValueError('Table.get_items_of_type(): cannot convert Rows to {}'.format(item_type))
         if step:
             logger = self.get_logger()
             if isinstance(logger, ExtendedLoggerInterface):
