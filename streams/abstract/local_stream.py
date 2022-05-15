@@ -3,7 +3,7 @@ from typing import Optional, Callable, Iterable, Union
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         LocalStreamInterface, ContextInterface, ConnectorInterface, TemporaryFilesMaskInterface,
-        Context, Connector, ContentType, StreamType, JoinType, How,
+        Context, Connector, ContentType, ItemType, StreamType, JoinType, How,
         Array, Count, FieldID, UniKey,
         AUTO, Auto, AutoBool, AutoCount, AutoName, OptionalFields,
     )
@@ -16,7 +16,7 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         LocalStreamInterface, ContextInterface, ConnectorInterface, TemporaryFilesMaskInterface,
-        Context, Connector, ContentType, StreamType, JoinType, How,
+        Context, Connector, ContentType, ItemType, StreamType, JoinType, How,
         Array, Count, FieldID, UniKey,
         AUTO, Auto, AutoBool, AutoCount, AutoName, OptionalFields,
     )
@@ -29,7 +29,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 
 Native = LocalStreamInterface
 TmpMask = Union[TemporaryFilesMaskInterface, Auto]
-OptStreamType = Union[StreamType, Auto]
+StreamItemType = Union[StreamType, ItemType, Auto]
 
 
 class LocalStream(IterableStream, LocalStreamInterface):
@@ -184,7 +184,7 @@ class LocalStream(IterableStream, LocalStreamInterface):
     def get_tee_items(self, mem_copy: bool = False) -> Iterable:
         return self._get_tee_items(mem_copy=mem_copy)
 
-    def map_to_type(self, function: Callable, stream_type: OptStreamType = AUTO, **kwargs) -> Native:
+    def map_to_type(self, function: Callable, stream_type: StreamItemType = AUTO, **kwargs) -> Native:
         stream_type = Auto.acquire(stream_type, self.get_stream_type, delayed=True)
         data = map(function, self.get_iter())
         stream = self.stream(data, stream_type=stream_type, **kwargs)
