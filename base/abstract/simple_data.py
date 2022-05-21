@@ -195,12 +195,15 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
     def display_data_sheet(
             self,
             count: int = DEFAULT_ROWS_COUNT,
-            title: Optional[str] = 'Data:',
+            title: Optional[str] = 'Data',
+            comment: Optional[str] = None,
             max_len: AutoCount = AUTO,
-    ) -> Generator:
+    ) -> Native:
         display = self.get_display()
         max_len = Auto.acquire(max_len, DEFAULT_LINE_LEN)
         display.display_paragraph(title, level=3)
+        if comment:
+            display.append(comment)
         if hasattr(self, 'get_data_caption'):
             display.append(self.get_data_caption())
         if hasattr(self, 'get_data'):
@@ -223,9 +226,8 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
                                 break
                         line = '    - ' + str(item)
                         display.append(line[:max_len])
-                elif isinstance(data, SimpleDataInterface) or hasattr(data, 'get_meta_description'):
-                    for line in data.get_meta_description():
-                        yield line
+                elif isinstance(data, SimpleDataInterface) or hasattr(data, 'describe'):
+                    data.describe()
                 else:
                     line = str(data)
                     display.append(line[:max_len])
@@ -234,6 +236,7 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
         else:
             display.append('(data attribute not found)')
         display.display_paragraph()
+        return self
 
     def get_meta_description(
             self,
@@ -278,18 +281,10 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
             comment: Optional[str] = None,
             depth: int = 1,
             output=AUTO,  # deprecated
-            as_dataframe: AutoBool = Auto,
+            as_dataframe: AutoBool = Auto,  # deprecated
             **kwargs
     ):
         display = self.get_display(output)
-        fact_count = Auto.delayed_acquire(count, self.get_count)
-        if fact_count > MAX_OUTPUT_ROW_COUNT:
-            fact_count = MAX_OUTPUT_ROW_COUNT
-        if Auto.is_auto(as_dataframe):
-            if hasattr(self, 'show') or hasattr(self, 'show_example'):
-                as_dataframe = fact_count < MAX_DATAFRAME_ROW_COUNT
-            else:
-                as_dataframe = False
         show_meta = show_header or not self.has_data()
         if show_header:
             display.display_paragraph(self.get_name(), level=1)
@@ -300,18 +295,11 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
         if show_meta:
             self.display_meta_description()
         if self.has_data():
-            if not as_dataframe:
-                self.display_data_sheet(count=count, **kwargs)
+            self.display_data_sheet(count=count, **kwargs)
         elif depth > 0:
             for attribute, value in self.get_meta_items():
                 if isinstance(value, BaseInterface) or hasattr(value, 'describe'):
                     display.display_paragraph('{attribute}:'.format(attribute=attribute), level=3)
                     value.describe(show_header=False, depth=depth - 1, output=output)
-        if self.has_data() and as_dataframe:
-            if hasattr(self, 'show_example'):
-                return self.show_example(count=count, **kwargs)
-            elif hasattr(self, 'show'):
-                return self.show(count=count, **kwargs)
-            else:
-                raise AttributeError('{} does not support dataframe'.format(self))
         display.display_paragraph()
+        return self
