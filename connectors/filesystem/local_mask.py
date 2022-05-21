@@ -2,12 +2,12 @@ from typing import Iterable
 import fnmatch
 
 try:  # Assume we're a submodule in a package.
-    from interfaces import ConnType, FolderType, AUTO, Auto, AutoBool, AutoContext
+    from interfaces import ConnType, AUTO, Auto, AutoBool, AutoContext
     from connectors.abstract.hierarchic_connector import HierarchicConnector
     from connectors.abstract.abstract_folder import HierarchicFolder
     from connectors.filesystem.local_folder import LocalFolder
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...interfaces import ConnType, FolderType, AUTO, Auto, AutoBool, AutoContext
+    from ...interfaces import ConnType, AUTO, Auto, AutoBool, AutoContext
     from ..abstract.hierarchic_connector import HierarchicConnector
     from ..abstract.abstract_folder import HierarchicFolder
     from .local_folder import LocalFolder

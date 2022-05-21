@@ -314,7 +314,7 @@ class LocalFile(LeafConnector, ActualizeMixin):
             message: AutoName = AUTO,
             step: AutoCount = AUTO,
     ) -> Generator:
-        if skip_missing and not self.is_gzip():
+        if not (skip_missing or self.is_gzip()):
             assert not self.is_empty(), 'for get_lines() file must be non-empty: {}'.format(self)
         self.open(allow_reopen=allow_reopen)
         lines = self.get_next_lines(count=count, skip_first=skip_first, close=True)

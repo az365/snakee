@@ -40,7 +40,9 @@ def test_take_credentials_from_file():
         ('s3', 'test_login_s3', 'test_pass_s3'),
     ]
     cx = SnakeeContext()
-    test_file = cx.get_job_folder().file(file_name)
+    job_folder = cx.find_job_folder(required_folders=['test_tmp'])
+    test_folder = job_folder.folder('test_tmp')
+    test_file = test_folder.file(file_name)
     test_file.write_lines(map(lambda r: '\t'.join(r), data))
     test_db = cx.ct.PostgresDatabase('pg', 'pg_host', 5432, 'pg_db')
     cx.take_credentials_from_file(test_file)

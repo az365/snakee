@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Callable, Generator, Union
+from typing import Optional, Callable, Iterable, Generator, Union
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
@@ -42,7 +42,7 @@ class AbstractTerm(SimpleDataWrapper, MultiMapDataMixin, TermInterface, ABC):
             name: str,
             caption: str = EMPTY,
             fields: Optional[dict] = None,  # Dict[FieldRoleType, AdvancedField]
-            mappers: Optional[dict] = None,
+            mappers: Optional[dict] = None,  # Dict[MapperName, Description]
             datasets: Optional[dict] = None,
             relations: Optional[dict] = None,
             data: Optional[dict] = None,
@@ -91,8 +91,9 @@ class AbstractTerm(SimpleDataWrapper, MultiMapDataMixin, TermInterface, ABC):
     def update_relations(self) -> Native:
         relations = self.get_from_data(TermDataAttribute.Relations)
         for k, v in relations.items():
-            assert isinstance(k, AbstractTerm), 'update_relations(): expected AbstractTerm, got {}'.format(k)
-            assert isinstance(v, TermRelation), 'update_relations(): expected TermRelation, got {}'.format(v)
+            msg = 'update_relations(): expected {e}, got {a}'
+            assert isinstance(k, AbstractTerm) or hasattr(k, 'add_relations'), msg.format(e='AbstractTerm', a=k)
+            assert isinstance(v, TermRelation) or hasattr(v, 'get_reversed'), msg.format(e='TermRelation', a=v)
             reversed_relation = v.get_reversed()
             k.add_relations({self: reversed_relation}, update_relations=False)
         return self
@@ -191,6 +192,7 @@ class AbstractTerm(SimpleDataWrapper, MultiMapDataMixin, TermInterface, ABC):
         yield self.get_brief_repr()
         yield self.get_caption()
 
+    # @deprecated
     def get_meta_description(
             self,
             with_title: bool = True,
@@ -204,6 +206,7 @@ class AbstractTerm(SimpleDataWrapper, MultiMapDataMixin, TermInterface, ABC):
                 prefix=prefix, delimiter=delimiter,
             )
 
+    # @deprecated
     def get_data_description(
             self,
             count: AutoCount = None,
@@ -228,6 +231,39 @@ class AbstractTerm(SimpleDataWrapper, MultiMapDataMixin, TermInterface, ABC):
                     data.items(),
                 )
                 yield from self._get_columnar_lines(records, columns=columns, count=count, max_len=max_len)
+
+    def display_data_sheet(
+            self,
+            count: Optional[int] = None,
+            title: Optional[str] = 'Data',
+            comment: Optional[str] = None,
+            max_len: AutoCount = AUTO,
+    ) -> Native:
+        display = self.get_display()
+        for key in TermDataAttribute.get_enum_items():
+            data = self.get_data().get_key(key)
+            if data:
+                display.display_paragraph(key.get_name(), level=3)
+                if key == TermDataAttribute.Fields:
+                    columns = 'role', 'name', 'type', 'caption', 'repr'
+                    records = map(
+                        lambda i:
+                        dict(
+                            role=i[0], name=i[1].get_name(), caption=i[1].get_caption(),
+                            type=i[1].get_value_type(), repr=i[1].get_representation()
+                        ),
+                        data.items(),
+                    )
+                    display.display_sheet(records, columns=columns, count=count)
+                elif isinstance(data, dict):
+                    records = map(lambda i: dict(key=i[0], value=i[1]), data.items())
+                    display.display_sheet(records, columns=('key', 'value'))
+                elif isinstance(data, Iterable) and not isinstance(data, str):
+                    records = map(lambda n, i: {'#': n, 'item': i}, enumerate(data))
+                    display.display_sheet(records, columns=('#', 'item'))
+                else:
+                    display.display_paragraph()
+        return self
 
     # @deprecated
     def get_type_in(self, dialect=None):  # TMP for compatibility with AbstractField/StructInterface

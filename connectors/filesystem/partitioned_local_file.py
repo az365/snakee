@@ -3,7 +3,7 @@ from typing import Iterable, Union, Optional
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         Connector, Stream,
-        FolderType, ConnType, StreamType, ContentType, ContentFormatInterface,
+        ConnType, StreamType, ContentType, ContentFormatInterface,
         AUTO, Auto, AutoName, AutoBool, AutoContext, OptionalFields,
     )
     from connectors.abstract.hierarchic_connector import HierarchicConnector
@@ -15,7 +15,7 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         Connector, Stream,
-        FolderType, ConnType, StreamType, ContentType, ContentFormatInterface,
+        ConnType, StreamType, ContentType, ContentFormatInterface,
         AUTO, Auto, AutoName, AutoBool, AutoContext, OptionalFields,
     )
     from ..abstract.hierarchic_connector import HierarchicConnector
@@ -134,13 +134,6 @@ class PartitionedLocalFile(LocalMask, LocalFile):
         return partition.to_stream(data=data, name=name, stream_type=stream_type, ex=ex, **kwargs)
 
 
-FolderType.set_dict_classes(
-    {
-        FolderType.LocalFolder: LocalFolder,
-        FolderType.LocalMask: LocalMask,
-        FolderType.PartitionedLocalFile: PartitionedLocalFile,
-    }
-)
 ConnType.add_classes(
     LocalFolder,
     LocalMask,

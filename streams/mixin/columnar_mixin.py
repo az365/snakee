@@ -184,15 +184,22 @@ class ColumnarMixin(IterDataMixin, ABC):
         keys = get_names(keys, or_callable=True)
         if not isinstance(how, JoinType):
             how = JoinType(how)
-        joined_items = algo.map_side_join(
-            iter_left=self.get_items(),
-            iter_right=right.get_items(),
-            key_function=composite_key(*keys, item_type=self.get_item_type()),
-            merge_function=merge_two_items(),
-            dict_function=items_to_dict(),
-            how=how,
-            uniq_right=right_is_uniq,
-        )
+        right_items = list(right.get_items())
+        if right_items:
+            joined_items = algo.map_side_join(
+                iter_left=self.get_items(),
+                iter_right=right_items,
+                key_function=composite_key(*keys, item_type=self.get_item_type()),
+                merge_function=merge_two_items(),
+                dict_function=items_to_dict(),
+                how=how,
+                uniq_right=right_is_uniq,
+            )
+        else:  # right is empty
+            if how in (JoinType.Left, JoinType.Outer, JoinType.Full):
+                joined_items = self.get_items()
+            else:  # JoinType.Right, JoinType.Inner
+                joined_items = list()
         if self.is_in_memory():
             joined_items = list(joined_items)
         if inplace:
@@ -417,7 +424,7 @@ class ColumnarMixin(IterDataMixin, ABC):
             delimiter: str = ' ',
             output=AUTO,  # deprecated
             **filter_kwargs
-    ):
+    ) -> Native:
         display = self.get_display()
         if show_header:
             display.display_paragraph(self.get_name(), level=1)
@@ -427,30 +434,30 @@ class ColumnarMixin(IterDataMixin, ABC):
             display.append(comment)
         example = self.example(*filters, **filter_kwargs, count=count)
         if hasattr(self, 'get_struct'):
-            expected_struct = self.get_struct()
+            expected_st = self.get_struct()
             source_str = 'native'
         elif take_struct_from_source:
-            expected_struct = self.get_source_struct()
+            expected_st = self.get_source_struct()
             source_str = 'from source {}'.format(self.get_source().__repr__())
         else:
-            expected_struct = self.get_detected_struct()
+            expected_st = self.get_detected_struct()
             source_str = 'detected from example items'
-        detected_struct = example.get_detected_struct(count)
-        if expected_struct:
-            expected_struct = fc.FlatStruct.convert_to_native(expected_struct)
-            assert isinstance(expected_struct, fc.FlatStruct) or hasattr(expected_struct, 'display_data_sheet'), expected_struct
-            assert isinstance(detected_struct, fc.FlatStruct) or hasattr(expected_struct, 'display_data_sheet'), detected_struct
-            detected_struct.validate_about(expected_struct)
-            validation_message = f'{source_str} {expected_struct.get_validation_message()}'
+        detected_st = example.get_detected_struct(count)
+        if expected_st:
+            expected_st = fc.FlatStruct.convert_to_native(expected_st)
+            assert isinstance(expected_st, fc.FlatStruct) or hasattr(expected_st, 'display_data_sheet'), expected_st
+            assert isinstance(detected_st, fc.FlatStruct) or hasattr(expected_st, 'display_data_sheet'), detected_st
+            detected_st.validate_about(expected_st)
+            validation_message = f'{source_str} {expected_st.get_validation_message()}'
             display.append(validation_message)
-            expected_struct.display_data_sheet(example=example.get_one_item())
-        elif detected_struct:
+            expected_st.display_data_sheet(example=example.get_one_item())
+        elif detected_st:
             validation_message = 'Expected struct not defined, displaying detected struct:'
             display.append(validation_message)
-            assert isinstance(detected_struct, fc.FlatStruct) or hasattr(expected_struct, 'display_data_sheet'), detected_struct
-            detected_struct.display_data_sheet(example=example.get_one_item())
+            assert isinstance(detected_st, fc.FlatStruct) or hasattr(expected_st, 'display_data_sheet'), detected_st
+            detected_st.display_data_sheet(example=example.get_one_item())
         else:
-            validation_message = '[EMPTY] Struct is not detected.]'
+            validation_message = '[EMPTY] Struct is not detected.'
             display.append(validation_message)
         display.display_paragraph('Rows sample', level=3)
         if hasattr(self, 'display_data_sheet'):
@@ -463,6 +470,7 @@ class ColumnarMixin(IterDataMixin, ABC):
                     if not isinstance(records[0], dict):
                         records = [{'item': i} for i in records]
                     columns = records[0].keys()
-                return display.display_sheet(records, columns=columns)
+                display.display_sheet(records, columns=columns)
             else:
                 display.display_paragraph('[EMPTY] Dataset is empty.')
+        return self
