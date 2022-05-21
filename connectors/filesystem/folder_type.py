@@ -6,7 +6,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils.decorators import deprecated_with_alternative
 
 
-# @deprecated_with_alternative(ConnType)
+@deprecated_with_alternative('ConnType')
 class FolderType(ClassType):
     LocalStorage = 'LocalStorage'
     LocalFolder = 'LocalFolder'

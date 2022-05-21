@@ -2,22 +2,22 @@ from typing import Optional, Iterable, Generator, Union
 import os
 
 try:  # Assume we're a submodule in a package.
-    from utils import arguments as arg
     from interfaces import (
         ContextInterface, ConnectorInterface, Connector, ContentFormatInterface,
-        FolderType, ConnType, ContentType, Class, LoggingLevel,
+        ConnType, ContentType, Class, LoggingLevel,
         AUTO, Auto, AutoBool, AutoContext, AutoConnector,
     )
+    from functions.primary.text import is_absolute_path
     from connectors.abstract.hierarchic_connector import HierarchicConnector
     from connectors.abstract.leaf_connector import LeafConnector
     from connectors.abstract.abstract_folder import HierarchicFolder
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
     from ...interfaces import (
         ContextInterface, ConnectorInterface, Connector, ContentFormatInterface,
-        FolderType, ConnType, ContentType, Class, LoggingLevel,
+        ConnType, ContentType, Class, LoggingLevel,
         AUTO, Auto, AutoBool, AutoContext, AutoConnector,
     )
+    from ...functions.primary.text import is_absolute_path
     from ..abstract.hierarchic_connector import HierarchicConnector
     from ..abstract.leaf_connector import LeafConnector
     from ..abstract.abstract_folder import HierarchicFolder
@@ -36,13 +36,13 @@ class LocalFolder(HierarchicFolder):
             context: AutoContext = None,
             verbose: AutoBool = AUTO,
     ):
-        if not arg.is_defined(parent):
-            if arg.is_defined(context):
+        if not Auto.is_defined(parent):
+            if Auto.is_defined(context):
                 parent = context.get_local_storage()
             else:
                 parent = self.get_default_storage()
         parent = self._assume_native(parent)
-        self._path_is_relative = arg.acquire(path_is_relative, not arg.is_absolute_path(path))
+        self._path_is_relative = Auto.acquire(path_is_relative, not is_absolute_path(path))
         super().__init__(name=path, parent=parent, verbose=verbose)
 
     def is_defined(self) -> bool:
@@ -65,13 +65,9 @@ class LocalFolder(HierarchicFolder):
         return child_class
 
     @staticmethod
-    def get_child_class_by_type(type_name: Union[ConnType, FolderType, str]) -> Class:
+    def get_child_class_by_type(type_name: Union[ConnType, str]) -> Class:
         if isinstance(type_name, str):
-            try:
-                conn_type = ConnType(type_name)
-            except ValueError:
-                raise DeprecationWarning('FolderType is deprecated, use ConnType instead')
-                conn_type = FolderType(type_name)
+            conn_type = ConnType(type_name)
         child_class = conn_type.get_class()
         return child_class
 
@@ -89,7 +85,7 @@ class LocalFolder(HierarchicFolder):
         return self.get_child_class_by_type(supposed_type)
 
     def get_child_class_by_name_and_type(self, name: str, filetype: Union[ConnType, ContentType, Auto] = AUTO) -> Class:
-        if arg.is_defined(filetype):
+        if Auto.is_defined(filetype):
             return ConnType(filetype).get_class()
         else:
             supposed_type = self.get_type_by_name(name)
@@ -114,8 +110,8 @@ class LocalFolder(HierarchicFolder):
             filename = kwargs.pop('filename', name)
             file_class = self.get_default_child_obj_class()  # LocalFile
             assert file_class, "connector class or type name aren't detected"
-            if arg.is_defined(filetype):
-                if arg.is_defined(content_format):
+            if Auto.is_defined(filetype):
+                if Auto.is_defined(content_format):
                     msg = 'Only one of arguments allowed: filetype (got {}) or content_format (got {})'
                     raise ValueError(msg.format(filetype, content_format))
                 else:
@@ -132,8 +128,8 @@ class LocalFolder(HierarchicFolder):
             self.add_child(file)
         return file
 
-    def folder(self, name: str, folder_type: Union[ConnType, FolderType, Auto] = AUTO, **kwargs) -> ConnectorInterface:
-        if not arg.is_defined(folder_type):
+    def folder(self, name: str, folder_type: Union[ConnType, Auto] = AUTO, **kwargs) -> ConnectorInterface:
+        if not Auto.is_defined(folder_type):
             folder_type = self.get_type_by_name(name)  # LocalFolder or LocalMask
             if folder_type == ConnType.LocalFile:
                 folder_type = ConnType.LocalFolder
