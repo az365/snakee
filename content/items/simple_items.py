@@ -124,7 +124,12 @@ def get_field_value_from_record(
     else:
         field = get_name(field)
     if skip_missing:
-        return record.get(field, default)
+        if record is None:
+            return None
+        try:
+            return record.get(field, default)
+        except AttributeError as e:
+            raise AttributeError(f'{e}: {record}')
     else:
         return record[field]
 

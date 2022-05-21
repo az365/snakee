@@ -24,7 +24,7 @@ PRIMITIVE_TYPES = str, int, float, bool
 
 
 def process_description(d) -> tuple:
-    if not d:
+    if d is None:
         raise ValueError(f'got empty description: {d}')
     if isinstance(d, Callable):
         function, inputs = d, list()
