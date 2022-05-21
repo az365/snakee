@@ -82,7 +82,6 @@ try:  # Assume we're a submodule in a package.
     from loggers.extended_logger_interface import LoggingLevel  # standard Enum
     from loggers.progress_interface import OperationStatus  # standard Enum
     from connectors.databases.dialect_type import DialectType  # inherits DynamicEnum
-    from connectors.filesystem.folder_type import FolderType  # inherits ClassType(DynamicEnum)
     from connectors.conn_type import ConnType  # inherits ClassType(DynamicEnum)
     from content.format.content_type import ContentType  # inherits ClassType(DynamicEnum)
     from content.representations.repr_type import ReprType  # inherits ClassType(DynamicEnum)
@@ -99,7 +98,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .loggers.extended_logger_interface import LoggingLevel  # standard Enum
     from .loggers.progress_interface import OperationStatus  # standard Enum
     from .connectors.databases.dialect_type import DialectType  # inherits DynamicEnum
-    from .connectors.filesystem.folder_type import FolderType  # inherits ClassType(DynamicEnum)
     from .connectors.conn_type import ConnType  # inherits ClassType(DynamicEnum)
     from .content.format.content_type import ContentType  # inherits ClassType(DynamicEnum)
     from .content.representations.repr_type import ReprType  # inherits ClassType(DynamicEnum)

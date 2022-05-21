@@ -4,7 +4,7 @@ try:  # Assume we're a submodule in a package.
     from interfaces import (
         ConnectorInterface, ContextInterface, Context,
         TemporaryLocationInterface, TemporaryFilesMaskInterface,
-        ConnType, FolderType, Name, DialectType,
+        ConnType, DialectType, Name,
     )
     from utils.decorators import deprecated_with_alternative
     from loggers import logger_classes as log
@@ -17,7 +17,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..interfaces import (
         ConnectorInterface, ContextInterface, Context,
         TemporaryLocationInterface, TemporaryFilesMaskInterface,
-        ConnType, FolderType, Name, DialectType,
+        ConnType, DialectType, Name,
     )
     from ..utils.decorators import deprecated_with_alternative
     from ..loggers import logger_classes as log
