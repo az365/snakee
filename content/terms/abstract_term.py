@@ -28,7 +28,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 
 Native = SimpleDataWrapper
 Field = Union[FieldInterface, str]
-RoleType = FieldRoleType  # deprecated
 
 FIELD_ROLES_WITHOUT_SUFFIXES = FieldRoleType.Repr, FieldRoleType.Value, FieldRoleType.Undefined
 FIELD_NAME_TEMPLATE = '{term}' + UNDER + '{role}'
@@ -241,7 +240,7 @@ class AbstractTerm(SimpleDataWrapper, MultiMapDataMixin, TermInterface, ABC):
     ) -> Native:
         display = self.get_display()
         for key in TermDataAttribute.get_enum_items():
-            data = self.get_data().get_key(key)
+            data = self.get_data().get(key)
             if data:
                 display.display_paragraph(key.get_name(), level=3)
                 if key == TermDataAttribute.Fields:
@@ -262,7 +261,7 @@ class AbstractTerm(SimpleDataWrapper, MultiMapDataMixin, TermInterface, ABC):
                     records = map(lambda n, i: {'#': n, 'item': i}, enumerate(data))
                     display.display_sheet(records, columns=('#', 'item'))
                 else:
-                    display.display_paragraph()
+                    display.display_paragraph(data)
         return self
 
     # @deprecated

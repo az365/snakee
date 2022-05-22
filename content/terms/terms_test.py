@@ -22,7 +22,7 @@ SEPULKA = ObjectTerm(
 SEPULKARIUM = ObjectTerm(
     'sepulkarium',
     caption='establishments used for sepuling',
-    relations={SEPULKA: TermRelation.OneToMany, SEPULING: TermRelation.Object},
+    relations={SEPULKA: TermRelation.OneToMany, SEPULING: TermRelation.Process},
 )
 LOCATION = HierarchicTerm(
     'location',
