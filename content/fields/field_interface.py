@@ -120,6 +120,14 @@ class FieldInterface(SimpleDataInterface, ABC):
         pass
 
     @abstractmethod
+    def filter(self, value_or_function) -> Transform:
+        pass
+
+    @abstractmethod
+    def map(self, function: Callable) -> Transform:
+        pass
+
+    @abstractmethod
     def to(self, target: Union[Native, str]) -> Transform:
         pass
 

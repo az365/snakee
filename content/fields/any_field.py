@@ -28,6 +28,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 Native = Union[SimpleDataWrapper, MultiMapDataMixin, FieldInterface]
 AutoRepr = Union[RepresentationInterface, str, Auto]
 
+PRIMITIVE_TYPES = str, int, float, bool
+
 
 class AnyField(SimpleDataWrapper, SelectableMixin, MultiMapDataMixin, FieldInterface):
     _struct_builder: Optional[Callable] = None
@@ -288,12 +290,18 @@ class AnyField(SimpleDataWrapper, SelectableMixin, MultiMapDataMixin, FieldInter
     def filter(self, value_or_func: Union[Callable, Any], tmp_field: Optional[str] = None) -> ce.RegularDescription:
         if isinstance(value_or_func, Callable):
             function = value_or_func
+            input_fields = [self]
+        elif isinstance(value_or_func, PRIMITIVE_TYPES):
+            function = (lambda v: v == value_or_func)
+            input_fields = [self]
+        elif isinstance(value_or_func, FieldInterface) or hasattr('get_value_type'):
+            function = (lambda a, b: a == b)
+            input_fields = [self, value_or_func]
         else:
-            value = value_or_func
-            function = (lambda v: v == value)
+            raise TypeError(f'expected value, func or Field, got {value_or_func}')
         return ce.RegularDescription(
             target=tmp_field, target_item_type=self.get_default_item_type(),
-            inputs=[self], input_item_type=ItemType.Auto,
+            inputs=input_fields, input_item_type=ItemType.Auto,
             function=function, default=None,
             skip_errors=self._skip_errors, logger=self._logger,
         )
