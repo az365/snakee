@@ -5,11 +5,12 @@ try:  # Assume we're a submodule in a package.
     from interfaces import (
         Stream, LocalStream, RegularStreamInterface, Context, Connector, TmpFiles,
         StreamType, ItemType,
-        Name, Count, Struct, Columns, OptionalFields, Source, Class, Array, ARRAY_TYPES,
+        Name, Count, Struct, Columns, Field, OptionalFields, Source, Class, Array, ARRAY_TYPES,
         AUTO, Auto, AutoBool, AutoCount,
     )
-    from base.functions.arguments import update
+    from base.functions.arguments import get_name, update
     from utils.decorators import deprecated_with_alternative
+    from functions.primary.items import merge_two_items
     from functions.secondary.array_functions import fold_lists
     from content.items.item_getters import get_filter_function
     from content.selection import selection_classes as sn
@@ -19,11 +20,12 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...interfaces import (
         Stream, LocalStream, RegularStreamInterface, Context, Connector, TmpFiles,
         StreamType, ItemType,
-        Name, Count, Struct, Columns, OptionalFields, Source, Class, Array, ARRAY_TYPES,
+        Name, Count, Struct, Columns, Field, OptionalFields, Source, Class, Array, ARRAY_TYPES,
         AUTO, Auto, AutoBool, AutoCount,
     )
-    from ...base.functions.arguments import update
+    from ...base.functions.arguments import get_name, update
     from ...utils.decorators import deprecated_with_alternative
+    from ...functions.primary.items import merge_two_items
     from ...functions.secondary.array_functions import fold_lists
     from ...content.items.item_getters import get_filter_function
     from ...content.selection import selection_classes as sn
@@ -130,6 +132,21 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
 
     def get_column_count(self) -> int:
         return len(self.get_columns())
+
+    def add_column(self, name: Field, values: Iterable, ignore_errors: bool = False, inplace: bool = False) -> Native:
+        name = get_name(name)
+        items = map(lambda i, v: merge_two_items(i, {name: v}), self.get_items(), values)
+        struct = self.get_struct().add_fields(name, inplace=False)
+        stream = self.set_items(items, inplace=inplace).set_struct(struct, inplace=inplace)
+        if self.is_in_memory():
+            if not ignore_errors:
+                if not isinstance(values, ARRAY_TYPES):
+                    values = list(values)
+                if self.get_count() != len(values):
+                    msg = 'for add_column() stream and values must have same items count, got {a} != {e}'
+                    raise AssertionError(msg.format(e=self.get_count(), a=len(values)))
+            stream = stream.to_memory()
+        return stream
 
     def _get_expected_item_type(self, *columns, **expressions) -> ItemType:
         input_item_type = self.get_item_type()
