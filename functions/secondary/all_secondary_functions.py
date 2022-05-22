@@ -8,7 +8,7 @@ try:  # Assume we're a submodule in a package.
     from functions.secondary.numeric_functions import (
         sign, round, round_to, is_local_extreme,
         increment, diff, div, mult, sqrt, log,
-        t_test_1sample_p_value, p_log_sign,
+        var, t_test_1sample_p_value, p_log_sign,
     )
     from functions.secondary.date_functions import int_to_date, date_to_int, round_date, next_date, date_range
     from functions.secondary.text_functions import startswith, endswith, contains
@@ -38,7 +38,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .numeric_functions import (
         sign, round, round_to, is_local_extreme,
         increment, diff, div, mult, sqrt, log,
-        t_test_1sample_p_value, p_log_sign,
+        var, t_test_1sample_p_value, p_log_sign,
     )
     from .date_functions import int_to_date, date_to_int, round_date, next_date, date_range
     from .text_functions import startswith, endswith, contains

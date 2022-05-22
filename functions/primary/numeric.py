@@ -1,4 +1,4 @@
-from typing import Optional, Union, Iterable
+from typing import Optional, Iterable, Sequence, Union
 import math
 
 try:  # Assume we're a submodule in a package.
@@ -204,6 +204,12 @@ def is_local_extreme(x_left, x_center, x_right, local_max=True, local_min=True) 
     if local_min:
         result = result or (x_center < x_left and x_center <= x_right)
     return result
+
+
+def var(a: Sequence, default: OptionalFloat = None) -> float:
+    if a:
+        return float(np.var(a))
+    return default
 
 
 def corr(a, b, ignore_import_error=False) -> float:

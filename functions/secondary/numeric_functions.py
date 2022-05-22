@@ -1,4 +1,4 @@
-from typing import Optional, Callable, Iterable, Union
+from typing import Optional, Callable, Iterable, Sequence, Union
 
 try:  # Assume we're a submodule in a package.
     from base.functions.arguments import update
@@ -17,7 +17,7 @@ def sign(zero=0, plus=1, minus=-1, _as_sql: bool = True) -> Callable:
     def _sign(value: float) -> int:
         return nm.sign(value, zero=zero, plus=plus, minus=minus)
 
-    def get_sql_repr(field) -> str:
+    def get_sql_repr(field: str) -> str:
         return f'{field} / ABS({field}'
 
     return get_sql_repr if _as_sql else _sign
@@ -49,7 +49,7 @@ def round_to(step: Union[int, float], exclude_negative: bool = False, _as_sql: b
     def _round_to(v: float) -> float:
         return nm.round_to(v, step=step, exclude_negative=exclude_negative)
 
-    def get_sql_repr(field) -> str:
+    def get_sql_repr(field: str) -> str:
         return f'INT({field} / {step}) * {step}'
 
     return get_sql_repr if _as_sql else _round_to
@@ -190,7 +190,7 @@ def sqrt(default: OptFloat = None, _as_sql: bool = True) -> Callable:
     def _sqrt(value: float) -> OptFloat:
         return nm.sqrt(value=value, default=default)
 
-    def get_sql_repr(field) -> str:
+    def get_sql_repr(field: str) -> str:
         return f'SQRT({field})'
 
     return get_sql_repr if _as_sql else _sqrt
@@ -201,28 +201,43 @@ def log(base: OptFloat, shift: float = 0, default: OptFloat = None, _as_sql: boo
     def _log(value: float) -> OptFloat:
         return nm.log(value + shift, base=base, default=default)
 
-    def get_sql_repr(field) -> str:
-        return f'LOG({field} + {shift})'
+    def get_sql_repr(field: str) -> str:
+        if shift:
+            return f'LOG({field} + {shift})'
+        else:
+            return f'LOG({field})'
 
     return get_sql_repr if _as_sql else _log
 
 
-def is_local_extreme(local_min=True, local_max=True) -> Callable:
-    def func(*args) -> bool:
+def is_local_extreme(local_min: bool = True, local_max: bool = True) -> Callable:
+    def _is_local_extreme(*args) -> bool:
         args = update(args)
         assert len(args) == 3, 'is_local_extreme.func(): Expected 3 arguments, got {}'.format(args)
         return nm.is_local_extreme(*args, local_min=local_min, local_max=local_max)
-    return func
+    return _is_local_extreme
+
+
+@sql_compatible
+def var(default: Optional[float] = 0, _as_sql: bool = False) -> Callable:
+    def _var(a: Sequence) -> Optional[float]:
+        return nm.var(a, default=default)
+
+    def get_sql_repr(field: str) -> str:
+        assert not default
+        return f'VARIANCE({field})'
+
+    return get_sql_repr if _as_sql else _var
 
 
 def t_test_1sample_p_value(value: float = 0) -> Callable:
-    def func(series: Iterable) -> float:
+    def _t_test(series: Iterable) -> float:
         return nm.t_test_1sample_p_value(series, value=value)
-    return func
+    return _t_test
 
 
 def p_log_sign(value: float = 0, default: float = -10.0) -> Callable:
-    def func(series_or_p_value: Union[Iterable, float]) -> float:
+    def _p_log_sign(series_or_p_value: Union[Iterable, float]) -> float:
         if isinstance(series_or_p_value, Iterable):
             p_value = nm.t_test_1sample_p_value(series_or_p_value)
         else:
@@ -231,4 +246,4 @@ def p_log_sign(value: float = 0, default: float = -10.0) -> Callable:
         if p_log < default:
             p_log = default
         return p_log * nm.sign(value)
-    return func
+    return _p_log_sign
