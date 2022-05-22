@@ -7,7 +7,7 @@ try:  # Assume we're a submodule in a package.
     from base.classes.typing import FieldID
     from base.constants.chars import ALL, NOT_SET
     from functions.primary import items as it
-    from functions import all_functions as fs
+    from functions.secondary import all_secondary_functions as fs
     from content.items.simple_items import SelectableItem
     from content.fields.field_interface import FieldInterface, ValueType
     from content.struct.struct_interface import StructInterface
@@ -19,7 +19,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.classes.typing import FieldID
     from ...base.constants.chars import ALL, NOT_SET
     from ...functions.primary import items as it
-    from ...functions import all_functions as fs
+    from ...functions.secondary import all_secondary_functions as fs
     from ..items.simple_items import SelectableItem
     from ..fields.field_interface import FieldInterface, ValueType
     from ..struct.struct_interface import StructInterface
@@ -101,13 +101,13 @@ class SelectableMixin(SelectableInterface, ABC):
         )
 
     def _get_comparison(self, func, arg) -> RegularDescription:
-        function = func
+        function = func()
         if isinstance(arg, FieldInterface):
             inputs = [self, arg]
         elif isinstance(arg, StructInterface):
             inputs = [self, *arg]
         else:
-            inputs = list()
+            inputs = [self]
             function = func(arg)
         return RegularDescription(
             target=NOT_SET, target_item_type=self.get_default_item_type(),
