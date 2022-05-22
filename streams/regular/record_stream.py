@@ -81,23 +81,6 @@ class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
     def get_item_type() -> ItemType:
         return ItemType.Record
 
-    def get_enumerated_records(self, field: str = '#', first: int = 1) -> Iterable:
-        for n, r in enumerate(self.get_data()):
-            r[field] = n + first
-            yield r
-
-    def enumerate(self, field: str = '#', first: int = 0, native: bool = True) -> Stream:
-        if native:
-            return self.stream(
-                self.get_enumerated_records(field=field, first=first),
-            )
-        else:
-            return self.stream(
-                self._get_enumerated_items(),
-                stream_type=StreamType.KeyValueStream,
-                secondary=self.get_stream_type(),
-            )
-
     def sort(self, *keys, reverse: bool = False, step: AutoCount = AUTO, verbose: bool = True) -> Native:
         key_function = self._get_key_function(keys, take_hash=False)
         step = Auto.delayed_acquire(step, self.get_limit_items_in_memory)

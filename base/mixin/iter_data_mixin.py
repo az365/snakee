@@ -179,8 +179,8 @@ class IterDataMixin(DataMixin, ABC):
     def get_description(self) -> str:
         return '{} items'.format(self.get_str_count())
 
-    def _get_enumerated_items(self, item_type=AUTO) -> Generator:
-        if item_type == 'Any' or item_type == 'Any' or not Auto.is_defined(item_type):
+    def _get_enumerated_items(self, first: int = 0, item_type=AUTO) -> Generator:
+        if item_type == 'Any' or not Auto.is_defined(item_type):
             items = self.get_items()
         elif hasattr(self, 'get_items_of_type'):
             items = self.get_items_of_type(item_type)
@@ -190,16 +190,16 @@ class IterDataMixin(DataMixin, ABC):
                 received_item_type = self.get_item_type()
                 assert item_type == received_item_type, '{} != {}'.format(item_type, received_item_type)
         for n, i in enumerate(items):
-            yield n, i
+            yield n + first, i
 
     def _get_first_items(self, count: int = 1, item_type=AUTO) -> Generator:
-        for n, i in self._get_enumerated_items(item_type=item_type):
+        for n, i in self._get_enumerated_items(first=1, item_type=item_type):
             yield i
-            if n + 1 >= count:
+            if n >= count:
                 break
 
-    def _get_second_items(self, skip: int = 1) -> Generator:
-        for n, i in self._get_enumerated_items():
+    def _get_second_items(self, skip: int = 1, item_type=AUTO) -> Generator:
+        for n, i in self._get_enumerated_items(first=0, item_type=item_type):
             if n >= skip:
                 yield i
 
@@ -217,7 +217,7 @@ class IterDataMixin(DataMixin, ABC):
             return self
         elif isinstance(count, int):
             if count > 0:
-                items = self._get_first_items(count)
+                items = self._get_first_items(count, item_type=None)
             elif count < 0:
                 items = self._get_last_items(-count)
             else:  # count in (0, False)

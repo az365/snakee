@@ -150,7 +150,7 @@ class IterableStream(AbstractStream, IterDataMixin):
         else:
             return default
 
-    def enumerate(self, native: bool = False) -> Union[Native, Stream]:
+    def enumerate(self, first: int = 0, native: bool = False) -> Union[Native, Stream]:
         props = self.get_meta()
         if native:
             target_class = self.__class__
@@ -158,7 +158,7 @@ class IterableStream(AbstractStream, IterDataMixin):
             target_class = StreamType.KeyValueStream.get_class()
             props['value_stream_type'] = self.get_stream_type()
         props = self._get_safe_meta(**props)
-        return target_class(self._get_enumerated_items(), **props)
+        return target_class(self._get_enumerated_items(first=first), **props)
 
     def take(self, count: Union[int, bool] = 1, inplace: bool = False) -> Native:
         return self._assume_native(super().take(count, inplace=inplace))

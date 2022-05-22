@@ -1,16 +1,16 @@
-from typing import Union, Iterable, Generator, Sequence, Callable, Optional
+from typing import Union, Iterable, Iterator, Generator, Sequence, Callable, Optional
 from inspect import isclass
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         Stream, LocalStream, RegularStreamInterface, Context, Connector, TmpFiles,
         StreamType, ItemType,
-        Name, Count, Struct, Columns, Field, OptionalFields, Source, Class, Array, ARRAY_TYPES,
+        Name, Count, Struct, Columns, Field, OptionalFields, Source, Class, Item, Array, ARRAY_TYPES,
         AUTO, Auto, AutoBool, AutoCount,
     )
     from base.functions.arguments import get_name, update
     from utils.decorators import deprecated_with_alternative
-    from functions.primary.items import merge_two_items
+    from functions.primary.items import set_to_item, merge_two_items
     from functions.secondary.array_functions import fold_lists
     from content.items.item_getters import get_filter_function
     from content.selection import selection_classes as sn
@@ -20,12 +20,12 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...interfaces import (
         Stream, LocalStream, RegularStreamInterface, Context, Connector, TmpFiles,
         StreamType, ItemType,
-        Name, Count, Struct, Columns, Field, OptionalFields, Source, Class, Array, ARRAY_TYPES,
+        Name, Count, Struct, Columns, Field, OptionalFields, Source, Class, Item, Array, ARRAY_TYPES,
         AUTO, Auto, AutoBool, AutoCount,
     )
     from ...base.functions.arguments import get_name, update
     from ...utils.decorators import deprecated_with_alternative
-    from ...functions.primary.items import merge_two_items
+    from ...functions.primary.items import set_to_item, merge_two_items
     from ...functions.secondary.array_functions import fold_lists
     from ...content.items.item_getters import get_filter_function
     from ...content.selection import selection_classes as sn
@@ -135,7 +135,8 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
 
     def add_column(self, name: Field, values: Iterable, ignore_errors: bool = False, inplace: bool = False) -> Native:
         name = get_name(name)
-        items = map(lambda i, v: merge_two_items(i, {name: v}), self.get_items(), values)
+        item_type = self.get_item_type()
+        items = map(lambda i, v: set_to_item(name, v, i, item_type=item_type), self.get_items(), values)
         struct = self.get_struct().add_fields(name, inplace=False)
         stream = self.set_items(items, inplace=inplace).set_struct(struct, inplace=inplace)
         if self.is_in_memory():
@@ -160,6 +161,30 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
         else:
             target_item_type = input_item_type
         return target_item_type
+
+    def _get_enumerated_items(
+            self,
+            field: Field = '#',
+            first: int = 1,
+            item_type: ItemType = AUTO,
+            inplace: bool = True,
+    ) -> Iterator[Item]:
+        field_name = get_name(field)
+        item_type = Auto.delayed_acquire(item_type, self.get_item_type)
+        for n, i in super()._get_enumerated_items(item_type=item_type):
+            yield set_to_item(field_name, n + first, i, item_type=item_type, inplace=inplace)
+
+    def enumerate(self, field: str = '#', first: int = 0, native: bool = True) -> Stream:
+        if native:
+            return self.stream(
+                self._get_enumerated_items(field=field, first=first),
+            )
+        else:
+            return self.stream(
+                self._get_enumerated_items(item_type=ItemType.Row, first=first),
+                stream_type=StreamType.KeyValueStream,
+                secondary=self.get_stream_type(),
+            )
 
     def filter(self, *fields, skip_errors: bool = True, inplace: bool = False, **expressions) -> Native:
         item_type = self.get_item_type()
