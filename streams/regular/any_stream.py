@@ -11,6 +11,7 @@ try:  # Assume we're a submodule in a package.
     from base.functions.arguments import update
     from utils.decorators import deprecated_with_alternative
     from functions.secondary.array_functions import fold_lists
+    from content.items.item_getters import get_filter_function
     from content.selection import selection_classes as sn
     from streams.abstract.local_stream import LocalStream
     from streams.mixin.convert_mixin import ConvertMixin
@@ -24,6 +25,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.functions.arguments import update
     from ...utils.decorators import deprecated_with_alternative
     from ...functions.secondary.array_functions import fold_lists
+    from ...content.items.item_getters import get_filter_function
     from ...content.selection import selection_classes as sn
     from ..abstract.local_stream import LocalStream
     from ..mixin.convert_mixin import ConvertMixin
@@ -142,13 +144,10 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
             target_item_type = input_item_type
         return target_item_type
 
-    def filter(self, *functions) -> Native:
-        def filter_function(item):
-            for f in functions:
-                if not f(item):
-                    return False
-            return True
-        stream = super().filter(filter_function)
+    def filter(self, *fields, skip_errors: bool = True, inplace: bool = False, **expressions) -> Native:
+        item_type = self.get_item_type()
+        filter_function = get_filter_function(*fields, **expressions, item_type=item_type, skip_errors=skip_errors)
+        stream = super().filter(filter_function, inplace=inplace)
         return self._assume_native(stream)
 
     def select(self, *columns, use_extended_method: AutoBool = AUTO, **expressions) -> Native:

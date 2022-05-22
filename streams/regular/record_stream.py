@@ -100,19 +100,6 @@ class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
                 secondary=self.get_stream_type(),
             )
 
-    def filter(self, *fields, **expressions) -> Native:
-        filter_function = get_filter_function(*fields, **expressions, item_type=ItemType.Record, skip_errors=True)
-        filtered_items = self._get_filtered_items(filter_function)
-        if self.is_in_memory():
-            filtered_items = list(filtered_items)
-            count = len(filtered_items)
-            less_than = count
-        else:
-            count = None
-            less_than = self.get_estimated_count()
-        stream = self.stream(filtered_items, count=count, less_than=less_than)
-        return self._assume_native(stream)
-
     def add_column(self, name: Field, values: Iterable, ignore_errors: bool = False) -> Native:
         name = get_name(name)
         items = map(lambda i, v: merge_two_items(i, {name: v}), self.get_items(), values)
