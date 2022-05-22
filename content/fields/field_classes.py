@@ -115,7 +115,3 @@ def struct(
 @deprecated_with_alternative('struct')
 def group(*fields, **kwargs) -> FlatStruct:
     return FlatStruct(fields, **kwargs)
-
-
-def const(value: Any):  # -> RegularDescription
-    return ce.RegularDescription(target='_', function = lambda i: value, inputs=[], target_item_type=AUTO)
