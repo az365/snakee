@@ -252,22 +252,6 @@ class StructStream(RowStream, StructMixin, ConvertMixin):
     def skip(self, count: int = 1, inplace: bool = False) -> Native:
         return super().skip(count, inplace=inplace).update_meta(struct=self.get_struct())
 
-    def filter(self, *fields, **expressions) -> Native:
-        primitives = (str, int, float, bool)
-        expressions_list = [(k, fs.equal(v) if isinstance(v, primitives) else v) for k, v in expressions.items()]
-        expressions_list = list(fields) + expressions_list
-        expressions_list = [sn.translate_names_to_columns(e, struct=self.get_struct()) for e in expressions_list]
-        selection_method = value_from_struct_row
-
-        def filter_function(r):
-            for f in expressions_list:
-                if not selection_method(r, f):
-                    return False
-            return True
-        filtered_items = filter(filter_function, self.get_items())
-        result = self.stream(filtered_items)
-        return result.to_memory() if self.is_in_memory() else result
-
     def sorted_group_by(
             self,
             *keys,
