@@ -3,7 +3,7 @@ from typing import Type, Optional, Iterable, Generator, Union
 try:  # Assume we're a submodule in a package.
     from base.classes.auto import AUTO, Auto
     from base.functions.arguments import get_name, get_names, get_value
-    from base.classes.enum import DynamicEnum
+    from base.classes.enum import DynamicEnum, Class
     from base.constants.chars import EMPTY, PY_INDENT, IDS_DELIMITER, REPR_DELIMITER
     from content.value_type import ValueType
     from content.terms.discrete_term import DiscreteTerm, TermType, Field, FieldRoleType
@@ -11,7 +11,7 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.classes.auto import AUTO, Auto
     from ...base.functions.arguments import get_name, get_names, get_value
-    from ...base.classes.enum import DynamicEnum
+    from ...base.classes.enum import DynamicEnum, Class
     from ...base.constants.chars import EMPTY, PY_INDENT, IDS_DELIMITER, REPR_DELIMITER
     from ..value_type import ValueType
     from .discrete_term import DiscreteTerm, TermType, Field, FieldRoleType
@@ -27,7 +27,7 @@ class HierarchicTerm(DiscreteTerm):
             self,
             name: str,
             caption: str = EMPTY,
-            levels: Union[DynamicEnum, list, None] = None,
+            levels: Union[DynamicEnum, Class, list, None] = None,
             fields: Optional[dict] = None,
             dicts: Optional[dict] = None,
             mappers: Optional[dict] = None,

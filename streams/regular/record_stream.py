@@ -88,10 +88,10 @@ class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
             r[field] = n + first
             yield r
 
-    def enumerate(self, native: bool = False) -> Stream:
+    def enumerate(self, field: str = '#', first: int = 0, native: bool = True) -> Stream:
         if native:
             return self.stream(
-                self.get_enumerated_records(),
+                self.get_enumerated_records(field=field, first=first),
             )
         else:
             return self.stream(
