@@ -294,7 +294,7 @@ class AnyField(SimpleDataWrapper, SelectableMixin, MultiMapDataMixin, FieldInter
         elif isinstance(value_or_func, PRIMITIVE_TYPES):
             function = (lambda v: v == value_or_func)
             input_fields = [self]
-        elif isinstance(value_or_func, FieldInterface) or hasattr('get_value_type'):
+        elif isinstance(value_or_func, FieldInterface) or hasattr(value_or_func, 'get_value_type'):
             function = (lambda a, b: a == b)
             input_fields = [self, value_or_func]
         else:
@@ -305,6 +305,9 @@ class AnyField(SimpleDataWrapper, SelectableMixin, MultiMapDataMixin, FieldInter
             function=function, default=None,
             skip_errors=self._skip_errors, logger=self._logger,
         )
+
+    def get_input_fields(self) -> list:
+        return [self]
 
     def drop(self):
         return ce.DropDescription([self], target_item_type=ItemType.Auto)

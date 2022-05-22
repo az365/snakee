@@ -144,6 +144,10 @@ class FieldInterface(SimpleDataInterface, ABC):
         pass
 
     @abstractmethod
+    def get_input_fields(self) -> list:
+        pass
+
+    @abstractmethod
     def get_str_headers(self) -> Generator:
         pass
 
