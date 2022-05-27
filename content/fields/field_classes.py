@@ -6,6 +6,7 @@ try:  # Assume we're a submodule in a package.
         Auto, AUTO,
     )
     from base.functions.arguments import update
+    from utils.decorators import deprecated_with_alternative
     from content.value_type import ValueType
     from content.fields.field_role_type import FieldRoleType
     from content.struct.flat_struct import FlatStruct
@@ -31,6 +32,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         Auto, AUTO,
     )
     from ...base.functions.arguments import update
+    from ...utils.decorators import deprecated_with_alternative
     from ..value_type import ValueType
     from .field_role_type import FieldRoleType
     from ..struct.flat_struct import FlatStruct
@@ -110,5 +112,6 @@ def struct(
     return FlatStruct(fields, name=name, caption=caption, default_type=default_type, **kwargs)
 
 
+@deprecated_with_alternative('struct')
 def group(*fields, **kwargs) -> FlatStruct:
     return FlatStruct(fields, **kwargs)

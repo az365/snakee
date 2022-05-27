@@ -120,6 +120,14 @@ class FieldInterface(SimpleDataInterface, ABC):
         pass
 
     @abstractmethod
+    def filter(self, value_or_function) -> Transform:
+        pass
+
+    @abstractmethod
+    def map(self, function: Callable) -> Transform:
+        pass
+
+    @abstractmethod
     def to(self, target: Union[Native, str]) -> Transform:
         pass
 
@@ -133,6 +141,10 @@ class FieldInterface(SimpleDataInterface, ABC):
 
     @abstractmethod
     def get_plural(self, suffix: AutoName = AUTO, caption_prefix: str = 'list of ', **kwargs) -> Native:
+        pass
+
+    @abstractmethod
+    def get_input_fields(self) -> list:
         pass
 
     @abstractmethod

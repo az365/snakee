@@ -92,6 +92,10 @@ class StructInterface(StructMixinInterface, ABC):
         pass
 
     @abstractmethod
+    def get_input_fields(self) -> list:
+        pass
+
+    @abstractmethod
     def simple_select_fields(self, fields: Iterable):
         pass
 

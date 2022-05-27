@@ -76,7 +76,12 @@ def value_from_any(item, description: Description, logger=None, skip_errors=True
 
 
 def value_from_item(item, description: Description, item_type=AUTO, logger=None, skip_errors=True, default=None):
-    if hasattr(description, 'get_name'):
+    if hasattr(description, 'get_mapper'):
+        try:
+            description = description.get_mapper(item_type=item_type)
+        except TypeError:
+            description = description.get_mapper()
+    elif hasattr(description, 'get_name'):
         description = description.get_name()
     if isinstance(description, Callable):
         return description(item)

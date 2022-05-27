@@ -29,6 +29,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils.decorators import WrappedFunction
     from ...functions.primary import items as it
 
+Native = Union[AbstractBaseObject, DataMixin]
+
 SQL_FUNC_NAMES_DICT = dict(len='COUNT')
 SQL_TYPE_NAMES_DICT = dict(int='integer', str='varchar')
 CODE_HTML_STYLE = "background-color: RGB(48, 56, 69); line-height: 1.0em; padding-top: 2.0em; padding-bottom: 2.0em;'"
@@ -199,7 +201,7 @@ class AbstractDescription(AbstractBaseObject, DataMixin, ABC):
             yield '\n{title}:\n'.format(title=title)
             yield from detailed_description
 
-    def _get_function_code(self):
+    def _get_function_code(self) -> str:
         func = self.get_function()
         if isinstance(func, WrappedFunction) or hasattr(func, 'get_py_code'):
             return func.get_py_code()
@@ -214,7 +216,7 @@ class AbstractDescription(AbstractBaseObject, DataMixin, ABC):
             comment: Optional[str] = None,
             depth: int = 1,
             output=AUTO,
-    ):
+    ) -> Native:
         display = self.get_display(output)
         if show_header:
             display.display_paragraph(self.get_brief_repr(), level=1)
@@ -235,6 +237,7 @@ class AbstractDescription(AbstractBaseObject, DataMixin, ABC):
                     display.display_paragraph('{attribute}:'.format(attribute=attribute), level=3)
                     value.describe(show_header=False, depth=depth - 1, output=output)
         display.display_paragraph()
+        return self
 
     def get_brief_repr(self) -> str:
         inputs = ', '.join(map(get_name, self.get_input_field_names()))

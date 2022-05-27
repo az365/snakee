@@ -109,6 +109,10 @@ class ColumnarInterface(RegularStreamInterface, ABC):
     def flat_map(self, function: Callable) -> Native:
         pass
 
+    # @abstractmethod
+    # def map_to(self, function: Callable, stream_type: StreamType) -> Stream:
+    #     pass
+
     @abstractmethod
     def map(self, function: Callable) -> Native:
         """Apply function to each item in stream.

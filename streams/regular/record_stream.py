@@ -11,7 +11,6 @@ try:  # Assume we're a submodule in a package.
     from base.functions.arguments import get_name, get_names, update
     from utils.external import pd, DataFrame, get_use_objects_for_output
     from utils.decorators import deprecated_with_alternative
-    from functions.primary.items import merge_two_items
     from functions.secondary.array_functions import fold_lists
     from content.selection import selection_classes as sn, selection_functions as sf
     from content.items.item_getters import value_from_record, tuple_from_record, get_filter_function
@@ -29,7 +28,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.functions.arguments import get_name, get_names, update
     from ...utils.external import pd, DataFrame, get_use_objects_for_output
     from ...utils.decorators import deprecated_with_alternative
-    from ...functions.primary.items import merge_two_items
     from ...functions.secondary.array_functions import fold_lists
     from ...content.selection import selection_classes as sn, selection_functions as sf
     from ...content.items.item_getters import value_from_record, tuple_from_record, get_filter_function
@@ -82,36 +80,6 @@ class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
     @staticmethod
     def get_item_type() -> ItemType:
         return ItemType.Record
-
-    def get_enumerated_records(self, field: str = '#', first: int = 1) -> Iterable:
-        for n, r in enumerate(self.get_data()):
-            r[field] = n + first
-            yield r
-
-    def enumerate(self, field: str = '#', first: int = 0, native: bool = True) -> Stream:
-        if native:
-            return self.stream(
-                self.get_enumerated_records(field=field, first=first),
-            )
-        else:
-            return self.stream(
-                self._get_enumerated_items(),
-                stream_type=StreamType.KeyValueStream,
-                secondary=self.get_stream_type(),
-            )
-
-    def add_column(self, name: Field, values: Iterable, ignore_errors: bool = False) -> Native:
-        name = get_name(name)
-        items = map(lambda i, v: merge_two_items(i, {name: v}), self.get_items(), values)
-        stream = self.stream(items)
-        if self.is_in_memory():
-            if not ignore_errors:
-                if not isinstance(values, ARRAY_TYPES):
-                    values = list(values)
-                msg = 'for add_column() stream and values must have same items count, got {} != {}'
-                assert self.get_count() == len(values), msg.format(self.get_count(), len(values))
-            stream = stream.to_memory()
-        return stream
 
     def sort(self, *keys, reverse: bool = False, step: AutoCount = AUTO, verbose: bool = True) -> Native:
         key_function = self._get_key_function(keys, take_hash=False)

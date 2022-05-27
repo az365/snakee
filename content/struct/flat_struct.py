@@ -577,6 +577,12 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
             f_name, f_type_name, f_caption, f_valid, group_name, group_caption = field_tuple
             yield n, f_type_name, f_name or '', f_caption, f_valid
 
+    def get_input_fields(self) -> list:
+        return self.get_fields()
+
+    def to(self, field: Field):
+        return self.map(lambda *a: tuple(a)).to(field)
+
     def get_group_header(self, name: Comment = AUTO, caption: Comment = AUTO, comment: Comment = None) -> Iterator[str]:
         is_title_row = name == AUTO
         name = Auto.acquire(name, self.get_name())

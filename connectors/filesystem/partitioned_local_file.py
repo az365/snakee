@@ -134,6 +134,13 @@ class PartitionedLocalFile(LocalMask, LocalFile):
         return partition.to_stream(data=data, name=name, stream_type=stream_type, ex=ex, **kwargs)
 
 
+# FolderType.set_dict_classes(
+#     {
+#         FolderType.LocalFolder: LocalFolder,
+#         FolderType.LocalMask: LocalMask,
+#         FolderType.PartitionedLocalFile: PartitionedLocalFile,
+#     }
+# )
 ConnType.add_classes(
     LocalFolder,
     LocalMask,

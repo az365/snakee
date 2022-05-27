@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Callable, Union
+from typing import Callable, Sequence, Union
 
 try:  # Assume we're a submodule in a package.
     from interfaces import ItemType, StructInterface, Item, Name, Field, Value, LoggerInterface, Array, Auto, AUTO
@@ -7,7 +7,7 @@ try:  # Assume we're a submodule in a package.
     from base.classes.typing import FieldID
     from base.constants.chars import ALL, NOT_SET
     from functions.primary import items as it
-    from functions.secondary.basic_functions import same
+    from functions.secondary import all_secondary_functions as fs
     from content.items.simple_items import SelectableItem
     from content.fields.field_interface import FieldInterface, ValueType
     from content.struct.struct_interface import StructInterface
@@ -19,7 +19,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.classes.typing import FieldID
     from ...base.constants.chars import ALL, NOT_SET
     from ...functions.primary import items as it
-    from ...functions.secondary.basic_functions import same
+    from ...functions.secondary import all_secondary_functions as fs
     from ..items.simple_items import SelectableItem
     from ..fields.field_interface import FieldInterface, ValueType
     from ..struct.struct_interface import StructInterface
@@ -95,9 +95,35 @@ class SelectableMixin(SelectableInterface, ABC):
     def get_from(self, *fields) -> RegularDescription:
         assert isinstance(self, FieldInterface) and isinstance(self, SelectableMixin), 'got {}'.format(self)
         return RegularDescription(
-            target=self,
-            function=same(),
-            inputs=fields,
-            target_item_type=self._get_target_item_type(),
-            input_item_type=self._get_input_item_type(),
+            function=fs.same(),
+            target=self, target_item_type=self._get_target_item_type(),
+            inputs=fields, input_item_type=self._get_input_item_type(),
         )
+
+    def _get_comparison(self, func, arg) -> RegularDescription:
+        function = func()
+        if isinstance(arg, FieldInterface):
+            inputs = [self, arg]
+        elif isinstance(arg, StructInterface):
+            inputs = [self, *arg]
+        else:
+            inputs = [self]
+            function = func(arg)
+        return RegularDescription(
+            target=NOT_SET, target_item_type=self.get_default_item_type(),
+            inputs=inputs, input_item_type=ItemType.Auto,
+            function=function, default=None,
+            skip_errors=self._skip_errors, logger=self._logger,
+        )
+
+    def equal(self, smth: Union[FieldInterface, StructInterface, Value]) -> RegularDescription:
+        return self._get_comparison(fs.equal, smth)
+
+    def not_equal(self, smth: Union[FieldInterface, StructInterface, Value]) -> RegularDescription:
+        return self._get_comparison(fs.not_equal, smth)
+
+    def is_in(self, array: Sequence) -> RegularDescription:
+        return self._get_comparison(fs.is_in, array)
+
+    def not_in(self, array: Sequence) -> RegularDescription:
+        return self._get_comparison(fs.not_in, array)

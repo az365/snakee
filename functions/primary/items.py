@@ -1,7 +1,7 @@
 from typing import Optional, Iterable, Callable, Union, Any
 
-try:  # Assume we're a sub-module in a package.
-    from utils import arguments as arg
+try:  # Assume we're a submodule in a package.
+    from base.classes.auto import AUTO, Auto
     from content.items.item_type import ItemType
     from content.struct.struct_row_interface import StructRowInterface
     from content.items.simple_items import (
@@ -12,7 +12,7 @@ try:  # Assume we're a sub-module in a package.
         merge_two_rows, merge_two_records,
     )
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
+    from ...base.classes.auto import AUTO, Auto
     from ...content.items.item_type import ItemType
     from ...content.struct.struct_row_interface import StructRowInterface
     from ...content.items.simple_items import (
@@ -31,7 +31,7 @@ def set_to_item_inplace(
         field: FieldID, value: Value,
         item: SelectableItem, item_type: ItemType = ItemType.Auto,
 ) -> None:
-    item_type = arg.delayed_acquire(item_type, ItemType.detect, item, default=ItemType.Any)
+    item_type = Auto.delayed_acquire(item_type, ItemType.detect, item, default=ItemType.Any)
     if not isinstance(item_type, ItemType):
         if hasattr(item_type, 'value'):
             item_type = ItemType(item_type.value)
@@ -40,6 +40,7 @@ def set_to_item_inplace(
     if item_type == ItemType.Record:
         item[field] = value
     elif item_type == ItemType.Row:
+        assert isinstance(field, int)
         cols_count = len(item)
         if field >= cols_count:
             item += [None] * (field - cols_count + 1)
@@ -62,8 +63,21 @@ def set_to_item_inplace(
         raise TypeError('type {} not supported'.format(item_type))
 
 
+def set_to_item(
+        field: FieldID, value: Value,
+        item: SelectableItem, item_type: ItemType = ItemType.Auto,
+        inplace: bool = True,
+):
+    if item_type is None or item_type == ItemType.Any:
+        if field == '#':
+            return value, item
+    if not inplace:
+        item = get_copy(item)
+    return set_to_item_inplace(field, value, item, item_type=item_type) or item
+
+
 def get_fields_names_from_item(item: SelectableItem, item_type: ItemType = ItemType.Auto) -> Row:
-    item_type = arg.delayed_acquire(item_type, ItemType.detect, item, default=ItemType.Any)
+    item_type = Auto.delayed_acquire(item_type, ItemType.detect, item, default=ItemType.Any)
     if item_type == ItemType.Row:
         return list(range(len(item)))
     elif item_type == ItemType.Record:
@@ -91,7 +105,7 @@ def get_field_value_from_item(
             skip_errors=skip_errors, logger=logger,
         )
         return tuple(list_values)
-    if item_type == ItemType.Auto or not arg.is_defined(item_type):
+    if item_type == ItemType.Auto or not Auto.is_defined(item_type):
         item_type = ItemType.detect(item, default='any')
     elif isinstance(item_type, str):
         item_type = ItemType(item_type)
@@ -127,7 +141,7 @@ def get_fields_values_from_item(
 
 
 def simple_select_fields(fields: Array, item: SelectableItem, item_type: ItemType = ItemType.Auto) -> SelectableItem:
-    item_type = arg.delayed_acquire(item_type, ItemType.detect, item, default=ItemType.Any)
+    item_type = Auto.delayed_acquire(item_type, ItemType.detect, item, default=ItemType.Any)
     if isinstance(item_type, str):
         item_type = ItemType(item_type)
     if item_type == ItemType.Record:

@@ -1,20 +1,20 @@
 from typing import Optional, Union, Generator
 from datetime import timedelta, datetime
 
-try:  # Assume we're a sub-module in a package.
-    from utils import arguments as arg
+try:  # Assume we're a submodule in a package.
+    from base.classes.auto import AUTO, Auto
     from base.interfaces.context_interface import ContextInterface
     from base.abstract.tree_item import TreeItem
     from loggers.extended_logger_interface import ExtendedLoggerInterface, LoggingLevel
     from loggers.progress_interface import ProgressInterface, OperationStatus
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..utils import arguments as arg
+    from base.classes.auto import AUTO, Auto
     from ..base.interfaces.context_interface import ContextInterface
     from ..base.abstract.tree_item import TreeItem
     from .extended_logger_interface import ExtendedLoggerInterface, LoggingLevel
     from .progress_interface import ProgressInterface, OperationStatus
 
-Logger = Union[ExtendedLoggerInterface, arg.Auto]
+Logger = Union[ExtendedLoggerInterface, Auto]
 Context = Optional[ContextInterface]
 
 DEFAULT_STEP = 10000
@@ -27,7 +27,7 @@ class Progress(TreeItem, ProgressInterface):
             count: Optional[int] = None,
             timing: bool = True,
             verbose: bool = True,
-            logger: Logger = arg.AUTO,
+            logger: Logger = AUTO,
             context: ContextInterface = None,
     ):
         self.expected_count = count
@@ -39,12 +39,12 @@ class Progress(TreeItem, ProgressInterface):
         self.past_time = timedelta(0)
         if logger is None:
             logger = None
-        elif logger == arg.AUTO:
+        elif logger == AUTO:
             logger = context.get_logger()
         else:
             logger = logger
-        if logger and not context:
-            self.context = logger.get_context()
+        if hasattr(logger, 'get_context') and not context:
+            context = logger.get_context()
         super().__init__(name=name, parent=logger, context=context, check=False)
 
     @staticmethod
@@ -62,8 +62,8 @@ class Progress(TreeItem, ProgressInterface):
     def _get_selection_logger_name(self) -> str:
         return self.get_name() + ':_selection'
 
-    def get_selection_logger(self, name=arg.AUTO):
-        name = arg.acquire(name, self._get_selection_logger_name, delayed=True)
+    def get_selection_logger(self, name=AUTO):
+        name = Auto.acquire(name, self._get_selection_logger_name, delayed=True)
         selection_logger = self.get_child(name)
         if not selection_logger:
             logger = self.get_logger()
@@ -81,7 +81,7 @@ class Progress(TreeItem, ProgressInterface):
             self.add_child(selection_logger)
         return selection_logger
 
-    def reset_selection_logger(self, name=arg.AUTO, **kwargs) -> None:
+    def reset_selection_logger(self, name=AUTO, **kwargs) -> None:
         logger = self.get_logger()
         logger.reset_selection_logger(name, **kwargs)
 
@@ -90,16 +90,16 @@ class Progress(TreeItem, ProgressInterface):
         assert isinstance(logger, ExtendedLoggerInterface)
         return logger
 
-    def log(self, msg, level=arg.AUTO, end=arg.AUTO, verbose=arg.AUTO) -> None:
+    def log(self, msg, level=AUTO, end=AUTO, verbose=AUTO) -> None:
         logger = self.get_logger()
         if logger is not None:
             logger.log(
                 logger=self.get_logger(),
                 msg=msg, level=level, end=end,
-                verbose=arg.acquire(verbose, self.verbose),
+                verbose=Auto.acquire(verbose, self.verbose),
             )
 
-    def log_selection_batch(self, level=arg.AUTO, reset_after=True) -> None:
+    def log_selection_batch(self, level=AUTO, reset_after=True) -> None:
         selection_logger = self.get_selection_logger()
         if selection_logger:
             if selection_logger.has_errors():
@@ -188,23 +188,23 @@ class Progress(TreeItem, ProgressInterface):
             line = '{} {} ({} it/sec)'.format(self.get_timing_str(), line, self.evaluate_speed())
         self.log(line, level=LoggingLevel.Debug, end='\r')
 
-    def update_with_step(self, position, step=arg.AUTO):
-        step = arg.acquire(step, DEFAULT_STEP)
+    def update_with_step(self, position, step=AUTO):
+        step = Auto.acquire(step, DEFAULT_STEP)
         cur_increment = position - (self.position or 0)
         self.position = position
         step_passed = (self.position + 1) % step == 0
         step_passed = step_passed or (cur_increment >= step)
         expected_count = self.expected_count
-        if not arg.is_defined(expected_count):
+        if not Auto.is_defined(expected_count):
             expected_count = 0
         pool_finished = 0 < expected_count < (self.position + 1)
         if step_passed or pool_finished:
             self.update_now(position)
 
     def update(self, position, step=None, message=None):
-        if arg.is_defined(message):
+        if Auto.is_defined(message):
             self.set_name(message, inplace=True)
-        if step == 1 or not arg.is_defined(step):
+        if step == 1 or not Auto.is_defined(step):
             self.update_now(position)
         else:
             self.update_with_step(position, step)
@@ -228,15 +228,15 @@ class Progress(TreeItem, ProgressInterface):
         if log_selection_batch:
             self.log_selection_batch()
 
-    def iterate(self, items, name=None, expected_count=None, step=arg.AUTO, log_selection_batch=True) -> Generator:
-        if arg.is_defined(name):
+    def iterate(self, items, name=None, expected_count=None, step=AUTO, log_selection_batch=True) -> Generator:
+        if Auto.is_defined(name):
             self.set_name(name, inplace=True)
         if isinstance(items, (set, list, tuple)):
             self.expected_count = len(items)
         else:
             self.expected_count = expected_count or self.expected_count
         n = 0
-        step = arg.acquire(step, DEFAULT_STEP)
+        step = Auto.acquire(step, DEFAULT_STEP)
         self.start()
         for n, item in enumerate(items):
             self.update(n, step)

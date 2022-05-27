@@ -3,7 +3,7 @@ from typing import Callable, Iterable, Union
 try:  # Assume we're a submodule in a package.
     from base.classes.auto import AUTO
     from base.functions.arguments import get_name
-    from base.constants.chars import STAR
+    from base.constants.chars import STAR, NOT_SET
     from utils.decorators import deprecated
     from content.items.item_type import ItemType
     from content.items.item_getters import get_selection_mapper
@@ -15,12 +15,13 @@ try:  # Assume we're a submodule in a package.
     from content.selection.concrete_expression import (
         TrivialDescription, AliasDescription, RegularDescription, FunctionDescription,
         StarDescription, DropDescription,
+        Value,
     )
     from content.selection.selection_description import SelectionDescription, translate_names_to_columns
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.classes.auto import AUTO
     from ...base.functions.arguments import get_name
-    from ...base.constants.chars import STAR
+    from ...base.constants.chars import STAR, NOT_SET
     from ...utils.decorators import deprecated
     from ..items.item_type import ItemType
     from ..items.item_getters import get_selection_mapper
@@ -32,6 +33,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .concrete_expression import (
         TrivialDescription, AliasDescription, RegularDescription, FunctionDescription,
         StarDescription, DropDescription,
+        Value,
     )
     from .selection_description import SelectionDescription, translate_names_to_columns
 
@@ -126,3 +128,7 @@ def get_output_struct(
 @deprecated
 def drop(*fields, **kwargs):
     return DropDescription(fields, **kwargs)
+
+
+def const(value: Value) -> RegularDescription:
+    return RegularDescription(target=NOT_SET, function=lambda i: value, inputs=[], target_item_type=AUTO)
