@@ -123,27 +123,34 @@ class Table(LeafConnector):
             self.reset_modification_timestamp(timestamp)
         return timestamp
 
-    def get_count(self, allow_reopen: bool = True, allow_slow_mode: bool = True, force: bool = False) -> Count:
+    def get_count(self, allow_slow_mode: bool = True, allow_reopen: bool = True, force: bool = False) -> Count:
         if force:
             must_recount = True
             count = None
         else:
             count = self.get_expected_count()
-            if count:
+            if Auto.is_defined(count):
                 must_recount = False
             elif allow_slow_mode:
                 must_recount = self.is_existing()
             else:
                 must_recount = False
         if must_recount:
-            count = self.get_actual_lines_count(allow_reopen=allow_reopen)
+            count = self.get_actual_lines_count(allow_slow_mode=allow_slow_mode)
             self.set_count(count)
         if Auto.is_defined(count):
             return count
 
-    def get_actual_lines_count(self, allow_reopen: AutoBool = AUTO, verbose: AutoBool = AUTO) -> Count:
-        database = self.get_database()
-        count = database.select_count(self.get_name(), verbose=verbose)
+    def get_actual_lines_count(
+            self,
+            allow_slow_mode: bool = False,
+            verbose: AutoBool = AUTO,
+    ) -> Count:
+        if allow_slow_mode:
+            database = self.get_database()
+            count = database.select_count(self.get_name(), verbose=verbose)
+        else:
+            count = self.get_expected_count()
         return count
 
     def get_columns(self, skip_missing: bool = False) -> Optional[list]:
