@@ -1,7 +1,7 @@
 from typing import Optional, Iterable, Callable, Union
 
 try:  # Assume we're a submodule in a package.
-    from utils import arguments as arg
+    from base.functions.arguments import get_name
     from interfaces import (
         FieldInterface, StructInterface,
         ValueType, DialectType, ItemType,
@@ -12,7 +12,7 @@ try:  # Assume we're a submodule in a package.
     from content.struct.flat_struct import FlatStruct
     from content.struct.struct_mixin import StructMixin
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
+    from ...base.functions.arguments import get_name
     from ...interfaces import (
         FieldInterface, StructInterface,
         ValueType, DialectType, ItemType,
@@ -50,13 +50,13 @@ class StructRow(SimpleDataWrapper, StructMixin, StructRowInterface):
     def get_data(self) -> Row:
         return super().get_data()
 
-    def set_data(self, row: Row, check: bool = True, inplace: bool = True) -> Optional[StructRowInterface]:
+    def set_data(self, row: Row, inplace: bool, check: bool = True, **kwargs) -> Optional[StructRowInterface]:
         if check:
             row = self._structure_row(row, self.get_struct())
-        return super().set_data(data=row, inplace=inplace)
+        return super().set_data(data=row, inplace=inplace, **kwargs)
 
     def keys(self) -> Iterable:
-        return map(arg.get_name, self.get_fields_descriptions())
+        return map(get_name, self.get_fields_descriptions())
 
     def get_keys(self) -> list:
         return list(self.keys())

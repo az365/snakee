@@ -2,15 +2,17 @@ from abc import ABC, abstractmethod
 from typing import Optional, Callable, Union
 
 try:  # Assume we're a submodule in a package.
-    from utils import arguments as arg
+    from base.classes.auto import AUTO, Auto
     from base.interfaces.data_interface import SimpleDataInterface
+    from content.fields.field_interface import FieldInterface
+    from content.items.simple_items import SimpleRowInterface, SimpleRow, FieldNo, FieldID, Value
     from content.struct.struct_interface import StructInterface, StructMixinInterface
-    from content.items.simple_items import SimpleRowInterface, SimpleRow, FieldNo, FieldName, FieldID, Value
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
+    from ...base.classes.auto import AUTO, Auto
     from ...base.interfaces.data_interface import SimpleDataInterface
+    from ..fields.field_interface import FieldInterface
+    from ..items.simple_items import SimpleRowInterface, SimpleRow, FieldNo, FieldID, Value
     from .struct_interface import StructInterface, StructMixinInterface
-    from ..items.simple_items import SimpleRowInterface, SimpleRow, FieldNo, FieldName, FieldID, Value
 
 StructRow = SimpleDataInterface
 GenericRow = Union[SimpleRow, StructRow]
@@ -18,6 +20,7 @@ GenericRow = Union[SimpleRow, StructRow]
 DEFAULT_DELIMITER = '\t'
 
 
+# @deprecated
 class StructRowInterface(SimpleDataInterface, SimpleRowInterface, StructMixinInterface, ABC):
     @abstractmethod
     def get_struct(self) -> StructInterface:
@@ -50,7 +53,7 @@ class StructRowInterface(SimpleDataInterface, SimpleRowInterface, StructMixinInt
             self,
             field: FieldID,
             value: Value,
-            field_type=arg.AUTO,
+            field_type=AUTO,
             update_struct: bool = False,
             inplace: bool = True,
     ) -> Optional[StructRow]:
