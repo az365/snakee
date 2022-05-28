@@ -291,16 +291,17 @@ class SnakeeContext(bs.AbstractNamed, ContextInterface):
             self.conn_instances[instance_name] = job_folder_obj
             return job_folder_obj
 
-    def find_job_folder(self, required_folders: Iterable) -> Connector:
+    def find_job_folder(self, required_folders: Iterable, max_depth: int = 5) -> Connector:
         set_required_folders = set(get_names(required_folders))
         current_folder = self.get_job_folder()
-        while True:
+        for depth in range(max_depth):
             assert isinstance(current_folder, ct.LocalFolder) or hasattr(current_folder, 'get_existing_folder_names')
             set_existing_folders = set(current_folder.get_existing_folder_names())
             if set_existing_folders >= set_required_folders:
                 return current_folder
             else:
                 current_folder = current_folder.get_parent_folder()
+        raise FileNotFoundError(f'find_job_folder(): job-folder with required_folders={required_folders} not found')
 
     def get_tmp_folder(
             self,

@@ -81,15 +81,6 @@ class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
     def get_item_type() -> ItemType:
         return ItemType.Record
 
-    def sort(self, *keys, reverse: bool = False, step: AutoCount = AUTO, verbose: bool = True) -> Native:
-        key_function = self._get_key_function(keys, take_hash=False)
-        step = Auto.delayed_acquire(step, self.get_limit_items_in_memory)
-        if self.can_be_in_memory(step=step):
-            stream = self.memory_sort(key_function, reverse, verbose=verbose)
-        else:
-            stream = self.disk_sort(key_function, reverse, step=step, verbose=verbose)
-        return self._assume_native(stream)
-
     def sorted_group_by(
             self,
             *keys,

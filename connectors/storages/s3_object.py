@@ -194,8 +194,10 @@ class S3Object(LeafConnector):
     def get_count(self, *args, **kwargs) -> Optional[int]:
         return None  # not available property
 
-    def is_empty(self) -> Optional[bool]:
-        return None  # not available property
+    def is_empty(self, verbose: bool = AUTO) -> Optional[bool]:
+        verbose = Auto.delayed_acquire(verbose, self.is_verbose)
+        if self.is_accessible():
+            return not self.get_first_line(close=True, skip_missing=True, verbose=verbose)
 
     def get_modification_timestamp(self):
         path = self.get_object_path_in_bucket()

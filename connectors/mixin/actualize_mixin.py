@@ -32,10 +32,10 @@ class ActualizeMixin(ABC):
     def is_actual(self) -> bool:
         return self.get_modification_timestamp() == self.get_prev_modification_timestamp()
 
-    def actualize(self, if_outdated: bool = False) -> Native:
-        self.get_modification_timestamp()
+    def actualize(self, if_outdated: bool = False, allow_slow_mode: bool = False) -> Native:
+        self.get_modification_timestamp()  # just update property
         if self.is_outdated() or not if_outdated:
-            self.get_count(force=True)
+            self.get_count(force=True, allow_slow_mode=allow_slow_mode)
             self.get_detected_format(force=True, skip_missing=True)
         return self
 
