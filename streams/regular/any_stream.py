@@ -11,7 +11,7 @@ try:  # Assume we're a submodule in a package.
     from base.functions.arguments import get_name, update
     from utils.decorators import deprecated_with_alternative
     from functions.primary.items import set_to_item, merge_two_items
-    from functions.secondary.array_functions import fold_lists
+    from functions.secondary import all_secondary_functions as fs
     from content.items.item_getters import get_filter_function
     from content.selection import selection_classes as sn
     from streams.abstract.local_stream import LocalStream
@@ -26,7 +26,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.functions.arguments import get_name, update
     from ...utils.decorators import deprecated_with_alternative
     from ...functions.primary.items import set_to_item, merge_two_items
-    from ...functions.secondary.array_functions import fold_lists
+    from ...functions.secondary import all_secondary_functions as fs
     from ...content.items.item_getters import get_filter_function
     from ...content.selection import selection_classes as sn
     from ..abstract.local_stream import LocalStream
@@ -270,6 +270,18 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
         else:
             return values
 
+    def sort(self, *keys, reverse: bool = False, step: AutoCount = AUTO, verbose: bool = True) -> Native:
+        step = Auto.delayed_acquire(step, self.get_limit_items_in_memory)
+        if keys:
+            key_function = self._get_key_function(keys, take_hash=False)
+        else:
+            key_function = fs.same()
+        if self.can_be_in_memory(step=step):
+            stream = self.memory_sort(key_function, reverse=reverse, verbose=verbose)
+        else:
+            stream = self.disk_sort(key_function, reverse=reverse, step=step, verbose=verbose)
+        return self._assume_native(stream)
+
     def _get_groups(self, key_function: Callable, as_pairs: bool) -> Generator:
         accumulated = list()
         prev_k = None
@@ -311,7 +323,7 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
             elif item_type == ItemType.Row and hasattr(self, '_get_field_getter'):
                 keys = [self._get_field_getter(f) for f in keys]
                 values = [self._get_field_getter(f, item_type=item_type) for f in values]
-            fold_mapper = fold_lists(keys=keys, values=values, skip_missing=skip_missing, item_type=item_type)
+            fold_mapper = fs.fold_lists(keys=keys, values=values, skip_missing=skip_missing, item_type=item_type)
             stream_groups = stream_groups.map_to_type(fold_mapper, stream_type=stream_type)
             if output_struct:
                 if hasattr(stream_groups, 'structure'):
