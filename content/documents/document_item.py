@@ -9,8 +9,7 @@ try:  # Assume we're a submodule in a package.
     from base.mixin.map_data_mixin import MapDataMixin
     from functions.primary.items import get_fields_values_from_item, get_field_value_from_item
     from streams.interfaces.regular_stream_interface import RegularStreamInterface
-    from util.external import HTML
-    from content.items.item_type import ItemType
+    from utils.external import HTML
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.classes.typing import AUTO, Auto
     from ...base.classes.enum import DynamicEnum
@@ -21,7 +20,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...functions.primary.items import get_fields_values_from_item, get_field_value_from_item
     from ...streams.interfaces.regular_stream_interface import RegularStreamInterface
     from ...utils.external import HTML
-    from .item_type import ItemType
 
 HtmlStyle = str
 ContentStyle = Any
