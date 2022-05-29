@@ -4,14 +4,14 @@ try:  # Assume we're a submodule in a package.
     from interfaces import Item, ItemType, ContentType, Class, Count, AutoCount, Auto, AUTO
     from base.classes.display import DefaultDisplay, PREFIX_FIELD
     from base.mixin.display_mixin import DisplayMixin, AutoOutput, Class
-    from utils.external import display, HTML, Markdown
+    from utils.external import display, clear_output, Markdown, HTML
     from utils.decorators import deprecated_with_alternative
     from content.format.text_format import TextFormat, Compress, DEFAULT_ENDING, DEFAULT_ENCODING
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import Item, ItemType, ContentType, Class, Count, AutoCount, Auto, AUTO
     from ...base.classes.display import DefaultDisplay, PREFIX_FIELD
     from ...base.mixin.display_mixin import DisplayMixin, AutoOutput, Class
-    from ...utils.external import display, HTML, Markdown
+    from ...utils.external import display, clear_output, Markdown, HTML
     from ...utils.decorators import deprecated_with_alternative
     from .text_format import TextFormat, Compress, DEFAULT_ENDING, DEFAULT_ENCODING
 
@@ -232,6 +232,10 @@ class HtmlFormat(DocumentFormat):
             yield '</tr>'
         yield '</tbody>'
         yield '</table>'
+
+    def clear_output(self):
+        self.display_paragraph()
+        clear_output()
 
 
 if HTML:
