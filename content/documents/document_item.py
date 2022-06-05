@@ -3,28 +3,31 @@ from typing import Optional, Iterable, Iterator, Tuple, Union, Any
 try:  # Assume we're a submodule in a package.
     from base.classes.typing import AUTO, Auto
     from base.classes.enum import DynamicEnum
-    from base.constants.chars import SPACE, HTML_SPACE, HTML_INDENT
+    from base.constants.chars import SPACE, HTML_SPACE, HTML_INDENT, PARAGRAPH_CHAR
     from base.abstract.simple_data import SimpleDataWrapper, SimpleDataInterface
     from base.mixin.iter_data_mixin import IterDataMixin
     from base.mixin.map_data_mixin import MapDataMixin
     from functions.primary.items import get_fields_values_from_item, get_field_value_from_item
     from streams.interfaces.regular_stream_interface import RegularStreamInterface
-    from utils.external import HTML
+    from utils.external import Markdown, HTML
+    from content.documents.display_mode import DisplayMode
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.classes.typing import AUTO, Auto
     from ...base.classes.enum import DynamicEnum
-    from ...base.constants.chars import SPACE, HTML_SPACE, HTML_INDENT
+    from ...base.constants.chars import SPACE, HTML_SPACE, HTML_INDENT, PARAGRAPH_CHAR
     from ...base.abstract.simple_data import SimpleDataWrapper, SimpleDataInterface
     from ...base.mixin.iter_data_mixin import IterDataMixin
     from ...base.mixin.map_data_mixin import MapDataMixin
     from ...functions.primary.items import get_fields_values_from_item, get_field_value_from_item
     from ...streams.interfaces.regular_stream_interface import RegularStreamInterface
-    from ...utils.external import HTML
+    from ...utils.external import Markdown, HTML
+    from .display_mode import DisplayMode
 
 HtmlStyle = str
 ContentStyle = Any
 Style = Union[HtmlStyle, ContentStyle]
 OptStyle = Optional[Style]
+DisplayObject = Union[str, Markdown, HTML]
 
 H_STYLE = None
 P_STYLE = 'line-height: 1.1em; margin-top: 0em; margin-bottom: 0em; padding-top: 0em; padding-bottom: 0em;'
@@ -62,7 +65,7 @@ class DocumentItem(SimpleDataWrapper):
         if isinstance(data, str):
             return data
         elif isinstance(data, Iterable):
-            return '\n'.join(data)
+            return f'{PARAGRAPH_CHAR}'.join(data)
 
     def get_style(self) -> OptStyle:
         return self._style
@@ -134,11 +137,28 @@ class DocumentItem(SimpleDataWrapper):
     def get_md_lines(self) -> Iterator[str]:
         yield from self.get_lines()
 
-    def get_html_code(self) -> str:
-        return '\n'.join(self.get_html_lines())
+    def get_md_code(self) -> str:
+        return PARAGRAPH_CHAR.join(self.get_md_lines())
 
-    def get_html_object(self):
+    def get_html_code(self) -> str:
+        return PARAGRAPH_CHAR.join(self.get_html_lines())
+
+    def get_html_object(self) -> HTML:
         return HTML(self.get_html_code())
+
+    def get_md_object(self) -> Markdown:
+        return Markdown(self.get_md_code())
+
+    def get_object(self, display_mode: DisplayMode) -> DisplayObject:
+        if display_mode == DisplayMode.Md:
+            return self.get_md_object()
+        elif display_mode == DisplayMode.Html:
+            return self.get_html_object()
+        else:
+            return self.get_text()
+
+
+Native = Union[DocumentItem, IterDataMixin]
 
 
 class Sheet(DocumentItem, IterDataMixin):
@@ -230,10 +250,34 @@ class Text(DocumentItem, IterDataMixin):
         self._style = style
         super().__init__(data=data, name=name)
 
+    def append(self, text: Union[str, Iterable]) -> Native:
+        return self.add(text, before=False)
+
+    def add(
+            self,
+            text: Union[Native, Iterable],
+            before: bool = False,
+            inplace: bool = False,
+            **kwargs
+    ) -> Native:
+        if text:
+            assert not kwargs, f'Text.add() does not support kwargs, got {kwargs}'
+            if self.is_empty():
+                self.set_data(list(), inplace=False)
+            if isinstance(text, str):
+                lines = [text]
+            elif isinstance(text, Iterable):
+                lines = text
+            else:
+                raise TypeError(f'Expected text as str or Iterable, got {repr(text)}')
+            return super().add(lines, before=before, inplace=inplace)
+        else:
+            return self
+
     def get_items_html_lines(self, add_br: bool = True, split_br: bool = True) -> Iterator[str]:
         for n, i in enumerate(super().get_items_html_lines()):
             if split_br:
-                lines = i.split('\n')
+                lines = i.split(PARAGRAPH_CHAR)
             else:
                 lines = [i]
             for line in lines:
@@ -330,9 +374,9 @@ class Paragraph(Text, Container):
             style: Union[str, Auto] = AUTO,
     ) -> Iterator[str]:
         if isinstance(lines, str):
-            lines = lines.split('\n')
+            lines = lines.split(PARAGRAPH_CHAR)
         assert isinstance(lines, Iterable), f'got {lines}'
-        text = '<br>\n'.join(lines)
+        text = f'<br>{PARAGRAPH_CHAR}'.join(lines)
         if level:
             tag = f'h{level}'
             style = Auto.acquire(style, H_STYLE)
