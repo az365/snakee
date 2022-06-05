@@ -22,8 +22,10 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .document_item import DocumentItem, Paragraph, Sheet, Chart
 
 Native = Union[DefaultDisplay, IterDataMixin]
-DisplayObject = Union[str, Markdown, HTML]
 Style = Union[str, Auto]
+FormattedDisplayTypes = Union[Markdown, HTML]
+DisplayObject = Union[FormattedDisplayTypes, str]
+FORMATTED_DISPLAY_TYPES = Markdown, HTML
 
 H_STYLE = None
 P_STYLE = 'line-height: 1.1em; margin-top: 0em; margin-bottom: 0em; padding-top: 0em; padding-bottom: 0em;'
@@ -51,7 +53,7 @@ class DocumentDisplay(DefaultDisplay, IterDataMixin):
     def clear_current_paragraph(self) -> Native:
         return self.set_current_paragraph(list())
 
-    def add_to_paragraph(self, text: str) -> Native:
+    def add_to_paragraph(self, text: str, wait: bool = True) -> Native:
         lines = text.split('\n')
         if self.accumulated_document.has_data():
             last_item = self.accumulated_document.get_data()[-1]
@@ -92,13 +94,19 @@ class DocumentDisplay(DefaultDisplay, IterDataMixin):
         else:
             return str(code)
 
-    def display(self, item: Union[DocumentItem, HTML, Markdown, Auto] = AUTO) -> None:
-        if isinstance(item, (Markdown, HTML)):
-            return display(item)
+    def display(self, item: Union[DocumentItem, FormattedDisplayTypes, Auto] = AUTO):
+        method = self._get_display_method()
+        if isinstance(item, FORMATTED_DISPLAY_TYPES):
+            return method(item)
         else:
             obj = self._get_display_object(item)
-            method = self._get_display_method()
             return method(obj)
+
+    def display_all(self, refresh: bool = False) -> Native:
+        if refresh:
+            self.clear_output(wait=True)
+        self.display(self.accumulated_document)
+        return self
 
     def append(self, item: Union[DocumentItem, str], show: bool = True) -> None:
         if isinstance(item, str):
@@ -116,7 +124,7 @@ class DocumentDisplay(DefaultDisplay, IterDataMixin):
 
     def display_paragraph(
             self,
-            paragraph: Optional[Iterable] = None,
+            paragraph: Optional[Paragraph, Iterable] = None,
             level: Count = None,
             style: Style = AUTO,
             name: str = '',
@@ -143,10 +151,16 @@ class DocumentDisplay(DefaultDisplay, IterDataMixin):
         sheet = self._get_display_object(data)
         return display(sheet)
 
-    def clear_output(self):
+    def clear_output(self, wait: bool = False) -> Native:
         # self.clear_current_paragraph()
         self.display_paragraph()
-        clear_output()
+        clear_output(wait=wait)
+        return self
+
+    def refresh(self) -> Native:
+        self.clear_output(wait=True)
+        self.display_all(refresh=False)
+        return self
 
 
 if HTML:
