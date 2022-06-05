@@ -44,9 +44,9 @@ except ImportError:
 
 
 try:  # Assume IPython installed
-    from IPython.core.display import display, HTML, Markdown
+    from IPython.core.display import display, clear_output, Markdown, HTML
 except ImportError:
-    display, HTML, Markdown = print, None, None
+    display, clear_output, Markdown, HTML = print, None, None, None
 
 
 class FallbackFake:

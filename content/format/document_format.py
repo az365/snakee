@@ -2,16 +2,18 @@ from typing import Optional, Callable, Iterable, Iterator, Generator, Sequence, 
 
 try:  # Assume we're a submodule in a package.
     from interfaces import Item, ItemType, ContentType, Class, Count, AutoCount, Auto, AUTO
+    from base.constants.chars import SPACE, HTML_SPACE
     from base.classes.display import DefaultDisplay, PREFIX_FIELD
     from base.mixin.display_mixin import DisplayMixin, AutoOutput, Class
-    from utils.external import display, HTML, Markdown
+    from utils.external import display, clear_output, Markdown, HTML
     from utils.decorators import deprecated_with_alternative
     from content.format.text_format import TextFormat, Compress, DEFAULT_ENDING, DEFAULT_ENCODING
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import Item, ItemType, ContentType, Class, Count, AutoCount, Auto, AUTO
+    from ...base.constants.chars import SPACE, HTML_SPACE
     from ...base.classes.display import DefaultDisplay, PREFIX_FIELD
     from ...base.mixin.display_mixin import DisplayMixin, AutoOutput, Class
-    from ...utils.external import display, HTML, Markdown
+    from ...utils.external import display, clear_output, Markdown, HTML
     from ...utils.decorators import deprecated_with_alternative
     from .text_format import TextFormat, Compress, DEFAULT_ENDING, DEFAULT_ENCODING
 
@@ -22,8 +24,6 @@ Style = Union[str, Auto]
 
 H_STYLE = None
 P_STYLE = 'line-height: 1.1em; margin-top: 0em; margin-bottom: 0em; padding-top: 0em; padding-bottom: 0em;'
-SPACE = ' '
-HTML_SPACE = '&nbsp;'
 
 
 class DocumentFormat(TextFormat, DefaultDisplay):
@@ -54,7 +54,7 @@ class DocumentFormat(TextFormat, DefaultDisplay):
             clear: bool = True,  # deprecated
     ) -> Iterator[str]:
         yield from self.get_current_paragraph()
-        if clear:
+        if clear:  # by default
             self.clear_current_paragraph()
         yield from super().get_encoded_paragraph(paragraph)
 
@@ -232,6 +232,10 @@ class HtmlFormat(DocumentFormat):
             yield '</tr>'
         yield '</tbody>'
         yield '</table>'
+
+    def clear_output(self):
+        self.display_paragraph()
+        clear_output()
 
 
 if HTML:
