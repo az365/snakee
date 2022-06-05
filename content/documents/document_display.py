@@ -2,7 +2,7 @@ from typing import Optional, Callable, Iterable, Sequence, Union
 
 try:  # Assume we're a submodule in a package.
     from interfaces import Item, ItemType, ContentType, Class, Count, AutoCount, Auto, AUTO
-    from base.constants.chars import SPACE
+    from base.constants.chars import SPACE, HTML_SPACE
     from base.classes.display import DefaultDisplay, PREFIX_FIELD
     from base.classes.enum import ClassType
     from base.mixin.display_mixin import DisplayMixin, AutoOutput, Class
@@ -12,7 +12,7 @@ try:  # Assume we're a submodule in a package.
     from content.documents.document_item import DocumentItem, Paragraph, Sheet, Chart
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import Item, ItemType, ContentType, Class, Count, AutoCount, Auto, AUTO
-    from ...base.constants.chars import SPACE
+    from ...base.constants.chars import SPACE, HTML_SPACE
     from ...base.classes.display import DefaultDisplay, PREFIX_FIELD
     from ...base.classes.enum import ClassType
     from ...base.mixin.display_mixin import DisplayMixin, AutoOutput, Class
@@ -27,7 +27,6 @@ Style = Union[str, Auto]
 
 H_STYLE = None
 P_STYLE = 'line-height: 1.1em; margin-top: 0em; margin-bottom: 0em; padding-top: 0em; padding-bottom: 0em;'
-HTML_SPACE = '&nbsp;'
 
 
 class DocumentDisplay(DefaultDisplay, IterDataMixin):

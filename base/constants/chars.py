@@ -38,6 +38,8 @@ TAB_CHAR, TAB_SUBSTITUTE = '\t', ' -> '
 RETURN_CHAR, RETURN_SUBSTITUTE = '\r', ' <- '
 PARAGRAPH_CHAR, PARAGRAPH_SUBSTITUTE = '\n', ' \\n '
 
+HTML_SPACE = '&nbsp;'
+
 DEFAULT_TRUE_STR = 'Yes'
 DEFAULT_FALSE_STR = 'No'
 FALSE_VALUES = 'false', 'no', '-', '0', '0.0', ''
