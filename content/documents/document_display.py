@@ -2,20 +2,24 @@ from typing import Optional, Callable, Iterable, Sequence, Union
 
 try:  # Assume we're a submodule in a package.
     from interfaces import Item, ItemType, ContentType, Class, Count, AutoCount, Auto, AUTO
+    from base.constants.chars import SPACE
     from base.classes.display import DefaultDisplay, PREFIX_FIELD
     from base.classes.enum import ClassType
     from base.mixin.display_mixin import DisplayMixin, AutoOutput, Class
     from base.mixin.iter_data_mixin import IterDataMixin
     from utils.external import display, clear_output, HTML, Markdown
-    from content.documents.document_item import DocumentItem, Paragraph, Sheet, Chart, Page
+    from content.documents.display_mode import DisplayMode
+    from content.documents.document_item import DocumentItem, Paragraph, Sheet, Chart
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import Item, ItemType, ContentType, Class, Count, AutoCount, Auto, AUTO
+    from ...base.constants.chars import SPACE
     from ...base.classes.display import DefaultDisplay, PREFIX_FIELD
     from ...base.classes.enum import ClassType
     from ...base.mixin.display_mixin import DisplayMixin, AutoOutput, Class
     from ...base.mixin.iter_data_mixin import IterDataMixin
     from ...utils.external import display, clear_output, HTML, Markdown
-    from .document_item import DocumentItem, Paragraph, Sheet, Chart, Page
+    from .display_mode import DisplayMode
+    from .document_item import DocumentItem, Paragraph, Sheet, Chart
 
 Native = Union[DefaultDisplay, IterDataMixin]
 DisplayObject = Union[str, Markdown, HTML]
@@ -23,23 +27,7 @@ Style = Union[str, Auto]
 
 H_STYLE = None
 P_STYLE = 'line-height: 1.1em; margin-top: 0em; margin-bottom: 0em; padding-top: 0em; padding-bottom: 0em;'
-SPACE = ' '
 HTML_SPACE = '&nbsp;'
-
-
-class DisplayMode(ClassType):
-    Text = 'text'
-    Md = 'md'
-    Html = 'html'
-
-    _dict_classes = dict(
-        text=str,
-        md=Markdown,
-        html=HTML,
-    )
-
-
-DisplayMode.prepare()
 
 
 class DocumentDisplay(DefaultDisplay, IterDataMixin):
