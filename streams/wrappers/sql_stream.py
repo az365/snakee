@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Optional, Callable, Iterable, Generator, Sequence, Union
+from typing import Optional, Callable, Iterable, Iterator, Sequence, Union
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
@@ -9,7 +9,7 @@ try:  # Assume we're a submodule in a package.
         Item, Name, FieldName, FieldNo, Links, Columns, OptionalFields, Array, ARRAY_TYPES,
     )
     from base.functions.arguments import get_names, get_name, get_generated_name, get_str_from_args_kwargs
-    from base.constants.chars import EMPTY, ALL, CROP_SUFFIX, ITEMS_DELIMITER, PY_INDENT
+    from base.constants.chars import EMPTY, ALL, CROP_SUFFIX, ITEMS_DELIMITER, SQL_INDENT
     from functions.primary.text import remove_extra_spaces
     from content.fields.any_field import AnyField
     from content.selection.abstract_expression import (
@@ -27,7 +27,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         Item, Name, FieldName, FieldNo, Links, Columns, OptionalFields, Array, ARRAY_TYPES,
     )
     from ...base.functions.arguments import get_names, get_name, get_generated_name, get_str_from_args_kwargs
-    from ...base.constants.chars import EMPTY, ALL, CROP_SUFFIX, ITEMS_DELIMITER, PY_INDENT
+    from ...base.constants.chars import EMPTY, ALL, CROP_SUFFIX, ITEMS_DELIMITER, SQL_INDENT
     from ...functions.primary.text import remove_extra_spaces
     from ...content.fields.any_field import AnyField
     from ...content.selection.abstract_expression import (
@@ -132,7 +132,7 @@ class SqlStream(WrapperStream):
         stream.get_expressions_for(section).append(expression)
         return stream
 
-    def get_select_lines(self) -> Generator:
+    def get_select_lines(self) -> Iterator[str]:
         descriptions = self.get_expressions_for(SqlSection.Select)
         if not descriptions:
             yield ALL
@@ -185,7 +185,7 @@ class SqlStream(WrapperStream):
             else:
                 raise ValueError('expected field name or tuple, got {}'.format(desc))
 
-    def get_where_lines(self) -> Generator:
+    def get_where_lines(self) -> Iterator[str]:
         for description in self.get_expressions_for(SqlSection.Where):
             if isinstance(description, FieldName):
                 yield IS_DEFINED.format(field=description)
@@ -216,7 +216,7 @@ class SqlStream(WrapperStream):
             else:
                 raise ValueError('expected field name or tuple, got {}'.format(description))
 
-    def get_from_lines(self, subquery_name: AutoName = AUTO) -> Generator:
+    def get_from_lines(self, subquery_name: AutoName = AUTO) -> Iterator[str]:
         from_section = list(self.get_expressions_for(SqlSection.From))
         if len(from_section) == 1:
             from_obj = from_section[0]
@@ -237,11 +237,11 @@ class SqlStream(WrapperStream):
         else:
             yield from from_section
 
-    def get_join_lines(self, left_subquery_name: AutoName = AUTO, right_subquery_name: AutoName = AUTO) -> Generator:
+    def get_join_lines(self, left_subquery_name: AutoName = AUTO, right_subquery_name: AutoName = AUTO) -> Iterator[str]:
         join_section = list(self.get_expressions_for(SqlSection.Join))
         if join_section:
             assert len(join_section) == 1
-            indent = PY_INDENT
+            indent = SQL_INDENT
             table_or_query, key, how = join_section[0]
             field_name = get_name(key)
             subquery_name = self._get_generated_name()
@@ -267,21 +267,21 @@ class SqlStream(WrapperStream):
                 raise ValueError('join-section data must be Table or Subquery, got {}'.format(table_or_query))
             yield f'ON {left_subquery_name}.{field_name} = {right_subquery_name}.{field_name}'
 
-    def get_groupby_lines(self) -> Generator:
+    def get_groupby_lines(self) -> Iterator[str]:
         for f in self.get_expressions_for(SqlSection.GroupBy):
             if isinstance(f, (AnyField, AbstractDescription)) or hasattr(f, 'get_sql_expression'):
                 yield f.get_sql_expression()
             else:
                 yield get_name(f)
 
-    def get_orderby_lines(self) -> Generator:
+    def get_orderby_lines(self) -> Iterator[str]:
         for f in self.get_expressions_for(SqlSection.OrderBy):
             if isinstance(f, (AnyField, AbstractDescription)) or hasattr(f, 'get_sql_expression'):
                 yield f.get_sql_expression()
             else:
                 yield get_name(f)
 
-    def get_limit_lines(self) -> Generator:
+    def get_limit_lines(self) -> Iterator[str]:
         yield from self.get_expressions_for(SqlSection.Limit)
 
     def get_section_lines(self, section: SqlSection) -> Iterable:
@@ -311,14 +311,14 @@ class SqlStream(WrapperStream):
         return get_generated_name('subquery', include_random=True, include_datetime=False)
 
     @staticmethod
-    def _format_section_lines(section: SqlSection, lines: Iterable) -> Iterable:
+    def _format_section_lines(section: SqlSection, lines: Iterable) -> Iterator[str]:
         lines = list(lines)
         if lines:
             section_name = section.value
             if section == SqlSection.Join:
                 indent = EMPTY
             else:
-                indent = PY_INDENT
+                indent = SQL_INDENT
                 yield section_name
             if section == SqlSection.Where:
                 delimiter = f'\n{indent}AND '
@@ -624,7 +624,7 @@ class SqlStream(WrapperStream):
         display = self.get_display()
         return display.display_sheet(query_records, columns=sheet_columns, style="font-family: monospace")
 
-    def get_description_lines(self) -> Generator:
+    def get_description_lines(self) -> Iterator[str]:
         yield repr(self)
         yield self.get_stream_representation()
         yield '\nGenerated SQL query:\n'

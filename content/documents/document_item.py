@@ -3,7 +3,7 @@ from typing import Optional, Iterable, Iterator, Tuple, Union, Any
 try:  # Assume we're a submodule in a package.
     from base.classes.typing import AUTO, Auto
     from base.classes.enum import DynamicEnum
-    from base.constants.chars import SPACE, HTML_SPACE, PY_INDENT
+    from base.constants.chars import SPACE, HTML_SPACE, HTML_INDENT
     from base.abstract.simple_data import SimpleDataWrapper, SimpleDataInterface
     from base.mixin.iter_data_mixin import IterDataMixin
     from base.mixin.map_data_mixin import MapDataMixin
@@ -13,7 +13,7 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.classes.typing import AUTO, Auto
     from ...base.classes.enum import DynamicEnum
-    from ...base.constants.chars import SPACE, HTML_SPACE, PY_INDENT
+    from ...base.constants.chars import SPACE, HTML_SPACE, HTML_INDENT
     from ...base.abstract.simple_data import SimpleDataWrapper, SimpleDataInterface
     from ...base.mixin.iter_data_mixin import IterDataMixin
     from ...base.mixin.map_data_mixin import MapDataMixin
@@ -28,7 +28,6 @@ OptStyle = Optional[Style]
 
 H_STYLE = None
 P_STYLE = 'line-height: 1.1em; margin-top: 0em; margin-bottom: 0em; padding-top: 0em; padding-bottom: 0em;'
-HTML_INDENT = PY_INDENT
 
 
 class DocumentItem(SimpleDataWrapper):

@@ -5,7 +5,7 @@ try:  # Assume we're a submodule in a package.
     from utils.arguments import get_generated_name
     from loggers.logger_interface import LoggerInterface, LoggingLevel
     from base.classes.auto import Auto, AUTO
-    from base.constants.chars import EMPTY, PY_INDENT, REPR_DELIMITER
+    from base.constants.chars import EMPTY, TAB_INDENT, REPR_DELIMITER
     from base.interfaces.context_interface import ContextInterface
     from base.interfaces.sourced_interface import SourcedInterface
     from base.abstract.named import AbstractNamed
@@ -13,7 +13,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils.arguments import get_generated_name
     from ...loggers.logger_interface import LoggerInterface, LoggingLevel
     from ..classes.auto import Auto, AUTO
-    from ..constants.chars import EMPTY, PY_INDENT, REPR_DELIMITER
+    from ..constants.chars import EMPTY, TAB_INDENT, REPR_DELIMITER
     from ..interfaces.context_interface import ContextInterface
     from ..interfaces.sourced_interface import SourcedInterface
     from .named import AbstractNamed
@@ -101,7 +101,7 @@ class Sourced(AbstractNamed, SourcedInterface, ABC):
             self,
             with_title: bool = True,
             with_summary: bool = True,
-            prefix: str = PY_INDENT,
+            prefix: str = TAB_INDENT,
             delimiter: str = REPR_DELIMITER,
     ) -> Generator:
         if with_summary:
