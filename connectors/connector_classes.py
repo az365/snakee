@@ -6,7 +6,7 @@ try:  # Assume we're a submodule in a package.
         TemporaryLocationInterface, TemporaryFilesMaskInterface,
         ConnType, DialectType, Name,
     )
-    from utils.decorators import deprecated_with_alternative
+    from utils.decorators import deprecated, deprecated_with_alternative
     from loggers import logger_classes as log
     from content.format.format_classes import (
         AbstractFormat, BinaryFormat, ParsedFormat, LeanFormat,
@@ -19,7 +19,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         TemporaryLocationInterface, TemporaryFilesMaskInterface,
         ConnType, DialectType, Name,
     )
-    from ..utils.decorators import deprecated_with_alternative
+    from ..utils.decorators import deprecated, deprecated_with_alternative
     from ..loggers import logger_classes as log
     from ..content.format.format_classes import (
         AbstractFormat, BinaryFormat, ParsedFormat, LeanFormat,
@@ -163,11 +163,13 @@ def set_context(cx: ContextInterface):
     LocalFile.set_default_folder(default_folder)
 
 
+@deprecated
 def is_conn(obj) -> bool:
     if hasattr(obj, 'is_connector'):
         return obj.is_connector()
 
 
+@deprecated
 def is_file(obj) -> bool:
     if isinstance(obj, LocalFile) or obj.__class__.__name__ in FILE_CLASS_NAMES:
         return True
