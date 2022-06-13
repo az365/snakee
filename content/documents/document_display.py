@@ -9,7 +9,7 @@ try:  # Assume we're a submodule in a package.
     from base.mixin.iter_data_mixin import IterDataMixin
     from utils.external import display, clear_output, HTML, Markdown
     from content.documents.display_mode import DisplayMode
-    from content.documents.document_item import DocumentItem, Paragraph, Sheet, Chart
+    from content.documents.document_item import DocumentItem, Paragraph, Sheet, Chart, Chapter
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import Item, ItemType, ContentType, Class, Count, AutoCount, Auto, AUTO
     from ...base.constants.chars import SPACE, HTML_SPACE
@@ -19,7 +19,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.mixin.iter_data_mixin import IterDataMixin
     from ...utils.external import display, clear_output, HTML, Markdown
     from .display_mode import DisplayMode
-    from .document_item import DocumentItem, Paragraph, Sheet, Chart
+    from .document_item import DocumentItem, Paragraph, Sheet, Chart, Chapter
 
 Native = Union[DefaultDisplay, IterDataMixin]
 Style = Union[str, Auto]
@@ -36,7 +36,7 @@ class DocumentDisplay(DefaultDisplay, IterDataMixin):
 
     def __init__(
             self,
-            accumulated_document: Page = Page([]),
+            accumulated_document: Chapter = Chapter([]),
             current_paragraph: Optional[list] = None,
     ):
         self.accumulated_document = accumulated_document
