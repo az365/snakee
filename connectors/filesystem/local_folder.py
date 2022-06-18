@@ -7,6 +7,7 @@ try:  # Assume we're a submodule in a package.
         ConnType, ContentType, Class, LoggingLevel,
         AUTO, Auto, AutoBool, AutoContext, AutoConnector,
     )
+    from base.constants.chars import EMPTY, OS_EXT_DELIMITER, OS_PARENT_PATH, BACKSLASH, OS_PLACEHOLDER
     from functions.primary.text import is_absolute_path
     from connectors.abstract.hierarchic_connector import HierarchicConnector
     from connectors.abstract.leaf_connector import LeafConnector
@@ -17,12 +18,15 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         ConnType, ContentType, Class, LoggingLevel,
         AUTO, Auto, AutoBool, AutoContext, AutoConnector,
     )
+    from ...base.constants.chars import EMPTY, OS_EXT_DELIMITER, OS_PARENT_PATH, BACKSLASH, OS_PLACEHOLDER
     from ...functions.primary.text import is_absolute_path
     from ..abstract.hierarchic_connector import HierarchicConnector
     from ..abstract.leaf_connector import LeafConnector
     from ..abstract.abstract_folder import HierarchicFolder
 
 Native = HierarchicFolder
+
+ALT_PATH_DELIMITERS = BACKSLASH,
 
 
 class LocalFolder(HierarchicFolder):
@@ -73,9 +77,9 @@ class LocalFolder(HierarchicFolder):
 
     @staticmethod
     def get_type_by_name(name: str) -> ConnType:
-        if '*' in name:
+        if OS_PLACEHOLDER in name:
             return ConnType.LocalMask
-        elif '.' in name:
+        elif OS_EXT_DELIMITER in name:
             return ConnType.LocalFile
         else:
             return ConnType.LocalFolder
@@ -124,7 +128,7 @@ class LocalFolder(HierarchicFolder):
             try:
                 file = file_class(filename, content_format=content_format, folder=self, **kwargs)
             except TypeError as e:
-                raise TypeError('{}.{}'.format(file_class.__name__, e))
+                raise TypeError(f'{file_class.__name__}.{e}')
             self.add_child(file)
         return file
 
@@ -133,7 +137,7 @@ class LocalFolder(HierarchicFolder):
             folder_type = self.get_type_by_name(name)  # LocalFolder or LocalMask
             if folder_type == ConnType.LocalFile:
                 folder_type = ConnType.LocalFolder
-        if name == '..':
+        if name == OS_PARENT_PATH:
             return self.get_parent_folder(**kwargs)
         else:
             folder_class = ConnType(folder_type).get_class()
@@ -196,8 +200,8 @@ class LocalFolder(HierarchicFolder):
             return self.get_parent()
         else:
             current_folder_path = self.get_full_path()
-            default_path_delimiter = self.get_path_delimiter()
-            alternative_path_delimiters = '\\',
+            default_path_delimiter = self.get_path_delimiter()  # '/'
+            alternative_path_delimiters = self._get_alternative_path_delimiters()  # '\\'
             for cur_path_delimiter in alternative_path_delimiters:
                 current_folder_path = current_folder_path.replace(cur_path_delimiter, default_path_delimiter)
             path_parts = current_folder_path.split(default_path_delimiter)
@@ -209,7 +213,7 @@ class LocalFolder(HierarchicFolder):
             else:
                 msg = f'parent for {current_folder_path} not found'
                 if skip_missing:
-                    return self.log(msg, 30)
+                    return self.log(msg, LoggingLevel.Warning)
                 else:
                     raise FileNotFoundError(msg)
 
@@ -247,11 +251,15 @@ class LocalFolder(HierarchicFolder):
         else:
             return name
 
+    @staticmethod
+    def _get_alternative_path_delimiters() -> tuple:
+        return ALT_PATH_DELIMITERS
+
     def is_existing(self) -> bool:
         return os.path.exists(self.get_path())
 
     def list_existing_names(self) -> list:
-        if self.get_name() in ('', '.'):
+        if self.get_name() in (EMPTY, OS_EXT_DELIMITER):
             return os.listdir()
         else:
             return os.listdir(self.get_path())

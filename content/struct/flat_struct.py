@@ -8,7 +8,7 @@ try:  # Assume we're a submodule in a package.
         AUTO, Auto, Name, Array, ARRAY_TYPES, ROW_SUBCLASSES, RECORD_SUBCLASSES,
     )
     from base.functions.arguments import update, get_generated_name, get_name, get_names
-    from base.constants.chars import REPR_DELIMITER, TITLE_PREFIX, JUPYTER_LINE_LEN
+    from base.constants.chars import EMPTY, REPR_DELIMITER, TITLE_PREFIX, ITEM, DEL, ABOUT, JUPYTER_LINE_LEN
     from base.abstract.simple_data import SimpleDataWrapper, DEFAULT_ROWS_COUNT
     from base.mixin.iter_data_mixin import IterDataMixin
     from functions.secondary import array_functions as fs
@@ -25,7 +25,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         AUTO, Auto, Name, Array, ARRAY_TYPES, ROW_SUBCLASSES, RECORD_SUBCLASSES,
     )
     from ...base.functions.arguments import update, get_generated_name, get_name, get_names
-    from ...base.constants.chars import REPR_DELIMITER, TITLE_PREFIX, JUPYTER_LINE_LEN
+    from ...base.constants.chars import EMPTY, REPR_DELIMITER, TITLE_PREFIX, ITEM, DEL, ABOUT, JUPYTER_LINE_LEN
     from ...base.abstract.simple_data import SimpleDataWrapper, DEFAULT_ROWS_COUNT
     from ...base.mixin.iter_data_mixin import IterDataMixin
     from ...functions.secondary import array_functions as fs
@@ -44,7 +44,7 @@ Comment = Union[StructName, Auto]
 
 META_MEMBER_MAPPING = dict(_data='fields')
 GROUP_TYPE_STR = 'GROUP'
-DICT_VALID_SIGN = {'True': '-', 'False': 'x', 'None': '-', AUTO.get_value(): '~'}
+DICT_VALID_SIGN = {'True': ITEM, 'False': DEL, 'None': ITEM, AUTO.get_value(): ABOUT}
 
 COMPARISON_TAGS = dict(
     this_only='THIS_ONLY', other_only='OTHER_ONLY', moved='MOVED',
@@ -67,7 +67,7 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
             reassign_struct_name: bool = False,
     ):
         name = Auto.acquire(name, get_generated_name(prefix='FieldGroup'))
-        self._caption = caption or ''
+        self._caption = caption or EMPTY
         super().__init__(name=name, data=list())
         for field_or_struct in fields:
             kwargs = dict(
@@ -464,7 +464,7 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
                 tag = tags['this_only']
                 f_updated = f_received.set_valid(is_valid, inplace=False) if set_valid else f_received
             if tag:
-                caption = '[{}] {}'.format(tag, f_updated.get_caption() or '')
+                caption = '[{}] {}'.format(tag, f_updated.get_caption() or EMPTY)
                 f_updated = f_updated.set_caption(caption, inplace=False)
             updated_struct.append_field(f_updated, exclude_duplicates=ignore_moved)
             if f_name in remaining_struct.get_field_names():
@@ -474,13 +474,13 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
             f_name = get_name(f_remaining)
             is_valid = False
             f_expected = expected_struct.get_field_description(f_name)
-            caption = f_expected.get_caption() or ''
+            caption = f_expected.get_caption() or EMPTY
             if f_name in updated_struct.get_field_names():
                 tag = tags['other_duplicated']
             else:
                 tag = tags['other_only']
             if tag not in caption:
-                caption = '[{}] {}'.format(tag, caption or '')
+                caption = '[{}] {}'.format(tag, caption or EMPTY)
             f_updated = f_expected.set_valid(is_valid, inplace=False) if set_valid else f_expected
             f_updated = f_updated.set_caption(caption, inplace=False)
             updated_struct.append_field(f_updated, exclude_duplicates=ignore_moved)
@@ -544,7 +544,7 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
             if isinstance(f, (FieldInterface, AnyField)):
                 field_name = f.get_name()
                 field_type_name = f.get_value_type_name()
-                field_caption = f.get_caption() or ''
+                field_caption = f.get_caption() or EMPTY
                 field_is_valid = str(f.is_valid())
                 group_name = f.get_group_name()
                 group_caption = f.get_group_caption()
@@ -552,11 +552,11 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
                 field_name = f[0]
                 field_type_name = ValueType(f[1]).get_name()
                 field_is_valid = '?'
-                field_caption, group_name, group_caption = '', '', ''
+                field_caption, group_name, group_caption = EMPTY * 3
             else:
                 field_name = str(f)
                 field_type_name = ValueType.get_default()
-                field_caption, field_is_valid, group_name, group_caption = '', '', '', ''
+                field_caption, field_is_valid, group_name, group_caption = EMPTY * 4
             str_field_is_valid = DICT_VALID_SIGN.get(field_is_valid, field_is_valid[:1])
             yield field_name, field_type_name, field_caption, str_field_is_valid, group_name, group_caption
 
@@ -572,10 +572,10 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
         group_name = self.get_name()
         group_caption = self.get_caption()
         if include_header:
-            yield TITLE_PREFIX, GROUP_TYPE_STR, group_name or '', group_caption, ''
+            yield TITLE_PREFIX, GROUP_TYPE_STR, group_name or EMPTY, group_caption, EMPTY
         for n, field_tuple in enumerate(self.get_fields_tuples()):
             f_name, f_type_name, f_caption, f_valid, group_name, group_caption = field_tuple
-            yield n, f_type_name, f_name or '', f_caption, f_valid
+            yield n, f_type_name, f_name or EMPTY, f_caption, f_valid
 
     def get_input_fields(self) -> list:
         return self.get_fields()
@@ -631,7 +631,7 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
         yield '\t'.join(columns) if separate_by_tabs else template.format(*columns)
         for (n, type_name, name, caption, is_valid) in self.get_struct_description_rows(include_header=False):
             if type_name == GROUP_TYPE_STR:
-                yield ''
+                yield EMPTY
                 for line in self.get_group_header(name, caption=caption):
                     yield line
             else:

@@ -39,6 +39,7 @@ COLS_FOR_META = [
     ('key', 20), ('value', 30), ('actual_type', 14), ('expected_type', 20), ('default', 20),
 ]
 MAX_OUTPUT_ROW_COUNT, MAX_DATAFRAME_ROW_COUNT = 200, 20
+INCORRECT_COUNT = -1
 
 
 class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
@@ -145,8 +146,10 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
             data = self.get_data()
             if isinstance(data, SimpleDataWrapper) or hasattr(data, 'get_count'):
                 return data.get_count()
-            else:
+            try:
                 return len(data)
+            except TypeError:  # NoneType object has no len-attribute
+                return INCORRECT_COUNT
         else:
             return 0
 
@@ -266,7 +269,7 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
             with_summary: bool = True,
             prefix: str = SMALL_INDENT,  # deprecated
             delimiter: str = REPR_DELIMITER,  # deprecated
-    ) -> Generator:
+    ) -> None:
         display = self.get_display()
         if with_summary:
             count = len(list(self.get_meta_records()))
