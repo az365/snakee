@@ -9,6 +9,7 @@ try:  # Assume we're a submodule in a package.
         ContentType, ConnType, ItemType, StreamType,
         AUTO, Auto, AutoCount, AutoBool, AutoName, OptionalFields, UniKey, Array, ARRAY_TYPES,
     )
+    from base.constants.chars import OS_PLACEHOLDER, PY_PLACEHOLDER
     from functions.primary.text import is_formatter
     from content.format.format_classes import (
         AbstractFormat, ParsedFormat, LeanFormat,
@@ -24,6 +25,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         ContentType, ConnType, ItemType, StreamType,
         AUTO, Auto, AutoCount, AutoBool, AutoName, OptionalFields, UniKey, Array, ARRAY_TYPES,
     )
+    from ...base.constants.chars import OS_PLACEHOLDER, PY_PLACEHOLDER
     from ...functions.primary.text import is_formatter
     from ...content.format.format_classes import (
         AbstractFormat, ParsedFormat, LeanFormat,
@@ -108,7 +110,7 @@ class LocalFile(LeafConnector, ActualizeMixin):
         self.set_count(count_lines)
         return count_lines
 
-    def get_actual_lines_count(self, allow_reopen: bool = True, allow_slow_mode: bool = True) -> Optional[int]:
+    def get_actual_lines_count(self, allow_slow_mode: bool = True, allow_reopen: bool = True) -> Optional[int]:
         if self.is_opened():
             if allow_reopen:
                 self.close()
@@ -158,8 +160,8 @@ class LocalFile(LeafConnector, ActualizeMixin):
             return self.get_name()
         else:
             folder_path = self.get_folder().get_path()
-            if '*' in folder_path:  # isinstance(self.get_parent(), LocalMask):
-                folder_path = folder_path.replace('*', '{}')
+            if OS_PLACEHOLDER in folder_path:  # isinstance(self.get_parent(), LocalMask):
+                folder_path = folder_path.replace(OS_PLACEHOLDER, PY_PLACEHOLDER)
             if is_formatter(folder_path):  # isinstance(self.get_parent(), LocalMask):
                 return folder_path.format(self.get_name())
             elif folder_path.endswith(self.get_path_delimiter()):
@@ -174,8 +176,8 @@ class LocalFile(LeafConnector, ActualizeMixin):
         if not folder:
             folder = self.get_storage()  # job_folder
         folder_path = folder.get_full_path()
-        if '*' in folder_path:  # isinstance(self.get_parent(), LocalMask):
-            folder_path = folder_path.replace('*', '{}')
+        if OS_PLACEHOLDER in folder_path:  # isinstance(self.get_parent(), LocalMask):
+            folder_path = folder_path.replace(OS_PLACEHOLDER, PY_PLACEHOLDER)
         if is_formatter(folder_path):  # isinstance(self.get_parent(), LocalMask):
             return folder_path.format(self.get_name())
         elif folder_path.endswith(self.get_path_delimiter()):
@@ -322,10 +324,10 @@ class LocalFile(LeafConnector, ActualizeMixin):
         if verbose or Auto.is_defined(message):
             if not Auto.is_defined(message):
                 message = 'Reading {}'
-            if '{}' in message:
+            if PY_PLACEHOLDER in message:
                 message = message.format(self.get_name())
             logger = self.get_logger()
-            assert hasattr(logger, 'progress'), '{} has no progress in {}'.format(self, logger)
+            assert hasattr(logger, 'progress'), f'{self} has no progress in {logger}'
             if not count:
                 count = self.get_count(allow_slow_mode=False)
             lines = self.get_logger().progress(lines, name=message, count=count, step=step)
