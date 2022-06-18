@@ -5,7 +5,7 @@ from itertools import chain
 try:  # Assume we're a submodule in a package.
     from base.classes.typing import AUTO, Auto, AutoBool, AutoCount, Class
     from base.functions.arguments import get_name
-    from base.constants.chars import EMPTY, PY_INDENT, REPR_DELIMITER
+    from base.constants.chars import EMPTY, REPR_DELIMITER
     from base.classes.enum import DynamicEnum, ClassType
     from base.interfaces.data_interface import SimpleDataInterface
     from base.mixin.data_mixin import Key, Item, KEY, VALUE, DESCRIPTION_COLS
@@ -13,7 +13,7 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.typing import AUTO, Auto, AutoBool, AutoCount, Class
     from ..functions.arguments import get_name
-    from ..constants.chars import EMPTY, PY_INDENT, REPR_DELIMITER
+    from ..constants.chars import EMPTY, REPR_DELIMITER
     from ..classes.enum import DynamicEnum, ClassType
     from ..interfaces.data_interface import SimpleDataInterface
     from .data_mixin import Key, Item, KEY, VALUE, DESCRIPTION_COLS
@@ -283,7 +283,7 @@ class MultiMapDataMixin(MapDataMixin, ABC):
                     lambda k, v: {
                         k_name: get_name(k), v_name: get_name(v),
                         'caption': k.get_caption() if hasattr(k, 'get_caption') else
-                        v.get_caption() if hasattr(v, 'get_caption') else '',
+                        v.get_caption() if hasattr(v, 'get_caption') else EMPTY,
                     },
                     items,
                 )

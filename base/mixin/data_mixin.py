@@ -4,14 +4,14 @@ from typing import Type, Optional, Callable, Iterable, Union, Any
 try:  # Assume we're a submodule in a package.
     from base.classes.typing import AUTO, Auto, AutoBool, AutoCount, Class
     from base.functions.arguments import get_name
-    from base.constants.chars import EMPTY, PY_INDENT, REPR_DELIMITER
+    from base.constants.chars import EMPTY, REPR_DELIMITER
     from base.classes.enum import DynamicEnum, ClassType
     from base.interfaces.data_interface import SimpleDataInterface
     from base.mixin.display_mixin import DisplayMixin
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.typing import AUTO, Auto, AutoBool, AutoCount, Class
     from ..functions.arguments import get_name
-    from ..constants.chars import EMPTY, PY_INDENT, REPR_DELIMITER
+    from ..constants.chars import EMPTY, REPR_DELIMITER
     from ..classes.enum import DynamicEnum, ClassType
     from ..interfaces.data_interface import SimpleDataInterface
     from .display_mixin import DisplayMixin
@@ -75,13 +75,18 @@ class DataMixin(DisplayMixin, ABC):
     def is_empty(self) -> bool:
         return not self.has_data()
 
-    def _get_call_prefix(self, method: Union[Callable, str, None] = None, arg: Any = '', delimiter: str = ': ') -> str:
+    def _get_call_prefix(
+            self,
+            method: Union[Callable, str, None] = None,
+            arg: Any = EMPTY,
+            delimiter: str = ': ',
+    ) -> str:
         if method:
             template = '{cls}({name}).{method}({arg})'
             if hasattr(self, 'get_name'):
                 name = repr(self.get_name())
             else:
-                name = ''
+                name = EMPTY
             method = get_name(method, or_callable=False)
             prefix = template.format(cls=self.__class__.__name__, name=name, method=method, arg=arg)
         else:

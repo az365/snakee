@@ -142,7 +142,11 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
 
     def get_count(self) -> int:
         if self.has_data():
-            return len(self.get_data())
+            data = self.get_data()
+            if isinstance(data, SimpleDataWrapper) or hasattr(data, 'get_count'):
+                return data.get_count()
+            else:
+                return len(data)
         else:
             return 0
 
@@ -283,7 +287,7 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
             output=AUTO,  # deprecated
             as_dataframe: AutoBool = Auto,  # deprecated
             **kwargs
-    ):
+    ) -> Native:
         display = self.get_display(output)
         show_meta = show_header or not self.has_data()
         if show_header:

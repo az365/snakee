@@ -387,3 +387,7 @@ class Paragraph(Text, Container):
         close_tag = f'</{tag}>'
         if text:
             yield f'{open_tag}{text}{close_tag}'
+
+
+class Chapter(Container):
+    pass
