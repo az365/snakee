@@ -1,26 +1,26 @@
-from typing import Optional, Iterable, Iterator, Tuple, Union, Any
+from typing import Optional, Callable, Iterable, Iterator, Tuple, Union, Any
 
 try:  # Assume we're a submodule in a package.
     from base.classes.typing import AUTO, Auto
     from base.classes.enum import DynamicEnum
-    from base.constants.chars import SPACE, HTML_SPACE, HTML_INDENT, PARAGRAPH_CHAR
+    from base.constants.chars import EMPTY, SPACE, HTML_SPACE, HTML_INDENT, PARAGRAPH_CHAR
     from base.abstract.simple_data import SimpleDataWrapper, SimpleDataInterface
     from base.mixin.iter_data_mixin import IterDataMixin
     from base.mixin.map_data_mixin import MapDataMixin
     from functions.primary.items import get_fields_values_from_item, get_field_value_from_item
-    from streams.interfaces.regular_stream_interface import RegularStreamInterface
-    from utils.external import Markdown, HTML
+    from streams.interfaces.regular_stream_interface import RegularStreamInterface, StreamType
+    from utils.external import Markdown, HTML, display
     from content.documents.display_mode import DisplayMode
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.classes.typing import AUTO, Auto
     from ...base.classes.enum import DynamicEnum
-    from ...base.constants.chars import SPACE, HTML_SPACE, HTML_INDENT, PARAGRAPH_CHAR
+    from ...base.constants.chars import EMPTY, SPACE, HTML_SPACE, HTML_INDENT, PARAGRAPH_CHAR
     from ...base.abstract.simple_data import SimpleDataWrapper, SimpleDataInterface
     from ...base.mixin.iter_data_mixin import IterDataMixin
     from ...base.mixin.map_data_mixin import MapDataMixin
     from ...functions.primary.items import get_fields_values_from_item, get_field_value_from_item
-    from ...streams.interfaces.regular_stream_interface import RegularStreamInterface
-    from ...utils.external import Markdown, HTML
+    from ...streams.interfaces.regular_stream_interface import RegularStreamInterface, StreamType
+    from ...utils.external import Markdown, HTML, display
     from .display_mode import DisplayMode
 
 HtmlStyle = str
@@ -65,7 +65,7 @@ class DocumentItem(SimpleDataWrapper):
         if isinstance(data, str):
             return data
         elif isinstance(data, Iterable):
-            return f'{PARAGRAPH_CHAR}'.join(data)
+            return PARAGRAPH_CHAR.join(data)
 
     def get_style(self) -> OptStyle:
         return self._style
@@ -103,16 +103,18 @@ class DocumentItem(SimpleDataWrapper):
         attributes = self.get_html_attr_str()
         if attributes:
             return f'<{tag} {attributes}>'
+        elif tag:
+            return f'<{tag}>'
         else:
-            return ''
+            return EMPTY
 
     def get_html_close_tag(self) -> str:
         tag = self.get_html_tag_name()
         attributes = self.get_html_attr_str()
-        if attributes:
+        if attributes or tag:
             return f'</{tag}>'
         else:
-            return ''
+            return EMPTY
 
     def get_items_html_lines(self) -> Iterator[str]:
         for item in self.get_items():
@@ -157,6 +159,18 @@ class DocumentItem(SimpleDataWrapper):
         else:
             return self.get_text()
 
+    @staticmethod
+    def _get_display_method() -> Callable:
+        return display
+
+    def show(self, display_mode: DisplayMode = DisplayMode.Html):
+        method = self._get_display_method()
+        obj = self.get_object(display_mode=display_mode)
+        if method:
+            return method(obj)
+        else:
+            return obj
+
 
 Native = Union[DocumentItem, IterDataMixin]
 
@@ -164,6 +178,16 @@ Native = Union[DocumentItem, IterDataMixin]
 class Sheet(DocumentItem, IterDataMixin):
     def __init__(self, data: RegularStreamInterface, name: str = ''):
         super().__init__(data=data, name=name)
+
+    @classmethod
+    def from_record(cls, record: dict) -> Native:
+        properties = list()
+        for field in sorted(record):
+            value = record[field]
+            current_record = dict(field=field, value=value)
+            properties.append(current_record)
+        stream = StreamType.RecordStream.build(properties, struct=('field', 'value'), verbose=False)
+        return Sheet(stream)
 
     def get_data(self) -> RegularStreamInterface:
         data = super().get_data()
@@ -235,6 +259,11 @@ class Sheet(DocumentItem, IterDataMixin):
     def get_md_lines(self) -> str:
         return self.get_text()
 
+    def get_count_repr(self, default: str = '<iter>') -> str:
+        if not self.get_data().is_in_memory():
+            self.set_data(self.get_data().collect(), inplace=True)
+        return '{count} items'.format(count=self.get_data().get_count())
+
 
 class Chart(DocumentItem):
     pass
@@ -263,7 +292,7 @@ class Text(DocumentItem, IterDataMixin):
         if text:
             assert not kwargs, f'Text.add() does not support kwargs, got {kwargs}'
             if self.is_empty():
-                self.set_data(list(), inplace=False)
+                self.set_data(list(), inplace=True)
             if isinstance(text, str):
                 lines = [text]
             elif isinstance(text, Iterable):
@@ -288,6 +317,9 @@ class Text(DocumentItem, IterDataMixin):
                         yield line
                 else:
                     yield line
+
+    def get_html_code(self) -> str:
+        return EMPTY.join(self.get_html_lines())
 
 
 class Link(Text):
@@ -347,6 +379,21 @@ class Paragraph(Text, Container):
     def get_level(self) -> Optional[int]:
         return self._level
 
+    def set_level(self, level: Optional[int], inplace: bool) -> Native:
+        if inplace:
+            self._set_level_inplace(level)
+            return self
+        else:
+            return self._set_level_outplace(level)
+
+    def _set_level_inplace(self, level: Optional[int]):
+        self._level = level
+
+    def _set_level_outplace(self, level: Optional[int]) -> Native:
+        return Paragraph(data=self.get_data(), level=level, style=self.get_style(), name=self.get_name())
+
+    level = property(get_level, _set_level_inplace)
+
     def is_title(self) -> bool:
         return (self.get_level() or 0) > 0
 
@@ -389,5 +436,9 @@ class Paragraph(Text, Container):
             yield f'{open_tag}{text}{close_tag}'
 
 
-class Chapter(Container):
+class Chapter(Text, Container):
+    pass
+
+
+class Page(Container):
     pass
