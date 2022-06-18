@@ -3,7 +3,8 @@ from inspect import isclass
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
-        Stream, LocalStream, RegularStreamInterface, Context, Connector, TmpFiles,
+        RegularStreamInterface, StructInterface,
+        Stream, LocalStream, Context, Connector, TmpFiles,
         StreamType, ItemType,
         Name, Count, Struct, Columns, Field, OptionalFields, Source, Class, Item, Array, ARRAY_TYPES,
         AUTO, Auto, AutoBool, AutoCount,
@@ -14,11 +15,13 @@ try:  # Assume we're a submodule in a package.
     from functions.secondary import all_secondary_functions as fs
     from content.items.item_getters import get_filter_function
     from content.selection import selection_classes as sn
+    from content.struct.flat_struct import FlatStruct
     from streams.abstract.local_stream import LocalStream
     from streams.mixin.convert_mixin import ConvertMixin
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
-        Stream, LocalStream, RegularStreamInterface, Context, Connector, TmpFiles,
+        RegularStreamInterface, StructInterface,
+        Stream, LocalStream, Context, Connector, TmpFiles,
         StreamType, ItemType,
         Name, Count, Struct, Columns, Field, OptionalFields, Source, Class, Item, Array, ARRAY_TYPES,
         AUTO, Auto, AutoBool, AutoCount,
@@ -29,6 +32,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...functions.secondary import all_secondary_functions as fs
     from ...content.items.item_getters import get_filter_function
     from ...content.selection import selection_classes as sn
+    from ...content.struct.flat_struct import FlatStruct
     from ..abstract.local_stream import LocalStream
     from ..mixin.convert_mixin import ConvertMixin
 
@@ -54,6 +58,8 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
             max_items_in_memory: Count = AUTO, tmp_files: TmpFiles = AUTO,
             check: bool = False,
     ):
+        if struct and not isinstance(struct, StructInterface):
+            struct = FlatStruct(StructInterface)
         self._struct = struct
         super().__init__(
             data=data, check=check,
