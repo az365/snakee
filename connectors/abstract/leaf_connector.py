@@ -355,13 +355,11 @@ class LeafConnector(
             count: Optional[int] = EXAMPLE_ROW_COUNT,
             columns: Optional[Array] = None,
             show_header: bool = True,
-            struct_as_dataframe: bool = False,  # deprecated
             safe_filter: bool = True,
             actualize: AutoBool = AUTO,
-            output=AUTO,  # deprecated
             **filter_kwargs
-    ):
-        display = self.get_display(output)
+    ) -> Native:
+        display = self.get_display()
         if show_header:
             display.display_paragraph(self.get_name(), level=1)
             display.display_paragraph(self.get_str_headers(actualize=False))
@@ -378,13 +376,11 @@ class LeafConnector(
             example_item, example_stream, example_comment = None, None, None
         struct = self.get_struct()
         if isinstance(struct, StructInterface) or hasattr(struct, 'describe'):
-            struct_dataframe = struct.describe(
+            struct.describe(
                 show_header=False,
-                as_dataframe=struct_as_dataframe, example=example_item,
-                output=output, comment=example_comment,
+                example=example_item,
+                comment=example_comment,
             )
-            if struct_dataframe is not None:
-                return struct_dataframe
         elif struct:
             display.append(f'[TYPE_ERROR] Expected struct as StructInterface, got {struct} instead')
         else:
@@ -393,9 +389,9 @@ class LeafConnector(
             return self.show_example(
                 count=count, example=example_stream,
                 columns=columns, comment=example_comment,
-                output=output,
             )
         display.display_paragraph()
+        return self
 
     @staticmethod
     def _assume_native(connector) -> Native:

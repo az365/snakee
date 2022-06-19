@@ -374,17 +374,12 @@ class ColumnarMixin(IterDataMixin, ABC):
     def get_demo_example(
             self,
             count: int = DEFAULT_SHOW_COUNT,
-            as_dataframe: bool = False,  # deprecated
             filters: Optional[Array] = None,
             columns: Optional[Array] = None,
     ) -> Union[DataFrame, Iterable]:
-        as_dataframe = Auto.acquire(as_dataframe, get_use_objects_for_output())  # deprecated
         sm_sample = self.filter(*filters or []) if filters else self
         sm_sample = sm_sample.take(count)
-        if as_dataframe and hasattr(sm_sample, 'get_dataframe'):
-            return sm_sample.get_dataframe(columns)
-        else:
-            sm_sample = sm_sample.to_record_stream()
+        sm_sample = sm_sample.to_record_stream()
         if hasattr(sm_sample, 'select') and columns:
             return sm_sample.select(*columns).get_items()
         elif hasattr(sm_sample, 'get_items'):
@@ -395,12 +390,10 @@ class ColumnarMixin(IterDataMixin, ABC):
             count: int = DEFAULT_SHOW_COUNT,
             filters: Columns = None,
             columns: Columns = None,
-            as_dataframe: AutoBool = False,  # deprecated
-            output=AUTO,
     ):
-        display = self.get_display(output)
+        display = self.get_display()
         display.append(self.get_str_description())
-        demo_example = self.get_demo_example(count=count, filters=filters, columns=columns, as_dataframe=as_dataframe)
+        demo_example = self.get_demo_example(count=count, filters=filters, columns=columns)
         demo_example = list(demo_example)
         if demo_example:
             if not Auto.is_defined(columns):
@@ -446,7 +439,7 @@ class ColumnarMixin(IterDataMixin, ABC):
         if expected_st:
             expected_st = fc.FlatStruct.convert_to_native(expected_st)
             assert isinstance(expected_st, fc.FlatStruct) or hasattr(expected_st, 'display_data_sheet'), expected_st
-            assert isinstance(detected_st, fc.FlatStruct) or hasattr(expected_st, 'display_data_sheet'), detected_st
+            assert isinstance(detected_st, fc.FlatStruct) or hasattr(expected_st, 'validate_about'), detected_st
             detected_st.validate_about(expected_st)
             validation_message = f'{source_str} {expected_st.get_validation_message()}'
             display.append(validation_message)
@@ -454,7 +447,7 @@ class ColumnarMixin(IterDataMixin, ABC):
         elif detected_st:
             validation_message = 'Expected struct not defined, displaying detected struct:'
             display.append(validation_message)
-            assert isinstance(detected_st, fc.FlatStruct) or hasattr(expected_st, 'display_data_sheet'), detected_st
+            assert isinstance(detected_st, fc.FlatStruct) or hasattr(detected_st, 'display_data_sheet'), detected_st
             detected_st.display_data_sheet(example=example.get_one_item())
         else:
             validation_message = '[EMPTY] Struct is not detected.'

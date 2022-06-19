@@ -305,13 +305,9 @@ class AbstractBaseObject(BaseInterface, ABC):
             show_header: bool = True,
             comment: Optional[str] = None,
             depth: int = 1,
-            output: AutoOutput = AUTO,
     ):
         detailed_repr = self.get_detailed_repr()
-        if hasattr(output, 'output_line'):
-            display_method = output.output_line
-        else:
-            display_method = self._get_display_method()
+        display_method = self._get_display_method()
         display_method(detailed_repr)
         display_method(comment)
 
