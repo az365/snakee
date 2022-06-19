@@ -5,7 +5,7 @@ try:  # Assume we're a submodule in a package.
         StructInterface, StructRowInterface, FieldInterface, RepresentationInterface,
         SelectionLoggerInterface, ExtLogger,
         ValueType, DialectType,
-        AUTO, Auto, Name, Array, ARRAY_TYPES, ROW_SUBCLASSES, RECORD_SUBCLASSES,
+        AUTO, Auto, AutoCount, Name, Array, ARRAY_TYPES, ROW_SUBCLASSES, RECORD_SUBCLASSES,
     )
     from base.functions.arguments import update, get_generated_name, get_name, get_names
     from base.constants.chars import EMPTY, REPR_DELIMITER, TITLE_PREFIX, ITEM, DEL, ABOUT, JUPYTER_LINE_LEN
@@ -22,7 +22,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         StructInterface, StructRowInterface, FieldInterface, RepresentationInterface,
         SelectionLoggerInterface, ExtLogger,
         ValueType, DialectType,
-        AUTO, Auto, Name, Array, ARRAY_TYPES, ROW_SUBCLASSES, RECORD_SUBCLASSES,
+        AUTO, Auto, AutoCount, Name, Array, ARRAY_TYPES, ROW_SUBCLASSES, RECORD_SUBCLASSES,
     )
     from ...base.functions.arguments import update, get_generated_name, get_name, get_names
     from ...base.constants.chars import EMPTY, REPR_DELIMITER, TITLE_PREFIX, ITEM, DEL, ABOUT, JUPYTER_LINE_LEN
@@ -442,8 +442,8 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
         tags = Auto.acquire(tags, COMPARISON_TAGS)
         expected_struct = self.convert_to_native(other)
         remaining_struct = expected_struct.copy()
-        assert isinstance(expected_struct, FlatStruct), 'got {}'.format(expected_struct)
-        assert isinstance(remaining_struct, FlatStruct), 'got {}'.format(remaining_struct)
+        assert isinstance(expected_struct, StructInterface) or hasattr(expected_struct, 'get_field_names'), 'got {}'.format(expected_struct)
+        assert isinstance(remaining_struct, StructInterface) or hasattr(remaining_struct, 'get_field_names'), 'got {}'.format(remaining_struct)
         updated_struct = FlatStruct([])
         for pos_received, f_received in enumerate(self.get_fields()):
             assert isinstance(f_received, (FieldInterface, AnyField))
@@ -609,10 +609,10 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
     @staticmethod
     def _get_describe_columns(example, with_lens: bool = True) -> tuple:
         if example:
-            columns = ('valid', 'n', 'type', 'name', 'example', 'caption')
+            columns = ('valid', 'n', 'type_name', 'name', 'example', 'caption')
             lens = (1, 3, 8, 28, 14, 56)
         else:
-            columns = ('valid', 'n', 'type', 'name', 'caption')
+            columns = ('valid', 'n', 'type_name', 'name', 'caption')
             lens = (1, 3, 8, 28, 72)
         if with_lens:
             return tuple(zip(columns, lens))
@@ -667,7 +667,7 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
 
     def get_data_description(
             self,
-            count: int = DEFAULT_ROWS_COUNT,
+            count: AutoCount = AUTO,
             title: Optional[str] = 'Columns:',
             example: Optional[dict] = None,
             select_fields: Optional[Array] = None,
@@ -683,7 +683,7 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
 
     def display_data_sheet(
             self,
-            count: int = DEFAULT_ROWS_COUNT,
+            count: AutoCount = AUTO,
             title: Optional[str] = 'Columns',
             example: Optional[dict] = None,
             select_fields: Optional[Array] = None,
@@ -700,12 +700,8 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
         columns = ('n', 'type', 'name', 'caption', 'valid')
         return DataFrame(data, columns=columns)
 
-    def show(self, count: Optional[int] = None, as_dataframe: Union[bool, Auto] = AUTO) -> Optional[DataFrame]:
-        as_dataframe = Auto.acquire(as_dataframe, get_use_objects_for_output())
-        if as_dataframe:
-            return self.get_dataframe()
-        else:
-            return self.describe(as_dataframe=False)
+    def show(self, count: Optional[int] = None) -> Optional[DataFrame]:
+        return self.describe()
 
     @staticmethod
     def _assume_native(struct) -> Native:
