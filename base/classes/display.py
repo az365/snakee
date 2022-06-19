@@ -1,4 +1,4 @@
-from typing import Optional, Iterable, Generator, Iterator, Sequence, Union, Any
+from typing import Optional, Callable, Iterable, Generator, Iterator, Sequence, Union, Any
 
 try:  # Assume we're a submodule in a package.
     from base.classes.typing import AUTO, Auto, AutoCount, Class
@@ -204,9 +204,15 @@ class DefaultDisplay(DisplayInterface):
             data = '\n'.join(data)
         return data
 
-    def display(self, item: Item = AUTO) -> None:
+    @staticmethod
+    def _get_display_method() -> Callable:
+        return print
+
+    def display(self, item: Item = AUTO):
         item = Auto.acquire(item, self)
-        print(item)
+        method = self._get_display_method()
+        method(item)
+        return self
 
     def __call__(self, obj) -> None:
         return self.display(obj)

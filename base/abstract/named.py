@@ -83,9 +83,8 @@ class AbstractNamed(AbstractBaseObject, DisplayMixin, ABC):
             show_header: bool = True,
             comment: Optional[str] = None,
             depth: int = 1,
-            output=AUTO,  # deprecated
     ) -> None:
-        display = self.get_display(output)
+        display = self.get_display()
         if show_header:
             display.display_paragraph(self.get_name(), level=1)
             display.display_paragraph(self.get_str_headers())
@@ -96,7 +95,7 @@ class AbstractNamed(AbstractBaseObject, DisplayMixin, ABC):
             for attribute, value in self.get_meta_items():
                 if isinstance(value, AbstractBaseObject) or hasattr(value, 'describe'):
                     display.display_paragraph(attribute, level=3)
-                    value.describe(show_header=False, depth=depth - 1, output=output)
+                    value.describe(show_header=False, depth=depth - 1)
         display.display_paragraph()
 
     @staticmethod

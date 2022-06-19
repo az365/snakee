@@ -90,6 +90,7 @@ class LeafConnectorInterface(ConnectorInterface, StreamInterface, ABC):
             self,
             set_struct: bool = False,
             use_declared_types: bool = True,
+            skip_missing: bool = False,
             verbose: AutoBool = AUTO,
     ):
         pass

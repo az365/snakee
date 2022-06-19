@@ -175,7 +175,7 @@ class AbstractConnector(TreeItem, ConnectorInterface, ABC):
         if context:
             context.forget_conn(self)
 
-    def is_existing(self) -> Optional[bool]:
+    def is_existing(self, verbose: AutoBool = AUTO) -> Optional[bool]:
         return None
 
     @staticmethod

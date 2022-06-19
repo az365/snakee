@@ -287,11 +287,9 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
             count: AutoCount = AUTO,
             comment: Optional[str] = None,
             depth: int = 1,
-            output=AUTO,  # deprecated
-            as_dataframe: AutoBool = Auto,  # deprecated
             **kwargs
     ) -> Native:
-        display = self.get_display(output)
+        display = self.get_display()
         show_meta = show_header or not self.has_data()
         if show_header:
             display.display_paragraph(self.get_name(), level=1)
@@ -307,6 +305,6 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
             for attribute, value in self.get_meta_items():
                 if isinstance(value, BaseInterface) or hasattr(value, 'describe'):
                     display.display_paragraph('{attribute}:'.format(attribute=attribute), level=3)
-                    value.describe(show_header=False, depth=depth - 1, output=output)
+                    value.describe(show_header=False, depth=depth - 1)
         display.display_paragraph()
         return self

@@ -2,7 +2,7 @@ from typing import Callable, Union, Any
 
 try:  # Assume we're a submodule in a package.
     from base.classes.auto import AUTO, Auto
-    from base.functions.arguments import get_names, update
+    from base.functions.arguments import get_name, get_names, update
     from loggers.logger_interface import LoggerInterface
     from functions.primary.items import STAR, get_field_value_from_item, get_fields_values_from_item
     from utils import algo
@@ -10,7 +10,7 @@ try:  # Assume we're a submodule in a package.
     from content.items.item_type import ItemType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.classes.auto import AUTO, Auto
-    from ...base.functions.arguments import get_names, update
+    from ...base.functions.arguments import get_name, get_names, update
     from ...loggers.logger_interface import LoggerInterface
     from ...functions.primary.items import STAR, get_field_value_from_item, get_fields_values_from_item
     from ...utils import algo
@@ -92,7 +92,8 @@ def safe_apply_function(function: Callable, fields, values, item=None, logger=No
             else:
                 level = 30 if skip_errors else 40
                 message = 'Error while processing function {} over fields {} with values {}.'
-                logger.log(msg=message.format(function.__name__, fields, values), level=level)
+                func_name = get_name(function, or_callable=False)
+                logger.log(msg=message.format(func_name, fields, values), level=level)
         if not skip_errors:
             raise e
 

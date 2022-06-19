@@ -88,12 +88,16 @@ class Table(LeafConnector):
             self,
             set_struct: bool = False,
             use_declared_types: AutoBool = AUTO,  # ?
+            skip_missing: bool = False,
             verbose: AutoBool = AUTO,
-    ) -> Optional[StructInterface]:
+    ) -> GeneralizedStruct:
         struct = self.get_struct_from_database(set_struct=set_struct)
-        if not isinstance(struct, StructInterface) and Auto.delayed_acquire(verbose, self.is_verbose):
-            message = 'Struct as {} is deprecated. Use items.FlatStruct instead.'.format(type(struct))
-            self.log(msg=message, level=LoggingLevel.Warning)
+        if struct:
+            if not isinstance(struct, StructInterface) and Auto.delayed_acquire(verbose, self.is_verbose):
+                message = 'Struct as {} is deprecated. Use items.FlatStruct instead.'.format(type(struct))
+                self.log(msg=message, level=LoggingLevel.Warning)
+        elif not skip_missing:
+            raise ValueError(f'Received empty struct from {self}')
         return struct
 
     def get_database(self) -> ConnectorInterface:
@@ -194,8 +198,13 @@ class Table(LeafConnector):
             self.set_struct(struct, inplace=True)
         return struct
 
-    def _get_struct_from_source(self, types: Union[dict, Auto, None] = AUTO, verbose: bool = False):
-        return self.get_struct_from_database(types=types, verbose=verbose)
+    def _get_struct_from_source(
+            self,
+            types: Union[dict, Auto, None] = AUTO,
+            skip_missing: bool = False,
+            verbose: bool = False,
+    ) -> GeneralizedStruct:
+        return self.get_struct_from_database(types=types, skip_missing=skip_missing, verbose=verbose)
 
     def get_first_line(self, close: bool = True, skip_missing: bool = False, verbose: bool = True) -> Optional[str]:
         if skip_missing:
@@ -275,9 +284,9 @@ class Table(LeafConnector):
         assert isinstance(stream, RegularStream)
         self.upload(data=stream, **kwargs)
 
-    def is_existing(self) -> bool:
+    def is_existing(self, verbose: AutoBool = AUTO) -> bool:
         database = self.get_database()
-        return database.exists_table(self.get_path())
+        return database.exists_table(self.get_path(), verbose=verbose)
 
     def describe_table(self, verbose: AutoBool = Auto) -> Iterable:
         database = self.get_database()

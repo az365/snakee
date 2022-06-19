@@ -101,6 +101,5 @@ class BaseInterface(ABC):
             show_header: bool = True,
             comment: Optional[str] = None,
             depth: int = 1,
-            output: AutoOutput = AUTO,
     ):
         pass

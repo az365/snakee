@@ -29,9 +29,6 @@ FormattedDisplayTypes = Union[Markdown, HTML]
 DisplayObject = Union[FormattedDisplayTypes, str]
 FORMATTED_DISPLAY_TYPES = Markdown, HTML
 
-H_STYLE = None
-P_STYLE = 'line-height: 1.1em; margin-top: 0em; margin-bottom: 0em; padding-top: 0em; padding-bottom: 0em;'
-
 
 class DocumentDisplay(DefaultDisplay, IterDataMixin):
     display_mode: DisplayMode = DisplayMode.Text
@@ -82,7 +79,7 @@ class DocumentDisplay(DefaultDisplay, IterDataMixin):
         elif text is None:
             lines = [EMPTY]
         else:
-            raise TypeError(f'Expected text as str or Iterable got {text}')
+            raise TypeError(f'Expected text as str or Iterable, got {text}')
         for line in lines:
             if line:
                 self.get_accumulated_lines().append(line)
@@ -194,7 +191,7 @@ class DocumentDisplay(DefaultDisplay, IterDataMixin):
             self.add_to_paragraph(paragraph)
             paragraph = self.get_current_paragraph()
         if level:
-            paragraph.set_level(level, inplace=True),
+            paragraph.set_level(level, inplace=True)
         response = self.display(paragraph, save=True)
         self.clear_current_paragraph()
         return response
@@ -223,7 +220,7 @@ class DocumentDisplay(DefaultDisplay, IterDataMixin):
             elif isinstance(c, (list, tuple)):
                 column_names.append(c[0])
             else:
-                raise TypeError(c)
+                raise TypeError(f'Expected column as Name or Sequence, got {c}')
         return column_names
 
     def clear_output(self, wait: bool = False) -> Native:

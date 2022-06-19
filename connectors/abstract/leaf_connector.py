@@ -81,11 +81,11 @@ class LeafConnector(
                 raise ValueError(msg.format(content_format, kwargs))
         assert isinstance(content_format, ContentFormatInterface), 'Expect ContentFormat, got {}'.format(content_format)
         self.set_content_format(content_format, inplace=True)
-        self.set_first_line_title(first_line_is_title)
+        self.set_first_line_title(first_line_is_title, verbose=self.is_verbose())
         if struct is not None:
             if struct == AUTO:
                 if self.is_accessible():
-                    struct = self._get_detected_struct(use_declared_types=False)
+                    struct = self._get_detected_struct(use_declared_types=False, skip_missing=True)
             if Auto.is_defined(struct, check_name=False):
                 self.set_struct(struct, inplace=True)
 
@@ -113,20 +113,24 @@ class LeafConnector(
             self,
             set_struct: bool = False,
             use_declared_types: bool = False,
+            skip_missing: bool = False,
             verbose: AutoBool = False,
     ) -> Optional[StructInterface]:
+        if skip_missing and not self.is_accessible():
+            return None
         content_format = self.get_content_format()
         if isinstance(content_format, ContentFormatInterface) and hasattr(content_format, 'is_first_line_title'):
             if content_format.is_first_line_title():
                 struct = self.get_struct_from_source(
                     set_struct=set_struct,
                     use_declared_types=use_declared_types,
+                    skip_missing=skip_missing,
                     verbose=verbose,
                 )
                 return struct
 
-    def get_content_format(self) -> ContentFormatInterface:
-        detected_format = self.get_detected_format(detect=False)
+    def get_content_format(self, verbose: AutoBool = AUTO) -> ContentFormatInterface:
+        detected_format = self.get_detected_format(detect=False, verbose=verbose)
         if Auto.is_defined(detected_format):
             return detected_format
         else:
@@ -140,9 +144,10 @@ class LeafConnector(
             detect: bool = True,
             force: bool = False,
             skip_missing: bool = True,
+            verbose: AutoBool = AUTO,
     ) -> ContentFormatInterface:
         if force or (detect and not Auto.is_defined(self._detected_format)):
-            self.reset_detected_format(use_declared_types=True, skip_missing=skip_missing)
+            self.reset_detected_format(use_declared_types=True, skip_missing=skip_missing, verbose=verbose)
         return self._detected_format
 
     def set_detected_format(self, content_format: ContentFormatInterface, inplace: bool) -> Native:
@@ -154,12 +159,18 @@ class LeafConnector(
             connector = self.make_new(content_format=content_format)
             return self._assume_native(connector)
 
-    def reset_detected_format(self, use_declared_types: bool = True, skip_missing: bool = False) -> Native:
-        if self.is_existing():
+    def reset_detected_format(
+            self,
+            use_declared_types: bool = True,
+            skip_missing: bool = False,
+            verbose: AutoBool = AUTO,
+    ) -> Native:
+        if self.is_existing(verbose=verbose):
             content_format = self.get_declared_format().copy()
             detected_struct = self.get_struct_from_source(
                 set_struct=False,
                 use_declared_types=use_declared_types,
+                verbose=verbose,
             )
             detected_format = content_format.set_struct(detected_struct, inplace=False)
             self.set_detected_format(detected_format, inplace=True)
@@ -179,9 +190,9 @@ class LeafConnector(
             new.set_declared_format(initial_format, inplace=True)
             return new
 
-    def set_first_line_title(self, first_line_is_title: AutoBool) -> Native:
+    def set_first_line_title(self, first_line_is_title: AutoBool, verbose: AutoBool = AUTO) -> Native:
         declared_format = self.get_declared_format()
-        detected_format = self.get_detected_format(detect=False)
+        detected_format = self.get_detected_format(detect=False, verbose=verbose)
         if hasattr(declared_format, 'set_first_line_title'):
             declared_format.set_first_line_title(first_line_is_title)
         if hasattr(detected_format, 'set_first_line_title'):
@@ -290,7 +301,7 @@ class LeafConnector(
         item_type = Auto.acquire(item_type, self.get_default_item_type())
         verbose = Auto.acquire(verbose, self.is_verbose())
         content_format = self.get_content_format()
-        assert isinstance(content_format, ParsedFormat)
+        assert isinstance(content_format, ParsedFormat) or hasattr(content_format, 'get_items_from_lines')
         count = self.get_count(allow_slow_mode=False)
         if isinstance(verbose, str):
             if Auto.is_defined(message):
@@ -355,19 +366,18 @@ class LeafConnector(
             count: Optional[int] = EXAMPLE_ROW_COUNT,
             columns: Optional[Array] = None,
             show_header: bool = True,
-            struct_as_dataframe: bool = False,  # deprecated
             safe_filter: bool = True,
             actualize: AutoBool = AUTO,
-            output=AUTO,  # deprecated
             **filter_kwargs
-    ):
-        display = self.get_display(output)
+    ) -> Native:
+        display = self.get_display()
         if show_header:
             display.display_paragraph(self.get_name(), level=1)
             display.display_paragraph(self.get_str_headers(actualize=False))
             struct_title, example_item, example_stream, example_comment = self._prepare_examples_with_title(
                 *filter_args, **filter_kwargs, safe_filter=safe_filter,
                 example_row_count=count, actualize=actualize,
+                verbose=False,
             )
             display.append(struct_title)
             if self.get_invalid_fields_count():
@@ -378,13 +388,11 @@ class LeafConnector(
             example_item, example_stream, example_comment = None, None, None
         struct = self.get_struct()
         if isinstance(struct, StructInterface) or hasattr(struct, 'describe'):
-            struct_dataframe = struct.describe(
+            struct.describe(
                 show_header=False,
-                as_dataframe=struct_as_dataframe, example=example_item,
-                output=output, comment=example_comment,
+                example=example_item,
+                comment=example_comment,
             )
-            if struct_dataframe is not None:
-                return struct_dataframe
         elif struct:
             display.append(f'[TYPE_ERROR] Expected struct as StructInterface, got {struct} instead')
         else:
@@ -393,9 +401,9 @@ class LeafConnector(
             return self.show_example(
                 count=count, example=example_stream,
                 columns=columns, comment=example_comment,
-                output=output,
             )
         display.display_paragraph()
+        return self
 
     @staticmethod
     def _assume_native(connector) -> Native:

@@ -2,13 +2,13 @@ from typing import Optional, Iterable, Generator, Union
 import io
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.auto import AUTO, Auto
+    from base.classes.typing import AUTO, Auto, AutoBool
     from utils.decorators import deprecated_with_alternative
     from utils.external import boto3, boto_core_client
     from interfaces import ConnType, ConnectorInterface, Class, Name
     from connectors.abstract.abstract_folder import HierarchicFolder
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...base.classes.auto import AUTO, Auto
+    from ...base.classes.typing import AUTO, Auto, AutoBool
     from ...utils.decorators import deprecated_with_alternative
     from ...utils.external import boto3, boto_core_client
     from ...interfaces import ConnType, ConnectorInterface, Class, Name
@@ -67,7 +67,7 @@ class S3Bucket(HierarchicFolder):
 
     def is_accessible(self, verbose: bool = False) -> bool:
         try:
-            self.list_objects()
+            self.list_objects(verbose=verbose)
             return True
         except:  # ConnectionError
             return False
@@ -135,6 +135,7 @@ class S3Bucket(HierarchicFolder):
             params: Optional[dict] = None,
             v2: bool = False,
             field: Optional[str] = 'Contents',
+            verbose: AutoBool = AUTO,
     ) -> Union[dict, list]:
         if not params:
             params = dict()
@@ -143,6 +144,8 @@ class S3Bucket(HierarchicFolder):
         if 'Delimiter' not in params:
             params['Delimiter'] = self.get_path_delimiter()
         client = self.get_client(self.get_storage().get_resource_properties())
+        if verbose:
+            self.log(f'Getting objects from s3-bucket {self.get_name()}...', verbose=verbose)  # level=LoggingLevel.Debug
         if v2:
             objects = client.list_objects_v2(**params)
         else:
@@ -152,7 +155,7 @@ class S3Bucket(HierarchicFolder):
         else:
             return objects
 
-    def yield_objects(self, params: Optional[dict] = None) -> Generator:
+    def yield_objects(self, params: Optional[dict] = None, verbose: AutoBool = AUTO) -> Generator:
         continuation_token = None
         if not params:
             params = dict()
@@ -161,21 +164,21 @@ class S3Bucket(HierarchicFolder):
         while True:
             if continuation_token:
                 params['ContinuationToken'] = continuation_token
-            response = self.list_objects(params=params, v2=True, field=None)
+            response = self.list_objects(params=params, v2=True, field=None, verbose=verbose)
             yield from response.get('Contents', [])
             if not response.get('IsTruncated'):
                 break
             continuation_token = response.get('NextContinuationToken')
 
-    def yield_object_names(self) -> Generator:
-        for obj in self.yield_objects():
+    def yield_object_names(self, verbose: AutoBool = AUTO) -> Generator:
+        for obj in self.yield_objects(verbose=verbose):
             yield obj['Key']
 
-    def list_object_names(self) -> list:
-        return list(self.yield_object_names())
+    def list_object_names(self, verbose: AutoBool = AUTO) -> list:
+        return list(self.yield_object_names(verbose=verbose))
 
-    def list_prefixes(self) -> Iterable:
-        return self.list_objects(field='CommonPrefixes')
+    def list_prefixes(self, verbose: AutoBool = AUTO) -> Iterable:
+        return self.list_objects(field='CommonPrefixes', verbose=verbose)
 
     def get_object(self, object_path_in_bucket: str):
         return self.get_resource().Object(self.get_bucket_name(), object_path_in_bucket)

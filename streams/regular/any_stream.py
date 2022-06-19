@@ -41,6 +41,7 @@ Data = Union[Auto, Iterable]
 AutoStreamType = Union[Auto, StreamType]
 StreamItemType = Union[AutoStreamType, ItemType]
 
+DEFAULT_EXAMPLE_COUNT = 10
 DEFAULT_ANALYZE_COUNT = 100
 
 
@@ -58,8 +59,8 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
             max_items_in_memory: Count = AUTO, tmp_files: TmpFiles = AUTO,
             check: bool = False,
     ):
-        if struct and not isinstance(struct, StructInterface):
-            struct = FlatStruct(StructInterface)
+        if struct and not isinstance(struct, (FlatStruct, StructInterface)):
+            struct = FlatStruct(struct)
         self._struct = struct
         super().__init__(
             data=data, check=check,
@@ -193,7 +194,7 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
             )
 
     def filter(self, *fields, skip_errors: bool = True, inplace: bool = False, **expressions) -> Native:
-        item_type = self.get_item_type()
+        item_type = self.get_item_type()  # ItemType.Any
         filter_function = get_filter_function(*fields, **expressions, item_type=item_type, skip_errors=skip_errors)
         stream = super().filter(filter_function, inplace=inplace)
         return self._assume_native(stream)

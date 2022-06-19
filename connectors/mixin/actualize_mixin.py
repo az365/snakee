@@ -211,6 +211,7 @@ class ActualizeMixin(ABC):
             example_row_count: Count = None,
             example_str_len: int = EXAMPLE_STR_LEN,
             actualize: AutoBool = AUTO,
+            verbose: bool = True,
             **filter_kwargs
     ) -> tuple:
         example_item, example_stream, example_comment = dict(), None, EMPTY
@@ -230,6 +231,7 @@ class ActualizeMixin(ABC):
             example_tuple = self._prepare_examples(
                 *filters, **filter_kwargs, safe_filter=safe_filter,
                 example_row_count=example_row_count, example_str_len=example_str_len,
+                verbose=verbose,
             )
             example_item, example_stream, example_comment = example_tuple
         elif is_actual:
@@ -246,12 +248,13 @@ class ActualizeMixin(ABC):
             example_row_count: Count = None,
             example_str_len: int = EXAMPLE_STR_LEN,
             crop_suffix: str = CROP_SUFFIX,
+            verbose: bool = AUTO,
             **filter_kwargs
     ) -> tuple:
         filters = filters or list()
         if filter_kwargs and safe_filter:
             filter_kwargs = {k: v for k, v in filter_kwargs.items() if k in self.get_columns()}
-        stream_example = self.to_record_stream()
+        stream_example = self.to_record_stream(verbose=verbose)
         if filters:
             stream_example = stream_example.filter(*filters or [], **filter_kwargs)
         if example_row_count:
@@ -290,13 +293,12 @@ class ActualizeMixin(ABC):
             example: Optional[Stream] = None,
             columns: Optional[Array] = None,
             comment: str = EMPTY,
-            output=AUTO,  # deprecated
     ):
         if not Auto.is_defined(example):
             example = self.to_record_stream()
         stream_example = example.take(count).collect()
         if stream_example or comment:
-            display = self.get_display(output)
+            display = self.get_display()
             display.display_paragraph('Example', level=3)
             if comment:
                 display.display_paragraph(comment)
@@ -312,7 +314,6 @@ class ActualizeMixin(ABC):
             filters: Columns = None,
             columns: Columns = None,
             actualize: AutoBool = AUTO,
-            as_dataframe: AutoBool = AUTO,
             **kwargs
     ):
         if actualize == AUTO:
@@ -320,6 +321,7 @@ class ActualizeMixin(ABC):
         elif actualize:
             self.actualize(if_outdated=False)
         return self.to_record_stream(message=message).show(
-            count=count, as_dataframe=as_dataframe,
-            filters=filters or list(), columns=columns,
+            count=count,
+            filters=filters or list(),
+            columns=columns,
         )

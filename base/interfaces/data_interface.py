@@ -49,8 +49,6 @@ class SimpleDataInterface(BaseInterface, ABC):
             count: AutoCount = AUTO,
             comment: Optional[str] = None,
             depth: int = 1,
-            output: AutoOutput = AUTO,
-            as_dataframe: bool = Auto,
             **kwargs
     ):
         pass

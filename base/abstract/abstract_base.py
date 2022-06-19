@@ -296,20 +296,20 @@ class AbstractBaseObject(BaseInterface, ABC):
         else:
             return default
 
+    @staticmethod
+    def _get_display_method() -> Callable:
+        return print
+
     def describe(
             self,
             show_header: bool = True,
             comment: Optional[str] = None,
             depth: int = 1,
-            output: AutoOutput = AUTO,
     ):
         detailed_repr = self.get_detailed_repr()
-        if hasattr(output, 'output_line'):
-            output_method = output.output_line
-        else:
-            output_method = print
-        output_method(detailed_repr)
-        output_method(comment)
+        display_method = self._get_display_method()
+        display_method(detailed_repr)
+        display_method(comment)
 
     def __repr__(self):
         return self.get_detailed_repr()

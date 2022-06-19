@@ -16,7 +16,7 @@ try:  # Assume we're a submodule in a package.
     from content.items.item_getters import value_from_record, tuple_from_record, get_filter_function
     from streams.mixin.convert_mixin import ConvertMixin
     from streams.mixin.columnar_mixin import ColumnarMixin
-    from streams.regular.any_stream import AnyStream
+    from streams.regular.any_stream import AnyStream, DEFAULT_EXAMPLE_COUNT, DEFAULT_ANALYZE_COUNT
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         Stream, RegularStream, RowStream, KeyValueStream, StructStream, StructInterface, FieldInterface,
@@ -33,12 +33,9 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...content.items.item_getters import value_from_record, tuple_from_record, get_filter_function
     from ..mixin.convert_mixin import ConvertMixin
     from ..mixin.columnar_mixin import ColumnarMixin
-    from .any_stream import AnyStream
+    from .any_stream import AnyStream, DEFAULT_EXAMPLE_COUNT, DEFAULT_ANALYZE_COUNT
 
 Native = RegularStream
-
-DEFAULT_EXAMPLE_COUNT = 10
-DEFAULT_ANALYZE_COUNT = 100
 
 
 def unfold_structs_to_fields(keys: Iterable) -> list:
@@ -177,17 +174,14 @@ class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
             return dataframe
 
     def get_demo_example(
-            self, count: Count = DEFAULT_EXAMPLE_COUNT,
-            filters: Columns = None, columns: Columns = None,
-            as_dataframe: AutoBool = AUTO,
+            self,
+            count: Count = DEFAULT_EXAMPLE_COUNT,
+            filters: Columns = None,
+            columns: Columns = None,
     ) -> Union[DataFrame, list, None]:
-        as_dataframe = Auto.acquire(as_dataframe, get_use_objects_for_output())
         sm_sample = self.filter(*filters) if filters else self
         sm_sample = sm_sample.take(count)
-        if as_dataframe:
-            return sm_sample.get_dataframe(columns)
-        elif hasattr(sm_sample, 'get_list'):
-            return sm_sample.get_list()
+        return sm_sample.get_list()
 
     def get_rows(self, columns: Union[Columns, Auto] = AUTO, add_title_row=False) -> Iterable:
         columns = Auto.delayed_acquire(columns, self.get_columns)

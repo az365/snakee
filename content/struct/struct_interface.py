@@ -54,6 +54,16 @@ class StructMixinInterface(ABC):
     def get_struct_str(self, dialect: DialectType = DialectType.Postgres) -> str:
         pass
 
+    @abstractmethod
+    def describe(
+            self,
+            *filter_args,
+            columns: Optional[Iterable] = None,
+            show_header: bool = True,
+            safe_filter: bool = True,
+            **filter_kwargs
+    ):
+        pass
 
 Native = StructMixinInterface
 
