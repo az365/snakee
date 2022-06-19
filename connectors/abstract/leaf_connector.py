@@ -85,7 +85,7 @@ class LeafConnector(
         if struct is not None:
             if struct == AUTO:
                 if self.is_accessible():
-                    struct = self._get_detected_struct(use_declared_types=False)
+                    struct = self._get_detected_struct(use_declared_types=False, skip_missing=True)
             if Auto.is_defined(struct, check_name=False):
                 self.set_struct(struct, inplace=True)
 
@@ -113,14 +113,18 @@ class LeafConnector(
             self,
             set_struct: bool = False,
             use_declared_types: bool = False,
+            skip_missing: bool = False,
             verbose: AutoBool = False,
     ) -> Optional[StructInterface]:
+        if skip_missing and not self.is_accessible():
+            return None
         content_format = self.get_content_format()
         if isinstance(content_format, ContentFormatInterface) and hasattr(content_format, 'is_first_line_title'):
             if content_format.is_first_line_title():
                 struct = self.get_struct_from_source(
                     set_struct=set_struct,
                     use_declared_types=use_declared_types,
+                    skip_missing=skip_missing,
                     verbose=verbose,
                 )
                 return struct

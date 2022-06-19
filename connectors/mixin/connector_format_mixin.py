@@ -4,7 +4,7 @@ from typing import Optional, Union
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         LeafConnectorInterface, StructInterface, IterableStreamInterface,
-        ItemType, StreamType, ContentType,
+        ItemType, StreamType, ContentType, DialectType,
         AUTO, Auto, AutoBool,
     )
     from content.struct.struct_mixin import StructMixin
@@ -14,7 +14,7 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         LeafConnectorInterface, StructInterface, IterableStreamInterface,
-        ItemType, StreamType, ContentType,
+        ItemType, StreamType, ContentType, DialectType,
         AUTO, Auto, AutoBool,
     )
     from ...content.struct.struct_mixin import StructMixin
@@ -33,12 +33,13 @@ class ConnectorFormatMixin(StructMixin, LeafConnectorInterface, ABC):
             return initial_format.get_struct()
 
     def set_initial_struct(self, struct: Struct, inplace: bool) -> Optional[Native]:
-        struct = self._get_native_struct(struct).copy()
+        if Auto.is_defined(struct):
+            struct = self._get_native_struct(struct).copy()
         initial_format = self.get_declared_format()
         if inplace:
             if isinstance(initial_format, (LeanFormat, ColumnarFormat)) or hasattr(initial_format, 'set_struct'):
                 initial_format.set_struct(struct, inplace=True)
-            else:
+            elif Auto.is_defined(struct):
                 raise TypeError('Cannot set struct for {}: method not supported (by design)'.format(initial_format))
         else:
             copy = self.make_new()
@@ -68,7 +69,7 @@ class ConnectorFormatMixin(StructMixin, LeafConnectorInterface, ABC):
         if inplace:
             if isinstance(content_format, (LeanFormat, ColumnarFormat)) or hasattr(content_format, 'set_struct'):
                 content_format.set_struct(struct, inplace=True)
-            else:
+            elif Auto.is_defined(struct):
                 raise TypeError('Cannot set struct for {}: method not supported (by design)'.format(content_format))
             if not self.get_initial_struct():
                 self.set_initial_struct(struct, inplace=True)
@@ -139,12 +140,20 @@ class ConnectorFormatMixin(StructMixin, LeafConnectorInterface, ABC):
             self,
             set_struct: bool = False,  # deprecated argument
             types: Union[dict, Auto, None] = AUTO,
+            skip_missing: bool = False,
             verbose: AutoBool = AUTO,  # deprecated argument
     ) -> Struct:
-        assert self.is_existing(), f'For detect struct file/object must be existing: {self.get_path()}'
+        path = self.get_full_path()
+        if not self.is_existing():
+            if skip_missing:
+                return None
+            else:
+                raise FileNotFoundError(f'For detect struct file/object must be existing: {path}')
         if not self.is_first_line_title():
-            path = self.get_full_path()
-            raise AssertionError(f'Can detect struct by title row only if first line is a title row ({path})')
+            if skip_missing:
+                return None
+            else:
+                raise AssertionError(f'Can detect struct by title row only if first line is a title row ({path})')
         verbose = Auto.delayed_acquire(verbose, self.is_verbose)
         title_row = self.get_title_row(close=True)
         struct = self._get_struct_detected_by_title_row(title_row, types=types)
@@ -154,14 +163,26 @@ class ConnectorFormatMixin(StructMixin, LeafConnectorInterface, ABC):
             self.set_struct(struct, inplace=True)
         return struct
 
-    def _get_struct_from_source(self, types: Union[dict, Auto, None] = AUTO, verbose: bool = False):
-        return self.get_detected_struct_by_title_row(types=types, verbose=verbose)
+    def _get_struct_from_source(
+            self,
+            types: Union[dict, Auto, None] = AUTO,
+            skip_missing: bool = False,
+            verbose: bool = False,
+    ) -> Struct:
+        try:
+            return self.get_detected_struct_by_title_row(types=types, skip_missing=skip_missing, verbose=verbose)
+        except ValueError as e:  # Received empty content
+            if skip_missing:
+                return None
+            else:
+                raise ValueError(e)
 
     def get_struct_from_source(
             self,
             set_struct: bool = False,
             use_declared_types: bool = True,
             skip_disconnected: bool = True,
+            skip_missing: bool = False,
             verbose: AutoBool = AUTO,
     ) -> Optional[Struct]:
         verbose = Auto.acquire(verbose, self.is_verbose())
@@ -180,8 +201,12 @@ class ConnectorFormatMixin(StructMixin, LeafConnectorInterface, ABC):
                 declared_struct = declared_format.get_struct()
                 if isinstance(declared_struct, StructInterface) or hasattr(declared_struct, 'get_types_dict'):
                     declared_types = declared_struct.get_types_dict()
-        struct = self._get_struct_from_source(types=declared_types, verbose=verbose)
-        message = 'Struct for {} detected from source: {}'.format(self.get_name(), struct.get_struct_str(None))
+        struct = self._get_struct_from_source(types=declared_types, skip_missing=skip_missing, verbose=verbose)
+        if isinstance(struct, StructInterface):
+            struct_string = struct.get_struct_str()  # None
+        else:
+            struct_string = str(struct)
+        message = f'Struct for {self.get_name()} detected from source: {struct_string}'
         self.log(message, end='\n', verbose=verbose)
         if set_struct:
             self.set_struct(struct, inplace=True)

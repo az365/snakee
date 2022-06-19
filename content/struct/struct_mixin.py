@@ -121,7 +121,11 @@ class StructMixin(StructMixinInterface, ABC):
         elif raw_struct == AUTO:
             native_struct = None
             if hasattr(self, 'get_struct_from_source'):
-                native_struct = self.get_struct_from_source(set_struct=save_if_not_yet, verbose=verbose)
+                native_struct = self.get_struct_from_source(
+                    set_struct=save_if_not_yet,
+                    skip_missing=True,
+                    verbose=verbose,
+                )
             elif hasattr(self, 'is_first_line_title'):
                 if self.is_first_line_title():
                     if hasattr(self, 'get_detected_struct_by_title_row'):
