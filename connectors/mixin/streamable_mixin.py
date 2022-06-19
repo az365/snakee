@@ -68,7 +68,7 @@ class StreamableMixin(ColumnarMixin, ABC):
         return get_generated_name('{}:stream'.format(self.get_name()), include_random=True, include_datetime=False)
 
     def _get_fast_count(self) -> Optional[int]:
-        if isinstance(self, LeafConnectorInterface):
+        if isinstance(self, LeafConnectorInterface):  # or 'allow_slow_mode' in self.get_count.__annotations__:
             return self.get_count(allow_slow_mode=False)
         if hasattr(self.get_count, '__annotations__'):
             if isinstance(self, LeafConnectorInterface) or 'allow_slow_mode' in self.get_count.__annotations__:
@@ -171,10 +171,10 @@ class StreamableMixin(ColumnarMixin, ABC):
         stream_type = Auto.delayed_acquire(stream_type, self._get_stream_type)
         item_type = self._get_item_type(stream_type)
         if 'struct' not in kwargs:
-            if isinstance(self, LeafConnectorInterface) or hasattr(self, 'get_content_format'):
-                content_format = self.get_content_format()
-                if hasattr(content_format, 'get_struct'):  # isinstance(content_format, ColumnarFormat):
-                    kwargs['struct'] = content_format.get_struct()
+            if isinstance(self, LeafConnectorInterface) or hasattr(self, 'get_struct'):
+                struct = self.get_struct()
+                if struct:
+                    kwargs['struct'] = struct
         data = kwargs.pop('data', None)
         if not Auto.is_defined(data):
             data = self._get_items_of_type(item_type, step=step, verbose=verbose, message=message)
