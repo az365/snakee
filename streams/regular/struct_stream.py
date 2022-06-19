@@ -317,17 +317,14 @@ class StructStream(RowStream, StructMixin, ConvertMixin):
         return self.stream(records, stream_type=StreamType.RecordStream, **kwargs)
 
     def get_demo_example(
-            self, count: Count = DEFAULT_EXAMPLE_COUNT,
-            filters: Columns = None, columns: Columns = None,
-            as_dataframe: AutoBool = AUTO,
-    ) -> Union[DataFrame, list, None]:
-        as_dataframe = Auto.delayed_acquire(as_dataframe, get_use_objects_for_output)
+            self,
+            count: Count = DEFAULT_EXAMPLE_COUNT,
+            filters: Columns = None,
+            columns: Columns = None,
+    ) -> Optional[list]:
         sm_sample = self.filter(*filters) if filters else self
         sm_sample = sm_sample.to_record_stream()
-        if as_dataframe and hasattr(sm_sample, 'get_dataframe'):
-            return sm_sample.get_dataframe(columns)
-        elif hasattr(sm_sample, 'get_list'):
-            return sm_sample.get_list()
+        return sm_sample.get_list()
 
     @staticmethod
     def _assume_native(obj) -> Native:

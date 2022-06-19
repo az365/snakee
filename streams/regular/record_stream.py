@@ -177,17 +177,14 @@ class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
             return dataframe
 
     def get_demo_example(
-            self, count: Count = DEFAULT_EXAMPLE_COUNT,
-            filters: Columns = None, columns: Columns = None,
-            as_dataframe: AutoBool = AUTO,
+            self,
+            count: Count = DEFAULT_EXAMPLE_COUNT,
+            filters: Columns = None,
+            columns: Columns = None,
     ) -> Union[DataFrame, list, None]:
-        as_dataframe = Auto.acquire(as_dataframe, get_use_objects_for_output())
         sm_sample = self.filter(*filters) if filters else self
         sm_sample = sm_sample.take(count)
-        if as_dataframe:
-            return sm_sample.get_dataframe(columns)
-        elif hasattr(sm_sample, 'get_list'):
-            return sm_sample.get_list()
+        return sm_sample.get_list()
 
     def get_rows(self, columns: Union[Columns, Auto] = AUTO, add_title_row=False) -> Iterable:
         columns = Auto.delayed_acquire(columns, self.get_columns)
