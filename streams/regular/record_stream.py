@@ -16,7 +16,7 @@ try:  # Assume we're a submodule in a package.
     from content.items.item_getters import value_from_record, tuple_from_record, get_filter_function
     from streams.mixin.convert_mixin import ConvertMixin
     from streams.mixin.columnar_mixin import ColumnarMixin
-    from streams.regular.any_stream import AnyStream
+    from streams.regular.any_stream import AnyStream, DEFAULT_EXAMPLE_COUNT, DEFAULT_ANALYZE_COUNT
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         Stream, RegularStream, RowStream, KeyValueStream, StructStream, StructInterface, FieldInterface,
@@ -33,12 +33,9 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...content.items.item_getters import value_from_record, tuple_from_record, get_filter_function
     from ..mixin.convert_mixin import ConvertMixin
     from ..mixin.columnar_mixin import ColumnarMixin
-    from .any_stream import AnyStream
+    from .any_stream import AnyStream, DEFAULT_EXAMPLE_COUNT, DEFAULT_ANALYZE_COUNT
 
 Native = RegularStream
-
-DEFAULT_EXAMPLE_COUNT = 10
-DEFAULT_ANALYZE_COUNT = 100
 
 
 def unfold_structs_to_fields(keys: Iterable) -> list:
