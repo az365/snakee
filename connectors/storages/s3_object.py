@@ -155,11 +155,11 @@ class S3Object(LeafConnector):
             ExtraArgs=extra_args,
         )
 
-    def is_existing(self) -> bool:
+    def is_existing(self, verbose: AutoBool = AUTO) -> bool:
         bucket = self.get_bucket()
-        if bucket.is_existing():
+        if bucket.is_existing(verbose=verbose):
             if hasattr(bucket, 'list_object_names'):  # isinstance(bucket, S3Bucket)
-                return self.get_object_path_in_bucket() in bucket.list_object_names()
+                return self.get_object_path_in_bucket() in bucket.list_object_names(verbose=verbose)
             else:
                 raise TypeError('Expected bucket as S3Bucket, got {}'.format(bucket))
         else:

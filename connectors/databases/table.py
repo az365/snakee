@@ -275,9 +275,9 @@ class Table(LeafConnector):
         assert isinstance(stream, RegularStream)
         self.upload(data=stream, **kwargs)
 
-    def is_existing(self) -> bool:
+    def is_existing(self, verbose: AutoBool = AUTO) -> bool:
         database = self.get_database()
-        return database.exists_table(self.get_path())
+        return database.exists_table(self.get_path(), verbose=verbose)
 
     def describe_table(self, verbose: AutoBool = Auto) -> Iterable:
         database = self.get_database()

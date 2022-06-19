@@ -81,7 +81,7 @@ class LeafConnector(
                 raise ValueError(msg.format(content_format, kwargs))
         assert isinstance(content_format, ContentFormatInterface), 'Expect ContentFormat, got {}'.format(content_format)
         self.set_content_format(content_format, inplace=True)
-        self.set_first_line_title(first_line_is_title)
+        self.set_first_line_title(first_line_is_title, verbose=self.is_verbose())
         if struct is not None:
             if struct == AUTO:
                 if self.is_accessible():
@@ -125,8 +125,8 @@ class LeafConnector(
                 )
                 return struct
 
-    def get_content_format(self) -> ContentFormatInterface:
-        detected_format = self.get_detected_format(detect=False)
+    def get_content_format(self, verbose: AutoBool = AUTO) -> ContentFormatInterface:
+        detected_format = self.get_detected_format(detect=False, verbose=verbose)
         if Auto.is_defined(detected_format):
             return detected_format
         else:
@@ -140,9 +140,10 @@ class LeafConnector(
             detect: bool = True,
             force: bool = False,
             skip_missing: bool = True,
+            verbose: AutoBool = AUTO,
     ) -> ContentFormatInterface:
         if force or (detect and not Auto.is_defined(self._detected_format)):
-            self.reset_detected_format(use_declared_types=True, skip_missing=skip_missing)
+            self.reset_detected_format(use_declared_types=True, skip_missing=skip_missing, verbose=verbose)
         return self._detected_format
 
     def set_detected_format(self, content_format: ContentFormatInterface, inplace: bool) -> Native:
@@ -154,12 +155,18 @@ class LeafConnector(
             connector = self.make_new(content_format=content_format)
             return self._assume_native(connector)
 
-    def reset_detected_format(self, use_declared_types: bool = True, skip_missing: bool = False) -> Native:
-        if self.is_existing():
+    def reset_detected_format(
+            self,
+            use_declared_types: bool = True,
+            skip_missing: bool = False,
+            verbose: AutoBool = AUTO,
+    ) -> Native:
+        if self.is_existing(verbose=verbose):
             content_format = self.get_declared_format().copy()
             detected_struct = self.get_struct_from_source(
                 set_struct=False,
                 use_declared_types=use_declared_types,
+                verbose=verbose,
             )
             detected_format = content_format.set_struct(detected_struct, inplace=False)
             self.set_detected_format(detected_format, inplace=True)
@@ -179,9 +186,9 @@ class LeafConnector(
             new.set_declared_format(initial_format, inplace=True)
             return new
 
-    def set_first_line_title(self, first_line_is_title: AutoBool) -> Native:
+    def set_first_line_title(self, first_line_is_title: AutoBool, verbose: AutoBool = AUTO) -> Native:
         declared_format = self.get_declared_format()
-        detected_format = self.get_detected_format(detect=False)
+        detected_format = self.get_detected_format(detect=False, verbose=verbose)
         if hasattr(declared_format, 'set_first_line_title'):
             declared_format.set_first_line_title(first_line_is_title)
         if hasattr(detected_format, 'set_first_line_title'):
@@ -290,7 +297,7 @@ class LeafConnector(
         item_type = Auto.acquire(item_type, self.get_default_item_type())
         verbose = Auto.acquire(verbose, self.is_verbose())
         content_format = self.get_content_format()
-        assert isinstance(content_format, ParsedFormat)
+        assert isinstance(content_format, ParsedFormat) or hasattr(content_format, 'get_items_from_lines')
         count = self.get_count(allow_slow_mode=False)
         if isinstance(verbose, str):
             if Auto.is_defined(message):
@@ -366,6 +373,7 @@ class LeafConnector(
             struct_title, example_item, example_stream, example_comment = self._prepare_examples_with_title(
                 *filter_args, **filter_kwargs, safe_filter=safe_filter,
                 example_row_count=count, actualize=actualize,
+                verbose=False,
             )
             display.append(struct_title)
             if self.get_invalid_fields_count():

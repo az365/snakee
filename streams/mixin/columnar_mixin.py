@@ -376,10 +376,11 @@ class ColumnarMixin(IterDataMixin, ABC):
             count: int = DEFAULT_SHOW_COUNT,
             filters: Optional[Array] = None,
             columns: Optional[Array] = None,
+            verbose: AutoBool = AUTO,
     ) -> Union[DataFrame, Iterable]:
         sm_sample = self.filter(*filters or []) if filters else self
         sm_sample = sm_sample.take(count)
-        sm_sample = sm_sample.to_record_stream()
+        sm_sample = sm_sample.to_record_stream(verbose=verbose)
         if hasattr(sm_sample, 'select') and columns:
             return sm_sample.select(*columns).get_items()
         elif hasattr(sm_sample, 'get_items'):

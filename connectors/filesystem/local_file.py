@@ -72,6 +72,14 @@ class LocalFile(LeafConnector, ActualizeMixin):
         else:
             folder = self.get_default_folder()
         self._fileholder = None
+        if Auto.is_auto(first_line_is_title):
+            if Auto.is_defined(content_format):
+                is_title = isinstance(content_format, ColumnarFormat) or hasattr(content_format, 'is_first_line_title')
+            elif isinstance(struct, StructInterface) or hasattr(struct, 'get_columns'):
+                is_title = True
+            else:
+                is_title = name.endswith('.csv') or name.endswith('.tsv')
+            first_line_is_title = is_title
         super().__init__(
             name=name,
             content_format=content_format, struct=struct,
@@ -251,7 +259,7 @@ class LocalFile(LeafConnector, ActualizeMixin):
             self.get_logger().log('Successfully removed {}.'.format(file_path), level=level)
         return 1
 
-    def is_existing(self) -> bool:
+    def is_existing(self, verbose: AutoBool = AUTO) -> bool:
         return os.path.exists(self.get_path())
 
     def is_empty(self) -> bool:
