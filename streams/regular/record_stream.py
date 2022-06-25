@@ -11,6 +11,7 @@ try:  # Assume we're a submodule in a package.
     from base.functions.arguments import get_name, get_names, update
     from utils.external import pd, DataFrame, get_use_objects_for_output
     from utils.decorators import deprecated_with_alternative
+    from functions.primary.items import unfold_structs_to_fields
     from functions.secondary.array_functions import fold_lists
     from content.selection import selection_classes as sn, selection_functions as sf
     from content.items.item_getters import value_from_record, tuple_from_record, get_filter_function
@@ -28,6 +29,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.functions.arguments import get_name, get_names, update
     from ...utils.external import pd, DataFrame, get_use_objects_for_output
     from ...utils.decorators import deprecated_with_alternative
+    from ...functions.primary.items import unfold_structs_to_fields
     from ...functions.secondary.array_functions import fold_lists
     from ...content.selection import selection_classes as sn, selection_functions as sf
     from ...content.items.item_getters import value_from_record, tuple_from_record, get_filter_function
@@ -36,18 +38,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .any_stream import AnyStream, DEFAULT_EXAMPLE_COUNT, DEFAULT_ANALYZE_COUNT
 
 Native = RegularStream
-
-
-def unfold_structs_to_fields(keys: Iterable) -> list:
-    fields = list()
-    for k in keys:
-        if isinstance(k, list):
-            fields += k
-        elif isinstance(k, StructInterface) or hasattr(k, 'get_field_names'):
-            fields += k.get_field_names()
-        else:
-            fields.append(k)
-    return fields
 
 
 class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
