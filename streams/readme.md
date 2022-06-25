@@ -2,7 +2,9 @@
 
 ### What is Stream
 
-Data stream is the main abstraction in Snakee project, it's like Spark RDD.
+Data stream is the main abstraction in 
+[Snakee](../README.md) project, 
+it's like Spark RDD.
 
 Stream classes provides unified interface for realize applied code of data-transformations in functional paradigm.
 Most methods of stream-class return an instance of same or other stream-class.
@@ -13,16 +15,16 @@ or any kind of array in memory (including Pandas dataframe or link to expected r
 ### Stream classes hierarchy
 
 * AbstractStream (
-[interface](https://github.com/az365/snakee/blob/main/streams/interfaces/abstract_stream_interface.py), 
-[implementation](https://github.com/az365/snakee/blob/main/streams/abstract/abstract_stream.py)
+[interface](interfaces/abstract_stream_interface.py), 
+[implementation](abstract/abstract_stream.py)
 )
     * IterableStream (
-    [interface](https://github.com/az365/snakee/blob/main/streams/interfaces/iterable_stream_interface.py), 
-    [implementation](https://github.com/az365/snakee/blob/main/streams/abstract/iterable_stream.py)
+    [interface](interfaces/iterable_stream_interface.py), 
+    [implementation](abstract/iterable_stream.py)
     )
         * LocalStream (
-        [interface](https://github.com/az365/snakee/blob/main/streams/interfaces/local_stream_interface.py), 
-        [implementation](https://github.com/az365/snakee/blob/main/streams/abstract/local_stream.py)
+        [interface](interfaces/local_stream_interface.py), 
+        [implementation](abstract/local_stream.py)
         )
             * AnyStream
                 * LineStream
@@ -68,5 +70,5 @@ or any kind of array in memory (including Pandas dataframe or link to expected r
  
 ### See also 
 
-* [functions](https://github.com/az365/snakee/blob/main/functions/readme.md)
-* [general introduction](https://github.com/az365/snakee/blob/main/README.md)
+* [functions](../functions/readme.md)
+* [general introduction](../README.md)
