@@ -4,7 +4,7 @@ try:  # Assume we're a submodule in a package.
     from base.classes.auto import AUTO, Auto
     from base.functions.arguments import get_name, get_names, get_value
     from base.classes.enum import DynamicEnum, Class
-    from base.constants.chars import EMPTY, PY_INDENT, IDS_DELIMITER, REPR_DELIMITER
+    from base.constants.chars import EMPTY, TAB_INDENT, IDS_DELIMITER, REPR_DELIMITER
     from content.value_type import ValueType
     from content.terms.discrete_term import DiscreteTerm, TermType, Field, FieldRoleType
     from content.terms.object_term import ObjectTerm
@@ -12,7 +12,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.classes.auto import AUTO, Auto
     from ...base.functions.arguments import get_name, get_names, get_value
     from ...base.classes.enum import DynamicEnum, Class
-    from ...base.constants.chars import EMPTY, PY_INDENT, IDS_DELIMITER, REPR_DELIMITER
+    from ...base.constants.chars import EMPTY, TAB_INDENT, IDS_DELIMITER, REPR_DELIMITER
     from ..value_type import ValueType
     from .discrete_term import DiscreteTerm, TermType, Field, FieldRoleType
     from .object_term import ObjectTerm
@@ -215,7 +215,7 @@ class HierarchicTerm(DiscreteTerm):
             self,
             with_title: bool = True,
             with_summary: bool = True,
-            prefix: str = PY_INDENT,
+            prefix: str = TAB_INDENT,
             delimiter: str = REPR_DELIMITER,
     ) -> Generator:
         for level_no, level_term in enumerate(self.get_level_terms()):
