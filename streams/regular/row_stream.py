@@ -62,43 +62,6 @@ class RowStream(AnyStream, ColumnarMixin):
     def get_item_type() -> ItemType:
         return ItemType.Row
 
-    def sorted_group_by(
-            self,
-            *keys,
-            values: Columns = None,
-            skip_missing: bool = True,  # tmp
-            as_pairs: bool = False,
-            output_struct: Struct = None,
-            take_hash: bool = False,
-    ) -> Stream:
-        keys = update(keys)
-        key_function = self._get_key_function(keys, take_hash=take_hash)
-        iter_groups = self._get_groups(key_function, as_pairs=as_pairs)
-        if as_pairs:
-            stream_builder = StreamType.KeyValueStream.get_class()
-            stream_groups = stream_builder(iter_groups, value_stream_type=self.get_stream_type())
-        else:
-            stream_builder = StreamType.RowStream.get_class()
-            stream_groups = stream_builder(iter_groups, check=False)
-        if values:
-            stream_type = self.get_stream_type()
-            item_type = self.get_item_type()
-            if item_type == ItemType.Row or stream_type == StreamType.RowStream:
-                keys = [self._get_field_getter(f) for f in keys]
-                values = [self._get_field_getter(f, item_type=item_type) for f in values]
-            fold_mapper = fold_lists(keys=keys, values=values, skip_missing=skip_missing, item_type=item_type)
-            stream_groups = stream_groups.map_to_type(fold_mapper, stream_type=stream_type)
-            if output_struct:
-                if hasattr(stream_groups, 'structure'):
-                    stream_groups = stream_groups.structure(output_struct)
-                else:
-                    stream_groups.set_struct(output_struct, check=False, inplace=True)
-        if self.is_in_memory():
-            return stream_groups.to_memory()
-        else:
-            stream_groups.set_estimated_count(self.get_count() or self.get_estimated_count(), inplace=True)
-            return stream_groups
-
     def get_dataframe(self, columns: Columns = None):
         if columns:
             return nm.DataFrame(self.get_data(), columns=columns)
