@@ -50,11 +50,12 @@ class PartitionedLocalFile(LocalMask, LocalFile):
         if inplace:
             self._suffix = suffix
             partition = self.file(suffix)
-            assert isinstance(partition, LocalFile), 'LocalFile expected, got {}'.format(partition)
+            assert isinstance(partition, LocalFile), f'LocalFile expected, got {partition}'
             self.set_partition(partition, inplace=True)
             return self
         else:
-            return self.make_new(suffix=suffix)
+            obj = self.make_new(suffix=suffix)
+            return self._assume_native(obj)
 
     def get_partition(self) -> LocalFile:
         return self._partition
@@ -65,7 +66,8 @@ class PartitionedLocalFile(LocalMask, LocalFile):
             return self
         else:
             suffix = self._extract_suffix_from_name(partition.get_name())
-            return self.make_new(suffix=suffix)
+            obj = self.make_new(suffix=suffix)
+            return self._assume_native(obj)
 
     def _extract_suffix_from_name(self, name: str) -> str:
         mask_str = self.get_mask()
@@ -79,15 +81,14 @@ class PartitionedLocalFile(LocalMask, LocalFile):
             self,
             suffix: Union[Suffix, Auto],
             content_format: Union[ContentType, ContentFormatInterface, Auto] = AUTO,
-            filetype: Union[ContentType, ContentFormatInterface, Auto] = AUTO,  # deprecated argument
             **kwargs
     ) -> Connector:
         acquired_suffix = Auto.acquire(suffix, self.get_suffix())
-        assert acquired_suffix, 'suffix must be defined, got argument {}, default {}'.format(suffix, self.get_suffix())
+        assert acquired_suffix, f'suffix must be defined, got argument {suffix}, default {self.get_suffix()}'
         filename = self.get_mask().format(acquired_suffix)
-        return super().file(filename, content_format=content_format, filetype=filetype, **kwargs)
+        return super().file(filename, content_format=content_format, **kwargs)
 
-    def get_files(self) -> Iterable:
+    def get_files(self) -> Iterable[LeafConnector]:
         return self.get_children().values()
 
     def get_items(self, how: str = 'records', *args, **kwargs) -> Iterable:
@@ -133,14 +134,11 @@ class PartitionedLocalFile(LocalMask, LocalFile):
         assert partition, 'suffix and partition must be defined'
         return partition.to_stream(data=data, name=name, stream_type=stream_type, ex=ex, **kwargs)
 
+    @staticmethod
+    def _assume_native(obj) -> Native:
+        return obj
 
-# FolderType.set_dict_classes(
-#     {
-#         FolderType.LocalFolder: LocalFolder,
-#         FolderType.LocalMask: LocalMask,
-#         FolderType.PartitionedLocalFile: PartitionedLocalFile,
-#     }
-# )
+
 ConnType.add_classes(
     LocalFolder,
     LocalMask,

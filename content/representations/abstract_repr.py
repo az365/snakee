@@ -144,7 +144,7 @@ class AbstractRepresentation(AbstractBaseObject, RepresentationInterface, ABC):
         return line
 
     def parse(self, line: str) -> Value:
-        return line.strip(self._fill)
+        return line.strip(self.get_fill_char())
 
     def get_template(self, key: OptKey = None) -> str:
         return self.get_default_template(key=key)
@@ -167,7 +167,7 @@ class AbstractRepresentation(AbstractBaseObject, RepresentationInterface, ABC):
         width = self.get_min_value_len()
         if width:
             template = ':{fill}{align}{width}'
-            return template.format(fill=self._fill, align=self.get_align_str(), width=width)
+            return template.format(fill=self.get_fill_char(), align=self.get_align_str(), width=width)
         else:
             return EMPTY
 

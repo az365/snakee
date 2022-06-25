@@ -154,7 +154,7 @@ class DocumentDisplay(DefaultDisplay, IterDataMixin):
     def display_all(self, refresh: bool = False) -> Native:
         if refresh:
             self.clear_output(wait=True)
-        self.display(self.get_accumulated_document())
+        self.display(self.get_accumulated_document(), save=False, refresh=False)
         return self
 
     def append(self, item: Union[DocumentItem, str], show: bool = True, refresh: AutoBool = AUTO) -> Native:
@@ -162,7 +162,7 @@ class DocumentDisplay(DefaultDisplay, IterDataMixin):
             if isinstance(item, str):
                 self.add_to_paragraph(item)
             elif isinstance(item, DocumentItem):
-                self.get_accumulated_document().add(item)
+                self.get_accumulated_document().add(item, inplace=True)
             elif isinstance(item, Iterable):
                 for i in item:
                     self.append(i)
@@ -184,7 +184,7 @@ class DocumentDisplay(DefaultDisplay, IterDataMixin):
             name: str = '',
     ):
         if level and paragraph:
-            self.display_current_paragraph(save=True, clear=True)
+            self.display_current_paragraph(save=True, clear=True, refresh=False)
         if isinstance(paragraph, Paragraph):
             paragraph.add(self.get_accumulated_lines(), before=True, inplace=True)
         else:
@@ -223,9 +223,9 @@ class DocumentDisplay(DefaultDisplay, IterDataMixin):
                 raise TypeError(f'Expected column as Name or Sequence, got {c}')
         return column_names
 
-    def clear_output(self, wait: bool = False) -> Native:
-        # self.clear_current_paragraph()
-        self.display_paragraph()
+    def clear_output(self, wait: bool = False, save_paragraph: bool = True) -> Native:
+        if save_paragraph:
+            self.display_current_paragraph(save=True, clear=True, refresh=False)
         clear_output(wait=wait)
         return self
 

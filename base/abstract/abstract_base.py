@@ -26,18 +26,11 @@ class AbstractBaseObject(BaseInterface, ABC):
 
     def set_inplace(self, **kwargs) -> Native:
         for k, v in kwargs.items():
-            method_name = 'set_{prop}'.format(prop=k)
             try:
-                method = self.__getattribute__(method_name)
-                method(v, inplace=True)
-            except AttributeError as e:
-                protected_name = PROTECTED + k
-                if k in self.__dict__:
-                    self.__dict__[k] = v
-                elif protected_name in self.__dict__:
-                    self.__dict__[protected_name] = v
-                else:
-                    raise AttributeError(e)
+                setattr(self, k, v)
+            except AttributeError:
+                protected_name = f'{PROTECTED}{k}'
+                setattr(self, protected_name, v)
         return self
 
     def set_outplace(self, **kwargs) -> Native:

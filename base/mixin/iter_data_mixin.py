@@ -300,12 +300,12 @@ class IterDataMixin(DataMixin, ABC):
             inplace: bool = False,
             **kwargs
     ) -> Native:
-        if isinstance(obj_or_items, Iterable):
+        if isinstance(obj_or_items, Iterable) and not isinstance(obj_or_items, str):
             items = obj_or_items
         elif hasattr(obj_or_items, 'get_items'):
             items = obj_or_items.get_items()
         else:
-            raise TypeError('Expected Iterable or IterDataMixin, got {}'.format(self))
+            items = [obj_or_items]
         return self.add_items(items, before=before, inplace=inplace)
 
     def add_items(self, items: Iterable, before: bool = False, inplace: bool = False) -> Optional[Native]:

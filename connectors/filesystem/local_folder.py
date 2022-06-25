@@ -1,4 +1,4 @@
-from typing import Optional, Iterable, Generator, Union
+from typing import Optional, Iterator, Generator, List, Union
 import os
 
 try:  # Assume we're a submodule in a package.
@@ -25,6 +25,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..abstract.abstract_folder import HierarchicFolder
 
 Native = HierarchicFolder
+File = Union[LeafConnector, ConnectorInterface]
 
 ALT_PATH_DELIMITERS = BACKSLASH,
 
@@ -69,9 +70,9 @@ class LocalFolder(HierarchicFolder):
         return child_class
 
     @staticmethod
-    def get_child_class_by_type(type_name: Union[ConnType, str]) -> Class:
-        if isinstance(type_name, str):
-            conn_type = ConnType(type_name)
+    def get_child_class_by_type(conn_type: Union[ConnType, str]) -> Class:
+        if not (isinstance(conn_type, ConnType) or hasattr(conn_type, 'get_class')):
+            conn_type = ConnType(conn_type)
         child_class = conn_type.get_class()
         return child_class
 
@@ -96,9 +97,9 @@ class LocalFolder(HierarchicFolder):
             if supposed_type:
                 return supposed_type.get_class()
 
-    def get_files(self) -> Generator:
+    def get_files(self) -> Iterator[File]:
         for item in self.get_items():
-            if hasattr(item, 'is_leaf'):
+            if isinstance(item, LeafConnector) or hasattr(item, 'is_leaf'):
                 if item.is_leaf():
                     yield item
 
@@ -106,25 +107,13 @@ class LocalFolder(HierarchicFolder):
             self,
             name: str,
             content_format: Union[ContentFormatInterface, ContentType, Auto] = AUTO,
-            filetype: Union[ContentType, Auto] = AUTO,  # deprecated argument
             **kwargs
-    ) -> ConnectorInterface:
+    ) -> File:
         file = self.get_children().get(name)
         if kwargs or not file:
             filename = kwargs.pop('filename', name)
             file_class = self.get_default_child_obj_class()  # LocalFile
             assert file_class, "connector class or type name aren't detected"
-            if Auto.is_defined(filetype):
-                if Auto.is_defined(content_format):
-                    msg = 'Only one of arguments allowed: filetype (got {}) or content_format (got {})'
-                    raise ValueError(msg.format(filetype, content_format))
-                else:
-                    msg = 'LocalFolder.file(): filetype-argument is deprecated, use content_format instead'
-                    self.log(level=LoggingLevel.Warning, msg=msg, stacklevel=1)
-                if isinstance(filetype, (ContentType, Auto, str)):
-                    content_format = filetype
-                else:  # temporary workaround for deprecated FileType class
-                    content_format = filetype.get_value()
             try:
                 file = file_class(filename, content_format=content_format, folder=self, **kwargs)
             except TypeError as e:
@@ -217,7 +206,7 @@ class LocalFolder(HierarchicFolder):
                 else:
                     raise FileNotFoundError(msg)
 
-    def is_relative_path(self) -> bool:
+    def is_relative_path(self) -> bool:  # just path to this object as provided
         return self._path_is_relative
 
     def has_relative_path(self) -> bool:  # path including parent folder
@@ -255,31 +244,31 @@ class LocalFolder(HierarchicFolder):
     def _get_alternative_path_delimiters() -> tuple:
         return ALT_PATH_DELIMITERS
 
-    def is_existing(self) -> bool:
+    def is_existing(self, verbose: AutoBool = AUTO) -> bool:
         return os.path.exists(self.get_path())
 
-    def list_existing_names(self) -> list:
+    def list_existing_names(self) -> List[str]:
         if self.get_name() in (EMPTY, OS_EXT_DELIMITER):
             return os.listdir()
         else:
             return os.listdir(self.get_path())
 
-    def get_existing_file_names(self) -> Generator:
+    def get_existing_file_names(self) -> Iterator[str]:
         for name in self.list_existing_names():
             path = self.get_file_path(name)
             if os.path.isfile(path):
                 yield name
 
-    def get_existing_folder_names(self) -> Generator:
+    def get_existing_folder_names(self) -> Iterator[str]:
         for name in self.list_existing_names():
             path = self.get_file_path(name)
             if os.path.isdir(path):
                 yield name
 
-    def list_existing_file_names(self) -> Iterable:
+    def list_existing_file_names(self) -> List[str]:
         return list(self.get_existing_file_names())
 
-    def all_existing_files(self, **kwargs) -> Generator:
+    def all_existing_files(self, **kwargs) -> Iterator[File]:
         for name in self.list_existing_file_names():
             children = self.get_children()
             if name in children:
@@ -287,7 +276,7 @@ class LocalFolder(HierarchicFolder):
             else:
                 yield self.file(name, **kwargs)
 
-    def connect_all(self, inplace: bool = True, **kwargs) -> Union[list, Native]:
+    def connect_all(self, inplace: bool = True, **kwargs) -> Union[List[File], Native]:
         files = list(self.all_existing_files(**kwargs))
         if inplace:
             return files
