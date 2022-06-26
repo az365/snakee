@@ -398,6 +398,26 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
             as_pairs=as_pairs,
         )
 
+    def _get_uniq_items(self, *keys) -> Iterable:
+        keys = unfold_structs_to_fields(keys)
+        key_fields = get_names(keys)
+        key_function = self._get_key_function(key_fields, take_hash=False)
+        prev_value = AUTO
+        for i in self.get_items():
+            value = key_function(i)
+            if value != prev_value:
+                yield i
+            prev_value = value
+
+    def uniq(self, *keys, sort: bool = False) -> Native:
+        if sort:
+            stream = self.sort(*keys)
+        else:
+            stream = self
+        items = stream._get_uniq_items(*keys)
+        result = self.stream(items, count=None)
+        return self._assume_native(result)
+
     @staticmethod
     def _assume_stream(stream) -> Stream:
         return stream
