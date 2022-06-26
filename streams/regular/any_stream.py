@@ -3,15 +3,15 @@ from inspect import isclass
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
-        RegularStreamInterface, StructInterface,
+        RegularStreamInterface, StructInterface, FieldInterface,
         Stream, LocalStream, Context, Connector, TmpFiles,
-        StreamType, ItemType,
+        StreamType, ItemType, ValueType,
         Name, Count, Struct, Columns, Field, OptionalFields, Source, Class, Item, Array, ARRAY_TYPES,
         AUTO, Auto, AutoBool, AutoCount,
     )
-    from base.functions.arguments import get_name, update
+    from base.functions.arguments import get_name, get_names
     from utils.decorators import deprecated_with_alternative
-    from functions.primary.items import set_to_item, merge_two_items
+    from functions.primary.items import set_to_item, merge_two_items, unfold_structs_to_fields
     from functions.secondary import all_secondary_functions as fs
     from content.items.item_getters import get_filter_function
     from content.selection import selection_classes as sn
@@ -20,15 +20,15 @@ try:  # Assume we're a submodule in a package.
     from streams.mixin.convert_mixin import ConvertMixin
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
-        RegularStreamInterface, StructInterface,
+        RegularStreamInterface, StructInterface, FieldInterface,
         Stream, LocalStream, Context, Connector, TmpFiles,
-        StreamType, ItemType,
+        StreamType, ItemType, ValueType,
         Name, Count, Struct, Columns, Field, OptionalFields, Source, Class, Item, Array, ARRAY_TYPES,
         AUTO, Auto, AutoBool, AutoCount,
     )
-    from ...base.functions.arguments import get_name, update
+    from ...base.functions.arguments import get_name, get_names
     from ...utils.decorators import deprecated_with_alternative
-    from ...functions.primary.items import set_to_item, merge_two_items
+    from ...functions.primary.items import set_to_item, merge_two_items, unfold_structs_to_fields
     from ...functions.secondary import all_secondary_functions as fs
     from ...content.items.item_getters import get_filter_function
     from ...content.selection import selection_classes as sn
@@ -40,6 +40,7 @@ Native = Union[LocalStream, RegularStreamInterface]
 Data = Union[Auto, Iterable]
 AutoStreamType = Union[Auto, StreamType]
 StreamItemType = Union[AutoStreamType, ItemType]
+AutoStruct = Union[Auto, Struct]
 
 DEFAULT_EXAMPLE_COUNT = 10
 DEFAULT_ANALYZE_COUNT = 100
@@ -289,6 +290,32 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
             stream = self.disk_sort(key_function, reverse=reverse, step=step, verbose=verbose)
         return self._assume_native(stream)
 
+    def _get_grouped_struct(self, *keys, values: Optional[Sequence] = None) -> StructInterface:
+        input_struct = self.get_struct()
+        output_struct = FlatStruct([])
+        if values is None:
+            values = list()
+        elif Auto.is_auto(values) and Auto.is_defined(input_struct):
+            values = list()
+            for f in input_struct.get_field_names():
+                if f not in get_names(keys):
+                    values.append(f)
+        for f in list(keys) + list(values):
+            if isinstance(f, ARRAY_TYPES):
+                field_name = get_name(f[0])
+            else:
+                field_name = get_name(f)
+            if f in values:
+                value_type = ValueType.Sequence
+            elif isinstance(f, FieldInterface) or hasattr(f, 'get_value_type'):
+                value_type = f.get_value_type()
+            elif input_struct:
+                value_type = input_struct.get_field_description().get_value_type() or AUTO
+            else:
+                value_type = AUTO
+            output_struct.append_field(field_name, value_type)
+        return output_struct
+
     def _get_groups(self, key_function: Callable, as_pairs: bool) -> Generator:
         accumulated = list()
         prev_k = None
@@ -310,18 +337,22 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
             values: Columns = None,
             skip_missing: bool = False,
             as_pairs: bool = False,
-            output_struct: Struct = None,
+            output_struct: AutoStruct = AUTO,
             take_hash: bool = False,
     ) -> Stream:
-        keys = update(keys)
+        keys = unfold_structs_to_fields(keys)
         key_function = self._get_key_function(keys, take_hash=take_hash)
         iter_groups = self._get_groups(key_function, as_pairs=as_pairs)
+        if Auto.is_defined(output_struct):
+            expected_struct = output_struct
+        else:
+            expected_struct = self._get_grouped_struct(*keys, values=values)
         if as_pairs:
             stream_builder = StreamType.KeyValueStream.get_class()
             stream_groups = stream_builder(iter_groups, value_stream_type=self.get_stream_type())
         else:
             stream_builder = StreamType.RowStream.get_class()
-            stream_groups = stream_builder(iter_groups, check=False)
+            stream_groups = stream_builder(iter_groups, struct=expected_struct, check=False)
         if values:
             stream_type = self.get_stream_type()
             item_type = self.get_item_type()
@@ -332,7 +363,7 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
                 values = [self._get_field_getter(f, item_type=item_type) for f in values]
             fold_mapper = fs.fold_lists(keys=keys, values=values, skip_missing=skip_missing, item_type=item_type)
             stream_groups = stream_groups.map_to_type(fold_mapper, stream_type=stream_type)
-            if output_struct:
+            if Auto.is_defined(output_struct):
                 if hasattr(stream_groups, 'structure'):
                     stream_groups = stream_groups.structure(output_struct)
                 else:
@@ -346,12 +377,13 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
     def group_by(
             self,
             *keys,
-            values: Optional[Iterable] = None,
+            values: Columns = None,
             as_pairs: bool = False,
             take_hash: bool = True,
             step: AutoCount = AUTO,
             verbose: bool = True,
     ) -> Stream:
+        keys = unfold_structs_to_fields(keys)
         if as_pairs:
             key_for_sort = keys
         else:
@@ -359,6 +391,7 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
         return self.sort(
             key_for_sort,
             step=step,
+            verbose=verbose,
         ).sorted_group_by(
             *keys,
             values=values,

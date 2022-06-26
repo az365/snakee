@@ -2,12 +2,12 @@ from typing import Optional, Generator
 
 try:  # Assume we're a submodule in a package.
     from interfaces import AUTO, Auto, AutoCount
-    from base.constants.chars import EMPTY, SMALL_INDENT, PY_INDENT, REPR_DELIMITER, DEFAULT_LINE_LEN
+    from base.constants.chars import EMPTY, SMALL_INDENT, TAB_INDENT, REPR_DELIMITER, DEFAULT_LINE_LEN
     from base.abstract.simple_data import SimpleDataWrapper
     from utils.external import DataFrame
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import AUTO, Auto, AutoCount
-    from ...base.constants.chars import EMPTY, SMALL_INDENT, PY_INDENT, REPR_DELIMITER, DEFAULT_LINE_LEN
+    from ...base.constants.chars import EMPTY, SMALL_INDENT, TAB_INDENT, REPR_DELIMITER, DEFAULT_LINE_LEN
     from ...base.abstract.simple_data import SimpleDataWrapper
     from ...utils.external import DataFrame
 
@@ -62,7 +62,7 @@ class EntityMap(SimpleDataWrapper):
             records=self.get_entity_records(),
             columns=COLS_FOR_ENTITY,
             with_title=True,
-            prefix=PY_INDENT,
+            prefix=TAB_INDENT,
             delimiter=REPR_DELIMITER,
             max_len=max_len,
         )

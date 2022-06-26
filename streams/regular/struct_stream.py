@@ -252,30 +252,6 @@ class StructStream(RowStream, StructMixin, ConvertMixin):
     def skip(self, count: int = 1, inplace: bool = False) -> Native:
         return super().skip(count, inplace=inplace).update_meta(struct=self.get_struct())
 
-    def sorted_group_by(
-            self,
-            *keys,
-            values: Optional[Iterable] = None,
-            as_pairs: bool = False,
-    ) -> StreamInterface:
-        if as_pairs:
-            return super().sorted_group_by(*keys, values=values, as_pairs=True)
-        else:
-            output_struct = FlatStruct([])
-            for f in list(keys) + list(values):
-                if isinstance(f, ARRAY_TYPES):
-                    field_name = get_name(f[0])
-                else:
-                    field_name = get_name(f)
-                if f in values:
-                    field_type = ValueType.Sequence
-                elif isinstance(f, FieldInterface) or hasattr(f, 'get_value_type'):
-                    field_type = f.get_value_type()
-                else:
-                    field_type = AUTO
-                output_struct.append_field(field_name, field_type)
-            return super().sorted_group_by(*keys, values=values, as_pairs=False, output_struct=output_struct)
-
     def map_side_join(
             self,
             right: StreamInterface,

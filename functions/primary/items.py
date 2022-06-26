@@ -3,6 +3,7 @@ from typing import Optional, Iterable, Callable, Union, Any
 try:  # Assume we're a submodule in a package.
     from base.classes.auto import AUTO, Auto
     from content.items.item_type import ItemType
+    from content.struct.struct_interface import StructInterface
     from content.struct.struct_row_interface import StructRowInterface
     from content.items.simple_items import (
         Row, Record, Line, SimpleSelectableItem,
@@ -14,6 +15,7 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.classes.auto import AUTO, Auto
     from ...content.items.item_type import ItemType
+    from ...content.struct.struct_interface import StructInterface
     from ...content.struct.struct_row_interface import StructRowInterface
     from ...content.items.simple_items import (
         Row, Record, Line, SimpleSelectableItem,
@@ -210,3 +212,17 @@ def items_to_dict(
         else:
             result[k] = v
     return result
+
+
+def unfold_structs_to_fields(keys: Iterable) -> list:  # moved from RecordStream
+    fields = list()
+    for k in keys:
+        if isinstance(k, list):
+            fields += k
+        elif isinstance(k, tuple):
+            fields += list(k)
+        elif isinstance(k, StructInterface) or hasattr(k, 'get_field_names'):
+            fields += k.get_field_names()
+        else:
+            fields.append(k)
+    return fields

@@ -11,6 +11,7 @@ try:  # Assume we're a submodule in a package.
     from base.functions.arguments import get_name, get_names, update
     from utils.external import pd, DataFrame, get_use_objects_for_output
     from utils.decorators import deprecated_with_alternative
+    from functions.primary.items import unfold_structs_to_fields
     from functions.secondary.array_functions import fold_lists
     from content.selection import selection_classes as sn, selection_functions as sf
     from content.items.item_getters import value_from_record, tuple_from_record, get_filter_function
@@ -28,6 +29,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.functions.arguments import get_name, get_names, update
     from ...utils.external import pd, DataFrame, get_use_objects_for_output
     from ...utils.decorators import deprecated_with_alternative
+    from ...functions.primary.items import unfold_structs_to_fields
     from ...functions.secondary.array_functions import fold_lists
     from ...content.selection import selection_classes as sn, selection_functions as sf
     from ...content.items.item_getters import value_from_record, tuple_from_record, get_filter_function
@@ -36,18 +38,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .any_stream import AnyStream, DEFAULT_EXAMPLE_COUNT, DEFAULT_ANALYZE_COUNT
 
 Native = RegularStream
-
-
-def unfold_structs_to_fields(keys: Iterable) -> list:
-    fields = list()
-    for k in keys:
-        if isinstance(k, list):
-            fields += k
-        elif isinstance(k, StructInterface) or hasattr(k, 'get_field_names'):
-            fields += k.get_field_names()
-        else:
-            fields.append(k)
-    return fields
 
 
 class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
@@ -78,67 +68,7 @@ class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
     def get_item_type() -> ItemType:
         return ItemType.Record
 
-    def sorted_group_by(
-            self,
-            *keys,
-            values: Columns = None,
-            skip_missing: bool = False,
-            as_pairs: bool = False,
-            output_struct: Struct = None,
-            take_hash: bool = False,
-    ) -> Stream:
-        keys = unfold_structs_to_fields(keys)
-        key_function = self._get_key_function(keys, take_hash=take_hash)
-        iter_groups = self._get_groups(key_function, as_pairs=as_pairs)
-        if as_pairs:
-            stream_builder = StreamType.KeyValueStream.get_class()
-            stream_groups = stream_builder(iter_groups, value_stream_type=self.get_stream_type())
-        else:
-            stream_builder = StreamType.RowStream.get_class()
-            stream_groups = stream_builder(iter_groups, check=False)
-        if values:
-            stream_type = self.get_stream_type()
-            item_type = self.get_item_type()
-            fold_mapper = fold_lists(keys=keys, values=values, skip_missing=skip_missing, item_type=item_type)
-            stream_groups = stream_groups.map_to_type(fold_mapper, stream_type=stream_type)
-            if output_struct:
-                if hasattr(stream_groups, 'structure'):
-                    stream_groups = stream_groups.structure(output_struct)
-                else:
-                    stream_groups.set_struct(output_struct, check=False, inplace=True)
-        if self.is_in_memory():
-            return stream_groups.to_memory()
-        else:
-            stream_groups.set_estimated_count(self.get_count() or self.get_estimated_count(), inplace=True)
-            return stream_groups
-
-    def group_by(
-            self,
-            *keys,
-            values: Columns = None,
-            as_pairs: bool = False,
-            take_hash: bool = True,
-            step: AutoCount = AUTO,
-            verbose: bool = True,
-    ) -> Stream:
-        keys = unfold_structs_to_fields(keys)
-        step = Auto.delayed_acquire(step, self.get_limit_items_in_memory)
-        if as_pairs:
-            key_for_sort = keys
-        else:
-            key_for_sort = self._get_key_function(keys, take_hash=take_hash)
-        sorted_stream = self.sort(
-            key_for_sort,
-            step=step,
-            verbose=verbose,
-        )
-        grouped_stream = sorted_stream.sorted_group_by(
-            keys,
-            values=values,
-            as_pairs=as_pairs,
-        )
-        return grouped_stream
-
+    @deprecated_with_alternative('AnyStream.group_by(as_pairs=True)')
     def group_to_pairs(
             self, *keys, values: Columns = None,
             step: AutoCount = AUTO, verbose: bool = True,
