@@ -377,12 +377,13 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
     def group_by(
             self,
             *keys,
-            values: Optional[Iterable] = None,
+            values: Columns = None,
             as_pairs: bool = False,
             take_hash: bool = True,
             step: AutoCount = AUTO,
             verbose: bool = True,
     ) -> Stream:
+        keys = unfold_structs_to_fields(keys)
         if as_pairs:
             key_for_sort = keys
         else:
@@ -390,6 +391,7 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
         return self.sort(
             key_for_sort,
             step=step,
+            verbose=verbose,
         ).sorted_group_by(
             *keys,
             values=values,

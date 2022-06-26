@@ -68,33 +68,7 @@ class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
     def get_item_type() -> ItemType:
         return ItemType.Record
 
-    def group_by(
-            self,
-            *keys,
-            values: Columns = None,
-            as_pairs: bool = False,
-            take_hash: bool = True,
-            step: AutoCount = AUTO,
-            verbose: bool = True,
-    ) -> Stream:
-        keys = unfold_structs_to_fields(keys)
-        step = Auto.delayed_acquire(step, self.get_limit_items_in_memory)
-        if as_pairs:
-            key_for_sort = keys
-        else:
-            key_for_sort = self._get_key_function(keys, take_hash=take_hash)
-        sorted_stream = self.sort(
-            key_for_sort,
-            step=step,
-            verbose=verbose,
-        )
-        grouped_stream = sorted_stream.sorted_group_by(
-            keys,
-            values=values,
-            as_pairs=as_pairs,
-        )
-        return grouped_stream
-
+    @deprecated_with_alternative('AnyStream.group_by(as_pairs=True)')
     def group_to_pairs(
             self, *keys, values: Columns = None,
             step: AutoCount = AUTO, verbose: bool = True,
