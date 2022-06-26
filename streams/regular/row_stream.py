@@ -62,12 +62,6 @@ class RowStream(AnyStream, ColumnarMixin):
     def get_item_type() -> ItemType:
         return ItemType.Row
 
-    def get_dataframe(self, columns: Columns = None):
-        if columns:
-            return nm.DataFrame(self.get_data(), columns=columns)
-        else:
-            return nm.DataFrame(self.get_data())
-
     def to_line_stream(self, delimiter: str = '\t', columns: AutoColumns = AUTO, add_title_row=False) -> Stream:
         input_stream = self.select(columns) if Auto.is_defined(columns) else self
         lines = map(lambda r: '\t'.join([str(c) for c in r]), input_stream.get_items())
