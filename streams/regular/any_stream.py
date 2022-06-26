@@ -194,6 +194,12 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
                 secondary=self.get_stream_type(),
             )
 
+    def skip(self, count: int = 1, inplace: bool = False) -> Native:
+        stream = super().skip(count, inplace=inplace)
+        assert isinstance(stream, AnyStream)
+        stream.set_struct(self.get_struct(), check=False, inplace=True)
+        return stream
+
     def filter(self, *fields, skip_errors: bool = True, inplace: bool = False, **expressions) -> Native:
         item_type = self.get_item_type()  # ItemType.Any
         filter_function = get_filter_function(*fields, **expressions, item_type=item_type, skip_errors=skip_errors)
