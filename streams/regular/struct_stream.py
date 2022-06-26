@@ -249,21 +249,6 @@ class StructStream(RowStream, StructMixin, ConvertMixin):
                 msg = 'StructStream.get_items_of_type(item_type={}): Expected items as Row or StructRow, got {} as {}'
                 raise TypeError(msg.format(item_type, i, type(i)))
 
-    def skip(self, count: int = 1, inplace: bool = False) -> Native:
-        return super().skip(count, inplace=inplace).update_meta(struct=self.get_struct())
-
-    def map_side_join(
-            self,
-            right: StreamInterface,
-            key: UniKey,
-            how: How = JoinType.Left,
-            right_is_uniq: bool = True,
-    ) -> StreamInterface:
-        if right.get_stream_type() != StreamType.RecordStream:
-            right = right.to_record_stream()
-        stream = self.to_record_stream().map_side_join(right, key=key, how=how, right_is_uniq=right_is_uniq)
-        return stream
-
     def _get_field_getter(self, field: UniKey, item_type: Union[ItemType, Auto] = AUTO, default=None):
         field_position = self.get_field_position(field)
         return lambda i: i[field_position]
