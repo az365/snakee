@@ -245,12 +245,11 @@ class ConvertMixin(IterableStream, ABC):
             elif self.get_stream_type() in (StreamType.LineStream, StreamType.AnyStream):
                 delimiter, args = args[0], args[1:]
         elif self.get_stream_type() == StreamType.RecordStream:
-            add_title_row = kwargs.pop('add_title_row', None)
             columns = update(args, kwargs.pop('columns', None))
             assert isinstance(self, RecordStream)
             if not columns:
                 columns = self.get_columns()
-            function = self.get_rows(columns=columns, add_title_row=add_title_row)
+            function = self.get_rows(columns=columns)
         elif 'delimiter' in kwargs and self.get_stream_type() in (StreamType.LineStream, StreamType.AnyStream):
             delimiter = kwargs.pop('delimiter')
         elif args:
