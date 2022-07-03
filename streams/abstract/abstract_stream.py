@@ -81,7 +81,7 @@ class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
         if source:
             yield source
 
-    def set_meta(self, inplace: bool = False, **meta) -> Native:  ###
+    def set_meta(self, inplace: bool = False, **meta) -> Native:
         stream = super().set_meta(**meta, inplace=inplace)
         return self._assume_native(stream)
 
@@ -172,9 +172,7 @@ class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
             logger = context.get_logger(create_if_not_yet=skip_missing)
         else:
             logger = None
-        # if not logger:
-        if skip_missing and not logger:  # ?
-            # logger = log.get_logger()
+        if skip_missing and not logger:
             return FallbackLogger()
         return logger
 
@@ -226,12 +224,18 @@ class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
         pass
 
     def show(self, *args, **kwargs):
-        title = str(self)
-        self.log(title, end='\n', verbose=True, truncate=False)
+        display = self.get_display()
+        display.display_paragraph(self.get_name(), level=2)
         demo_example = self.get_demo_example(*args, **kwargs)
-        for line in demo_example:
-            self.log(line, verbose=False)
-        return demo_example
+        if hasattr(demo_example, 'get_columns') and hasattr(demo_example, 'get_records'):
+            records = demo_example.get_records()
+            columns = demo_example.get_columns()
+        else:  # isinstance(demo_example, Iterable):
+            item_field = 'item'
+            records = [{item_field: i} for i in demo_example]
+            columns = [item_field]
+        display.display_sheet(records, columns=columns)
+        return self
 
     @staticmethod
     def _assume_native(stream) -> Native:
