@@ -75,9 +75,6 @@ class RowStream(AnyStream, ColumnarMixin):
         for row in self.get_rows():
             yield {k: v for k, v in zip(column_names, row)}
 
-    def get_rows(self, **kwargs) -> Iterable:
-        return self.get_data()
-
     def structure(
             self,
             struct: StructInterface,

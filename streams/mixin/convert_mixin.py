@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Optional, Iterable, Callable, Union
+from typing import Optional, Callable, Iterable, Iterator, Union
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
@@ -7,8 +7,10 @@ try:  # Assume we're a submodule in a package.
         StreamType, ItemType, Array, Columns, OptionalFields, Auto, AUTO,
     )
     from base.functions.arguments import get_names, get_list, update
+    from content.items.simple_items import MutableRecord, MutableRow, ImmutableRow, SimpleRow
     from functions.secondary import all_secondary_functions as fs
     from utils.external import pd, DataFrame
+    from streams.interfaces.regular_stream_interface import RegularStreamInterface
     from streams.abstract.iterable_stream import IterableStream
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
@@ -16,26 +18,48 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         StreamType, ItemType, Array, Columns, OptionalFields, Auto, AUTO,
     )
     from ...base.functions.arguments import get_names, get_list, update
+    from ...content.items.simple_items import MutableRecord, MutableRow, ImmutableRow, SimpleRow
     from ...functions.secondary import all_secondary_functions as fs
     from ...utils.external import pd, DataFrame
+    from ..interfaces.regular_stream_interface import RegularStreamInterface
     from ..abstract.iterable_stream import IterableStream
 
 Native = RegularStream
 AnyStream = Stream
-AutoStreamType = Union[Auto, StreamType]
+AutoStreamType = Union[Auto, StreamType]  # deprecated, use AutoItemType instead
 StreamItemType = Union[StreamType, ItemType, Auto]
 OptionalArguments = Optional[Union[str, Iterable]]
 
 
 class ConvertMixin(IterableStream, ABC):
-    def get_rows(self, columns: Columns = AUTO) -> Iterable:
+    def get_rows(self, columns: Columns = AUTO) -> Iterator[SimpleRow]:
+        if isinstance(self, RegularStreamInterface) or hasattr(self, 'get_item_type'):
+            item_type = self.get_item_type()
+        else:
+            item_type = AUTO
         if columns == AUTO:
-            if StreamType.RecordStream.isinstance(self):
+            if item_type == ItemType.Row:
+                yield from self.get_items()
+            elif item_type == ItemType.Record:
+                if isinstance(self, RegularStreamInterface) or hasattr(self, 'get_columns'):
+                    columns = self.get_columns()
+                else:
+                    raise TypeError(f'ConvertMixin.get_rows(): Expected RegularStream, got {self}')
+                columns = get_names(columns)
                 for r in self.get_items():
                     yield [r.get(c) for c in columns]
+            elif item_type == ItemType.StructRow:
+                for i in self.get_items():
+                    yield i.get_data()
+            elif item_type in (ItemType.Any, ItemType.Auto, AUTO):
+                if StreamType.RecordStream.isinstance(self):
+                    for r in self.get_items():
+                        yield [r.get(c) for c in columns]
+                else:
+                    row_stream_class = StreamType.RowStream.get_class()
+                    return row_stream_class._get_typing_validated_items(self.get_items())
             else:
-                row_stream_class = StreamType.RowStream.get_class()
-                return row_stream_class._get_typing_validated_items(self.get_items())
+                raise ValueError(f'ConvertMixin.get_rows(): item type {item_type} not supported.')
         else:
             return self._get_mapped_items(fs.composite_key(columns))
 

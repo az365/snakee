@@ -76,14 +76,6 @@ class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
         grouped_stream = self.group_by(*keys, values=values, step=step, as_pairs=True, take_hash=False, verbose=verbose)
         return self._assume_pairs(grouped_stream)
 
-    def get_rows(self, columns: Union[Columns, Auto] = AUTO, add_title_row=False) -> Iterable:
-        columns = Auto.delayed_acquire(columns, self.get_columns)
-        columns = get_names(columns)
-        if add_title_row:
-            yield columns
-        for r in self.get_items():
-            yield [r.get(c) for c in columns]
-
     def to_row_stream(self, *columns, **kwargs) -> RowStream:
         add_title_row = kwargs.pop('add_title_row', None)
         kwarg_columns = kwargs.pop('columns', None)

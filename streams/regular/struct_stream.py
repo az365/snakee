@@ -253,17 +253,6 @@ class StructStream(RowStream, StructMixin, ConvertMixin):
         field_position = self.get_field_position(field)
         return lambda i: i[field_position]
 
-    def get_rows(self, **kwargs) -> Generator:
-        assert not kwargs, 'StructStream.get_rows(**{}): kwargs not supported'.format(kwargs)
-        for r in self.get_stream_data():
-            if isinstance(r, ROW_SUBCLASSES):
-                yield r
-            elif isinstance(r, StructRow) or hasattr(r, 'get_data'):
-                yield r.get_data()
-            else:
-                msg = 'StructStream.get_rows(): Expected Row or StructRow, got {} as {}'
-                raise TypeError(msg.format(r, type(r)))
-
     def get_records(self, columns: AutoColumns = AUTO) -> Generator:
         if Auto.is_defined(columns):
             available_columns = self.get_columns()
