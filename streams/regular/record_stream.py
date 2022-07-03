@@ -77,7 +77,6 @@ class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
         return self._assume_pairs(grouped_stream)
 
     def to_row_stream(self, *columns, **kwargs) -> RowStream:
-        add_title_row = kwargs.pop('add_title_row', None)
         kwarg_columns = kwargs.pop('columns', None)
         if kwarg_columns:
             msg = 'columns can be provided by args or kwargs, not both (got args={}, kwargs.columns={})'
@@ -90,12 +89,7 @@ class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
             raise ValueError('to_row_stream(): {} arguments are not supported'.format(kwargs.keys()))
         count = self.get_count()
         less_than = self.get_estimated_count()
-        if add_title_row:
-            if count:
-                count += 1
-            if less_than:
-                less_than += 1
-        rows = self.get_rows(columns=columns, add_title_row=add_title_row)  # tmp for debug
+        rows = self.get_rows(columns=columns)
         if Auto.is_defined(columns):
             struct = columns
         else:
@@ -144,12 +138,13 @@ class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
             check=True, verbose=True, return_stream=True,
     ) -> Optional[Native]:
         meta = self.get_meta()
-        sm_csv_file = self.to_row_stream(
-            columns=columns,
-            add_title_row=add_title_row,
-        ).to_line_stream(
-            delimiter=delimiter,
-        ).to_text_file(
+        columns = Auto.delayed_acquire(columns, self.get_columns)
+        row_stream = self.to_row_stream(columns=columns)
+        if add_title_row:
+            assert Auto.is_defined(columns)
+            row_stream.add_items([columns], before=True, inplace=True)
+        line_stream = row_stream.to_line_stream(delimiter=delimiter)
+        sm_csv_file = line_stream.to_text_file(
             filename,
             check=check,
             verbose=verbose,
