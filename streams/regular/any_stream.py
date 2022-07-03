@@ -424,6 +424,20 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
         result = self.stream(items, count=None)
         return self._assume_native(result)
 
+    def get_demo_example(
+            self,
+            count: Count = DEFAULT_EXAMPLE_COUNT,
+            filters: Columns = None,
+            columns: Columns = None,
+    ) -> list:
+        if self.is_in_memory():
+            stream = self
+        else:  # data is iterator
+            stream = self.copy()
+        sm_sample = stream.filter(*filters) if filters else self
+        sm_sample = sm_sample.take(count)
+        return sm_sample.get_list()
+
     @staticmethod
     def _assume_stream(stream) -> Stream:
         return stream

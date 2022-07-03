@@ -277,16 +277,6 @@ class StructStream(RowStream, StructMixin, ConvertMixin):
         records = self.get_records()
         return self.stream(records, stream_type=StreamType.RecordStream, **kwargs)
 
-    def get_demo_example(
-            self,
-            count: Count = DEFAULT_EXAMPLE_COUNT,
-            filters: Columns = None,
-            columns: Columns = None,
-    ) -> Optional[list]:
-        sm_sample = self.filter(*filters) if filters else self
-        sm_sample = sm_sample.to_record_stream()
-        return sm_sample.get_list()
-
     @staticmethod
     def _assume_native(obj) -> Native:
         return obj

@@ -49,11 +49,6 @@ class LineStream(AnyStream):
         assert isinstance(stream_type, StreamType)
         return self.map_to_type(fs.json_loads(default_value), stream_type=stream_type)
 
-    def get_demo_example(self, count: int = 3) -> list:
-        demo_example = super().get_demo_example(count=count)
-        assert isinstance(demo_example, Iterable), 'get_demo_example(): Expected Iterable, got {}'.format(demo_example)
-        return list(demo_example)
-
     @classmethod
     @deprecated_with_alternative('*Stream.from_file')
     def from_text_file(

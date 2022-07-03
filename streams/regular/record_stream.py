@@ -76,16 +76,6 @@ class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
         grouped_stream = self.group_by(*keys, values=values, step=step, as_pairs=True, take_hash=False, verbose=verbose)
         return self._assume_pairs(grouped_stream)
 
-    def get_demo_example(
-            self,
-            count: Count = DEFAULT_EXAMPLE_COUNT,
-            filters: Columns = None,
-            columns: Columns = None,
-    ) -> Union[DataFrame, list, None]:
-        sm_sample = self.filter(*filters) if filters else self
-        sm_sample = sm_sample.take(count)
-        return sm_sample.get_list()
-
     def get_rows(self, columns: Union[Columns, Auto] = AUTO, add_title_row=False) -> Iterable:
         columns = Auto.delayed_acquire(columns, self.get_columns)
         columns = get_names(columns)

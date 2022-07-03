@@ -404,13 +404,6 @@ class LocalStream(IterableStream, LocalStreamInterface):
     def get_description(self) -> str:
         return self.get_str_description()
 
-    def get_demo_example(self, count: int = 3) -> object:
-        if self.is_in_memory():
-            for i in self.get_items()[:count]:
-                yield i
-        else:
-            yield from super().get_demo_example(count=count)
-
     def get_tmp_files(self) -> TemporaryFilesMaskInterface:
         return self._tmp_files
 
