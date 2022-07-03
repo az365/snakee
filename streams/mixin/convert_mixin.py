@@ -93,6 +93,26 @@ class ConvertMixin(IterableStream, ABC):
         if DataFrame:
             return DataFrame(data)
 
+    def _get_stream_type(self, item_type: Union[ItemType, StreamType, Auto, None] = None) -> StreamType:
+        if Auto.is_defined(item_type):
+            if isinstance(item_type, str):
+                try:
+                    item_type = ItemType(item_type, default=None)
+                except ValueError:
+                    item_type = StreamType(item_type)
+            if isinstance(item_type, ItemType):
+                item_type_name = item_type.get_name()
+                stream_type_name = f'{item_type_name}Stream'
+                return StreamType(stream_type_name)
+            elif isinstance(item_type, StreamType):
+                return item_type
+            elif isinstance(item_type, RegularStreamInterface) or hasattr(item_type, 'get_stream_type'):
+                return item_type.get_stream_type()
+            else:
+                raise TypeError(f'ConvertMixin._get_stream_type(): Expected ItemType or StreamType, got {item_type}')
+        else:
+            return self.get_stream_type()
+
     def stream(
             self,
             data: Iterable,
@@ -103,15 +123,7 @@ class ConvertMixin(IterableStream, ABC):
             **kwargs
     ) -> Stream:
         if Auto.is_defined(stream_type):
-            if isinstance(stream_type, str):
-                try:
-                    stream_type = StreamType(stream_type)
-                except ValueError:  # stream_type is not a valid StreamType
-                    stream_type = ItemType(stream_type)
-            if isinstance(stream_type, ItemType):
-                item_type_name = stream_type.get_name()
-                stream_type_name = f'{item_type_name}Stream'
-                stream_type = StreamType(stream_type_name)
+            stream_type = self._get_stream_type(stream_type)
             if isinstance(stream_type, StreamType) or hasattr(stream_type, 'get_stream_class'):
                 stream_class = stream_type.get_stream_class()
             else:
