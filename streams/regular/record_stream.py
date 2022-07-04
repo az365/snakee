@@ -76,33 +76,6 @@ class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
         grouped_stream = self.group_by(*keys, values=values, step=step, as_pairs=True, take_hash=False, verbose=verbose)
         return self._assume_pairs(grouped_stream)
 
-    def to_row_stream(self, *columns, **kwargs) -> RowStream:
-        kwarg_columns = kwargs.pop('columns', None)
-        if kwarg_columns:
-            msg = 'columns can be provided by args or kwargs, not both (got args={}, kwargs.columns={})'
-            assert not columns, msg.format(columns, kwarg_columns)
-            columns = kwarg_columns
-        if columns == [AUTO]:
-            columns = AUTO
-        assert columns, 'columns for convert RecordStream to RowStream must be defined'
-        if kwargs:
-            raise ValueError('to_row_stream(): {} arguments are not supported'.format(kwargs.keys()))
-        count = self.get_count()
-        less_than = self.get_estimated_count()
-        rows = self.get_rows(columns=columns)
-        if Auto.is_defined(columns):
-            struct = columns
-        else:
-            struct = self.get_struct()
-        stream = self.stream(
-            rows,
-            struct=struct,
-            stream_type=StreamType.RowStream,
-            count=count,
-            less_than=less_than,
-        )
-        return self._assume_native(stream)
-
     def get_key_value_pairs(self, key: Field, value: Field, **kwargs) -> Iterable:
         for i in self.get_records():
             k = value_from_record(i, key, **kwargs)

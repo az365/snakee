@@ -7,6 +7,7 @@ try:  # Assume we're a submodule in a package.
         StreamType, ItemType, Array, Columns, OptionalFields, Auto, AUTO,
     )
     from base.functions.arguments import get_names, get_list, update
+    from base.constants.chars import TAB_CHAR
     from content.items.simple_items import MutableRecord, MutableRow, ImmutableRow, SimpleRow
     from functions.secondary import all_secondary_functions as fs
     from utils.external import pd, DataFrame
@@ -18,6 +19,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         StreamType, ItemType, Array, Columns, OptionalFields, Auto, AUTO,
     )
     from ...base.functions.arguments import get_names, get_list, update
+    from ...base.constants.chars import TAB_CHAR
     from ...content.items.simple_items import MutableRecord, MutableRow, ImmutableRow, SimpleRow
     from ...functions.secondary import all_secondary_functions as fs
     from ...utils.external import pd, DataFrame
@@ -29,6 +31,8 @@ AnyStream = Stream
 AutoStreamType = Union[Auto, StreamType]  # deprecated, use AutoItemType instead
 StreamItemType = Union[StreamType, ItemType, Auto]
 OptionalArguments = Optional[Union[str, Iterable]]
+
+DEFAULT_DELIMITER = TAB_CHAR
 
 
 class ConvertMixin(IterableStream, ABC):
@@ -51,6 +55,10 @@ class ConvertMixin(IterableStream, ABC):
             elif item_type == ItemType.StructRow:
                 for i in self.get_items():
                     yield i.get_data()
+            elif item_type == ItemType.Line:
+                delimiter = columns
+                for i in self.get_items():
+                    yield i.split(delimiter)
             elif item_type in (ItemType.Any, ItemType.Auto, AUTO):
                 if StreamType.RecordStream.isinstance(self):
                     for r in self.get_items():
@@ -98,7 +106,7 @@ class ConvertMixin(IterableStream, ABC):
             if isinstance(item_type, str):
                 try:
                     item_type = ItemType(item_type, default=None)
-                except ValueError:
+                except ValueError:  # stream_type is not a valid StreamType
                     item_type = StreamType(item_type)
             if isinstance(item_type, ItemType):
                 item_type_name = item_type.get_name()
@@ -116,7 +124,7 @@ class ConvertMixin(IterableStream, ABC):
     def stream(
             self,
             data: Iterable,
-            stream_type: StreamItemType = AUTO,
+            stream_type: StreamItemType = AUTO,  # deprecated argument
             ex: OptionalArguments = None,
             save_name: bool = True,
             save_count: bool = True,
@@ -235,34 +243,51 @@ class ConvertMixin(IterableStream, ABC):
         )
         return self._assume_native(stream)
 
-    def to_row_stream(self, *args, **kwargs) -> RowStream:
-        function, delimiter = None, None
-        if 'function' in kwargs:
-            function = kwargs.pop('function')
-        elif args:
-            if callable(args[0]):
-                function, args = args[0], args[1:]
-            elif self.get_stream_type() in (StreamType.LineStream, StreamType.AnyStream):
-                delimiter, args = args[0], args[1:]
-        elif self.get_stream_type() == StreamType.RecordStream:
-            columns = update(args, kwargs.pop('columns', None))
-            assert isinstance(self, RecordStream)
-            if not columns:
+    def to_row_stream(
+            self,
+            arg: Union[str, Iterable, None] = None,
+            columns: Union[Iterable, Auto] = AUTO,
+            delimiter: Union[str, Auto] = AUTO,
+    ) -> RowStream:
+        args_str = f'arg={repr(arg)}, columns={repr(columns)}, delimiter={repr(delimiter)}'
+        msg = f'to_row_stream(): only one of this args allowed: {args_str}'
+        item_type = self.get_item_type()
+        func = None
+        if arg:
+            assert not Auto.is_defined(delimiter), msg
+            if isinstance(arg, Callable):
+                func = arg
+            elif isinstance(arg, str):
+                if item_type == ItemType.Line:
+                    delimiter = arg
+                else:  # Row, Record, ...
+                    columns = [arg]
+            elif isinstance(arg, Iterable):
+                columns = arg
+            else:
+                raise TypeError(f'ConvertMixin.to_row_stream(): Expected function, column(s) or delimiter, got {arg}')
+        if item_type == ItemType.Record:
+            if not Auto.is_defined(columns):
                 columns = self.get_columns()
-            function = self.get_rows(columns=columns)
-        elif 'delimiter' in kwargs and self.get_stream_type() in (StreamType.LineStream, StreamType.AnyStream):
-            delimiter = kwargs.pop('delimiter')
-        elif args:
-            assert not kwargs
-            return self.to_any_stream().select(*args)
-        if function:
-            items = self._get_mapped_items(lambda i: function(i, *args, **kwargs))
-        elif delimiter:
-            csv_reader = fs.csv_reader(delimiter=delimiter, *args, **kwargs)
-            items = csv_reader(self.get_items())
+        elif item_type == ItemType.Line:
+            if not Auto.is_defined(delimiter):
+                delimiter = DEFAULT_DELIMITER  # '\t'
+        if Auto.is_defined(delimiter):
+            assert item_type == ItemType.Line
+            assert not Auto.is_defined(columns), f'got {columns}'
+            assert not func, msg
+            func = fs.csv_loads(delimiter=delimiter)
+        if Auto.is_defined(columns):
+            if not func:
+                func = fs.composite_key(*columns, item_type=item_type)
+            struct = columns
+        else:
+            struct = self.get_struct()
+        if func:
+            items = self._get_mapped_items(func)
         else:
             items = self.get_items()
-        stream = self.stream(items, stream_type=StreamType.RowStream)
+        stream = self.stream(items, stream_type=StreamType.RowStream, struct=struct)
         return self._assume_native(stream)
 
     def to_key_value_stream(self, key: Callable = fs.first(), value: Callable = fs.second()) -> KeyValueStream:
