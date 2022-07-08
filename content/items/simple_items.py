@@ -67,6 +67,7 @@ ROW_SUBCLASSES = MutableRow, ImmutableRow, SimpleRowInterface
 RECORD_SUBCLASSES = MutableRecord, ImmutableRecord, RecRow
 LINE_SUBCLASSES = str,
 STAR = '*'
+FULL_ITEM_FIELD = 'item'
 
 
 def is_line(item: Item) -> bool:

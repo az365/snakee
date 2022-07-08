@@ -9,7 +9,7 @@ try:  # Assume we're a submodule in a package.
     from content.struct.struct_interface import StructInterface
     from content.struct.struct_row_interface import StructRowInterface
     from content.items.simple_items import (
-        ROW_SUBCLASSES, RECORD_SUBCLASSES, AUTO, Auto,
+        ROW_SUBCLASSES, RECORD_SUBCLASSES, FULL_ITEM_FIELD, AUTO, Auto,
         SimpleItem, FieldNo, FieldName, FieldID, Value,
         get_field_value_from_record, get_field_value_from_row, get_field_value_from_struct_row,
     )
@@ -22,7 +22,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..struct.struct_interface import StructInterface
     from ..struct.struct_row_interface import StructRowInterface
     from .simple_items import (
-        ROW_SUBCLASSES, RECORD_SUBCLASSES, AUTO, Auto,
+        ROW_SUBCLASSES, RECORD_SUBCLASSES, FULL_ITEM_FIELD, AUTO, Auto,
         SimpleItem, FieldNo, FieldName, FieldID, Value,
         get_field_value_from_record, get_field_value_from_row, get_field_value_from_struct_row,
     )
@@ -105,6 +105,8 @@ class ItemType(SubclassesType):
         elif isinstance(field, Callable):
             return field
         elif field == STAR:
+            return lambda i: i
+        elif field == FULL_ITEM_FIELD:
             return lambda i: i
         elif field is None or field in (MINUS, EMPTY):
             return lambda i: None

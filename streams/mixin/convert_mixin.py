@@ -9,7 +9,7 @@ try:  # Assume we're a submodule in a package.
     )
     from base.functions.arguments import get_names, get_list, update
     from base.constants.chars import TAB_CHAR
-    from content.items.simple_items import MutableRecord, MutableRow, ImmutableRow, SimpleRow
+    from content.items.simple_items import FULL_ITEM_FIELD, MutableRecord, MutableRow, ImmutableRow, SimpleRow
     from content.struct.flat_struct import FlatStruct
     from functions.secondary import all_secondary_functions as fs
     from utils.external import pd, DataFrame
@@ -23,7 +23,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     )
     from ...base.functions.arguments import get_names, get_list, update
     from ...base.constants.chars import TAB_CHAR
-    from ...content.items.simple_items import MutableRecord, MutableRow, ImmutableRow, SimpleRow
+    from ...content.items.simple_items import FULL_ITEM_FIELD, MutableRecord, MutableRow, ImmutableRow, SimpleRow
     from ...content.struct.flat_struct import FlatStruct
     from ...functions.secondary import all_secondary_functions as fs
     from ...utils.external import pd, DataFrame
@@ -42,7 +42,6 @@ DEFAULT_FIELDS_COUNT = 99
 DEFAULT_COL_MASK = 'column{n:02}'
 STRUCTURED_ITEM_TYPES = ItemType.Record, ItemType.Row, ItemType.StructRow
 UNSTRUCTURED_ITEM_TYPES = ItemType.Line, ItemType.Any, ItemType.Auto
-FULL_ITEM_FIELD = 'item'
 
 
 class ConvertMixin(IterableStream, ABC):
@@ -314,11 +313,8 @@ class ConvertMixin(IterableStream, ABC):
             if hasattr(self, 'get_records'):
                 items = self.get_records()
             else:
-                items = self._get_mapped_items(lambda i: dict(item=i))
-        stream = self.stream(
-            items,
-            stream_type=StreamType.RecordStream,
-        )
+                items = self._get_mapped_items(lambda i: {FULL_ITEM_FIELD: i})
+        stream = self.stream(items, stream_type=StreamType.RecordStream)
         return self._assume_native(stream)
 
     def to_row_stream(
