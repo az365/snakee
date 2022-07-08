@@ -217,47 +217,6 @@ class StructStream(RowStream, StructMixin, ConvertMixin):
             check=False,
         )
 
-    def get_items(self, item_type: Union[ItemType, Auto] = AUTO) -> Iterable:
-        if Auto.is_defined(item_type):
-            return self.get_items_of_type(item_type)
-        else:
-            return self.get_stream_data()
-
-    def get_items_of_type(self, item_type: ItemType) -> Generator:
-        err_msg = 'StructStream.get_items_of_type(item_type): Expected StructRow, Row, Record, got item_type={}'
-        columns = list(self.get_columns())
-        for i in self.get_stream_data():
-            if isinstance(i, StructRow):
-                if item_type == ItemType.StructRow:
-                    yield i
-                elif item_type == ItemType.Row:
-                    yield i.get_data()
-                elif item_type == ItemType.Record:
-                    yield {k: v for k, v in zip(columns, i.get_data())}
-                else:
-                    raise ValueError(err_msg.format(item_type))
-            elif isinstance(i, ROW_SUBCLASSES):
-                if item_type == ItemType.Row:
-                    yield i
-                elif item_type == ItemType.StructRow:
-                    yield StructRow(i, self.get_struct())
-                elif item_type == ItemType.Record:
-                    yield {k: v for k, v in zip(columns, i)}
-                else:
-                    raise ValueError(err_msg.format(item_type))
-            else:
-                msg = 'StructStream.get_items_of_type(item_type={}): Expected items as Row or StructRow, got {} as {}'
-                raise TypeError(msg.format(item_type, i, type(i)))
-
-    def _get_field_getter(self, field: UniKey, item_type: Union[ItemType, Auto] = AUTO, default=None):
-        field_position = self.get_field_position(field)
-        return lambda i: i[field_position]
-
-    def to_record_stream(self, *args, **kwargs) -> StreamInterface:
-        assert not args, 'StructStream.to_record_stream(): args not supported, got *{}'.format(args)
-        records = self.get_records()
-        return self.stream(records, stream_type=StreamType.RecordStream, **kwargs)
-
     @staticmethod
     def _assume_native(obj) -> Native:
         return obj
