@@ -335,6 +335,8 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
 
     # @deprecated_with_alternative('item_type.get_key_function()')
     def _get_key_function(self, functions: Array, take_hash: bool = False) -> Callable:
+        if not isinstance(functions, ARRAY_TYPES):
+            functions = [functions]
         return self.get_item_type().get_key_function(*functions, struct=self.get_struct(), take_hash=take_hash)
 
     def get_one_column_values(self, column, as_list: bool = False) -> Iterable:
