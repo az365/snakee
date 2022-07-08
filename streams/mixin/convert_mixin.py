@@ -4,8 +4,9 @@ from typing import Optional, Callable, Iterable, Iterator, Union
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         Stream, RegularStream, LineStream, RowStream, RecordStream, KeyValueStream, StructStream,
-        StreamType, ItemType,
-        AUTO, Auto, AutoColumns, Columns, Array, OptionalFields, FieldName, FieldInterface, StructInterface,
+        StreamType, ItemType, Item,
+        StructInterface, FieldInterface, FieldName, OptionalFields, UniKey,
+        AUTO, Auto, AutoColumns, Columns, Array, ARRAY_TYPES,
     )
     from base.functions.arguments import get_names, get_list, update
     from base.constants.chars import TAB_CHAR
@@ -19,8 +20,9 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         Stream, RegularStream, LineStream, RowStream, RecordStream, KeyValueStream, StructStream,
-        StreamType, ItemType,
-        AUTO, Auto, AutoColumns, Columns, Array, OptionalFields, FieldName, FieldInterface, StructInterface,
+        StreamType, ItemType, Item,
+        StructInterface, FieldInterface, FieldName, OptionalFields, UniKey,
+        AUTO, Auto, AutoColumns, Columns, Array, ARRAY_TYPES,
     )
     from ...base.functions.arguments import get_names, get_list, update
     from ...base.constants.chars import TAB_CHAR
@@ -232,6 +234,20 @@ class ConvertMixin(IterableStream, ABC):
         else:
             return self.get_stream_type()
 
+    def _get_mapped_items(self, function: Callable, flat: bool = False, skip_errors: bool = False) -> Iterator[Item]:
+        if skip_errors:
+            logger = self.get_selection_logger()
+            if flat:
+                for i in self.get_items():
+                    try:
+                        yield from function(i)
+                    except (ValueError, TypeError) as e:
+                        logger.log_selection_error(function, in_fields=['*'], in_values=[i], in_record=i, message=e)
+            else:
+                yield from map(function, self.get_items())
+        else:
+            yield from super()._get_mapped_items(function, flat=flat)
+
     def stream(
             self,
             data: Iterable,
@@ -263,10 +279,8 @@ class ConvertMixin(IterableStream, ABC):
 
     def map_to_type(self, function: Callable, stream_type: AutoStreamType = AUTO) -> Stream:
         stream_type = Auto.delayed_acquire(stream_type, self.get_stream_type)
-        result = self.stream(
-            map(function, self.get_items()),
-            stream_type=stream_type,
-        )
+        items = map(function, self.get_items())
+        result = self.stream(items, stream_type=stream_type)
         if hasattr(self, 'is_in_memory'):
             if self.is_in_memory():
                 return result.to_memory()
@@ -398,15 +412,23 @@ class ConvertMixin(IterableStream, ABC):
         stream = self.stream(items, stream_type=StreamType.RowStream, struct=struct)
         return self._assume_native(stream)
 
-    def to_key_value_stream(self, key: Callable = fs.first(), value: Callable = fs.second()) -> KeyValueStream:
-        if isinstance(key, (list, tuple)):
-            key = fs.composite_key(key)
-        if isinstance(value, (list, tuple)):
-            value = fs.composite_key(value)
-        stream = self.stream(
-            self._get_mapped_items(lambda i: (key(i), value(i))),
-            stream_type=StreamType.KeyValueStream,
-        )
+    def to_key_value_stream(
+            self,
+            key: UniKey = fs.first(),
+            value: UniKey = fs.second(),
+            skip_errors: bool = False,
+    ) -> KeyValueStream:
+        key_func = self._get_key_function(key, take_hash=False)
+        if Auto.is_defined(value):
+            value_func = self._get_key_function(value, take_hash=False)
+            value_type = StreamType.AnyStream
+        else:
+            value_func = fs.same()
+            value_type = self.get_stream_type()
+        items = self._get_mapped_items(lambda i: (key_func(i), value_func(i)), skip_errors=skip_errors)
+        if self.is_in_memory():
+            items = list(items)
+        stream = self.stream(items, stream_type=StreamType.KeyValueStream, value_stream_type=value_type, check=False)
         return self._assume_native(stream)
 
     # @deprecated_with_alternative('ConvertMixin.to_key_value_stream()')

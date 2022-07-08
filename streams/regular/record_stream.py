@@ -2,40 +2,28 @@ from typing import Optional, Iterable, Union
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
-        Stream, RegularStream, RowStream, KeyValueStream, StructStream, StructInterface, FieldInterface,
+        Stream, RegularStream, KeyValueStream,
         ItemType, StreamType,
-        Context, Connector, AutoConnector, LeafConnectorInterface, TmpFiles,
-        Count, Name, Field, Struct, Columns, Array, ARRAY_TYPES,
-        AUTO, Auto, AutoCount, AutoName, AutoBool,
+        Context, Connector, LeafConnectorInterface, TmpFiles,
+        Count, Field, Struct, Columns,
+        AUTO, Auto, AutoCount, AutoName,
     )
-    from base.functions.arguments import get_name, get_names, update
-    from utils.external import pd, DataFrame, get_use_objects_for_output
     from utils.decorators import deprecated_with_alternative
-    from functions.primary.items import unfold_structs_to_fields
-    from functions.secondary.array_functions import fold_lists
-    from content.selection import selection_classes as sn, selection_functions as sf
-    from content.items.item_getters import value_from_record, tuple_from_record, get_filter_function
     from streams.mixin.convert_mixin import ConvertMixin
     from streams.mixin.columnar_mixin import ColumnarMixin
-    from streams.regular.any_stream import AnyStream, DEFAULT_EXAMPLE_COUNT, DEFAULT_ANALYZE_COUNT
+    from streams.regular.any_stream import AnyStream
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
-        Stream, RegularStream, RowStream, KeyValueStream, StructStream, StructInterface, FieldInterface,
+        Stream, RegularStream, KeyValueStream,
         ItemType, StreamType,
-        Context, Connector, AutoConnector, LeafConnectorInterface, TmpFiles,
-        Count, Name, Field, Struct, Columns, Array, ARRAY_TYPES,
-        AUTO, Auto, AutoCount, AutoName, AutoBool,
+        Context, Connector, LeafConnectorInterface, TmpFiles,
+        Count, Field, Struct, Columns,
+        AUTO, Auto, AutoCount, AutoName,
     )
-    from ...base.functions.arguments import get_name, get_names, update
-    from ...utils.external import pd, DataFrame, get_use_objects_for_output
     from ...utils.decorators import deprecated_with_alternative
-    from ...functions.primary.items import unfold_structs_to_fields
-    from ...functions.secondary.array_functions import fold_lists
-    from ...content.selection import selection_classes as sn, selection_functions as sf
-    from ...content.items.item_getters import value_from_record, tuple_from_record, get_filter_function
     from ..mixin.convert_mixin import ConvertMixin
     from ..mixin.columnar_mixin import ColumnarMixin
-    from .any_stream import AnyStream, DEFAULT_EXAMPLE_COUNT, DEFAULT_ANALYZE_COUNT
+    from .any_stream import AnyStream
 
 Native = RegularStream
 
@@ -67,23 +55,6 @@ class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
     @staticmethod
     def get_item_type() -> ItemType:
         return ItemType.Record
-
-    def get_key_value_pairs(self, key: Field, value: Field, **kwargs) -> Iterable:
-        for i in self.get_records():
-            k = value_from_record(i, key, **kwargs)
-            v = i if value is None else value_from_record(i, value, **kwargs)
-            yield k, v
-
-    def to_key_value_stream(self, key: Field = 'key', value: Field = None, skip_errors: bool = False) -> KeyValueStream:
-        kwargs = dict(logger=self.get_logger(), skip_errors=skip_errors)
-        pairs = self.get_key_value_pairs(key, value, **kwargs)
-        stream = self.stream(
-            list(pairs) if self.is_in_memory() else pairs,
-            stream_type=StreamType.KeyValueStream,
-            value_stream_type=StreamType.RecordStream if value is None else StreamType.AnyStream,
-            check=False,
-        )
-        return self._assume_pairs(stream)
 
     def to_file(self, file: Connector, verbose: bool = True, return_stream: bool = True) -> Native:
         if not (isinstance(file, LeafConnectorInterface) or hasattr(file, 'write_stream')):
