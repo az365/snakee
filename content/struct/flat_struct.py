@@ -5,6 +5,7 @@ try:  # Assume we're a submodule in a package.
         StructInterface, StructRowInterface, FieldInterface, RepresentationInterface,
         SelectionLoggerInterface, ExtLogger,
         ValueType, DialectType,
+        FieldNo, FieldName, SimpleRow, Item,
         AUTO, Auto, AutoCount, Name, Array, ARRAY_TYPES, ROW_SUBCLASSES, RECORD_SUBCLASSES,
     )
     from base.functions.arguments import update, get_generated_name, get_name, get_names
@@ -22,6 +23,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         StructInterface, StructRowInterface, FieldInterface, RepresentationInterface,
         SelectionLoggerInterface, ExtLogger,
         ValueType, DialectType,
+        FieldNo, FieldName, SimpleRow, Item,
         AUTO, Auto, AutoCount, Name, Array, ARRAY_TYPES, ROW_SUBCLASSES, RECORD_SUBCLASSES,
     )
     from ...base.functions.arguments import update, get_generated_name, get_name, get_names
@@ -346,16 +348,18 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
         return self
 
     def get_field_position(self, field: Name) -> Optional[int]:
-        if isinstance(field, int):
+        if isinstance(field, FieldNo):
             if field < self.get_fields_count():
                 return field
-        elif isinstance(field, str):
+        elif isinstance(field, FieldName):
             try:
                 return self.get_columns().index(field)
             except ValueError or IndexError:
                 return None
         elif isinstance(field, FieldInterface):
             return self.get_field_position(field.get_name())
+        else:
+            raise TypeError(f'Expected field as Field(FieldInterface), FieldNo(int) or FieldName(str), got {field}')
 
     def get_fields_positions(self, names: Iterable) -> list:
         columns = self.get_columns()
@@ -387,15 +391,15 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
             return False
         return True
 
+    # @deprecated
     def is_valid_row(self, row: Union[Iterable, StructRowInterface]) -> bool:
         for value, field_type in zip(row, self.get_types_list(DialectType.Python)):
             if not isinstance(value, field_type):
                 return False
         return True
 
-    def get_validation_errors(self, row: Union[Iterable, StructInterface]) -> list:
-        if isinstance(row, StructRowInterface) or hasattr(row, 'get_data'):
-            row = row.get_data()
+    def get_validation_errors(self, item: Item) -> list:
+        row = self._convert_item_to_row(item)
         validation_errors = list()
         for value, field_description in zip(row, self.get_fields_descriptions()):
             assert isinstance(field_description, FieldInterface)
@@ -405,6 +409,16 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
                 msg = template.format(field_description.get_name(), field_type, type(value), value)
                 validation_errors.append(msg)
         return validation_errors
+
+    def _convert_item_to_row(self, item: Item) -> SimpleRow:
+        if isinstance(item, StructRowInterface) or hasattr(item, 'get_data'):
+            return item.get_data()
+        elif isinstance(item, ROW_SUBCLASSES):
+            return item
+        elif isinstance(item, RECORD_SUBCLASSES):
+            return [item.get(c) for c in self.get_columns()]
+        else:  # Line, Any
+            return [item]
 
     @staticmethod
     def convert_to_native(other: StructInterface) -> Native:

@@ -1,8 +1,8 @@
-from typing import Optional, Callable, Iterable, Generator, Union
+from typing import Callable, Iterable, Generator, Union
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
-        LoggerInterface, StreamInterface, FieldInterface, StructInterface, StructRowInterface,
+        LoggerInterface, StreamInterface, FieldInterface, StructInterface, StructRowInterface, Struct,
         LoggingLevel, StreamType, ValueType, ItemType, JoinType, How,
         Field, Name, FieldName, FieldNo, UniKey, Item, Row, ROW_SUBCLASSES,
         AUTO, Auto, AutoBool, Source, Context, TmpFiles, Count, Columns, AutoColumns, Array, ARRAY_TYPES,
@@ -21,7 +21,7 @@ try:  # Assume we're a submodule in a package.
     from streams.regular.row_stream import RowStream
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
-        LoggerInterface, StreamInterface, FieldInterface, StructInterface, StructRowInterface,
+        LoggerInterface, StreamInterface, FieldInterface, StructInterface, StructRowInterface, Struct,
         LoggingLevel, StreamType, ValueType, ItemType, JoinType, How,
         Field, Name, FieldName, FieldNo, UniKey, Item, Row, ROW_SUBCLASSES,
         AUTO, Auto, AutoBool, Source, Context, TmpFiles, Count, Columns, AutoColumns, Array, ARRAY_TYPES,
@@ -40,84 +40,15 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .row_stream import RowStream
 
 Native = Union[StreamInterface, StructRowInterface]
-Struct = StructInterface
-OptStruct = Union[Struct, Iterable, None]
 
-DYNAMIC_META_FIELDS = ('count', 'struct')
-NAME_POS, TYPE_POS, HINT_POS = 0, 1, 2  # old style struct fields
-DICT_CAST_TYPES = dict(bool=bool, int=int, float=float, str=str, text=str, date=str)
-DEFAULT_EXAMPLE_COUNT = 10
-
-
-def is_row(row: Row) -> bool:
-    return isinstance(row, StructRow) or isinstance(row, ROW_SUBCLASSES)
-
-
-def get_validation_errors(row: Row, struct: OptStruct) -> list:
-    if is_row(row):
-        if isinstance(row, StructRow):
-            row = row.get_data()
-        if isinstance(struct, FlatStruct):
-            return struct.get_validation_errors(row)
-    else:
-        msg = 'Expected row as list or tuple, got {} (row={})'.format(type(row), row)
-        return [msg]
-
-
-def check_rows(rows, struct: OptStruct, skip_errors: bool = False) -> Iterable:
-    for r in rows:
-        validation_errors = get_validation_errors(r, struct=struct)
-        if not validation_errors:
-            pass
-        elif skip_errors:
-            continue
-        else:
-            raise TypeError('check_rows() got validation errors: {}'.format(validation_errors))
-        yield r
-
-
-@deprecated_with_alternative('struct.StructRow()')
-def apply_struct_to_row(row, struct: OptStruct, skip_bad_values=False, logger=None):
-    if isinstance(struct, Struct) or hasattr(struct, 'get_converters'):
-        converters = struct.get_converters('str', 'py')
-        return [converter(value) for value, converter in zip(row, converters)]
-    elif isinstance(struct, Iterable):
-        for c, (value, description) in enumerate(zip(row, struct)):
-            field_type = description[TYPE_POS]
-            try:
-                cast_function = fs.cast(field_type)
-                new_value = cast_function(value)
-            except ValueError as e:
-                field_name = description[NAME_POS]
-                if logger:
-                    message = 'Error while casting field {} ({}) with value {} into type {}'.format(
-                        field_name, c,
-                        value, field_type,
-                    )
-                    logger.log(msg=message, level=LoggingLevel.Error)
-                if skip_bad_values:
-                    if logger:
-                        message = 'Skipping bad value in row:'.format(list(zip(row, struct)))
-                        logger.log(msg=message, level=LoggingLevel.Debug)
-                    new_value = None
-                else:
-                    message = 'Error in row: {}...'.format(str(list(zip(row, struct)))[:80])
-                    if logger:
-                        logger.log(msg=message, level=LoggingLevel.Warning)
-                    else:
-                        FallbackLogger().log(message)
-                    raise e
-            row[c] = new_value
-        return row
-    else:
-        raise TypeError(f'Expected struct as Struct or Iterable, got {struct}')
+DYNAMIC_META_FIELDS = 'count', 'struct'
 
 
 class StructStream(RowStream, StructMixin, ConvertMixin):
     def __init__(
             self,
             data: Iterable,
-            struct: OptStruct = None,
+            struct: Struct = None,
             name: Union[Name, Auto] = AUTO,
             caption: str = '',
             count: Count = None,
@@ -169,53 +100,72 @@ class StructStream(RowStream, StructMixin, ConvertMixin):
     def _get_key_function(self, descriptions: Array, take_hash: bool = False) -> Callable:
         return self.get_item_type().get_key_function(*descriptions, struct=self.get_struct(), take_hash=take_hash)
 
-    @classmethod
-    def is_valid_item_type(cls, item: Item) -> bool:
-        return super().is_valid_item_type(item)
+    def _is_valid_item(self, item: Item, struct: Union[Struct, Auto] = AUTO) -> bool:
+        if self.is_valid_item_type(item):
+            struct = Auto.delayed_acquire(struct, self.get_struct)
+            if isinstance(struct, StructInterface) or hasattr(struct, 'get_validation_errors'):
+                return not struct.get_validation_errors(item)
+            else:
+                return True
+        else:
+            return False
 
-    def _is_valid_item(self, item) -> bool:
-        validation_errors = get_validation_errors(item, struct=self.get_struct())
-        return not validation_errors
-
-    def _get_validated_items(self, items, struct=AUTO, skip_errors=False, context=None):
-        if struct == AUTO:
-            struct = self.get_struct()
-        return check_rows(items, struct, skip_errors)
+    def _get_validated_items(
+            self,
+            items: Iterable,
+            struct: Union[Struct, Auto] = AUTO,
+            skip_errors: bool = False,
+            context: Context = None,
+    ) -> Generator:
+        logger = context.get_logger() if context else None
+        for i in items:
+            if self._is_valid_item(i, struct=struct):
+                yield i
+            else:
+                message = f'_get_validated_items() found invalid item {i} for {self}'
+                if skip_errors:
+                    if logger:
+                        logger.log(msg=message, level=LoggingLevel.Warning)
+                else:
+                    raise TypeError(message)
 
     def get_struct_rows(
             self,
-            rows: Iterable,
+            rows: Union[Iterable, Auto],
             struct: Union[Struct, Auto] = AUTO,
             skip_bad_rows: bool = False,
             skip_bad_values: bool = False,
-            verbose: bool = True,
+            skip_missing: bool = False,
     ) -> Generator:
+        rows = Auto.delayed_acquire(rows, self.get_rows)
         struct = Auto.delayed_acquire(struct, self.get_struct)
         if isinstance(struct, StructInterface) or hasattr(struct, 'get_converters'):  # actual approach
             converters = struct.get_converters(src='str', dst='py')
             for r in rows:
                 converted_row = list()
                 for value, converter in zip(r, converters):
-                    converted_value = converter(value)
-                    converted_row.append(converted_value)
-                yield converted_row.copy()
-        else:  # deprecated approach
-            for r in rows:
-                if skip_bad_rows:
                     try:
-                        yield apply_struct_to_row(r, struct, False, logger=self if verbose else None)
-                    except ValueError:
-                        self.log(['Skip bad row:', r], verbose=verbose)
-                else:
-                    yield apply_struct_to_row(r, struct, skip_bad_values, logger=self if verbose else None)
+                        converted_value = converter(value)
+                    except TypeError as e:
+                        if skip_bad_rows:
+                            converted_row = None
+                            break
+                        elif skip_bad_values:
+                            converted_value = None
+                        else:
+                            raise e
+                    converted_row.append(converted_value)
+                if converted_row is not None:
+                    yield converted_row.copy()
+        elif skip_missing:
+            yield from rows
+        else:
+            raise TypeError(f'StructStream.get_struct_rows(): Expected struct as StructInterface, got {struct}')
 
     def structure(self, struct: Struct, skip_bad_rows: bool = False, skip_bad_values: bool = False, verbose=True):
-        return self.stream(
-            self.get_struct_rows(self.get_items()),
-            struct=struct,
-            count=None if skip_bad_rows else self.get_count(),
-            check=False,
-        )
+        struct_rows = self.get_struct_rows(AUTO, skip_bad_rows=skip_bad_rows, skip_bad_values=skip_bad_values)
+        count = None if skip_bad_rows else self.get_count(),
+        return self.stream(struct_rows, struct=struct, count=count, check=False)
 
     @staticmethod
     def _assume_native(obj) -> Native:
