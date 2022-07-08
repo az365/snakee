@@ -253,14 +253,6 @@ class StructStream(RowStream, StructMixin, ConvertMixin):
         field_position = self.get_field_position(field)
         return lambda i: i[field_position]
 
-    def get_records(self, columns: AutoColumns = AUTO) -> Generator:
-        if Auto.is_defined(columns):
-            available_columns = self.get_columns()
-            for r in self.get_rows():
-                yield {k: v for k, v in zip(available_columns, r) if k in columns}
-        else:
-            yield from self.get_items_of_type(item_type=ItemType.Record)
-
     def to_record_stream(self, *args, **kwargs) -> StreamInterface:
         assert not args, 'StructStream.to_record_stream(): args not supported, got *{}'.format(args)
         records = self.get_records()

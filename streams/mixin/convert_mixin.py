@@ -4,11 +4,13 @@ from typing import Optional, Callable, Iterable, Iterator, Union
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         Stream, RegularStream, LineStream, RowStream, RecordStream, KeyValueStream, StructStream,
-        StreamType, ItemType, Array, Columns, OptionalFields, Auto, AUTO,
+        StreamType, ItemType,
+        AUTO, Auto, AutoColumns, Columns, Array, OptionalFields, FieldName, FieldInterface, StructInterface,
     )
     from base.functions.arguments import get_names, get_list, update
     from base.constants.chars import TAB_CHAR
     from content.items.simple_items import MutableRecord, MutableRow, ImmutableRow, SimpleRow
+    from content.struct.flat_struct import FlatStruct
     from functions.secondary import all_secondary_functions as fs
     from utils.external import pd, DataFrame
     from streams.interfaces.regular_stream_interface import RegularStreamInterface
@@ -16,11 +18,13 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         Stream, RegularStream, LineStream, RowStream, RecordStream, KeyValueStream, StructStream,
-        StreamType, ItemType, Array, Columns, OptionalFields, Auto, AUTO,
+        StreamType, ItemType,
+        AUTO, Auto, AutoColumns, Columns, Array, OptionalFields, FieldName, FieldInterface, StructInterface,
     )
     from ...base.functions.arguments import get_names, get_list, update
     from ...base.constants.chars import TAB_CHAR
     from ...content.items.simple_items import MutableRecord, MutableRow, ImmutableRow, SimpleRow
+    from ...content.struct.flat_struct import FlatStruct
     from ...functions.secondary import all_secondary_functions as fs
     from ...utils.external import pd, DataFrame
     from ..interfaces.regular_stream_interface import RegularStreamInterface
@@ -30,9 +34,15 @@ Native = RegularStream
 AnyStream = Stream
 AutoStreamType = Union[Auto, StreamType]  # deprecated, use AutoItemType instead
 StreamItemType = Union[StreamType, ItemType, Auto]
+StructOrColumns = Union[StructInterface, AutoColumns, FieldInterface, FieldName]
 OptionalArguments = Optional[Union[str, Iterable]]
 
 DEFAULT_DELIMITER = TAB_CHAR
+DEFAULT_FIELDS_COUNT = 99
+DEFAULT_COL_MASK = 'column{n:02}'
+STRUCTURED_ITEM_TYPES = ItemType.Record, ItemType.Row, ItemType.StructRow
+UNSTRUCTURED_ITEM_TYPES = ItemType.Line, ItemType.Any, ItemType.Auto
+FULL_ITEM_FIELD = 'item'
 
 
 class ConvertMixin(IterableStream, ABC):
@@ -73,25 +83,23 @@ class ConvertMixin(IterableStream, ABC):
 
     def get_records(self, columns: Columns = AUTO) -> Iterable:
         item_type = self.get_item_type()
-        struct = self.get_struct()
         assert isinstance(item_type, ItemType)
-        if Auto.is_defined(columns):
-            if item_type == ItemType.Record:
+        columns = self._get_columns(columns)
+        if item_type == ItemType.Record:
+            if Auto.is_defined(columns):
                 return self.select(*columns).get_items()
             else:
-                func = item_type.get_key_function(*columns, struct=self.get_struct())
-                columns = get_names(columns)
-                if len(columns) == 1:
-                    return self._get_mapped_items(lambda i: {columns[0]: func(i)})
-                else:
-                    return self._get_mapped_items(lambda i: dict(zip(columns, func(i))))
-        else:
-            if item_type == ItemType.Record:
                 return self.get_items()
-            elif Auto.is_defined(struct):
-                return self.get_records(struct.get_columns())
-            else :
-                return self._get_mapped_items(lambda i: dict(item=i))
+        if item_type == ItemType.Row:
+            if Auto.is_defined(columns):
+                func = (lambda r: {k: v for k, v in zip(columns, r)})
+            else:
+                func = (lambda r: {DEFAULT_COL_MASK.format(n + 1): v for n, v in enumerate(r)})
+        elif item_type in UNSTRUCTURED_ITEM_TYPES:
+            func = (lambda i: {columns[0]: i})
+        else:
+            raise TypeError(f'ConvertMixin.get_records(): item_type={item_type} not supported')
+        return self._get_mapped_items(func)
 
     def get_dataframe(self, columns: Columns = None) -> DataFrame:
         if columns and hasattr(self, 'select'):
@@ -100,6 +108,76 @@ class ConvertMixin(IterableStream, ABC):
             data = self.get_data()
         if DataFrame:
             return DataFrame(data)
+
+    def _get_columns(self, columns: StructOrColumns = AUTO) -> Optional[list]:
+        struct = self._get_struct(columns)
+        if isinstance(struct, StructInterface) or hasattr(struct, 'get_columns'):
+            columns = struct.get_columns()
+        elif isinstance(struct, Iterable):
+            columns = list(struct)
+        else:
+            raise TypeError(f'Expected struct as Struct, got {struct}')
+        if Auto.is_defined(columns):
+            if self.get_item_type() in UNSTRUCTURED_ITEM_TYPES:
+                assert len(columns) == 1
+            return columns
+
+    def _get_struct(
+            self,
+            struct: StructOrColumns = AUTO,
+    ) -> Optional[StructInterface]:
+        is_one_field = isinstance(struct, (FieldInterface, FieldName)) or hasattr(struct, 'get_value_type')
+        if is_one_field:
+            struct = [struct]
+        default_struct = self.get_struct()
+        if Auto.is_defined(struct):
+            if isinstance(struct, StructInterface) or hasattr(struct, 'get_fields'):
+                return struct
+            elif isinstance(struct, Iterable):  # isinstance(struct, Columns)
+                if isinstance(default_struct, StructInterface) or hasattr(default_struct, 'get_fields'):
+                    default_fields = default_struct.get_field_names()
+                    default_types = default_struct.get_types_dict()
+                    refined_struct = FlatStruct()
+                    for f in struct:
+                        if isinstance(f, FieldInterface) or hasattr(f, 'get_value_type'):
+                            refined_struct.append(f)
+                        elif isinstance(f, FieldName):
+                            if f in default_fields:
+                                refined_struct.add_fields(f, default_type=default_types.get(f))
+                        else:
+                            raise TypeError(f'expected field as Field, got {f}')
+                    return refined_struct
+                else:
+                    return FlatStruct(struct)
+            else:
+                raise TypeError(f'expected struct as FlatStruct or Columns, got {struct}')
+        elif Auto.is_defined(default_struct):
+            return default_struct
+        else:
+            item_type = self.get_item_type()
+            if item_type in STRUCTURED_ITEM_TYPES:
+                example_item = self.get_one_item()
+                if example_item:
+                    fields_count = len(example_item)
+                else:
+                    fields_count = DEFAULT_FIELDS_COUNT
+                if item_type == ItemType.Record:
+                    columns = list(example_item.keys())
+                elif item_type == ItemType.Row:
+                    columns = [DEFAULT_COL_MASK.format(n + 1) for n in range(fields_count)]
+                elif item_type == ItemType.StructRow:
+                    try:
+                        columns = example_item.get_columns()
+                    except TypeError:
+                        columns = [DEFAULT_COL_MASK.format(n + 1) for n in range(fields_count)]
+                else:
+                    raise TypeError(f'Expected {STRUCTURED_ITEM_TYPES}, got {item_type}')
+            elif item_type in UNSTRUCTURED_ITEM_TYPES:
+                columns = [FULL_ITEM_FIELD]
+            else:
+                supported_item_types = ItemType.Row, *UNSTRUCTURED_ITEM_TYPES
+                raise TypeError(f'Expected one of {supported_item_types}, got {item_type}')
+            return FlatStruct(columns)
 
     def _get_stream_type(self, item_type: Union[ItemType, StreamType, Auto, None] = None) -> StreamType:
         if Auto.is_defined(item_type):

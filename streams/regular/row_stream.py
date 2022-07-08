@@ -1,12 +1,13 @@
-from typing import Iterable, Generator, Union
+from typing import Iterable, Union
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         Stream, RegularStream, StructStream, StructInterface, Struct,
         Context, Connector, TmpFiles, ItemType, StreamType,
         Name, Count, Columns, Array, ARRAY_TYPES,
-        AUTO, Auto, AutoCount, AutoColumns,
+        AUTO, Auto, AutoBool, AutoCount, AutoColumns,
     )
+    from base.constants.chars import EMPTY, TAB_CHAR
     from base.functions.arguments import get_names, update
     from utils.decorators import deprecated_with_alternative
     from functions.primary import numeric as nm
@@ -19,8 +20,9 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         Stream, RegularStream, StructStream, StructInterface, Struct,
         Context, Connector, TmpFiles, ItemType, StreamType,
         Name, Count, Columns, Array, ARRAY_TYPES,
-        AUTO, Auto, AutoCount, AutoColumns,
+        AUTO, Auto, AutoBool, AutoCount, AutoColumns,
     )
+    from ...base.constants.chars import EMPTY, TAB_CHAR
     from ...base.functions.arguments import get_names, update
     from ...utils.decorators import deprecated_with_alternative
     from ...functions.primary import numeric as nm
@@ -39,7 +41,7 @@ class RowStream(AnyStream, ColumnarMixin):
             self,
             data: Iterable,
             name: Name = AUTO,
-            caption: str = '',
+            caption: str = EMPTY,
             count: Count = None,
             less_than: Count = None,
             struct: Struct = None,
@@ -62,18 +64,11 @@ class RowStream(AnyStream, ColumnarMixin):
     def get_item_type() -> ItemType:
         return ItemType.Row
 
-    def to_line_stream(self, delimiter: str = '\t', columns: AutoColumns = AUTO, add_title_row=False) -> Stream:
+    def to_line_stream(self, delimiter: str = TAB_CHAR, columns: AutoColumns = AUTO, add_title_row=False) -> Stream:
         input_stream = self.select(columns) if Auto.is_defined(columns) else self
-        lines = map(lambda r: '\t'.join([str(c) for c in r]), input_stream.get_items())
+        lines = map(lambda r: delimiter.join([str(c) for c in r]), input_stream.get_items())
         line_stream_class = StreamType.LineStream.get_class()
         return line_stream_class(lines, count=self.get_count())
-
-    def get_records(self, columns: AutoColumns = AUTO) -> Generator:
-        if columns == AUTO:
-            columns = self.get_columns()
-        column_names = get_names(columns)
-        for row in self.get_rows():
-            yield {k: v for k, v in zip(column_names, row)}
 
     def structure(
             self,
@@ -95,11 +90,12 @@ class RowStream(AnyStream, ColumnarMixin):
     @deprecated_with_alternative('connectors.ColumnFile()')
     def from_column_file(
             cls,
-            filename,
-            delimiter='\t',
-            skip_first_line=False, max_count=None,
-            check=AUTO,
-            verbose=False,
+            filename: str,
+            delimiter: str = TAB_CHAR,
+            skip_first_line: bool = False,
+            max_count: Count = None,
+            check: AutoBool = AUTO,
+            verbose: bool = False,
     ):
         line_stream_class = StreamType.LineStream.get_class()
         stream = line_stream_class.from_text_file(
@@ -115,11 +111,11 @@ class RowStream(AnyStream, ColumnarMixin):
     @deprecated_with_alternative('to_file(Connectors.ColumnFile)')
     def to_column_file(
             self,
-            filename,
-            delimiter='\t',
-            check=AUTO,
-            verbose=True,
-            return_stream=True,
+            filename: str,
+            delimiter: str = TAB_CHAR,
+            check: AutoBool = AUTO,
+            verbose: bool = True,
+            return_stream: bool = True,
     ):
         meta = self.get_meta()
         stream_csv_file = self.to_line_stream(
