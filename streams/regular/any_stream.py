@@ -465,6 +465,26 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
             as_pairs=as_pairs,
         )
 
+    @deprecated_with_alternative('AnyStream.group_by(as_pairs=True)')
+    def group_to_pairs(
+            self,
+            *keys,
+            values: Columns = None,
+            step: AutoCount = AUTO,
+            verbose: bool = True,
+    ) -> RegularStreamInterface:
+        grouped_stream = self.group_by(*keys, values=values, step=step, as_pairs=True, take_hash=False, verbose=verbose)
+        return self._assume_native(grouped_stream)
+
+    def uniq(self, *keys, sort: bool = False) -> Native:
+        if sort:
+            stream = self.sort(*keys)
+        else:
+            stream = self
+        items = stream._get_uniq_items(*keys)
+        result = self.stream(items, count=None)
+        return self._assume_native(result)
+
     def _get_uniq_items(self, *keys) -> Iterable:
         keys = unfold_structs_to_fields(keys)
         key_fields = get_names(keys)
@@ -475,15 +495,6 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
             if value != prev_value:
                 yield i
             prev_value = value
-
-    def uniq(self, *keys, sort: bool = False) -> Native:
-        if sort:
-            stream = self.sort(*keys)
-        else:
-            stream = self
-        items = stream._get_uniq_items(*keys)
-        result = self.stream(items, count=None)
-        return self._assume_native(result)
 
     def get_demo_example(
             self,

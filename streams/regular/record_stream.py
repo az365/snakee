@@ -68,14 +68,6 @@ class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
     def get_item_type() -> ItemType:
         return ItemType.Record
 
-    @deprecated_with_alternative('AnyStream.group_by(as_pairs=True)')
-    def group_to_pairs(
-            self, *keys, values: Columns = None,
-            step: AutoCount = AUTO, verbose: bool = True,
-    ) -> KeyValueStream:
-        grouped_stream = self.group_by(*keys, values=values, step=step, as_pairs=True, take_hash=False, verbose=verbose)
-        return self._assume_pairs(grouped_stream)
-
     def get_key_value_pairs(self, key: Field, value: Field, **kwargs) -> Iterable:
         for i in self.get_records():
             k = value_from_record(i, key, **kwargs)
