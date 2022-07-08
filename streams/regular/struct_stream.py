@@ -2,10 +2,8 @@ from typing import Callable, Iterable, Generator, Union
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
-        LoggerInterface, StreamInterface, FieldInterface, StructInterface, StructRowInterface, Struct,
-        LoggingLevel, StreamType, ValueType, ItemType, JoinType, How,
-        Field, Name, FieldName, FieldNo, UniKey, Item, Row, ROW_SUBCLASSES,
-        AUTO, Auto, AutoBool, Source, Context, TmpFiles, Count, Columns, AutoColumns, Array, ARRAY_TYPES,
+        StructInterface, Struct, Field, Name, FieldName, FieldNo, ItemType,
+        AUTO, Auto, AutoName, Source, Context, TmpFiles, Count,
     )
     from base.functions.arguments import get_name, get_names
     from utils.decorators import deprecated_with_alternative
@@ -21,10 +19,8 @@ try:  # Assume we're a submodule in a package.
     from streams.regular.row_stream import RowStream
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
-        LoggerInterface, StreamInterface, FieldInterface, StructInterface, StructRowInterface, Struct,
-        LoggingLevel, StreamType, ValueType, ItemType, JoinType, How,
-        Field, Name, FieldName, FieldNo, UniKey, Item, Row, ROW_SUBCLASSES,
-        AUTO, Auto, AutoBool, Source, Context, TmpFiles, Count, Columns, AutoColumns, Array, ARRAY_TYPES,
+        StructInterface, Struct, Field, Name, FieldName, FieldNo, ItemType,
+        AUTO, Auto, AutoName, Source, Context, TmpFiles, Count,
     )
     from ...base.functions.arguments import get_name, get_names
     from ...utils.decorators import deprecated_with_alternative
@@ -39,9 +35,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..mixin.convert_mixin import ConvertMixin
     from .row_stream import RowStream
 
-Native = Union[StreamInterface, StructRowInterface]
-
-DYNAMIC_META_FIELDS = 'count', 'struct'
+Native = Union[RowStream, StructMixin, ConvertMixin]
 
 
 class StructStream(RowStream, StructMixin, ConvertMixin):
@@ -69,10 +63,6 @@ class StructStream(RowStream, StructMixin, ConvertMixin):
         )
 
     @staticmethod
-    def _get_dynamic_meta_fields() -> tuple:
-        return DYNAMIC_META_FIELDS
-
-    @staticmethod
     def get_item_type() -> ItemType:
         return ItemType.StructRow
 
@@ -92,10 +82,6 @@ class StructStream(RowStream, StructMixin, ConvertMixin):
                 field_no = self.get_field_position(field_name)
             func = fs.partial(lambda r, n: r[n], field_no)
         return func
-
-    # @deprecated_with_alternative('item_type.get_key_function()')
-    def _get_key_function(self, descriptions: Array, take_hash: bool = False) -> Callable:
-        return self.get_item_type().get_key_function(*descriptions, struct=self.get_struct(), take_hash=take_hash)
 
     def get_struct_rows(
             self,

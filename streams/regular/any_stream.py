@@ -42,6 +42,7 @@ AutoStreamType = Union[Auto, StreamType]
 StreamItemType = Union[AutoStreamType, ItemType]
 AutoStruct = Union[Auto, Struct]
 
+DYNAMIC_META_FIELDS = 'struct', 'count', 'less_than'
 DEFAULT_EXAMPLE_COUNT = 10
 DEFAULT_ANALYZE_COUNT = 100
 
@@ -57,7 +58,8 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
             struct: Struct = None,
             source: Source = None,
             context: Context = None,
-            max_items_in_memory: Count = AUTO, tmp_files: TmpFiles = AUTO,
+            max_items_in_memory: Count = AUTO,
+            tmp_files: TmpFiles = AUTO,
             check: bool = False,
     ):
         if struct and not isinstance(struct, (FlatStruct, StructInterface)):
@@ -73,6 +75,10 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
             max_items_in_memory=max_items_in_memory,
             tmp_files=tmp_files,
         )
+
+    @staticmethod
+    def _get_dynamic_meta_fields() -> tuple:
+        return DYNAMIC_META_FIELDS
 
     @staticmethod
     def get_item_type() -> ItemType:
