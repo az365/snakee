@@ -5,9 +5,9 @@ try:  # Assume we're a submodule in a package.
     from interfaces import (
         RegularStreamInterface, StructInterface, FieldInterface,
         Stream, LocalStream, Context, Connector, TmpFiles,
-        StreamType, ItemType, ValueType,
-        Name, Count, Struct, Columns, Field, OptionalFields, Source, Class, Item, Array, ARRAY_TYPES,
-        AUTO, Auto, AutoBool, AutoCount,
+        StreamType, ItemType, ValueType, LoggingLevel,
+        Name, Count, Item, Struct, Columns, Field, OptionalFields, Source, Class, Item, Array, ARRAY_TYPES,
+        AUTO, Auto, AutoBool, AutoCount, AutoName,
     )
     from base.functions.arguments import get_name, get_names
     from utils.decorators import deprecated_with_alternative
@@ -22,9 +22,9 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...interfaces import (
         RegularStreamInterface, StructInterface, FieldInterface,
         Stream, LocalStream, Context, Connector, TmpFiles,
-        StreamType, ItemType, ValueType,
-        Name, Count, Struct, Columns, Field, OptionalFields, Source, Class, Item, Array, ARRAY_TYPES,
-        AUTO, Auto, AutoBool, AutoCount,
+        StreamType, ItemType, ValueType, LoggingLevel,
+        Name, Count, Item, Struct, Columns, Field, OptionalFields, Source, Class, Item, Array, ARRAY_TYPES,
+        AUTO, Auto, AutoBool, AutoCount, AutoName,
     )
     from ...base.functions.arguments import get_name, get_names
     from ...utils.decorators import deprecated_with_alternative
@@ -49,8 +49,8 @@ DEFAULT_ANALYZE_COUNT = 100
 class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
     def __init__(
             self,
-            data,
-            name: Name = AUTO,
+            data: Iterable[Item],
+            name: AutoName = AUTO,
             caption: str = '',
             count: Count = None,
             less_than: Count = None,
@@ -63,6 +63,8 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
         if struct and not isinstance(struct, (FlatStruct, StructInterface)):
             struct = FlatStruct(struct)
         self._struct = struct
+        if check:
+            data = self._get_validated_items(data, context=context)
         super().__init__(
             data=data, check=check,
             name=name, caption=caption,
@@ -157,7 +159,60 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
             stream = stream.to_memory()
         return stream
 
-    def _get_expected_item_type(self, *columns, **expressions) -> ItemType:
+    def is_valid_item_type(self, item: Item) -> bool:
+        item_type = self.get_item_type()
+        if Auto.is_defined(item_type):
+            return item_type.isinstance(item)
+        else:
+            return True
+
+    def _is_valid_item(self, item: Item, struct: AutoStruct = AUTO) -> bool:
+        if self.is_valid_item_type(item):
+            struct = Auto.delayed_acquire(struct, self.get_struct)
+            if isinstance(struct, StructInterface) or hasattr(struct, 'get_validation_errors'):
+                return not struct.get_validation_errors(item)
+            else:
+                return True
+        else:
+            return False
+
+    def _get_typing_validated_items(
+            self,
+            items: Iterable,
+            skip_errors: bool = False,
+            context: Context = None,
+    ) -> Generator:
+        for i in items:
+            if self.is_valid_item_type(i):
+                yield i
+            else:
+                message = f'_get_typing_validated_items() found invalid item {i} for {self.get_stream_type()}'
+                if skip_errors:
+                    if context:
+                        context.get_logger().log(msg=message, level=LoggingLevel.Warning)
+                else:
+                    raise TypeError(message)
+
+    def _get_validated_items(
+            self,
+            items: Iterable,
+            struct: AutoStruct = AUTO,
+            skip_errors: bool = False,
+            context: Context = None,
+    ) -> Generator:
+        logger = context.get_logger() if context else None
+        for i in items:
+            if self._is_valid_item(i, struct=struct):
+                yield i
+            else:
+                message = f'_get_validated_items() found invalid item {i} for {self}'
+                if skip_errors:
+                    if logger:
+                        logger.log(msg=message, level=LoggingLevel.Warning)
+                else:
+                    raise TypeError(message)
+
+    def _get_target_item_type(self, *columns, **expressions) -> ItemType:
         input_item_type = self.get_item_type()
         if input_item_type in (ItemType.Any, ItemType.Auto):
             if columns and not expressions:
@@ -210,7 +265,7 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
         if Auto.is_auto(use_extended_method):
             use_extended_method = self.get_stream_type() in (StreamType.StructStream, StreamType.RowStream)  # TMP
         input_item_type = self.get_item_type()
-        target_item_type = self._get_expected_item_type(*columns, **expressions)
+        target_item_type = self._get_target_item_type(*columns, **expressions)
         target_struct = sn.get_output_struct(*columns, **expressions)
         select_function = sn.get_selection_function(
             *columns, **expressions,
@@ -384,7 +439,7 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
             self,
             *keys,
             values: Columns = None,
-            as_pairs: bool = False,
+            as_pairs: bool = False,  # deprecated argument, use group_to_pairs() instead
             take_hash: bool = True,
             step: AutoCount = AUTO,
             verbose: bool = True,

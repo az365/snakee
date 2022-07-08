@@ -40,10 +40,6 @@ class LineStream(AnyStream):
     def get_item_type() -> ItemType:
         return ItemType.Line
 
-    @classmethod
-    def is_valid_item_type(cls, item) -> bool:
-        return cls.get_item_type().isinstance(item)
-
     def parse_json(self, default_value=None, to: Union[StreamType, str] = StreamType.RecordStream) -> Stream:
         stream_type = StreamType.find_instance(to)
         assert isinstance(stream_type, StreamType)

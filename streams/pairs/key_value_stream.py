@@ -49,12 +49,6 @@ class KeyValueStream(RowStream, PairStreamInterface):
                 value_stream_type = StreamType(value_stream_type.value)
             self.value_stream_type = value_stream_type or StreamType.AnyStream
 
-    @classmethod
-    def is_valid_item_type(cls, item) -> bool:
-        if isinstance(item, (list, tuple)):
-            return len(item) == 2
-        return False
-
     @staticmethod
     def _get_key(item):
         return item[0]

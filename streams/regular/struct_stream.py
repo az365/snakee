@@ -59,11 +59,8 @@ class StructStream(RowStream, StructMixin, ConvertMixin):
             tmp_files: TmpFiles = AUTO,
             check: bool = True,
     ):
-        if check:
-            data = self._get_validated_items(data, struct=struct)
         super().__init__(
-            data=data, check=False,
-            struct=struct,
+            data=data, struct=struct, check=check,
             name=name, caption=caption,
             count=count, less_than=less_than,
             source=source, context=context,
@@ -99,35 +96,6 @@ class StructStream(RowStream, StructMixin, ConvertMixin):
     # @deprecated_with_alternative('item_type.get_key_function()')
     def _get_key_function(self, descriptions: Array, take_hash: bool = False) -> Callable:
         return self.get_item_type().get_key_function(*descriptions, struct=self.get_struct(), take_hash=take_hash)
-
-    def _is_valid_item(self, item: Item, struct: Union[Struct, Auto] = AUTO) -> bool:
-        if self.is_valid_item_type(item):
-            struct = Auto.delayed_acquire(struct, self.get_struct)
-            if isinstance(struct, StructInterface) or hasattr(struct, 'get_validation_errors'):
-                return not struct.get_validation_errors(item)
-            else:
-                return True
-        else:
-            return False
-
-    def _get_validated_items(
-            self,
-            items: Iterable,
-            struct: Union[Struct, Auto] = AUTO,
-            skip_errors: bool = False,
-            context: Context = None,
-    ) -> Generator:
-        logger = context.get_logger() if context else None
-        for i in items:
-            if self._is_valid_item(i, struct=struct):
-                yield i
-            else:
-                message = f'_get_validated_items() found invalid item {i} for {self}'
-                if skip_errors:
-                    if logger:
-                        logger.log(msg=message, level=LoggingLevel.Warning)
-                else:
-                    raise TypeError(message)
 
     def get_struct_rows(
             self,

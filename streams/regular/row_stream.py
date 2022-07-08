@@ -49,7 +49,7 @@ class RowStream(AnyStream, ColumnarMixin):
             context: Context = None,
             max_items_in_memory: AutoCount = AUTO,
             tmp_files: Union[TmpFiles, Auto] = AUTO,
-            check: bool = True,
+            check: bool = False,
     ):
         super().__init__(
             data=data, struct=struct, check=check,
@@ -79,7 +79,7 @@ class RowStream(AnyStream, ColumnarMixin):
     ) -> StructStream:
         struct_stream_class = StreamType.StructStream.get_class()
         stream = struct_stream_class([], struct=struct, **self.get_meta(ex='struct'))
-        data = stream.get_struct_rows(self.get_items())
+        data = stream.get_struct_rows(self.get_items(), skip_bad_rows=skip_bad_rows, skip_bad_values=skip_bad_values)
         stream = stream.add_items(data)
         if self.is_in_memory():
             stream = stream.collect()
