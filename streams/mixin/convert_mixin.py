@@ -6,7 +6,7 @@ try:  # Assume we're a submodule in a package.
         Stream, RegularStream, LineStream, RowStream, RecordStream, KeyValueStream, StructStream,
         StreamType, ItemType, Item,
         StructInterface, FieldInterface, FieldName, OptionalFields, UniKey,
-        AUTO, Auto, AutoColumns, Columns, Array, ARRAY_TYPES,
+        AUTO, Auto, AutoBool, AutoColumns, Columns, Array, ARRAY_TYPES,
     )
     from base.functions.arguments import get_names, get_list, update
     from base.constants.chars import TAB_CHAR
@@ -22,7 +22,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         Stream, RegularStream, LineStream, RowStream, RecordStream, KeyValueStream, StructStream,
         StreamType, ItemType, Item,
         StructInterface, FieldInterface, FieldName, OptionalFields, UniKey,
-        AUTO, Auto, AutoColumns, Columns, Array, ARRAY_TYPES,
+        AUTO, Auto, AutoBool, AutoColumns, Columns, Array, ARRAY_TYPES,
     )
     from ...base.functions.arguments import get_names, get_list, update
     from ...base.constants.chars import TAB_CHAR
@@ -310,25 +310,27 @@ class ConvertMixin(IterableStream, ABC):
     def to_line_stream(
             self,
             delimiter: Union[str, Auto] = AUTO,
-            columns: Columns = AUTO,
-            add_title_row: Union[bool, Auto] = AUTO,
+            columns: AutoColumns = AUTO,
+            add_title_row: AutoBool = AUTO,
     ) -> LineStream:
         stream_type = self.get_stream_type()
-        delimiter = Auto.acquire(delimiter, '\t' if stream_type == StreamType.RowStream else None)
+        delimiter = Auto.acquire(delimiter, DEFAULT_DELIMITER if stream_type == StreamType.RowStream else None)
         stream = self
         if stream.get_stream_type() == StreamType.RecordStream:
             assert isinstance(stream, RegularStream) or hasattr(stream, 'get_columns'), 'got {}'.format(stream)
             columns = Auto.acquire(columns, stream.get_columns, delayed=True)
             add_title_row = Auto.acquire(add_title_row, True)
             stream = stream.to_row_stream(columns=columns, add_title_row=add_title_row)
-        if delimiter:
-            func = delimiter.join
+        elif stream.get_stream_type() == StreamType.RowStream:
+            if Auto.is_defined(columns):
+                stream = self.select(columns)
+        if delimiter is not None:
+            func = (lambda r: delimiter.join([repr(c) for c in r]))
+            fs.csv_loads()
         else:
             func = str
-        stream = self.stream(
-            stream._get_mapped_items(func),
-            stream_type=StreamType.LineStream,
-        )
+        lines = stream._get_mapped_items(func)
+        stream = self.stream(lines, stream_type=StreamType.LineStream)
         return self._assume_native(stream)
 
     def to_json(self, *args, **kwargs) -> LineStream:

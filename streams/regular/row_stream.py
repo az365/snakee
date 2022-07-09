@@ -64,12 +64,6 @@ class RowStream(AnyStream, ColumnarMixin):
     def get_item_type() -> ItemType:
         return ItemType.Row
 
-    def to_line_stream(self, delimiter: str = TAB_CHAR, columns: AutoColumns = AUTO, add_title_row=False) -> Stream:
-        input_stream = self.select(columns) if Auto.is_defined(columns) else self
-        lines = map(lambda r: delimiter.join([str(c) for c in r]), input_stream.get_items())
-        line_stream_class = StreamType.LineStream.get_class()
-        return line_stream_class(lines, count=self.get_count())
-
     def structure(
             self,
             struct: StructInterface,
