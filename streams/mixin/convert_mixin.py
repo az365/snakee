@@ -4,7 +4,7 @@ from typing import Optional, Callable, Iterable, Iterator, Union
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         Stream, RegularStream, LineStream, RowStream, RecordStream, KeyValueStream, StructStream,
-        StreamType, ItemType, Item,
+        StreamType, ItemType, Item, LoggingLevel,
         StructInterface, FieldInterface, FieldName, OptionalFields, UniKey,
         AUTO, Auto, AutoBool, AutoColumns, Columns, Array, ARRAY_TYPES,
     )
@@ -20,7 +20,7 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         Stream, RegularStream, LineStream, RowStream, RecordStream, KeyValueStream, StructStream,
-        StreamType, ItemType, Item,
+        StreamType, ItemType, Item, LoggingLevel,
         StructInterface, FieldInterface, FieldName, OptionalFields, UniKey,
         AUTO, Auto, AutoBool, AutoColumns, Columns, Array, ARRAY_TYPES,
     )
@@ -81,7 +81,7 @@ class ConvertMixin(IterableStream, ABC):
                 msg = 'StructStream.get_items_of_type(item_type={}): Expected items as Row or StructRow, got {} as {}'
                 raise TypeError(msg.format(item_type, i, type(i)))
 
-    def get_rows(self, columns: Columns = AUTO) -> Iterator[SimpleRow]:
+    def get_rows(self, columns: StructOrColumns = AUTO) -> Iterator[SimpleRow]:
         if isinstance(self, RegularStreamInterface) or hasattr(self, 'get_item_type'):
             item_type = self.get_item_type()
         else:
@@ -102,6 +102,7 @@ class ConvertMixin(IterableStream, ABC):
                     yield i.get_data()
             elif item_type == ItemType.Line:
                 delimiter = columns
+                assert isinstance(delimiter, str), f'LineStream.get_rows(): expected delimiter as str, got {delimiter}'
                 for i in self.get_items():
                     yield i.split(delimiter)
             elif item_type in (ItemType.Any, ItemType.Auto, AUTO):
@@ -116,7 +117,7 @@ class ConvertMixin(IterableStream, ABC):
         else:
             return self._get_mapped_items(fs.composite_key(columns))
 
-    def get_records(self, columns: Columns = AUTO) -> Iterable:
+    def get_records(self, columns: StructOrColumns = AUTO) -> Iterable:
         item_type = self.get_item_type()
         assert isinstance(item_type, ItemType)
         columns = self._get_columns(columns)
@@ -135,6 +136,117 @@ class ConvertMixin(IterableStream, ABC):
         else:
             raise TypeError(f'ConvertMixin.get_records(): item_type={item_type} not supported')
         return self._get_mapped_items(func)
+
+    def get_struct_rows(
+            self,
+            struct: Union[StructInterface, Auto] = AUTO,
+            skip_bad_rows: bool = False,
+            skip_bad_values: bool = False,
+            skip_missing: bool = False,
+            verbose: bool = True,
+            inplace: bool = False,
+    ) -> Iterator[SimpleRow]:
+        rows = self.get_rows(columns=struct)
+        struct = Auto.delayed_acquire(struct, self.get_struct)
+        if isinstance(struct, StructInterface) or hasattr(struct, 'get_converters'):
+            converters = struct.get_converters(src='str', dst='py')
+            converted_row = list()
+            for r in rows:
+                if not inplace:
+                    converted_row = list()
+                for col, (value, converter) in enumerate(zip(r, converters)):
+                    try:
+                        converted_value = converter(value)
+                    except TypeError as e:
+                        if skip_bad_rows:
+                            converted_row = None
+                            break
+                        elif skip_bad_values:
+                            converted_value = None
+                        else:
+                            raise e
+                        if verbose:
+                            msg = f'get_struct_rows() can not {converter}({value}) in {r}: {e}'
+                            self.log(msg=msg, level=LoggingLevel.Warning)
+                    if inplace:
+                        r[col] = converted_value
+                    else:
+                        converted_row.append(converted_value)
+                if inplace:
+                    yield r
+                elif converted_row is not None:
+                    yield converted_row.copy()
+        elif skip_missing:
+            yield from rows
+        else:
+            raise TypeError(f'get_struct_rows(): Expected struct as StructInterface, got {struct}')
+
+    def get_struct_records(
+            self,
+            struct: Union[StructInterface, Auto] = AUTO,
+            skip_bad_rows: bool = False,
+            skip_bad_values: bool = False,
+            skip_missing: bool = False,
+            verbose: bool = True,
+            inplace: bool = True,
+    ) -> Iterator[MutableRecord]:
+        records = self.get_records(columns=struct)
+        struct = Auto.delayed_acquire(struct, self.get_struct)
+        columns = self._get_columns(struct)
+        if isinstance(struct, StructInterface) or hasattr(struct, 'get_converters'):
+            converters = struct.get_converters(src='str', dst='py')
+            for r in records:
+                if inplace:
+                    converted_record = r
+                else:
+                    converted_record = MutableRecord()
+                for field, value, converter in zip(columns, r, converters):
+                    try:
+                        converted_value = converter(value)
+                    except TypeError as e:
+                        if skip_bad_rows:
+                            converted_record = None
+                            break
+                        elif skip_bad_values:
+                            converted_value = None
+                        else:
+                            raise e
+                        if verbose:
+                            msg = f'get_struct_rows() can not {converter}({value}) in {r}: {e}'
+                            self.log(msg=msg, level=LoggingLevel.Warning)
+                    converted_record[field] = converted_value
+                if converted_record is not None:
+                    yield converted_record
+        elif skip_missing:
+            yield from records
+        else:
+            raise TypeError(f'get_struct_records(): Expected struct as StructInterface, got {struct}')
+
+    def structure(
+            self,
+            struct: Union[StructInterface, Auto] = AUTO,
+            skip_bad_rows: bool = False,
+            skip_bad_values: bool = False,
+            skip_missing: bool = False,
+            verbose: bool = True,
+            inplace: bool = AUTO,
+    ) -> Native:
+        struct = Auto.delayed_acquire(struct, self.get_struct)
+        item_type = self.get_item_type()
+        if item_type == ItemType.Record:
+            f = self.get_struct_records
+        elif item_type in (ItemType.Row, ItemType.StructRow):
+            f = self.get_struct_rows
+        elif skip_missing:
+            return self._assume_native(self)
+        else:
+            raise TypeError(f'structure() can apply struct only for Rows and Records, got {item_type}')
+        data = f(struct, skip_bad_rows=skip_bad_rows, skip_bad_values=skip_bad_values, verbose=verbose, inplace=inplace)
+        count = None if skip_bad_rows else self.get_count()
+        stream = self.stream(data, struct=struct, count=count, check=False)
+        if self.is_in_memory():
+            stream = stream.collect()
+        return stream
 
     def get_dataframe(self, columns: Columns = None) -> DataFrame:
         if columns and hasattr(self, 'select'):
@@ -157,10 +269,7 @@ class ConvertMixin(IterableStream, ABC):
                 assert len(columns) == 1
             return columns
 
-    def _get_struct(
-            self,
-            struct: StructOrColumns = AUTO,
-    ) -> Optional[StructInterface]:
+    def _get_struct(self, struct: StructOrColumns = AUTO) -> Optional[StructInterface]:
         is_one_field = isinstance(struct, (FieldInterface, FieldName)) or hasattr(struct, 'get_value_type')
         if is_one_field:
             struct = [struct]
@@ -369,7 +478,7 @@ class ConvertMixin(IterableStream, ABC):
     def to_row_stream(
             self,
             arg: Union[str, Iterable, None] = None,
-            columns: Union[Iterable, Auto] = AUTO,
+            columns: StructOrColumns = AUTO,
             delimiter: Union[str, Auto] = AUTO,
     ) -> RowStream:
         args_str = f'arg={repr(arg)}, columns={repr(columns)}, delimiter={repr(delimiter)}'
@@ -397,13 +506,14 @@ class ConvertMixin(IterableStream, ABC):
                 delimiter = DEFAULT_DELIMITER  # '\t'
         if Auto.is_defined(delimiter):
             assert item_type == ItemType.Line
+            assert isinstance(delimiter, str), f'to_row_stream(): Expected delimiter as str, got {delimiter}'
             assert not Auto.is_defined(columns), f'got {columns}'
             assert not func, msg
             func = fs.csv_loads(delimiter=delimiter)
         if Auto.is_defined(columns):
             if not func:
                 func = fs.composite_key(*columns, item_type=item_type)
-            struct = columns
+            struct = self._get_struct(columns)
         else:
             struct = self.get_struct()
         if func:
