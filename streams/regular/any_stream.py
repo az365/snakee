@@ -165,6 +165,12 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
             stream = stream.to_memory()
         return stream
 
+    def get_str_description(self) -> str:
+        rows_count = self.get_str_count()
+        cols_count = self.get_column_count()
+        cols_str = ', '.join([str(c) for c in self.get_columns()])
+        return f'{rows_count} rows, {cols_count} columns: {cols_str}'
+
     def is_valid_item_type(self, item: Item) -> bool:
         item_type = self.get_item_type()
         if Auto.is_defined(item_type):

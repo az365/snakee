@@ -133,14 +133,3 @@ class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
     @staticmethod
     def _assume_native(stream) -> Native:
         return stream
-
-    @staticmethod
-    def _assume_pairs(stream) -> KeyValueStream:
-        return stream
-
-    def get_str_description(self) -> str:
-        return '{} rows, {} columns: {}'.format(
-            self.get_str_count(),
-            self.get_column_count(),
-            ', '.join([str(c) for c in self.get_columns()]),
-        )
