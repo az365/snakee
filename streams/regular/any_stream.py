@@ -4,10 +4,10 @@ from inspect import isclass
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         RegularStreamInterface, StructInterface, FieldInterface,
-        Stream, LocalStream, Context, Connector, TmpFiles,
+        Stream, LocalStream, Context, Connector, Source, TmpFiles,
         StreamType, ItemType, ValueType, LoggingLevel,
-        Name, Count, Item, Struct, Columns, Field, OptionalFields, Source, Class, Item, Array, ARRAY_TYPES,
-        AUTO, Auto, AutoBool, AutoCount, AutoName,
+        Name, Count, Item, Struct, Columns, Field, OptionalFields, UniKey, Source, Class,
+        AUTO, Auto, AutoBool, AutoName, AutoCount, Array, ARRAY_TYPES,
     )
     from base.functions.arguments import get_name, get_names
     from utils.decorators import deprecated_with_alternative
@@ -21,10 +21,10 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         RegularStreamInterface, StructInterface, FieldInterface,
-        Stream, LocalStream, Context, Connector, TmpFiles,
+        Stream, LocalStream, Context, Connector, Source, TmpFiles,
         StreamType, ItemType, ValueType, LoggingLevel,
-        Name, Count, Item, Struct, Columns, Field, OptionalFields, Source, Class, Item, Array, ARRAY_TYPES,
-        AUTO, Auto, AutoBool, AutoCount, AutoName,
+        Name, Count, Item, Struct, Columns, Field, OptionalFields, UniKey, Source, Class,
+        AUTO, Auto, AutoBool, AutoName, AutoCount, Array, ARRAY_TYPES,
     )
     from ...base.functions.arguments import get_name, get_names
     from ...utils.decorators import deprecated_with_alternative
@@ -497,6 +497,26 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
             if value != prev_value:
                 yield i
             prev_value = value
+
+    def get_dict(
+            self,
+            key: UniKey = fs.first(),
+            value: UniKey = fs.second(),
+            of_lists: bool = False,
+            skip_errors: bool = False,
+    ) -> dict:
+        key_func = self._get_key_function(key)
+        value_func = self._get_key_function(value)
+        if of_lists:
+            result = dict()
+            for k, v in self._get_mapped_items(lambda i: (key_func(i), value_func(i)), skip_errors=skip_errors):
+                if k in result:
+                    result[k].append(v)
+                else:
+                    result[k] = [v]
+            return result
+        else:
+            return super(AnyStream, self).get_dict(key=key_func, value=value_func)
 
     def get_demo_example(
             self,

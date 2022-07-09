@@ -138,16 +138,6 @@ class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
     def _assume_pairs(stream) -> KeyValueStream:
         return stream
 
-    def get_dict(
-            self,
-            key: Union[Field, Columns],
-            value: Union[Field, Columns, None] = None,
-            of_lists: bool = False,
-            skip_errors: bool = False,
-    ) -> dict:
-        key_value_stream = self.to_key_value_stream(key, value, skip_errors=skip_errors)
-        return key_value_stream.get_dict(of_lists=of_lists)
-
     def get_str_description(self) -> str:
         return '{} rows, {} columns: {}'.format(
             self.get_str_count(),

@@ -184,18 +184,6 @@ class KeyValueStream(RowStream, PairStreamInterface):
         )
         return self._assume_native(stream)
 
-    def get_dict(self, of_lists: bool = False) -> dict:
-        result = dict()
-        if of_lists:
-            for k, v in self.get_items():
-                distinct = result.get(k, [])
-                if v not in distinct:
-                    result[k] = distinct + [v]
-        else:
-            for k, v in self.get_items():
-                result[k] = v
-        return result
-
     @staticmethod
     def _assume_regular(stream) -> RegularStreamInterface:
         return stream
