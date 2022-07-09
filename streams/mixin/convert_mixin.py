@@ -325,8 +325,7 @@ class ConvertMixin(IterableStream, ABC):
             if Auto.is_defined(columns):
                 stream = self.select(columns)
         if delimiter is not None:
-            func = (lambda r: delimiter.join([repr(c) for c in r]))
-            fs.csv_loads()
+            func = fs.csv_dumps(delimiter)
         else:
             func = str
         lines = stream._get_mapped_items(func)
