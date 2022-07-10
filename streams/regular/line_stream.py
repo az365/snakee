@@ -40,19 +40,10 @@ class LineStream(AnyStream):
     def get_item_type() -> ItemType:
         return ItemType.Line
 
-    @classmethod
-    def is_valid_item_type(cls, item) -> bool:
-        return cls.get_item_type().isinstance(item)
-
     def parse_json(self, default_value=None, to: Union[StreamType, str] = StreamType.RecordStream) -> Stream:
         stream_type = StreamType.find_instance(to)
         assert isinstance(stream_type, StreamType)
         return self.map_to_type(fs.json_loads(default_value), stream_type=stream_type)
-
-    def get_demo_example(self, count: int = 3) -> list:
-        demo_example = super().get_demo_example(count=count)
-        assert isinstance(demo_example, Iterable), 'get_demo_example(): Expected Iterable, got {}'.format(demo_example)
-        return list(demo_example)
 
     @classmethod
     @deprecated_with_alternative('*Stream.from_file')

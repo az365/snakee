@@ -137,6 +137,7 @@ def last(cnt: Optional[int] = None) -> Callable:
 def fold_lists(
         values: Array,
         keys: Optional[Array] = None,
+        as_pairs: bool = False,
         skip_missing: bool = False,
         item_type: ItemType = ItemType.Auto,
 ) -> Callable:
@@ -144,7 +145,7 @@ def fold_lists(
         detected_type = item_type
         if not Auto.is_defined(detected_type):
             detected_type = ItemType.detect(item)
-        return gr.fold_lists(item, keys, values, skip_missing=skip_missing, item_type=detected_type)
+        return gr.fold_lists(item, keys, values, as_pairs=as_pairs, skip_missing=skip_missing, item_type=detected_type)
     return func
 
 

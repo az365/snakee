@@ -4,25 +4,25 @@ import gc
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         StreamType, LoggingLevel, JoinType, How,
-        Stream, Source, ExtLogger, SelectionLogger, Context, Connector, LeafConnector,
+        Stream, Struct, Source, ExtLogger, SelectionLogger, Context, Connector, LeafConnector,
         AUTO, Auto, AutoName, AutoCount, Count, OptionalFields, Message, Array, UniKey,
     )
     from base.mixin.iter_data_mixin import IterDataMixin, IterableInterface
     from utils import algo
     from utils.external import pd, DataFrame, get_use_objects_for_output
-    from utils.decorators import deprecated_with_alternative
+    from utils.decorators import deprecated, deprecated_with_alternative
     from functions.secondary import item_functions as fs
     from streams.abstract.abstract_stream import AbstractStream
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         StreamType, LoggingLevel, JoinType, How,
-        Stream, Source, ExtLogger, SelectionLogger, Context, Connector, LeafConnector,
+        Stream, Struct, Source, ExtLogger, SelectionLogger, Context, Connector, LeafConnector,
         AUTO, Auto, AutoName, AutoCount, Count, OptionalFields, Message, Array, UniKey,
     )
     from ...base.mixin.iter_data_mixin import IterDataMixin, IterableInterface
     from ...utils import algo
     from ...utils.external import pd, DataFrame, get_use_objects_for_output
-    from ...utils.decorators import deprecated_with_alternative
+    from ...utils.decorators import deprecated, deprecated_with_alternative
     from ...functions.secondary import item_functions as fs
     from .abstract_stream import AbstractStream
 
@@ -47,8 +47,6 @@ class IterableStream(AbstractStream, IterDataMixin):
         self._less_than = less_than or count
         self.check = check
         self.max_items_in_memory = Auto.acquire(max_items_in_memory, MAX_ITEMS_IN_MEMORY)
-        if check:
-            data = self._get_typing_validated_items(data, context=context)
         super().__init__(
             data=data, check=False,
             name=name, caption=caption,
@@ -84,42 +82,22 @@ class IterableStream(AbstractStream, IterDataMixin):
     def _get_dynamic_meta_fields() -> tuple:
         return DYNAMIC_META_FIELDS
 
-    @classmethod
-    def is_valid_item_type(cls, item) -> bool:
+    @deprecated_with_alternative('ItemType.isinstance(item)')
+    def is_valid_item_type(self, item) -> bool:
         return True
 
+    @deprecated_with_alternative('ItemType.isinstance(item)')
     def _is_valid_item(self, item) -> bool:
         return self.is_valid_item_type(item)
 
-    @classmethod
+    @deprecated_with_alternative('ItemType.isinstance(item)')
     def _get_typing_validated_items(
-            cls,
+            self,
             items: Iterable,
             skip_errors: bool = False,
             context: Context = None,
     ) -> Iterable:
-        for i in items:
-            if cls.is_valid_item_type(i):
-                yield i
-            else:
-                message = '_get_typing_validated_items() found invalid item {} for {}'.format(i, cls.get_stream_type())
-                if skip_errors:
-                    if context:
-                        context.get_logger().log(msg=message, level=LoggingLevel.Warning)
-                else:
-                    raise TypeError(message)
-
-    def _get_validated_items(self, items: Iterable, struct=AUTO, skip_errors: bool = False, context: Context = None) -> Iterable:
-        for i in items:
-            if self._is_valid_item(i):
-                yield i
-            else:
-                message = '_get_validated_items() found invalid item {} for {}'.format(i, self.get_stream_type())
-                if skip_errors:
-                    if context:
-                        context.get_logger().log(msg=message, level=LoggingLevel.Warning)
-                else:
-                    raise TypeError(message)
+        return items
 
     def close(self, recursively: bool = False, return_closed_links: bool = False) -> Union[int, tuple]:
         self.set_data([], inplace=True)
@@ -164,7 +142,8 @@ class IterableStream(AbstractStream, IterDataMixin):
         return self._assume_native(super().take(count, inplace=inplace))
 
     def skip(self, count: int = 1, inplace: bool = False) -> Native:
-        return self._assume_native(super().skip(count, inplace=inplace))
+        stream = super().skip(count, inplace=inplace)
+        return self._assume_native(stream)
 
     def one(self, use_tee: bool = True) -> Native:
         if use_tee:
@@ -319,10 +298,7 @@ class IterableStream(AbstractStream, IterDataMixin):
         yield from stream.get_items()
 
     def get_selection_logger(self) -> SelectionLogger:
-        if hasattr(self, 'get_context'):
-            context = self.get_context()
-        else:
-            context = None
+        context = self.get_context()
         if context:
             return context.get_selection_logger()
         else:

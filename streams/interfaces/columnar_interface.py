@@ -109,10 +109,6 @@ class ColumnarInterface(RegularStreamInterface, ABC):
     def flat_map(self, function: Callable) -> Native:
         pass
 
-    # @abstractmethod
-    # def map_to(self, function: Callable, stream_type: StreamType) -> Stream:
-    #     pass
-
     @abstractmethod
     def map(self, function: Callable) -> Native:
         """Apply function to each item in stream.
@@ -167,28 +163,6 @@ class ColumnarInterface(RegularStreamInterface, ABC):
             set_types: Optional[dict] = None,
             default: Struct = None,
     ) -> Struct:
-        pass
-
-    @abstractmethod
-    def get_dataframe(self, columns: Optional[Columns] = None) -> DataFrame:
-        """Converts full stream data to Pandas DataFrame.
-        Can use subset of columns and define order of columns (if columns-argument provided).
-        Pandas must be installed, otherwise raise exception.
-
-        :param columns: list of required fields (columns) or None (take all columns in arbitrary orders).
-        :returns: Pandas DataFrame
-        """
-        pass
-
-    @abstractmethod
-    def get_dict(self, key: UniKey, value: UniKey) -> dict:
-        """Aggregate stream data into python dictionary.
-        Using key and value arguments for get key and value from each item of stream.
-
-        :param key: field, struct or function for get key from each item.
-        :param value: field, struct or function for get value from each item.
-        :returns: dict
-        """
         pass
 
     @abstractmethod

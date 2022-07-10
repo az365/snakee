@@ -4,10 +4,10 @@ from inspect import isclass
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         RegularStreamInterface, StructInterface, FieldInterface,
-        Stream, LocalStream, Context, Connector, TmpFiles,
-        StreamType, ItemType, ValueType,
-        Name, Count, Struct, Columns, Field, OptionalFields, Source, Class, Item, Array, ARRAY_TYPES,
-        AUTO, Auto, AutoBool, AutoCount,
+        Stream, LocalStream, Context, Connector, Source, TmpFiles,
+        StreamType, ItemType, ValueType, LoggingLevel,
+        Count, Item, Struct, Columns, Field, FieldNo, OptionalFields, UniKey, Source, Class,
+        AUTO, Auto, AutoBool, AutoName, AutoCount, Array, ARRAY_TYPES,
     )
     from base.functions.arguments import get_name, get_names
     from utils.decorators import deprecated_with_alternative
@@ -21,10 +21,10 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         RegularStreamInterface, StructInterface, FieldInterface,
-        Stream, LocalStream, Context, Connector, TmpFiles,
-        StreamType, ItemType, ValueType,
-        Name, Count, Struct, Columns, Field, OptionalFields, Source, Class, Item, Array, ARRAY_TYPES,
-        AUTO, Auto, AutoBool, AutoCount,
+        Stream, LocalStream, Context, Connector, Source, TmpFiles,
+        StreamType, ItemType, ValueType, LoggingLevel,
+        Count, Item, Struct, Columns, Field, FieldNo, OptionalFields, UniKey, Source, Class,
+        AUTO, Auto, AutoBool, AutoName, AutoCount, Array, ARRAY_TYPES,
     )
     from ...base.functions.arguments import get_name, get_names
     from ...utils.decorators import deprecated_with_alternative
@@ -42,6 +42,7 @@ AutoStreamType = Union[Auto, StreamType]
 StreamItemType = Union[AutoStreamType, ItemType]
 AutoStruct = Union[Auto, Struct]
 
+DYNAMIC_META_FIELDS = 'struct', 'count', 'less_than'
 DEFAULT_EXAMPLE_COUNT = 10
 DEFAULT_ANALYZE_COUNT = 100
 
@@ -49,20 +50,23 @@ DEFAULT_ANALYZE_COUNT = 100
 class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
     def __init__(
             self,
-            data,
-            name: Name = AUTO,
+            data: Iterable[Item],
+            name: AutoName = AUTO,
             caption: str = '',
             count: Count = None,
             less_than: Count = None,
             struct: Struct = None,
             source: Source = None,
             context: Context = None,
-            max_items_in_memory: Count = AUTO, tmp_files: TmpFiles = AUTO,
+            max_items_in_memory: Count = AUTO,
+            tmp_files: TmpFiles = AUTO,
             check: bool = False,
     ):
         if struct and not isinstance(struct, (FlatStruct, StructInterface)):
             struct = FlatStruct(struct)
         self._struct = struct
+        if check:
+            data = self._get_validated_items(data, context=context)
         super().__init__(
             data=data, check=check,
             name=name, caption=caption,
@@ -71,6 +75,10 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
             max_items_in_memory=max_items_in_memory,
             tmp_files=tmp_files,
         )
+
+    @staticmethod
+    def _get_dynamic_meta_fields() -> tuple:
+        return DYNAMIC_META_FIELDS
 
     @staticmethod
     def get_item_type() -> ItemType:
@@ -157,7 +165,66 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
             stream = stream.to_memory()
         return stream
 
-    def _get_expected_item_type(self, *columns, **expressions) -> ItemType:
+    def get_str_description(self) -> str:
+        rows_count = self.get_str_count()
+        cols_count = self.get_column_count()
+        cols_str = ', '.join([str(c) for c in self.get_columns()])
+        return f'{rows_count} rows, {cols_count} columns: {cols_str}'
+
+    def is_valid_item_type(self, item: Item) -> bool:
+        item_type = self.get_item_type()
+        if Auto.is_defined(item_type):
+            return item_type.isinstance(item)
+        else:
+            return True
+
+    def _is_valid_item(self, item: Item, struct: AutoStruct = AUTO) -> bool:
+        if self.is_valid_item_type(item):
+            struct = Auto.delayed_acquire(struct, self.get_struct)
+            if isinstance(struct, StructInterface) or hasattr(struct, 'get_validation_errors'):
+                return not struct.get_validation_errors(item)
+            else:
+                return True
+        else:
+            return False
+
+    def _get_typing_validated_items(
+            self,
+            items: Iterable,
+            skip_errors: bool = False,
+            context: Context = None,
+    ) -> Generator:
+        for i in items:
+            if self.is_valid_item_type(i):
+                yield i
+            else:
+                message = f'_get_typing_validated_items() found invalid item {i} for {self.get_stream_type()}'
+                if skip_errors:
+                    if context:
+                        context.get_logger().log(msg=message, level=LoggingLevel.Warning)
+                else:
+                    raise TypeError(message)
+
+    def _get_validated_items(
+            self,
+            items: Iterable,
+            struct: AutoStruct = AUTO,
+            skip_errors: bool = False,
+            context: Context = None,
+    ) -> Generator:
+        logger = context.get_logger() if context else None
+        for i in items:
+            if self._is_valid_item(i, struct=struct):
+                yield i
+            else:
+                message = f'{self.__class__.__name__}._get_validated_items() found invalid item {i} for {self}'
+                if skip_errors:
+                    if logger:
+                        logger.log(msg=message, level=LoggingLevel.Warning)
+                else:
+                    raise TypeError(message)
+
+    def _get_target_item_type(self, *columns, **expressions) -> ItemType:
         input_item_type = self.get_item_type()
         if input_item_type in (ItemType.Any, ItemType.Auto):
             if columns and not expressions:
@@ -210,7 +277,7 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
         if Auto.is_auto(use_extended_method):
             use_extended_method = self.get_stream_type() in (StreamType.StructStream, StreamType.RowStream)  # TMP
         input_item_type = self.get_item_type()
-        target_item_type = self._get_expected_item_type(*columns, **expressions)
+        target_item_type = self._get_target_item_type(*columns, **expressions)
         target_struct = sn.get_output_struct(*columns, **expressions)
         select_function = sn.get_selection_function(
             *columns, **expressions,
@@ -274,6 +341,8 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
 
     # @deprecated_with_alternative('item_type.get_key_function()')
     def _get_key_function(self, functions: Array, take_hash: bool = False) -> Callable:
+        if not isinstance(functions, ARRAY_TYPES):
+            functions = [functions]
         return self.get_item_type().get_key_function(*functions, struct=self.get_struct(), take_hash=take_hash)
 
     def get_one_column_values(self, column, as_list: bool = False) -> Iterable:
@@ -308,15 +377,20 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
                     values.append(f)
         for f in list(keys) + list(values):
             if isinstance(f, ARRAY_TYPES):
-                field_name = get_name(f[0])
+                field_name = get_name(f[0], or_callable=False)
+            elif isinstance(f, FieldNo):
+                if Auto.is_defined(input_struct):
+                    field_name = input_struct.get_field_description(f)
+                else:
+                    field_name = f'column{f:02}'
             else:
-                field_name = get_name(f)
+                field_name = get_name(f, or_callable=False)
             if f in values:
                 value_type = ValueType.Sequence
             elif isinstance(f, FieldInterface) or hasattr(f, 'get_value_type'):
                 value_type = f.get_value_type()
             elif input_struct:
-                value_type = input_struct.get_field_description().get_value_type() or AUTO
+                value_type = input_struct.get_field_description(f).get_value_type() or AUTO
             else:
                 value_type = AUTO
             output_struct.append_field(field_name, value_type)
@@ -351,6 +425,8 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
         iter_groups = self._get_groups(key_function, as_pairs=as_pairs)
         if Auto.is_defined(output_struct):
             expected_struct = output_struct
+        elif as_pairs:
+            expected_struct = FlatStruct(['key', 'value']).set_types(key=ValueType.Any, value=ValueType.Any)
         else:
             expected_struct = self._get_grouped_struct(*keys, values=values)
         if as_pairs:
@@ -364,16 +440,14 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
             item_type = self.get_item_type()
             if item_type == ItemType.Any:
                 raise TypeError('For AnyStream.sorted_group_by() values option not supported')
-            elif item_type == ItemType.Row and hasattr(self, '_get_field_getter'):
-                keys = [self._get_field_getter(f) for f in keys]
-                values = [self._get_field_getter(f, item_type=item_type) for f in values]
-            fold_mapper = fs.fold_lists(keys=keys, values=values, skip_missing=skip_missing, item_type=item_type)
+            elif item_type == ItemType.Row:
+                input_struct = self.get_struct()
+                keys = [item_type.get_field_getter(f, struct=input_struct) for f in keys]
+                values = [item_type.get_field_getter(f, struct=input_struct) for f in values]
+            fold_mapper = fs.fold_lists(keys=keys, values=values, as_pairs=as_pairs, skip_missing=skip_missing, item_type=item_type)
             stream_groups = stream_groups.map_to_type(fold_mapper, stream_type=stream_type)
-            if Auto.is_defined(output_struct):
-                if hasattr(stream_groups, 'structure'):
-                    stream_groups = stream_groups.structure(output_struct)
-                else:
-                    stream_groups.set_struct(output_struct, check=False, inplace=True)
+            if Auto.is_defined(expected_struct):
+                stream_groups.set_struct(expected_struct, check=False, inplace=True)
         if self.is_in_memory():
             return stream_groups.to_memory()
         else:
@@ -384,7 +458,7 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
             self,
             *keys,
             values: Columns = None,
-            as_pairs: bool = False,
+            as_pairs: bool = False,  # deprecated argument, use group_to_pairs() instead
             take_hash: bool = True,
             step: AutoCount = AUTO,
             verbose: bool = True,
@@ -404,6 +478,26 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
             as_pairs=as_pairs,
         )
 
+    @deprecated_with_alternative('AnyStream.group_by(as_pairs=True)')
+    def group_to_pairs(
+            self,
+            *keys,
+            values: Columns = None,
+            step: AutoCount = AUTO,
+            verbose: bool = True,
+    ) -> RegularStreamInterface:
+        grouped_stream = self.group_by(*keys, values=values, step=step, as_pairs=True, take_hash=False, verbose=verbose)
+        return self._assume_native(grouped_stream)
+
+    def uniq(self, *keys, sort: bool = False) -> Native:
+        if sort:
+            stream = self.sort(*keys)
+        else:
+            stream = self
+        items = stream._get_uniq_items(*keys)
+        result = self.stream(items, count=None)
+        return self._assume_native(result)
+
     def _get_uniq_items(self, *keys) -> Iterable:
         keys = unfold_structs_to_fields(keys)
         key_fields = get_names(keys)
@@ -415,14 +509,39 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
                 yield i
             prev_value = value
 
-    def uniq(self, *keys, sort: bool = False) -> Native:
-        if sort:
-            stream = self.sort(*keys)
+    def get_dict(
+            self,
+            key: UniKey = fs.first(),
+            value: UniKey = fs.second(),
+            of_lists: bool = False,
+            skip_errors: bool = False,
+    ) -> dict:
+        key_func = self._get_key_function(key)
+        value_func = self._get_key_function(value)
+        if of_lists:
+            result = dict()
+            for k, v in self._get_mapped_items(lambda i: (key_func(i), value_func(i)), skip_errors=skip_errors):
+                if k in result:
+                    result[k].append(v)
+                else:
+                    result[k] = [v]
+            return result
         else:
+            return super(AnyStream, self).get_dict(key=key_func, value=value_func)
+
+    def get_demo_example(
+            self,
+            count: Count = DEFAULT_EXAMPLE_COUNT,
+            filters: Columns = None,
+            columns: Columns = None,
+    ) -> list:
+        if self.is_in_memory():
             stream = self
-        items = stream._get_uniq_items(*keys)
-        result = self.stream(items, count=None)
-        return self._assume_native(result)
+        else:  # data is iterator
+            stream = self.copy()
+        sm_sample = stream.filter(*filters) if filters else self
+        sm_sample = sm_sample.take(count)
+        return sm_sample.get_list()
 
     @staticmethod
     def _assume_stream(stream) -> Stream:
@@ -459,7 +578,7 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
     @classmethod
     @deprecated_with_alternative('connectors.filesystem.local_file.JsonFile.to_stream()')
     def from_json_file(
-            cls, filename: Name,
+            cls, filename: str,
             skip_first_line=False, max_count=None,
             check=AUTO, verbose=False,
     ) -> Stream:

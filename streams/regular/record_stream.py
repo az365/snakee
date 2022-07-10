@@ -2,40 +2,28 @@ from typing import Optional, Iterable, Union
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
-        Stream, RegularStream, RowStream, KeyValueStream, StructStream, StructInterface, FieldInterface,
+        Stream, RegularStream, KeyValueStream,
         ItemType, StreamType,
-        Context, Connector, AutoConnector, LeafConnectorInterface, TmpFiles,
-        Count, Name, Field, Struct, Columns, Array, ARRAY_TYPES,
-        AUTO, Auto, AutoCount, AutoName, AutoBool,
+        Context, Connector, LeafConnectorInterface, TmpFiles,
+        Count, Field, Struct, Columns,
+        AUTO, Auto, AutoCount, AutoName,
     )
-    from base.functions.arguments import get_name, get_names, update
-    from utils.external import pd, DataFrame, get_use_objects_for_output
     from utils.decorators import deprecated_with_alternative
-    from functions.primary.items import unfold_structs_to_fields
-    from functions.secondary.array_functions import fold_lists
-    from content.selection import selection_classes as sn, selection_functions as sf
-    from content.items.item_getters import value_from_record, tuple_from_record, get_filter_function
     from streams.mixin.convert_mixin import ConvertMixin
     from streams.mixin.columnar_mixin import ColumnarMixin
-    from streams.regular.any_stream import AnyStream, DEFAULT_EXAMPLE_COUNT, DEFAULT_ANALYZE_COUNT
+    from streams.regular.any_stream import AnyStream
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
-        Stream, RegularStream, RowStream, KeyValueStream, StructStream, StructInterface, FieldInterface,
+        Stream, RegularStream, KeyValueStream,
         ItemType, StreamType,
-        Context, Connector, AutoConnector, LeafConnectorInterface, TmpFiles,
-        Count, Name, Field, Struct, Columns, Array, ARRAY_TYPES,
-        AUTO, Auto, AutoCount, AutoName, AutoBool,
+        Context, Connector, LeafConnectorInterface, TmpFiles,
+        Count, Field, Struct, Columns,
+        AUTO, Auto, AutoCount, AutoName,
     )
-    from ...base.functions.arguments import get_name, get_names, update
-    from ...utils.external import pd, DataFrame, get_use_objects_for_output
     from ...utils.decorators import deprecated_with_alternative
-    from ...functions.primary.items import unfold_structs_to_fields
-    from ...functions.secondary.array_functions import fold_lists
-    from ...content.selection import selection_classes as sn, selection_functions as sf
-    from ...content.items.item_getters import value_from_record, tuple_from_record, get_filter_function
     from ..mixin.convert_mixin import ConvertMixin
     from ..mixin.columnar_mixin import ColumnarMixin
-    from .any_stream import AnyStream, DEFAULT_EXAMPLE_COUNT, DEFAULT_ANALYZE_COUNT
+    from .any_stream import AnyStream
 
 Native = RegularStream
 
@@ -68,82 +56,6 @@ class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
     def get_item_type() -> ItemType:
         return ItemType.Record
 
-    @deprecated_with_alternative('AnyStream.group_by(as_pairs=True)')
-    def group_to_pairs(
-            self, *keys, values: Columns = None,
-            step: AutoCount = AUTO, verbose: bool = True,
-    ) -> KeyValueStream:
-        grouped_stream = self.group_by(*keys, values=values, step=step, as_pairs=True, take_hash=False, verbose=verbose)
-        return self._assume_pairs(grouped_stream)
-
-    def get_demo_example(
-            self,
-            count: Count = DEFAULT_EXAMPLE_COUNT,
-            filters: Columns = None,
-            columns: Columns = None,
-    ) -> Union[DataFrame, list, None]:
-        sm_sample = self.filter(*filters) if filters else self
-        sm_sample = sm_sample.take(count)
-        return sm_sample.get_list()
-
-    def get_rows(self, columns: Union[Columns, Auto] = AUTO, add_title_row=False) -> Iterable:
-        columns = Auto.delayed_acquire(columns, self.get_columns)
-        columns = get_names(columns)
-        if add_title_row:
-            yield columns
-        for r in self.get_items():
-            yield [r.get(c) for c in columns]
-
-    def to_row_stream(self, *columns, **kwargs) -> RowStream:
-        add_title_row = kwargs.pop('add_title_row', None)
-        kwarg_columns = kwargs.pop('columns', None)
-        if kwarg_columns:
-            msg = 'columns can be provided by args or kwargs, not both (got args={}, kwargs.columns={})'
-            assert not columns, msg.format(columns, kwarg_columns)
-            columns = kwarg_columns
-        if columns == [AUTO]:
-            columns = AUTO
-        assert columns, 'columns for convert RecordStream to RowStream must be defined'
-        if kwargs:
-            raise ValueError('to_row_stream(): {} arguments are not supported'.format(kwargs.keys()))
-        count = self.get_count()
-        less_than = self.get_estimated_count()
-        if add_title_row:
-            if count:
-                count += 1
-            if less_than:
-                less_than += 1
-        rows = self.get_rows(columns=columns, add_title_row=add_title_row)  # tmp for debug
-        if Auto.is_defined(columns):
-            struct = columns
-        else:
-            struct = self.get_struct()
-        stream = self.stream(
-            rows,
-            struct=struct,
-            stream_type=StreamType.RowStream,
-            count=count,
-            less_than=less_than,
-        )
-        return self._assume_native(stream)
-
-    def get_key_value_pairs(self, key: Field, value: Field, **kwargs) -> Iterable:
-        for i in self.get_records():
-            k = value_from_record(i, key, **kwargs)
-            v = i if value is None else value_from_record(i, value, **kwargs)
-            yield k, v
-
-    def to_key_value_stream(self, key: Field = 'key', value: Field = None, skip_errors: bool = False) -> KeyValueStream:
-        kwargs = dict(logger=self.get_logger(), skip_errors=skip_errors)
-        pairs = self.get_key_value_pairs(key, value, **kwargs)
-        stream = self.stream(
-            list(pairs) if self.is_in_memory() else pairs,
-            stream_type=StreamType.KeyValueStream,
-            value_stream_type=StreamType.RecordStream if value is None else StreamType.AnyStream,
-            check=False,
-        )
-        return self._assume_pairs(stream)
-
     def to_file(self, file: Connector, verbose: bool = True, return_stream: bool = True) -> Native:
         if not (isinstance(file, LeafConnectorInterface) or hasattr(file, 'write_stream')):
             raise TypeError('Expected TsvFile, got {} as {}'.format(file, type(file)))
@@ -162,12 +74,13 @@ class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
             check=True, verbose=True, return_stream=True,
     ) -> Optional[Native]:
         meta = self.get_meta()
-        sm_csv_file = self.to_row_stream(
-            columns=columns,
-            add_title_row=add_title_row,
-        ).to_line_stream(
-            delimiter=delimiter,
-        ).to_text_file(
+        columns = Auto.delayed_acquire(columns, self.get_columns)
+        row_stream = self.to_row_stream(columns=columns)
+        if add_title_row:
+            assert Auto.is_defined(columns)
+            row_stream.add_items([columns], before=True, inplace=True)
+        line_stream = row_stream.to_line_stream(delimiter=delimiter)
+        sm_csv_file = line_stream.to_text_file(
             filename,
             check=check,
             verbose=verbose,
@@ -220,24 +133,3 @@ class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
     @staticmethod
     def _assume_native(stream) -> Native:
         return stream
-
-    @staticmethod
-    def _assume_pairs(stream) -> KeyValueStream:
-        return stream
-
-    def get_dict(
-            self,
-            key: Union[Field, Columns],
-            value: Union[Field, Columns, None] = None,
-            of_lists: bool = False,
-            skip_errors: bool = False,
-    ) -> dict:
-        key_value_stream = self.to_key_value_stream(key, value, skip_errors=skip_errors)
-        return key_value_stream.get_dict(of_lists=of_lists)
-
-    def get_str_description(self) -> str:
-        return '{} rows, {} columns: {}'.format(
-            self.get_str_count(),
-            self.get_column_count(),
-            ', '.join([str(c) for c in self.get_columns()]),
-        )

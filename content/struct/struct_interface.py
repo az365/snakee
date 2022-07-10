@@ -65,6 +65,7 @@ class StructMixinInterface(ABC):
     ):
         pass
 
+
 Native = StructMixinInterface
 
 
@@ -94,7 +95,7 @@ class StructInterface(StructMixinInterface, ABC):
         pass
 
     @abstractmethod
-    def is_valid_row(self, row) -> bool:
+    def get_validation_errors(self, item) -> list:
         pass
 
     @abstractmethod

@@ -119,7 +119,9 @@ class ValueType(DynamicEnum):
         converter_name = '{}_to_{}'.format(source_dialect_name, target_dialect_name)
         field_types_by_dialect = self.get_dialect_types()
         types_by_dialects = field_types_by_dialect.get(self, {})
-        return types_by_dialects.get(converter_name, str)
+        default_converter = (lambda i: i) if target_dialect_name == 'py' else str
+        converter = types_by_dialects.get(converter_name, default_converter)
+        return converter
 
     def is_str(self) -> bool:
         return self.get_value().startswith('str')
