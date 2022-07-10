@@ -155,19 +155,22 @@ class ConvertMixin(IterableStream, ABC):
                 if not inplace:
                     converted_row = list()
                 for col, (value, converter) in enumerate(zip(r, converters)):
-                    try:
-                        converted_value = converter(value)
-                    except TypeError as e:
-                        if skip_bad_rows:
-                            converted_row = None
-                            break
-                        elif skip_bad_values:
-                            converted_value = None
-                        else:
-                            raise e
-                        if verbose:
-                            msg = f'get_struct_rows() can not {converter}({value}) in {r}: {e}'
-                            self.log(msg=msg, level=LoggingLevel.Warning)
+                    if converter:
+                        try:
+                            converted_value = converter(value)
+                        except TypeError as e:
+                            if skip_bad_rows:
+                                converted_row = None
+                                break
+                            elif skip_bad_values:
+                                converted_value = None
+                            else:
+                                raise e
+                            if verbose:
+                                msg = f'get_struct_rows() can not {converter}({value}) in {r}: {e}'
+                                self.log(msg=msg, level=LoggingLevel.Warning)
+                    else:
+                        converted_value = value
                     if inplace:
                         r[col] = converted_value
                     else:
