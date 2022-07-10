@@ -110,10 +110,12 @@ def get_field_value_from_row(
 ) -> Value:
     if isinstance(column, Callable):
         return column(row)
-    elif column < len(row) or not skip_missing:
-        return row[column]
-    else:
-        return default
+    if isinstance(row, Sequence):
+        if column < len(row) or not skip_missing:
+            return row[column]
+    elif column == 0:
+        return row
+    return default
 
 
 def get_field_value_from_record(

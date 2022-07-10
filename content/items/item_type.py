@@ -104,9 +104,7 @@ class ItemType(SubclassesType):
             return lambda i: get_field_value_from_struct_row(field=field, row=i, default=default, skip_missing=False)
         elif isinstance(field, Callable):
             return field
-        elif field == STAR:
-            return lambda i: i
-        elif field == FULL_ITEM_FIELD:
+        elif field in (STAR, FULL_ITEM_FIELD):
             return lambda i: i
         elif field is None or field in (MINUS, EMPTY):
             return lambda i: None
