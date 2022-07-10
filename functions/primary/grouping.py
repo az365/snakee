@@ -106,7 +106,7 @@ def fold_rows(
             c_out = len(row_out) - 1
             for r_in in list_rows:
                 if isinstance(c_in, Callable):
-                    row_out[c_out].append(c_in(c_in))
+                    row_out[c_out].append(c_in(r_in))
                 elif isinstance(c_in, int):
                     try:
                         row_out[c_out].append(r_in[c_in])
@@ -146,6 +146,7 @@ def fold_lists(
         list_items: Array,
         key_fields: Array,
         list_fields: Array,
+        as_pairs: bool = False,
         skip_missing: bool = False,
         item_type: Optional[ItemType] = None,
 ) -> Union[Row, Record]:
@@ -156,6 +157,8 @@ def fold_lists(
         if item_type == ItemType.Record:
             return fold_records(list_items, key_fields, list_fields, skip_missing=skip_missing)
         elif item_type in (ItemType.Row, ItemType.StructRow):
+            if as_pairs:
+                list_items = list_items[1]  # list is in value from KeyValue-pair
             return fold_rows(list_items, key_fields, list_fields, skip_missing=skip_missing)
         else:
             raise ValueError('fold_lists(): expected Record, Row or StructRow, got {}'.format(item_type))
