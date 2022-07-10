@@ -36,10 +36,6 @@ class PairStreamInterface(StreamInterface, ABC):
         pass
 
     @abstractmethod
-    def sorted_group_by_key(self) -> Native:
-        pass
-
-    @abstractmethod
     def ungroup_values(self) -> Native:
         pass
 
