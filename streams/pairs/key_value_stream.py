@@ -109,54 +109,6 @@ class KeyValueStream(RowStream, PairStreamInterface):
         else:
             return keys
 
-    def sort_by_key(self) -> Native:
-        stream = super().sort(KEY)
-        return self._assume_native(stream)
-
-    def sort(self) -> Native:
-        return self.sort_by_key()
-
-    def memory_sort_by_key(self, reverse=False) -> Native:
-        stream = self.memory_sort(KEY, reverse=reverse)
-        return self._assume_native(stream)
-
-    def disk_sort_by_key(self, reverse=False, step=AUTO) -> Native:
-        step = Auto.delayed_acquire(step, self.get_limit_items_in_memory)
-        stream = self.disk_sort(KEY, reverse=reverse, step=step)
-        return self._assume_native(stream)
-
-    def sorted_group_by_key(self) -> Native:
-        def get_groups():
-            accumulated = list()
-            prev_k = None
-            for k, v in self.get_data():
-                if (k != prev_k) and accumulated:
-                    yield prev_k, accumulated
-                    accumulated = list()
-                prev_k = k
-                accumulated.append(v)
-            yield prev_k, accumulated
-        sm_groups = self.stream(
-            get_groups(),
-        )
-        if self.is_in_memory():
-            sm_groups = sm_groups.to_memory()
-        return self._assume_native(sm_groups)
-
-    def group_by_key(self) -> Native:
-        stream = self.sort_by_key().sorted_group_by_key()
-        return self._assume_native(stream)
-
-    def sorted_group_by(self, *keys, values: Optional[Iterable] = None, as_pairs: bool = True) -> Stream:  # tmp
-        assert not keys
-        assert not values
-        return self.sorted_group_by_key()
-
-    def group_by(self, *keys, values: Optional[Iterable] = None, as_pairs: bool = True) -> Stream:  # tmp
-        assert not keys
-        assert not values
-        return self.group_by_key()
-
     def _get_ungrouped(self) -> Iterable:
         for k, a in self.get_items():
             if a:

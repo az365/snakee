@@ -6,7 +6,7 @@ try:  # Assume we're a submodule in a package.
         RegularStreamInterface, StructInterface, FieldInterface,
         Stream, LocalStream, Context, Connector, Source, TmpFiles,
         StreamType, ItemType, ValueType, LoggingLevel,
-        Name, Count, Item, Struct, Columns, Field, OptionalFields, UniKey, Source, Class,
+        Count, Item, Struct, Columns, Field, FieldNo, OptionalFields, UniKey, Source, Class,
         AUTO, Auto, AutoBool, AutoName, AutoCount, Array, ARRAY_TYPES,
     )
     from base.functions.arguments import get_name, get_names
@@ -23,7 +23,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         RegularStreamInterface, StructInterface, FieldInterface,
         Stream, LocalStream, Context, Connector, Source, TmpFiles,
         StreamType, ItemType, ValueType, LoggingLevel,
-        Name, Count, Item, Struct, Columns, Field, OptionalFields, UniKey, Source, Class,
+        Count, Item, Struct, Columns, Field, FieldNo, OptionalFields, UniKey, Source, Class,
         AUTO, Auto, AutoBool, AutoName, AutoCount, Array, ARRAY_TYPES,
     )
     from ...base.functions.arguments import get_name, get_names
@@ -217,7 +217,7 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
             if self._is_valid_item(i, struct=struct):
                 yield i
             else:
-                message = f'_get_validated_items() found invalid item {i} for {self}'
+                message = f'{self.__class__.__name__}._get_validated_items() found invalid item {i} for {self}'
                 if skip_errors:
                     if logger:
                         logger.log(msg=message, level=LoggingLevel.Warning)
@@ -377,15 +377,20 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
                     values.append(f)
         for f in list(keys) + list(values):
             if isinstance(f, ARRAY_TYPES):
-                field_name = get_name(f[0])
+                field_name = get_name(f[0], or_callable=False)
+            elif isinstance(f, FieldNo):
+                if Auto.is_defined(input_struct):
+                    field_name = input_struct.get_field_description(f)
+                else:
+                    field_name = f'column{f:02}'
             else:
-                field_name = get_name(f)
+                field_name = get_name(f, or_callable=False)
             if f in values:
                 value_type = ValueType.Sequence
             elif isinstance(f, FieldInterface) or hasattr(f, 'get_value_type'):
                 value_type = f.get_value_type()
             elif input_struct:
-                value_type = input_struct.get_field_description().get_value_type() or AUTO
+                value_type = input_struct.get_field_description(f).get_value_type() or AUTO
             else:
                 value_type = AUTO
             output_struct.append_field(field_name, value_type)
@@ -420,6 +425,8 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
         iter_groups = self._get_groups(key_function, as_pairs=as_pairs)
         if Auto.is_defined(output_struct):
             expected_struct = output_struct
+        elif as_pairs:
+            expected_struct = FlatStruct(['key', 'value']).set_types(key=ValueType.Any, value=ValueType.Any)
         else:
             expected_struct = self._get_grouped_struct(*keys, values=values)
         if as_pairs:
@@ -433,16 +440,14 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
             item_type = self.get_item_type()
             if item_type == ItemType.Any:
                 raise TypeError('For AnyStream.sorted_group_by() values option not supported')
-            elif item_type == ItemType.Row and hasattr(self, '_get_field_getter'):
-                keys = [self._get_field_getter(f) for f in keys]
-                values = [self._get_field_getter(f, item_type=item_type) for f in values]
-            fold_mapper = fs.fold_lists(keys=keys, values=values, skip_missing=skip_missing, item_type=item_type)
+            elif item_type == ItemType.Row:
+                input_struct = self.get_struct()
+                keys = [item_type.get_field_getter(f, struct=input_struct) for f in keys]
+                values = [item_type.get_field_getter(f, struct=input_struct) for f in values]
+            fold_mapper = fs.fold_lists(keys=keys, values=values, as_pairs=as_pairs, skip_missing=skip_missing, item_type=item_type)
             stream_groups = stream_groups.map_to_type(fold_mapper, stream_type=stream_type)
-            if Auto.is_defined(output_struct):
-                if hasattr(stream_groups, 'structure'):
-                    stream_groups = stream_groups.structure(output_struct)
-                else:
-                    stream_groups.set_struct(output_struct, check=False, inplace=True)
+            if Auto.is_defined(expected_struct):
+                stream_groups.set_struct(expected_struct, check=False, inplace=True)
         if self.is_in_memory():
             return stream_groups.to_memory()
         else:
@@ -573,7 +578,7 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
     @classmethod
     @deprecated_with_alternative('connectors.filesystem.local_file.JsonFile.to_stream()')
     def from_json_file(
-            cls, filename: Name,
+            cls, filename: str,
             skip_first_line=False, max_count=None,
             check=AUTO, verbose=False,
     ) -> Stream:

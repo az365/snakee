@@ -1,6 +1,8 @@
 try:  # Assume we're a submodule in a package.
+    from functions.secondary import all_secondary_functions as fs
     from streams import stream_classes as sm
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
+    from ..functions.secondary import all_secondary_functions as fs
     from . import stream_classes as sm
 
 
@@ -37,7 +39,7 @@ def test_map():
         received_types,
         lambda f: f.get_class_name(),
     ).get_list()
-    assert received_1 == expected_1, 'test case 1'
+    assert received_1 == expected_1, f'test case 1: {received_1} != {expected_1}'
     expected_2 = [str(-i) for i in EXAMPLE_INT_SEQUENCE]
     received_2 = sm.AnyStream(
         EXAMPLE_INT_SEQUENCE,
@@ -48,7 +50,7 @@ def test_map():
         received_types,
         lambda f: f.get_class_name(),
     ).get_list()
-    assert received_2 == expected_2, 'test case 2'
+    assert received_2 == expected_2, f'test case 2: {received_2} != {expected_2}'
     expected_3 = [str(-i) for i in EXAMPLE_INT_SEQUENCE]
     received_3 = sm.AnyStream(
         EXAMPLE_INT_SEQUENCE,
@@ -59,8 +61,8 @@ def test_map():
         received_types,
         lambda f: f.get_class_name(),
     ).get_list()
-    assert received_3 == expected_3, 'test case 3'
-    assert received_types == expected_types, 'test for types'
+    assert received_3 == expected_3, f'test case 3: {received_3} != {expected_3}'
+    assert received_types == expected_types, f'test for types: {received_types} != {expected_types}'
 
 
 def test_flat_map():
@@ -177,7 +179,7 @@ def test_records_select():
     ).to_row_stream(
         delimiter=',',
     ).map_to_records(
-        lambda p: {p[0]: p[1]},
+        lambda p: {fs.first()(p): fs.second()(p)},
     ).select(
         'a',
         h='g',
@@ -186,7 +188,7 @@ def test_records_select():
         e=lambda r: r.get('c'),
         f=('a', lambda v: str(v)*2),
     ).get_list()
-    assert received_1 == expected_1, 'test case 1: records'
+    assert received_1 == expected_1, f'test case 1, records: {received_1} != {expected_1}'
     expected_2 = [
         (1.00, ('a', '1'), 'a'),
         (2.22, ('b', '2.22'), 'b'),
@@ -285,7 +287,7 @@ def test_add_records():
     ).add(
         sm.AnyStream(addition).to_record_stream(),
     ).get_list()
-    assert received_1 == expected_1, 'test case 1i'
+    assert received_1 == expected_1, f'test case 1i: {received_1} != {expected_1}'
     received_2 = sm.AnyStream(
         EXAMPLE_INT_SEQUENCE,
     ).to_record_stream(
@@ -293,7 +295,7 @@ def test_add_records():
         sm.AnyStream(addition).to_record_stream(),
         before=True,
     ).get_list()
-    assert received_2 == expected_2, 'test case 2i'
+    assert received_2 == expected_2, f'test case 2i: {received_2} != {expected_2}'
 
 
 def test_separate_first():
@@ -316,7 +318,7 @@ def test_split_by_pos():
         pos_1,
     )
     received_1 = a.get_list(), b.get_list()
-    assert received_1 == expected_1, 'test case 1'
+    assert received_1 == expected_1, f'test case 1, {received_1} != {expected_1}'
     expected_2 = (
         [pos_1] + EXAMPLE_INT_SEQUENCE[:pos_1],
         [pos_2 - pos_1] + EXAMPLE_INT_SEQUENCE[pos_1:pos_2],
@@ -383,7 +385,8 @@ def test_disk_sort_by_key():
     received = sm.AnyStream(
         [(k, str(k) * k) for k in EXAMPLE_INT_SEQUENCE],
     ).to_pairs(
-    ).disk_sort_by_key(
+    ).disk_sort(
+        fs.first(),  # KEY
         step=5,
     ).get_list()
     assert received == expected
@@ -435,9 +438,12 @@ def test_sorted_group_by_key():
     received = sm.AnyStream(
         example
     ).to_pairs(
-    ).sorted_group_by_key(
+    ).sorted_group_by(
+        0,
+        values=[1],
+        as_pairs=True,
     ).get_list()
-    assert received == expected
+    assert received == expected, f'{received} != {expected}'
 
 
 def test_group_by():
@@ -460,7 +466,7 @@ def test_group_by():
         lambda a: [i.get('y') for i in a[1]],
         stream_type=sm.StreamType.RowStream,
     ).get_list()
-    assert received_0 == expected, 'test case 0'
+    assert received_0 == expected, f'test case 0: {received_0} != {expected}'
 
     received_1 = sm.AnyStream(example).to_row_stream().to_record_stream(
         columns=('x', 'y'),
@@ -614,7 +620,7 @@ def test_parse_json():
         example,
     ).to_line_stream(
     ).parse_json(
-        default_value={'err': 'err'},
+        default_value=dict(err='err'),
     ).get_list()
     assert received == expected
 
@@ -626,7 +632,7 @@ def smoke_test_show():
     ).to_row_stream(
         delimiter=',',
     ).map_to_records(
-        lambda p: {p[0]: p[1]},
+        lambda p: {fs.first()(p): fs.second()(p)},
     ).select(
         'a',
         h='g',
