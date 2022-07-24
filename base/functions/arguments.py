@@ -14,11 +14,15 @@ TYPING_PREFIX = 'typing.'
 
 def update(args, addition=None):
     if addition:
-        list_addition = list(addition) if isinstance(addition, Iterable) else [addition]
+        if isinstance(addition, Iterable) and not isinstance(addition, list):
+            list_addition = list(addition)
+        else:
+            list_addition = [addition]
         args = list(args) + list_addition
-    if len(args) == 1 and isinstance(args[0], (list, tuple, set)):
+    if len(args) == 1:
         single_arg = args[0]
-        args = single_arg
+        if isinstance(single_arg, (list, tuple, set)) and not isinstance(single_arg, str):
+            args = single_arg
     return args
 
 
@@ -104,7 +108,8 @@ def get_optional_len(obj: Iterable, default=None) -> Optional[int]:
 
 def get_str_from_args_kwargs(
         *args,
-        _delimiter: str = KV_DELIMITER,
+        _arg_delimiter: str = ARG_DELIMITER,  # ', '
+        _kv_delimiter: str = KV_DELIMITER,  # '='
         _remove_prefixes: Optional[Iterable] = None,
         _kwargs_order: Optional[Iterable] = None,
         **kwargs
@@ -129,12 +134,12 @@ def get_str_from_args_kwargs(
         for prefix in _remove_prefixes or []:
             if v_str.startswith(prefix):
                 v_str = v_str[len(prefix):]
-        list_str_from_kwargs.append('{}{}{}'.format(k, _delimiter, v_str))
+        list_str_from_kwargs.append(f'{k}{_kv_delimiter}{v_str}')
     list_str_from_args = [str(i) for i in args]
     return ', '.join(list_str_from_args + list_str_from_kwargs)
 
 
-def get_str_from_annotation(class_or_func: Union[Callable, Type]) -> str:
+def get_str_from_annotation(class_or_func: Union[Callable, Type], _delimiter: str = ANN_DELIMITER) -> str:
     if isclass(class_or_func):
         func = class_or_func
         name = class_or_func.__name__
@@ -148,7 +153,7 @@ def get_str_from_annotation(class_or_func: Union[Callable, Type]) -> str:
         raise TypeError
     if hasattr(func, '__annotations__'):
         ann_dict = func.__annotations__
-        ann_str = get_str_from_args_kwargs(**ann_dict, _delimiter=ANN_DELIMITER, _remove_prefixes=[TYPING_PREFIX])
+        ann_str = get_str_from_args_kwargs(**ann_dict, _kv_delimiter=_delimiter, _remove_prefixes=[TYPING_PREFIX])
     else:
         ann_str = '*args, **kwargs'
     return '{}({})'.format(name, ann_str)
