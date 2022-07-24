@@ -3,14 +3,22 @@ from inspect import isclass
 from datetime import datetime
 from random import randint
 
+try:  # Assume we're a submodule in a package.
+    from base.constants.chars import KV_DELIMITER, ARG_DELIMITER, ANN_DELIMITER
+except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
+    from ..constants.chars import KV_DELIMITER, ARG_DELIMITER, ANN_DELIMITER
+
 DEFAULT_RANDOM_LEN = 6
+TYPING_PREFIX = 'typing.'
 
 
 def update(args, addition=None):
     if addition:
-        args = list(args) + (list(addition) if isinstance(addition, Iterable) else [addition])
+        list_addition = list(addition) if isinstance(addition, Iterable) else [addition]
+        args = list(args) + list_addition
     if len(args) == 1 and isinstance(args[0], (list, tuple, set)):
-        args = args[0]
+        single_arg = args[0]
+        args = single_arg
     return args
 
 
@@ -96,7 +104,7 @@ def get_optional_len(obj: Iterable, default=None) -> Optional[int]:
 
 def get_str_from_args_kwargs(
         *args,
-        _delimiter: str = '=',
+        _delimiter: str = KV_DELIMITER,
         _remove_prefixes: Optional[Iterable] = None,
         _kwargs_order: Optional[Iterable] = None,
         **kwargs
@@ -140,7 +148,7 @@ def get_str_from_annotation(class_or_func: Union[Callable, Type]) -> str:
         raise TypeError
     if hasattr(func, '__annotations__'):
         ann_dict = func.__annotations__
-        ann_str = get_str_from_args_kwargs(**ann_dict, _delimiter=': ', _remove_prefixes=['typing.'])
+        ann_str = get_str_from_args_kwargs(**ann_dict, _delimiter=ANN_DELIMITER, _remove_prefixes=[TYPING_PREFIX])
     else:
         ann_str = '*args, **kwargs'
     return '{}({})'.format(name, ann_str)
