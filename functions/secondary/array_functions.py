@@ -2,14 +2,14 @@ from typing import Optional, Callable, Iterable, Sized, Union, Any
 
 try:  # Assume we're a submodule in a package.
     from base.classes.auto import AUTO, Auto
-    from base.functions.arguments import get_names, update
+    from base.functions.arguments import get_names, update, get_list
     from utils.decorators import sql_compatible
     from content.items.item_type import ItemType
     from functions.primary import numeric as nm
     from functions.primary import grouping as gr
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.classes.auto import AUTO, Auto
-    from ...base.functions.arguments import get_names, update
+    from ...base.functions.arguments import get_names, update, get_list
     from ...utils.decorators import sql_compatible
     from ...content.items.item_type import ItemType
     from ..primary import numeric as nm
@@ -150,9 +150,7 @@ def fold_lists(
 
 
 def unfold_lists(*fields, number_field: str = 'n', default_value: Any = 0) -> Callable:
-    if len(fields) == 1:
-        if isinstance(fields, Iterable) and not isinstance(fields, str):
-            fields = fields[0]
+    fields = get_list(fields)
     fields = get_names(fields)
 
     def func(record: dict) -> Iterable:

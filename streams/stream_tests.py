@@ -625,6 +625,34 @@ def test_parse_json():
     assert received == expected
 
 
+def test_unfold():
+    example_records = [
+        dict(key='a', value=[11, 12, 13]),
+        dict(key='b', value=[21, 22, 23]),
+    ]
+    expected_records = [
+        dict(key='a', value=11), dict(key='a', value=12), dict(key='a', value=13),
+        dict(key='b', value=21), dict(key='b', value=22), dict(key='b', value=23),
+    ]
+    expected_rows = [
+        ('a', 11), ('a', 12), ('a', 13),
+        ('b', 21), ('b', 22), ('b', 23),
+    ]
+    received_records = sm.RecordStream(
+        example_records,
+    ).flat_map(
+        fs.unfold_lists('value', number_field=None),
+    ).get_list()
+    assert received_records == expected_records, f'test case 1: records {received_records} != {expected_records}'
+    received_rows = sm.RecordStream(
+        example_records,
+    ).to_key_value_stream(
+        'key', 'value',
+    ).ungroup_values(
+    ).get_list()
+    assert received_rows == expected_rows, f'test case 2: {received_rows} != {expected_rows}'
+
+
 def smoke_test_show():
     stream0 = sm.AnyStream(
         EXAMPLE_CSV_ROWS,
@@ -672,6 +700,7 @@ def main():
     test_records_join()
     test_to_rows()
     test_parse_json()
+    test_unfold()
     smoke_test_show()
 
 
