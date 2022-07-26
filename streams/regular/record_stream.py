@@ -2,11 +2,9 @@ from typing import Optional, Iterable, Union
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
-        Stream, RegularStream, KeyValueStream,
+        RegularStream, Struct, Context, Connector, TmpFiles,
         ItemType, StreamType,
-        Context, Connector, LeafConnectorInterface, TmpFiles,
-        Count, Field, Struct, Columns,
-        AUTO, Auto, AutoCount, AutoName,
+        AUTO, Auto, AutoName, AutoCount, Count,
     )
     from utils.decorators import deprecated_with_alternative
     from streams.mixin.convert_mixin import ConvertMixin
@@ -14,11 +12,9 @@ try:  # Assume we're a submodule in a package.
     from streams.regular.any_stream import AnyStream
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
-        Stream, RegularStream, KeyValueStream,
+        RegularStream, Struct, Context, Connector, TmpFiles,
         ItemType, StreamType,
-        Context, Connector, LeafConnectorInterface, TmpFiles,
-        Count, Field, Struct, Columns,
-        AUTO, Auto, AutoCount, AutoName,
+        AUTO, Auto, AutoName, AutoCount, Count,
     )
     from ...utils.decorators import deprecated_with_alternative
     from ..mixin.convert_mixin import ConvertMixin
@@ -56,18 +52,7 @@ class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
     def get_item_type() -> ItemType:
         return ItemType.Record
 
-    def to_file(self, file: Connector, verbose: bool = True, return_stream: bool = True) -> Native:
-        if not (isinstance(file, LeafConnectorInterface) or hasattr(file, 'write_stream')):
-            raise TypeError('Expected TsvFile, got {} as {}'.format(file, type(file)))
-        meta = self.get_meta()
-        file.write_stream(self, verbose=verbose)
-        if return_stream:
-            return file.to_record_stream(verbose=verbose).update_meta(**meta)
-
-    @deprecated_with_alternative('RecordStream.to_file()')
-    def to_tsv_file(self, *args, **kwargs) -> Stream:
-        return self.to_file(*args, **kwargs)
-
+    @deprecated_with_alternative('AnyStream.to_file()')
     def to_column_file(
             self, filename: str, columns: Union[Iterable, Auto] = AUTO,
             add_title_row=True, delimiter='\t',
@@ -98,6 +83,7 @@ class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
             )
 
     @classmethod
+    @deprecated_with_alternative('connectors.ColumnFile().to_stream()')
     def from_column_file(
             cls,
             filename, columns, delimiter='\t',
