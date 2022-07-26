@@ -2,7 +2,7 @@ from typing import Optional, Iterable, Callable, Union, Any
 
 try:  # Assume we're a submodule in a package.
     from base.classes.auto import AUTO, Auto
-    from content.items.item_type import ItemType
+    from content.items.item_type import ItemType, SubclassesType
     from content.struct.struct_interface import StructInterface
     from content.struct.struct_row_interface import StructRowInterface
     from content.items.simple_items import (
@@ -14,7 +14,7 @@ try:  # Assume we're a submodule in a package.
     )
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.classes.auto import AUTO, Auto
-    from ...content.items.item_type import ItemType
+    from ...content.items.item_type import ItemType, SubclassesType
     from ...content.struct.struct_interface import StructInterface
     from ...content.struct.struct_row_interface import StructRowInterface
     from ...content.items.simple_items import (
@@ -29,9 +29,31 @@ SelectableItem = Union[SimpleSelectableItem, StructRowInterface]
 ConcreteItem = Union[Line, SelectableItem]
 
 
+def get_canonic_item_type(
+        item_type: Union[ItemType, SubclassesType, str],
+        example_item: Optional[ConcreteItem] = None,
+) -> ItemType:
+    if item_type == ItemType.Auto or not Auto.is_defined(item_type):
+        assert example_item is not None, 'get_canonic_item_type(): for detect item_type example_item must be defined'
+        item_type = ItemType.detect(example_item, default=ItemType.Any)
+    else:
+        if isinstance(item_type, str):
+            item_type_name = ItemType(item_type)
+        elif hasattr(item_type, 'get_value'):
+            item_type_name = ItemType(item_type.get_value())
+        elif hasattr(item_type, 'value'):
+            item_type_name = ItemType(item_type.value)
+        else:
+            raise TypeError(f'get_canonic_item_type(item_type): expected ItemType, got {item_type}')
+        item_type = ItemType(item_type_name)
+    return item_type
+
+
 def set_to_item_inplace(
-        field: FieldID, value: Value,
-        item: SelectableItem, item_type: ItemType = ItemType.Auto,
+        field: FieldID,
+        value: Value,
+        item: SelectableItem,
+        item_type: ItemType = ItemType.Auto,
 ) -> None:
     item_type = Auto.delayed_acquire(item_type, ItemType.detect, item, default=ItemType.Any)
     if not isinstance(item_type, ItemType):
@@ -42,7 +64,7 @@ def set_to_item_inplace(
     if item_type == ItemType.Record:
         item[field] = value
     elif item_type == ItemType.Row:
-        assert isinstance(field, int)
+        assert isinstance(field, FieldNo), f'Expected column number as int, got {field}'
         cols_count = len(item)
         if field >= cols_count:
             item += [None] * (field - cols_count + 1)
@@ -51,7 +73,7 @@ def set_to_item_inplace(
         if isinstance(item, StructRowInterface):
             item.set_value(field, value, update_struct=True)
         elif isinstance(item, ROW_SUBCLASSES):
-            assert isinstance(field, int), 'Expected column number as int, got {}'.format(field)
+            assert isinstance(field, FieldNo), f'Expected column number as int, got {field}'
             cur_item_len = len(item)
             need_extend = field >= cur_item_len
             if need_extend:
@@ -66,8 +88,10 @@ def set_to_item_inplace(
 
 
 def set_to_item(
-        field: FieldID, value: Value,
-        item: SelectableItem, item_type: ItemType = ItemType.Auto,
+        field: FieldID,
+        value: Value,
+        item: SelectableItem,
+        item_type: ItemType = ItemType.Auto,
         inplace: bool = True,
 ):
     if item_type is None or item_type == ItemType.Any:
@@ -92,8 +116,11 @@ def get_fields_names_from_item(item: SelectableItem, item_type: ItemType = ItemT
 
 def get_field_value_from_item(
         field: Union[FieldID, Array, Callable],
-        item: ConcreteItem, item_type: ItemType = ItemType.Auto,
-        skip_errors: bool = False, logger=None, default: Value = None,
+        item: ConcreteItem,
+        item_type: ItemType = ItemType.Auto,
+        skip_errors: bool = False,
+        logger=None,
+        default: Value = None,
 ) -> Value:
     if field == STAR:
         return item
@@ -107,32 +134,21 @@ def get_field_value_from_item(
             skip_errors=skip_errors, logger=logger,
         )
         return tuple(list_values)
-    if item_type == ItemType.Auto or not Auto.is_defined(item_type):
-        item_type = ItemType.detect(item, default='any')
-    elif isinstance(item_type, str):
-        item_type = ItemType(item_type)
-    elif hasattr(item_type, 'get_value'):
-        item_type = ItemType(item_type.get_value())
-    elif hasattr(item_type, 'value'):
-        item_type = ItemType(item_type.value)
-    else:
-        msg = 'get_field_value_from_item(item, item_type): expected item_type as ItemType, got {}'
-        raise TypeError(msg.format(item_type))
+    if item_type == ItemType.Auto or not isinstance(item_type, ItemType):
+        item_type = get_canonic_item_type(item_type, example_item=item)
     try:
         return item_type.get_value_from_item(
             item=item, field=field,
             default=default, skip_unsupported_types=skip_errors,
         )
-    except IndexError as e:
-        msg = '{}: Field {} does no exists in current item ({}): {}'.format('IndexError', field, e, item)
-    except TypeError as e:
-        msg = '{}: Field {} does no exists in current item ({}): {}'.format('TypeError', field, e, item)
-    if skip_errors:
-        if logger:
-            logger.log(msg)
-        return default
-    else:
-        raise IndexError(msg)
+    except (IndexError, TypeError) as e:
+        msg = f'Field {field} does not exist in current item ({e}): {item}'
+        if skip_errors:
+            if logger:
+                logger.log(msg)
+            return default
+        else:
+            raise IndexError(msg)
 
 
 def get_fields_values_from_item(
@@ -214,7 +230,7 @@ def items_to_dict(
     return result
 
 
-def unfold_structs_to_fields(keys: Iterable) -> list:  # moved from RecordStream
+def unfold_structs_to_fields(keys: Iterable) -> list:
     fields = list()
     for k in keys:
         if isinstance(k, list):
