@@ -109,23 +109,14 @@ class KeyValueStream(RowStream, PairStreamInterface):
         else:
             return keys
 
-    def _get_ungrouped(
-            self,
-            *values,
-            key_func: Callable = KEY,
-    ) -> Iterable:
-        func = fs.unfold_lists(*values, key_func=key_func, number_field=None, item_type=self.get_item_type())
-        for i in self.get_items():
-            yield from func(i)
-
+    @deprecated_with_alternative('flat_map(fs.unfold_lists())')
     def ungroup_values(
             self,
             key_func: Callable = KEY,
             value_func: Callable = VALUE,
     ) -> Native:
-        items = self._get_ungrouped(value_func, key_func=key_func)
-        outdated_properties = 'count', 'less_than'
-        stream = self.stream(items, ex=outdated_properties)
+        func = fs.unfold_lists(value_func, key_func=key_func, number_field=None, item_type=self.get_item_type())
+        stream = self.flat_map(func)
         return self._assume_native(stream)
 
     @staticmethod
