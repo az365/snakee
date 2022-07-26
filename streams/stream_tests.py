@@ -477,7 +477,7 @@ def test_group_by():
         lambda a: [i.get('y') for i in a],
         stream_type=sm.StreamType.RowStream,
     ).get_list()
-    assert received_1 == expected, 'test case 1'
+    assert received_1 == expected, f'test case 1: {received_1} != {expected}'
 
 
 def test_any_join():
@@ -610,19 +610,18 @@ def test_to_rows():
     ).to_row_stream(
         ',',
     ).get_list()
-    assert received == expected
+    assert received == expected, f'{received} != {expected}'
 
 
 def test_parse_json():
     example = ['{"a": "b"}', 'abc', '{"d": "e"}']
-    expected = [{'a': 'b'}, {'err': 'err'}, {'d': 'e'}]
+    expected = [dict(a='b'), dict(_err='JSONDecodeError'), dict(d='e')]
     received = sm.AnyStream(
         example,
     ).to_line_stream(
-    ).parse_json(
-        default_value=dict(err='err'),
+    ).to_record_stream(
     ).get_list()
-    assert received == expected
+    assert received == expected, f'{received} != {expected}'
 
 
 def test_unfold():

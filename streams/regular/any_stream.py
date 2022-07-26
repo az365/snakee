@@ -579,6 +579,7 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
     @deprecated_with_alternative('connectors.filesystem.local_file.JsonFile.to_stream()')
     def from_json_file(
             cls, filename: str,
+            stream_type: StreamType = StreamType.RecordStream,
             skip_first_line=False, max_count=None,
             check=AUTO, verbose=False,
     ) -> Stream:
@@ -587,4 +588,4 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
             filename,
             skip_first_line=skip_first_line, max_count=max_count,
             check=check, verbose=verbose,
-        ).parse_json(to=cls.__name__)
+        ).to_stream(stream_type=stream_type)

@@ -131,8 +131,11 @@ class ConvertMixin(IterableStream, ABC):
                 func = (lambda r: {k: v for k, v in zip(columns, r)})
             else:
                 func = (lambda r: {DEFAULT_COL_MASK.format(n + 1): v for n, v in enumerate(r)})
+        elif item_type == ItemType.Line:
+            func = fs.json_loads(default=dict(_err='JSONDecodeError'), skip_errors=True)
         elif item_type in UNSTRUCTURED_ITEM_TYPES:
-            func = (lambda i: {columns[0]: i})
+            single_field_name = columns[0]
+            func = (lambda i: {single_field_name: i})
         else:
             raise TypeError(f'ConvertMixin.get_records(): item_type={item_type} not supported')
         return self._get_mapped_items(func)

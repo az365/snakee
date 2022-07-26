@@ -114,22 +114,6 @@ class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
             columns=columns,
         )
 
-    @classmethod
-    def from_json_file(
-            cls, filename,
-            default_value=None, max_count=None,
-            check=True, verbose=False,
-    ) -> Native:
-        stream_class = StreamType.LineStream.get_class()
-        parsed_stream = stream_class.from_text_file(
-            filename,
-            max_count=max_count, check=check, verbose=verbose,
-        ).parse_json(
-            default_value=default_value,
-            to=StreamType.RecordStream,
-        )
-        return parsed_stream
-
     @staticmethod
     def _assume_native(stream) -> Native:
         return stream
