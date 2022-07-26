@@ -199,10 +199,20 @@ def get_frozen(item: ConcreteItem) -> ConcreteItem:
         return item
 
 
-def merge_two_items(first: ConcreteItem, second: ConcreteItem, default_right_name: str = '_right') -> ConcreteItem:
-    if ItemType.Row.isinstance(first):
-        result = merge_two_rows(first, second)
-    elif ItemType.Record.isinstance(first):
+def merge_two_items(
+        first: ConcreteItem,
+        second: ConcreteItem,
+        item_type: ItemType = ItemType.Auto,
+        default_right_name: str = '_right',
+        ordered: bool = False,
+        frozen: bool = True,
+) -> ConcreteItem:
+    if item_type == ItemType.Auto or not isinstance(item_type, ItemType):
+        example_item = first if first is not None else second
+        item_type = get_canonic_item_type(item_type, example_item=example_item)
+    if item_type == ItemType.Row:
+        result = merge_two_rows(first, second, ordered=ordered, frozen=frozen)
+    elif item_type == ItemType.Record:
         result = merge_two_records(first, second, default_right_name=default_right_name)
     elif first is None and ItemType.Record.isinstance(second):
         result = second

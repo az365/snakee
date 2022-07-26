@@ -9,10 +9,12 @@ except ImportError:
 try:  # Assume we're a submodule in a package.
     from base.classes.auto import Auto, AUTO
     from base.classes.typing import FieldName, FieldNo, FieldID, Value, Class, Array, ARRAY_TYPES
+    from base.constants.chars import STAR
     from base.functions.arguments import get_name
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.classes.auto import Auto, AUTO
     from ...base.classes.typing import FieldName, FieldNo, FieldID, Value, Class, Array, ARRAY_TYPES
+    from ...base.constants.chars import STAR
     from ...base.functions.arguments import get_name
 
 
@@ -66,7 +68,6 @@ Item = Union[SelectableItem, Line, Any]
 ROW_SUBCLASSES = MutableRow, ImmutableRow, SimpleRowInterface
 RECORD_SUBCLASSES = MutableRecord, ImmutableRecord, RecRow
 LINE_SUBCLASSES = str,
-STAR = '*'
 FULL_ITEM_FIELD = 'item'
 
 
@@ -137,13 +138,25 @@ def get_field_value_from_record(
         return record[field]
 
 
-def merge_two_rows(first: Row, second: Item) -> Row:
-    if second is None:
-        result = first
-    elif is_row(second):
-        result = tuple(list(first) + list(second))
+def merge_two_rows(first: Row, second: Item, ordered: bool = False, frozen: bool = True) -> SimpleRow:
+    if isinstance(first, Iterable):
+        first = list(first)
     else:
-        result = tuple(list(first) + [second])
+        first = [first]
+    if is_row(second):
+        result = first
+        if ordered:
+            for n, v in enumerate(second):
+                if v is not None:
+                    while len(result) <= n:
+                        result.append(None)
+                    result[n] = v
+        else:
+            result += list(second)
+    else:
+        result = first + [second]
+    if frozen and isinstance(result, Iterable):
+        result = tuple(result)
     return result
 
 
