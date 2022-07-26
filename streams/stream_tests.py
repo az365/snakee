@@ -635,8 +635,8 @@ def test_unfold():
         dict(key='b', value=21), dict(key='b', value=22), dict(key='b', value=23),
     ]
     expected_rows = [
-        ('a', 11), ('a', 12), ('a', 13),
-        ('b', 21), ('b', 22), ('b', 23),
+        ['a', 11], ['a', 12], ['a', 13],
+        ['b', 21], ['b', 22], ['b', 23],
     ]
     received_records = sm.RecordStream(
         example_records,
@@ -646,11 +646,19 @@ def test_unfold():
     assert received_records == expected_records, f'test case 1: records {received_records} != {expected_records}'
     received_rows = sm.RecordStream(
         example_records,
+    ).to_row_stream(
+        columns=['key', 'value'],
+    ).flat_map(
+        fs.unfold_lists(1, number_field=None),
+    ).get_list()
+    assert received_rows == expected_rows, f'test case 2: rows {received_rows} != {expected_rows}'
+    received_rows = sm.RecordStream(
+        example_records,
     ).to_key_value_stream(
         'key', 'value',
     ).ungroup_values(
     ).get_list()
-    assert received_rows == expected_rows, f'test case 2: {received_rows} != {expected_rows}'
+    assert received_rows == expected_rows, f'test case 3: pairs {received_rows} != {expected_rows}'
 
 
 def smoke_test_show():
