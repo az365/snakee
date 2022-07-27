@@ -2,14 +2,14 @@ from typing import Optional, Callable, Iterable, Sized, Union, Any
 
 try:  # Assume we're a submodule in a package.
     from base.classes.auto import AUTO, Auto
-    from base.functions.arguments import get_names, update
+    from base.functions.arguments import get_names, update, get_list
     from utils.decorators import sql_compatible
     from content.items.item_type import ItemType
     from functions.primary import numeric as nm
     from functions.primary import grouping as gr
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.classes.auto import AUTO, Auto
-    from ...base.functions.arguments import get_names, update
+    from ...base.functions.arguments import get_names, update, get_list
     from ...utils.decorators import sql_compatible
     from ...content.items.item_type import ItemType
     from ..primary import numeric as nm
@@ -57,7 +57,7 @@ def not_in(*list_values, _as_sql: bool = False) -> Callable:
 
 
 def uniq(save_order: bool = True) -> Callable:
-    def func(array: Iterable) -> list:
+    def _uniq(array: Iterable) -> list:
         if isinstance(array, Iterable):
             result = list()
             for i in array:
@@ -65,22 +65,22 @@ def uniq(save_order: bool = True) -> Callable:
                     result.append(i)
             return result
     if save_order:
-        return func
+        return _uniq
     else:
         return lambda a: sorted(set(a))
 
 
 def count_uniq() -> Callable:
-    def func(array: Iterable) -> int:
+    def _count_uniq(array: Iterable) -> int:
         a = uniq()(array)
         if isinstance(a, list):
             return len(a)
-    return func
+    return _count_uniq
 
 
 @sql_compatible
 def count(default=None, _as_sql: bool = False) -> Callable:
-    def func(a: Array) -> int:
+    def _count(a: Array) -> int:
         if isinstance(a, Sized):
             return len(a)
         else:
@@ -89,7 +89,7 @@ def count(default=None, _as_sql: bool = False) -> Callable:
     def get_sql_repr(field: Optional[str]) -> str:
         return 'COUNT({})'.format(field or '*')
 
-    return get_sql_repr if _as_sql else func
+    return get_sql_repr if _as_sql else _count
 
 
 def distinct() -> Callable:
@@ -97,23 +97,23 @@ def distinct() -> Callable:
 
 
 def elem_no(position: int, default: Any = None) -> Callable:
-    def func(array: Array) -> Any:
+    def _elem_no(array: Array) -> Any:
         elem_count = len(array)
         if isinstance(array, (list, tuple)) and -elem_count <= position < elem_count:
             return array[position]
         else:
             return default
-    return func
+    return _elem_no
 
 
 def subsequence(start: int = 0, end: Optional[int] = None):
-    def func(array: Array) -> Array:
+    def _subsequence(array: Array) -> Array:
         if end is None:
             finish = len(array)
         else:
             finish = end
         return array[start: finish]
-    return func
+    return _subsequence
 
 
 def first(cnt: Optional[int] = None) -> Callable:
@@ -141,27 +141,39 @@ def fold_lists(
         skip_missing: bool = False,
         item_type: ItemType = ItemType.Auto,
 ) -> Callable:
-    def func(item) -> Union[dict, tuple]:
+    def _fold_lists(item) -> Union[dict, tuple]:
         detected_type = item_type
         if not Auto.is_defined(detected_type):
             detected_type = ItemType.detect(item)
         return gr.fold_lists(item, keys, values, as_pairs=as_pairs, skip_missing=skip_missing, item_type=detected_type)
-    return func
+    return _fold_lists
 
 
-def unfold_lists(*fields, number_field: str = 'n', default_value: Any = 0) -> Callable:
-    if len(fields) == 1:
-        if isinstance(fields, Iterable) and not isinstance(fields, str):
-            fields = fields[0]
+def unfold_lists(
+        *fields,
+        key_func: Optional[Callable] = None,
+        number_field: Optional[str] = 'n',
+        default_value: Any = 0,
+        item_type: ItemType = ItemType.Auto,
+) -> Callable:
+    fields = get_list(fields)
     fields = get_names(fields)
 
-    def func(record: dict) -> Iterable:
-        yield from gr.unfold_lists(record, fields=fields, number_field=number_field, default_value=default_value)
-    return func
+    def _unfold_lists(item) -> Iterable:
+        nonlocal item_type
+        if item_type == ItemType.Auto or not Auto.is_defined(item_type):
+            item_type = ItemType.detect(item)
+            assert isinstance(item_type, ItemType), f'got {item_type}'
+        yield from gr.unfold_lists(
+            item, item_type=item_type,
+            fields=fields, number_field=number_field,
+            key_func=key_func, default_value=default_value,
+        )
+    return _unfold_lists
 
 
 def compare_lists(a_field='a_only', b_field='b_only', ab_field='common', as_dict=True) -> Callable:
-    def func(list_a: Array, list_b: Array) -> Union[dict, list, tuple]:
+    def _compare_lists(list_a: Array, list_b: Array) -> Union[dict, list, tuple]:
         items_common, items_a_only, items_b_only = list(), list(), list()
         for item in list_a:
             if item in list_b:
@@ -176,22 +188,22 @@ def compare_lists(a_field='a_only', b_field='b_only', ab_field='common', as_dict
             return dict(result)
         else:
             return result
-    return func
+    return _compare_lists
 
 
 def list_minus(save_order: bool = True) -> Callable:
-    def func(list_a: Iterable, list_b: Array) -> list:
+    def _list_minus(list_a: Iterable, list_b: Array) -> list:
         return [i for i in list_a if i not in list_b]
     if save_order:
-        return func
+        return _list_minus
     else:
         return lambda a, b: sorted(set(a) - set(b))
 
 
 def values_not_none() -> Callable:
-    def func(a: Iterable) -> list:
+    def _values_not_none(a: Iterable) -> list:
         return [v for v in a if nm.is_defined(v)]
-    return func
+    return _values_not_none
 
 
 def defined_values() -> Callable:
@@ -199,19 +211,19 @@ def defined_values() -> Callable:
 
 
 def nonzero_values() -> Callable:
-    def func(a: Iterable) -> list:
+    def _nonzero_values(a: Iterable) -> list:
         return [v for v in a if nm.is_nonzero(v)]
-    return func
+    return _nonzero_values
 
 
 def numeric_values() -> Callable:
-    def func(a: Iterable) -> list:
+    def _numeric_values(a: Iterable) -> list:
         return [v for v in a if nm.is_numeric(v)]
-    return func
+    return _numeric_values
 
 
 def shift_right(shift: int, default: Any = 0, save_count: bool = True) -> Callable:
-    def func(a: Iterable) -> list:
+    def _shift_right(a: Iterable) -> list:
         list_a = list(a)
         if shift == 0:
             return list_a
@@ -232,11 +244,11 @@ def shift_right(shift: int, default: Any = 0, save_count: bool = True) -> Callab
             if save_count:
                 result += addition
         return result
-    return func
+    return _shift_right
 
 
 def mean(round_digits: Optional[int] = None, default: Any = None, safe: bool = True) -> Callable:
-    def func(a) -> float:
+    def _mean(a) -> float:
         if safe:
             a = numeric_values()(a)
         value = nm.mean(a, default=default, safe=False)
@@ -246,11 +258,11 @@ def mean(round_digits: Optional[int] = None, default: Any = None, safe: bool = T
                     value = round(value, round_digits)
                 value = float(value)
         return value
-    return func
+    return _mean
 
 
 def top(cnt: int = 10, output_values: bool = False) -> Callable:
-    def func(keys, values=None) -> list:
+    def _top(keys, values=None) -> list:
         if values:
             pairs = sorted(zip(keys, values), key=lambda i: i[1], reverse=True)
         else:
@@ -263,11 +275,11 @@ def top(cnt: int = 10, output_values: bool = False) -> Callable:
             return top_n
         else:
             return [i[0] for i in top_n]
-    return func
+    return _top
 
 
 def hist(as_list: bool = True, sort_by_count: bool = False, sort_by_name: bool = False) -> Callable:
-    def func(array: Iterable) -> Union[dict, list]:
+    def _hist(array: Iterable) -> Union[dict, list]:
         dict_hist = dict()
         for i in array:
             dict_hist[i] = dict_hist.get(i, 0) + 1
@@ -281,10 +293,10 @@ def hist(as_list: bool = True, sort_by_count: bool = False, sort_by_name: bool =
                 return list_hist
         else:
             return dict_hist
-    return func
+    return _hist
 
 
 def detect_group(**kwargs) -> Callable:
-    def func(value: Any) -> str:
+    def _detect_group(value: Any) -> str:
         return gr.get_group_name(value, **kwargs)
-    return func
+    return _detect_group

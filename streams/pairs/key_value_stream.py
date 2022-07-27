@@ -1,4 +1,4 @@
-from typing import Union, Callable, Iterable, Optional
+from typing import Union, Callable, Iterable
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
@@ -109,19 +109,14 @@ class KeyValueStream(RowStream, PairStreamInterface):
         else:
             return keys
 
-    def _get_ungrouped(self) -> Iterable:
-        for k, a in self.get_items():
-            if a:
-                for v in a:
-                    yield k, v
-            else:
-                yield k, None
-
-    def ungroup_values(self) -> Native:
-        stream = self.stream(
-            self._get_ungrouped(),
-            ex=('count', 'less_than'),
-        )
+    @deprecated_with_alternative('flat_map(fs.unfold_lists())')
+    def ungroup_values(
+            self,
+            key_func: Callable = KEY,
+            value_func: Callable = VALUE,
+    ) -> Native:
+        func = fs.unfold_lists(value_func, key_func=key_func, number_field=None, item_type=self.get_item_type())
+        stream = self.flat_map(func)
         return self._assume_native(stream)
 
     @staticmethod

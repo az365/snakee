@@ -3,7 +3,7 @@ from inspect import isclass
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
-        RegularStreamInterface, StructInterface, FieldInterface,
+        RegularStreamInterface, StructInterface, FieldInterface, LeafConnectorInterface,
         Stream, LocalStream, Context, Connector, Source, TmpFiles,
         StreamType, ItemType, ValueType, LoggingLevel,
         Count, Item, Struct, Columns, Field, FieldNo, OptionalFields, UniKey, Source, Class,
@@ -20,7 +20,7 @@ try:  # Assume we're a submodule in a package.
     from streams.mixin.convert_mixin import ConvertMixin
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
-        RegularStreamInterface, StructInterface, FieldInterface,
+        RegularStreamInterface, StructInterface, FieldInterface, LeafConnectorInterface,
         Stream, LocalStream, Context, Connector, Source, TmpFiles,
         StreamType, ItemType, ValueType, LoggingLevel,
         Count, Item, Struct, Columns, Field, FieldNo, OptionalFields, UniKey, Source, Class,
@@ -41,6 +41,7 @@ Data = Union[Auto, Iterable]
 AutoStreamType = Union[Auto, StreamType]
 StreamItemType = Union[AutoStreamType, ItemType]
 AutoStruct = Union[Auto, Struct]
+FileName = str
 
 DYNAMIC_META_FIELDS = 'struct', 'count', 'less_than'
 DEFAULT_EXAMPLE_COUNT = 10
@@ -575,10 +576,27 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
         stream = stream_class(data, **meta)
         return self._assume_stream(stream)
 
+    def to_file(
+            self,
+            file: Union[LeafConnectorInterface, FileName],
+            verbose: bool = True,
+            return_stream: bool = True,
+            **kwargs
+    ) -> Native:
+        if isinstance(file, FileName):
+            file = self.get_context().get_job_folder().file(file, **kwargs)
+        if not (isinstance(file, LeafConnectorInterface) or hasattr(file, 'write_stream')):
+            raise TypeError('Expected TsvFile, got {} as {}'.format(file, type(file)))
+        meta = self.get_meta()
+        file.write_stream(self, verbose=verbose)
+        if return_stream:
+            return file.to_stream_type(stream_type=self.get_stream_type(), verbose=verbose).update_meta(**meta)
+
     @classmethod
     @deprecated_with_alternative('connectors.filesystem.local_file.JsonFile.to_stream()')
     def from_json_file(
             cls, filename: str,
+            stream_type: StreamType = StreamType.RecordStream,
             skip_first_line=False, max_count=None,
             check=AUTO, verbose=False,
     ) -> Stream:
@@ -587,4 +605,4 @@ class AnyStream(LocalStream, ConvertMixin, RegularStreamInterface):
             filename,
             skip_first_line=skip_first_line, max_count=max_count,
             check=check, verbose=verbose,
-        ).parse_json(to=cls.__name__)
+        ).to_stream(stream_type=stream_type)

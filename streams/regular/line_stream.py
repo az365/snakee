@@ -40,11 +40,6 @@ class LineStream(AnyStream):
     def get_item_type() -> ItemType:
         return ItemType.Line
 
-    def parse_json(self, default_value=None, to: Union[StreamType, str] = StreamType.RecordStream) -> Stream:
-        stream_type = StreamType.find_instance(to)
-        assert isinstance(stream_type, StreamType)
-        return self.map_to_type(fs.json_loads(default_value), stream_type=stream_type)
-
     @classmethod
     @deprecated_with_alternative('*Stream.from_file')
     def from_text_file(

@@ -221,9 +221,9 @@ class ClassType(DynamicEnum):
         for n, c in kwargs.items():
             dict_classes[n] = c
 
-    def get_class(self, default: Union[Optional[Class], Name] = None, skip_missing: bool = False) -> Class:
+    def get_class(self, default: Union[Class, Name, None] = None, skip_missing: bool = False) -> Class:
         dict_classes = self.get_dict_classes()
-        assert dict_classes, 'classes must be defined by set_dict_classes() method'
+        assert dict_classes, 'ClassType.get_class(): classes must be defined by set_dict_classes() method'
         found_class = dict_classes.get(self)
         if found_class:
             return found_class
@@ -236,7 +236,7 @@ class ClassType(DynamicEnum):
             default = self.get_default()
             if hasattr(default, 'get_class'):
                 return default.get_class(skip_missing=skip_missing)
-        raise ValueError('class for {} not supported'.format(self))
+        raise ValueError(f'class for {self} not supported')
 
     def build(self, *args, **kwargs):
         builder = self.get_class()
@@ -254,7 +254,7 @@ class ClassType(DynamicEnum):
     @classmethod
     def detect(cls, obj, default: Union[DynamicEnum, Name, None] = None) -> EnumItem:
         for item in cls.get_enum_items():
-            assert isinstance(item, ClassType), '{} expected, got {} as {}'.format(cls.__name__, item, type(item))
+            assert isinstance(item, ClassType), f'{cls.__name__} expected, got {item} as {type(item)}'
             if item.isinstance(obj):
                 return item
         if default:
@@ -277,19 +277,25 @@ class SubclassesType(ClassType):
             dict_subclasses[k] = v
         cls.set_dict_subclasses(dict_subclasses)
 
-    def get_subclasses(self, default: Union[Optional[Class], Name] = None, skip_missing: bool = False) -> Iterable:
-        subclasses = super().get_class(default=default, skip_missing=skip_missing)
-        assert isinstance(subclasses, Iterable)
+    def get_subclasses(self, default: Union[Class, Name, None] = None, skip_missing: bool = False) -> Iterable:
+        try:
+            subclasses = super().get_class(default=default, skip_missing=False)
+        except ValueError as e:
+            if skip_missing:
+                subclasses = list()
+            else:
+                raise e
+        assert isinstance(subclasses, Iterable) and not isinstance(subclasses, str)
         return subclasses
 
-    def get_class(self, default: Union[Optional[Class], Name] = None, skip_missing: bool = False) -> Class:
-        subclasses = self.get_subclasses()
+    def get_class(self, default: Union[Class, Name, None] = None, skip_missing: bool = False) -> Class:
+        subclasses = self.get_subclasses(skip_missing=skip_missing)
         if isinstance(subclasses, (list, tuple)):
             return subclasses[0]
         elif default:
             return default
         elif not skip_missing:
-            raise ValueError('class for {} not found'.format(self))
+            raise ValueError(f'SubclassesType.get_class(): class for {self} not found')
 
     def isinstance(self, obj, by_type: bool = True) -> Optional[bool]:
         if by_type and hasattr(obj, 'get_type'):

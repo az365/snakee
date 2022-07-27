@@ -477,7 +477,7 @@ def test_group_by():
         lambda a: [i.get('y') for i in a],
         stream_type=sm.StreamType.RowStream,
     ).get_list()
-    assert received_1 == expected, 'test case 1'
+    assert received_1 == expected, f'test case 1: {received_1} != {expected}'
 
 
 def test_any_join():
@@ -610,19 +610,54 @@ def test_to_rows():
     ).to_row_stream(
         ',',
     ).get_list()
-    assert received == expected
+    assert received == expected, f'{received} != {expected}'
 
 
 def test_parse_json():
     example = ['{"a": "b"}', 'abc', '{"d": "e"}']
-    expected = [{'a': 'b'}, {'err': 'err'}, {'d': 'e'}]
+    expected = [dict(a='b'), dict(_err='JSONDecodeError'), dict(d='e')]
     received = sm.AnyStream(
         example,
     ).to_line_stream(
-    ).parse_json(
-        default_value=dict(err='err'),
+    ).to_record_stream(
     ).get_list()
-    assert received == expected
+    assert received == expected, f'{received} != {expected}'
+
+
+def test_unfold():
+    example_records = [
+        dict(key='a', value=[11, 12, 13]),
+        dict(key='b', value=[21, 22, 23]),
+    ]
+    expected_records = [
+        dict(key='a', value=11), dict(key='a', value=12), dict(key='a', value=13),
+        dict(key='b', value=21), dict(key='b', value=22), dict(key='b', value=23),
+    ]
+    expected_rows = [
+        ['a', 11], ['a', 12], ['a', 13],
+        ['b', 21], ['b', 22], ['b', 23],
+    ]
+    received_records = sm.RecordStream(
+        example_records,
+    ).flat_map(
+        fs.unfold_lists('value', number_field=None),
+    ).get_list()
+    assert received_records == expected_records, f'test case 1: records {received_records} != {expected_records}'
+    received_rows = sm.RecordStream(
+        example_records,
+    ).to_row_stream(
+        columns=['key', 'value'],
+    ).flat_map(
+        fs.unfold_lists(1, number_field=None),
+    ).get_list()
+    assert received_rows == expected_rows, f'test case 2: rows {received_rows} != {expected_rows}'
+    received_rows = sm.RecordStream(
+        example_records,
+    ).to_key_value_stream(
+        'key', 'value',
+    ).ungroup_values(
+    ).get_list()
+    assert received_rows == expected_rows, f'test case 3: pairs {received_rows} != {expected_rows}'
 
 
 def smoke_test_show():
@@ -672,6 +707,7 @@ def main():
     test_records_join()
     test_to_rows()
     test_parse_json()
+    test_unfold()
     smoke_test_show()
 
 

@@ -59,6 +59,9 @@ class Auto:
     def __eq__(self, other):
         return self.is_auto(other)
 
+    def __hash__(self):
+        return hash(self.get_value())
+
     def __repr__(self):
         return str(self.get_value())
 
