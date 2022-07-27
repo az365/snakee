@@ -218,32 +218,6 @@ def test_enumerated():
     assert received == expected
 
 
-def test_save_and_read():
-    expected = [str(i) for i in EXAMPLE_INT_SEQUENCE]
-    received_0 = sm.AnyStream(
-        EXAMPLE_INT_SEQUENCE,
-    ).to_line_stream(
-    ).lazy_save(
-        EXAMPLE_FILENAME,
-    ).get_list()
-    received_1 = sm.LineStream.from_text_file(
-        EXAMPLE_FILENAME,
-    ).get_list()
-    assert received_0 == expected, 'test case 0: lazy_save(), {} != {}'.format(received_0, expected)
-    assert received_1 == expected, 'test case 1: secondary fileholder, {} != {}'.format(received_1, expected)
-
-    sm.AnyStream(
-        EXAMPLE_INT_SEQUENCE,
-    ).to_line_stream(
-    ).to_text_file(
-        EXAMPLE_FILENAME,
-    )
-    received_2 = sm.LineStream.from_text_file(
-        EXAMPLE_FILENAME,
-    ).get_list()
-    assert received_2 == expected, 'test case 2: to_text_file(), {} != {}'.format(received_2, expected)
-
-
 def test_add():
     addition = list(reversed(EXAMPLE_INT_SEQUENCE))
     expected_1 = EXAMPLE_INT_SEQUENCE + addition
@@ -364,9 +338,6 @@ def test_split_by_step():
     )
     received_1 = [f.get_list() for f in split_1]
     assert received_1 == expected, 'test case 1'
-    context = sm.get_context()
-    if context:
-        context.close_all_streams(verbose=False)
 
 
 def test_memory_sort():
@@ -691,7 +662,6 @@ def main():
     test_any_select()
     test_records_select()
     test_enumerated()
-    test_save_and_read()
     test_add()
     test_add_records()
     test_separate_first()
