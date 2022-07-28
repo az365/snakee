@@ -47,8 +47,11 @@ class StreamableMixin(ColumnarMixin, ABC):
         return stream_type
 
     def _get_stream_class(self, stream_type: AutoStreamType = AUTO):
-        stream_type = self._get_stream_type(stream_type)
-        return stream_type.get_class()
+        try:  # assume we're RegularStream
+            return self.get_stream_class()
+        except AttributeError:  # deprecated approach
+            stream_type = self._get_stream_type(stream_type)
+            return stream_type.get_class()
 
     def _get_item_type(self, stream: Union[AutoStreamType, RegularStreamInterface] = AUTO) -> ItemType:
         if isinstance(stream, RegularStreamInterface) or hasattr(stream, 'get_item_type'):
@@ -175,6 +178,8 @@ class StreamableMixin(ColumnarMixin, ABC):
     ) -> Stream:
         stream_type = Auto.delayed_acquire(stream_type, self._get_stream_type)
         item_type = self._get_item_type(stream_type)
+        if 'item_type' not in kwargs:
+            kwargs['item_type'] = item_type
         if 'struct' not in kwargs:
             if isinstance(self, LeafConnectorInterface) or hasattr(self, 'get_struct'):
                 struct = self.get_struct()
@@ -184,7 +189,8 @@ class StreamableMixin(ColumnarMixin, ABC):
         if not Auto.is_defined(data):
             data = self._get_items_of_type(item_type, step=step, verbose=verbose, message=message)
         stream_kwargs = self.get_stream_kwargs(data=data, step=step, verbose=verbose, **kwargs)
-        return stream_type.stream(**stream_kwargs)
+        stream = self._get_stream_class(stream_type=stream_type)
+        return stream(**stream_kwargs)
 
     def to_any_stream(self, step: AutoCount = AUTO, verbose: AutoBool = AUTO, **kwargs) -> Stream:
         return self.to_stream_type(StreamType.AnyStream, step=step, verbose=verbose, **kwargs)

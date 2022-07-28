@@ -410,8 +410,6 @@ class ConvertMixin(IterableStream, ABC):
             meta['context'] = self.get_context()
         if 'value_stream_type' in meta:
             meta.pop('value_stream_type')  # unify KeyValueStream to RegularStream
-        if 'item_type' in meta:  # TMP
-            meta.pop('item_type')
         stream_class = self.get_stream_class()
         stream = stream_class(data, **meta)
         return stream
@@ -535,6 +533,7 @@ class ConvertMixin(IterableStream, ABC):
             if not Auto.is_defined(delimiter):
                 delimiter = DEFAULT_DELIMITER  # '\t'
         if Auto.is_defined(delimiter):
+            assert item_type == ItemType.Line
             assert isinstance(delimiter, str), f'to_row_stream(): Expected delimiter as str, got {delimiter}'
             assert not Auto.is_defined(columns), f'got {columns}'
             assert not func, msg

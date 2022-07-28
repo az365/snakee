@@ -3,7 +3,7 @@ from inspect import isclass
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
-        RegularStreamInterface, StructInterface, FieldInterface, LeafConnectorInterface,
+        StructInterface, FieldInterface, LeafConnectorInterface,
         Stream, LocalStream, Context, Connector, Source, TmpFiles,
         StreamType, ItemType, ValueType, LoggingLevel,
         Count, Item, Struct, Columns, Field, FieldNo, OptionalFields, UniKey, Source, Class,
@@ -17,6 +17,10 @@ try:  # Assume we're a submodule in a package.
     from content.selection import selection_classes as sn
     from content.struct.flat_struct import FlatStruct
     from streams.abstract.local_stream import LocalStream
+    from streams.interfaces.regular_stream_interface import (
+        RegularStreamInterface,
+        DEFAULT_EXAMPLE_COUNT, DEFAULT_ANALYZE_COUNT,
+    )
     from streams.mixin.convert_mixin import ConvertMixin
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
@@ -34,6 +38,10 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...content.selection import selection_classes as sn
     from ...content.struct.flat_struct import FlatStruct
     from ..abstract.local_stream import LocalStream
+    from ..interfaces.regular_stream_interface import (
+        RegularStreamInterface,
+        DEFAULT_EXAMPLE_COUNT, DEFAULT_ANALYZE_COUNT,
+    )
     from ..mixin.convert_mixin import ConvertMixin
 
 Native = Union[LocalStream, RegularStreamInterface]
@@ -44,8 +52,6 @@ AutoStruct = Union[Auto, Struct]
 FileName = str
 
 DYNAMIC_META_FIELDS = 'struct', 'count', 'less_than'
-DEFAULT_EXAMPLE_COUNT = 10
-DEFAULT_ANALYZE_COUNT = 100
 
 
 class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
@@ -54,11 +60,12 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
             data: Iterable[Item],
             name: AutoName = AUTO,
             caption: str = '',
-            count: Count = None,
-            less_than: Count = None,
+            item_type: ItemType = ItemType.Any,
             struct: Struct = None,
             source: Source = None,
             context: Context = None,
+            count: Count = None,
+            less_than: Count = None,
             max_items_in_memory: Count = AUTO,
             tmp_files: TmpFiles = AUTO,
             check: bool = False,
@@ -66,13 +73,14 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
         if struct and not isinstance(struct, (FlatStruct, StructInterface)):
             struct = FlatStruct(struct)
         self._struct = struct
+        self._item_type = item_type
         if check:
             data = self._get_validated_items(data, context=context)
         super().__init__(
             data=data, check=check,
             name=name, caption=caption,
-            count=count, less_than=less_than,
             source=source, context=context,
+            count=count, less_than=less_than,
             max_items_in_memory=max_items_in_memory,
             tmp_files=tmp_files,
         )
@@ -85,16 +93,30 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
     def get_stream_class() -> Class:
         return RegularStream
 
-    @staticmethod
-    def get_item_type() -> ItemType:
-        return ItemType.Any
+    def get_item_type(self) -> ItemType:
+        return self._item_type
+
+    def set_item_type(self, item_type: ItemType, inplace: bool = True) -> Native:
+        if inplace:
+            self._set_item_type_inplace(item_type)
+            return self
+        else:
+            stream = self.stream(self.get_data(), item_type=item_type)
+            return self._assume_native(stream)
+
+    def _set_item_type_inplace(self, item_type: ItemType) -> None:
+        self._item_type = item_type
+
+    item_type = property(get_item_type, _set_item_type_inplace)
 
     def get_struct(self) -> Struct:
         return self._struct
 
     def set_struct(self, struct: Struct, check: bool = False, inplace: bool = False) -> Native:
         if inplace:
-            self._struct = struct
+            self._set_struct_inplace(struct)
+            if check:
+                self._get_validated_items(self.get_items())
             return self
         else:
             items = self.get_items()
@@ -102,6 +124,11 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
                 items = self._get_validated_items(self.get_items(), struct=struct)
             stream = self.stream(items, struct=struct)
             return self._assume_native(stream)
+
+    def _set_struct_inplace(self, struct: Struct) -> None:
+        self._struct = struct
+
+    struct = property(get_struct, _set_struct_inplace)
 
     def get_columns(self) -> Optional[list]:
         declared_columns = self.get_declared_columns()
@@ -370,7 +397,7 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
             functions = [functions]
         return self.get_item_type().get_key_function(*functions, struct=self.get_struct(), take_hash=take_hash)
 
-    def get_one_column_values(self, column, as_list: bool = False) -> Iterable:
+    def get_one_column_values(self, column: Field, as_list: bool = False) -> Iterable:
         column_getter = self.get_item_type().get_key_function(column, struct=self.get_struct(), take_hash=False)
         values = map(column_getter, self.get_items())
         if as_list:

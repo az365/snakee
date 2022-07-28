@@ -15,25 +15,29 @@ EXPECTED_ITEM_TYPE = ItemType.Line
 
 
 class LineStream(AnyStream):
+    @deprecated_with_alternative('RegularStream(item_type=ItemType.Line)')
     def __init__(
             self,
             data: Iterable,
             name: str = AUTO,
             caption: str = '',
+            item_type: ItemType = EXPECTED_ITEM_TYPE,
             struct: Struct = None,
-            check: bool = True,
-            count=None,
-            less_than=None,
             source=None,
             context=None,
+            count=None,
+            less_than=None,
             max_items_in_memory=AUTO,
             tmp_files=AUTO,
+            check: bool = True,
     ):
+        assert item_type == EXPECTED_ITEM_TYPE, f'got {item_type}'
         super().__init__(
-            data=data, struct=struct, check=check,
+            data=data, check=check,
             name=name, caption=caption,
-            count=count, less_than=less_than,
+            item_type=item_type, struct=struct,
             source=source, context=context,
+            count=count, less_than=less_than,
             max_items_in_memory=max_items_in_memory,
             tmp_files=tmp_files,
         )
@@ -65,7 +69,7 @@ class LineStream(AnyStream):
             sm_lines = sm_lines.take(max_count)
         return sm_lines
 
-    @deprecated_with_alternative('*Stream.write_to')
+    @deprecated_with_alternative('RegularStream.write_to')
     def lazy_save(
             self, filename: Name, end: str = '\n',
             check: AutoBool = AUTO, verbose: bool = True, immediately: bool = False,
@@ -86,7 +90,7 @@ class LineStream(AnyStream):
             items = write_and_yield(fileholder, self.get_items())
             return LineStream(items, **self.get_meta())
 
-    @deprecated_with_alternative('*Stream.write_to()')
+    @deprecated_with_alternative('RegularStream.write_to()')
     def to_text_file(
             self, filename: Name, end: str = '\n',
             check: AutoBool = AUTO, verbose: bool = True, return_stream: bool = True

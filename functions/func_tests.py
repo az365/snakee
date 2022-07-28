@@ -1,4 +1,4 @@
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from functions.tests import (
         test_dates,
         test_text,
@@ -15,7 +15,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 def main():
     test_dates.main()
     test_text.main()
-    # test_grouping.main()
+    test_grouping.main()
 
 
 if __name__ == '__main__':

@@ -23,25 +23,28 @@ EXPECTED_ITEM_TYPE = ItemType.Row
 
 
 class RowStream(AnyStream, ColumnarMixin):
+    @deprecated_with_alternative('RegularStream(item_type=ItemType.Row)')
     def __init__(
             self,
             data: Iterable,
             name: Name = AUTO,
             caption: str = EMPTY,
-            count: Count = None,
-            less_than: Count = None,
+            item_type: ItemType = EXPECTED_ITEM_TYPE,
             struct: Struct = None,
             source: Connector = None,
             context: Context = None,
+            count: Count = None,
+            less_than: Count = None,
             max_items_in_memory: AutoCount = AUTO,
             tmp_files: Union[TmpFiles, Auto] = AUTO,
             check: bool = False,
     ):
         super().__init__(
-            data=data, struct=struct, check=check,
+            data=data, check=check,
+            item_type=item_type, struct=struct,
+            source=source, context=context,
             name=name, caption=caption,
             count=count, less_than=less_than,
-            source=source, context=context,
             max_items_in_memory=max_items_in_memory,
             tmp_files=tmp_files,
         )

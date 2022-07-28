@@ -16,7 +16,7 @@ EXAMPLE_CSV_ROWS = [
 
 
 def test_map():
-    expected_types = ['AnyStream', 'LineStream', 'LineStream', 'LineStream']
+    expected_types = ['Any', 'Line', 'Line', 'Line']
     received_types = list()
     expected_0 = [-i for i in EXAMPLE_INT_SEQUENCE]
     received_0 = sm.AnyStream(
@@ -26,7 +26,7 @@ def test_map():
         lambda i: -i,
     ).submit(
         received_types,
-        lambda f: f.get_class_name(),
+        lambda f: f.get_item_type().get_name(),
     ).get_list()
     assert received_0 == expected_0, 'test case 0'
     expected_1 = [str(-i) for i in EXAMPLE_INT_SEQUENCE]
@@ -37,7 +37,7 @@ def test_map():
         stream_type=sm.LineStream,
     ).submit(
         received_types,
-        lambda f: f.get_class_name(),
+        lambda f: f.get_item_type().get_name(),
     ).get_list()
     assert received_1 == expected_1, f'test case 1: {received_1} != {expected_1}'
     expected_2 = [str(-i) for i in EXAMPLE_INT_SEQUENCE]
@@ -48,7 +48,7 @@ def test_map():
         stream_type=sm.StreamType.LineStream,
     ).submit(
         received_types,
-        lambda f: f.get_class_name(),
+        lambda f: f.get_item_type().get_name(),
     ).get_list()
     assert received_2 == expected_2, f'test case 2: {received_2} != {expected_2}'
     expected_3 = [str(-i) for i in EXAMPLE_INT_SEQUENCE]
@@ -59,7 +59,7 @@ def test_map():
         stream_type='LineStream',
     ).submit(
         received_types,
-        lambda f: f.get_class_name(),
+        lambda f: f.get_item_type().get_name(),
     ).get_list()
     assert received_3 == expected_3, f'test case 3: {received_3} != {expected_3}'
     assert received_types == expected_types, f'test for types: {received_types} != {expected_types}'
@@ -645,7 +645,7 @@ def smoke_test_show():
 
 
 def main():
-    # test_map()
+    test_map()
     test_flat_map()
     test_filter()
     test_records_filter()
@@ -664,12 +664,12 @@ def main():
     test_memory_sort()
     test_disk_sort_by_key()
     test_sort()
-    # test_sorted_group_by_key()
-    # test_group_by()
+    test_sorted_group_by_key()
+    test_group_by()
     test_any_join()
     test_records_join()
-    # test_to_rows()
-    # test_parse_json()
+    test_to_rows()
+    test_parse_json()
     test_unfold()
     smoke_test_show()
 

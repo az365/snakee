@@ -25,25 +25,28 @@ EXPECTED_ITEM_TYPE = ItemType.Record
 
 
 class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
+    @deprecated_with_alternative('RegularStream(item_type=ItemType.Record)')
     def __init__(
             self,
             data: Iterable,
             name: AutoName = AUTO,
             caption: str = '',
-            count: Count = None,
-            less_than: Count = None,
+            item_type: ItemType = EXPECTED_ITEM_TYPE,
             struct: Struct = None,
             source: Connector = None,
             context: Context = None,
+            count: Count = None,
+            less_than: Count = None,
             max_items_in_memory: AutoCount = AUTO,
             tmp_files: TmpFiles = AUTO,
             check: bool = False,
     ):
         super().__init__(
-            data=data, struct=struct, check=check,
+            data=data, check=check,
             name=name, caption=caption,
-            count=count, less_than=less_than,
+            item_type=item_type, struct=struct,
             source=source, context=context,
+            count=count, less_than=less_than,
             max_items_in_memory=max_items_in_memory,
             tmp_files=tmp_files,
         )

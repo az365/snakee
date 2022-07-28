@@ -23,9 +23,10 @@ class AnyStream(RegularStream):
             data: Iterable[Item],
             name: Union[str, Auto] = AUTO,
             caption: str = '',
+            item_type: ItemType = ItemType.Any,
+            struct: Struct = None,
             count: Count = None,
             less_than: Count = None,
-            struct: Struct = None,
             source: Source = None,
             context: Context = None,
             max_items_in_memory: Count = AUTO,
@@ -35,9 +36,9 @@ class AnyStream(RegularStream):
         super().__init__(
             data=data, check=check,
             name=name, caption=caption,
-            count=count, less_than=less_than,
-            struct=struct,
+            item_type=item_type, struct=struct,
             source=source, context=context,
+            count=count, less_than=less_than,
             max_items_in_memory=max_items_in_memory,
             tmp_files=tmp_files,
         )
@@ -45,9 +46,6 @@ class AnyStream(RegularStream):
     @staticmethod
     def get_default_item_type() -> ItemType:
         return EXPECTED_ITEM_TYPE
-
-    def get_item_type(self) -> ItemType:
-        return self.get_default_item_type()
 
     def _set_item_type_inplace(self, item_type: ItemType) -> None:
         if item_type != self.get_default_item_type():
