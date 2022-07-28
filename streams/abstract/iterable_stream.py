@@ -28,7 +28,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 
 Native = Union[AbstractStream, IterDataMixin, IterableInterface]
 
-DYNAMIC_META_FIELDS = ('count', 'less_than')
+DYNAMIC_META_FIELDS = 'count', 'less_than'
 MAX_ITEMS_IN_MEMORY = 5000000
 
 
@@ -265,9 +265,14 @@ class IterableStream(AbstractStream, IterDataMixin):
             key: UniKey,
             how: How = JoinType.Left,
             right_is_uniq: bool = True,
+            merge_function: Callable = fs.merge_two_items(),
             inplace: bool = False,
     ) -> Native:
-        stream = super().map_side_join(right, key=key, how=how, right_is_uniq=right_is_uniq, inplace=inplace)
+        stream = super().map_side_join(
+            right, key=key, how=how,
+            merge_function=merge_function,
+            right_is_uniq=right_is_uniq, inplace=inplace,
+        )
         meta = self.get_static_meta()
         if inplace:
             self.set_meta(**meta, inplace=False)

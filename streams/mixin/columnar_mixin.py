@@ -178,10 +178,17 @@ class ColumnarMixin(IterDataMixin, ABC):
             key: UniKey,
             how: How = JoinType.Left,
             right_is_uniq: bool = True,
+            merge_function: Union[Callable, Auto] = AUTO,
             inplace: bool = False,
     ) -> Optional[Native]:
         keys = update([key])
         keys = get_names(keys, or_callable=True)
+        try:
+            item_type = self.get_item_type()
+        except AttributeError:  # TMP
+            item_type = ItemType.Any
+        key_function = composite_key(*keys, item_type=item_type)
+        merge_function = Auto.acquire(merge_function, merge_two_items())
         if not isinstance(how, JoinType):
             how = JoinType(how)
         right_items = list(right.get_items())
@@ -189,8 +196,8 @@ class ColumnarMixin(IterDataMixin, ABC):
             joined_items = algo.map_side_join(
                 iter_left=self.get_items(),
                 iter_right=right_items,
-                key_function=composite_key(*keys, item_type=self.get_item_type()),
-                merge_function=merge_two_items(),
+                key_function=key_function,
+                merge_function=merge_function,
                 dict_function=items_to_dict(),
                 how=how,
                 uniq_right=right_is_uniq,
@@ -320,9 +327,8 @@ class ColumnarMixin(IterDataMixin, ABC):
             return dataframe
 
     def _get_field_getter(self, field: UniKey, item_type: Union[ItemType, Auto] = AUTO, default=None):
-        if isinstance(self, RegularStreamInterface) or hasattr(self, 'get_item_type'):
+        if isinstance(self, RegularStreamInterface) or hasattr(self, 'get_item_type') and hasattr(self, 'get_struct'):
             item_type = Auto.delayed_acquire(item_type, self.get_item_type)
-        if hasattr(self, 'get_struct'):
             struct = self.get_struct()
         else:
             struct = None

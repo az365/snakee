@@ -185,7 +185,7 @@ class LocalStream(IterableStream, LocalStreamInterface):
         return self._get_tee_items(mem_copy=mem_copy)
 
     def map_to_type(self, function: Callable, stream_type: StreamItemType = AUTO, **kwargs) -> Native:
-        stream_type = Auto.acquire(stream_type, self.get_stream_type, delayed=True)
+        stream_type = Auto.delayed_acquire(stream_type, self.get_stream_type)
         data = map(function, self.get_iter())
         stream = self.stream(data, stream_type=stream_type, **kwargs)
         stream = self._assume_native(stream)
@@ -276,15 +276,18 @@ class LocalStream(IterableStream, LocalStreamInterface):
             key: UniKey,
             how: How = JoinType.Left,
             sorting_is_reversed: bool = False,
+            key_function: Union[Callable, Auto] = AUTO,
+            merge_function: Callable = fs.merge_two_items(),
     ) -> Native:
         keys = update([key])
+        key_function = Auto.acquire(key_function, fs.composite_key(keys))
         if not isinstance(how, JoinType):
             how = JoinType(how)
         joined_items = algo.sorted_join(
             iter_left=self.get_iter(),
             iter_right=right.get_iter(),
-            key_function=fs.composite_key(keys),
-            merge_function=fs.merge_two_items(),
+            key_function=key_function,
+            merge_function=merge_function,
             order_function=bf.is_ordered(reverse=sorting_is_reversed, including=True),
             how=how,
         )
@@ -300,19 +303,28 @@ class LocalStream(IterableStream, LocalStreamInterface):
             is_sorted: bool = False,
             right_is_uniq: bool = False,
             allow_map_side: bool = True,
-            force_map_side: bool = True,
+            force_map_side: bool = False,
+            merge_function: Callable = fs.merge_two_items(),
             verbose: AutoBool = AUTO,
     ) -> Native:
         on_map_side = force_map_side or (allow_map_side and right.can_be_in_memory())
         if on_map_side:
-            stream = self.map_side_join(right, key=key, how=how, right_is_uniq=right_is_uniq)
+            stream = self.map_side_join(
+                right, key=key, how=how,
+                right_is_uniq=right_is_uniq,
+                merge_function=merge_function,
+            )
         else:
             if is_sorted:
                 left = self
             else:
                 left = self.sort(key, reverse=reverse, verbose=verbose)
                 right = right.sort(key, reverse=reverse, verbose=verbose)
-            stream = left.sorted_join(right, key=key, how=how, sorting_is_reversed=reverse)
+            stream = left.sorted_join(
+                right, key=key, how=how,
+                merge_function=merge_function,
+                sorting_is_reversed=reverse,
+            )
         return self._assume_native(stream)
 
     def split_to_disk_by_step(
