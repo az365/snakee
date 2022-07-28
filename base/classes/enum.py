@@ -297,7 +297,7 @@ class SubclassesType(ClassType):
         elif not skip_missing:
             raise ValueError(f'SubclassesType.get_class(): class for {self} not found')
 
-    def isinstance(self, obj, by_type: bool = True) -> Optional[bool]:
+    def isinstance(self, obj, by_type: bool = True, default: Optional[bool] = None) -> Optional[bool]:
         if by_type and hasattr(obj, 'get_type'):
             return obj.get_type() == self
         else:
@@ -309,3 +309,4 @@ class SubclassesType(ClassType):
                     return isinstance(obj, native_subclasses)
                 except TypeError as e:
                     raise TypeError(f'{self}.isinstance({obj}): {e}, got {native_subclasses}')
+            return default

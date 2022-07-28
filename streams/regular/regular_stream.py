@@ -114,7 +114,12 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
         else:
             return list(detected_columns)
 
-    def get_detected_columns(self, by_items_count: int = DEFAULT_ANALYZE_COUNT, sort: bool = True, get_max: bool = True) -> Sequence:
+    def get_detected_columns(
+            self,
+            by_items_count: int = DEFAULT_ANALYZE_COUNT,
+            sort: bool = True,
+            get_max: bool = True,
+    ) -> Sequence:
         item_type = self.get_item_type()
         if item_type in (ItemType.Any, ItemType.Line):
             return [self.get_item_type().get_value()]
@@ -175,7 +180,7 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
     def is_valid_item_type(self, item: Item) -> bool:
         item_type = self.get_item_type()
         if Auto.is_defined(item_type):
-            return item_type.isinstance(item)
+            return item_type.isinstance(item, default=True)
         else:
             return True
 
@@ -183,11 +188,24 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
         if self.is_valid_item_type(item):
             struct = Auto.delayed_acquire(struct, self.get_struct)
             if isinstance(struct, StructInterface) or hasattr(struct, 'get_validation_errors'):
-                return not struct.get_validation_errors(item)
+                errors = struct.get_validation_errors(item)
+                return not errors
             else:
                 return True
         else:
             return False
+
+    def _get_validation_errors(self, item: Item, struct: AutoStruct = AUTO) -> list:
+        if self.is_valid_item_type(item):
+            struct = Auto.delayed_acquire(struct, self.get_struct)
+            if isinstance(struct, StructInterface) or hasattr(struct, 'get_validation_errors'):
+                return struct.get_validation_errors(item)
+            else:
+                return []
+        else:
+            expected = self.get_item_type().get_subclasses(skip_missing=True)
+            msg = f'type({item} is not {expected} for {self.get_item_type()}'
+            return [msg]
 
     def _get_typing_validated_items(
             self,
@@ -211,19 +229,21 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
             items: Iterable,
             struct: AutoStruct = AUTO,
             skip_errors: bool = False,
-            context: Context = None,
+            context: Context = None,  # deprecated argument
     ) -> Generator:
         logger = context.get_logger() if context else None
         for i in items:
-            if self._is_valid_item(i, struct=struct):
-                yield i
-            else:
-                message = f'{self.__class__.__name__}._get_validated_items() found invalid item {i} for {self}'
+            errors = self._get_validation_errors(i, struct=struct)
+            if errors:
+                method_name = f'{self.__class__.__name__}._get_validated_items()'
+                message = f'{method_name} found invalid item {i} for {repr(self)}: {errors}'
                 if skip_errors:
                     if logger:
                         logger.log(msg=message, level=LoggingLevel.Warning)
                 else:
                     raise TypeError(message)
+            else:
+                yield i
 
     def _get_target_item_type(self, *columns, **expressions) -> ItemType:
         input_item_type = self.get_item_type()
