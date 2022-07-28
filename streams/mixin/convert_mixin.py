@@ -3,10 +3,10 @@ from typing import Optional, Callable, Iterable, Iterator, Union
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
-        Stream, RegularStream, LineStream, RowStream, RecordStream, KeyValueStream, StructStream,
+        Stream, LineStream, RowStream, RecordStream, KeyValueStream, StructStream,
         StreamType, ItemType, Item, LoggingLevel,
         StructInterface, FieldInterface, FieldName, OptionalFields, UniKey,
-        AUTO, Auto, AutoBool, AutoColumns, Columns, Array, ARRAY_TYPES,
+        AUTO, Auto, AutoBool, AutoColumns, Columns, Class, Array, ARRAY_TYPES,
     )
     from base.functions.arguments import get_names, get_list, update
     from base.constants.chars import TAB_CHAR
@@ -19,10 +19,10 @@ try:  # Assume we're a submodule in a package.
     from streams.abstract.iterable_stream import IterableStream
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
-        Stream, RegularStream, LineStream, RowStream, RecordStream, KeyValueStream, StructStream,
+        Stream, LineStream, RowStream, RecordStream, KeyValueStream, StructStream,
         StreamType, ItemType, Item, LoggingLevel,
         StructInterface, FieldInterface, FieldName, OptionalFields, UniKey,
-        AUTO, Auto, AutoBool, AutoColumns, Columns, Array, ARRAY_TYPES,
+        AUTO, Auto, AutoBool, AutoColumns, Columns, Class, Array, ARRAY_TYPES,
     )
     from ...base.functions.arguments import get_names, get_list, update
     from ...base.constants.chars import TAB_CHAR
@@ -34,7 +34,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..interfaces.regular_stream_interface import RegularStreamInterface
     from ..abstract.iterable_stream import IterableStream
 
-Native = RegularStream
+Native = RegularStreamInterface
 AnyStream = Stream
 AutoStreamType = Union[Auto, StreamType]  # deprecated, use AutoItemType instead
 StreamItemType = Union[StreamType, ItemType, Auto]
@@ -349,6 +349,26 @@ class ConvertMixin(IterableStream, ABC):
         else:
             return self.get_stream_type()
 
+    def _get_item_type(self, item_type: Union[ItemType, StreamType, Auto, None] = None) -> ItemType:
+        if Auto.is_defined(item_type):
+            if isinstance(item_type, str):
+                try:
+                    item_type = ItemType(item_type, default=None)
+                except ValueError:  # stream_type is not a valid StreamType
+                    item_type = StreamType(item_type)
+            if isinstance(item_type, ItemType):
+                return item_type
+            elif isinstance(item_type, StreamType):
+                return item_type.get_item_type()
+            elif isinstance(item_type, RegularStreamInterface) or hasattr(item_type, 'get_stream_type'):
+                stream_type = item_type.get_stream_type()
+                assert isinstance(stream_type, StreamType)
+                return stream_type.get_item_type()
+            else:
+                raise TypeError(f'ConvertMixin._get_stream_type(): Expected ItemType or StreamType, got {item_type}')
+        else:
+            return self.get_item_type()
+
     def _get_mapped_items(self, function: Callable, flat: bool = False, skip_errors: bool = False) -> Iterator[Item]:
         if skip_errors:
             logger = self.get_selection_logger()
@@ -373,15 +393,14 @@ class ConvertMixin(IterableStream, ABC):
             **kwargs
     ) -> Stream:
         if Auto.is_defined(stream_type):
-            stream_type = self._get_stream_type(stream_type)
-            if isinstance(stream_type, StreamType) or hasattr(stream_type, 'get_stream_class'):
-                stream_class = stream_type.get_stream_class()
+            self.log('stream(): stream_type argument is deprecated, use item_type instead', level=LoggingLevel.Warning)
+            expected_item_type = self._get_item_type(stream_type)
+            if 'item_type' in kwargs:
+                given_item_type = kwargs['item_type']
+                assert expected_item_type == given_item_type
             else:
-                stream_class = stream_type.get_class()
-            meta = self.get_compatible_meta(stream_class, ex=ex)
-        else:
-            stream_class = self.__class__
-            meta = self.get_meta()
+                kwargs['item_type'] = expected_item_type
+        meta = self.get_meta()
         if not save_name:
             meta.pop('name')
         if not save_count:
@@ -389,6 +408,11 @@ class ConvertMixin(IterableStream, ABC):
         meta.update(kwargs)
         if 'context' not in meta and hasattr(self, 'get_context'):
             meta['context'] = self.get_context()
+        if 'value_stream_type' in meta:
+            meta.pop('value_stream_type')  # unify KeyValueStream to RegularStream
+        if 'item_type' in meta:  # TMP
+            meta.pop('item_type')
+        stream_class = self.get_stream_class()
         stream = stream_class(data, **meta)
         return stream
 
@@ -432,7 +456,7 @@ class ConvertMixin(IterableStream, ABC):
         delimiter = Auto.acquire(delimiter, DEFAULT_DELIMITER if stream_type == StreamType.RowStream else None)
         stream = self
         if stream.get_stream_type() == StreamType.RecordStream:
-            assert isinstance(stream, RegularStream) or hasattr(stream, 'get_columns'), 'got {}'.format(stream)
+            assert isinstance(stream, RegularStreamInterface) or hasattr(stream, 'get_columns'), 'got {}'.format(stream)
             columns = Auto.acquire(columns, stream.get_columns, delayed=True)
             add_title_row = Auto.acquire(add_title_row, True)
             stream = stream.to_row_stream(columns=columns, add_title_row=add_title_row)
@@ -511,7 +535,6 @@ class ConvertMixin(IterableStream, ABC):
             if not Auto.is_defined(delimiter):
                 delimiter = DEFAULT_DELIMITER  # '\t'
         if Auto.is_defined(delimiter):
-            assert item_type == ItemType.Line
             assert isinstance(delimiter, str), f'to_row_stream(): Expected delimiter as str, got {delimiter}'
             assert not Auto.is_defined(columns), f'got {columns}'
             assert not func, msg

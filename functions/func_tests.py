@@ -15,7 +15,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 def main():
     test_dates.main()
     test_text.main()
-    test_grouping.main()
+    # test_grouping.main()
 
 
 if __name__ == '__main__':

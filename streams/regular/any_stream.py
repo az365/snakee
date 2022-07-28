@@ -2,11 +2,18 @@ from typing import Union, Iterable
 
 try:  # Assume we're a submodule in a package.
     from utils.decorators import deprecated_with_alternative
-    from streams.regular.regular_stream import RegularStream, Item, Count, Struct, Source, Context, TmpFiles, Auto, AUTO
+    from streams.regular.regular_stream import (
+        RegularStream, Item, ItemType,
+        Count, Struct, Source, Context, TmpFiles, Auto, AUTO,
+    )
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils.decorators import deprecated_with_alternative
-    from .regular_stream import RegularStream, Item, Count, Struct, Source, Context, TmpFiles, Auto, AUTO
+    from .regular_stream import (
+        RegularStream, Item, ItemType,
+        Count, Struct, Source, Context, TmpFiles, Auto, AUTO,
+    )
 
+EXPECTED_ITEM_TYPE = ItemType.Any
 
 
 class AnyStream(RegularStream):
@@ -34,3 +41,14 @@ class AnyStream(RegularStream):
             max_items_in_memory=max_items_in_memory,
             tmp_files=tmp_files,
         )
+
+    @staticmethod
+    def get_default_item_type() -> ItemType:
+        return EXPECTED_ITEM_TYPE
+
+    def get_item_type(self) -> ItemType:
+        return self.get_default_item_type()
+
+    def _set_item_type_inplace(self, item_type: ItemType) -> None:
+        if item_type != self.get_default_item_type():
+            raise TypeError(f'Can not set item_type={item_type} for deprecated class LineStream')

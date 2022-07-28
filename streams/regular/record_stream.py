@@ -2,7 +2,7 @@ from typing import Optional, Iterable, Union
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
-        RegularStream, Struct, Context, Connector, TmpFiles,
+        RegularStreamInterface, Struct, Context, Connector, TmpFiles,
         ItemType, StreamType,
         AUTO, Auto, AutoName, AutoCount, Count,
     )
@@ -12,7 +12,7 @@ try:  # Assume we're a submodule in a package.
     from streams.regular.any_stream import AnyStream
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
-        RegularStream, Struct, Context, Connector, TmpFiles,
+        RegularStreamInterface, Struct, Context, Connector, TmpFiles,
         ItemType, StreamType,
         AUTO, Auto, AutoName, AutoCount, Count,
     )
@@ -21,7 +21,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..mixin.columnar_mixin import ColumnarMixin
     from .any_stream import AnyStream
 
-Native = RegularStream
+EXPECTED_ITEM_TYPE = ItemType.Record
 
 
 class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
@@ -49,15 +49,15 @@ class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
         )
 
     @staticmethod
-    def get_item_type() -> ItemType:
-        return ItemType.Record
+    def get_default_item_type() -> ItemType:
+        return EXPECTED_ITEM_TYPE
 
-    @deprecated_with_alternative('AnyStream.to_file()')
+    @deprecated_with_alternative('RegularStream.write_to()')
     def to_column_file(
             self, filename: str, columns: Union[Iterable, Auto] = AUTO,
             add_title_row=True, delimiter='\t',
             check=True, verbose=True, return_stream=True,
-    ) -> Optional[Native]:
+    ) -> Optional[RegularStreamInterface]:
         meta = self.get_meta()
         columns = Auto.delayed_acquire(columns, self.get_columns)
         row_stream = self.to_row_stream(columns=columns)
@@ -89,7 +89,7 @@ class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
             filename, columns, delimiter='\t',
             skip_first_line=True, check=AUTO,
             expected_count=AUTO, verbose=True,
-    ) -> Native:
+    ) -> RegularStreamInterface:
         stream_class = StreamType.LineStream.get_class()
         return stream_class.from_text_file(
             filename, skip_first_line=skip_first_line,
@@ -99,7 +99,3 @@ class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
         ).to_record_stream(
             columns=columns,
         )
-
-    @staticmethod
-    def _assume_native(stream) -> Native:
-        return stream

@@ -11,7 +11,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 def main():
     fields_test.main()
     repr_test.main()
-    terms_test.main()
+    # terms_test.main()
 
 
 if __name__ == '__main__':

@@ -11,6 +11,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..mixin.convert_mixin import ConvertMixin
     from .row_stream import RowStream
 
+EXPECTED_ITEM_TYPE = ItemType.StructRow
+
 
 class StructStream(RowStream, StructMixin, ConvertMixin):
     def __init__(
@@ -37,5 +39,5 @@ class StructStream(RowStream, StructMixin, ConvertMixin):
         )
 
     @staticmethod
-    def get_item_type() -> ItemType:
-        return ItemType.StructRow
+    def get_default_item_type() -> ItemType:
+        return EXPECTED_ITEM_TYPE

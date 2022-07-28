@@ -2,14 +2,16 @@ from typing import Optional, Iterable, Union
 
 try:  # Assume we're a submodule in a package.
     from utils.decorators import deprecated_with_alternative
-    from interfaces import Stream, StreamInterface, StreamType, ItemType, ConnType, Name, Struct, AutoBool, Auto, AUTO
+    from interfaces import ItemType, ConnType, Name, Struct, AutoBool, Auto, AUTO
     from functions.secondary import item_functions as fs
     from streams.regular.any_stream import AnyStream
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils.decorators import deprecated_with_alternative
-    from ...interfaces import Stream, StreamInterface, StreamType, ItemType, ConnType, Name, Struct, AutoBool, Auto, AUTO
+    from ...interfaces import ItemType, ConnType, Name, Struct, AutoBool, Auto, AUTO
     from ...functions.secondary import item_functions as fs
     from .any_stream import AnyStream
+
+EXPECTED_ITEM_TYPE = ItemType.Line
 
 
 class LineStream(AnyStream):
@@ -37,11 +39,11 @@ class LineStream(AnyStream):
         )
 
     @staticmethod
-    def get_item_type() -> ItemType:
-        return ItemType.Line
+    def get_default_item_type() -> ItemType:
+        return EXPECTED_ITEM_TYPE
 
     @classmethod
-    @deprecated_with_alternative('*Stream.from_file')
+    @deprecated_with_alternative('connectors.ColumnFile().to_stream()')
     def from_text_file(
             cls, filename: Name,
             skip_first_line: bool = False, max_count: Optional[int] = None, expected_count: Union[Auto, int] = AUTO,

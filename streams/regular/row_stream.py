@@ -1,4 +1,4 @@
-from typing import Iterable, Union
+from typing import Optional, Iterable, Union
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
@@ -18,6 +18,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils.decorators import deprecated_with_alternative
     from ..mixin.columnar_mixin import ColumnarMixin
     from .any_stream import AnyStream
+
+EXPECTED_ITEM_TYPE = ItemType.Row
 
 
 class RowStream(AnyStream, ColumnarMixin):
@@ -45,11 +47,11 @@ class RowStream(AnyStream, ColumnarMixin):
         )
 
     @staticmethod
-    def get_item_type() -> ItemType:
-        return ItemType.Row
+    def get_default_item_type() -> ItemType:
+        return EXPECTED_ITEM_TYPE
 
     @classmethod
-    @deprecated_with_alternative('connectors.ColumnFile()')
+    @deprecated_with_alternative('connectors.ColumnFile().to_stream()')
     def from_column_file(
             cls,
             filename: str,
@@ -58,7 +60,7 @@ class RowStream(AnyStream, ColumnarMixin):
             max_count: Count = None,
             check: AutoBool = AUTO,
             verbose: bool = False,
-    ):
+    ) -> AnyStream:
         line_stream_class = StreamType.LineStream.get_class()
         stream = line_stream_class.from_text_file(
             filename,
@@ -70,7 +72,7 @@ class RowStream(AnyStream, ColumnarMixin):
         )
         return stream
 
-    @deprecated_with_alternative('to_file(Connectors.ColumnFile)')
+    @deprecated_with_alternative('RegularStream.to_file(Connectors.ColumnFile)')
     def to_column_file(
             self,
             filename: str,
@@ -78,7 +80,7 @@ class RowStream(AnyStream, ColumnarMixin):
             check: AutoBool = AUTO,
             verbose: bool = True,
             return_stream: bool = True,
-    ):
+    ) -> Optional[AnyStream]:
         meta = self.get_meta()
         stream_csv_file = self.to_line_stream(
             delimiter=delimiter,

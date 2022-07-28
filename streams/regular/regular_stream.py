@@ -82,6 +82,10 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
         return DYNAMIC_META_FIELDS
 
     @staticmethod
+    def get_stream_class() -> Class:
+        return RegularStream
+
+    @staticmethod
     def get_item_type() -> ItemType:
         return ItemType.Any
 

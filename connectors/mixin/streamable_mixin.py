@@ -4,7 +4,7 @@ from typing import Optional, Iterable, Union
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         IterableStreamInterface, StructInterface, Context, LeafConnectorInterface, StructMixinInterface,
-        RegularStream, RowStream, StructStream, RecordStream, LineStream,
+        RegularStreamInterface, RowStream, StructStream, RecordStream, LineStream,
         ItemType, StreamType,
         AUTO, Auto, AutoStreamType, AutoBool, AutoCount, AutoName, Array, OptionalFields,
     )
@@ -13,14 +13,14 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         IterableStreamInterface, StructInterface, Context, LeafConnectorInterface, StructMixinInterface,
-        RegularStream, RowStream, StructStream, RecordStream, LineStream,
+        RegularStreamInterface, RowStream, StructStream, RecordStream, LineStream,
         ItemType, StreamType,
         AUTO, Auto, AutoStreamType, AutoBool, AutoCount, AutoName, Array, OptionalFields,
     )
     from ...base.functions.arguments import get_generated_name
     from ...streams.mixin.columnar_mixin import ColumnarMixin
 
-Stream = Union[IterableStreamInterface, RegularStream]
+Stream = Union[IterableStreamInterface, RegularStreamInterface]
 Message = Union[AutoName, Array]
 Native = Union[Stream, LeafConnectorInterface]
 
@@ -50,16 +50,21 @@ class StreamableMixin(ColumnarMixin, ABC):
         stream_type = self._get_stream_type(stream_type)
         return stream_type.get_class()
 
-    def _get_item_type(self, stream: Union[AutoStreamType, RegularStream] = AUTO) -> ItemType:
+    def _get_item_type(self, stream: Union[AutoStreamType, RegularStreamInterface] = AUTO) -> ItemType:
+        if isinstance(stream, RegularStreamInterface) or hasattr(stream, 'get_item_type'):
+            try:
+                return stream.get_item_type()
+            except TypeError:  # class of stream provided
+                pass
         if isinstance(stream, StreamType) or hasattr(stream, 'get_class'):
             stream_class = self._get_stream_class(stream)
         elif Auto.is_defined(stream):
             stream_class = stream
         else:
             stream_class = self._get_stream_class()
-        assert isinstance(stream_class, RegularStream) or hasattr(stream_class, 'get_item_type')
-        if hasattr(stream_class, 'get_item_type'):
-            return stream_class.get_item_type()
+        assert isinstance(stream_class, RegularStreamInterface) or hasattr(stream_class, 'get_item_type')
+        if hasattr(stream_class, 'get_default_item_type'):
+            return stream_class.get_default_item_type()
         else:
             stream_obj = stream_class([])
             return stream_obj.get_item_type()
