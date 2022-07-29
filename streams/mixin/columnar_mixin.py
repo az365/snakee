@@ -188,7 +188,7 @@ class ColumnarMixin(IterDataMixin, ABC):
         except AttributeError:  # TMP
             item_type = ItemType.Any
         key_function = composite_key(*keys, item_type=item_type)
-        merge_function = Auto.acquire(merge_function, merge_two_items())
+        merge_function = Auto.acquire(merge_function, merge_two_items(item_type=item_type))
         if not isinstance(how, JoinType):
             how = JoinType(how)
         right_items = list(right.get_items())

@@ -523,7 +523,7 @@ def test_records_join():
         key='y',
         right_is_uniq=True,
     ).get_list()
-    assert received_0 == expected_0, 'test case 0: right is uniq'
+    assert received_0 == expected_0, f'test case 0: right is uniq {received_0} != {expected_0}'
     expected_1 = [{'x': 6, 'y': 0, 'z': 0}, {'x': 1, 'y': 2, 'z': 3}, {'x': 4, 'y': 2, 'z': 7}, {'x': 8, 'y': 9}]
     received_1 = sm.AnyStream(
         example_a,
@@ -532,7 +532,7 @@ def test_records_join():
         key='y',
         right_is_uniq=False,
     ).get_list()
-    assert received_1 == expected_1, 'test case 1: right is not uniq'
+    assert received_1 == expected_1, f'test case 1: right is not uniq {received_1} != {expected_1}'
     expected_2 = [{'x': 6, 'y': 0, 'z': 0}, {'x': 1, 'y': 2, 'z': 3}, {'x': 4, 'y': 2, 'z': 7}, {'x': 8, 'y': 9}]
     received_2 = sm.AnyStream(
         example_a,
@@ -542,7 +542,7 @@ def test_records_join():
         how='left',
         right_is_uniq=False,
     ).get_list()
-    assert received_2 == expected_2, 'test case 2: left join'
+    assert received_2 == expected_2, f'test case 2: left join, {received_2} != {expected_2}'
     expected_3 = [{'x': 6, 'y': 0, 'z': 0}, {'x': 1, 'y': 2, 'z': 3}, {'x': 4, 'y': 2, 'z': 7}, {'x': 8, 'y': 9}]
     received_3 = sm.AnyStream(
         example_a,
@@ -552,25 +552,25 @@ def test_records_join():
         how='full',
         right_is_uniq=False,
     ).get_list()
-    assert received_3 == expected_3, 'test case 3: full join'
+    assert received_3 == expected_3, f'test case 3: full join {received_3} != {expected_3}'
     expected_4 = [{'x': 6, 'y': 0, 'z': 0}, {'x': 1, 'y': 2, 'z': 3}, {'x': 4, 'y': 2, 'z': 7}]
-    received_4 = sm.AnyStream(
+    received_4 = sm.RecordStream(
         example_a,
     ).join(
         sm.AnyStream(example_b),
         key='y',
         how='inner',
     ).get_list()
-    assert received_4 == expected_4, 'test case 4: sorted left join'
+    assert received_4 == expected_4, f'test case 4: sorted left join {received_4} != {expected_4}'
     expected_5 = [{'x': 6, 'y': 0, 'z': 0}, {'x': 1, 'y': 2, 'z': 3}, {'x': 4, 'y': 2, 'z': 7}]
-    received_5 = sm.AnyStream(
+    received_5 = sm.RecordStream(
         example_a,
     ).join(
         sm.AnyStream(example_b),
         key='y',
         how='right',
     ).get_list()
-    assert received_5 == expected_5, 'test case 5: sorted right join'
+    assert received_5 == expected_5, f'test case 5: sorted right join {received_5} != {expected_5}'
 
 
 def test_to_rows():

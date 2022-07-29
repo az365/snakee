@@ -70,9 +70,9 @@ def same() -> Callable:
     return _same
 
 
-def merge_two_items(default_right_name: str = '_right') -> Callable:
+def merge_two_items(default_right_name: str = '_right', item_type: ItemType = ItemType.Auto) -> Callable:
     def _merge_two_items(first, second):
-        return it.merge_two_items(first=first, second=second, default_right_name=default_right_name)
+        return it.merge_two_items(first=first, second=second, item_type=item_type, default_right_name=default_right_name)
     return _merge_two_items
 
 

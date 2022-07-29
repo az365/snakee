@@ -5,7 +5,7 @@ try:  # Assume we're a submodule in a package.
     from interfaces import (
         StructInterface, FieldInterface, LeafConnectorInterface,
         Stream, LocalStream, Context, Connector, Source, TmpFiles,
-        StreamType, ItemType, ValueType, LoggingLevel,
+        StreamType, ItemType, ValueType, JoinType, How, LoggingLevel,
         Count, Item, Struct, Columns, Field, FieldNo, OptionalFields, UniKey, Source, Class,
         AUTO, Auto, AutoBool, AutoName, AutoCount, Array, ARRAY_TYPES,
     )
@@ -24,9 +24,9 @@ try:  # Assume we're a submodule in a package.
     from streams.mixin.convert_mixin import ConvertMixin
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
-        RegularStreamInterface, StructInterface, FieldInterface, LeafConnectorInterface,
+        StructInterface, FieldInterface, LeafConnectorInterface,
         Stream, LocalStream, Context, Connector, Source, TmpFiles,
-        StreamType, ItemType, ValueType, LoggingLevel,
+        StreamType, ItemType, ValueType, JoinType, How, LoggingLevel,
         Count, Item, Struct, Columns, Field, FieldNo, OptionalFields, UniKey, Source, Class,
         AUTO, Auto, AutoBool, AutoName, AutoCount, Array, ARRAY_TYPES,
     )
@@ -417,6 +417,31 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
             stream = self.disk_sort(key_function, reverse=reverse, step=step, verbose=verbose)
         return self._assume_native(stream)
 
+    def join(
+            self,
+            right: Native,
+            key: UniKey,
+            how: How = JoinType.Left,
+            reverse: bool = False,
+            is_sorted: bool = False,
+            right_is_uniq: bool = False,
+            allow_map_side: bool = True,
+            force_map_side: bool = True,
+            merge_function: Union[Callable, Auto] = AUTO,
+            verbose: AutoBool = AUTO,
+    ) -> Native:
+        item_type = self.get_item_type()
+        merge_function = Auto.acquire(merge_function, fs.merge_two_items(item_type=item_type))
+        stream = super(RegularStream, self).join(
+            right, key=key, how=how,
+            reverse=reverse, is_sorted=is_sorted, right_is_uniq=right_is_uniq,
+            allow_map_side=allow_map_side, force_map_side=force_map_side,
+            merge_function=merge_function,
+            verbose=verbose,
+        )
+        assert isinstance(stream, RegularStream) or hasattr(stream, 'get_item_type')
+        return stream.set_item_type(item_type)
+
     def _get_grouped_struct(self, *keys, values: Optional[Sequence] = None) -> StructInterface:
         input_struct = self.get_struct()
         output_struct = FlatStruct([])
@@ -488,10 +513,9 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
             stream_builder = StreamType.RowStream.get_class()
             stream_groups = stream_builder(iter_groups, struct=expected_struct, check=False)
         if values:
-            stream_type = self.get_stream_type()
             item_type = self.get_item_type()
             if item_type == ItemType.Any:
-                raise TypeError('For RegularStream.sorted_group_by() values option not supported')
+                raise TypeError('For untyped items (ItemType.Any) values-option of sorted_group_by() not supported')
             elif item_type == ItemType.Row:
                 input_struct = self.get_struct()
                 keys = [item_type.get_field_getter(f, struct=input_struct) for f in keys]
@@ -501,7 +525,7 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
                 as_pairs=as_pairs, skip_missing=skip_missing,
                 item_type=item_type,
             )
-            stream_groups = stream_groups.map_to_type(fold_mapper, stream_type=stream_type)
+            stream_groups = stream_groups.map_to_type(fold_mapper, stream_type=item_type)
             if Auto.is_defined(expected_struct):
                 stream_groups.set_struct(expected_struct, check=False, inplace=True)
         if self.is_in_memory():
