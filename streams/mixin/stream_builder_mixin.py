@@ -3,22 +3,20 @@ from typing import Union, Iterable, Callable, Any
 from inspect import isclass
 
 try:  # Assume we're a submodule in a package.
-    from utils import arguments as arg
-    from interfaces import Stream, StreamBuilderInterface, StreamType, ItemType, OptionalFields
+    from interfaces import Stream, StreamBuilderInterface, StreamType, ItemType, OptionalFields, Auto, AUTO
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
-    from ...interfaces import Stream, StreamBuilderInterface, StreamType, ItemType, OptionalFields
+    from ...interfaces import Stream, StreamBuilderInterface, StreamType, ItemType, OptionalFields, Auto, AUTO
 
 
 class StreamBuilderMixin(StreamBuilderInterface, ABC):
     def stream(
             self,
             data: Iterable,
-            stream_type: Union[StreamType, Stream, arg.Auto] = arg.AUTO,
+            stream_type: Union[StreamType, Stream, Auto] = AUTO,
             ex: OptionalFields = None,
             **kwargs
     ) -> Stream:
-        stream_type = arg.acquire(stream_type, self.get_stream_type())
+        stream_type = Auto.acquire(stream_type, self.get_stream_type())
         if isinstance(stream_type, str):
             stream_class = StreamType(stream_type).get_class()
         elif isclass(stream_type):
@@ -31,8 +29,12 @@ class StreamBuilderMixin(StreamBuilderInterface, ABC):
 
     @classmethod
     def empty(cls, **kwargs):
+        try:  # Assume we're StreamBuilder
+            stream_class = cls.get_default_stream_class()
+        except AttributeError:  # Apparently we're Stream class
+            stream_class = cls
         empty_data = list()
-        return cls(empty_data, **kwargs)
+        return stream_class(empty_data, **kwargs)
 
     def _get_calc(self, function: Callable, *args, **kwargs) -> Any:
         return function(self.get_data(), *args, **kwargs)

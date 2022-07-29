@@ -1,21 +1,22 @@
 from typing import Union, Iterable
 import gc
 
-try:  # Assume we're a sub-module in a package.
-    from utils import arguments as arg
+try:  # Assume we're a submodule in a package.
     from interfaces import (
         StreamInterface, Stream, StreamBuilderInterface,
-        StreamType, ItemType, JoinType, How, OptionalFields, Auto, AUTO,
+        StreamType, ItemType, JoinType, How, Class, OptionalFields, Auto, AUTO,
     )
+    from base.functions.arguments import update
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..utils import arguments as arg
     from ..interfaces import (
         StreamInterface, Stream, StreamBuilderInterface,
-        StreamType, ItemType, JoinType, How, OptionalFields, Auto, AUTO,
+        StreamType, ItemType, JoinType, How, Class, OptionalFields, Auto, AUTO,
     )
+    from ..base.functions.arguments import update
 
 
 class StreamBuilder(StreamBuilderInterface):
+    _default_stream_class = None  # will be substituted in stream_classes.py
     _dict_classes = dict()
     _stream_types = StreamType
 
@@ -26,21 +27,30 @@ class StreamBuilder(StreamBuilderInterface):
             stream_type: Union[StreamType, StreamInterface, Auto] = AUTO,
             **kwargs
     ) -> Stream:
-        if not arg.is_defined(stream_type):
-            example_item = cls._get_one_item(data)
-            item_type = cls._detect_item_type(example_item)
-            stream_type = cls._get_dict_classes('stream(stream_type=AUTO)').get(item_type)
-        return cls._get_stream_types().of(stream_type).stream(data, **kwargs)
+        default_class = cls.get_default_stream_class()
+        if Auto.is_defined(stream_type):
+            stream_class = cls._get_stream_types().of(stream_type).get_class(default=default_class)
+        else:
+            stream_class = default_class
+            if 'item_type' not in kwargs:
+                example_item = cls._get_one_item(data)
+                item_type = cls._detect_item_type(example_item)
+                kwargs['item_type'] = item_type
+        return stream_class(data, **kwargs)
+
+    @classmethod
+    def empty(cls, **kwargs) -> StreamInterface:
+        pass
 
     @staticmethod
     def is_same_stream_type(*iter_streams) -> bool:
-        iter_streams = arg.update(iter_streams)
+        iter_streams = update(iter_streams)
         stream_types = [i.get_stream_type() for i in iter_streams]
         return len(set(stream_types)) == 1
 
     @classmethod
     def stack(cls, *iter_streams, how: How = 'vertical', name=AUTO, context=None, **kwargs):
-        iter_streams = arg.update(iter_streams)
+        iter_streams = update(iter_streams)
         assert cls.is_same_stream_type(iter_streams), 'concat(): streams must have same type: {}'.format(iter_streams)
         result = None
         for cur_stream in iter_streams:
@@ -50,9 +60,9 @@ class StreamBuilder(StreamBuilderInterface):
                     result = cur_stream.copy()
                 else:
                     result = cur_stream
-                if arg.is_defined(name):
+                if Auto.is_defined(name):
                     result.set_name(name)
-                if arg.is_defined(context):
+                if Auto.is_defined(context):
                     result.set_context(context)
             elif how == 'vertical':
                 result = result.add_stream(cur_stream)
@@ -72,13 +82,13 @@ class StreamBuilder(StreamBuilderInterface):
     @classmethod
     def _get_dict_classes(cls, operation_name='this'):
         dict_classes = cls._dict_classes
-        assert dict_classes, 'For {} operation dict_classes must be defined'.format(operation_name)
+        assert dict_classes, f'For {operation_name} operation dict_classes must be defined'
         return dict_classes
 
     @classmethod
     def _get_stream_types(cls, operation_name='this'):
         stream_types = cls._stream_types
-        assert stream_types, 'For {} operation stream_types must be defined'.format(operation_name)
+        assert stream_types, f'For {operation_name} operation stream_types must be defined'
         return stream_types
 
     @staticmethod
@@ -98,3 +108,13 @@ class StreamBuilder(StreamBuilderInterface):
             return ItemType.StructRow
         else:
             return ItemType.Any
+
+    @classmethod
+    def get_default_stream_class(cls) -> Class:
+        stream_class = cls._default_stream_class
+        assert stream_class, 'StreamBuilder.get_default_stream_class(): _default_stream_class member not initialized'
+        return stream_class
+
+    @classmethod
+    def set_default_stream_class(cls, stream_class: Class) -> None:
+        cls._default_stream_class = stream_class

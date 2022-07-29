@@ -97,6 +97,7 @@ DICT_ITEM_TO_STREAM_TYPE = {
     ItemType.StructRow: StreamType.StructStream,
 }
 StreamBuilder._dict_classes = DICT_ITEM_TO_STREAM_TYPE
+StreamBuilder.set_default_stream_class(RegularStream)
 
 
 def get_context() -> Optional[ContextInterface]:

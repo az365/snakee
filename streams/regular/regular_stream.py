@@ -22,6 +22,7 @@ try:  # Assume we're a submodule in a package.
         DEFAULT_EXAMPLE_COUNT, DEFAULT_ANALYZE_COUNT,
     )
     from streams.mixin.convert_mixin import ConvertMixin
+    from streams.stream_builder import StreamBuilder
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         StructInterface, FieldInterface, LeafConnectorInterface,
@@ -43,6 +44,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         DEFAULT_EXAMPLE_COUNT, DEFAULT_ANALYZE_COUNT,
     )
     from ..mixin.convert_mixin import ConvertMixin
+    from ..stream_builder import StreamBuilder
 
 Native = Union[LocalStream, RegularStreamInterface]
 Data = Union[Auto, Iterable]
@@ -685,3 +687,6 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
             skip_first_line=skip_first_line, max_count=max_count,
             check=check, verbose=verbose,
         ).to_stream(stream_type=stream_type)
+
+
+StreamBuilder.set_default_stream_class(RegularStream)

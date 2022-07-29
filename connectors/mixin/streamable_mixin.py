@@ -10,6 +10,7 @@ try:  # Assume we're a submodule in a package.
     )
     from base.functions.arguments import get_generated_name
     from streams.mixin.columnar_mixin import ColumnarMixin
+    from streams.stream_builder import StreamBuilder
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         IterableStreamInterface, StructInterface, Context, LeafConnectorInterface, StructMixinInterface,
@@ -19,6 +20,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     )
     from ...base.functions.arguments import get_generated_name
     from ...streams.mixin.columnar_mixin import ColumnarMixin
+    from ...streams.stream_builder import StreamBuilder
 
 Stream = Union[IterableStreamInterface, RegularStreamInterface]
 Message = Union[AutoName, Array]
@@ -49,9 +51,8 @@ class StreamableMixin(ColumnarMixin, ABC):
     def _get_stream_class(self, stream_type: AutoStreamType = AUTO):
         try:  # assume we're RegularStream
             return self.get_stream_class()
-        except AttributeError:  # deprecated approach
-            stream_type = self._get_stream_type(stream_type)
-            return stream_type.get_class()
+        except AttributeError:
+            return StreamBuilder.get_default_stream_class()
 
     def _get_item_type(self, stream: Union[AutoStreamType, RegularStreamInterface] = AUTO) -> ItemType:
         if isinstance(stream, RegularStreamInterface) or hasattr(stream, 'get_item_type'):
