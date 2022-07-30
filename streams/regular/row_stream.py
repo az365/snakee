@@ -9,6 +9,7 @@ try:  # Assume we're a submodule in a package.
     from utils.decorators import deprecated_with_alternative
     from streams.mixin.columnar_mixin import ColumnarMixin
     from streams.regular.any_stream import AnyStream
+    from streams.regular.line_stream import LineStream
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         Struct, Connector, Context, TmpFiles, ItemType, StreamType,
@@ -18,6 +19,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils.decorators import deprecated_with_alternative
     from ..mixin.columnar_mixin import ColumnarMixin
     from .any_stream import AnyStream
+    from .line_stream import LineStream
 
 EXPECTED_ITEM_TYPE = ItemType.Row
 
@@ -64,8 +66,7 @@ class RowStream(AnyStream, ColumnarMixin):
             check: AutoBool = AUTO,
             verbose: bool = False,
     ) -> AnyStream:
-        line_stream_class = StreamType.LineStream.get_class()
-        stream = line_stream_class.from_text_file(
+        stream = LineStream.from_text_file(
             filename,
             skip_first_line=skip_first_line, max_count=max_count,
             check=check,

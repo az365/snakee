@@ -10,6 +10,7 @@ try:  # Assume we're a submodule in a package.
     from streams.mixin.convert_mixin import ConvertMixin
     from streams.mixin.columnar_mixin import ColumnarMixin
     from streams.regular.any_stream import AnyStream
+    from streams.regular.line_stream import LineStream
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         RegularStreamInterface, Struct, Context, Connector, TmpFiles,
@@ -20,6 +21,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..mixin.convert_mixin import ConvertMixin
     from ..mixin.columnar_mixin import ColumnarMixin
     from .any_stream import AnyStream
+    from .line_stream import LineStream
 
 EXPECTED_ITEM_TYPE = ItemType.Record
 
@@ -93,8 +95,7 @@ class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
             skip_first_line=True, check=AUTO,
             expected_count=AUTO, verbose=True,
     ) -> RegularStreamInterface:
-        stream_class = StreamType.LineStream.get_class()
-        return stream_class.from_text_file(
+        return LineStream.from_text_file(
             filename, skip_first_line=skip_first_line,
             check=check, expected_count=expected_count, verbose=verbose,
         ).to_row_stream(
