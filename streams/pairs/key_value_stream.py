@@ -3,7 +3,7 @@ from typing import Union, Callable, Iterable
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         RegularStreamInterface, PairStreamInterface, StreamType, ItemType, Struct,
-        AUTO, Auto, AutoName, AutoCount,
+        AUTO, Auto, AutoName, AutoCount, StreamItemType,
     )
     from utils.decorators import deprecated, deprecated_with_alternative
     from content.struct.flat_struct import FlatStruct
@@ -12,7 +12,7 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         RegularStreamInterface, PairStreamInterface, StreamType, ItemType, Struct,
-        AUTO, Auto, AutoName, AutoCount,
+        AUTO, Auto, AutoName, AutoCount, StreamItemType,
     )
     from ...functions.secondary import array_functions as fs
     from ...content.struct.flat_struct import FlatStruct
@@ -94,9 +94,9 @@ class KeyValueStream(RowStream, PairStreamInterface):
         return self._assume_regular(stream)
 
     @deprecated_with_alternative('get_one_column_values()')
-    def keys(self, uniq: bool, stream_type: Union[StreamType, Auto] = AUTO) -> RegularStreamInterface:
+    def keys(self, uniq: bool, stream_type: Union[ItemType, Auto] = AUTO) -> RegularStreamInterface:
         items = self.get_uniq_keys() if uniq else self._get_mapped_items(KEY)
-        stream_type = Auto.acquire(stream_type, StreamType.AnyStream)
+        stream_type = Auto.acquire(stream_type, ItemType.Any)
         stream = self.stream(items, stream_type=stream_type)
         return self._assume_regular(stream)
 

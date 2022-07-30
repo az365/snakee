@@ -4,8 +4,8 @@ from typing import Optional, Callable, Iterable, Iterator, Sequence, Union
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         ContextInterface, LeafConnectorInterface, StructInterface, StreamInterface, Stream, RegularStream,
-        ConnType, LoggingLevel, ItemType, StreamType, JoinType,
-        AutoContext, AutoStreamType, AutoName, AutoBool, Auto, AUTO,
+        ConnType, LoggingLevel, ItemType, StreamType, StreamItemType, JoinType,
+        AutoContext, AutoName, AutoBool, Auto, AUTO,
         Item, Name, FieldName, FieldNo, Links, Columns, OptionalFields, Array, ARRAY_TYPES,
     )
     from base.functions.arguments import get_names, get_name, get_generated_name, get_str_from_args_kwargs
@@ -19,11 +19,12 @@ try:  # Assume we're a submodule in a package.
     from content.selection.concrete_expression import AliasDescription
     from content.struct.flat_struct import FlatStruct
     from streams.abstract.wrapper_stream import WrapperStream
+    from streams.stream_builder import StreamBuilder
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         ContextInterface, LeafConnectorInterface, StructInterface, StreamInterface, Stream, RegularStream,
-        ConnType, LoggingLevel, ItemType, StreamType, JoinType,
-        AutoContext, AutoStreamType, AutoName, AutoBool, Auto, AUTO,
+        ConnType, LoggingLevel, ItemType, StreamType, StreamItemType, JoinType,
+        AutoContext, AutoName, AutoBool, Auto, AUTO,
         Item, Name, FieldName, FieldNo, Links, Columns, OptionalFields, Array, ARRAY_TYPES,
     )
     from ...base.functions.arguments import get_names, get_name, get_generated_name, get_str_from_args_kwargs
@@ -37,6 +38,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...content.selection.concrete_expression import AliasDescription
     from ...content.struct.flat_struct import FlatStruct
     from ..abstract.wrapper_stream import WrapperStream
+    from ..stream_builder import StreamBuilder
 
 Native = WrapperStream
 TableOrQuery = Union[LeafConnectorInterface, StreamInterface, None]
@@ -520,21 +522,21 @@ class SqlStream(WrapperStream):
         return map(lambda r: dict(zip(columns, r)), self.get_rows())
 
     def to_row_stream(self) -> Stream:
-        return self.to_stream(self.get_rows(), stream_type=StreamType.RowStream)
+        return self.to_stream(self.get_rows(), stream_type=ItemType.Row)
 
     def to_record_stream(self) -> Stream:
-        return self.to_stream(self.get_records(), stream_type=StreamType.RecordStream)
+        return self.to_stream(self.get_records(), stream_type=ItemType.Record)
 
     def to_stream(
             self,
             data: Optional[Iterable] = None,
-            stream_type: AutoStreamType = AUTO,
+            stream_type: StreamItemType = AUTO,
             ex: OptionalFields = None,
             **kwargs
     ) -> Union[RegularStream, Native]:
         stream_type = Auto.acquire(stream_type, self.get_stream_type())
         if data:
-            stream_class = stream_type.get_class()
+            stream_class = StreamBuilder.get_default_stream_class()
             meta = self.get_compatible_meta(stream_class, ex=ex)
             meta.update(kwargs)
             if 'count' not in meta:
@@ -550,7 +552,7 @@ class SqlStream(WrapperStream):
             stream_method = self.__getattribute__(method_name)
             return stream_method()
 
-    def collect(self, stream_type: StreamType = StreamType.RecordStream) -> Stream:
+    def collect(self, stream_type: StreamItemType = ItemType.Record) -> Stream:
         stream = self.to_stream(stream_type=stream_type).collect()
         return self._assume_native(stream)
 

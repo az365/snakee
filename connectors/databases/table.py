@@ -3,7 +3,7 @@ from typing import Optional, Iterable, Iterator, Union
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         ConnectorInterface, StructInterface, ColumnarInterface, RegularStream, ExtendedLoggerInterface,
-        ContentFormatInterface, ContentType, ConnType, ItemType, StreamType, LoggingLevel,
+        ContentFormatInterface, ContentType, ConnType, ItemType, StreamType, StreamItemType, LoggingLevel,
         ARRAY_TYPES, Array, Name, Count, OptionalFields, Links,
         AUTO, Auto, AutoBool, AutoName, AutoCount, AutoLinks, AutoContext,
     )
@@ -13,7 +13,7 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         ConnectorInterface, StructInterface, ColumnarInterface, RegularStream, ExtendedLoggerInterface,
-        ContentFormatInterface, ContentType, ConnType, ItemType, StreamType, LoggingLevel,
+        ContentFormatInterface, ContentType, ConnType, ItemType, StreamType, StreamItemType, LoggingLevel,
         ARRAY_TYPES, Array, Name, Count, OptionalFields, Links,
         AUTO, Auto, AutoBool, AutoName, AutoCount, AutoLinks, AutoContext,
     )
@@ -330,7 +330,7 @@ class Table(LeafConnector):
             self,
             data: Union[Iterable, Auto] = AUTO,
             name: AutoName = AUTO,
-            stream_type: Union[StreamType, Auto] = AUTO,
+            stream_type: StreamItemType = AUTO,
             ex: OptionalFields = None,
             step: AutoCount = AUTO,
             **kwargs
@@ -371,15 +371,15 @@ class Table(LeafConnector):
             filters: OptionalFields = None,
             sort: OptionalFields = None,
             count: Count = None,
-            stream_type: Union[StreamType, Auto] = AUTO,
+            stream_type: StreamItemType = AUTO,
             verbose: AutoBool = AUTO,
     ) -> Stream:
-        stream_type = Auto.acquire(stream_type, StreamType.RecordStream)
-        stream_class = stream_type.get_class()
+        stream_type = Auto.acquire(stream_type, ItemType.Record)
+        stream_builder = self._get_stream_class()
         stream_rows = self.execute_select(fields=fields, filters=filters, sort=sort, count=count, verbose=verbose)
-        if stream_type == StreamType.RowStream:
+        if stream_type in (StreamType.RowStream, ItemType.Row):
             stream_data = stream_rows
-        elif stream_type == StreamType.RecordStream:
+        elif stream_type in (StreamType.RecordStream, ItemType.Record):
             columns = self.get_columns()
             stream_data = map(lambda r: dict(zip(columns, r)), stream_rows)
         else:
@@ -388,7 +388,7 @@ class Table(LeafConnector):
             if count < MAX_ITEMS_IN_MEMORY:
                 stream_data = list(stream_data)
                 count = len(stream_data)
-        return stream_class(stream_data, count=count, source=self, context=self.get_context())
+        return stream_builder(stream_data, count=count, source=self, context=self.get_context())
 
     def select(self, *columns, **expressions) -> Stream:
         stream = self.to_stream().select(*columns, **expressions)

@@ -19,6 +19,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 Native = IterableStreamInterface
 Struct = Optional[StructInterface]
 OptionalFields = Union[Iterable, str, None]
+StreamItemType = Union[StreamType, ItemType, Auto]
 
 DEFAULT_EXAMPLE_COUNT = 10
 DEFAULT_ANALYZE_COUNT = 100
@@ -81,11 +82,11 @@ class RegularStreamInterface(IterableStreamInterface, ABC):
         pass
 
     @abstractmethod
-    def map_to_type(self, function: Callable, stream_type: StreamType, **kwargs) -> Native:
+    def map_to_type(self, function: Callable, stream_type: StreamItemType, **kwargs) -> Native:
         """Apply function to each item in stream.
 
         :param function: py-function that should be applied to any item (it must return an item of same type)
-        :param stream_type: type of output stream (deprecated, use item_type: ItemType instead)
+        :param stream_type: type of output items (deprecated, will be renamed to item_type)
         :returns: stream of requested type
         """
         pass
@@ -123,7 +124,7 @@ class RegularStreamInterface(IterableStreamInterface, ABC):
     def to_stream(
             self,
             data: Union[Iterable, Auto] = AUTO,
-            stream_type: Union[StreamType, Auto] = AUTO,
+            stream_type: StreamItemType = AUTO,
             ex: OptionalFields = None,
             **kwargs
     ) -> Native:

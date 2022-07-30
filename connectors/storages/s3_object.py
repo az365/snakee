@@ -3,14 +3,14 @@ from typing import Optional, Generator, Iterator, Union
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         ConnectorInterface, ContentFormatInterface, Stream, StructInterface,
-        ContentType, ConnType, StreamType,
+        ContentType, ConnType, StreamType, StreamItemType,
         AUTO, Auto, AutoContext, AutoBool, AutoCount, AutoName, Name,
     )
     from connectors.abstract.leaf_connector import LeafConnector
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         ConnectorInterface, ContentFormatInterface, Stream, StructInterface,
-        ContentType, ConnType, StreamType,
+        ContentType, ConnType, StreamType, StreamItemType,
         AUTO, Auto, AutoContext, AutoBool, AutoCount, AutoName, Name,
     )
     from ..abstract.leaf_connector import LeafConnector
@@ -184,7 +184,7 @@ class S3Object(LeafConnector):
         else:
             raise ValueError(response)
 
-    def to_stream(self, stream_type: Union[StreamType, str, Auto] = AUTO, **kwargs) -> Stream:
+    def to_stream(self, stream_type: StreamItemType = AUTO, **kwargs) -> Stream:
         stream_class = StreamType(stream_type).get_class()
         return stream_class(self.get_data(), **kwargs)
 

@@ -2,10 +2,10 @@ from typing import Optional, Callable, Iterable, Union
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
-        LocalStreamInterface, ContextInterface, ConnectorInterface, TemporaryFilesMaskInterface,
+        LocalStreamInterface, RegularStreamInterface, ContextInterface, ConnectorInterface, TemporaryFilesMaskInterface,
         Context, Connector, ContentType, ItemType, StreamType, JoinType, How,
         Array, Count, FieldID, UniKey,
-        AUTO, Auto, AutoBool, AutoCount, AutoName, OptionalFields,
+        AUTO, Auto, AutoBool, AutoCount, AutoName, StreamItemType, OptionalFields,
     )
     from base.functions.arguments import update, get_optional_len, is_in_memory
     from functions.secondary import basic_functions as bf, item_functions as fs
@@ -15,10 +15,10 @@ try:  # Assume we're a submodule in a package.
     from streams import stream_classes as sm
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
-        LocalStreamInterface, ContextInterface, ConnectorInterface, TemporaryFilesMaskInterface,
+        LocalStreamInterface, RegularStreamInterface, ContextInterface, ConnectorInterface, TemporaryFilesMaskInterface,
         Context, Connector, ContentType, ItemType, StreamType, JoinType, How,
         Array, Count, FieldID, UniKey,
-        AUTO, Auto, AutoBool, AutoCount, AutoName, OptionalFields,
+        AUTO, Auto, AutoBool, AutoCount, AutoName, StreamItemType, OptionalFields,
     )
     from ...base.functions.arguments import update, get_optional_len, is_in_memory
     from ...functions.secondary import basic_functions as bf, item_functions as fs
@@ -28,8 +28,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .. import stream_classes as sm
 
 Native = LocalStreamInterface
-TmpMask = Union[TemporaryFilesMaskInterface, Auto]
-StreamItemType = Union[StreamType, ItemType, Auto]
 
 
 class LocalStream(IterableStream, LocalStreamInterface):
@@ -43,7 +41,7 @@ class LocalStream(IterableStream, LocalStreamInterface):
             source: Connector = None,
             context: Context = None,
             max_items_in_memory: AutoCount = AUTO,
-            tmp_files: TmpMask = AUTO,
+            tmp_files: Union[TemporaryFilesMaskInterface, Auto] = AUTO,
             check: bool = False,
     ):
         count = get_optional_len(data, count)
@@ -334,6 +332,10 @@ class LocalStream(IterableStream, LocalStreamInterface):
             reverse: bool = False,
             verbose: bool = True,
     ) -> list:
+        if isinstance(self, RegularStreamInterface) or hasattr(self, 'get_item_type'):
+            item_type = self.get_item_type()
+        else:
+            item_type = ItemType.Any
         result_parts = list()
         for part_no, sm_part in enumerate(self.to_iter().split_to_iter_by_step(step)):
             is_last_part = sm_part.get_count() < step
@@ -360,7 +362,7 @@ class LocalStream(IterableStream, LocalStreamInterface):
                     file_part,
                 ).map_to_type(
                     fs.json_loads(),
-                    stream_type=StreamType.AnyStream,
+                    stream_type=item_type,
                 )
             result_parts.append(sm_part)
         return result_parts

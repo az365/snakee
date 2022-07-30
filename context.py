@@ -4,7 +4,7 @@ import gc
 try:  # Assume we're a submodule in a package.
     from utils.decorators import singleton
     from interfaces import (
-        Context, ContextInterface, Connector, ConnType, Stream, StreamType,
+        Context, ContextInterface, Connector, ConnType, Stream, StreamItemType,
         TemporaryLocationInterface, LoggerInterface, ExtendedLoggerInterface, SelectionLoggerInterface, LoggingLevel,
         AUTO, Auto, Name, ARRAY_TYPES,
     )
@@ -17,7 +17,7 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from .utils.decorators import singleton
     from .interfaces import (
-        Context, ContextInterface, Connector, ConnType, Stream, StreamType,
+        Context, ContextInterface, Connector, ConnType, Stream, StreamItemType,
         TemporaryLocationInterface, LoggerInterface, ExtendedLoggerInterface, SelectionLoggerInterface, LoggingLevel,
         AUTO, Auto, Name, ARRAY_TYPES,
     )
@@ -192,16 +192,16 @@ class SnakeeContext(bs.AbstractNamed, ContextInterface):
 
     def stream(
             self,
-            stream_type: Union[StreamType, Stream, Name],
+            stream_type: Union[StreamItemType, Stream],
             name: Union[Name, Auto] = AUTO,
             check: bool = True,
             **kwargs
     ) -> Stream:
         name = Auto.acquire(name, get_generated_name('Stream'))
-        if sm.is_stream(stream_type):
+        if isinstance(stream_type, Stream) or sm.is_stream(stream_type):
             stream_object = stream_type
         else:
-            stream_object = sm.stream(stream_type, **kwargs)
+            stream_object = sm.StreamBuilder.stream(stream_type, **kwargs)
         stream_object = stream_object.set_name(
             name,
             register=False,
@@ -292,7 +292,10 @@ class SnakeeContext(bs.AbstractNamed, ContextInterface):
             return job_folder_obj
 
     def find_job_folder(self, required_folders: Iterable, max_depth: int = 5) -> Connector:
-        set_required_folders = set(get_names(required_folders))
+        if isinstance(required_folders, str):
+            set_required_folders = {required_folders}
+        else:
+            set_required_folders = set(get_names(required_folders))
         current_folder = self.get_job_folder()
         for depth in range(max_depth):
             assert isinstance(current_folder, ct.LocalFolder) or hasattr(current_folder, 'get_existing_folder_names')

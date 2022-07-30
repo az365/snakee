@@ -3,7 +3,7 @@ from typing import Iterable, Union, Optional
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         Connector, Stream,
-        ConnType, StreamType, ContentType, ContentFormatInterface,
+        ConnType, StreamItemType, ContentType, ContentFormatInterface,
         AUTO, Auto, AutoName, AutoBool, AutoContext, OptionalFields,
     )
     from connectors.abstract.hierarchic_connector import HierarchicConnector
@@ -15,7 +15,7 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         Connector, Stream,
-        ConnType, StreamType, ContentType, ContentFormatInterface,
+        ConnType, StreamItemType, ContentType, ContentFormatInterface,
         AUTO, Auto, AutoName, AutoBool, AutoContext, OptionalFields,
     )
     from ..abstract.hierarchic_connector import HierarchicConnector
@@ -126,8 +126,10 @@ class PartitionedLocalFile(LocalMask, LocalFile):
 
     def to_stream(
             self,
-            data: Union[Iterable, Auto] = AUTO, name: AutoName = AUTO,
-            stream_type: Union[StreamType, Auto] = AUTO, ex: OptionalFields = None,
+            data: Union[Iterable, Auto] = AUTO,
+            name: AutoName = AUTO,
+            stream_type: StreamItemType = AUTO,
+            ex: OptionalFields = None,
             **kwargs
     ) -> Stream:
         partition = self.get_partition()

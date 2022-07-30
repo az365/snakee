@@ -8,7 +8,7 @@ try:  # Assume we're a submodule in a package.
         StreamInterface, LoggerInterface, LeafConnectorInterface,
         Stream, ExtLogger, Context, Connector, LeafConnector,
         StreamType, LoggingLevel,
-        AUTO, Auto, AutoName, OptionalFields, Message,
+        AUTO, Auto, AutoName, OptionalFields, Class, Message,
     )
     from base.functions.arguments import get_generated_name
     from base.constants.chars import CROP_SUFFIX, DEFAULT_LINE_LEN
@@ -21,7 +21,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         StreamInterface, LoggerInterface, LeafConnectorInterface,
         Stream, ExtLogger, Context, Connector, LeafConnector,
         StreamType, LoggingLevel,
-        AUTO, Auto, AutoName, OptionalFields, Message,
+        AUTO, Auto, AutoName, OptionalFields, Class, Message,
     )
     from ...base.functions.arguments import get_generated_name
     from ...base.constants.chars import CROP_SUFFIX, DEFAULT_LINE_LEN
@@ -136,9 +136,9 @@ class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
         return stream_type
 
     @classmethod
-    def get_class(cls, other: Stream = None):
-        if other is None:
-            return cls
+    def get_class(cls, other: Stream = None) -> Class:
+        if not Auto.is_auto(other):
+            return sm.StreamBuilder.get_default_stream_class()
         elif isinstance(other, (StreamType, str)):
             return StreamType(other).get_class()
         elif inspect.isclass(other):

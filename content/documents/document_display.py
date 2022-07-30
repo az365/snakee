@@ -8,7 +8,7 @@ try:  # Assume we're a submodule in a package.
     from base.mixin.display_mixin import DisplayMixin, AutoOutput, Class
     from base.mixin.iter_data_mixin import IterDataMixin
     from utils.external import display, clear_output, HTML, Markdown
-    from streams.stream_type import StreamType
+    from streams.stream_builder import StreamBuilder
     from content.documents.display_mode import DisplayMode
     from content.documents.document_item import DocumentItem, Paragraph, Sheet, Chart, Chapter
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -19,7 +19,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.mixin.display_mixin import DisplayMixin, AutoOutput, Class
     from ...base.mixin.iter_data_mixin import IterDataMixin
     from ...utils.external import display, clear_output, HTML, Markdown
-    from ...streams.stream_type import StreamType
+    from ...streams.stream_builder import StreamBuilder
     from .display_mode import DisplayMode
     from .document_item import DocumentItem, Paragraph, Sheet, Chart, Chapter
 
@@ -201,13 +201,14 @@ class DocumentDisplay(DefaultDisplay, IterDataMixin):
             records: Iterable,
             columns: Sequence,
             count: AutoCount = None,
+            item_type: ItemType = ItemType.Record,
             with_title: bool = True,
             style: Union[str, Auto, None] = AUTO,
             output: AutoOutput = AUTO,
     ):
         self.display_current_paragraph(save=True, clear=True)
         column_names = self._extract_column_names(columns)
-        stream = StreamType.RecordStream.stream(records, struct=column_names)
+        stream = StreamBuilder.stream(records, item_type=item_type, struct=column_names)
         sheet = Sheet(stream)
         return self.display(sheet)
 

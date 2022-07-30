@@ -1,21 +1,22 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Union, Iterable, Callable
+from typing import Iterable, Callable, Union
 
-try:  # Assume we're a sub-module in a package.
-    from utils import arguments as arg
-    from streams.interfaces.abstract_stream_interface import StreamInterface
-    from streams.interfaces.regular_stream_interface import RegularStreamInterface
+try:  # Assume we're a submodule in a package.
+    from base.classes.auto import AUTO, Auto
+    from content.items.item_type import ItemType
     from streams.stream_type import StreamType
+    from streams.interfaces.abstract_stream_interface import StreamInterface
+    from streams.interfaces.regular_stream_interface import RegularStreamInterface, StreamItemType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
-    from .abstract_stream_interface import StreamInterface
-    from .regular_stream_interface import RegularStreamInterface
+    from ...base.classes.auto import AUTO, Auto
+    from ...content.items.item_type import ItemType
     from ..stream_type import StreamType
+    from .abstract_stream_interface import StreamInterface
+    from .regular_stream_interface import RegularStreamInterface, StreamItemType
 
 Stream = StreamInterface
 Native = StreamInterface
-OptionalFields = Optional[Union[Iterable, str]]
-OptStreamType = Union[StreamType, arg.DefaultArgument]
+OptionalFields = Union[Iterable, str, None]
 
 
 class PairStreamInterface(StreamInterface, ABC):
@@ -24,7 +25,7 @@ class PairStreamInterface(StreamInterface, ABC):
         pass
 
     @abstractmethod
-    def keys(self, uniq: bool, stream_type: OptStreamType = arg.DEFAULT) -> Stream:
+    def keys(self, uniq: bool, stream_type: StreamItemType = AUTO) -> Stream:
         pass
 
     @abstractmethod
@@ -40,7 +41,7 @@ class PairStreamInterface(StreamInterface, ABC):
         pass
 
     @abstractmethod
-    def stream(self, data: Iterable, stream_type: OptStreamType = arg.DEFAULT, **kwargs) -> Stream:
+    def stream(self, data: Iterable, stream_type: StreamItemType = AUTO, **kwargs) -> Stream:
         pass
 
     @abstractmethod

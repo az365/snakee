@@ -1,10 +1,10 @@
 from typing import Optional, Callable
 
 try:  # Assume we're a submodule in a package.
-    from interfaces import Name, Options, AutoStreamType, Stream, ConnectorInterface, AutoContext, Auto, AUTO
+    from interfaces import Name, Options, StreamItemType, Stream, ConnectorInterface, AutoContext, Auto, AUTO
     from connectors.operations.abstract_sync import AbstractSync, SRC_ID, DST_ID
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...interfaces import Name, Options, AutoStreamType, Stream, ConnectorInterface, AutoContext, Auto, AUTO
+    from ...interfaces import Name, Options, StreamItemType, Stream, ConnectorInterface, AutoContext, Auto, AUTO
     from .abstract_sync import AbstractSync, SRC_ID, DST_ID
 
 
@@ -18,7 +18,7 @@ class MultiSync(AbstractSync):
             procedure: Optional[Callable],
             options: Optional[dict] = None,
             apply_to_stream: bool = True,
-            stream_type: AutoStreamType = AUTO,
+            stream_type: StreamItemType = AUTO,
             context: AutoContext = AUTO,
     ):
         connectors = dict()
@@ -49,7 +49,7 @@ class MultiSync(AbstractSync):
     def run_now(
             self,
             return_stream: bool = True,
-            stream_type: AutoStreamType = AUTO,
+            stream_type: StreamItemType = AUTO,
             options: Options = None,
             verbose: bool = True,
     ) -> Stream:
@@ -68,7 +68,7 @@ class MultiSync(AbstractSync):
             self,
             raise_error_if_exists: bool = False,
             return_stream: bool = True,
-            stream_type: AutoStreamType = AUTO,
+            stream_type: StreamItemType = AUTO,
             options: Options = None,
             verbose: bool = True,
     ) -> Optional[Stream]:

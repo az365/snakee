@@ -1,4 +1,4 @@
-from typing import Optional, NoReturn
+from typing import Optional, Union
 from datetime import datetime
 from random import randint
 
@@ -58,6 +58,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..connectors.filesystem.temporary_files import TemporaryLocation
     from ..content.struct import struct_row as sr
 
+DEFAULT_STREAM_CLASS = RegularStream
 STREAM_CLASSES = (
     AbstractStream, IterableStream,
     RegularStream, AnyStream,
@@ -97,7 +98,7 @@ DICT_ITEM_TO_STREAM_TYPE = {
     ItemType.StructRow: StreamType.StructStream,
 }
 StreamBuilder._dict_classes = DICT_ITEM_TO_STREAM_TYPE
-StreamBuilder.set_default_stream_class(RegularStream)
+StreamBuilder.set_default_stream_class(DEFAULT_STREAM_CLASS)
 
 
 def get_context() -> Optional[ContextInterface]:
@@ -105,7 +106,7 @@ def get_context() -> Optional[ContextInterface]:
     return _context
 
 
-def set_context(cx: ContextInterface) -> NoReturn:
+def set_context(cx: ContextInterface) -> None:
     global _context
     _context = cx
     storage = cx.get_local_storage()
@@ -113,11 +114,13 @@ def set_context(cx: ContextInterface) -> NoReturn:
     TemporaryLocation.set_default_storage(storage)
 
 
-def stream(stream_type, *args, **kwargs) -> StreamInterface:
-    if is_stream_class(STREAM_CLASSES):
+def stream(stream_type: Union[StreamType, Auto], *args, **kwargs) -> StreamInterface:
+    if is_stream_class(stream_type):
         stream_class = stream_type
-    else:
+    elif Auto.is_defined(stream_type):
         stream_class = StreamType(stream_type).get_class()
+    else:
+        stream_class = DEFAULT_STREAM_CLASS
     if 'context' not in kwargs:
         kwargs['context'] = get_context()
     return stream_class(*args, **kwargs)

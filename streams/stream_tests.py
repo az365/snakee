@@ -34,7 +34,7 @@ def test_map():
         EXAMPLE_INT_SEQUENCE,
     ).map_to_type(
         lambda i: str(-i),
-        stream_type=sm.LineStream,
+        stream_type=sm.ItemType.Line,
     ).submit(
         received_types,
         lambda f: f.get_item_type().get_name(),
@@ -45,7 +45,7 @@ def test_map():
         EXAMPLE_INT_SEQUENCE,
     ).map_to_type(
         lambda i: str(-i),
-        stream_type=sm.StreamType.LineStream,
+        stream_type=sm.ItemType.Line,
     ).submit(
         received_types,
         lambda f: f.get_item_type().get_name(),
@@ -56,7 +56,7 @@ def test_map():
         EXAMPLE_INT_SEQUENCE,
     ).map_to_type(
         lambda i: str(-i),
-        stream_type='LineStream',
+        stream_type='Line',
     ).submit(
         received_types,
         lambda f: f.get_item_type().get_name(),
@@ -190,9 +190,9 @@ def test_records_select():
     ).get_list()
     assert received_1 == expected_1, f'test case 1, records: {received_1} != {expected_1}'
     expected_2 = [
-        (1.00, 'a', '1', 'a'),
-        (2.22, 'b', '2.22', 'b'),
-        (3.00, 'c', '3', 'c'),
+        (1.00, ('a', '1'), 'a'),
+        (2.22, ('b', '2.22'), 'b'),
+        (3.00, ('c', '3'), 'c'),
     ]
     received_2 = sm.AnyStream(
         EXAMPLE_CSV_ROWS,
@@ -435,7 +435,7 @@ def test_group_by():
         as_pairs=True,
     ).map_to_type(
         lambda a: [i.get('y') for i in a[1]],
-        stream_type=sm.StreamType.RowStream,
+        stream_type=sm.ItemType.Row,
     ).get_list()
     assert received_0 == expected, f'test case 0: {received_0} != {expected}'
 
@@ -446,7 +446,7 @@ def test_group_by():
         as_pairs=False,
     ).map_to_type(
         lambda a: [i.get('y') for i in a],
-        stream_type=sm.StreamType.RowStream,
+        stream_type=sm.ItemType.Row,
     ).get_list()
     assert received_1 == expected, f'test case 1: {received_1} != {expected}'
 

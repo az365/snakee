@@ -4,15 +4,17 @@ from typing import Optional, Iterable, Generator, Union
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         ContentFormatInterface, ContentType, StreamType, ItemType, Item,
-        AUTO, Auto, AutoName, AutoCount, AutoBool, AutoConnector, OptionalFields, Array, ARRAY_TYPES,
+        AUTO, Auto, AutoName, AutoCount, StreamItemType, AutoBool, AutoConnector, OptionalFields, Array, ARRAY_TYPES,
     )
     from base.abstract.abstract_base import AbstractBaseObject
+    from streams.stream_builder import StreamBuilder
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         ContentFormatInterface, ContentType, StreamType, ItemType, Item,
-        AUTO, Auto, AutoName, AutoCount, AutoBool, AutoConnector, OptionalFields, Array, ARRAY_TYPES,
+        AUTO, Auto, AutoName, AutoCount, StreamItemType, AutoBool, AutoConnector, OptionalFields, Array, ARRAY_TYPES,
     )
     from ...base.abstract.abstract_base import AbstractBaseObject
+    from ...streams.stream_builder import StreamBuilder
 
 Compress = Union[str, bool, None]
 
@@ -110,14 +112,9 @@ class ParsedFormat(CompressibleFormat, ABC):
     def get_stream(
             self,
             lines: Iterable,
-            stream_type: Union[StreamType, Auto] = AUTO,
+            item_type: ItemType = AUTO,
             **kwargs
     ):
-        stream_class = stream_type.get_class()
-        if hasattr(stream_class, 'get_item_type'):  # isinstance(stream_class, AnyStream)
-            item_type = stream_class.get_item_type()
-        else:
-            raise TypeError
         item_kwargs = dict(struct=kwargs['struct']) if 'struct' in kwargs else dict()
         items = self.get_items_from_lines(lines, item_type=item_type, **item_kwargs)
-        return stream_class(items, **kwargs)
+        return StreamBuilder.stream(items, item_type=item_type, **kwargs)

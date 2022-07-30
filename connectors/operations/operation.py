@@ -1,10 +1,10 @@
 from typing import Optional, Iterable, Callable, Any
 
 try:  # Assume we're a submodule in a package.
-    from interfaces import AUTO, Auto, AutoContext, AutoStreamType, Name, Options
+    from interfaces import AUTO, Auto, AutoContext, StreamItemType, Name, Options
     from connectors import connector_classes as ct
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...interfaces import AUTO, Auto, AutoContext, AutoStreamType, Name, Options
+    from ...interfaces import AUTO, Auto, AutoContext, StreamItemType, Name, Options
     from .. import connector_classes as ct
 
 

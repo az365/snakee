@@ -7,8 +7,10 @@ try:  # Assume we're a submodule in a package.
         LeafConnectorInterface, ConnType, StreamType, DialectType, LoggingLevel,
         AUTO, Auto, AutoContext, AutoBool, AutoCount, Count, Name, FieldName, OptionalFields, Connector,
     )
+    from loggers.fallback_logger import FallbackLogger
     from functions.primary import text as tx
     from content.struct.flat_struct import FlatStruct
+    from streams.stream_builder import StreamBuilder
     from connectors.abstract.abstract_storage import AbstractStorage
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
@@ -16,15 +18,17 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         LeafConnectorInterface, ConnType, StreamType, DialectType, LoggingLevel,
         AUTO, Auto, AutoContext, AutoBool, AutoCount, Count, Name, FieldName, OptionalFields, Connector,
     )
+    from ...loggers.fallback_logger import FallbackLogger
     from ...functions.primary import text as tx
     from ...content.struct.flat_struct import FlatStruct
+    from ...streams.stream_builder import StreamBuilder
     from ..abstract.abstract_storage import AbstractStorage
 
 Native = AbstractStorage
 Struct = Optional[StructInterface]
 Table = Connector
 File = LeafConnectorInterface
-Data = Union[ColumnarStream, File, Table, str, Iterable]
+Data = Union[ColumnarStream, File, Table, Iterable]
 
 TEST_QUERY = 'SELECT now()'
 DEFAULT_GROUP = 'PUBLIC'
@@ -330,7 +334,7 @@ class AbstractDatabase(AbstractStorage, ABC):
         )
         if skip_lines:
             input_stream = input_stream.skip(skip_lines)
-        if input_stream.get_stream_type() != StreamType.StructStream:
+        if not Auto.is_defined(input_stream.get_struct()):
             input_stream = input_stream.structure(
                 struct,
                 skip_bad_rows=True,
@@ -510,12 +514,14 @@ class AbstractDatabase(AbstractStorage, ABC):
                 stream_cols = stream.get_columns()
                 struct_cols = struct.get_columns()
                 assert stream_cols == struct_cols, '{} != {}'.format(stream_cols, struct_cols)
-        elif isinstance(data, str):
-            stream_class = StreamType.RowStream.get_class()
-            stream = stream_class.from_column_file(filename=data, **file_kwargs)
+        elif isinstance(data, str):  # deprecated
+            logger = FallbackLogger()
+            logger.warning('usage of filename as data-argument is deprecated, use file object instead')
+            bild_stream = StreamType.RowStream.get_class()
+            stream = bild_stream.from_column_file(filename=data, **file_kwargs)  # deprecated
         else:
-            stream_class = StreamType.AnyStream.get_class()
-            stream = stream_class(data)
+            bild_stream = StreamBuilder.get_default_stream_class()
+            stream = bild_stream(data)
         return stream
 
     def _get_table_name_and_struct_str(

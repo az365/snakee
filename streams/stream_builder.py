@@ -4,13 +4,13 @@ import gc
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         StreamInterface, Stream, StreamBuilderInterface,
-        StreamType, ItemType, JoinType, How, Class, OptionalFields, Auto, AUTO,
+        StreamType, ItemType, StreamItemType, JoinType, How, Class, OptionalFields, Auto, AUTO,
     )
     from base.functions.arguments import update
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..interfaces import (
         StreamInterface, Stream, StreamBuilderInterface,
-        StreamType, ItemType, JoinType, How, Class, OptionalFields, Auto, AUTO,
+        StreamType, ItemType, StreamItemType, JoinType, How, Class, OptionalFields, Auto, AUTO,
     )
     from ..base.functions.arguments import update
 
@@ -24,17 +24,23 @@ class StreamBuilder(StreamBuilderInterface):
     def stream(
             cls,
             data: Iterable,
-            stream_type: Union[StreamType, StreamInterface, Auto] = AUTO,
+            stream_type: StreamItemType = AUTO,
             **kwargs
     ) -> Stream:
         default_class = cls.get_default_stream_class()
-        if Auto.is_defined(stream_type):
-            stream_class = cls._get_stream_types().of(stream_type).get_class(default=default_class)
+        if Auto.is_defined(stream_type) and isinstance(stream_type, StreamType):
+            stream_class = stream_type.get_class(default=default_class)
         else:
             stream_class = default_class
             if 'item_type' not in kwargs:
-                example_item = cls._get_one_item(data)
-                item_type = cls._detect_item_type(example_item)
+                if isinstance(stream_type, ItemType):
+                    item_type = stream_type
+                elif Auto.is_defined(stream_type):
+                    msg = f'StreamBuilder.stream(): expected stream_type as StreamType or ItemType, got {stream_type}'
+                    raise TypeError(msg)
+                else:
+                    example_item = cls._get_one_item(data)
+                    item_type = cls._detect_item_type(example_item)
                 kwargs['item_type'] = item_type
         return stream_class(data, **kwargs)
 

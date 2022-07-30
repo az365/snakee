@@ -18,7 +18,7 @@ try:  # Assume we're a submodule in a package.
     from content.struct.flat_struct import FlatStruct
     from streams.abstract.local_stream import LocalStream
     from streams.interfaces.regular_stream_interface import (
-        RegularStreamInterface,
+        RegularStreamInterface, StreamItemType,
         DEFAULT_EXAMPLE_COUNT, DEFAULT_ANALYZE_COUNT,
     )
     from streams.mixin.convert_mixin import ConvertMixin
@@ -40,7 +40,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...content.struct.flat_struct import FlatStruct
     from ..abstract.local_stream import LocalStream
     from ..interfaces.regular_stream_interface import (
-        RegularStreamInterface,
+        RegularStreamInterface, StreamItemType,
         DEFAULT_EXAMPLE_COUNT, DEFAULT_ANALYZE_COUNT,
     )
     from ..mixin.convert_mixin import ConvertMixin
@@ -48,8 +48,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 
 Native = Union[LocalStream, RegularStreamInterface]
 Data = Union[Auto, Iterable]
-AutoStreamType = Union[Auto, StreamType]
-StreamItemType = Union[AutoStreamType, ItemType]
 AutoStruct = Union[Auto, Struct]
 FileName = str
 
@@ -311,7 +309,7 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
         else:
             return self.stream(
                 self._get_enumerated_items(item_type=ItemType.Row, first=first),
-                stream_type=StreamType.KeyValueStream,
+                stream_type=ItemType.Row,
                 secondary=self.get_stream_type(),
             )
 
@@ -329,7 +327,7 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
 
     def select(self, *columns, use_extended_method: AutoBool = AUTO, **expressions) -> Native:
         if Auto.is_auto(use_extended_method):
-            use_extended_method = self.get_stream_type() in (StreamType.StructStream, StreamType.RowStream)
+            use_extended_method = self.get_item_type() in (ItemType.Row, ItemType.StructRow)
         input_item_type = self.get_item_type()
         target_item_type = self._get_target_item_type(*columns, **expressions)
         target_struct = sn.get_output_struct(*columns, **expressions)
@@ -342,17 +340,9 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
         stream = self.map_to_type(function=select_function, stream_type=target_item_type, struct=target_struct)
         return self._assume_native(stream)
 
-    def flat_map(self, function: Callable, to: AutoStreamType = AUTO) -> Stream:
-        if Auto.is_defined(to):
-            stream_class = StreamType.detect(to).get_class()
-        else:
-            stream_class = self.__class__
-        new_props_keys = stream_class([]).get_meta().keys()
-        props = {k: v for k, v in self.get_meta().items() if k in new_props_keys}
-        props.pop('count')
+    def flat_map(self, function: Callable, to: ItemType = AUTO) -> Stream:
         items = self._get_mapped_items(function=function, flat=True)
-        props = self._get_safe_meta(**props)
-        return stream_class(items, **props)
+        return self.stream(items, stream_type=to, save_count=False)
 
     def _get_stream_class_by_type(self, item_type: StreamItemType) -> Class:
         if Auto.is_defined(item_type):
@@ -384,7 +374,7 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
             function: Callable,
             *args,
             dynamic: bool = True,
-            stream_type: AutoStreamType = AUTO,
+            stream_type: StreamItemType = AUTO,
             **kwargs
     ) -> Stream:
         return self.stream(
@@ -495,7 +485,7 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
             *keys,
             values: Columns = None,
             skip_missing: bool = False,
-            as_pairs: bool = False,
+            as_pairs: bool = False,  # deprecated argument
             output_struct: AutoStruct = AUTO,
             take_hash: bool = False,
     ) -> Stream:
@@ -509,11 +499,10 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
         else:
             expected_struct = self._get_grouped_struct(*keys, values=values)
         if as_pairs:
-            stream_builder = StreamType.KeyValueStream.get_class()
-            stream_groups = stream_builder(iter_groups, value_stream_type=self.get_stream_type())
+            stream_class = StreamType.KeyValueStream.get_class()
+            stream_groups = stream_class(iter_groups, value_stream_type=self.get_stream_type())
         else:
-            stream_builder = StreamType.RowStream.get_class()
-            stream_groups = stream_builder(iter_groups, struct=expected_struct, check=False)
+            stream_groups = self.stream(iter_groups, item_type=ItemType.Row, struct=expected_struct, check=False)
         if values:
             item_type = self.get_item_type()
             if item_type == ItemType.Any:
@@ -677,7 +666,7 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
     @deprecated_with_alternative('connectors.filesystem.local_file.JsonFile.to_stream()')
     def from_json_file(
             cls, filename: str,
-            stream_type: StreamType = StreamType.RecordStream,
+            stream_type: StreamItemType = ItemType.Record,
             skip_first_line=False, max_count=None,
             check=AUTO, verbose=False,
     ) -> Stream:

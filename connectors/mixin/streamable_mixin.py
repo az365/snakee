@@ -6,7 +6,7 @@ try:  # Assume we're a submodule in a package.
         IterableStreamInterface, StructInterface, Context, LeafConnectorInterface, StructMixinInterface,
         RegularStreamInterface, RowStream, StructStream, RecordStream, LineStream,
         ItemType, StreamType,
-        AUTO, Auto, AutoStreamType, AutoBool, AutoCount, AutoName, Array, OptionalFields,
+        AUTO, Auto, StreamItemType, AutoBool, AutoCount, AutoName, Array, OptionalFields,
     )
     from base.functions.arguments import get_generated_name
     from streams.mixin.columnar_mixin import ColumnarMixin
@@ -16,7 +16,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         IterableStreamInterface, StructInterface, Context, LeafConnectorInterface, StructMixinInterface,
         RegularStreamInterface, RowStream, StructStream, RecordStream, LineStream,
         ItemType, StreamType,
-        AUTO, Auto, AutoStreamType, AutoBool, AutoCount, AutoName, Array, OptionalFields,
+        AUTO, Auto, StreamItemType, AutoBool, AutoCount, AutoName, Array, OptionalFields,
     )
     from ...base.functions.arguments import get_generated_name
     from ...streams.mixin.columnar_mixin import ColumnarMixin
@@ -34,10 +34,10 @@ class StreamableMixin(ColumnarMixin, ABC):
         return ItemType.Any
 
     @classmethod
-    def get_stream_type(cls):
+    def get_stream_type(cls) -> StreamType:
         return StreamType.AnyStream
 
-    def _get_stream_type(self, stream_type: AutoStreamType = AUTO) -> StreamType:
+    def _get_stream_type(self, stream_type: StreamItemType = AUTO) -> StreamType:
         if not Auto.is_defined(stream_type):
             if hasattr(self, 'get_stream_type'):
                 stream_type = self.get_stream_type()
@@ -48,13 +48,13 @@ class StreamableMixin(ColumnarMixin, ABC):
                 stream_type = StreamType.detect(item_type)
         return stream_type
 
-    def _get_stream_class(self, stream_type: AutoStreamType = AUTO):
+    def _get_stream_class(self, stream_type: StreamItemType = AUTO):
         try:  # assume we're RegularStream
             return self.get_stream_class()
         except AttributeError:
             return StreamBuilder.get_default_stream_class()
 
-    def _get_item_type(self, stream: Union[AutoStreamType, RegularStreamInterface] = AUTO) -> ItemType:
+    def _get_item_type(self, stream: Union[StreamItemType, RegularStreamInterface] = AUTO) -> ItemType:
         if isinstance(stream, RegularStreamInterface) or hasattr(stream, 'get_item_type'):
             try:
                 return stream.get_item_type()
@@ -133,7 +133,7 @@ class StreamableMixin(ColumnarMixin, ABC):
 
     def stream(
             self, data: Union[Iterable, Auto] = AUTO,
-            stream_type: AutoStreamType = AUTO,
+            stream_type: StreamItemType = AUTO,
             ex: OptionalFields = None,
             **kwargs
     ) -> Stream:
@@ -143,7 +143,7 @@ class StreamableMixin(ColumnarMixin, ABC):
             self,
             data: Union[Iterable, Auto] = AUTO,
             name: AutoName = AUTO,
-            stream_type: AutoStreamType = AUTO,
+            stream_type: StreamItemType = AUTO,
             ex: OptionalFields = None,
             step: AutoCount = AUTO,
             **kwargs
@@ -171,7 +171,7 @@ class StreamableMixin(ColumnarMixin, ABC):
 
     def to_stream_type(
             self,
-            stream_type: StreamType,
+            stream_type: StreamItemType,
             step: AutoCount = AUTO,
             verbose: AutoBool = AUTO,
             message: Union[str, Auto, None] = AUTO,
@@ -190,7 +190,7 @@ class StreamableMixin(ColumnarMixin, ABC):
         if not Auto.is_defined(data):
             data = self._get_items_of_type(item_type, step=step, verbose=verbose, message=message)
         stream_kwargs = self.get_stream_kwargs(data=data, step=step, verbose=verbose, **kwargs)
-        stream = self._get_stream_class(stream_type=stream_type)
+        stream = self._get_stream_class()
         return stream(**stream_kwargs)
 
     def to_any_stream(self, step: AutoCount = AUTO, verbose: AutoBool = AUTO, **kwargs) -> Stream:
