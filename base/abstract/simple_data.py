@@ -39,6 +39,7 @@ COLS_FOR_META = [
     ('key', 20), ('value', 30), ('actual_type', 14), ('expected_type', 20), ('default', 20),
 ]
 MAX_OUTPUT_ROW_COUNT, MAX_DATAFRAME_ROW_COUNT = 200, 20
+MAX_BRIEF_REPR_LEN = 30
 INCORRECT_COUNT = -1
 
 
@@ -140,6 +141,21 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
 
     def get_str_headers(self) -> Generator:
         yield self.get_one_line_repr()
+
+    def get_str_title(self) -> str:
+        title = self.get_name()
+        if not title:
+            title = f'Unnamed {self.__class__.__name__}'
+        return title
+
+    def get_brief_repr(self) -> str:
+        repr_line = repr(self)
+        if len(repr_line) > MAX_BRIEF_REPR_LEN:
+            if self.get_name():
+                repr_line = super().get_brief_repr()  # AbstractNamed.get_brief_repr()
+            else:
+                repr_line = f'{self.__class__.__name__}(...)'
+        return repr_line
 
     def get_count(self) -> int:
         if self.has_data():
@@ -253,8 +269,9 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
             delimiter: str = REPR_DELIMITER,
     ) -> Generator:
         if with_summary:
+            obj = self.get_brief_repr()
             count = len(list(self.get_meta_records()))
-            yield '{name} has {count} attributes in meta-data:'.format(name=repr(self), count=count)
+            yield f'{obj} has {count} attributes in meta-data:'
         yield from self.get_display()._get_columnar_lines(
             records=self.get_meta_records(),
             columns=COLS_FOR_META,
@@ -272,9 +289,10 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
     ) -> None:
         display = self.get_display()
         if with_summary:
+            obj = self.get_brief_repr()
             count = len(list(self.get_meta_records()))
-            line = '{name} has {count} attributes in meta-data:'.format(name=repr(self), count=count)
-        display.append(line)
+            line = f'{obj} has {count} attributes in meta-data:'
+            display.append(line)
         display.display_sheet(
             records=self.get_meta_records(),
             columns=COLS_FOR_META,
@@ -292,7 +310,7 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
         display = self.get_display()
         show_meta = show_header or not self.has_data()
         if show_header:
-            display.display_paragraph(self.get_name(), level=1)
+            display.display_paragraph(self.get_str_title(), level=1)
             display.append(comment)
             display.display_paragraph(self.get_str_headers())
         elif comment:
@@ -304,7 +322,7 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
         elif depth > 0:
             for attribute, value in self.get_meta_items():
                 if isinstance(value, BaseInterface) or hasattr(value, 'describe'):
-                    display.display_paragraph('{attribute}:'.format(attribute=attribute), level=3)
+                    display.display_paragraph(f'{attribute}:', level=3)
                     value.describe(show_header=False, depth=depth - 1)
         display.display_paragraph()
         return self
