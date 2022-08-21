@@ -75,13 +75,16 @@ class AbstractTerm(SimpleDataWrapper, MultiMapDataMixin, TermInterface, ABC):
         return self.add_fields({role: field})
 
     def add_fields(self, value: Optional[dict] = None, **kwargs) -> Native:
-        return self.add_to_data(TermDataAttribute.Fields, value=value, **kwargs)
+        term = self.add_to_data(TermDataAttribute.Fields, value=value, **kwargs)
+        return self._assume_native(term)
 
     def add_mappers(self, value: Optional[dict] = None, **kwargs) -> Native:
-        return self.add_to_data(TermDataAttribute.Mappers, value=value, **kwargs)
+        term = self.add_to_data(TermDataAttribute.Mappers, value=value, **kwargs)
+        return self._assume_native(term)
 
     def add_datasets(self, value: Optional[dict] = None, **kwargs) -> Native:
-        return self.add_to_data(TermDataAttribute.Datasets, value=value, **kwargs)
+        term = self.add_to_data(TermDataAttribute.Datasets, value=value, **kwargs)
+        return self._assume_native(term)
 
     def add_relations(self, value: Optional[dict] = None, update_relations: bool = True, **kwargs) -> Native:
         self.add_to_data(TermDataAttribute.Relations, value=value, **kwargs)
@@ -89,8 +92,8 @@ class AbstractTerm(SimpleDataWrapper, MultiMapDataMixin, TermInterface, ABC):
 
     def update_relations(self) -> Native:
         relations = self.get_from_data(TermDataAttribute.Relations)
+        msg = 'update_relations(): expected {e}, got {a}'
         for k, v in relations.items():
-            msg = 'update_relations(): expected {e}, got {a}'
             assert isinstance(k, AbstractTerm) or hasattr(k, 'add_relations'), msg.format(e='AbstractTerm', a=k)
             assert isinstance(v, TermRelation) or hasattr(v, 'get_reversed'), msg.format(e='TermRelation', a=v)
             reversed_relation = v.get_reversed()
@@ -239,7 +242,7 @@ class AbstractTerm(SimpleDataWrapper, MultiMapDataMixin, TermInterface, ABC):
             max_len: AutoCount = AUTO,
     ) -> Native:
         display = self.get_display()
-        for key in TermDataAttribute.get_enum_items():
+        for key in TermDataAttribute.get_enum_items():  # fields, dictionaries, mappers, datasets, relations
             data = self.get_data().get(key)
             if data:
                 display.display_paragraph(key.get_name(), level=3)
@@ -249,7 +252,7 @@ class AbstractTerm(SimpleDataWrapper, MultiMapDataMixin, TermInterface, ABC):
                         lambda i:
                         dict(
                             role=i[0], name=i[1].get_name(), caption=i[1].get_caption(),
-                            type=i[1].get_value_type(), repr=i[1].get_representation()
+                            type=i[1].get_value_type(), repr=i[1].get_representation(),
                         ),
                         data.items(),
                     )
@@ -267,6 +270,10 @@ class AbstractTerm(SimpleDataWrapper, MultiMapDataMixin, TermInterface, ABC):
     # @deprecated
     def get_type_in(self, dialect=None):  # TMP for compatibility with AbstractField/StructInterface
         return list
+
+    @staticmethod
+    def _assume_native(obj) -> Native:
+        return obj
 
     def __hash__(self):
         return hash(self.get_name())
