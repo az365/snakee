@@ -517,11 +517,11 @@ class AbstractDatabase(AbstractStorage, ABC):
         elif isinstance(data, str):  # deprecated
             logger = FallbackLogger()
             logger.warning('usage of filename as data-argument is deprecated, use file object instead')
-            bild_stream = StreamType.RowStream.get_class()
-            stream = bild_stream.from_column_file(filename=data, **file_kwargs)  # deprecated
+            build_stream = StreamType.RowStream.get_class()
+            stream = build_stream.from_column_file(filename=data, **file_kwargs)  # deprecated
         else:
-            bild_stream = StreamBuilder.get_default_stream_class()
-            stream = bild_stream(data)
+            build_stream = StreamBuilder.get_default_stream_class()
+            stream = build_stream(data)
         return stream
 
     def _get_table_name_and_struct_str(
