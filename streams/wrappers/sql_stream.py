@@ -46,6 +46,12 @@ TableOrQuery = Union[LeafConnectorInterface, StreamInterface, None]
 IS_DEFINED = '{field} <> 0 and {field} NOT NULL'
 MSG_NOT_IMPL = '{method}() operation is not defined for SqlStream, try to use .to_record_stream().{method}() instead'
 
+OUTPUT_STRUCT_COMPARISON_TAGS = dict(
+    this_only='OUTPUT_ONLY', other_only='SOURCE_ONLY',
+    this_duplicated='DUPLICATED_IN_OUTPUT', other_duplicated='DUPLICATED_IN_SOURCE',
+    both_duplicated='DUPLICATED',
+)
+
 
 class SqlSection(Enum):
     Select = 'SELECT'
@@ -459,12 +465,7 @@ class SqlStream(WrapperStream):
                 types = {f: t for f, t in input_struct.get_types_dict().items() if f in output_columns}
                 output_struct = output_struct.set_types(types)
                 assert isinstance(output_struct, FlatStruct)
-                comparison_tags = dict(
-                    this_only='OUTPUT_ONLY', other_only='SOURCE_ONLY',
-                    this_duplicated='DUPLICATED_IN_OUTPUT', other_duplicated='DUPLICATED_IN_SOURCE',
-                    both_duplicated='DUPLICATED',
-                )
-                output_struct.compare_with(input_struct, tags=comparison_tags, set_valid=True)
+                output_struct.compare_with(input_struct, tags=OUTPUT_STRUCT_COMPARISON_TAGS, set_valid=True)
             return output_struct
 
     def get_input_columns(self, skip_missing: bool = False) -> Columns:
