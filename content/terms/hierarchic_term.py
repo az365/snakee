@@ -211,19 +211,5 @@ class HierarchicTerm(DiscreteTerm):
             selector = [self.get_key_field(level, value_type=ValueType.Sequence), *selector]
         return tuple(selector)
 
-    def get_meta_description(
-            self,
-            with_title: bool = True,
-            with_summary: bool = True,
-            prefix: str = TAB_INDENT,
-            delimiter: str = REPR_DELIMITER,
-    ) -> Generator:
-        for level_no, level_term in enumerate(self.get_level_terms()):
-            yield '\n#{no}: {term}'.format(no=level_no, term=level_term.get_brief_repr())
-            if isinstance(level_term, DiscreteTerm):
-                yield from level_term.get_data_description()
-            else:
-                yield str(level_term)
-
 
 TermType.add_classes(hierarchic=HierarchicTerm)

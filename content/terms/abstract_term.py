@@ -194,46 +194,6 @@ class AbstractTerm(SimpleDataWrapper, MultiMapDataMixin, TermInterface, ABC):
         yield self.get_brief_repr()
         yield self.get_caption()
 
-    # @deprecated
-    def get_meta_description(
-            self,
-            with_title: bool = True,
-            with_summary: bool = True,
-            prefix: str = SMALL_INDENT,
-            delimiter: str = REPR_DELIMITER,
-    ) -> Generator:
-        if len(list(self.get_meta_items())) > 2:
-            yield from super().get_meta_description(
-                with_title=with_title, with_summary=with_summary,
-                prefix=prefix, delimiter=delimiter,
-            )
-
-    # @deprecated
-    def get_data_description(
-            self,
-            count: AutoCount = None,
-            title: Optional[str] = 'Data:',
-            max_len: AutoCount = AUTO,
-    ) -> Generator:
-        count = Auto.acquire(count, None)
-        for key in self.get_sorted_first_level_keys():
-            key_name, value_name = key.get_dict_names()
-            column_names = 'prefix', key_name, value_name, 'caption'
-            columns = list(zip(column_names, DESCRIPTION_COLUMN_LENS))
-            data = self.get_data()[key]
-            if data:
-                yield '{key}:'.format(key=get_name(key))
-                records = map(
-                    lambda i: {
-                        key_name: get_name(i[0]),
-                        value_name: get_name(i[1]),
-                        'caption': i[0].get_caption() if hasattr(i[0], 'get_caption') else
-                        i[1].get_caption() if hasattr(i[1], 'get_caption') else '',
-                    },
-                    data.items(),
-                )
-                yield from self._get_columnar_lines(records, columns=columns, count=count, max_len=max_len)
-
     def display_data_sheet(
             self,
             count: Optional[int] = None,

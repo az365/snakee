@@ -70,10 +70,6 @@ class AbstractNamed(AbstractBaseObject, DisplayMixin, ABC):
             line = BRIEF_META_ROW_FORMATTER.format(prefix=prefix, key='meta:', value=get_str_from_args_kwargs(**meta))
             yield line[:DEFAULT_LINE_LEN]
 
-    # @deprecated_with_alternative('display_meta_description()')
-    def get_meta_description(self, prefix: str = TAB_INDENT, delimiter: str = REPR_DELIMITER) -> Generator:
-        yield from self.get_brief_meta_description(prefix=prefix)
-
     def display_meta_description(self, with_title: bool = True) -> Native:
         display = self.get_display()
         display.display_sheet(

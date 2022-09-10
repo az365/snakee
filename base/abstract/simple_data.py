@@ -261,32 +261,13 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
         display.display_paragraph()
         return self
 
-    def get_meta_description(
-            self,
-            with_title: bool = True,
-            with_summary: bool = True,
-            prefix: str = SMALL_INDENT,
-            delimiter: str = REPR_DELIMITER,
-    ) -> Generator:
-        if with_summary:
-            obj = self.get_brief_repr()
-            count = len(list(self.get_meta_records()))
-            yield f'{obj} has {count} attributes in meta-data:'
-        yield from self.get_display()._get_columnar_lines(
-            records=self.get_meta_records(),
-            columns=COLS_FOR_META,
-            with_title=with_title,
-            prefix=prefix,
-            delimiter=delimiter,
-        )
-
     def display_meta_description(
             self,
             with_title: bool = True,
             with_summary: bool = True,
             prefix: str = SMALL_INDENT,  # deprecated
             delimiter: str = REPR_DELIMITER,  # deprecated
-    ) -> None:
+    ) -> Native:
         display = self.get_display()
         if with_summary:
             obj = self.get_brief_repr()
@@ -298,6 +279,7 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
             columns=COLS_FOR_META,
             with_title=with_title,
         )
+        return self
 
     def describe(
             self,

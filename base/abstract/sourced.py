@@ -96,21 +96,3 @@ class Sourced(AbstractNamed, SourcedInterface, ABC):
         logger = self.get_logger()
         if logger:
             return logger.log(*args, **kwargs)
-
-    def get_meta_description(
-            self,
-            with_title: bool = True,
-            with_summary: bool = True,
-            prefix: str = TAB_INDENT,
-            delimiter: str = REPR_DELIMITER,
-    ) -> Generator:
-        if with_summary:
-            count = len(list(self.get_meta_records()))
-            yield '{name} has {count} attributes in meta-data:'.format(name=repr(self), count=count)
-        yield from self.get_display()._get_columnar_lines(
-            records=self.get_meta_records(),
-            columns=COLS_FOR_META,
-            with_title=with_title,
-            prefix=prefix,
-            delimiter=delimiter,
-        )
