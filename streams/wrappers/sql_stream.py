@@ -45,6 +45,8 @@ TableOrQuery = Union[LeafConnectorInterface, StreamInterface, None]
 
 IS_DEFINED = '{field} <> 0 and {field} NOT NULL'
 MSG_NOT_IMPL = '{method}() operation is not defined for SqlStream, try to use .to_record_stream().{method}() instead'
+QUERY_SHEET_COLUMNS = ('no', 3), ('query', 120)
+MONOSPACE_HTML_STYLE = 'font-family: monospace'
 
 OUTPUT_STRUCT_COMPARISON_TAGS = dict(
     this_only='OUTPUT_ONLY', other_only='SOURCE_ONLY',
@@ -310,6 +312,10 @@ class SqlStream(WrapperStream):
             yield from self._format_section_lines(section, lines)
         if finish:
             yield ';'
+
+    def get_query_records(self) -> Iterator[dict]:
+        for n, e in enumerate(self.get_query_lines()):
+            yield dict(no=n + 1, query=e)
 
     def get_query_name(self) -> str:
         return self.get_name().split('.')[-1].split(':')[-1]
@@ -613,20 +619,6 @@ class SqlStream(WrapperStream):
             data_repr = data_repr[:max_len - len(CROP_SUFFIX)] + CROP_SUFFIX
         return data_repr
 
-    # @deprecated
-    def get_one_line_representation(self) -> str:
-        return self.get_one_line_repr()
-
-    def get_one_line_repr(self) -> str:
-        message = '{}({}, {})'.format(self.__class__.__name__, self.get_name(), self.get_str_meta())
-        return message
-
-    def display_query_sheet(self):
-        query_records = [dict(no=n + 1, query=e) for n, e in enumerate(self.get_query_lines())]
-        sheet_columns = ('no', 3), ('query', 120)
-        display = self.get_display()
-        return display.display_sheet(query_records, columns=sheet_columns, style="font-family: monospace")
-
     def get_description_lines(self) -> Iterator[str]:
         yield repr(self)
         yield self.get_stream_representation()
@@ -638,25 +630,27 @@ class SqlStream(WrapperStream):
         if hasattr(struct, 'get_struct_repr_lines'):
             yield from struct.get_struct_repr_lines(select_fields=self.get_output_columns())
 
-    def describe(self, as_dataframe: bool = False, **kwargs) -> Native:
+    def describe(self, enumerated: bool = False, **kwargs) -> Native:
         display = self.get_display()
         display.display_paragraph(self.get_query_name(), level=1)
         display.append(repr(self))
         display.append(self.get_stream_representation())
         display.append('Generated SQL query:')
         display.display_paragraph('Query', level=3)
-        if as_dataframe:
-            self.display_query_sheet()
+        if enumerated:
+            query_records = self.get_query_records()
+            display.display_sheet(query_records, columns=QUERY_SHEET_COLUMNS, style="font-family: monospace")
         else:
             display.display_paragraph(self.get_query_lines(), style=CODE_HTML_STYLE)
         display.display_paragraph('Columns', level=3)
         display.append('Expected output columns: {}'.format(self.get_output_columns(skip_missing=True)))
         display.append('Expected input struct: {}'.format(self.get_source_table().get_struct()))
         struct = self.get_output_struct(skip_missing=True)
-        if struct:
+        if isinstance(struct, StructInterface) or hasattr(struct, 'display_data_sheet'):
             struct.display_data_sheet(title=None)
         else:
-            display.display_paragraph('(Undefined struct)')
+            display.display_paragraph(f'Undefined struct: {struct}')
+        return self
 
     @staticmethod
     def _assume_native(stream) -> Native:
