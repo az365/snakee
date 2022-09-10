@@ -65,7 +65,7 @@ tsv_sepulka_master = cx.get_job_folder().folder('test_tmp').file(
     struct=struct_sepulka_master,
     caption=struct_sepulka_master.get_caption(),
 )
-tsv_sepulka_state = cx.get_job_folder().folder('test_tmp').file(
+tsv_sepulka_state = cx.find_job_folder('test_tmp').folder('test_tmp').file(
     'sepulka_state.tsv',
     struct=struct_sepulka_state,
     caption=struct_sepulka_state.get_caption(),
@@ -88,7 +88,7 @@ DATA_SEPULKA_STATE = [  # sepulka_id, sepuling_share
 ]
 
 
-def term_test():
+def test_term():
     tsv_sepulka_master.write_stream(cx.sm.RowStream(DATA_SEPULKA_MASTER))
     tsv_sepulka_state.write_stream(cx.sm.RowStream(DATA_SEPULKA_STATE))
     stream_sepulkarium_state = tsv_sepulka_state.to_record_stream().join(
@@ -111,7 +111,7 @@ def term_test():
 
 
 def main():
-    term_test()
+    test_term()
 
 
 if __name__ == '__main__':
