@@ -154,7 +154,7 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
         item_type = self.get_item_type()
         if item_type in (ItemType.Any, ItemType.Line):
             return [self.get_item_type().get_value()]
-        example = self.example(count=by_items_count)
+        example = self.take(by_items_count)
         if item_type == ItemType.Record:
             columns = set()
             for r in example.get_items():
@@ -309,7 +309,7 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
         else:
             return self.stream(
                 self._get_enumerated_items(item_type=ItemType.Row, first=first),
-                stream_type=ItemType.Row,
+                stream_type=ItemType.Row,  # KeyValueStream
                 secondary=self.get_stream_type(),
             )
 
@@ -368,6 +368,13 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
                 raise TypeError(msg)
         else:
             return self.__class__
+
+    def has_data(self) -> bool:
+        count = self.get_estimated_count()
+        if count:
+            return True
+        else:
+            return super().has_data()
 
     def apply_to_data(
             self,
@@ -605,14 +612,14 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
             count: Count = DEFAULT_EXAMPLE_COUNT,
             filters: Columns = None,
             columns: Columns = None,
-    ) -> list:
+    ) -> Native:
         if self.is_in_memory():
             stream = self
         else:  # data is iterator
             stream = self.copy()
         sm_sample = stream.filter(*filters) if filters else self
         sm_sample = sm_sample.take(count)
-        return sm_sample.get_list()
+        return sm_sample.collect()
 
     @staticmethod
     def _assume_stream(stream) -> Stream:
@@ -676,6 +683,12 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
             skip_first_line=skip_first_line, max_count=max_count,
             check=check, verbose=verbose,
         ).to_stream(stream_type=stream_type)
+
+    def __getitem__(self, item):
+        assert self.is_in_memory()
+        data = self.get_stream_data()
+        assert isinstance(data, Sequence), f'got data={data}'
+        return data[item]
 
 
 StreamBuilder.set_default_stream_class(RegularStream)

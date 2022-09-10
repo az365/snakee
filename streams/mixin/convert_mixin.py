@@ -308,10 +308,13 @@ class ConvertMixin(IterableStream, ABC):
                 else:
                     fields_count = DEFAULT_FIELDS_COUNT
                 if item_type == ItemType.Record:
-                    columns = list(example_item.keys())
+                    if example_item:
+                        columns = list(example_item.keys())
+                    else:
+                        columns = list()
                 elif item_type == ItemType.Row:
                     columns = [DEFAULT_COL_MASK.format(n + 1) for n in range(fields_count)]
-                elif item_type == ItemType.StructRow:
+                elif item_type == ItemType.StructRow:  # deprecated
                     try:
                         columns = example_item.get_columns()
                     except TypeError:
@@ -557,10 +560,8 @@ class ConvertMixin(IterableStream, ABC):
         key_func = self._get_key_function(key, take_hash=False)
         if Auto.is_defined(value):
             value_func = self._get_key_function(value, take_hash=False)
-            value_type = StreamType.AnyStream
         else:
             value_func = fs.same()
-            value_type = self.get_stream_type()
         items = self._get_mapped_items(lambda i: (key_func(i), value_func(i)), skip_errors=skip_errors)
         if self.is_in_memory():
             items = list(items)
