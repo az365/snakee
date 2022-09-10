@@ -5,7 +5,7 @@ try:  # Assume we're a submodule in a package.
     from interfaces import (
         ContextInterface, LeafConnectorInterface, StructInterface, StreamInterface, Stream, RegularStream,
         ConnType, LoggingLevel, ItemType, StreamType, StreamItemType, JoinType,
-        AutoContext, AutoName, AutoBool, Auto, AUTO,
+        AutoContext, AutoName, AutoDisplay, AutoBool, Auto, AUTO,
         Item, Name, FieldName, FieldNo, Links, Columns, OptionalFields, Array, ARRAY_TYPES,
     )
     from base.functions.arguments import get_names, get_name, get_generated_name, get_str_from_args_kwargs
@@ -24,7 +24,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...interfaces import (
         ContextInterface, LeafConnectorInterface, StructInterface, StreamInterface, Stream, RegularStream,
         ConnType, LoggingLevel, ItemType, StreamType, StreamItemType, JoinType,
-        AutoContext, AutoName, AutoBool, Auto, AUTO,
+        AutoContext, AutoName, AutoDisplay, AutoBool, Auto, AUTO,
         Item, Name, FieldName, FieldNo, Links, Columns, OptionalFields, Array, ARRAY_TYPES,
     )
     from ...base.functions.arguments import get_names, get_name, get_generated_name, get_str_from_args_kwargs
@@ -630,16 +630,24 @@ class SqlStream(WrapperStream):
         if hasattr(struct, 'get_struct_repr_lines'):
             yield from struct.get_struct_repr_lines(select_fields=self.get_output_columns())
 
-    def describe(self, enumerated: bool = False, **kwargs) -> Native:
-        display = self.get_display()
-        display.display_paragraph(self.get_query_name(), level=1)
-        display.append(repr(self))
-        display.append(self.get_stream_representation())
-        display.append('Generated SQL query:')
-        display.display_paragraph('Query', level=3)
+    def describe(
+            self,
+            show_header: bool = True,
+            comment: Optional[str] = None,
+            enumerated: bool = False,
+            display: AutoDisplay = AUTO,
+    ) -> Native:
+        display = self.get_display(display)
+        if show_header:
+            display.display_paragraph(self.get_query_name(), level=1)
+            display.append(repr(self))
+            display.append(self.get_stream_representation())
+            if comment:
+                display.display_paragraph(comment)
+            display.display_paragraph('Generated SQL query', level=3)
         if enumerated:
             query_records = self.get_query_records()
-            display.display_sheet(query_records, columns=QUERY_SHEET_COLUMNS, style="font-family: monospace")
+            display.display_sheet(query_records, columns=QUERY_SHEET_COLUMNS, style=MONOSPACE_HTML_STYLE)
         else:
             display.display_paragraph(self.get_query_lines(), style=CODE_HTML_STYLE)
         display.display_paragraph('Columns', level=3)

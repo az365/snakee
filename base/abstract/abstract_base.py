@@ -290,18 +290,22 @@ class AbstractBaseObject(BaseInterface, ABC):
             return default
 
     @staticmethod
-    def _get_display_method() -> Callable:
-        return print
+    def _get_display_method(display=AUTO) -> Callable:
+        if Auto.is_defined(display):
+            assert hasattr(display, 'display_paragraph'), f'Expected DisplayInterface, got {display}'
+            return display.display_paragraph
+        else:
+            return print
 
     def describe(
             self,
             show_header: bool = True,
             comment: Optional[str] = None,
             depth: int = 1,
+            display=AUTO,
     ):
-        detailed_repr = self.get_detailed_repr()
-        display_method = self._get_display_method()
-        display_method(detailed_repr)
+        display_method = self._get_display_method(display)
+        display_method(self.get_detailed_repr())
         display_method(comment)
 
     def __repr__(self):

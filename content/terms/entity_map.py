@@ -3,13 +3,15 @@ from typing import Optional, Generator
 try:  # Assume we're a submodule in a package.
     from interfaces import AUTO, Auto, AutoCount
     from base.constants.chars import EMPTY, SMALL_INDENT, TAB_INDENT, REPR_DELIMITER, DEFAULT_LINE_LEN
-    from base.abstract.simple_data import SimpleDataWrapper
+    from base.abstract.simple_data import SimpleDataWrapper, AutoDisplay
     from utils.external import DataFrame
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import AUTO, Auto, AutoCount
     from ...base.constants.chars import EMPTY, SMALL_INDENT, TAB_INDENT, REPR_DELIMITER, DEFAULT_LINE_LEN
-    from ...base.abstract.simple_data import SimpleDataWrapper
+    from ...base.abstract.simple_data import SimpleDataWrapper, AutoDisplay
     from ...utils.external import DataFrame
+
+Native = SimpleDataWrapper
 
 COLS_FOR_ENTITY = ('defined', 3), ('key', 20), ('value', 30), ('actual_type', 20), ('caption', 50)
 NOT_ENTITY_FIELDS = 'name', 'caption'
@@ -38,9 +40,11 @@ class EntityMap(SimpleDataWrapper):
             with_summary: bool = True,
             prefix: str = SMALL_INDENT,
             delimiter: str = REPR_DELIMITER,
-    ):
-        display = self.get_display()
+            display: AutoDisplay = AUTO,
+    ) -> Native:
+        display = self.get_display(display)
         display.display_paragraph('{prefix}{count}:'.format(prefix=prefix, count=self.get_count_repr()))
+        return self
 
     def display_data_sheet(
             self,

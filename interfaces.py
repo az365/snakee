@@ -166,3 +166,4 @@ TmpFiles = TemporaryFilesMaskInterface
 
 AutoContext = Union[Auto, Context]
 AutoConnector = Union[Auto, Connector]
+AutoDisplay = Union[Auto, DisplayInterface]

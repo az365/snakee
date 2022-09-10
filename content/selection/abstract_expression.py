@@ -216,8 +216,9 @@ class AbstractDescription(AbstractBaseObject, DataMixin, ABC):
             show_header: bool = True,
             comment: Optional[str] = None,
             depth: int = 1,
+            display=AUTO,
     ) -> Native:
-        display = self.get_display()
+        display = self.get_display(display)
         if show_header:
             display.display_paragraph(self.get_brief_repr(), level=1)
             display.append(comment)
@@ -235,7 +236,7 @@ class AbstractDescription(AbstractBaseObject, DataMixin, ABC):
             for attribute, value in self.get_meta_items():
                 if isinstance(value, BaseInterface) or hasattr(value, 'describe'):
                     display.display_paragraph('{attribute}:'.format(attribute=attribute), level=3)
-                    value.describe(show_header=False, depth=depth - 1)
+                    value.describe(show_header=False, depth=depth - 1, display=display)
         display.display_paragraph()
         return self
 

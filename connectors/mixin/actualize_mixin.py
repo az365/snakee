@@ -4,7 +4,7 @@ from typing import Optional, Generator, Union
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         LeafConnectorInterface, StructInterface, Stream, RecordStream, ItemType,
-        AUTO, Auto, AutoCount, AutoBool, Columns, Array, Count,
+        AUTO, Auto, AutoCount, AutoBool, AutoDisplay, Columns, Array, Count,
     )
     from base.functions.arguments import get_name, get_str_from_args_kwargs
     from base.constants.chars import EMPTY, CROP_SUFFIX, ITEMS_DELIMITER, DEFAULT_LINE_LEN
@@ -12,7 +12,7 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         LeafConnectorInterface, StructInterface, Stream, RecordStream, ItemType,
-        AUTO, Auto, AutoCount, AutoBool, Columns, Array, Count,
+        AUTO, Auto, AutoCount, AutoBool, AutoDisplay, Columns, Array, Count,
     )
     from ...base.functions.arguments import get_name, get_str_from_args_kwargs
     from ...base.constants.chars import EMPTY, CROP_SUFFIX, ITEMS_DELIMITER, DEFAULT_LINE_LEN
@@ -293,12 +293,13 @@ class ActualizeMixin(ABC):
             example: Optional[Stream] = None,
             columns: Optional[Array] = None,
             comment: str = EMPTY,
+            display: AutoDisplay = AUTO,
     ):
         if not Auto.is_defined(example):
             example = self.to_record_stream()
         stream_example = example.take(count).collect()
         if stream_example or comment:
-            display = self.get_display()
+            display = self.get_display(display)
             display.display_paragraph('Example', level=3)
             if comment:
                 display.display_paragraph(comment)

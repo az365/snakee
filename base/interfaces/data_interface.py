@@ -49,6 +49,7 @@ class SimpleDataInterface(BaseInterface, ABC):
             count: AutoCount = AUTO,
             comment: Optional[str] = None,
             depth: int = 1,
+            display=AUTO,
             **kwargs
     ):
         pass

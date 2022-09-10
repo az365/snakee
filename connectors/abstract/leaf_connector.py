@@ -5,7 +5,7 @@ try:  # Assume we're a submodule in a package.
     from interfaces import (
         ConnectorInterface, LeafConnectorInterface, StructInterface, ContentFormatInterface,
         ItemType, StreamType, ContentType, Context, Stream, Name, Count, Array,
-        AUTO, Auto, AutoBool, AutoName, AutoCount, AutoConnector, AutoContext,
+        AUTO, Auto, AutoBool, AutoName, AutoCount, AutoDisplay, AutoConnector, AutoContext,
     )
     from base.functions.arguments import get_name, get_str_from_args_kwargs
     from base.constants.chars import EMPTY, CROP_SUFFIX, ITEMS_DELIMITER, DEFAULT_LINE_LEN
@@ -18,7 +18,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...interfaces import (
         ConnectorInterface, LeafConnectorInterface, StructInterface, ContentFormatInterface,
         ItemType, StreamType, ContentType, Context, Stream, Name, Count, Array,
-        AUTO, Auto, AutoBool, AutoName, AutoCount, AutoConnector, AutoContext,
+        AUTO, Auto, AutoBool, AutoName, AutoCount, AutoDisplay, AutoConnector, AutoContext,
     )
     from ...base.functions.arguments import get_name, get_str_from_args_kwargs
     from ...base.constants.chars import EMPTY, CROP_SUFFIX, ITEMS_DELIMITER, DEFAULT_LINE_LEN
@@ -368,9 +368,10 @@ class LeafConnector(
             show_header: bool = True,
             safe_filter: bool = True,
             actualize: AutoBool = AUTO,
+            display: AutoDisplay = AUTO,
             **filter_kwargs
     ) -> Native:
-        display = self.get_display()
+        display = self.get_display(display)
         if show_header:
             display.display_paragraph(self.get_name(), level=1)
             display.display_paragraph(self.get_str_headers(actualize=False))
@@ -392,6 +393,7 @@ class LeafConnector(
                 show_header=False,
                 example=example_item,
                 comment=example_comment,
+                display=display,
             )
         elif struct:
             display.append(f'[TYPE_ERROR] Expected struct as StructInterface, got {struct} instead')
@@ -401,6 +403,7 @@ class LeafConnector(
             return self.show_example(
                 count=count, example=example_stream,
                 columns=columns, comment=example_comment,
+                display=display,
             )
         display.display_paragraph()
         return self

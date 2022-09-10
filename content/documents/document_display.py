@@ -16,7 +16,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.constants.chars import EMPTY, SPACE, HTML_SPACE, PARAGRAPH_CHAR
     from ...base.classes.display import DefaultDisplay, PREFIX_FIELD
     from ...base.classes.enum import ClassType
-    from ...base.mixin.display_mixin import DisplayMixin, AutoOutput, Class
+    from ...base.mixin.display_mixin import DisplayMixin, Class
     from ...base.mixin.iter_data_mixin import IterDataMixin
     from ...utils.external import display, clear_output, HTML, Markdown
     from ...streams.stream_builder import StreamBuilder
