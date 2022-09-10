@@ -17,13 +17,12 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..interfaces.display_interface import DisplayInterface, AutoStyle
 
 AutoDisplay = Union[Auto, DisplayInterface]
-AutoOutput = AutoDisplay  # deprecated
 
 _display = DefaultDisplay()
 
 
 class DisplayMixin(DisplayInterface, ABC):
-    def get_display(self, display: AutoDisplay = AUTO) -> DefaultDisplay:
+    def get_display(self, display: AutoDisplay = AUTO) -> DisplayInterface:
         if isinstance(display, (DefaultDisplay, DisplayInterface)) or hasattr(display, 'display_item'):
             return display
         elif Auto.is_defined(display):
@@ -46,10 +45,6 @@ class DisplayMixin(DisplayInterface, ABC):
         _display = display
 
     display = property(get_display, _set_display_inplace)
-
-    @deprecated_with_alternative('get_display()')
-    def get_output(self, output: AutoOutput = AUTO) -> Optional[Class]:
-        return self.get_display(output)
 
     @deprecated_with_alternative('get_display().display_paragraph()')
     def output_blank_line(self, output=AUTO) -> None:
