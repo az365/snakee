@@ -43,6 +43,9 @@ class DocumentDisplay(DefaultDisplay, IterDataMixin):
         self._is_partially_shown = False
         super().__init__()
 
+    def get_data(self):
+        return self._accumulated_document
+
     def get_accumulated_document(self) -> Chapter:
         return self._accumulated_document
 
@@ -97,7 +100,7 @@ class DocumentDisplay(DefaultDisplay, IterDataMixin):
     def _get_display_object(cls, data: Union[DocumentItem, str, Iterable, None]) -> Optional[DisplayObject]:
         if not data:
             return None
-        elif isinstance(data, DocumentItem):
+        elif isinstance(data, DocumentItem):  # Text, Paragraph, Sheet, Chart, Container, Page, ...
             if cls.display_mode == DisplayMode.Text:
                 code = data.get_text()
             elif cls.display_mode == DisplayMode.Md:
@@ -209,6 +212,7 @@ class DocumentDisplay(DefaultDisplay, IterDataMixin):
         self.display_current_paragraph(save=True, clear=True)
         column_names = self._extract_column_names(columns)
         stream = StreamBuilder.stream(records, item_type=item_type, struct=column_names)
+        stream = stream.collect()
         sheet = Sheet(stream)
         return self.display(sheet)
 
