@@ -47,7 +47,7 @@ IS_DEFINED = '{field} <> 0 and {field} NOT NULL'
 MSG_NOT_IMPL = '{method}() operation is not defined for SqlStream, try to use .to_record_stream().{method}() instead'
 QUERY_SHEET_COLUMNS = ('no', 3), ('query', 120)
 MONOSPACE_HTML_STYLE = 'font-family: monospace'
-
+DEFAULT_EXAMPLE_COUNT = 10
 OUTPUT_STRUCT_COMPARISON_TAGS = dict(
     this_only='OUTPUT_ONLY', other_only='SOURCE_ONLY',
     this_duplicated='DUPLICATED_IN_OUTPUT', other_duplicated='DUPLICATED_IN_SOURCE',
@@ -563,10 +563,10 @@ class SqlStream(WrapperStream):
         stream = self.to_stream(stream_type=stream_type).collect()
         return self._assume_native(stream)
 
-    def get_demo_example(self, count: int = 10) -> Iterable:
+    def get_demo_example(self, count: int = DEFAULT_EXAMPLE_COUNT) -> Stream:
         stream = self.copy().take(count)
-        assert isinstance(stream, SqlStream) or hasattr(stream, 'collect'), 'got {}'.format(stream)
-        return stream.collect().get_items()
+        assert isinstance(stream, SqlStream) or hasattr(stream, 'collect'), f'got {stream}'
+        return stream.collect()
 
     def one(self) -> Stream:
         stream = self.copy().take(1)

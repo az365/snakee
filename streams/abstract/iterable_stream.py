@@ -30,6 +30,7 @@ Native = Union[AbstractStream, IterDataMixin, IterableInterface]
 
 DYNAMIC_META_FIELDS = 'count', 'less_than'
 MAX_ITEMS_IN_MEMORY = 5000000
+DEFAULT_EXAMPLE_COUNT = 10
 
 
 class IterableStream(AbstractStream, IterDataMixin):
@@ -297,10 +298,10 @@ class IterableStream(AbstractStream, IterDataMixin):
         stream = self.stream(items_with_logger)
         return self._assume_native(stream)
 
-    def get_demo_example(self, count: int = 10) -> Iterable:
+    def get_demo_example(self, count: int = DEFAULT_EXAMPLE_COUNT) -> Native:
         stream = self.copy().take(count)
-        assert isinstance(stream, AbstractStream)
-        yield from stream.get_items()
+        assert isinstance(stream, IterableStream)
+        return stream.collect()
 
     def get_selection_logger(self) -> SelectionLogger:
         context = self.get_context()
