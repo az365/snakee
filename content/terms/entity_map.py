@@ -50,9 +50,13 @@ class EntityMap(SimpleDataWrapper):
             self,
             count: AutoCount = AUTO,
             title: Optional[str] = 'Data:',
+            comment: Optional[str] = None,
             max_len: AutoCount = AUTO,
+            display: AutoDisplay = AUTO,
     ):
-        display = self.get_display()
+        display = self.get_display(display)
+        if comment:
+            display.display_paragraph(comment)
         return display.display_sheet(
             records=self.get_entity_records(),
             columns=COLS_FOR_ENTITY,
