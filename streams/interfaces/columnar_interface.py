@@ -2,38 +2,33 @@ from abc import ABC, abstractmethod
 from typing import Optional, Iterable, Callable, Union
 
 try:  # Assume we're a submodule in a package.
-    from utils import arguments as arg
     from utils.external import DataFrame
     from utils.algo import JoinType
-    from streams.interfaces.abstract_stream_interface import StreamInterface
-    from streams.interfaces.regular_stream_interface import RegularStreamInterface
+    from streams.interfaces.abstract_stream_interface import StreamInterface, DEFAULT_EXAMPLE_COUNT
+    from streams.interfaces.regular_stream_interface import RegularStreamInterface, DEFAULT_ANALYZE_COUNT
     from streams.stream_type import StreamType
     from content.struct.struct_interface import StructInterface
     from content.items.item_type import ItemType, Item, FieldID
     from base.interfaces.context_interface import ContextInterface
+    from base.classes.auto import AUTO, Auto
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
     from ...utils.external import DataFrame
     from ...utils.algo import JoinType
-    from .abstract_stream_interface import StreamInterface
-    from .regular_stream_interface import RegularStreamInterface
+    from .abstract_stream_interface import StreamInterface, DEFAULT_EXAMPLE_COUNT
+    from .regular_stream_interface import RegularStreamInterface, DEFAULT_ANALYZE_COUNT
     from ..stream_type import StreamType
     from ...content.struct.struct_interface import StructInterface
     from ...content.items.item_type import ItemType, Item, FieldID
     from ...base.interfaces.context_interface import ContextInterface
+    from ...base.classes.auto import AUTO, Auto
 
 Native = RegularStreamInterface
 Stream = StreamInterface
 Struct = Optional[StructInterface]
 Context = Optional[ContextInterface]
 Columns = Union[list, tuple]
-AutoBool = Union[arg.Auto, bool]
+AutoBool = Union[Auto, bool]
 UniKey = Union[StructInterface, Columns, FieldID, Callable]
-Auto = arg.Auto
-
-AUTO = arg.AUTO
-LINES_COUNT_FOR_SHOW_EXAMPLE = 10
-LINES_COUNT_FOR_DETECT_STRUCT = 100
 
 
 class ColumnarInterface(RegularStreamInterface, ABC):
@@ -159,7 +154,7 @@ class ColumnarInterface(RegularStreamInterface, ABC):
     @abstractmethod
     def get_detected_struct(
             self,
-            count: int = LINES_COUNT_FOR_DETECT_STRUCT,
+            count: int = DEFAULT_ANALYZE_COUNT,
             set_types: Optional[dict] = None,
             default: Struct = None,
     ) -> Struct:
@@ -181,7 +176,7 @@ class ColumnarInterface(RegularStreamInterface, ABC):
     def example(
             self,
             *filters,
-            count: int = LINES_COUNT_FOR_SHOW_EXAMPLE,
+            count: int = DEFAULT_EXAMPLE_COUNT,
             allow_tee_iterator: bool = True,
             allow_spend_iterator: bool = True,
             **filter_kwargs
@@ -191,7 +186,7 @@ class ColumnarInterface(RegularStreamInterface, ABC):
     @abstractmethod
     def get_demo_example(
             self,
-            count: int = LINES_COUNT_FOR_SHOW_EXAMPLE,
+            count: int = DEFAULT_EXAMPLE_COUNT,
             as_dataframe: AutoBool = AUTO,
             filters: Optional[Columns] = None, columns: Optional[Columns] = None,
     ) -> Union[DataFrame, Iterable]:
@@ -200,7 +195,7 @@ class ColumnarInterface(RegularStreamInterface, ABC):
     @abstractmethod
     def show(
             self,
-            count: int = LINES_COUNT_FOR_SHOW_EXAMPLE,
+            count: int = DEFAULT_EXAMPLE_COUNT,
             filters: Columns = None,
             columns: Columns = None,
             as_dataframe: AutoBool = AUTO,
@@ -212,7 +207,7 @@ class ColumnarInterface(RegularStreamInterface, ABC):
             self,
             *filters,
             take_struct_from_source: bool = False,
-            count: int = LINES_COUNT_FOR_SHOW_EXAMPLE,
+            count: int = DEFAULT_EXAMPLE_COUNT,
             columns: Columns = None,
             show_header: bool = True,
             struct_as_dataframe: bool = False,

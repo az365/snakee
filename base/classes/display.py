@@ -4,19 +4,18 @@ try:  # Assume we're a submodule in a package.
     from base.classes.typing import AUTO, Auto, AutoCount, Class
     from base.functions.arguments import get_name, get_value
     from base.constants.chars import DEFAULT_LINE_LEN, REPR_DELIMITER, SMALL_INDENT, EMPTY
-    from base.interfaces.display_interface import DisplayInterface, AutoStyle
+    from base.interfaces.display_interface import DisplayInterface, AutoStyle, DEFAULT_EXAMPLE_COUNT
     from utils.decorators import deprecated_with_alternative
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.typing import AUTO, Auto, AutoCount, Class
     from ..functions.arguments import get_name, get_value
     from ..constants.chars import DEFAULT_LINE_LEN, REPR_DELIMITER, SMALL_INDENT, EMPTY
-    from ..interfaces.display_interface import DisplayInterface, AutoStyle
+    from ..interfaces.display_interface import DisplayInterface, AutoStyle, DEFAULT_EXAMPLE_COUNT
     from ...utils.decorators import deprecated_with_alternative
 
 AutoDisplay = Union[Auto, DisplayInterface]
 Item = Any
 
-DEFAULT_ROWS_COUNT = 10
 DEFAULT_INT_WIDTH, DEFAULT_FLOAT_WIDTH = 7, 12
 PREFIX_FIELD = 'prefix'
 
@@ -76,8 +75,8 @@ class DefaultDisplay(DisplayInterface):
 
     def display_item(self, item: Item, item_type='paragraph', **kwargs) -> None:
         item_type_value = get_value(item_type)
-        method_name = 'display_{item_type}'.format(item_type=item_type_value)
-        method = getattr(self, method_name, self.display_paragraph())
+        method_name = f'display_{item_type_value}'
+        method = getattr(self, method_name, self.display_paragraph)
         return method(item, **kwargs)
 
     @classmethod
@@ -165,7 +164,7 @@ class DefaultDisplay(DisplayInterface):
             delimiter: str = REPR_DELIMITER,
             max_len: int = DEFAULT_LINE_LEN,
     ) -> Generator:
-        count = Auto.acquire(count, DEFAULT_ROWS_COUNT)
+        count = Auto.acquire(count, DEFAULT_EXAMPLE_COUNT)
         formatter = cls._get_formatter(columns=columns, delimiter=delimiter)
         if with_title:
             column_names = cls._get_column_names(columns, ex=PREFIX_FIELD)

@@ -9,7 +9,7 @@ try:  # Assume we're a submodule in a package.
     from base.interfaces.sourced_interface import SourcedInterface
     from base.interfaces.context_interface import ContextInterface
     from base.interfaces.data_interface import SimpleDataInterface
-    from base.mixin.display_mixin import DisplayMixin, PREFIX_FIELD, DEFAULT_ROWS_COUNT
+    from base.mixin.display_mixin import DisplayMixin, PREFIX_FIELD, DEFAULT_EXAMPLE_COUNT
     from base.mixin.data_mixin import DataMixin
     from base.abstract.named import AbstractNamed, AutoDisplay
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -20,7 +20,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..interfaces.sourced_interface import SourcedInterface
     from ..interfaces.context_interface import ContextInterface
     from ..interfaces.data_interface import SimpleDataInterface
-    from ..mixin.display_mixin import DisplayMixin, PREFIX_FIELD, DEFAULT_ROWS_COUNT
+    from ..mixin.display_mixin import DisplayMixin, PREFIX_FIELD, DEFAULT_EXAMPLE_COUNT
     from ..mixin.data_mixin import DataMixin
     from .named import AbstractNamed, AutoDisplay
 
@@ -30,7 +30,7 @@ OptionalFields = Optional[Union[str, Iterable]]
 Source = Optional[SourcedInterface]
 Context = Optional[ContextInterface]
 
-DATA_MEMBER_NAMES = ('_data', )
+DATA_MEMBER_NAMES = '_data',
 DYNAMIC_META_FIELDS = tuple()
 
 COLS_FOR_DICT = [(PREFIX_FIELD, 3), ('key', 20), 'value']
@@ -174,7 +174,7 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
 
     def get_data_description(
             self,
-            count: int = DEFAULT_ROWS_COUNT,
+            count: int = DEFAULT_EXAMPLE_COUNT,
             title: Optional[str] = 'Data:',
             max_len: AutoCount = AUTO,
     ) -> Generator:
@@ -217,7 +217,7 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
 
     def display_data_sheet(
             self,
-            count: int = DEFAULT_ROWS_COUNT,
+            count: int = DEFAULT_EXAMPLE_COUNT,
             title: Optional[str] = 'Data',
             comment: Optional[str] = None,
             max_len: AutoCount = AUTO,

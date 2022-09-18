@@ -10,7 +10,7 @@ try:  # Assume we're a submodule in a package.
     )
     from base.functions.arguments import update, get_generated_name, get_name, get_names
     from base.constants.chars import EMPTY, REPR_DELIMITER, TITLE_PREFIX, ITEM, DEL, ABOUT, JUPYTER_LINE_LEN
-    from base.abstract.simple_data import SimpleDataWrapper, DEFAULT_ROWS_COUNT
+    from base.abstract.simple_data import SimpleDataWrapper, DEFAULT_EXAMPLE_COUNT
     from base.mixin.iter_data_mixin import IterDataMixin
     from functions.secondary import array_functions as fs
     from utils.external import pd, get_use_objects_for_output, DataFrame
@@ -28,7 +28,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     )
     from ...base.functions.arguments import update, get_generated_name, get_name, get_names
     from ...base.constants.chars import EMPTY, REPR_DELIMITER, TITLE_PREFIX, ITEM, DEL, ABOUT, JUPYTER_LINE_LEN
-    from ...base.abstract.simple_data import SimpleDataWrapper, DEFAULT_ROWS_COUNT
+    from ...base.abstract.simple_data import SimpleDataWrapper, DEFAULT_EXAMPLE_COUNT
     from ...base.mixin.iter_data_mixin import IterDataMixin
     from ...functions.secondary import array_functions as fs
     from ...utils.external import pd, get_use_objects_for_output, DataFrame
@@ -681,7 +681,7 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
 
     def get_data_description(
             self,
-            count: AutoCount = AUTO,  # DEFAULT_ROWS_COUNT
+            count: AutoCount = AUTO,  # DEFAULT_EXAMPLE_COUNT
             title: Optional[str] = 'Columns:',
             example: Optional[dict] = None,
             select_fields: Optional[Array] = None,
@@ -697,7 +697,7 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
 
     def display_data_sheet(
             self,
-            count: AutoCount = AUTO,  # DEFAULT_ROWS_COUNT
+            count: AutoCount = AUTO,  # DEFAULT_EXAMPLE_COUNT
             title: Optional[str] = 'Columns',
             example: Optional[dict] = None,
             select_fields: Optional[Array] = None,

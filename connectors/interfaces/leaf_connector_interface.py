@@ -3,22 +3,20 @@ from typing import Optional, Iterable, Iterator, Union
 
 try:  # Assume we're a submodule in a package.
     from base.classes.typing import AUTO, Auto, AutoBool, AutoCount, Array
-    from streams.interfaces.abstract_stream_interface import StreamInterface
+    from streams.interfaces.abstract_stream_interface import StreamInterface, DEFAULT_EXAMPLE_COUNT
     from content.items.item_type import ItemType
     from content.format.content_type import ContentType
     from content.format.format_interface import ContentFormatInterface
     from connectors.interfaces.connector_interface import ConnectorInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.classes.typing import AUTO, Auto, AutoBool, AutoCount, Array
-    from ...streams.interfaces.abstract_stream_interface import StreamInterface
+    from ...streams.interfaces.abstract_stream_interface import StreamInterface, DEFAULT_EXAMPLE_COUNT
     from ...content.items.item_type import ItemType
     from ...content.format.content_type import ContentType
     from ...content.format.format_interface import ContentFormatInterface
     from .connector_interface import ConnectorInterface
 
 Native = Union[ConnectorInterface, StreamInterface]
-
-EXAMPLE_ROW_COUNT = 10
 
 
 class LeafConnectorInterface(ConnectorInterface, StreamInterface, ABC):
@@ -184,7 +182,7 @@ class LeafConnectorInterface(ConnectorInterface, StreamInterface, ABC):
     def describe(
             self,
             *filter_args,
-            count: Optional[int] = EXAMPLE_ROW_COUNT,
+            count: Optional[int] = DEFAULT_EXAMPLE_COUNT,
             columns: Optional[Array] = None,
             show_header: bool = True,
             struct_as_dataframe: bool = False,  # deprecated

@@ -1,19 +1,20 @@
 from abc import ABC
-from typing import Optional, Generator, Tuple
+from typing import Optional, Generator, Tuple, Union
 
 try:  # Assume we're a submodule in a package.
     from interfaces import LeafConnectorInterface, Stream, Array, Count, AutoBool, Auto, AUTO
     from base.functions.arguments import get_str_from_args_kwargs
     from base.constants.chars import EMPTY, CROP_SUFFIX
+    from streams.interfaces.abstract_stream_interface import StreamInterface, DEFAULT_EXAMPLE_COUNT
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import LeafConnectorInterface, Stream, Array, Count, AutoBool, Auto, AUTO
     from ...base.functions.arguments import get_str_from_args_kwargs
     from ...base.constants.chars import EMPTY, CROP_SUFFIX
+    from ..interfaces.abstract_stream_interface import StreamInterface, DEFAULT_EXAMPLE_COUNT
 
-Native = LeafConnectorInterface
+Native = Union[StreamInterface, LeafConnectorInterface]
 
 EXAMPLE_STR_LEN = 12
-DEFAULT_EXAMPLE_COUNT = 10
 
 
 class ValidateMixin(ABC):

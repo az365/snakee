@@ -4,12 +4,14 @@ from typing import Optional, Callable, Iterable, Generator, Union, Any
 try:  # Assume we're a submodule in a package.
     from utils.algo import JoinType
     from base.interfaces.data_interface import SimpleDataInterface
+    from base.interfaces.display_interface import DEFAULT_EXAMPLE_COUNT
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils.algo import JoinType
     from .data_interface import SimpleDataInterface
+    from .display_interface import DEFAULT_EXAMPLE_COUNT
 
 Native = SimpleDataInterface
-OptionalFields = Union[str, Iterable, None]
+OptionalFields = Union[Iterable, str, None]
 Item = Any
 
 
@@ -173,7 +175,7 @@ class IterableInterface(SimpleDataInterface, ABC):
         pass
 
     @abstractmethod
-    def head(self, count: int = 10, inplace: bool = False) -> Optional[Native]:
+    def head(self, count: int = DEFAULT_EXAMPLE_COUNT, inplace: bool = False) -> Optional[Native]:
         """Return transformed iterable object (stream, series, ...) containing first N items.
         Alias for take()
 
@@ -188,7 +190,7 @@ class IterableInterface(SimpleDataInterface, ABC):
         pass
 
     @abstractmethod
-    def tail(self, count: int = 10, inplace: bool = False) -> Optional[Native]:
+    def tail(self, count: int = DEFAULT_EXAMPLE_COUNT, inplace: bool = False) -> Optional[Native]:
         """Return transformed iterable object (stream, series, ...) containing last N items from current stream.
 
         :param count: count of items to return

@@ -4,14 +4,14 @@ from typing import Optional, Iterable, Sequence, Union
 try:  # Assume we're a submodule in a package.
     from utils.decorators import deprecated_with_alternative
     from base.classes.typing import AUTO, Auto, AutoCount, Class
-    from base.classes.display import DefaultDisplay, PREFIX_FIELD, DEFAULT_ROWS_COUNT
+    from base.classes.display import DefaultDisplay, PREFIX_FIELD, DEFAULT_EXAMPLE_COUNT
     from base.functions.arguments import get_name, get_value
     from base.constants.chars import DEFAULT_LINE_LEN, REPR_DELIMITER, SMALL_INDENT, EMPTY
     from base.interfaces.display_interface import DisplayInterface, AutoStyle
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils.decorators import deprecated_with_alternative
     from ..classes.typing import AUTO, Auto, AutoCount, Class
-    from ..classes.display import DefaultDisplay, PREFIX_FIELD, DEFAULT_ROWS_COUNT
+    from ..classes.display import DefaultDisplay, PREFIX_FIELD, DEFAULT_EXAMPLE_COUNT
     from ..functions.arguments import get_name, get_value
     from ..constants.chars import DEFAULT_LINE_LEN, REPR_DELIMITER, SMALL_INDENT, EMPTY
     from ..interfaces.display_interface import DisplayInterface, AutoStyle

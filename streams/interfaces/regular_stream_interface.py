@@ -7,21 +7,20 @@ try:  # Assume we're a submodule in a package.
     from content.struct.struct_interface import StructInterface, Field
     from content.items.item_type import ItemType
     from streams.stream_type import StreamType
-    from streams.interfaces.iterable_stream_interface import IterableStreamInterface
+    from streams.interfaces.iterable_stream_interface import IterableStreamInterface, DEFAULT_EXAMPLE_COUNT
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.classes.auto import AUTO, Auto
     from ...utils.external import DataFrame
     from ...content.struct.struct_interface import StructInterface, Field
     from ...content.items.item_type import ItemType
     from ..stream_type import StreamType
-    from ..interfaces.iterable_stream_interface import IterableStreamInterface
+    from ..interfaces.iterable_stream_interface import IterableStreamInterface, DEFAULT_EXAMPLE_COUNT
 
 Native = IterableStreamInterface
 Struct = Optional[StructInterface]
 OptionalFields = Union[Iterable, str, None]
 StreamItemType = Union[StreamType, ItemType, Auto]
 
-DEFAULT_EXAMPLE_COUNT = 10
 DEFAULT_ANALYZE_COUNT = 100
 
 

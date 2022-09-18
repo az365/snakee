@@ -3,7 +3,7 @@ from typing import Optional, Callable, Iterable, Iterator, Sequence, Union
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
-        ContextInterface, LeafConnectorInterface, StructInterface, StreamInterface, Stream, RegularStream,
+        ContextInterface, LeafConnectorInterface, StructInterface, Stream, RegularStream,
         ConnType, LoggingLevel, ItemType, StreamType, StreamItemType, JoinType,
         AutoContext, AutoName, AutoDisplay, AutoBool, Auto, AUTO,
         Item, Name, FieldName, FieldNo, Links, Columns, OptionalFields, Array, ARRAY_TYPES,
@@ -18,11 +18,12 @@ try:  # Assume we're a submodule in a package.
     )
     from content.selection.concrete_expression import AliasDescription
     from content.struct.flat_struct import FlatStruct
+    from streams.interfaces.abstract_stream_interface import StreamInterface, DEFAULT_EXAMPLE_COUNT
     from streams.abstract.wrapper_stream import WrapperStream
     from streams.stream_builder import StreamBuilder
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
-        ContextInterface, LeafConnectorInterface, StructInterface, StreamInterface, Stream, RegularStream,
+        ContextInterface, LeafConnectorInterface, StructInterface, Stream, RegularStream,
         ConnType, LoggingLevel, ItemType, StreamType, StreamItemType, JoinType,
         AutoContext, AutoName, AutoDisplay, AutoBool, Auto, AUTO,
         Item, Name, FieldName, FieldNo, Links, Columns, OptionalFields, Array, ARRAY_TYPES,
@@ -37,6 +38,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     )
     from ...content.selection.concrete_expression import AliasDescription
     from ...content.struct.flat_struct import FlatStruct
+    from ..interfaces.abstract_stream_interface import StreamInterface, DEFAULT_EXAMPLE_COUNT
     from ..abstract.wrapper_stream import WrapperStream
     from ..stream_builder import StreamBuilder
 
@@ -47,7 +49,7 @@ IS_DEFINED = '{field} <> 0 and {field} NOT NULL'
 MSG_NOT_IMPL = '{method}() operation is not defined for SqlStream, try to use .to_record_stream().{method}() instead'
 QUERY_SHEET_COLUMNS = ('no', 3), ('query', 120)
 MONOSPACE_HTML_STYLE = 'font-family: monospace'
-DEFAULT_EXAMPLE_COUNT = 10
+
 OUTPUT_STRUCT_COMPARISON_TAGS = dict(
     this_only='OUTPUT_ONLY', other_only='SOURCE_ONLY',
     this_duplicated='DUPLICATED_IN_OUTPUT', other_duplicated='DUPLICATED_IN_SOURCE',
