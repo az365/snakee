@@ -226,13 +226,15 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
         else:
             return False
 
-    def _get_validation_errors(self, item: Item, struct: AutoStruct = AUTO) -> list:
+    def _get_validation_errors(self, item: Union[Item, Auto, None] = None, struct: AutoStruct = AUTO) -> list:
+        if not Auto.is_defined(item):
+            item = self.get_one_item()
         if self.is_valid_item_type(item):
             struct = Auto.delayed_acquire(struct, self.get_struct)
             if isinstance(struct, StructInterface) or hasattr(struct, 'get_validation_errors'):
                 return struct.get_validation_errors(item)
             else:
-                return []
+                return list()
         else:
             expected = self.get_item_type().get_subclasses(skip_missing=True)
             msg = f'type({item} is not {expected} for {self.get_item_type()}'
@@ -645,9 +647,9 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
             count: Optional[int] = DEFAULT_EXAMPLE_COUNT,
             columns: Optional[Array] = None,
             show_header: bool = True,
+            comment: Optional[str] = None,
             safe_filter: bool = True,
             actualize: AutoBool = AUTO,
-            comment: Optional[str] = None,
             display: AutoDisplay = AUTO,
             **filter_kwargs
     ) -> Native:
@@ -692,6 +694,8 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
                 columns=columns,
             )
             display.display_sheet(records=example_records, columns=example_columns)
+        self.display_paragraph('MetaInformation', level=3)
+        self.display_meta_description(display=display)
         display.display_paragraph()
         return self
 
