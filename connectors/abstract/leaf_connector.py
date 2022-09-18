@@ -5,26 +5,26 @@ try:  # Assume we're a submodule in a package.
     from interfaces import (
         ConnectorInterface, LeafConnectorInterface, StructInterface, ContentFormatInterface,
         ItemType, StreamType, ContentType, Context, Stream, Name, Count, Array,
-        AUTO, Auto, AutoBool, AutoName, AutoCount, AutoConnector, AutoContext,
+        AUTO, Auto, AutoBool, AutoName, AutoCount, AutoDisplay, AutoConnector, AutoContext,
     )
     from base.functions.arguments import get_name, get_str_from_args_kwargs
     from base.constants.chars import EMPTY, CROP_SUFFIX, ITEMS_DELIMITER, DEFAULT_LINE_LEN
     from content.format.format_classes import ParsedFormat
     from connectors.abstract.abstract_connector import AbstractConnector
-    from connectors.mixin.actualize_mixin import ActualizeMixin, EXAMPLE_ROW_COUNT
+    from connectors.mixin.actualize_mixin import ActualizeMixin, DEFAULT_EXAMPLE_COUNT
     from connectors.mixin.connector_format_mixin import ConnectorFormatMixin
     from connectors.mixin.streamable_mixin import StreamableMixin
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         ConnectorInterface, LeafConnectorInterface, StructInterface, ContentFormatInterface,
         ItemType, StreamType, ContentType, Context, Stream, Name, Count, Array,
-        AUTO, Auto, AutoBool, AutoName, AutoCount, AutoConnector, AutoContext,
+        AUTO, Auto, AutoBool, AutoName, AutoCount, AutoDisplay, AutoConnector, AutoContext,
     )
     from ...base.functions.arguments import get_name, get_str_from_args_kwargs
     from ...base.constants.chars import EMPTY, CROP_SUFFIX, ITEMS_DELIMITER, DEFAULT_LINE_LEN
     from ...content.format.format_classes import ParsedFormat
     from .abstract_connector import AbstractConnector
-    from ..mixin.actualize_mixin import ActualizeMixin, EXAMPLE_ROW_COUNT
+    from ..mixin.actualize_mixin import ActualizeMixin, DEFAULT_EXAMPLE_COUNT
     from ..mixin.connector_format_mixin import ConnectorFormatMixin
     from ..mixin.streamable_mixin import StreamableMixin
 
@@ -363,17 +363,23 @@ class LeafConnector(
     def describe(
             self,
             *filter_args,
-            count: Optional[int] = EXAMPLE_ROW_COUNT,
+            count: Optional[int] = DEFAULT_EXAMPLE_COUNT,
             columns: Optional[Array] = None,
             show_header: bool = True,
             safe_filter: bool = True,
             actualize: AutoBool = AUTO,
+            comment: Optional[str] = None,
+            display: AutoDisplay = AUTO,
             **filter_kwargs
     ) -> Native:
-        display = self.get_display()
+        display = self.get_display(display)
         if show_header:
             display.display_paragraph(self.get_name(), level=1)
             display.display_paragraph(self.get_str_headers(actualize=False))
+        if comment:
+            display.display_paragraph(comment)
+        struct = self.get_struct()
+        if show_header or struct:
             struct_title, example_item, example_stream, example_comment = self._prepare_examples_with_title(
                 *filter_args, **filter_kwargs, safe_filter=safe_filter,
                 example_row_count=count, actualize=actualize,
@@ -386,22 +392,27 @@ class LeafConnector(
             display.display_paragraph()
         else:
             example_item, example_stream, example_comment = None, None, None
-        struct = self.get_struct()
         if isinstance(struct, StructInterface) or hasattr(struct, 'describe'):
             struct.describe(
                 show_header=False,
                 example=example_item,
                 comment=example_comment,
+                display=display,
             )
         elif struct:
             display.append(f'[TYPE_ERROR] Expected struct as StructInterface, got {struct} instead')
         else:
             display.append('Struct is not defined.')
         if example_stream and count:
-            return self.show_example(
-                count=count, example=example_stream,
-                columns=columns, comment=example_comment,
+            display.display_paragraph('Example', level=3)
+            if example_comment:
+                display.display_paragraph(example_comment)
+            example_records, example_columns = self._get_example_records_and_columns(
+                count=count,
+                example=example_stream,
+                columns=columns,
             )
+            display.display_sheet(records=example_records, columns=example_columns)
         display.display_paragraph()
         return self
 

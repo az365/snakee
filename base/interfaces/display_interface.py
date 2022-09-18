@@ -10,6 +10,8 @@ Display = Class
 AutoDisplay = Union[Auto, Display]
 AutoStyle = Union[Auto, str]
 
+DEFAULT_EXAMPLE_COUNT = 10
+
 
 class DisplayInterface(ABC):
     @abstractmethod

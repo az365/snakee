@@ -1,4 +1,4 @@
-try:  # Assume we're a sub-module in a package.
+try:  # Assume we're a submodule in a package.
     from functions.tests import (
         test_dates,
         test_text,

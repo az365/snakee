@@ -1,15 +1,18 @@
 from abc import ABC, abstractmethod
-from typing import Iterable, Union
+from typing import Iterable
 
 try:  # Assume we're a submodule in a package.
-    from streams.stream_type import StreamType, Auto, AUTO
+    from base.classes.auto import AUTO, Auto
+    from content.items.item_type import ItemType
+    from streams.stream_type import StreamType
     from streams.interfaces.abstract_stream_interface import StreamInterface
+    from streams.interfaces.regular_stream_interface import RegularStreamInterface, StreamItemType, OptionalFields
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..stream_type import StreamType, Auto, AUTO
+    from ...base.classes.auto import AUTO, Auto
+    from ...content.items.item_type import ItemType
+    from ..stream_type import StreamType
     from .abstract_stream_interface import StreamInterface
-
-AutoStreamType = Union[StreamType, Auto]
-OptionalFields = Union[Iterable, str, None]
+    from .regular_stream_interface import RegularStreamInterface, StreamItemType, OptionalFields
 
 
 class StreamBuilderInterface(ABC):
@@ -17,7 +20,7 @@ class StreamBuilderInterface(ABC):
     def stream(
             self,
             data: Iterable,
-            stream_type: AutoStreamType = AUTO,
+            stream_type: StreamItemType = AUTO,
             ex: OptionalFields = None,
             **kwargs
     ) -> StreamInterface:

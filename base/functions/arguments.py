@@ -14,7 +14,7 @@ TYPING_PREFIX = 'typing.'
 
 def update(args, addition=None):
     if addition:
-        if isinstance(addition, Iterable) and not isinstance(addition, list):
+        if isinstance(addition, Iterable) and not isinstance(addition, (list, str)):
             list_addition = list(addition)
         else:
             list_addition = [addition]
@@ -130,7 +130,7 @@ def get_str_from_args_kwargs(
         if isclass(v):
             v_str = v.__name__
         else:
-            v_str = v.__repr__()
+            v_str = repr(v)
         for prefix in _remove_prefixes or []:
             if v_str.startswith(prefix):
                 v_str = v_str[len(prefix):]

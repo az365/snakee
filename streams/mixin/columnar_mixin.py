@@ -15,7 +15,7 @@ try:  # Assume we're a submodule in a package.
     from content.fields import field_classes as fc
     from content.items.item_getters import get_filter_function
     from utils import algo
-    from utils.decorators import deprecated
+    from utils.decorators import deprecated, deprecated_with_alternative
     from utils.external import pd, DataFrame, get_use_objects_for_output
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
@@ -31,7 +31,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...content.fields import field_classes as fc
     from ...content.items.item_getters import get_filter_function
     from ...utils import algo
-    from ...utils.decorators import deprecated
+    from ...utils.decorators import deprecated, deprecated_with_alternative
     from ...utils.external import pd, DataFrame, get_use_objects_for_output
 
 Native = Union[RegularStreamInterface, ColumnarInterface]
@@ -149,10 +149,8 @@ class ColumnarMixin(IterDataMixin, ABC):
 
     def filter(self, *args, item_type: ItemType = ItemType.Auto, skip_errors: bool = False, **kwargs) -> Native:
         item_type = Auto.delayed_acquire(item_type, self.get_item_type)
-        stream_type = self.get_stream_type()
-        assert isinstance(stream_type, StreamType), 'Expected StreamType, got {}'.format(stream_type)
         filtered_items = self._get_filtered_items(*args, item_type=item_type, skip_errors=skip_errors, **kwargs)
-        stream = self.to_stream(data=filtered_items, stream_type=stream_type)
+        stream = self.to_stream(data=filtered_items, stream_type=item_type)
         return self._assume_native(stream)
 
     def _get_flat_mapped_items(self, function: Callable) -> Generator:
@@ -163,9 +161,10 @@ class ColumnarMixin(IterDataMixin, ABC):
         items = self._get_flat_mapped_items(function=function)
         return self.set_items(items, inplace=inplace)
 
-    def map_to(self, function: Callable, stream_type: StreamType) -> Stream:
+    @deprecated_with_alternative('map_to_type()')
+    def map_to(self, function: Callable, item_type: ItemType) -> Stream:
         items = map(function, self.get_items())
-        stream = self.stream(items, stream_type=stream_type)
+        stream = self.stream(items, stream_type=item_type)
         return self._assume_native(stream)
 
     def map(self, function: Callable, inplace: bool = False) -> Optional[Native]:
@@ -178,10 +177,14 @@ class ColumnarMixin(IterDataMixin, ABC):
             key: UniKey,
             how: How = JoinType.Left,
             right_is_uniq: bool = True,
+            merge_function: Union[Callable, Auto] = AUTO,
             inplace: bool = False,
     ) -> Optional[Native]:
         keys = update([key])
         keys = get_names(keys, or_callable=True)
+        item_type = self.get_item_type()
+        key_function = composite_key(*keys, item_type=item_type)
+        merge_function = Auto.acquire(merge_function, merge_two_items(item_type=item_type))
         if not isinstance(how, JoinType):
             how = JoinType(how)
         right_items = list(right.get_items())
@@ -189,8 +192,8 @@ class ColumnarMixin(IterDataMixin, ABC):
             joined_items = algo.map_side_join(
                 iter_left=self.get_items(),
                 iter_right=right_items,
-                key_function=composite_key(*keys, item_type=self.get_item_type()),
-                merge_function=merge_two_items(),
+                key_function=key_function,
+                merge_function=merge_function,
                 dict_function=items_to_dict(),
                 how=how,
                 uniq_right=right_is_uniq,
@@ -274,7 +277,7 @@ class ColumnarMixin(IterDataMixin, ABC):
             )
         else:
             row_stream = self.to_stream(
-                stream_type=StreamType.RowStream,
+                stream_type=ItemType.Row,
                 columns=struct.get_columns(),
             )
         return row_stream.structure(
@@ -320,9 +323,8 @@ class ColumnarMixin(IterDataMixin, ABC):
             return dataframe
 
     def _get_field_getter(self, field: UniKey, item_type: Union[ItemType, Auto] = AUTO, default=None):
-        if isinstance(self, RegularStreamInterface) or hasattr(self, 'get_item_type'):
+        if isinstance(self, RegularStreamInterface) or hasattr(self, 'get_item_type') and hasattr(self, 'get_struct'):
             item_type = Auto.delayed_acquire(item_type, self.get_item_type)
-        if hasattr(self, 'get_struct'):
             struct = self.get_struct()
         else:
             struct = None

@@ -10,7 +10,7 @@ try:  # Assume we're a submodule in a package.
     )
     from base.functions.arguments import update, get_generated_name, get_name, get_names
     from base.constants.chars import EMPTY, REPR_DELIMITER, TITLE_PREFIX, ITEM, DEL, ABOUT, JUPYTER_LINE_LEN
-    from base.abstract.simple_data import SimpleDataWrapper, DEFAULT_ROWS_COUNT
+    from base.abstract.simple_data import SimpleDataWrapper, DEFAULT_EXAMPLE_COUNT
     from base.mixin.iter_data_mixin import IterDataMixin
     from functions.secondary import array_functions as fs
     from utils.external import pd, get_use_objects_for_output, DataFrame
@@ -28,7 +28,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     )
     from ...base.functions.arguments import update, get_generated_name, get_name, get_names
     from ...base.constants.chars import EMPTY, REPR_DELIMITER, TITLE_PREFIX, ITEM, DEL, ABOUT, JUPYTER_LINE_LEN
-    from ...base.abstract.simple_data import SimpleDataWrapper, DEFAULT_ROWS_COUNT
+    from ...base.abstract.simple_data import SimpleDataWrapper, DEFAULT_EXAMPLE_COUNT
     from ...base.mixin.iter_data_mixin import IterDataMixin
     from ...functions.secondary import array_functions as fs
     from ...utils.external import pd, get_use_objects_for_output, DataFrame
@@ -46,7 +46,7 @@ Comment = Union[StructName, Auto]
 
 META_MEMBER_MAPPING = dict(_data='fields')
 GROUP_TYPE_STR = 'GROUP'
-DICT_VALID_SIGN = {'True': ITEM, 'False': DEL, 'None': ITEM, AUTO.get_value(): ABOUT}
+DICT_VALID_SIGN = {'True': ITEM, 'False': DEL, 'None': ITEM, AUTO.get_value(): ABOUT}  # '-', 'x', '-', '~'
 
 COMPARISON_TAGS = dict(
     this_only='THIS_ONLY', other_only='OTHER_ONLY', moved='MOVED',
@@ -475,7 +475,7 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
                 f_updated = f_expected.set_valid(is_valid, inplace=False) if set_valid else f_expected
             else:
                 is_valid = False
-                tag = tags['this_only']
+                tag = tags['this_only']  # UNEXPECTED
                 f_updated = f_received.set_valid(is_valid, inplace=False) if set_valid else f_received
             if tag:
                 caption = '[{}] {}'.format(tag, f_updated.get_caption() or EMPTY)
@@ -490,9 +490,9 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
             f_expected = expected_struct.get_field_description(f_name)
             caption = f_expected.get_caption() or EMPTY
             if f_name in updated_struct.get_field_names():
-                tag = tags['other_duplicated']
+                tag = tags['other_duplicated']  # DUPLICATE_IN_STRUCT
             else:
-                tag = tags['other_only']
+                tag = tags['other_only']  # MISSING_IN_FILE
             if tag not in caption:
                 caption = '[{}] {}'.format(tag, caption or EMPTY)
             f_updated = f_expected.set_valid(is_valid, inplace=False) if set_valid else f_expected
@@ -681,7 +681,7 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
 
     def get_data_description(
             self,
-            count: AutoCount = AUTO,
+            count: AutoCount = AUTO,  # DEFAULT_EXAMPLE_COUNT
             title: Optional[str] = 'Columns:',
             example: Optional[dict] = None,
             select_fields: Optional[Array] = None,
@@ -697,12 +697,13 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
 
     def display_data_sheet(
             self,
-            count: AutoCount = AUTO,
+            count: AutoCount = AUTO,  # DEFAULT_EXAMPLE_COUNT
             title: Optional[str] = 'Columns',
             example: Optional[dict] = None,
             select_fields: Optional[Array] = None,
+            display=AUTO,
     ) -> None:
-        display = self.get_display()
+        display = self.get_display(display)
         columns = self._get_describe_columns(example, with_lens=True)
         records = self.get_struct_repr_records(example=example, select_fields=select_fields, count=count)
         if title:
@@ -714,7 +715,7 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
         columns = ('n', 'type', 'name', 'caption', 'valid')
         return DataFrame(data, columns=columns)
 
-    def show(self, count: Optional[int] = None) -> Optional[DataFrame]:
+    def show(self, count: Optional[int] = None):
         return self.describe()
 
     @staticmethod

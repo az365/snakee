@@ -4,7 +4,7 @@ try:  # Assume we're a submodule in a package.
     from interfaces import Item, ItemType, ContentType, Class, Count, AutoCount, Auto, AUTO
     from base.constants.chars import SPACE, HTML_SPACE
     from base.classes.display import DefaultDisplay, PREFIX_FIELD
-    from base.mixin.display_mixin import DisplayMixin, AutoOutput, Class
+    from base.mixin.display_mixin import DisplayMixin, Class
     from utils.external import display, clear_output, Markdown, HTML
     from utils.decorators import deprecated_with_alternative
     from content.format.text_format import TextFormat, Compress, DEFAULT_ENDING, DEFAULT_ENCODING
@@ -12,7 +12,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...interfaces import Item, ItemType, ContentType, Class, Count, AutoCount, Auto, AUTO
     from ...base.constants.chars import SPACE, HTML_SPACE
     from ...base.classes.display import DefaultDisplay, PREFIX_FIELD
-    from ...base.mixin.display_mixin import DisplayMixin, AutoOutput, Class
+    from ...base.mixin.display_mixin import DisplayMixin, Class
     from ...utils.external import display, clear_output, Markdown, HTML
     from ...utils.decorators import deprecated_with_alternative
     from .text_format import TextFormat, Compress, DEFAULT_ENDING, DEFAULT_ENCODING
@@ -85,20 +85,6 @@ class DocumentFormat(TextFormat, DefaultDisplay):
         else:
             return self.display_paragraph()
 
-    @deprecated_with_alternative('append()')
-    def output_line(self, line: str, output: AutoOutput = AUTO) -> None:
-        if line:
-            return self.append(line)
-        else:
-            return self.display_paragraph()
-
-    @deprecated_with_alternative('_get_display_class|object|method()')
-    def get_output(self, output: AutoOutput = AUTO):
-        if Auto.is_auto(output):
-            return self._get_display_method()
-        else:
-            return super().get_output(output=output)
-
     @staticmethod
     def _get_display_method() -> Callable:
         return display
@@ -119,7 +105,6 @@ class DocumentFormat(TextFormat, DefaultDisplay):
             count: AutoCount = None,
             with_title: bool = True,
             style: Union[str, Auto, None] = AUTO,
-            output: AutoOutput = AUTO,
     ):
         self.display_paragraph()
         data = self.get_encoded_sheet(records, columns=columns, count=count, with_title=with_title, style=style)

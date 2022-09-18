@@ -2,27 +2,29 @@ from typing import Optional, Iterable, Union
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
-        StreamType, RegularStream, LoggerInterface,
+        LoggerInterface, RegularStreamInterface, StreamType, ItemType,
         AUTO, Auto, AutoBool, Count, Message, Array,
     )
     from functions.primary import numeric as nm
     from functions.secondary import all_secondary_functions as fs
+    from streams.stream_builder import StreamBuilder
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..interfaces import (
-        StreamType, RegularStream, LoggerInterface,
+        LoggerInterface, RegularStreamInterface, StreamType, ItemType,
         AUTO, Auto, AutoBool, Count, Message, Array,
     )
     from ..functions.primary import numeric as nm
     from ..functions.secondary import all_secondary_functions as fs
+    from ..streams.stream_builder import StreamBuilder
 
-Data = Union[RegularStream, Iterable]
+Data = Union[RegularStreamInterface, Iterable]
 
 DEFAULT_STEP = 1000000
 TOP_COUNT = 3
 
 
 def get_hist_records(
-        stream: RegularStream,
+        stream: RegularStreamInterface,
         fields: Iterable,
         in_memory: AutoBool = AUTO,
         logger: Union[LoggerInterface, Auto] = AUTO,
@@ -50,7 +52,7 @@ def hist(
         step: Count = DEFAULT_STEP,
         logger: Union[LoggerInterface, Auto] = AUTO,
         msg: Optional[Message] = None,
-) -> RegularStream:
+) -> RegularStreamInterface:
     stream = _stream(data)
     total_count = stream.get_count()
     in_memory = Auto.acquire(in_memory, stream.is_in_memory())
@@ -98,7 +100,7 @@ def stat(
         take_hash: bool = True,
         count: Count = TOP_COUNT,
         msg: Optional[Message] = None,
-) -> RegularStream:
+) -> RegularStreamInterface:
     return hist(
         data,
         *fields,
@@ -159,7 +161,7 @@ def stat_by_cat(data: Data, cat_fields, hist_fields):
     ).ungroup_values(
     ).map_to_type(
         lambda i: _merge_two_records(*i),
-        stream_type=StreamType.RecordStream,
+        stream_type=ItemType.Record,
     )
 
 
@@ -167,18 +169,17 @@ def _merge_two_records(r1, r2):
     return {k: v for k, v in (list(r1.items()) + list(r2.items()))}
 
 
-def _stream(data: Data) -> RegularStream:
+def _stream(data: Data) -> RegularStreamInterface:
     if hasattr(data, 'is_file'):
         if data.is_file():
             if hasattr(data, 'to_record_stream'):
                 return data.to_record_stream()
-    if isinstance(data, RegularStream):
+    if isinstance(data, RegularStreamInterface):
         stream = data
     else:
-        stream_class = StreamType.RecordStream.get_class()
-        stream = stream_class(data, check=False)
+        stream = StreamBuilder.stream(data, check=False)
     return stream
 
 
-def _assume_native(stream) -> RegularStream:
+def _assume_native(stream) -> RegularStreamInterface:
     return stream

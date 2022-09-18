@@ -3,13 +3,15 @@ from typing import Optional, Generator
 try:  # Assume we're a submodule in a package.
     from interfaces import AUTO, Auto, AutoCount
     from base.constants.chars import EMPTY, SMALL_INDENT, TAB_INDENT, REPR_DELIMITER, DEFAULT_LINE_LEN
-    from base.abstract.simple_data import SimpleDataWrapper
+    from base.abstract.simple_data import SimpleDataWrapper, AutoDisplay
     from utils.external import DataFrame
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import AUTO, Auto, AutoCount
     from ...base.constants.chars import EMPTY, SMALL_INDENT, TAB_INDENT, REPR_DELIMITER, DEFAULT_LINE_LEN
-    from ...base.abstract.simple_data import SimpleDataWrapper
+    from ...base.abstract.simple_data import SimpleDataWrapper, AutoDisplay
     from ...utils.external import DataFrame
+
+Native = SimpleDataWrapper
 
 COLS_FOR_ENTITY = ('defined', 3), ('key', 20), ('value', 30), ('actual_type', 20), ('caption', 50)
 NOT_ENTITY_FIELDS = 'name', 'caption'
@@ -32,48 +34,29 @@ class EntityMap(SimpleDataWrapper):
         count = self.get_count() or default
         return '{count} entities'.format(count=count)
 
-    def get_meta_description(
-            self,
-            with_title: bool = True,
-            with_summary: bool = True,
-            prefix: str = EMPTY,
-            delimiter: str = REPR_DELIMITER,
-    ) -> Generator:
-        yield '{prefix}{count}:'.format(prefix=prefix, count=self.get_count_repr())
-        yield EMPTY
-
     def display_meta_description(
             self,
             with_title: bool = True,
             with_summary: bool = True,
             prefix: str = SMALL_INDENT,
             delimiter: str = REPR_DELIMITER,
-    ):
-        display = self.get_display()
+            display: AutoDisplay = AUTO,
+    ) -> Native:
+        display = self.get_display(display)
         display.display_paragraph('{prefix}{count}:'.format(prefix=prefix, count=self.get_count_repr()))
-
-    def get_data_description(
-            self,
-            count: AutoCount = AUTO,
-            title: Optional[str] = 'Data:',
-            max_len: AutoCount = AUTO,
-    ) -> Generator:
-        yield from self._get_columnar_lines(
-            records=self.get_entity_records(),
-            columns=COLS_FOR_ENTITY,
-            with_title=True,
-            prefix=TAB_INDENT,
-            delimiter=REPR_DELIMITER,
-            max_len=max_len,
-        )
+        return self
 
     def display_data_sheet(
             self,
             count: AutoCount = AUTO,
             title: Optional[str] = 'Data:',
+            comment: Optional[str] = None,
             max_len: AutoCount = AUTO,
+            display: AutoDisplay = AUTO,
     ):
-        display = self.get_display()
+        display = self.get_display(display)
+        if comment:
+            display.display_paragraph(comment)
         return display.display_sheet(
             records=self.get_entity_records(),
             columns=COLS_FOR_ENTITY,

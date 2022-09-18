@@ -425,6 +425,7 @@ class IterDataMixin(DataMixin, ABC):
             key,
             how: How = JoinType.Left,
             right_is_uniq: bool = True,
+            merge_function: Callable = fs.merge_two_items(),
             inplace: bool = False,
     ) -> Native:
         key = get_names(key)
@@ -435,7 +436,7 @@ class IterDataMixin(DataMixin, ABC):
             iter_left=self.get_items(),
             iter_right=right.get_items(),
             key_function=fs.composite_key(keys),
-            merge_function=fs.merge_two_items(),
+            merge_function=merge_function,
             dict_function=fs.items_to_dict(),
             how=how,
             uniq_right=right_is_uniq,

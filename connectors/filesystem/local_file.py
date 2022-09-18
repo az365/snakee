@@ -6,7 +6,7 @@ try:  # Assume we're a submodule in a package.
     from interfaces import (
         Context, Connector, ConnectorInterface, ContentFormatInterface, StructInterface,
         IterableStreamInterface, RegularStreamInterface,
-        ContentType, ConnType, ItemType, StreamType,
+        ContentType, ConnType, ItemType, StreamType, StreamItemType,
         AUTO, Auto, AutoCount, AutoBool, AutoName, OptionalFields, UniKey, Array, ARRAY_TYPES,
     )
     from base.constants.chars import OS_PLACEHOLDER, PY_PLACEHOLDER
@@ -22,7 +22,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...interfaces import (
         Context, Connector, ConnectorInterface, ContentFormatInterface, StructInterface,
         IterableStreamInterface, RegularStreamInterface,
-        ContentType, ConnType, ItemType, StreamType,
+        ContentType, ConnType, ItemType, StreamType, StreamItemType,
         AUTO, Auto, AutoCount, AutoBool, AutoName, OptionalFields, UniKey, Array, ARRAY_TYPES,
     )
     from ...base.constants.chars import OS_PLACEHOLDER, PY_PLACEHOLDER
@@ -389,7 +389,7 @@ class LocalFile(LeafConnector, ActualizeMixin):
             self,
             data: Union[Iterable, Auto] = AUTO,
             name: AutoName = AUTO,
-            stream_type: Union[StreamType, Auto] = AUTO,
+            stream_type: StreamItemType = AUTO,
             ex: OptionalFields = None,
             step: AutoCount = AUTO,
             **kwargs
@@ -397,7 +397,7 @@ class LocalFile(LeafConnector, ActualizeMixin):
         if Auto.is_defined(data):
             kwargs['data'] = data
         stream_type = Auto.delayed_acquire(stream_type, self.get_stream_type)
-        assert not ex, 'ex-argument for LocalFile.to_stream() not supported (got {})'.format(ex)
+        assert not ex, f'ex-argument for LocalFile.to_stream() not supported (got {ex})'
         return self.to_stream_type(stream_type=stream_type, step=step, **kwargs)
 
     @classmethod

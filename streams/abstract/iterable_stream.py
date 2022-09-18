@@ -28,8 +28,9 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 
 Native = Union[AbstractStream, IterDataMixin, IterableInterface]
 
-DYNAMIC_META_FIELDS = ('count', 'less_than')
+DYNAMIC_META_FIELDS = 'count', 'less_than'
 MAX_ITEMS_IN_MEMORY = 5000000
+DEFAULT_EXAMPLE_COUNT = 10
 
 
 class IterableStream(AbstractStream, IterDataMixin):
@@ -265,9 +266,14 @@ class IterableStream(AbstractStream, IterDataMixin):
             key: UniKey,
             how: How = JoinType.Left,
             right_is_uniq: bool = True,
+            merge_function: Callable = fs.merge_two_items(),
             inplace: bool = False,
     ) -> Native:
-        stream = super().map_side_join(right, key=key, how=how, right_is_uniq=right_is_uniq, inplace=inplace)
+        stream = super().map_side_join(
+            right, key=key, how=how,
+            merge_function=merge_function,
+            right_is_uniq=right_is_uniq, inplace=inplace,
+        )
         meta = self.get_static_meta()
         if inplace:
             self.set_meta(**meta, inplace=False)
@@ -292,10 +298,10 @@ class IterableStream(AbstractStream, IterDataMixin):
         stream = self.stream(items_with_logger)
         return self._assume_native(stream)
 
-    def get_demo_example(self, count: int = 10) -> Iterable:
+    def get_demo_example(self, count: int = DEFAULT_EXAMPLE_COUNT) -> Native:
         stream = self.copy().take(count)
-        assert isinstance(stream, AbstractStream)
-        yield from stream.get_items()
+        assert isinstance(stream, IterableStream)
+        return stream.collect()
 
     def get_selection_logger(self) -> SelectionLogger:
         context = self.get_context()

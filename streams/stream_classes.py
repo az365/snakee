@@ -1,4 +1,4 @@
-from typing import Optional, NoReturn
+from typing import Optional, Union
 from datetime import datetime
 from random import randint
 
@@ -6,7 +6,6 @@ TMP_FILES_TEMPLATE = 'stream_{}.tmp'
 TMP_FILES_ENCODING = 'utf8'
 
 try:  # Assume we're a submodule in a package.
-    from utils import arguments as arg
     from utils.decorators import deprecated_with_alternative
     from interfaces import (
         StreamInterface, IterableStreamInterface, LocalStreamInterface, RegularStreamInterface, PairStreamInterface,
@@ -20,6 +19,7 @@ try:  # Assume we're a submodule in a package.
     from streams.abstract.wrapper_stream import WrapperStream
     from streams.mixin.columnar_mixin import ColumnarMixin
     from streams.mixin.convert_mixin import ConvertMixin
+    from streams.regular.regular_stream import RegularStream
     from streams.regular.any_stream import AnyStream
     from streams.regular.line_stream import LineStream
     from streams.regular.row_stream import RowStream
@@ -32,7 +32,6 @@ try:  # Assume we're a submodule in a package.
     from connectors.filesystem.temporary_files import TemporaryLocation
     from content.struct import struct_row as sr
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..utils import arguments as arg
     from ..utils.decorators import deprecated_with_alternative
     from ..interfaces import (
         StreamInterface, IterableStreamInterface, LocalStreamInterface, RegularStreamInterface, PairStreamInterface,
@@ -46,6 +45,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .abstract.wrapper_stream import WrapperStream
     from .mixin.columnar_mixin import ColumnarMixin
     from .mixin.convert_mixin import ConvertMixin
+    from .regular.regular_stream import RegularStream
     from .regular.any_stream import AnyStream
     from .regular.line_stream import LineStream
     from .regular.row_stream import RowStream
@@ -58,9 +58,10 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..connectors.filesystem.temporary_files import TemporaryLocation
     from ..content.struct import struct_row as sr
 
+DEFAULT_STREAM_CLASS = RegularStream
 STREAM_CLASSES = (
     AbstractStream, IterableStream,
-    AnyStream,
+    RegularStream, AnyStream,
     LineStream, RowStream, RecordStream,
     StructStream,
     KeyValueStream,
@@ -97,6 +98,7 @@ DICT_ITEM_TO_STREAM_TYPE = {
     ItemType.StructRow: StreamType.StructStream,
 }
 StreamBuilder._dict_classes = DICT_ITEM_TO_STREAM_TYPE
+StreamBuilder.set_default_stream_class(DEFAULT_STREAM_CLASS)
 
 
 def get_context() -> Optional[ContextInterface]:
@@ -104,7 +106,7 @@ def get_context() -> Optional[ContextInterface]:
     return _context
 
 
-def set_context(cx: ContextInterface) -> NoReturn:
+def set_context(cx: ContextInterface) -> None:
     global _context
     _context = cx
     storage = cx.get_local_storage()
@@ -112,11 +114,13 @@ def set_context(cx: ContextInterface) -> NoReturn:
     TemporaryLocation.set_default_storage(storage)
 
 
-def stream(stream_type, *args, **kwargs) -> StreamInterface:
-    if is_stream_class(STREAM_CLASSES):
+def stream(stream_type: Union[StreamType, Auto], *args, **kwargs) -> StreamInterface:
+    if is_stream_class(stream_type):
         stream_class = stream_type
-    else:
+    elif Auto.is_defined(stream_type):
         stream_class = StreamType(stream_type).get_class()
+    else:
+        stream_class = DEFAULT_STREAM_CLASS
     if 'context' not in kwargs:
         kwargs['context'] = get_context()
     return stream_class(*args, **kwargs)
@@ -164,11 +168,11 @@ def get_tmp_mask(name: str) -> TemporaryFilesMaskInterface:
 
 def concat(*iter_streams, context=AUTO) -> StreamInterface:
     global _context
-    context = arg.acquire(context, _context)
+    context = Auto.acquire(context, _context)
     return StreamBuilder.concat(*iter_streams, context=context)
 
 
 def join(*iter_streams, key, how: How = JoinType.Left, step=AUTO, name=AUTO, context=None) -> StreamInterface:
     global _context
-    context = arg.acquire(context, _context)
+    context = Auto.acquire(context, _context)
     return StreamBuilder.join(*iter_streams, key=key, how=how, step=step, name=name, context=context)

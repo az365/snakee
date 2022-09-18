@@ -2,10 +2,10 @@ from typing import Optional, Callable, Iterable, Union
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
-        LocalStreamInterface, ContextInterface, ConnectorInterface, TemporaryFilesMaskInterface,
+        LocalStreamInterface, RegularStreamInterface, ContextInterface, ConnectorInterface, TemporaryFilesMaskInterface,
         Context, Connector, ContentType, ItemType, StreamType, JoinType, How,
         Array, Count, FieldID, UniKey,
-        AUTO, Auto, AutoBool, AutoCount, AutoName, OptionalFields,
+        AUTO, Auto, AutoBool, AutoCount, AutoName, StreamItemType, OptionalFields,
     )
     from base.functions.arguments import update, get_optional_len, is_in_memory
     from functions.secondary import basic_functions as bf, item_functions as fs
@@ -15,10 +15,10 @@ try:  # Assume we're a submodule in a package.
     from streams import stream_classes as sm
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
-        LocalStreamInterface, ContextInterface, ConnectorInterface, TemporaryFilesMaskInterface,
+        LocalStreamInterface, RegularStreamInterface, ContextInterface, ConnectorInterface, TemporaryFilesMaskInterface,
         Context, Connector, ContentType, ItemType, StreamType, JoinType, How,
         Array, Count, FieldID, UniKey,
-        AUTO, Auto, AutoBool, AutoCount, AutoName, OptionalFields,
+        AUTO, Auto, AutoBool, AutoCount, AutoName, StreamItemType, OptionalFields,
     )
     from ...base.functions.arguments import update, get_optional_len, is_in_memory
     from ...functions.secondary import basic_functions as bf, item_functions as fs
@@ -28,8 +28,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .. import stream_classes as sm
 
 Native = LocalStreamInterface
-TmpMask = Union[TemporaryFilesMaskInterface, Auto]
-StreamItemType = Union[StreamType, ItemType, Auto]
 
 
 class LocalStream(IterableStream, LocalStreamInterface):
@@ -43,7 +41,7 @@ class LocalStream(IterableStream, LocalStreamInterface):
             source: Connector = None,
             context: Context = None,
             max_items_in_memory: AutoCount = AUTO,
-            tmp_files: TmpMask = AUTO,
+            tmp_files: Union[TemporaryFilesMaskInterface, Auto] = AUTO,
             check: bool = False,
     ):
         count = get_optional_len(data, count)
@@ -185,7 +183,7 @@ class LocalStream(IterableStream, LocalStreamInterface):
         return self._get_tee_items(mem_copy=mem_copy)
 
     def map_to_type(self, function: Callable, stream_type: StreamItemType = AUTO, **kwargs) -> Native:
-        stream_type = Auto.acquire(stream_type, self.get_stream_type, delayed=True)
+        stream_type = Auto.delayed_acquire(stream_type, self.get_stream_type)
         data = map(function, self.get_iter())
         stream = self.stream(data, stream_type=stream_type, **kwargs)
         stream = self._assume_native(stream)
@@ -276,15 +274,18 @@ class LocalStream(IterableStream, LocalStreamInterface):
             key: UniKey,
             how: How = JoinType.Left,
             sorting_is_reversed: bool = False,
+            key_function: Union[Callable, Auto] = AUTO,
+            merge_function: Callable = fs.merge_two_items(),
     ) -> Native:
         keys = update([key])
+        key_function = Auto.acquire(key_function, fs.composite_key(keys))
         if not isinstance(how, JoinType):
             how = JoinType(how)
         joined_items = algo.sorted_join(
             iter_left=self.get_iter(),
             iter_right=right.get_iter(),
-            key_function=fs.composite_key(keys),
-            merge_function=fs.merge_two_items(),
+            key_function=key_function,
+            merge_function=merge_function,
             order_function=bf.is_ordered(reverse=sorting_is_reversed, including=True),
             how=how,
         )
@@ -300,19 +301,28 @@ class LocalStream(IterableStream, LocalStreamInterface):
             is_sorted: bool = False,
             right_is_uniq: bool = False,
             allow_map_side: bool = True,
-            force_map_side: bool = True,
+            force_map_side: bool = False,
+            merge_function: Callable = fs.merge_two_items(),
             verbose: AutoBool = AUTO,
     ) -> Native:
         on_map_side = force_map_side or (allow_map_side and right.can_be_in_memory())
         if on_map_side:
-            stream = self.map_side_join(right, key=key, how=how, right_is_uniq=right_is_uniq)
+            stream = self.map_side_join(
+                right, key=key, how=how,
+                right_is_uniq=right_is_uniq,
+                merge_function=merge_function,
+            )
         else:
             if is_sorted:
                 left = self
             else:
                 left = self.sort(key, reverse=reverse, verbose=verbose)
                 right = right.sort(key, reverse=reverse, verbose=verbose)
-            stream = left.sorted_join(right, key=key, how=how, sorting_is_reversed=reverse)
+            stream = left.sorted_join(
+                right, key=key, how=how,
+                merge_function=merge_function,
+                sorting_is_reversed=reverse,
+            )
         return self._assume_native(stream)
 
     def split_to_disk_by_step(
@@ -322,6 +332,10 @@ class LocalStream(IterableStream, LocalStreamInterface):
             reverse: bool = False,
             verbose: bool = True,
     ) -> list:
+        if isinstance(self, RegularStreamInterface) or hasattr(self, 'get_item_type'):
+            item_type = self.get_item_type()
+        else:
+            item_type = ItemType.Any
         result_parts = list()
         for part_no, sm_part in enumerate(self.to_iter().split_to_iter_by_step(step)):
             is_last_part = sm_part.get_count() < step
@@ -348,7 +362,7 @@ class LocalStream(IterableStream, LocalStreamInterface):
                     file_part,
                 ).map_to_type(
                     fs.json_loads(),
-                    stream_type=StreamType.AnyStream,
+                    stream_type=item_type,
                 )
             result_parts.append(sm_part)
         return result_parts

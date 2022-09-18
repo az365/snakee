@@ -5,10 +5,10 @@ try:  # Assume we're a submodule in a package.
     from base.constants.chars import EMPTY, SPACE, HTML_SPACE, PARAGRAPH_CHAR
     from base.classes.display import DefaultDisplay, PREFIX_FIELD
     from base.classes.enum import ClassType
-    from base.mixin.display_mixin import DisplayMixin, AutoOutput, Class
+    from base.mixin.display_mixin import DisplayMixin, Class
     from base.mixin.iter_data_mixin import IterDataMixin
     from utils.external import display, clear_output, HTML, Markdown
-    from streams.stream_type import StreamType
+    from streams.stream_builder import StreamBuilder
     from content.documents.display_mode import DisplayMode
     from content.documents.document_item import DocumentItem, Paragraph, Sheet, Chart, Chapter
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -16,10 +16,10 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.constants.chars import EMPTY, SPACE, HTML_SPACE, PARAGRAPH_CHAR
     from ...base.classes.display import DefaultDisplay, PREFIX_FIELD
     from ...base.classes.enum import ClassType
-    from ...base.mixin.display_mixin import DisplayMixin, AutoOutput, Class
+    from ...base.mixin.display_mixin import DisplayMixin, Class
     from ...base.mixin.iter_data_mixin import IterDataMixin
     from ...utils.external import display, clear_output, HTML, Markdown
-    from ...streams.stream_type import StreamType
+    from ...streams.stream_builder import StreamBuilder
     from .display_mode import DisplayMode
     from .document_item import DocumentItem, Paragraph, Sheet, Chart, Chapter
 
@@ -42,6 +42,9 @@ class DocumentDisplay(DefaultDisplay, IterDataMixin):
         self._accumulated_lines = accumulated_lines or list()
         self._is_partially_shown = False
         super().__init__()
+
+    def get_data(self):
+        return self._accumulated_document
 
     def get_accumulated_document(self) -> Chapter:
         return self._accumulated_document
@@ -97,7 +100,7 @@ class DocumentDisplay(DefaultDisplay, IterDataMixin):
     def _get_display_object(cls, data: Union[DocumentItem, str, Iterable, None]) -> Optional[DisplayObject]:
         if not data:
             return None
-        elif isinstance(data, DocumentItem):
+        elif isinstance(data, DocumentItem):  # Text, Paragraph, Sheet, Chart, Container, Page, ...
             if cls.display_mode == DisplayMode.Text:
                 code = data.get_text()
             elif cls.display_mode == DisplayMode.Md:
@@ -201,13 +204,14 @@ class DocumentDisplay(DefaultDisplay, IterDataMixin):
             records: Iterable,
             columns: Sequence,
             count: AutoCount = None,
+            item_type: ItemType = ItemType.Record,
             with_title: bool = True,
             style: Union[str, Auto, None] = AUTO,
-            output: AutoOutput = AUTO,
     ):
         self.display_current_paragraph(save=True, clear=True)
         column_names = self._extract_column_names(columns)
-        stream = StreamType.RecordStream.stream(records, struct=column_names)
+        stream = StreamBuilder.stream(records, item_type=item_type, struct=column_names)
+        stream = stream.collect()
         sheet = Sheet(stream)
         return self.display(sheet)
 

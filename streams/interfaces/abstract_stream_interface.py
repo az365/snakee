@@ -1,25 +1,26 @@
 from abc import ABC, abstractmethod
 from typing import Optional, Iterable, Callable, Union, Any, NoReturn
 
-try:  # Assume we're a sub-module in a package.
-    from utils import arguments as arg
+try:  # Assume we're a submodule in a package.
+    from base.classes.auto import AUTO, Auto
     from base.interfaces.sourced_interface import SourcedInterface
+    from base.interfaces.iterable_interface import DEFAULT_EXAMPLE_COUNT, OptionalFields
     from loggers.logger_interface import LoggerInterface, LoggingLevel
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
+    from ...base.classes.auto import AUTO, Auto
     from ...base.interfaces.sourced_interface import SourcedInterface
+    from ...base.interfaces.iterable_interface import DEFAULT_EXAMPLE_COUNT, OptionalFields
     from ...loggers.logger_interface import LoggerInterface, LoggingLevel
 
 Stream = SourcedInterface
 Data = Union[Stream, Any]
-OptionalFields = Optional[Union[Iterable, str]]
 
 
 class StreamInterface(SourcedInterface, ABC):
     @classmethod
     @abstractmethod
     def get_stream_type(cls):
-        """ClassMethod returns type of stream as StreamType enum-object.
+        """ClassMethod returns default (recommended) type of stream for this type of content.
 
         :returns: StreamType enum-object
         """
@@ -118,8 +119,8 @@ class StreamInterface(SourcedInterface, ABC):
     def log(
             self,
             msg: str,
-            level: Union[LoggingLevel, int] = arg.AUTO,
-            end: Union[str, arg.Auto] = arg.AUTO,
+            level: Union[LoggingLevel, int] = AUTO,
+            end: Union[str, Auto] = AUTO,
             verbose: bool = True,
             truncate: bool = True,
             force: bool = False,

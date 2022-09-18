@@ -9,9 +9,9 @@ try:  # Assume we're a submodule in a package.
     from base.interfaces.sourced_interface import SourcedInterface
     from base.interfaces.context_interface import ContextInterface
     from base.interfaces.data_interface import SimpleDataInterface
-    from base.mixin.display_mixin import DisplayMixin, PREFIX_FIELD, DEFAULT_ROWS_COUNT
+    from base.mixin.display_mixin import DisplayMixin, PREFIX_FIELD, DEFAULT_EXAMPLE_COUNT
     from base.mixin.data_mixin import DataMixin
-    from base.abstract.named import AbstractNamed
+    from base.abstract.named import AbstractNamed, AutoDisplay
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.typing import AUTO, Auto, AutoCount, AutoBool
     from ..constants.chars import EMPTY, REPR_DELIMITER, SMALL_INDENT, CROP_SUFFIX, DEFAULT_LINE_LEN
@@ -20,9 +20,9 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..interfaces.sourced_interface import SourcedInterface
     from ..interfaces.context_interface import ContextInterface
     from ..interfaces.data_interface import SimpleDataInterface
-    from ..mixin.display_mixin import DisplayMixin, PREFIX_FIELD, DEFAULT_ROWS_COUNT
+    from ..mixin.display_mixin import DisplayMixin, PREFIX_FIELD, DEFAULT_EXAMPLE_COUNT
     from ..mixin.data_mixin import DataMixin
-    from .named import AbstractNamed
+    from .named import AbstractNamed, AutoDisplay
 
 Native = SimpleDataInterface
 Data = Any
@@ -30,7 +30,7 @@ OptionalFields = Optional[Union[str, Iterable]]
 Source = Optional[SourcedInterface]
 Context = Optional[ContextInterface]
 
-DATA_MEMBER_NAMES = ('_data', )
+DATA_MEMBER_NAMES = '_data',
 DYNAMIC_META_FIELDS = tuple()
 
 COLS_FOR_DICT = [(PREFIX_FIELD, 3), ('key', 20), 'value']
@@ -39,6 +39,7 @@ COLS_FOR_META = [
     ('key', 20), ('value', 30), ('actual_type', 14), ('expected_type', 20), ('default', 20),
 ]
 MAX_OUTPUT_ROW_COUNT, MAX_DATAFRAME_ROW_COUNT = 200, 20
+MAX_BRIEF_REPR_LEN = 30
 INCORRECT_COUNT = -1
 
 
@@ -141,6 +142,21 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
     def get_str_headers(self) -> Generator:
         yield self.get_one_line_repr()
 
+    def get_str_title(self) -> str:
+        title = self.get_name()
+        if not title:
+            title = f'Unnamed {self.__class__.__name__}'
+        return title
+
+    def get_brief_repr(self) -> str:
+        repr_line = repr(self)
+        if len(repr_line) > MAX_BRIEF_REPR_LEN:
+            if self.get_name():
+                repr_line = super().get_brief_repr()  # AbstractNamed.get_brief_repr()
+            else:
+                repr_line = f'{self.__class__.__name__}(...)'
+        return repr_line
+
     def get_count(self) -> int:
         if self.has_data():
             data = self.get_data()
@@ -158,7 +174,7 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
 
     def get_data_description(
             self,
-            count: int = DEFAULT_ROWS_COUNT,
+            count: int = DEFAULT_EXAMPLE_COUNT,
             title: Optional[str] = 'Data:',
             max_len: AutoCount = AUTO,
     ) -> Generator:
@@ -201,12 +217,13 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
 
     def display_data_sheet(
             self,
-            count: int = DEFAULT_ROWS_COUNT,
+            count: int = DEFAULT_EXAMPLE_COUNT,
             title: Optional[str] = 'Data',
             comment: Optional[str] = None,
             max_len: AutoCount = AUTO,
+            display: AutoDisplay = AUTO,
     ) -> Native:
-        display = self.get_display()
+        display = self.get_display(display)
         max_len = Auto.acquire(max_len, DEFAULT_LINE_LEN)
         display.display_paragraph(title, level=3)
         if comment:
@@ -245,41 +262,26 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
         display.display_paragraph()
         return self
 
-    def get_meta_description(
-            self,
-            with_title: bool = True,
-            with_summary: bool = True,
-            prefix: str = SMALL_INDENT,
-            delimiter: str = REPR_DELIMITER,
-    ) -> Generator:
-        if with_summary:
-            count = len(list(self.get_meta_records()))
-            yield '{name} has {count} attributes in meta-data:'.format(name=repr(self), count=count)
-        yield from self.get_display()._get_columnar_lines(
-            records=self.get_meta_records(),
-            columns=COLS_FOR_META,
-            with_title=with_title,
-            prefix=prefix,
-            delimiter=delimiter,
-        )
-
     def display_meta_description(
             self,
             with_title: bool = True,
             with_summary: bool = True,
             prefix: str = SMALL_INDENT,  # deprecated
             delimiter: str = REPR_DELIMITER,  # deprecated
-    ) -> None:
-        display = self.get_display()
+            display: AutoDisplay = AUTO,
+    ) -> Native:
+        display = self.get_display(display)
         if with_summary:
+            obj = self.get_brief_repr()
             count = len(list(self.get_meta_records()))
-            line = '{name} has {count} attributes in meta-data:'.format(name=repr(self), count=count)
-        display.append(line)
+            line = f'{obj} has {count} attributes in meta-data:'
+            display.append(line)
         display.display_sheet(
             records=self.get_meta_records(),
             columns=COLS_FOR_META,
             with_title=with_title,
         )
+        return self
 
     def describe(
             self,
@@ -287,12 +289,13 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
             count: AutoCount = AUTO,
             comment: Optional[str] = None,
             depth: int = 1,
+            display: AutoDisplay = AUTO,
             **kwargs
     ) -> Native:
-        display = self.get_display()
+        display = self.get_display(display)
         show_meta = show_header or not self.has_data()
         if show_header:
-            display.display_paragraph(self.get_name(), level=1)
+            display.display_paragraph(self.get_str_title(), level=1)
             display.append(comment)
             display.display_paragraph(self.get_str_headers())
         elif comment:
@@ -300,11 +303,11 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
         if show_meta:
             self.display_meta_description()
         if self.has_data():
-            self.display_data_sheet(count=count, **kwargs)
+            self.display_data_sheet(count=count, display=display, **kwargs)
         elif depth > 0:
             for attribute, value in self.get_meta_items():
                 if isinstance(value, BaseInterface) or hasattr(value, 'describe'):
-                    display.display_paragraph('{attribute}:'.format(attribute=attribute), level=3)
-                    value.describe(show_header=False, depth=depth - 1)
+                    display.display_paragraph(f'{attribute}:', level=3)
+                    value.describe(show_header=False, depth=depth - 1, display=display)
         display.display_paragraph()
         return self

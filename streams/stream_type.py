@@ -76,8 +76,8 @@ class StreamType(ClassType):
 
     def get_item_type(self):
         stream_class = self.get_class()
-        if hasattr(stream_class, 'get_item_type'):
-            return stream_class.get_item_type()
+        if hasattr(stream_class, 'get_default_item_type'):
+            return stream_class.get_default_item_type()
 
     def get_stream_class(self):
         return self.get_class()

@@ -1,26 +1,21 @@
 from typing import Optional, Iterable, Callable, Union
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.auto import AUTO, Auto
+    from interfaces import (
+        ContextInterface, StreamInterface, Stream, Connector,
+        AUTO, Auto, AutoContext, StreamItemType, StreamType, Name,
+    )
     from connectors import connector_classes as ct
     from connectors.operations.abstract_sync import AbstractSync, SRC_ID, DST_ID
-    from base.interfaces.context_interface import ContextInterface
-    from streams.interfaces.abstract_stream_interface import StreamInterface
-    from streams.stream_type import StreamType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...base.classes.auto import AUTO, Auto
+    from ...interfaces import (
+        ContextInterface, StreamInterface, Stream, Connector,
+        AUTO, Auto, AutoContext, StreamItemType, StreamType, Name,
+    )
     from .. import connector_classes as ct
     from .abstract_sync import AbstractSync, SRC_ID, DST_ID
-    from ...base.interfaces.context_interface import ContextInterface
-    from ...streams.interfaces.abstract_stream_interface import StreamInterface
-    from ...streams.stream_type import StreamType
 
-Name = str
-Stream = StreamInterface
-AutoStreamType = Union[StreamType, Auto]
 Options = Union[dict, Auto, None]
-Connector = ct.LeafConnector
-AutoContext = Union[ContextInterface, Auto, None]
 
 
 class TwinSync(AbstractSync):
@@ -32,7 +27,7 @@ class TwinSync(AbstractSync):
             procedure: Optional[Callable],
             options: Options = None,
             apply_to_stream: bool = True,
-            stream_type: AutoStreamType = AUTO,
+            stream_type: StreamItemType = AUTO,
             context: AutoContext = AUTO,
     ):
         if not Auto.is_defined(options):
@@ -71,7 +66,7 @@ class TwinSync(AbstractSync):
     def run_now(
             self,
             return_stream: bool = True,
-            stream_type: AutoStreamType = AUTO,
+            stream_type: StreamItemType = AUTO,
             options: Options = None,
             verbose: bool = True,
     ) -> Stream:

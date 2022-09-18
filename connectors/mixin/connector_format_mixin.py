@@ -223,15 +223,8 @@ class ConnectorFormatMixin(StructMixin, LeafConnectorInterface, ABC):
         return content_format.get_default_stream_type()
 
     def get_item_type(self) -> ItemType:
-        stream_class = self.get_stream_type().get_class()
-        if hasattr(stream_class, 'get_item_type'):
-            return stream_class.get_item_type()
-        else:
-            stream_obj = stream_class([])
-        if hasattr(stream_obj, 'get_item_type'):
-            return stream_obj.get_item_type()
-        else:
-            return ItemType.Any
+        content_format = self.get_content_format()
+        return content_format.get_default_item_type()
 
     def get_content_type(self) -> ContentType:
         return self.get_content_format().get_content_type()

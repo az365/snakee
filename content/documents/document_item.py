@@ -8,7 +8,8 @@ try:  # Assume we're a submodule in a package.
     from base.mixin.iter_data_mixin import IterDataMixin
     from base.mixin.map_data_mixin import MapDataMixin
     from functions.primary.items import get_fields_values_from_item, get_field_value_from_item
-    from streams.interfaces.regular_stream_interface import RegularStreamInterface, StreamType
+    from streams.interfaces.regular_stream_interface import RegularStreamInterface
+    from streams.stream_builder import StreamBuilder, StreamType, ItemType
     from utils.external import Markdown, HTML, display
     from content.documents.display_mode import DisplayMode
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -19,7 +20,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.mixin.iter_data_mixin import IterDataMixin
     from ...base.mixin.map_data_mixin import MapDataMixin
     from ...functions.primary.items import get_fields_values_from_item, get_field_value_from_item
-    from ...streams.interfaces.regular_stream_interface import RegularStreamInterface, StreamType
+    from ...streams.interfaces.regular_stream_interface import RegularStreamInterface
+    from ...streams.stream_builder import StreamBuilder, StreamType, ItemType
     from ...utils.external import Markdown, HTML, display
     from .display_mode import DisplayMode
 
@@ -186,7 +188,7 @@ class Sheet(DocumentItem, IterDataMixin):
             value = record[field]
             current_record = dict(field=field, value=value)
             properties.append(current_record)
-        stream = StreamType.RecordStream.build(properties, struct=('field', 'value'), verbose=False)
+        stream = StreamBuilder.stream(properties, item_type=ItemType.Record, struct=('field', 'value'), verbose=False)
         return Sheet(stream)
 
     def get_data(self) -> RegularStreamInterface:

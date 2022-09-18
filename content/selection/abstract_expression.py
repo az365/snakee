@@ -9,8 +9,9 @@ try:  # Assume we're a submodule in a package.
         AUTO, Auto,
     )
     from base.functions.arguments import get_name, get_names
-    from base.constants.chars import ITEMS_DELIMITER, CROP_SUFFIX, NOT_SET, DEFAULT_LINE_LEN
+    from base.constants.chars import TAB_INDENT, ITEMS_DELIMITER, CROP_SUFFIX, NOT_SET, DEFAULT_LINE_LEN
     from base.abstract.abstract_base import AbstractBaseObject, BaseInterface
+    from base.abstract.named import AbstractNamed
     from base.mixin.data_mixin import DataMixin
     from loggers.fallback_logger import FallbackLogger
     from utils.decorators import WrappedFunction
@@ -22,8 +23,9 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         AUTO, Auto,
     )
     from ...base.functions.arguments import get_name, get_names
-    from ...base.constants.chars import ITEMS_DELIMITER, CROP_SUFFIX, NOT_SET, DEFAULT_LINE_LEN
+    from ...base.constants.chars import TAB_INDENT, ITEMS_DELIMITER, CROP_SUFFIX, NOT_SET, DEFAULT_LINE_LEN
     from ...base.abstract.abstract_base import AbstractBaseObject, BaseInterface
+    from ...base.abstract.named import AbstractNamed
     from ...base.mixin.data_mixin import DataMixin
     from ...loggers.fallback_logger import FallbackLogger
     from ...utils.decorators import WrappedFunction
@@ -176,11 +178,10 @@ class AbstractDescription(AbstractBaseObject, DataMixin, ABC):
                 f_repr = f_repr[:max_len - len(CROP_SUFFIX)] + CROP_SUFFIX
             yield f_repr
 
-    def get_detailed_fields_description(self) -> Generator:
+    def get_detailed_fields_description(self, prefix: str = TAB_INDENT) -> Generator:
         for f in self.get_linked_fields():
-            if hasattr(f, 'get_meta_description'):
-                # yield repr(f) + ':'
-                yield from f.get_meta_description()
+            if isinstance(f, AbstractNamed) or hasattr(f, 'get_brief_meta_description'):
+                yield from f.get_brief_meta_description(prefix=prefix)
 
     def get_fields_description(
             self,
@@ -215,8 +216,9 @@ class AbstractDescription(AbstractBaseObject, DataMixin, ABC):
             show_header: bool = True,
             comment: Optional[str] = None,
             depth: int = 1,
+            display=AUTO,
     ) -> Native:
-        display = self.get_display()
+        display = self.get_display(display)
         if show_header:
             display.display_paragraph(self.get_brief_repr(), level=1)
             display.append(comment)
@@ -234,7 +236,7 @@ class AbstractDescription(AbstractBaseObject, DataMixin, ABC):
             for attribute, value in self.get_meta_items():
                 if isinstance(value, BaseInterface) or hasattr(value, 'describe'):
                     display.display_paragraph('{attribute}:'.format(attribute=attribute), level=3)
-                    value.describe(show_header=False, depth=depth - 1)
+                    value.describe(show_header=False, depth=depth - 1, display=display)
         display.display_paragraph()
         return self
 

@@ -3,11 +3,11 @@ from typing import Optional, Iterable, Callable
 
 try:  # Assume we're a submodule in a package.
     from base.classes.auto import AUTO, Auto
-    from interfaces import Name, Stream, ConnectorInterface, AutoContext, Options, AutoStreamType, StreamType
+    from interfaces import Name, Stream, ConnectorInterface, AutoContext, Options, StreamItemType, StreamType
     from connectors.operations.operation import Operation
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.classes.auto import AUTO, Auto
-    from ...interfaces import Name, Stream, ConnectorInterface, AutoContext, Options, AutoStreamType, StreamType
+    from ...interfaces import Name, Stream, ConnectorInterface, AutoContext, Options, StreamItemType, StreamType
     from ...connectors.operations.operation import Operation
 
 SRC_ID = 'src'
@@ -22,7 +22,7 @@ class AbstractSync(Operation, ABC):
             procedure: Optional[Callable],
             options: Optional[dict] = None,
             apply_to_stream: bool = True,
-            stream_type: AutoStreamType = AUTO,
+            stream_type: StreamItemType = AUTO,
             context: AutoContext = AUTO,
     ):
         super().__init__(
@@ -83,13 +83,13 @@ class AbstractSync(Operation, ABC):
     def is_existing(self) -> bool:
         return self.has_inputs() or self.has_outputs()
 
-    def get_stream(self, run_if_not_yet: bool = False, stream_type: AutoStreamType = AUTO) -> Stream:
+    def get_stream(self, run_if_not_yet: bool = False, stream_type: StreamItemType = AUTO) -> Stream:
         stream_type = Auto.acquire(stream_type, self.get_stream_type())
         if run_if_not_yet and not self.is_done():
             self.run_now()
         return self.get_dst().to_stream(stream_type=stream_type)
 
-    def to_stream(self, stream_type: AutoStreamType = AUTO):
+    def to_stream(self, stream_type: StreamItemType = AUTO):
         stream_type = Auto.acquire(stream_type, self.get_stream_type())
         return self.run_if_not_yet(raise_error_if_exists=False, return_stream=True, stream_type=stream_type)
 
@@ -97,7 +97,7 @@ class AbstractSync(Operation, ABC):
     def run_now(
             self,
             return_stream: bool = True,
-            stream_type: AutoStreamType = AUTO,
+            stream_type: StreamItemType = AUTO,
             options: Options = None,
             verbose: bool = True,
     ) -> Optional[Stream]:
@@ -107,7 +107,7 @@ class AbstractSync(Operation, ABC):
             self,
             raise_error_if_exists: bool = False,
             return_stream: bool = True,
-            stream_type: AutoStreamType = AUTO,
+            stream_type: StreamItemType = AUTO,
             options: Options = None,
             verbose: bool = True,
     ) -> Optional[Stream]:

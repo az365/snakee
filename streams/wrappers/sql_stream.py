@@ -3,9 +3,9 @@ from typing import Optional, Callable, Iterable, Iterator, Sequence, Union
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
-        ContextInterface, LeafConnectorInterface, StructInterface, StreamInterface, Stream, RegularStream,
-        ConnType, LoggingLevel, ItemType, StreamType, JoinType,
-        AutoContext, AutoStreamType, AutoName, AutoBool, Auto, AUTO,
+        ContextInterface, LeafConnectorInterface, StructInterface, Stream, RegularStream,
+        ConnType, LoggingLevel, ItemType, StreamType, StreamItemType, JoinType,
+        AutoContext, AutoName, AutoDisplay, AutoBool, Auto, AUTO,
         Item, Name, FieldName, FieldNo, Links, Columns, OptionalFields, Array, ARRAY_TYPES,
     )
     from base.functions.arguments import get_names, get_name, get_generated_name, get_str_from_args_kwargs
@@ -18,12 +18,14 @@ try:  # Assume we're a submodule in a package.
     )
     from content.selection.concrete_expression import AliasDescription
     from content.struct.flat_struct import FlatStruct
+    from streams.interfaces.abstract_stream_interface import StreamInterface, DEFAULT_EXAMPLE_COUNT
     from streams.abstract.wrapper_stream import WrapperStream
+    from streams.stream_builder import StreamBuilder
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
-        ContextInterface, LeafConnectorInterface, StructInterface, StreamInterface, Stream, RegularStream,
-        ConnType, LoggingLevel, ItemType, StreamType, JoinType,
-        AutoContext, AutoStreamType, AutoName, AutoBool, Auto, AUTO,
+        ContextInterface, LeafConnectorInterface, StructInterface, Stream, RegularStream,
+        ConnType, LoggingLevel, ItemType, StreamType, StreamItemType, JoinType,
+        AutoContext, AutoName, AutoDisplay, AutoBool, Auto, AUTO,
         Item, Name, FieldName, FieldNo, Links, Columns, OptionalFields, Array, ARRAY_TYPES,
     )
     from ...base.functions.arguments import get_names, get_name, get_generated_name, get_str_from_args_kwargs
@@ -36,13 +38,23 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     )
     from ...content.selection.concrete_expression import AliasDescription
     from ...content.struct.flat_struct import FlatStruct
+    from ..interfaces.abstract_stream_interface import StreamInterface, DEFAULT_EXAMPLE_COUNT
     from ..abstract.wrapper_stream import WrapperStream
+    from ..stream_builder import StreamBuilder
 
 Native = WrapperStream
 TableOrQuery = Union[LeafConnectorInterface, StreamInterface, None]
 
 IS_DEFINED = '{field} <> 0 and {field} NOT NULL'
 MSG_NOT_IMPL = '{method}() operation is not defined for SqlStream, try to use .to_record_stream().{method}() instead'
+QUERY_SHEET_COLUMNS = ('no', 3), ('query', 120)
+MONOSPACE_HTML_STYLE = 'font-family: monospace'
+
+OUTPUT_STRUCT_COMPARISON_TAGS = dict(
+    this_only='OUTPUT_ONLY', other_only='SOURCE_ONLY',
+    this_duplicated='DUPLICATED_IN_OUTPUT', other_duplicated='DUPLICATED_IN_SOURCE',
+    both_duplicated='DUPLICATED',
+)
 
 
 class SqlSection(Enum):
@@ -303,6 +315,10 @@ class SqlStream(WrapperStream):
         if finish:
             yield ';'
 
+    def get_query_records(self) -> Iterator[dict]:
+        for n, e in enumerate(self.get_query_lines()):
+            yield dict(no=n + 1, query=e)
+
     def get_query_name(self) -> str:
         return self.get_name().split('.')[-1].split(':')[-1]
 
@@ -457,12 +473,7 @@ class SqlStream(WrapperStream):
                 types = {f: t for f, t in input_struct.get_types_dict().items() if f in output_columns}
                 output_struct = output_struct.set_types(types)
                 assert isinstance(output_struct, FlatStruct)
-                comparison_tags = dict(
-                    this_only='OUTPUT_ONLY', other_only='SOURCE_ONLY',
-                    this_duplicated='DUPLICATED_IN_OUTPUT', other_duplicated='DUPLICATED_IN_SOURCE',
-                    both_duplicated='DUPLICATED',
-                )
-                output_struct.compare_with(input_struct, tags=comparison_tags, set_valid=True)
+                output_struct.compare_with(input_struct, tags=OUTPUT_STRUCT_COMPARISON_TAGS, set_valid=True)
             return output_struct
 
     def get_input_columns(self, skip_missing: bool = False) -> Columns:
@@ -520,21 +531,21 @@ class SqlStream(WrapperStream):
         return map(lambda r: dict(zip(columns, r)), self.get_rows())
 
     def to_row_stream(self) -> Stream:
-        return self.to_stream(self.get_rows(), stream_type=StreamType.RowStream)
+        return self.to_stream(self.get_rows(), stream_type=ItemType.Row)
 
     def to_record_stream(self) -> Stream:
-        return self.to_stream(self.get_records(), stream_type=StreamType.RecordStream)
+        return self.to_stream(self.get_records(), stream_type=ItemType.Record)
 
     def to_stream(
             self,
             data: Optional[Iterable] = None,
-            stream_type: AutoStreamType = AUTO,
+            stream_type: StreamItemType = AUTO,
             ex: OptionalFields = None,
             **kwargs
     ) -> Union[RegularStream, Native]:
         stream_type = Auto.acquire(stream_type, self.get_stream_type())
         if data:
-            stream_class = stream_type.get_class()
+            stream_class = StreamBuilder.get_default_stream_class()
             meta = self.get_compatible_meta(stream_class, ex=ex)
             meta.update(kwargs)
             if 'count' not in meta:
@@ -550,14 +561,14 @@ class SqlStream(WrapperStream):
             stream_method = self.__getattribute__(method_name)
             return stream_method()
 
-    def collect(self, stream_type: StreamType = StreamType.RecordStream) -> Stream:
+    def collect(self, stream_type: StreamItemType = ItemType.Record) -> Stream:
         stream = self.to_stream(stream_type=stream_type).collect()
         return self._assume_native(stream)
 
-    def get_demo_example(self, count: int = 10) -> Iterable:
+    def get_demo_example(self, count: int = DEFAULT_EXAMPLE_COUNT) -> Stream:
         stream = self.copy().take(count)
-        assert isinstance(stream, SqlStream) or hasattr(stream, 'collect'), 'got {}'.format(stream)
-        return stream.collect().get_items()
+        assert isinstance(stream, SqlStream) or hasattr(stream, 'collect'), f'got {stream}'
+        return stream.collect()
 
     def one(self) -> Stream:
         stream = self.copy().take(1)
@@ -610,20 +621,6 @@ class SqlStream(WrapperStream):
             data_repr = data_repr[:max_len - len(CROP_SUFFIX)] + CROP_SUFFIX
         return data_repr
 
-    # @deprecated
-    def get_one_line_representation(self) -> str:
-        return self.get_one_line_repr()
-
-    def get_one_line_repr(self) -> str:
-        message = '{}({}, {})'.format(self.__class__.__name__, self.get_name(), self.get_str_meta())
-        return message
-
-    def display_query_sheet(self):
-        query_records = [dict(no=n + 1, query=e) for n, e in enumerate(self.get_query_lines())]
-        sheet_columns = ('no', 3), ('query', 120)
-        display = self.get_display()
-        return display.display_sheet(query_records, columns=sheet_columns, style="font-family: monospace")
-
     def get_description_lines(self) -> Iterator[str]:
         yield repr(self)
         yield self.get_stream_representation()
@@ -635,25 +632,35 @@ class SqlStream(WrapperStream):
         if hasattr(struct, 'get_struct_repr_lines'):
             yield from struct.get_struct_repr_lines(select_fields=self.get_output_columns())
 
-    def describe(self, as_dataframe: bool = False, **kwargs) -> Native:
-        display = self.get_display()
-        display.display_paragraph(self.get_query_name(), level=1)
-        display.append(repr(self))
-        display.append(self.get_stream_representation())
-        display.append('Generated SQL query:')
-        display.display_paragraph('Query', level=3)
-        if as_dataframe:
-            self.display_query_sheet()
+    def describe(
+            self,
+            show_header: bool = True,
+            comment: Optional[str] = None,
+            enumerated: bool = False,
+            display: AutoDisplay = AUTO,
+    ) -> Native:
+        display = self.get_display(display)
+        if show_header:
+            display.display_paragraph(self.get_query_name(), level=1)
+            display.append(repr(self))
+            display.append(self.get_stream_representation())
+            if comment:
+                display.display_paragraph(comment)
+            display.display_paragraph('Generated SQL query', level=3)
+        if enumerated:
+            query_records = self.get_query_records()
+            display.display_sheet(query_records, columns=QUERY_SHEET_COLUMNS, style=MONOSPACE_HTML_STYLE)
         else:
             display.display_paragraph(self.get_query_lines(), style=CODE_HTML_STYLE)
         display.display_paragraph('Columns', level=3)
         display.append('Expected output columns: {}'.format(self.get_output_columns(skip_missing=True)))
         display.append('Expected input struct: {}'.format(self.get_source_table().get_struct()))
         struct = self.get_output_struct(skip_missing=True)
-        if struct:
+        if isinstance(struct, StructInterface) or hasattr(struct, 'display_data_sheet'):
             struct.display_data_sheet(title=None)
         else:
-            display.display_paragraph('(Undefined struct)')
+            display.display_paragraph(f'Undefined struct: {struct}')
+        return self
 
     @staticmethod
     def _assume_native(stream) -> Native:

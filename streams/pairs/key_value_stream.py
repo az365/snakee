@@ -2,8 +2,8 @@ from typing import Union, Callable, Iterable
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
-        RegularStreamInterface, PairStreamInterface, StreamType, Struct,
-        AUTO, Auto, AutoName, AutoCount,
+        RegularStreamInterface, PairStreamInterface, StreamType, ItemType, Struct,
+        AUTO, Auto, AutoName, AutoCount, StreamItemType,
     )
     from utils.decorators import deprecated, deprecated_with_alternative
     from content.struct.flat_struct import FlatStruct
@@ -11,8 +11,8 @@ try:  # Assume we're a submodule in a package.
     from streams.regular.row_stream import RowStream
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
-        RegularStreamInterface, PairStreamInterface, StreamType, Struct,
-        AUTO, Auto, AutoName, AutoCount,
+        RegularStreamInterface, PairStreamInterface, StreamType, ItemType, Struct,
+        AUTO, Auto, AutoName, AutoCount, StreamItemType,
     )
     from ...functions.secondary import array_functions as fs
     from ...content.struct.flat_struct import FlatStruct
@@ -22,30 +22,35 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 Native = PairStreamInterface
 Stream = RegularStreamInterface
 
+EXPECTED_ITEM_TYPE = ItemType.Row
 KEY = fs.first()
 VALUE = fs.second()
 
 
 class KeyValueStream(RowStream, PairStreamInterface):
+    @deprecated_with_alternative('RegularStream(item_type=ItemType.Row)')
     def __init__(
             self,
             data,
             name: AutoName = AUTO,
             caption: str = '',
+            item_type: ItemType = EXPECTED_ITEM_TYPE,
+            value_stream_type: Union[StreamType, str] = None,
+            struct: Struct = None,
+            source=None,
+            context=None,
             count=None,
             less_than=None,
-            struct: Struct = None,
-            value_stream_type: Union[StreamType, str] = None,
-            source=None, context=None,
             max_items_in_memory: AutoCount = AUTO,
             tmp_files=AUTO,
             check=True,
     ):
         super().__init__(
-            data=data, struct=struct, check=check,
+            data=data, check=check,
+            item_type=item_type, struct=struct,
+            source=source, context=context,
             name=name, caption=caption,
             count=count, less_than=less_than,
-            source=source, context=context,
             max_items_in_memory=max_items_in_memory,
             tmp_files=tmp_files,
         )
@@ -79,7 +84,7 @@ class KeyValueStream(RowStream, PairStreamInterface):
 
     @deprecated_with_alternative('select()')
     def map_values(self, func: Callable) -> Native:
-        stream = self.map(lambda i: (i[0], func(i[1])))
+        stream = self.map(lambda i: (KEY(i), func(VALUE(i))))
         return self._assume_native(stream)
 
     @deprecated_with_alternative('get_one_column_values()')
@@ -89,9 +94,9 @@ class KeyValueStream(RowStream, PairStreamInterface):
         return self._assume_regular(stream)
 
     @deprecated_with_alternative('get_one_column_values()')
-    def keys(self, uniq: bool, stream_type: Union[StreamType, Auto] = AUTO) -> RegularStreamInterface:
+    def keys(self, uniq: bool, stream_type: Union[ItemType, Auto] = AUTO) -> RegularStreamInterface:
         items = self.get_uniq_keys() if uniq else self._get_mapped_items(KEY)
-        stream_type = Auto.acquire(stream_type, StreamType.AnyStream)
+        stream_type = Auto.acquire(stream_type, ItemType.Any)
         stream = self.stream(items, stream_type=stream_type)
         return self._assume_regular(stream)
 
