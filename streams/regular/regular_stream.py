@@ -7,9 +7,9 @@ try:  # Assume we're a submodule in a package.
         Stream, LocalStream, Context, Connector, Source, TmpFiles,
         StreamType, ItemType, ValueType, JoinType, How, LoggingLevel,
         Count, Item, Struct, Columns, Field, FieldNo, OptionalFields, UniKey, Source, Class,
-        AUTO, Auto, AutoBool, AutoName, AutoCount, Array, ARRAY_TYPES,
+        AUTO, Auto, AutoDisplay, AutoBool, AutoName, AutoCount, Array, ARRAY_TYPES,
     )
-    from base.functions.arguments import get_name, get_names
+    from base.functions.arguments import get_name, get_names, get_str_from_args_kwargs
     from utils.decorators import deprecated_with_alternative
     from functions.primary.items import set_to_item, merge_two_items, unfold_structs_to_fields
     from functions.secondary import all_secondary_functions as fs
@@ -29,9 +29,9 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         Stream, LocalStream, Context, Connector, Source, TmpFiles,
         StreamType, ItemType, ValueType, JoinType, How, LoggingLevel,
         Count, Item, Struct, Columns, Field, FieldNo, OptionalFields, UniKey, Source, Class,
-        AUTO, Auto, AutoBool, AutoName, AutoCount, Array, ARRAY_TYPES,
+        AUTO, Auto, AutoDisplay, AutoBool, AutoName, AutoCount, Array, ARRAY_TYPES,
     )
-    from ...base.functions.arguments import get_name, get_names
+    from ...base.functions.arguments import get_name, get_names, get_str_from_args_kwargs
     from ...utils.decorators import deprecated_with_alternative
     from ...functions.primary.items import set_to_item, merge_two_items, unfold_structs_to_fields
     from ...functions.secondary import all_secondary_functions as fs
@@ -607,6 +607,24 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
         else:
             return super(RegularStream, self).get_dict(key=key_func, value=value_func)
 
+    def get_validation_message(self, skip_disconnected: bool = True) -> str:
+        validation_errors = self._get_validation_errors()
+        if validation_errors:
+            errors_str = ', '.join(validation_errors)
+            return f'[INVALID] Validation errors: {errors_str}'
+        else:
+            columns_count = self.get_column_count()
+            return f'Stream has {columns_count} valid columns:'
+
+    def is_existing(self) -> bool:  # used in ValidateMixin.prepare_examples_with_title()
+        return True
+
+    def is_actual(self) -> bool:  # used in ValidateMixin.prepare_examples_with_title()
+        return True
+
+    def actualize(self) -> Native:  # used in ValidateMixin.prepare_examples_with_title()
+        return self
+
     def get_demo_example(
             self,
             count: Count = DEFAULT_EXAMPLE_COUNT,
@@ -620,6 +638,62 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
         sm_sample = stream.filter(*filters) if filters else self
         sm_sample = sm_sample.take(count)
         return sm_sample.collect()
+
+    def describe(
+            self,
+            *filter_args,
+            count: Optional[int] = DEFAULT_EXAMPLE_COUNT,
+            columns: Optional[Array] = None,
+            show_header: bool = True,
+            safe_filter: bool = True,
+            actualize: AutoBool = AUTO,
+            comment: Optional[str] = None,
+            display: AutoDisplay = AUTO,
+            **filter_kwargs
+    ) -> Native:
+        display = self.get_display(display)
+        if show_header:
+            display.display_paragraph(self.get_name(), level=1)
+            display.display_paragraph(self.get_str_headers())
+        if comment:
+            display.display_paragraph(comment)
+        struct = self.get_struct()
+        if show_header or struct:
+            struct_title, example_item, example_stream, example_comment = self._prepare_examples_with_title(
+                *filter_args, **filter_kwargs, safe_filter=safe_filter,
+                example_row_count=count, actualize=actualize,
+                verbose=False,
+            )
+            display.append(struct_title)
+            if self.get_invalid_fields_count():
+                line = 'Invalid columns: {}'.format(get_str_from_args_kwargs(*self.get_invalid_columns()))
+                display.append(line)
+            display.display_paragraph()
+        else:
+            example_item, example_stream, example_comment = None, None, None
+        if isinstance(struct, StructInterface) or hasattr(struct, 'describe'):
+            struct.describe(
+                show_header=False,
+                example=example_item,
+                comment=example_comment,
+                display=display,
+            )
+        elif struct:
+            display.append(f'[TYPE_ERROR] Expected struct as StructInterface, got {struct} instead')
+        else:
+            display.append('Struct is not defined.')
+        if example_stream and count:
+            display.display_paragraph('Example', level=3)
+            if example_comment:
+                display.display_paragraph(example_comment)
+            example_records, example_columns = self._get_example_records_and_columns(
+                count=count,
+                example=example_stream,
+                columns=columns,
+            )
+            display.display_sheet(records=example_records, columns=example_columns)
+        display.display_paragraph()
+        return self
 
     @staticmethod
     def _assume_stream(stream) -> Stream:
