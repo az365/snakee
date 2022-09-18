@@ -13,12 +13,12 @@ try:  # Assume we're a submodule in a package.
     from content.items.simple_items import FULL_ITEM_FIELD, MutableRecord, MutableRow, ImmutableRow, SimpleRow
     from content.struct.flat_struct import FlatStruct
     from content.struct.struct_row import StructRow, StructRowInterface, ROW_SUBCLASSES
-    from connectors.mixin.actualize_mixin import ValidateMixin
     from functions.secondary import all_secondary_functions as fs
     from utils.external import pd, DataFrame
     from utils.decorators import deprecated_with_alternative
     from streams.interfaces.regular_stream_interface import RegularStreamInterface, StreamItemType
     from streams.abstract.iterable_stream import IterableStream
+    from streams.mixin.validate_mixin import ValidateMixin
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         Stream, LineStream, RowStream, RecordStream, KeyValueStream, StructStream,
@@ -31,20 +31,20 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...content.items.simple_items import FULL_ITEM_FIELD, MutableRecord, MutableRow, ImmutableRow, SimpleRow
     from ...content.struct.flat_struct import FlatStruct
     from ...content.struct.struct_row import StructRow, StructRowInterface, ROW_SUBCLASSES
-    from ...connectors.mixin.actualize_mixin import ValidateMixin
     from ...functions.secondary import all_secondary_functions as fs
     from ...utils.external import pd, DataFrame
     from ...utils.decorators import deprecated_with_alternative
     from ..interfaces.regular_stream_interface import RegularStreamInterface, StreamItemType
     from ..abstract.iterable_stream import IterableStream
+    from .validate_mixin import ValidateMixin
 
 Native = RegularStreamInterface
 AnyStream = Stream
 StructOrColumns = Union[StructInterface, AutoColumns, FieldInterface, FieldName]
 OptionalArguments = Union[str, Iterable, None]
 
-DEFAULT_DELIMITER = TAB_CHAR
 DEFAULT_FIELDS_COUNT = 99
+DEFAULT_COL_DELIMITER = TAB_CHAR
 DEFAULT_COL_MASK = 'column{n:02}'
 STRUCTURED_ITEM_TYPES = ItemType.Record, ItemType.Row, ItemType.StructRow
 UNSTRUCTURED_ITEM_TYPES = ItemType.Line, ItemType.Any, ItemType.Auto
@@ -453,7 +453,7 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
             add_title_row: AutoBool = AUTO,
     ) -> LineStream:
         item_type = self.get_item_type()
-        delimiter = Auto.acquire(delimiter, DEFAULT_DELIMITER if item_type == ItemType.Row else None)
+        delimiter = Auto.acquire(delimiter, DEFAULT_COL_DELIMITER if item_type == ItemType.Row else None)
         stream = self
         if item_type == ItemType.Record:
             assert isinstance(stream, RegularStreamInterface) or hasattr(stream, 'get_columns'), 'got {}'.format(stream)
@@ -533,7 +533,7 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
                 columns = self.get_columns()
         elif item_type == ItemType.Line:
             if not Auto.is_defined(delimiter):
-                delimiter = DEFAULT_DELIMITER  # '\t'
+                delimiter = DEFAULT_COL_DELIMITER  # '\t'
         if Auto.is_defined(delimiter):
             assert item_type == ItemType.Line
             assert isinstance(delimiter, str), f'to_row_stream(): Expected delimiter as str, got {delimiter}'
