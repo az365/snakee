@@ -21,7 +21,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 Native = LeafConnectorInterface
 
 EXAMPLE_STR_LEN = 12
-EXAMPLE_ROW_COUNT = 10
+DEFAULT_EXAMPLE_COUNT = 10
 COUNT_ITEMS_TO_LOG_COLLECT_OPERATION = 500000
 
 
@@ -89,7 +89,7 @@ class ValidateMixin(ABC):
 
     def _get_example_records_and_columns(
             self,
-            count: int = EXAMPLE_ROW_COUNT,
+            count: int = DEFAULT_EXAMPLE_COUNT,
             example: Optional[Stream] = None,
             columns: Optional[Array] = None,
     ) -> Tuple[Array, Array]:
@@ -310,7 +310,7 @@ class ActualizeMixin(ValidateMixin, ABC):
 
     def show_example(
             self,
-            count: int = EXAMPLE_ROW_COUNT,
+            count: int = DEFAULT_EXAMPLE_COUNT,
             example: Optional[Stream] = None,
             columns: Optional[Array] = None,
             comment: str = EMPTY,
@@ -327,7 +327,7 @@ class ActualizeMixin(ValidateMixin, ABC):
 
     def show(
             self,
-            count: int = EXAMPLE_ROW_COUNT,
+            count: int = DEFAULT_EXAMPLE_COUNT,
             message: Optional[str] = None,
             filters: Columns = None,
             columns: Columns = None,

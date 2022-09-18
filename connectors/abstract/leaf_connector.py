@@ -11,7 +11,7 @@ try:  # Assume we're a submodule in a package.
     from base.constants.chars import EMPTY, CROP_SUFFIX, ITEMS_DELIMITER, DEFAULT_LINE_LEN
     from content.format.format_classes import ParsedFormat
     from connectors.abstract.abstract_connector import AbstractConnector
-    from connectors.mixin.actualize_mixin import ActualizeMixin, EXAMPLE_ROW_COUNT
+    from connectors.mixin.actualize_mixin import ActualizeMixin, DEFAULT_EXAMPLE_COUNT
     from connectors.mixin.connector_format_mixin import ConnectorFormatMixin
     from connectors.mixin.streamable_mixin import StreamableMixin
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -24,7 +24,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.constants.chars import EMPTY, CROP_SUFFIX, ITEMS_DELIMITER, DEFAULT_LINE_LEN
     from ...content.format.format_classes import ParsedFormat
     from .abstract_connector import AbstractConnector
-    from ..mixin.actualize_mixin import ActualizeMixin, EXAMPLE_ROW_COUNT
+    from ..mixin.actualize_mixin import ActualizeMixin, DEFAULT_EXAMPLE_COUNT
     from ..mixin.connector_format_mixin import ConnectorFormatMixin
     from ..mixin.streamable_mixin import StreamableMixin
 
@@ -363,7 +363,7 @@ class LeafConnector(
     def describe(
             self,
             *filter_args,
-            count: Optional[int] = EXAMPLE_ROW_COUNT,
+            count: Optional[int] = DEFAULT_EXAMPLE_COUNT,
             columns: Optional[Array] = None,
             show_header: bool = True,
             safe_filter: bool = True,
