@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 import inspect
-from typing import Optional, Callable, Iterable, Union, Any
+from typing import Optional, Callable, Iterable, Sequence, Tuple, Union, Any
 import gc
 
 try:  # Assume we're a submodule in a package.
@@ -220,20 +220,26 @@ class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
         return self.get_one_line_repr()
 
     @abstractmethod
-    def get_demo_example(self, *args, **kwargs):
+    def get_demo_example(self, *args, **kwargs) -> Native:
         pass
+
+    def _get_demo_records_and_columns(self, demo_example: Union[Stream, Iterable, None]) -> Tuple[Sequence, Sequence]:
+        if not Auto.is_defined(demo_example):
+            demo_example = self.get_demo_example()
+        if hasattr(demo_example, 'get_columns') and hasattr(demo_example, 'get_records'):  # RegularStream, SqlStream
+            records = demo_example.get_records()  # ConvertMixin.get_records(), SqlStream.get_records()
+            columns = demo_example.get_columns()  # StructMixin.get_columns(), RegularStream.get_columns()
+        else:
+            item_field = 'item'
+            records = [{item_field: i} for i in demo_example]
+            columns = [item_field]
+        return records, columns
 
     def show(self, *args, **kwargs):
         display = self.get_display()
         display.display_paragraph(self.get_name(), level=2)
         demo_example = self.get_demo_example(*args, **kwargs)
-        if hasattr(demo_example, 'get_columns') and hasattr(demo_example, 'get_records'):
-            records = demo_example.get_records()
-            columns = demo_example.get_columns()
-        else:  # isinstance(demo_example, Iterable):
-            item_field = 'item'
-            records = [{item_field: i} for i in demo_example]
-            columns = [item_field]
+        records, columns = self._get_demo_records_and_columns(demo_example)
         display.display_sheet(records, columns=columns)
         return self
 
