@@ -701,8 +701,9 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
             title: Optional[str] = 'Columns',
             example: Optional[dict] = None,
             select_fields: Optional[Array] = None,
+            display=AUTO,
     ) -> None:
-        display = self.get_display()
+        display = self.get_display(display)
         columns = self._get_describe_columns(example, with_lens=True)
         records = self.get_struct_repr_records(example=example, select_fields=select_fields, count=count)
         if title:

@@ -200,8 +200,9 @@ class AbstractTerm(SimpleDataWrapper, MultiMapDataMixin, TermInterface, ABC):
             title: Optional[str] = 'Data',
             comment: Optional[str] = None,
             max_len: AutoCount = AUTO,
+            display=AUTO,
     ) -> Native:
-        display = self.get_display()
+        display = self.get_display(display)
         for key in TermDataAttribute.get_enum_items():  # fields, dictionaries, mappers, datasets, relations
             data = self.get_data().get(key)
             if data:
