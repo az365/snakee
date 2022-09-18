@@ -257,7 +257,7 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
         display.display_paragraph()
         return self
 
-    def display_meta_description(
+    def display_meta(
             self,
             with_title: bool = True,
             with_summary: bool = True,
@@ -296,7 +296,7 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
         elif comment:
             display.display_paragraph(comment)
         if show_meta:
-            self.display_meta_description()
+            self.display_meta()
         if self.has_data():
             self.display_data_sheet(count=count, display=display, **kwargs)
         elif depth > 0:

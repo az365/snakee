@@ -34,7 +34,7 @@ class EntityMap(SimpleDataWrapper):
         count = self.get_count() or default
         return '{count} entities'.format(count=count)
 
-    def display_meta_description(
+    def display_meta(
             self,
             with_title: bool = True,
             with_summary: bool = True,

@@ -68,7 +68,7 @@ class AbstractNamed(AbstractBaseObject, DisplayMixin, ABC):
             line = BRIEF_META_ROW_FORMATTER.format(prefix=prefix, key='meta:', value=get_str_from_args_kwargs(**meta))
             yield line[:DEFAULT_LINE_LEN]
 
-    def display_meta_description(self, with_title: bool = True, display: AutoDisplay = AUTO) -> Native:
+    def display_meta(self, with_title: bool = True, display: AutoDisplay = AUTO) -> Native:
         display = self.get_display(display)
         display.display_sheet(
             records=self.get_meta_records(),
@@ -99,7 +99,7 @@ class AbstractNamed(AbstractBaseObject, DisplayMixin, ABC):
             display.display_paragraph(self.get_str_headers())
         if comment:
             display.append(comment)
-        self.display_meta_description(display=display)
+        self.display_meta(display=display)
         if depth > 0:
             for attribute, value in self.get_meta_items():
                 if isinstance(value, AbstractBaseObject) or hasattr(value, 'describe'):

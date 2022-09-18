@@ -695,7 +695,7 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
             )
             display.display_sheet(records=example_records, columns=example_columns)
         self.display_paragraph('MetaInformation', level=3)
-        self.display_meta_description(display=display)
+        self.display_meta(display=display)
         display.display_paragraph()
         return self
 
