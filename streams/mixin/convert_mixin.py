@@ -13,6 +13,7 @@ try:  # Assume we're a submodule in a package.
     from content.items.simple_items import FULL_ITEM_FIELD, MutableRecord, MutableRow, ImmutableRow, SimpleRow
     from content.struct.flat_struct import FlatStruct
     from content.struct.struct_row import StructRow, StructRowInterface, ROW_SUBCLASSES
+    from connectors.mixin.actualize_mixin import ValidateMixin
     from functions.secondary import all_secondary_functions as fs
     from utils.external import pd, DataFrame
     from utils.decorators import deprecated_with_alternative
@@ -30,6 +31,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...content.items.simple_items import FULL_ITEM_FIELD, MutableRecord, MutableRow, ImmutableRow, SimpleRow
     from ...content.struct.flat_struct import FlatStruct
     from ...content.struct.struct_row import StructRow, StructRowInterface, ROW_SUBCLASSES
+    from ...connectors.mixin.actualize_mixin import ValidateMixin
     from ...functions.secondary import all_secondary_functions as fs
     from ...utils.external import pd, DataFrame
     from ...utils.decorators import deprecated_with_alternative
@@ -48,7 +50,7 @@ STRUCTURED_ITEM_TYPES = ItemType.Record, ItemType.Row, ItemType.StructRow
 UNSTRUCTURED_ITEM_TYPES = ItemType.Line, ItemType.Any, ItemType.Auto
 
 
-class ConvertMixin(IterableStream, ABC):
+class ConvertMixin(IterableStream, ValidateMixin, ABC):
     def get_items(self, item_type: Union[ItemType, Auto] = AUTO) -> Iterable:
         if Auto.is_defined(item_type):
             return self.get_items_of_type(item_type)

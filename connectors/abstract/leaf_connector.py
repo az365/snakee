@@ -368,6 +368,7 @@ class LeafConnector(
             show_header: bool = True,
             safe_filter: bool = True,
             actualize: AutoBool = AUTO,
+            comment: Optional[str] = None,
             display: AutoDisplay = AUTO,
             **filter_kwargs
     ) -> Native:
@@ -375,6 +376,10 @@ class LeafConnector(
         if show_header:
             display.display_paragraph(self.get_name(), level=1)
             display.display_paragraph(self.get_str_headers(actualize=False))
+        if comment:
+            display.display_paragraph(comment)
+        struct = self.get_struct()
+        if show_header or struct:
             struct_title, example_item, example_stream, example_comment = self._prepare_examples_with_title(
                 *filter_args, **filter_kwargs, safe_filter=safe_filter,
                 example_row_count=count, actualize=actualize,
@@ -387,7 +392,6 @@ class LeafConnector(
             display.display_paragraph()
         else:
             example_item, example_stream, example_comment = None, None, None
-        struct = self.get_struct()
         if isinstance(struct, StructInterface) or hasattr(struct, 'describe'):
             struct.describe(
                 show_header=False,
@@ -400,11 +404,15 @@ class LeafConnector(
         else:
             display.append('Struct is not defined.')
         if example_stream and count:
-            return self.show_example(
-                count=count, example=example_stream,
-                columns=columns, comment=example_comment,
-                display=display,
+            display.display_paragraph('Example', level=3)
+            if example_comment:
+                display.display_paragraph(example_comment)
+            example_records, example_columns = self._get_example_records_and_columns(
+                count=count,
+                example=example_stream,
+                columns=columns,
             )
+            display.display_sheet(records=example_records, columns=example_columns)
         display.display_paragraph()
         return self
 
