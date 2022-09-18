@@ -1,31 +1,27 @@
 from abc import ABC
-from typing import Optional, Generator
+from typing import Optional
 
 try:  # Assume we're a submodule in a package.
-    from utils.arguments import get_generated_name
     from loggers.logger_interface import LoggerInterface, LoggingLevel
     from base.classes.auto import Auto, AUTO
     from base.constants.chars import EMPTY, TAB_INDENT, REPR_DELIMITER
+    from base.functions.arguments import get_generated_name
     from base.interfaces.context_interface import ContextInterface
-    from base.interfaces.sourced_interface import SourcedInterface
+    from base.interfaces.sourced_interface import SourcedInterface, COLS_FOR_META
     from base.abstract.named import AbstractNamed
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils.arguments import get_generated_name
     from ...loggers.logger_interface import LoggerInterface, LoggingLevel
     from ..classes.auto import Auto, AUTO
     from ..constants.chars import EMPTY, TAB_INDENT, REPR_DELIMITER
+    from ..functions.arguments import get_generated_name
     from ..interfaces.context_interface import ContextInterface
-    from ..interfaces.sourced_interface import SourcedInterface
+    from ..interfaces.sourced_interface import SourcedInterface, COLS_FOR_META
     from .named import AbstractNamed
 
 Source = Optional[AbstractNamed]
 Logger = Optional[LoggerInterface]
 
-SPECIFIC_MEMBERS = ('_source', )
-COLS_FOR_META = [
-    ('prefix', 3), ('defined', 3),
-    ('key', 20), ('value', 30), ('actual_type', 14), ('expected_type', 20), ('default', 20),
-]
+SPECIFIC_MEMBERS = '_source',
 
 
 class Sourced(AbstractNamed, SourcedInterface, ABC):

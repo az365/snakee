@@ -6,7 +6,7 @@ try:  # Assume we're a submodule in a package.
     from base.constants.chars import EMPTY, REPR_DELIMITER, SMALL_INDENT, CROP_SUFFIX, DEFAULT_LINE_LEN
     from base.functions.arguments import get_str_from_annotation, get_str_from_args_kwargs
     from base.interfaces.base_interface import BaseInterface
-    from base.interfaces.sourced_interface import SourcedInterface
+    from base.interfaces.sourced_interface import SourcedInterface, COLS_FOR_META, COLS_FOR_DICT
     from base.interfaces.context_interface import ContextInterface
     from base.interfaces.data_interface import SimpleDataInterface
     from base.mixin.display_mixin import DisplayMixin, PREFIX_FIELD, DEFAULT_EXAMPLE_COUNT
@@ -17,7 +17,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..constants.chars import EMPTY, REPR_DELIMITER, SMALL_INDENT, CROP_SUFFIX, DEFAULT_LINE_LEN
     from ..functions.arguments import get_str_from_annotation, get_str_from_args_kwargs
     from ..interfaces.base_interface import BaseInterface
-    from ..interfaces.sourced_interface import SourcedInterface
+    from ..interfaces.sourced_interface import SourcedInterface, COLS_FOR_META, COLS_FOR_DICT
     from ..interfaces.context_interface import ContextInterface
     from ..interfaces.data_interface import SimpleDataInterface
     from ..mixin.display_mixin import DisplayMixin, PREFIX_FIELD, DEFAULT_EXAMPLE_COUNT
@@ -33,11 +33,6 @@ Context = Optional[ContextInterface]
 DATA_MEMBER_NAMES = '_data',
 DYNAMIC_META_FIELDS = tuple()
 
-COLS_FOR_DICT = [(PREFIX_FIELD, 3), ('key', 20), 'value']
-COLS_FOR_META = [
-    (PREFIX_FIELD, 3), ('defined', 3),
-    ('key', 20), ('value', 30), ('actual_type', 14), ('expected_type', 20), ('default', 20),
-]
 MAX_OUTPUT_ROW_COUNT, MAX_DATAFRAME_ROW_COUNT = 200, 20
 MAX_BRIEF_REPR_LEN = 30
 INCORRECT_COUNT = -1

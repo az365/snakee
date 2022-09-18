@@ -5,23 +5,21 @@ try:  # Assume we're a submodule in a package.
     from base.classes.auto import AUTO, Auto
     from base.constants.chars import EMPTY, TAB_INDENT, REPR_DELIMITER, DEFAULT_LINE_LEN
     from base.functions.arguments import get_str_from_args_kwargs
+    from base.interfaces.sourced_interface import COLS_FOR_META
     from base.mixin.display_mixin import DisplayMixin, AutoDisplay, PREFIX_FIELD
     from base.abstract.abstract_base import AbstractBaseObject
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.auto import AUTO, Auto
     from ..constants.chars import EMPTY, TAB_INDENT, REPR_DELIMITER, DEFAULT_LINE_LEN
     from ..functions.arguments import get_str_from_args_kwargs
+    from ..interfaces.sourced_interface import COLS_FOR_META
     from ..mixin.display_mixin import DisplayMixin, AutoDisplay, PREFIX_FIELD
     from .abstract_base import AbstractBaseObject
 
 Native = Union[AbstractBaseObject, DisplayMixin]
 
-SPECIFIC_MEMBERS = ('_name', )
+SPECIFIC_MEMBERS = '_name',
 BRIEF_META_ROW_FORMATTER = '{prefix}{key:10} {value}'
-COLS_FOR_META = [
-    ('defined', 3), ('key', 20), ('value', 30),
-    ('actual_type', 14), ('expected_type', 20), ('default', 20),
-]
 
 
 class AbstractNamed(AbstractBaseObject, DisplayMixin, ABC):
