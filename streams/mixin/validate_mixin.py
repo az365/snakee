@@ -90,7 +90,7 @@ class ValidateMixin(ABC):
         example = example.take(count).collect()
         if example:
             if not Auto.is_defined(columns):
-                columns = example.columns()
+                columns = example.get_columns()
         return example.get_records(), columns
 
     def _prepare_examples_with_title(
