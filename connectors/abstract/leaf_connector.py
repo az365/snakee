@@ -407,7 +407,7 @@ class LeafConnector(
             display.display_paragraph('Example', level=3)
             if example_comment:
                 display.display_paragraph(example_comment)
-            example_records, example_columns = self._get_example_records_and_columns(
+            example_records, example_columns = self._get_demo_records_and_columns(
                 count=count,
                 example=example_stream,
                 columns=columns,

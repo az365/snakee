@@ -243,23 +243,26 @@ class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
             stream = stream.select(columns)
         return stream.collect()
 
-    def _get_demo_records_and_columns(self, demo_example: Union[Stream, Iterable, None]) -> Tuple[Sequence, Sequence]:
-        if not Auto.is_defined(demo_example):
-            demo_example = self.get_demo_example()
-        if hasattr(demo_example, 'get_columns') and hasattr(demo_example, 'get_records'):  # RegularStream, SqlStream
-            records = demo_example.get_records()  # ConvertMixin.get_records(), SqlStream.get_records()
-            columns = demo_example.get_columns()  # StructMixin.get_columns(), RegularStream.get_columns()
+    def _get_demo_records_and_columns(
+            self,
+            count: int = DEFAULT_EXAMPLE_COUNT,
+            columns: Optional[Array] = None,
+            example: Union[Stream, None] = None,
+    ) -> Tuple[Sequence, Sequence]:
+        example = self._get_demo_example(count=count, columns=columns, example=example)
+        if hasattr(example, 'get_columns') and hasattr(example, 'get_records'):  # RegularStream, SqlStream
+            records = example.get_records()  # ConvertMixin.get_records(), SqlStream.get_records()
+            columns = example.get_columns()  # StructMixin.get_columns(), RegularStream.get_columns()
         else:
             item_field = 'item'
-            records = [{item_field: i} for i in demo_example]
+            records = [{item_field: i} for i in example]
             columns = [item_field]
         return records, columns
 
     def show(self, *args, **kwargs):
         display = self.get_display()
         display.display_paragraph(self.get_name(), level=2)
-        demo_example = self.get_demo_example(*args, **kwargs)
-        records, columns = self._get_demo_records_and_columns(demo_example)
+        records, columns = self._get_demo_records_and_columns(*args, **kwargs)
         display.display_sheet(records, columns=columns)
         return self
 

@@ -149,7 +149,7 @@ class ActualizeMixin(ValidateMixin, ABC):
             comment: str = EMPTY,
             display: AutoDisplay = AUTO,
     ):
-        records, columns = self._get_example_records_and_columns(count=count, example=example, columns=columns)
+        records, columns = self._get_demo_records_and_columns(count=count, example=example, columns=columns)
         if records or comment:
             display = self.get_display(display)
             display.display_paragraph('Example', level=3)

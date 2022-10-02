@@ -108,19 +108,22 @@ class ValidateMixin(ABC):
             stream = stream.select(columns)
         return stream.collect()
 
-    def _get_example_records_and_columns(
+    def _get_demo_records_and_columns(
             self,
             count: int = DEFAULT_EXAMPLE_COUNT,
-            example: Optional[Stream] = None,
+            filters: Columns = None,
             columns: Optional[Array] = None,
+            example: Optional[Stream] = None,
     ) -> Tuple[Array, Array]:
-        if not Auto.is_defined(example):
-            example = self.to_records_stream()
-        example = example.take(count).collect()
-        if example:
-            if not Auto.is_defined(columns):
-                columns = example.get_columns()
-        return example.get_records(), columns
+        example = self._get_demo_example(count=count, filters=filters, columns=columns, example=example)
+        if hasattr(example, 'get_columns') and hasattr(example, 'get_records'):  # RegularStream, SqlStream
+            records = example.get_records()  # ConvertMixin.get_records(), SqlStream.get_records()
+            columns = example.get_columns()  # StructMixin.get_columns(), RegularStream.get_columns()
+        else:
+            item_field = 'item'
+            records = [{item_field: i} for i in example]
+            columns = [item_field]
+        return records, columns
 
     def _prepare_examples_with_title(
             self,
