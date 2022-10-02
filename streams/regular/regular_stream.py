@@ -16,6 +16,7 @@ try:  # Assume we're a submodule in a package.
     from content.items.item_getters import get_filter_function
     from content.selection import selection_classes as sn
     from content.struct.flat_struct import FlatStruct
+    from content.documents.document_item import Sheet
     from streams.abstract.local_stream import LocalStream
     from streams.interfaces.regular_stream_interface import (
         RegularStreamInterface, StreamItemType,
@@ -38,6 +39,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...content.items.item_getters import get_filter_function
     from ...content.selection import selection_classes as sn
     from ...content.struct.flat_struct import FlatStruct
+    from ...content.documents.document_item import Sheet
     from ..abstract.local_stream import LocalStream
     from ..interfaces.regular_stream_interface import (
         RegularStreamInterface, StreamItemType,
@@ -262,9 +264,9 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
             items: Iterable,
             struct: AutoStruct = AUTO,
             skip_errors: bool = False,
-            context: Context = None,  # deprecated argument
+            context: Context = None,  # used for validate items before initialization
     ) -> Generator:
-        logger = context.get_logger() if context else None
+        logger = context.get_logger() if context else self.get_logger()
         for i in items:
             errors = self._get_validation_errors(i, struct=struct)
             if errors:
@@ -627,6 +629,15 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
     def actualize(self) -> Native:  # used in ValidateMixin.prepare_examples_with_title()
         return self
 
+    def get_example_sheet(
+            self,
+            count: int = DEFAULT_EXAMPLE_COUNT,
+            columns: Columns = None,
+            example: Stream = None,
+    ) -> Sheet:
+        example = self._get_demo_example(count, columns=columns, example=example)
+        return Sheet(example, name='Example sheet')
+
     def describe(
             self,
             *filter_args,
@@ -654,7 +665,8 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
             )
             display.append(struct_title)
             if self.get_invalid_fields_count():
-                line = 'Invalid columns: {}'.format(get_str_from_args_kwargs(*self.get_invalid_columns()))
+                invalid_columns_str = get_str_from_args_kwargs(*self.get_invalid_columns())
+                line = f'Invalid columns: {invalid_columns_str}'
                 display.append(line)
             display.display_paragraph()
         else:
@@ -667,19 +679,16 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
                 display=display,
             )
         elif struct:
-            display.append(f'[TYPE_ERROR] Expected struct as StructInterface, got {struct} instead')
+            tag = '[TYPE_ERROR]'
+            display.append(f'{tag} Expected struct as StructInterface, got {struct} instead')
         else:
             display.append('Struct is not defined.')
         if example_stream and count:
             display.display_paragraph('Example', level=3)
             if example_comment:
                 display.display_paragraph(example_comment)
-            example_records, example_columns = self._get_demo_records_and_columns(
-                count=count,
-                example=example_stream,
-                columns=columns,
-            )
-            display.display_sheet(records=example_records, columns=example_columns)
+            example_sheet = self.get_example_sheet(count, columns=columns, example=example_stream)
+            display.display(example_sheet)
         self.display_paragraph('MetaInformation', level=3)
         self.display_meta(display=display)
         display.display_paragraph()
