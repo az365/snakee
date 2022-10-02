@@ -1,11 +1,12 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Iterable, Sequence, Union
+from typing import Optional, Iterable, Sequence, Union, Any
 
 try:  # Assume we're a submodule in a package.
     from base.classes.typing import AUTO, Auto, AutoCount, Class
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.typing import AUTO, Auto, AutoCount, Class
 
+Item = Any
 Display = Class
 AutoDisplay = Union[Auto, Display]
 AutoStyle = Union[Auto, str]
@@ -19,7 +20,7 @@ class DisplayInterface(ABC):
         pass
 
     @abstractmethod
-    def display(self, obj=AUTO) -> None:
+    def display(self, item: Item = AUTO) -> None:
         pass
 
     @abstractmethod

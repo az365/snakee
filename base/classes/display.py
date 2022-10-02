@@ -4,17 +4,14 @@ try:  # Assume we're a submodule in a package.
     from base.classes.typing import AUTO, Auto, AutoCount, Class
     from base.functions.arguments import get_name, get_value
     from base.constants.chars import DEFAULT_LINE_LEN, REPR_DELIMITER, SMALL_INDENT, EMPTY
-    from base.interfaces.display_interface import DisplayInterface, AutoStyle, DEFAULT_EXAMPLE_COUNT
+    from base.interfaces.display_interface import DisplayInterface, Item, AutoStyle, AutoDisplay, DEFAULT_EXAMPLE_COUNT
     from utils.decorators import deprecated_with_alternative
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.typing import AUTO, Auto, AutoCount, Class
     from ..functions.arguments import get_name, get_value
     from ..constants.chars import DEFAULT_LINE_LEN, REPR_DELIMITER, SMALL_INDENT, EMPTY
-    from ..interfaces.display_interface import DisplayInterface, AutoStyle, DEFAULT_EXAMPLE_COUNT
+    from ..interfaces.display_interface import DisplayInterface, Item, AutoStyle, AutoDisplay, DEFAULT_EXAMPLE_COUNT
     from ...utils.decorators import deprecated_with_alternative
-
-AutoDisplay = Union[Auto, DisplayInterface]
-Item = Any
 
 DEFAULT_INT_WIDTH, DEFAULT_FLOAT_WIDTH = 7, 12
 PREFIX_FIELD = 'prefix'
@@ -199,7 +196,9 @@ class DefaultDisplay(DisplayInterface):
     def _get_display_object(cls, data: Union[str, Iterable]) -> Optional[str]:
         if not data:
             return None
-        if not isinstance(data, str):
+        if hasattr(data, 'get_lines'):  # isinstance(data, DocumentItem)
+            data = data.get_lines()
+        if isinstance(data, Iterable) and not isinstance(data, str):
             data = '\n'.join(data)
         return data
 
@@ -209,8 +208,9 @@ class DefaultDisplay(DisplayInterface):
 
     def display(self, item: Item = AUTO):
         item = Auto.acquire(item, self)
+        data = self._get_display_object(item)
         method = self._get_display_method()
-        method(item)
+        method(data)
         return self
 
     def __call__(self, obj) -> None:
