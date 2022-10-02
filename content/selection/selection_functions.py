@@ -2,6 +2,7 @@ from typing import Callable, Union, Any
 
 try:  # Assume we're a submodule in a package.
     from base.classes.auto import AUTO, Auto
+    from base.classes.typing import PRIMITIVE_TYPES, Array
     from base.functions.arguments import get_name, get_names, update
     from loggers.logger_interface import LoggerInterface
     from functions.primary.items import STAR, get_field_value_from_item, get_fields_values_from_item
@@ -10,6 +11,7 @@ try:  # Assume we're a submodule in a package.
     from content.items.item_type import ItemType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.classes.auto import AUTO, Auto
+    from ...base.classes.typing import PRIMITIVE_TYPES, Array
     from ...base.functions.arguments import get_name, get_names, update
     from ...loggers.logger_interface import LoggerInterface
     from ...functions.primary.items import STAR, get_field_value_from_item, get_fields_values_from_item
@@ -17,10 +19,9 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils.decorators import deprecated_with_alternative
     from ..items.item_type import ItemType
 
-Description = Union[Callable, list, tuple]
+Description = Union[Callable, Array]
 
 IGNORE_CYCLIC_DEPENDENCIES = False
-PRIMITIVE_TYPES = str, int, float, bool
 
 
 def process_description(d) -> tuple:

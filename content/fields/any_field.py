@@ -4,7 +4,7 @@ try:  # Assume we're a submodule in a package.
     from interfaces import (
         FieldInterface, RepresentationInterface, StructInterface, ExtLogger, SelectionLogger,
         ValueType, FieldRoleType, ReprType, ItemType, DialectType,
-        ARRAY_TYPES, AUTO, Auto, AutoBool, AutoName, Class,
+        PRIMITIVE_TYPES, ARRAY_TYPES, AUTO, Auto, AutoBool, AutoName, Class,
     )
     from base.functions.arguments import get_name, get_value, get_plural
     from base.abstract.simple_data import SimpleDataWrapper, EMPTY
@@ -16,7 +16,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...interfaces import (
         FieldInterface, RepresentationInterface, StructInterface, ExtLogger, SelectionLogger,
         ValueType, FieldRoleType, ReprType, ItemType, DialectType,
-        ARRAY_TYPES, AUTO, Auto, AutoBool, AutoName, Class,
+        PRIMITIVE_TYPES, ARRAY_TYPES, AUTO, Auto, AutoBool, AutoName, Class,
     )
     from ...base.functions.arguments import get_name, get_value, get_plural
     from ...base.abstract.simple_data import SimpleDataWrapper, EMPTY
@@ -27,8 +27,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 
 Native = Union[SimpleDataWrapper, MultiMapDataMixin, FieldInterface]
 AutoRepr = Union[RepresentationInterface, str, Auto]
-
-PRIMITIVE_TYPES = str, int, float, bool
 
 
 class AnyField(SimpleDataWrapper, SelectableMixin, MultiMapDataMixin, FieldInterface):
