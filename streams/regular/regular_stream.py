@@ -627,20 +627,6 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
     def actualize(self) -> Native:  # used in ValidateMixin.prepare_examples_with_title()
         return self
 
-    def get_demo_example(
-            self,
-            count: Count = DEFAULT_EXAMPLE_COUNT,
-            filters: Columns = None,
-            columns: Columns = None,
-    ) -> Native:
-        if self.is_in_memory():
-            stream = self
-        else:  # data is iterator
-            stream = self.copy()
-        sm_sample = stream.filter(*filters) if filters else self
-        sm_sample = sm_sample.take(count)
-        return sm_sample.collect()
-
     def describe(
             self,
             *filter_args,

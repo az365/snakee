@@ -8,31 +8,33 @@ try:  # Assume we're a submodule in a package.
         StreamInterface, LoggerInterface, LeafConnectorInterface,
         Stream, ExtLogger, Context, Connector, LeafConnector,
         StreamType, LoggingLevel,
-        AUTO, Auto, AutoName, OptionalFields, Class, Message,
+        AUTO, Auto, AutoName, OptionalFields, Array, Class, Message,
     )
     from base.functions.arguments import get_generated_name
-    from base.constants.chars import CROP_SUFFIX, DEFAULT_LINE_LEN
+    from base.constants.chars import CROP_SUFFIX, DEFAULT_LINE_LEN, EMPTY
     from base.abstract.contextual_data import ContextualDataWrapper
     from utils.decorators import deprecated_with_alternative
     from loggers.fallback_logger import FallbackLogger
     from streams import stream_classes as sm
+    from streams.interfaces.abstract_stream_interface import StreamInterface, DEFAULT_EXAMPLE_COUNT
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         StreamInterface, LoggerInterface, LeafConnectorInterface,
         Stream, ExtLogger, Context, Connector, LeafConnector,
         StreamType, LoggingLevel,
-        AUTO, Auto, AutoName, OptionalFields, Class, Message,
+        AUTO, Auto, AutoName, OptionalFields, Array, Class, Message,
     )
     from ...base.functions.arguments import get_generated_name
-    from ...base.constants.chars import CROP_SUFFIX, DEFAULT_LINE_LEN
+    from ...base.constants.chars import CROP_SUFFIX, DEFAULT_LINE_LEN, EMPTY
     from ...base.abstract.contextual_data import ContextualDataWrapper
     from ...utils.decorators import deprecated_with_alternative
     from ...loggers.fallback_logger import FallbackLogger
     from .. import stream_classes as sm
+    from ..interfaces.abstract_stream_interface import StreamInterface, DEFAULT_EXAMPLE_COUNT
 
 Native = StreamInterface
 
-DATA_MEMBERS = ('_data', )
+DATA_MEMBERS = '_data',
 
 
 class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
@@ -40,7 +42,7 @@ class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
             self,
             data: Any,
             name: AutoName = AUTO,
-            caption: str = '',
+            caption: str = EMPTY,
             source: Connector = None,
             context: Context = None,
             check: bool = False,
@@ -86,10 +88,12 @@ class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
         return self._assume_native(stream)
 
     def update_meta(self, **meta) -> Native:
-        return super().update_meta(**meta)
+        stream = super().update_meta(**meta)
+        return self._assume_native(stream)
 
     def fill_meta(self, check=True, **meta) -> Native:
-        return super().fill_meta(check=check, **meta)
+        stream = super().fill_meta(check=check, **meta)
+        return self._assume_native(stream)
 
     def get_property(self, name, *args, **kwargs) -> Any:
         if callable(name):
@@ -111,10 +115,9 @@ class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
         return function(self.get_data(), *args, **kwargs)
 
     def apply_to_data(self, function: Callable, dynamic=False, *args, **kwargs) -> Native:
-        return self.stream(  # can be file
-            self._get_calc(function, *args, **kwargs),
-            ex=self._get_dynamic_meta_fields() if dynamic else None,
-        )
+        items = self._get_calc(function, *args, **kwargs)
+        excluded_fields = self._get_dynamic_meta_fields() if dynamic else None
+        return self.stream(items, ex=excluded_fields)  # can be a file
 
     def apply_to_stream(self, function: Callable, *args, **kwargs) -> Union[Native, Any]:
         return function(self, *args, **kwargs)
@@ -124,10 +127,6 @@ class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
             return self.apply_to_stream(function, *args, **kwargs)
         else:
             return self.apply_to_data(function, *args, **kwargs)
-
-    @deprecated_with_alternative('get_stream_type()')
-    def get_class_name(self) -> str:
-        return self.__class__.__name__
 
     @classmethod
     def get_stream_type(cls) -> StreamType:
@@ -219,9 +218,30 @@ class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
     def __str__(self):
         return self.get_one_line_repr()
 
-    @abstractmethod
-    def get_demo_example(self, *args, **kwargs) -> Native:
-        pass
+    def _get_demo_example(
+            self,
+            count: int = DEFAULT_EXAMPLE_COUNT,
+            filters: Optional[Array] = None,
+            columns: Optional[Array] = None,
+            example: Optional[Stream] = None,
+    ) -> Native:
+        if hasattr(self, 'is_in_memory'):  # isinstance(self, IterableStream)
+            is_in_memory = self.is_in_memory()
+        else:
+            is_in_memory = True  # ?
+        if Auto.is_defined(example):
+            stream = example
+        elif is_in_memory:
+            stream = self
+        else:  # data is iterator
+            stream = self.copy()
+        if Auto.is_defined(filters):
+            stream = stream.filter(*filters)
+        if Auto.is_defined(count):
+            stream = stream.take(count)
+        if Auto.is_defined(columns) and hasattr(stream, 'select'):
+            stream = stream.select(columns)
+        return stream.collect()
 
     def _get_demo_records_and_columns(self, demo_example: Union[Stream, Iterable, None]) -> Tuple[Sequence, Sequence]:
         if not Auto.is_defined(demo_example):
