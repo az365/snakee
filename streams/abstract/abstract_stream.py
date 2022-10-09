@@ -247,9 +247,10 @@ class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
             self,
             count: int = DEFAULT_EXAMPLE_COUNT,
             columns: Optional[Array] = None,
+            filters: Optional[Array] = None,
             example: Union[Stream, None] = None,
     ) -> Tuple[Sequence, Sequence]:
-        example = self._get_demo_example(count=count, columns=columns, example=example)
+        example = self._get_demo_example(count=count, columns=columns, filters=filters, example=example)
         if hasattr(example, 'get_columns') and hasattr(example, 'get_records'):  # RegularStream, SqlStream
             records = example.get_records()  # ConvertMixin.get_records(), SqlStream.get_records()
             columns = example.get_columns()  # StructMixin.get_columns(), RegularStream.get_columns()
