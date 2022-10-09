@@ -33,6 +33,7 @@ DisplayObject = Union[str, Markdown, HTML]
 
 H_STYLE = None
 P_STYLE = 'line-height: 1.1em; margin-top: 0em; margin-bottom: 0em; padding-top: 0em; padding-bottom: 0em;'
+DEFAULT_CHAPTER_TITLE_LEVEL = 3
 
 
 class DocumentItem(SimpleDataWrapper):

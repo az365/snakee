@@ -16,7 +16,7 @@ try:  # Assume we're a submodule in a package.
     from content.items.item_getters import get_filter_function
     from content.selection import selection_classes as sn
     from content.struct.flat_struct import FlatStruct
-    from content.documents.document_item import Sheet
+    from content.documents.document_item import Chapter, Paragraph, Sheet, DEFAULT_CHAPTER_TITLE_LEVEL
     from streams.abstract.local_stream import LocalStream
     from streams.interfaces.regular_stream_interface import (
         RegularStreamInterface, StreamItemType,
@@ -39,7 +39,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...content.items.item_getters import get_filter_function
     from ...content.selection import selection_classes as sn
     from ...content.struct.flat_struct import FlatStruct
-    from ...content.documents.document_item import Sheet
+    from ...content.documents.document_item import Chapter, Paragraph, Sheet, DEFAULT_CHAPTER_TITLE_LEVEL
     from ..abstract.local_stream import LocalStream
     from ..interfaces.regular_stream_interface import (
         RegularStreamInterface, StreamItemType,
@@ -629,14 +629,41 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
     def actualize(self) -> Native:  # used in ValidateMixin.prepare_examples_with_title()
         return self
 
+    def get_example_chapter(
+            self,
+            count: int = DEFAULT_EXAMPLE_COUNT,
+            columns: Columns = None,
+            example: Stream = None,
+            comment: Optional[str] = None,
+            show_title: Union[bool, int, None] = None,
+            name: str = 'Example',
+    ) -> Chapter:
+        example_sheet = self.get_example_sheet(count=count, columns=columns, example=example, name=f'{name} sheet')
+        items = list()
+        if show_title:
+            if isinstance(show_title, int) and not isinstance(show_title, bool):
+                level = show_title
+            else:
+                level = DEFAULT_CHAPTER_TITLE_LEVEL
+            title = Paragraph([name], level=level, name=f'{name} title')
+            items.append(title)
+        if comment:
+            comment = Paragraph([comment], name=f'{name} comment')
+            items.append(comment)
+        items.append(example_sheet)
+        chapter = Chapter(items, name=name)
+        return chapter
+
     def get_example_sheet(
             self,
             count: int = DEFAULT_EXAMPLE_COUNT,
             columns: Columns = None,
             example: Stream = None,
+            name: str = 'Example sheet',
     ) -> Sheet:
         example = self._get_demo_example(count, columns=columns, example=example)
-        return Sheet(example, name='Example sheet')
+        example = self._assume_native(example)
+        return Sheet(example, name=name)
 
     def describe(
             self,
@@ -684,11 +711,11 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
         else:
             display.append('Struct is not defined.')
         if example_stream and count:
-            display.display_paragraph('Example', level=3)
-            if example_comment:
-                display.display_paragraph(example_comment)
-            example_sheet = self.get_example_sheet(count, columns=columns, example=example_stream)
-            display.display(example_sheet)
+            example_chapter = self.get_example_chapter(
+                count, columns=columns, example=example_stream,
+                comment=example_comment, show_title=DEFAULT_CHAPTER_TITLE_LEVEL, name='Example',
+            )
+            display.display(example_chapter)
         self.display_paragraph('MetaInformation', level=3)
         self.display_meta(display=display)
         display.display_paragraph()
