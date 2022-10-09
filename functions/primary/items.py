@@ -7,7 +7,7 @@ try:  # Assume we're a submodule in a package.
     from content.struct.struct_row_interface import StructRowInterface
     from content.items.simple_items import (
         Row, Record, Line, SimpleSelectableItem,
-        STAR, ROW_SUBCLASSES, RECORD_SUBCLASSES,
+        ALL, ROW_SUBCLASSES, RECORD_SUBCLASSES,
         FieldNo, FieldName, FieldID, Value, Array, ARRAY_TYPES,
         get_field_value_from_row, get_field_value_from_record,
         merge_two_rows, merge_two_records,
@@ -19,7 +19,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...content.struct.struct_row_interface import StructRowInterface
     from ...content.items.simple_items import (
         Row, Record, Line, SimpleSelectableItem,
-        STAR, ROW_SUBCLASSES, RECORD_SUBCLASSES,
+        ALL, ROW_SUBCLASSES, RECORD_SUBCLASSES,
         FieldNo, FieldName, FieldID, Value, Array, ARRAY_TYPES,
         get_field_value_from_row, get_field_value_from_record,
         merge_two_rows, merge_two_records,
@@ -122,7 +122,7 @@ def get_field_value_from_item(
         logger=None,
         default: Value = None,
 ) -> Value:
-    if field == STAR:
+    if field == ALL:
         return item
     elif isinstance(field, Callable):
         return field(item)

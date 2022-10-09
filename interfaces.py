@@ -123,7 +123,7 @@ try:  # Assume we're a submodule in a package.
         Field, Struct, Group, FieldOrStruct, FieldOrGroup, UniKey,
     )
     from content.items.simple_items import (
-        ROW_SUBCLASSES, RECORD_SUBCLASSES, LINE_SUBCLASSES, STAR, Line,
+        ROW_SUBCLASSES, RECORD_SUBCLASSES, LINE_SUBCLASSES, ALL, Line,
         FrozenDict, SimpleRecord, MutableRecord, ImmutableRecord, Record,
         SimpleRowInterface, SimpleRow, MutableRow, ImmutableRow, Row,
         SimpleSelectableItem, SimpleItem, Item,
@@ -139,7 +139,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         Field, Struct, Group, FieldOrStruct, FieldOrGroup, UniKey,
     )
     from .content.items.simple_items import (
-        ROW_SUBCLASSES, RECORD_SUBCLASSES, LINE_SUBCLASSES, STAR, Line,
+        ROW_SUBCLASSES, RECORD_SUBCLASSES, LINE_SUBCLASSES, ALL, Line,
         FrozenDict, SimpleRecord, MutableRecord, ImmutableRecord, Record,
         SimpleRowInterface, SimpleRow, MutableRow, ImmutableRow, Row,
         SimpleSelectableItem, SimpleItem, Item,

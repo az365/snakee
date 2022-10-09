@@ -5,7 +5,7 @@ try:  # Assume we're a submodule in a package.
     from base.classes.typing import PRIMITIVE_TYPES, Array
     from base.functions.arguments import get_name, get_names, update
     from loggers.logger_interface import LoggerInterface
-    from functions.primary.items import STAR, get_field_value_from_item, get_fields_values_from_item
+    from functions.primary.items import ALL, get_field_value_from_item, get_fields_values_from_item
     from utils import algo
     from utils.decorators import deprecated_with_alternative
     from content.items.item_type import ItemType
@@ -14,7 +14,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.classes.typing import PRIMITIVE_TYPES, Array
     from ...base.functions.arguments import get_name, get_names, update
     from ...loggers.logger_interface import LoggerInterface
-    from ...functions.primary.items import STAR, get_field_value_from_item, get_fields_values_from_item
+    from ...functions.primary.items import ALL, get_field_value_from_item, get_fields_values_from_item
     from ...utils import algo
     from ...utils.decorators import deprecated_with_alternative
     from ..items.item_type import ItemType
