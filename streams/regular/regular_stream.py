@@ -629,22 +629,47 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
     def actualize(self) -> Native:  # used in ValidateMixin.prepare_examples_with_title()
         return self
 
+    def get_struct_chapter(
+            self,
+            example_item: Optional[Item] = None,
+            comment: Optional[str] = None,
+            level: Optional[int] = DEFAULT_CHAPTER_TITLE_LEVEL,
+            name: str = 'Columns',
+    ) -> Chapter:
+        chapter = Chapter(name=name)
+        if level:
+            title = Paragraph([name], level=level, name=f'{name} title')
+            chapter.add_items([title])
+        if comment:
+            chapter.append(comment)
+        struct = self.get_struct()
+        if isinstance(struct, StructInterface) or hasattr(struct, 'get_data_sheet'):
+            struct_sheet = struct.get_data_sheet(
+                show_header=False,
+                example=example_item,
+                comment=comment,
+            )
+            chapter.add_items([struct_sheet])
+        else:
+            if struct:
+                tag, err = '[TYPE_ERROR]', f'Expected struct as StructInterface, got {struct} instead.'
+            else:
+                tag, err = '[EMPTY]', 'Struct is not defined.'
+            chapter.append(f'{tag} {err}')
+        return chapter
+
     def get_example_chapter(
             self,
             count: int = DEFAULT_EXAMPLE_COUNT,
             columns: Columns = None,
             example: Stream = None,
             comment: Optional[str] = None,
-            show_title: Union[bool, int, None] = None,
+            level: Optional[int] = DEFAULT_CHAPTER_TITLE_LEVEL,
             name: str = 'Example',
     ) -> Chapter:
         example_sheet = self.get_example_sheet(count=count, columns=columns, example=example, name=f'{name} sheet')
         items = list()
-        if show_title:
-            if isinstance(show_title, int) and not isinstance(show_title, bool):
-                level = show_title
-            else:
-                level = DEFAULT_CHAPTER_TITLE_LEVEL
+        if level:
             title = Paragraph([name], level=level, name=f'{name} title')
             items.append(title)
         if comment:
@@ -705,22 +730,12 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
             display.display_paragraph()
         else:
             example_item, example_stream, example_comment = None, None, None
-        if isinstance(struct, StructInterface) or hasattr(struct, 'describe'):
-            struct.describe(
-                show_header=False,
-                example=example_item,
-                comment=example_comment,
-                display=display,
-            )
-        elif struct:
-            tag = '[TYPE_ERROR]'
-            display.append(f'{tag} Expected struct as StructInterface, got {struct} instead')
-        else:
-            display.append('Struct is not defined.')
+        struct_chapter = self.get_struct_chapter(level=DEFAULT_CHAPTER_TITLE_LEVEL, name='Struct')
+        display.display(struct_chapter)
         if example_stream and count:
             example_chapter = self.get_example_chapter(
                 count, columns=columns, example=example_stream,
-                comment=example_comment, show_title=DEFAULT_CHAPTER_TITLE_LEVEL, name='Example',
+                comment=example_comment, level=DEFAULT_CHAPTER_TITLE_LEVEL, name='Example',
             )
             display.display(example_chapter)
         self.display_paragraph('MetaInformation', level=3)
