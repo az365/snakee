@@ -14,10 +14,12 @@ try:  # Assume we're a submodule in a package.
     from base.mixin.iter_data_mixin import IterDataMixin
     from functions.secondary import array_functions as fs
     from utils.external import pd, get_use_objects_for_output, DataFrame
+    from streams.stream_builder import StreamBuilder
     from content.fields.any_field import AnyField
     from content.items.simple_items import SelectableItem, is_row, is_record
     from content.selection.abstract_expression import AbstractDescription
     from content.selection.selectable_mixin import SelectableMixin
+    from content.documents.document_item import Chapter, Paragraph, Sheet, DEFAULT_CHAPTER_TITLE_LEVEL
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         StructInterface, StructRowInterface, FieldInterface, RepresentationInterface,
@@ -32,10 +34,12 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.mixin.iter_data_mixin import IterDataMixin
     from ...functions.secondary import array_functions as fs
     from ...utils.external import pd, get_use_objects_for_output, DataFrame
+    from ...streams.stream_builder import StreamBuilder
     from ..fields.any_field import AnyField
     from ..items.simple_items import SelectableItem, is_row, is_record
     from ..selection.abstract_expression import AbstractDescription
     from ..selection.selectable_mixin import SelectableMixin
+    from ..documents.document_item import Chapter, Paragraph, Sheet, DEFAULT_CHAPTER_TITLE_LEVEL
 
 Native = StructInterface
 Group = Union[Native, Iterable]
@@ -695,6 +699,18 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
         for line in struct_description_lines:
             yield line[:max_len]
 
+    def get_data_sheet(
+            self,
+            count: AutoCount = AUTO,  # DEFAULT_EXAMPLE_COUNT
+            example: Optional[dict] = None,
+            select_fields: Optional[Array] = None,
+            name: str = 'Data sheet',
+    ) -> Sheet:
+        columns = self._get_describe_columns(example, with_lens=True)
+        records = self.get_struct_repr_records(example=example, select_fields=select_fields, count=count)
+        stream = StreamBuilder.stream(records, struct=columns)
+        return Sheet(stream, name=name)
+
     def display_data_sheet(
             self,
             count: AutoCount = AUTO,  # DEFAULT_EXAMPLE_COUNT
@@ -704,11 +720,10 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
             display=AUTO,
     ) -> None:
         display = self.get_display(display)
-        columns = self._get_describe_columns(example, with_lens=True)
-        records = self.get_struct_repr_records(example=example, select_fields=select_fields, count=count)
         if title:
             display.display_paragraph(title, level=3)
-        return display.display_sheet(records, columns=columns, count=count)
+        data_sheet = self.get_data_sheet(count, example=example, select_fields=select_fields, name=f'{title} sheet')
+        return display.display(data_sheet)
 
     def get_dataframe(self) -> DataFrame:
         data = self.get_struct_description_rows(include_header=True)

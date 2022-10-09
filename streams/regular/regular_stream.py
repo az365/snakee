@@ -665,6 +665,13 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
         example = self._assume_native(example)
         return Sheet(example, name=name)
 
+    def get_data_sheet(
+            self,
+            count: AutoCount = AUTO,
+            name: str = 'Data sheet',
+    ):
+        return self.get_example_sheet(count, name=name)
+
     def describe(
             self,
             *filter_args,
