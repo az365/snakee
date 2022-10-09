@@ -10,6 +10,7 @@ try:  # Assume we're a submodule in a package.
         AUTO, Auto, AutoDisplay, AutoBool, AutoName, AutoCount, Array, ARRAY_TYPES,
     )
     from base.functions.arguments import get_name, get_names, get_str_from_args_kwargs
+    from base.abstract.named import COLS_FOR_META
     from utils.decorators import deprecated_with_alternative
     from functions.primary.items import set_to_item, merge_two_items, unfold_structs_to_fields
     from functions.secondary import all_secondary_functions as fs
@@ -33,6 +34,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         AUTO, Auto, AutoDisplay, AutoBool, AutoName, AutoCount, Array, ARRAY_TYPES,
     )
     from ...base.functions.arguments import get_name, get_names, get_str_from_args_kwargs
+    from ...base.abstract.named import COLS_FOR_META
     from ...utils.decorators import deprecated_with_alternative
     from ...functions.primary.items import set_to_item, merge_two_items, unfold_structs_to_fields
     from ...functions.secondary import all_secondary_functions as fs
@@ -629,6 +631,26 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
     def actualize(self) -> Native:  # used in ValidateMixin.prepare_examples_with_title()
         return self
 
+    def get_meta_sheet(
+            self,
+            name: str = 'MetaInformation sheet',
+    ) -> Sheet:
+        meta_stream = StreamBuilder.stream(self.get_meta_records(), struct=COLS_FOR_META)
+        return Sheet(meta_stream, name=name)
+
+    def get_meta_chapter(
+            self,
+            level: Optional[int] = DEFAULT_CHAPTER_TITLE_LEVEL,
+            name: str = 'MetaInformation',
+    ) -> Chapter:
+        chapter = Chapter(name=name)
+        if level:
+            title = Paragraph([name], level=level, name=f'{name} title')
+            chapter.add_items([title])
+        meta_sheet = self.get_meta_sheet(name=f'{name} sheet')
+        chapter.add_items([meta_sheet])
+        return chapter
+
     def get_struct_chapter(
             self,
             example_item: Optional[Item] = None,
@@ -738,9 +760,8 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
                 comment=example_comment, level=DEFAULT_CHAPTER_TITLE_LEVEL, name='Example',
             )
             display.display(example_chapter)
-        self.display_paragraph('MetaInformation', level=3)
-        self.display_meta(display=display)
-        display.display_paragraph()
+        meta_chapter = self.get_meta_chapter(level=DEFAULT_CHAPTER_TITLE_LEVEL, name='MetaInformation')
+        display.display_item(meta_chapter)
         return self
 
     @staticmethod
