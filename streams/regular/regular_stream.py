@@ -658,26 +658,25 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
             level: Optional[int] = DEFAULT_CHAPTER_TITLE_LEVEL,
             name: str = 'Columns',
     ) -> Chapter:
-        chapter = Chapter(name=name)
+        content = list()
         if level:
             title = Paragraph([name], level=level, name=f'{name} title')
-            chapter.add_items([title])
+            content.append(title)
         if comment:
-            chapter.append(comment)
+            content.append(comment)
         struct = self.get_struct()
+        if not Auto.is_defined(struct):
+            struct = FlatStruct(self.get_columns())
         if isinstance(struct, StructInterface) or hasattr(struct, 'get_data_sheet'):
-            struct_sheet = struct.get_data_sheet(
-                show_header=False,
-                example=example_item,
-                comment=comment,
-            )
-            chapter.add_items([struct_sheet])
+            struct_sheet = struct.get_data_sheet(example=example_item)
+            content.append(struct_sheet)
         else:
             if struct:
                 tag, err = '[TYPE_ERROR]', f'Expected struct as StructInterface, got {struct} instead.'
             else:
                 tag, err = '[EMPTY]', 'Struct is not defined.'
-            chapter.append(f'{tag} {err}')
+            content.append(f'{tag} {err}')
+        chapter = Chapter(content, name=name)
         return chapter
 
     def get_example_chapter(
@@ -752,7 +751,10 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
             display.display_paragraph()
         else:
             example_item, example_stream, example_comment = None, None, None
-        struct_chapter = self.get_struct_chapter(level=DEFAULT_CHAPTER_TITLE_LEVEL, name='Struct')
+        struct_chapter = self.get_struct_chapter(
+            example_item=example_item, comment=example_comment,
+            level=DEFAULT_CHAPTER_TITLE_LEVEL, name='Struct',
+        )
         display.display(struct_chapter)
         if example_stream and count:
             example_chapter = self.get_example_chapter(
