@@ -180,6 +180,8 @@ Native = Union[DocumentItem, IterDataMixin]
 
 class Sheet(DocumentItem, IterDataMixin):
     def __init__(self, data: RegularStreamInterface, name: str = ''):
+        if hasattr(data, RegularStreamInterface) or hasattr(data, 'collect'):
+            data = data.collect()
         super().__init__(data=data, name=name)
 
     @classmethod
@@ -237,9 +239,9 @@ class Sheet(DocumentItem, IterDataMixin):
             yield '<tr>'
             for cell in row:
                 if Auto.is_defined(style):
-                    yield HTML_INDENT + f'<td>{cell}</td>'
-                else:
                     yield HTML_INDENT + f'<td style="{style}">{cell}</td>'
+                else:
+                    yield HTML_INDENT + f'<td>{cell}</td>'
             yield '</tr>'
             if Auto.is_defined(count):
                 if n + 1 >= count:
@@ -275,7 +277,7 @@ class Chart(DocumentItem):
 class Text(DocumentItem, IterDataMixin):
     def __init__(
             self,
-            data: Union[str, list, None],
+            data: Union[str, list, None] = None,
             style: OptStyle = None,
             name: str = '',
     ):
@@ -361,7 +363,19 @@ class CompositionType(DynamicEnum):
 
 
 class Container(DocumentItem, IterDataMixin):
-    pass
+    def get_html_lines(self) -> Iterator[str]:
+        tag = self.get_html_tag_name()
+        if tag:
+            yield self.get_html_open_tag()
+        for item in self.get_data():
+            if isinstance(item, DocumentItem) or hasattr(item, 'get_html_lines'):
+                yield from item.get_html_lines()
+            elif isinstance(item, str):
+                yield item
+            else:
+                raise TypeError(f'Expected item as DocumentItem or str, got item {repr(item)} as {type(item)}')
+        if tag:
+            yield self.get_html_close_tag()
 
 
 class MultiChart(Chart, Container):
