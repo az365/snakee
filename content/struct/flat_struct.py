@@ -14,6 +14,7 @@ try:  # Assume we're a submodule in a package.
     from base.mixin.iter_data_mixin import IterDataMixin
     from functions.secondary import array_functions as fs
     from utils.external import pd, get_use_objects_for_output, DataFrame
+    from utils.decorators import deprecated_with_alternative
     from streams.stream_builder import StreamBuilder
     from content.fields.any_field import AnyField
     from content.items.simple_items import SelectableItem, is_row, is_record
@@ -34,6 +35,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.mixin.iter_data_mixin import IterDataMixin
     from ...functions.secondary import array_functions as fs
     from ...utils.external import pd, get_use_objects_for_output, DataFrame
+    from ...utils.decorators import deprecated_with_alternative
     from ...streams.stream_builder import StreamBuilder
     from ..fields.any_field import AnyField
     from ..items.simple_items import SelectableItem, is_row, is_record
@@ -82,7 +84,8 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
             )
             if isinstance(field_or_struct, StructInterface) or hasattr(field_or_struct, 'get_fields_descriptions'):
                 self.add_fields(field_or_struct.get_fields_descriptions(), **kwargs)
-            elif isinstance(field_or_struct, list):  # not tuple (tuple can be old-style FieldDescription
+            elif isinstance(field_or_struct, list) and not isinstance(field_or_struct, (str, tuple)):
+                # str and tuple can be old-style FieldDescription
                 self.add_fields(*field_or_struct, **kwargs)
             elif field_or_struct:
                 self.append_field(field_or_struct, **kwargs)
@@ -395,7 +398,7 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
             return False
         return True
 
-    # @deprecated
+    @deprecated_with_alternative('is_valid_item()')
     def is_valid_row(self, row: Union[Iterable, StructRowInterface]) -> bool:
         for value, field_type in zip(row, self.get_types_list(DialectType.Python)):
             if not isinstance(value, field_type):
@@ -617,21 +620,21 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
     @staticmethod
     def _get_describe_template(example) -> tuple:
         if example:
-            columns = ('V', 'N', 'TYPE', 'NAME', 'EXAMPLE', 'CAPTION')
+            columns = 'V', 'N', 'TYPE', 'NAME', 'EXAMPLE', 'CAPTION'
             template = ' {:<1}  {:<3} {:<8} {:<28} {:<14} {:<56}'
         else:
-            columns = ('V', 'N', 'TYPE', 'NAME', 'CAPTION')
+            columns = 'V', 'N', 'TYPE', 'NAME', 'CAPTION'
             template = ' {:<1}  {:<3} {:<8} {:<28} {:<72}'
         return columns, template
 
     @staticmethod
     def _get_describe_columns(example, with_lens: bool = True) -> tuple:
         if example:
-            columns = ('valid', 'n', 'type_name', 'name', 'example', 'caption')
-            lens = (1, 3, 8, 28, 14, 56)
+            columns = 'valid', 'n', 'type_name', 'name', 'example', 'caption'
+            lens = 1, 3, 8, 28, 14, 56
         else:
-            columns = ('valid', 'n', 'type_name', 'name', 'caption')
-            lens = (1, 3, 8, 28, 72)
+            columns = 'valid', 'n', 'type_name', 'name', 'caption'
+            lens = 1, 3, 8, 28, 72
         if with_lens:
             return tuple(zip(columns, lens))
         else:
