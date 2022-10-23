@@ -8,6 +8,7 @@ try:  # Assume we're a submodule in a package.
     )
     from base.functions.arguments import get_name, get_str_from_args_kwargs
     from base.constants.chars import EMPTY, CROP_SUFFIX, ITEMS_DELIMITER, DEFAULT_LINE_LEN
+    from utils.decorators import deprecated_with_alternative
     from functions.primary import dates as dt
     from streams.mixin.validate_mixin import ValidateMixin, DEFAULT_EXAMPLE_COUNT
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -17,6 +18,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     )
     from ...base.functions.arguments import get_name, get_str_from_args_kwargs
     from ...base.constants.chars import EMPTY, CROP_SUFFIX, ITEMS_DELIMITER, DEFAULT_LINE_LEN
+    from ...utils.decorators import deprecated_with_alternative
     from ...functions.primary import dates as dt
     from ...streams.mixin.validate_mixin import ValidateMixin, DEFAULT_EXAMPLE_COUNT
 
@@ -141,6 +143,7 @@ class ActualizeMixin(ValidateMixin, ABC):
             str_meta = get_str_from_args_kwargs(*description_args)
         return super().get_one_line_repr(str_meta=str_meta, max_len=max_len, crop=crop)
 
+    @deprecated_with_alternative('show()')
     def show_example(
             self,
             count: int = DEFAULT_EXAMPLE_COUNT,
