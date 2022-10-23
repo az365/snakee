@@ -12,6 +12,7 @@ Value = Any
 Class = Union[Type, Callable]
 Array = Union[list, tuple]
 ARRAY_TYPES = list, tuple
+PRIMITIVE_TYPES = str, int, float, bool
 
 Name = FieldID
 Count = Optional[int]

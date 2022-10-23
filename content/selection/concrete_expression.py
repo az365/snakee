@@ -210,7 +210,7 @@ class FunctionDescription(SingleFieldDescription):
         if self.give_same_field_to_input:
             return [self.get_target_field()]
         else:
-            return [it.STAR]
+            return [it.ALL]
 
     def get_input_field_types(self) -> dict:
         field_types = self.get_annotations().copy()

@@ -565,11 +565,6 @@ class SqlStream(WrapperStream):
         stream = self.to_stream(stream_type=stream_type).collect()
         return self._assume_native(stream)
 
-    def get_demo_example(self, count: int = DEFAULT_EXAMPLE_COUNT) -> Stream:
-        stream = self.copy().take(count)
-        assert isinstance(stream, SqlStream) or hasattr(stream, 'collect'), f'got {stream}'
-        return stream.collect()
-
     def one(self) -> Stream:
         stream = self.copy().take(1)
         assert isinstance(stream, SqlStream) or hasattr(stream, 'collect'), 'got {}'.format(stream)

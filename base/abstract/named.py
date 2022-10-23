@@ -5,23 +5,21 @@ try:  # Assume we're a submodule in a package.
     from base.classes.auto import AUTO, Auto
     from base.constants.chars import EMPTY, TAB_INDENT, REPR_DELIMITER, DEFAULT_LINE_LEN
     from base.functions.arguments import get_str_from_args_kwargs
+    from base.interfaces.sourced_interface import COLS_FOR_META
     from base.mixin.display_mixin import DisplayMixin, AutoDisplay, PREFIX_FIELD
     from base.abstract.abstract_base import AbstractBaseObject
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.auto import AUTO, Auto
     from ..constants.chars import EMPTY, TAB_INDENT, REPR_DELIMITER, DEFAULT_LINE_LEN
     from ..functions.arguments import get_str_from_args_kwargs
+    from ..interfaces.sourced_interface import COLS_FOR_META
     from ..mixin.display_mixin import DisplayMixin, AutoDisplay, PREFIX_FIELD
     from .abstract_base import AbstractBaseObject
 
 Native = Union[AbstractBaseObject, DisplayMixin]
 
-SPECIFIC_MEMBERS = ('_name', )
+SPECIFIC_MEMBERS = '_name',
 BRIEF_META_ROW_FORMATTER = '{prefix}{key:10} {value}'
-COLS_FOR_META = [
-    ('defined', 3), ('key', 20), ('value', 30),
-    ('actual_type', 14), ('expected_type', 20), ('default', 20),
-]
 
 
 class AbstractNamed(AbstractBaseObject, DisplayMixin, ABC):
@@ -70,7 +68,7 @@ class AbstractNamed(AbstractBaseObject, DisplayMixin, ABC):
             line = BRIEF_META_ROW_FORMATTER.format(prefix=prefix, key='meta:', value=get_str_from_args_kwargs(**meta))
             yield line[:DEFAULT_LINE_LEN]
 
-    def display_meta_description(self, with_title: bool = True, display: AutoDisplay = AUTO) -> Native:
+    def display_meta(self, with_title: bool = True, display: AutoDisplay = AUTO) -> Native:
         display = self.get_display(display)
         display.display_sheet(
             records=self.get_meta_records(),
@@ -101,7 +99,7 @@ class AbstractNamed(AbstractBaseObject, DisplayMixin, ABC):
             display.display_paragraph(self.get_str_headers())
         if comment:
             display.append(comment)
-        self.display_meta_description(display=display)
+        self.display_meta(display=display)
         if depth > 0:
             for attribute, value in self.get_meta_items():
                 if isinstance(value, AbstractBaseObject) or hasattr(value, 'describe'):

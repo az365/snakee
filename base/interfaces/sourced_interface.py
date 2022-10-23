@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional, NoReturn
+from typing import Optional
 
 try:  # Assume we're a submodule in a package.
     from loggers.logger_interface import LoggerInterface
@@ -8,8 +8,11 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...loggers.logger_interface import LoggerInterface
     from ..interfaces.base_interface import BaseInterface
 
-Source = BaseInterface
+Source = Optional[BaseInterface]
 Logger = Optional[LoggerInterface]
+
+COLS_FOR_META = ('defined', 3), ('key', 20), ('value', 30), ('actual_type', 14), ('expected_type', 20), ('default', 20)
+COLS_FOR_DICT = [('key', 20), 'value']
 
 
 class SourcedInterface(ABC):
@@ -18,19 +21,19 @@ class SourcedInterface(ABC):
         pass
 
     @abstractmethod
-    def set_name(self, name: str, inplace=True) -> Optional[Source]:
+    def set_name(self, name: str, inplace=True) -> Source:
         pass
 
     @abstractmethod
-    def get_source(self) -> Source:
+    def get_source(self) -> BaseInterface:
         pass
 
     @abstractmethod
-    def set_source(self, source: Source, reset: bool = True) -> Optional[Source]:
+    def set_source(self, source: Source, reset: bool = True) -> Source:
         pass
 
     @abstractmethod
-    def register(self, check: bool = True) -> NoReturn:
+    def register(self, check: bool = True) -> BaseInterface:
         pass
 
     @abstractmethod

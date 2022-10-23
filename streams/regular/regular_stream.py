@@ -10,12 +10,14 @@ try:  # Assume we're a submodule in a package.
         AUTO, Auto, AutoDisplay, AutoBool, AutoName, AutoCount, Array, ARRAY_TYPES,
     )
     from base.functions.arguments import get_name, get_names, get_str_from_args_kwargs
+    from base.abstract.named import COLS_FOR_META
     from utils.decorators import deprecated_with_alternative
     from functions.primary.items import set_to_item, merge_two_items, unfold_structs_to_fields
     from functions.secondary import all_secondary_functions as fs
     from content.items.item_getters import get_filter_function
     from content.selection import selection_classes as sn
     from content.struct.flat_struct import FlatStruct
+    from content.documents.document_item import Chapter, Paragraph, Sheet, DEFAULT_CHAPTER_TITLE_LEVEL
     from streams.abstract.local_stream import LocalStream
     from streams.interfaces.regular_stream_interface import (
         RegularStreamInterface, StreamItemType,
@@ -32,12 +34,14 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         AUTO, Auto, AutoDisplay, AutoBool, AutoName, AutoCount, Array, ARRAY_TYPES,
     )
     from ...base.functions.arguments import get_name, get_names, get_str_from_args_kwargs
+    from ...base.abstract.named import COLS_FOR_META
     from ...utils.decorators import deprecated_with_alternative
     from ...functions.primary.items import set_to_item, merge_two_items, unfold_structs_to_fields
     from ...functions.secondary import all_secondary_functions as fs
     from ...content.items.item_getters import get_filter_function
     from ...content.selection import selection_classes as sn
     from ...content.struct.flat_struct import FlatStruct
+    from ...content.documents.document_item import Chapter, Paragraph, Sheet, DEFAULT_CHAPTER_TITLE_LEVEL
     from ..abstract.local_stream import LocalStream
     from ..interfaces.regular_stream_interface import (
         RegularStreamInterface, StreamItemType,
@@ -262,9 +266,9 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
             items: Iterable,
             struct: AutoStruct = AUTO,
             skip_errors: bool = False,
-            context: Context = None,  # deprecated argument
+            context: Context = None,  # used for validate items before initialization
     ) -> Generator:
-        logger = context.get_logger() if context else None
+        logger = context.get_logger() if context else self.get_logger()
         for i in items:
             errors = self._get_validation_errors(i, struct=struct)
             if errors:
@@ -627,19 +631,92 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
     def actualize(self) -> Native:  # used in ValidateMixin.prepare_examples_with_title()
         return self
 
-    def get_demo_example(
+    def get_meta_sheet(
             self,
-            count: Count = DEFAULT_EXAMPLE_COUNT,
-            filters: Columns = None,
+            name: str = 'MetaInformation sheet',
+    ) -> Sheet:
+        meta_stream = StreamBuilder.stream(self.get_meta_records(), struct=COLS_FOR_META)
+        return Sheet(meta_stream, name=name)
+
+    def get_meta_chapter(
+            self,
+            level: Optional[int] = DEFAULT_CHAPTER_TITLE_LEVEL,
+            name: str = 'MetaInformation',
+    ) -> Chapter:
+        chapter = Chapter(name=name)
+        if level:
+            title = Paragraph([name], level=level, name=f'{name} title')
+            chapter.add_items([title])
+        meta_sheet = self.get_meta_sheet(name=f'{name} sheet')
+        chapter.add_items([meta_sheet])
+        return chapter
+
+    def get_struct_chapter(
+            self,
+            example_item: Optional[Item] = None,
+            comment: Optional[str] = None,
+            level: Optional[int] = DEFAULT_CHAPTER_TITLE_LEVEL,
+            name: str = 'Columns',
+    ) -> Chapter:
+        content = list()
+        if level:
+            title = Paragraph([name], level=level, name=f'{name} title')
+            content.append(title)
+        if comment:
+            content.append(comment)
+        struct = self.get_struct()
+        if not Auto.is_defined(struct):
+            struct = FlatStruct(self.get_columns())
+        if isinstance(struct, StructInterface) or hasattr(struct, 'get_data_sheet'):
+            struct_sheet = struct.get_data_sheet(example=example_item)
+            content.append(struct_sheet)
+        else:
+            if struct:
+                tag, err = '[TYPE_ERROR]', f'Expected struct as StructInterface, got {struct} instead.'
+            else:
+                tag, err = '[EMPTY]', 'Struct is not defined.'
+            content.append(f'{tag} {err}')
+        chapter = Chapter(content, name=name)
+        return chapter
+
+    def get_example_chapter(
+            self,
+            count: int = DEFAULT_EXAMPLE_COUNT,
             columns: Columns = None,
-    ) -> Native:
-        if self.is_in_memory():
-            stream = self
-        else:  # data is iterator
-            stream = self.copy()
-        sm_sample = stream.filter(*filters) if filters else self
-        sm_sample = sm_sample.take(count)
-        return sm_sample.collect()
+            example: Stream = None,
+            comment: Optional[str] = None,
+            level: Optional[int] = DEFAULT_CHAPTER_TITLE_LEVEL,
+            name: str = 'Example',
+    ) -> Chapter:
+        example_sheet = self.get_example_sheet(count=count, columns=columns, example=example, name=f'{name} sheet')
+        items = list()
+        if level:
+            title = Paragraph([name], level=level, name=f'{name} title')
+            items.append(title)
+        if comment:
+            comment = Paragraph([comment], name=f'{name} comment')
+            items.append(comment)
+        items.append(example_sheet)
+        chapter = Chapter(items, name=name)
+        return chapter
+
+    def get_example_sheet(
+            self,
+            count: int = DEFAULT_EXAMPLE_COUNT,
+            columns: Columns = None,
+            example: Stream = None,
+            name: str = 'Example sheet',
+    ) -> Sheet:
+        example = self._get_demo_example(count, columns=columns, example=example)
+        example = self._assume_native(example)
+        return Sheet(example, name=name)
+
+    def get_data_sheet(
+            self,
+            count: AutoCount = AUTO,
+            name: str = 'Data sheet',
+    ):
+        return self.get_example_sheet(count, name=name)
 
     def describe(
             self,
@@ -668,35 +745,25 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
             )
             display.append(struct_title)
             if self.get_invalid_fields_count():
-                line = 'Invalid columns: {}'.format(get_str_from_args_kwargs(*self.get_invalid_columns()))
+                invalid_columns_str = get_str_from_args_kwargs(*self.get_invalid_columns())
+                line = f'Invalid columns: {invalid_columns_str}'
                 display.append(line)
             display.display_paragraph()
         else:
             example_item, example_stream, example_comment = None, None, None
-        if isinstance(struct, StructInterface) or hasattr(struct, 'describe'):
-            struct.describe(
-                show_header=False,
-                example=example_item,
-                comment=example_comment,
-                display=display,
-            )
-        elif struct:
-            display.append(f'[TYPE_ERROR] Expected struct as StructInterface, got {struct} instead')
-        else:
-            display.append('Struct is not defined.')
+        struct_chapter = self.get_struct_chapter(
+            example_item=example_item, comment=example_comment,
+            level=DEFAULT_CHAPTER_TITLE_LEVEL, name='Struct',
+        )
+        display.display(struct_chapter)
         if example_stream and count:
-            display.display_paragraph('Example', level=3)
-            if example_comment:
-                display.display_paragraph(example_comment)
-            example_records, example_columns = self._get_example_records_and_columns(
-                count=count,
-                example=example_stream,
-                columns=columns,
+            example_chapter = self.get_example_chapter(
+                count, columns=columns, example=example_stream,
+                comment=example_comment, level=DEFAULT_CHAPTER_TITLE_LEVEL, name='Example',
             )
-            display.display_sheet(records=example_records, columns=example_columns)
-        self.display_paragraph('MetaInformation', level=3)
-        self.display_meta_description(display=display)
-        display.display_paragraph()
+            display.display(example_chapter)
+        meta_chapter = self.get_meta_chapter(level=DEFAULT_CHAPTER_TITLE_LEVEL, name='MetaInformation')
+        display.display_item(meta_chapter)
         return self
 
     @staticmethod

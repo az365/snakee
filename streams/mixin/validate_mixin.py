@@ -2,12 +2,12 @@ from abc import ABC
 from typing import Optional, Generator, Tuple, Union
 
 try:  # Assume we're a submodule in a package.
-    from interfaces import LeafConnectorInterface, Stream, Array, Count, AutoBool, Auto, AUTO
+    from interfaces import LeafConnectorInterface, Stream, Item, Columns, Array, Count, AutoBool, Auto, AUTO
     from base.functions.arguments import get_str_from_args_kwargs
     from base.constants.chars import EMPTY, CROP_SUFFIX
     from streams.interfaces.abstract_stream_interface import StreamInterface, DEFAULT_EXAMPLE_COUNT
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...interfaces import LeafConnectorInterface, Stream, Array, Count, AutoBool, Auto, AUTO
+    from ...interfaces import LeafConnectorInterface, Stream, Item, Columns, Array, Count, AutoBool, Auto, AUTO
     from ...base.functions.arguments import get_str_from_args_kwargs
     from ...base.constants.chars import EMPTY, CROP_SUFFIX
     from ..interfaces.abstract_stream_interface import StreamInterface, DEFAULT_EXAMPLE_COUNT
@@ -62,13 +62,15 @@ class ValidateMixin(ABC):
             column_count = self.get_column_count()
             error_count = self.get_invalid_fields_count()
             if self.is_valid_struct():
-                message = 'file has {} rows, {} valid columns:'.format(row_count, column_count)
+                message = f'file has {row_count} rows, {column_count} valid columns:'
             else:
+                tag = '[INVALID]'
                 valid_count = column_count - error_count
-                template = '[INVALID] file has {} rows, {} columns = {} valid + {} invalid:'
-                message = template.format(row_count, column_count, valid_count, error_count)
+                validation_str = f'{valid_count} valid + {error_count} invalid'
+                message = f'{tag} file has {row_count} rows, {column_count} columns = {validation_str}:'
             if not hasattr(self.get_struct(), 'get_caption'):
-                message = '[DEPRECATED] {}'.format(message)
+                tag = '[DEPRECATED]'
+                message = f'{tag} {message}'
         else:
             message = 'Cannot validate struct while dataset source is disconnected'
             if skip_disconnected:
@@ -79,19 +81,49 @@ class ValidateMixin(ABC):
                 raise ValueError(message)
         return message
 
-    def _get_example_records_and_columns(
+    def _get_demo_example(
             self,
             count: int = DEFAULT_EXAMPLE_COUNT,
+            filters: Columns = None,
+            columns: Columns = None,
             example: Optional[Stream] = None,
+    ) -> Native:
+        if hasattr(self, 'is_in_memory'):  # isinstance(self, IterableStream)
+            is_in_memory = self.is_in_memory()
+        else:
+            is_in_memory = True  # ?
+        if Auto.is_defined(example):
+            stream = example
+        elif is_in_memory:
+            stream = self
+        elif hasattr(self, 'copy'):  # data is iterator
+            stream = self.copy()
+        else:
+            stream = self
+        if Auto.is_defined(filters):
+            stream = stream.filter(*filters)
+        if Auto.is_defined(count):
+            stream = stream.take(count)
+        if Auto.is_defined(columns) and hasattr(stream, 'select'):
+            stream = stream.select(columns)
+        return stream.collect()
+
+    def _get_demo_records_and_columns(
+            self,
+            count: int = DEFAULT_EXAMPLE_COUNT,
+            filters: Columns = None,
             columns: Optional[Array] = None,
+            example: Optional[Stream] = None,
     ) -> Tuple[Array, Array]:
-        if not Auto.is_defined(example):
-            example = self.to_records_stream()
-        example = example.take(count).collect()
-        if example:
-            if not Auto.is_defined(columns):
-                columns = example.columns()
-        return example.get_records(), columns
+        example = self._get_demo_example(count=count, filters=filters, columns=columns, example=example)
+        if hasattr(example, 'get_columns') and hasattr(example, 'get_records'):  # RegularStream, SqlStream
+            records = example.get_records()  # ConvertMixin.get_records(), SqlStream.get_records()
+            columns = example.get_columns()  # StructMixin.get_columns(), RegularStream.get_columns()
+        else:
+            item_field = 'item'
+            records = [{item_field: i} for i in example]
+            columns = [item_field]
+        return records, columns
 
     def _prepare_examples_with_title(
             self,
@@ -144,7 +176,7 @@ class ValidateMixin(ABC):
             crop_suffix: str = CROP_SUFFIX,
             verbose: bool = AUTO,
             **filter_kwargs
-    ) -> tuple:
+    ) -> Tuple[Item, Stream, str]:
         filters = filters or list()
         if filter_kwargs and safe_filter:
             filter_kwargs = {k: v for k, v in filter_kwargs.items() if k in self.get_columns()}
@@ -161,7 +193,8 @@ class ValidateMixin(ABC):
             else:
                 message = 'Example without any filters:'
         else:
-            message = f'[EXAMPLE_NOT_FOUND] Example with this filters not found: {str_filters}'
+            tag = '[EXAMPLE_NOT_FOUND]'
+            message = f'{tag} Example with this filters not found: {str_filters}'
             stream_example = None
             if hasattr(self, 'get_one_record'):
                 item_example = self.get_one_record()
@@ -178,5 +211,6 @@ class ValidateMixin(ABC):
         else:
             item_example = dict()
             stream_example = None
-            message = f'[EMPTY_DATA] There are no valid items in stream_dataset {repr(self)}'
+            tag = '[EMPTY_DATA]'
+            message = f'{tag} There are no valid items in stream_dataset {repr(self)}'
         return item_example, stream_example, message

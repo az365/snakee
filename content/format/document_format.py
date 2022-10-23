@@ -66,7 +66,9 @@ class DocumentFormat(TextFormat, DefaultDisplay):
     def _get_display_object(cls, data: Union[str, Iterable, None]) -> Optional[DisplayObject]:
         if not data:
             return None
-        if not isinstance(data, str):
+        if hasattr(data, 'get_lines'):
+            data = data.get_lines()
+        if isinstance(data, Iterable) and not isinstance(data, str):
             data = '\n'.join(data)
         display_class = cls._get_display_class()
         if display_class:

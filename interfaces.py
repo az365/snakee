@@ -114,7 +114,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 
 try:  # Assume we're a submodule in a package.
     from base.classes.typing import (
-        ARRAY_TYPES, Array, Count, Columns, OptionalFields, Options, Message,
+        PRIMITIVE_TYPES, ARRAY_TYPES, Array, Count, Columns, OptionalFields, Options, Message,
         FieldName, FieldNo, FieldID, Name, Value, Class, Links,
         AUTO, Auto, AutoName, AutoCount, AutoBool, AutoColumns, AutoLinks,
     )
@@ -123,14 +123,14 @@ try:  # Assume we're a submodule in a package.
         Field, Struct, Group, FieldOrStruct, FieldOrGroup, UniKey,
     )
     from content.items.simple_items import (
-        ROW_SUBCLASSES, RECORD_SUBCLASSES, LINE_SUBCLASSES, STAR, Line,
+        ROW_SUBCLASSES, RECORD_SUBCLASSES, LINE_SUBCLASSES, ALL, Line,
         FrozenDict, SimpleRecord, MutableRecord, ImmutableRecord, Record,
         SimpleRowInterface, SimpleRow, MutableRow, ImmutableRow, Row,
         SimpleSelectableItem, SimpleItem, Item,
     )
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from .base.classes.typing import (
-        ARRAY_TYPES, Array, Count, Columns, OptionalFields, Options, Message,
+        PRIMITIVE_TYPES, ARRAY_TYPES, Array, Count, Columns, OptionalFields, Options, Message,
         FieldName, FieldNo, FieldID, Name, Value, Class, Links,
         AUTO, Auto, AutoName, AutoCount, AutoBool, AutoColumns, AutoLinks,
     )
@@ -139,7 +139,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         Field, Struct, Group, FieldOrStruct, FieldOrGroup, UniKey,
     )
     from .content.items.simple_items import (
-        ROW_SUBCLASSES, RECORD_SUBCLASSES, LINE_SUBCLASSES, STAR, Line,
+        ROW_SUBCLASSES, RECORD_SUBCLASSES, LINE_SUBCLASSES, ALL, Line,
         FrozenDict, SimpleRecord, MutableRecord, ImmutableRecord, Record,
         SimpleRowInterface, SimpleRow, MutableRow, ImmutableRow, Row,
         SimpleSelectableItem, SimpleItem, Item,
