@@ -125,12 +125,14 @@ class DocumentItem(SimpleDataWrapper):
                 yield item
             elif isinstance(item, DocumentItem) or hasattr(item, 'get_items_html_lines'):
                 yield from item.get_items_html_lines()
+            elif isinstance(item, DocumentItem) or hasattr(item, 'get_html_lines'):  # ?
+                yield from item.get_html_lines()
             elif hasattr(item, 'get_lines'):  # isinstance(item, RegularStream)
                 yield from item.get_lines()
             elif isinstance(item, Iterable):
                 yield from item
             else:
-                raise TypeError(f'Expected item as DocumentItem or str, got item {item}')
+                raise TypeError(f'Expected item as DocumentItem or str, got item {item} as {type(item)}')
 
     def get_html_lines(self) -> Iterator[str]:
         if self.has_html_tags():
@@ -180,7 +182,7 @@ Native = Union[DocumentItem, IterDataMixin]
 
 class Sheet(DocumentItem, IterDataMixin):
     def __init__(self, data: RegularStreamInterface, name: str = ''):
-        if hasattr(data, RegularStreamInterface) or hasattr(data, 'collect'):
+        if isinstance(data, RegularStreamInterface) or hasattr(data, 'collect'):
             data = data.collect()
         super().__init__(data=data, name=name)
 
