@@ -101,11 +101,12 @@ StreamBuilder._dict_classes = DICT_ITEM_TO_STREAM_TYPE
 StreamBuilder.set_default_stream_class(DEFAULT_STREAM_CLASS)
 
 
+@deprecated_with_alternative('StreamBuilder.get_context()')
 def get_context() -> Optional[ContextInterface]:
-    global _context
-    return _context
+    return StreamBuilder.get_context()
 
 
+@deprecated_with_alternative('StreamBuilder.set_context()')
 def set_context(cx: ContextInterface) -> None:
     global _context
     _context = cx
@@ -114,6 +115,7 @@ def set_context(cx: ContextInterface) -> None:
     TemporaryLocation.set_default_storage(storage)
 
 
+@deprecated_with_alternative('StreamBuilder.stream()')
 def stream(stream_type: Union[StreamType, Auto], *args, **kwargs) -> StreamInterface:
     if is_stream_class(stream_type):
         stream_class = stream_type
