@@ -165,8 +165,11 @@ class DocumentItem(SimpleDataWrapper):
             return self.get_text()
 
     @staticmethod
-    def _get_display_method() -> Callable:
-        return display
+    def _get_display_method(method: Union[Callable, Auto, None] = AUTO) -> Callable:
+        if Auto.is_defined(method):
+            return method
+        else:
+            return display
 
     def show(self, display_mode: DisplayMode = DisplayMode.Html):
         method = self._get_display_method()
@@ -184,6 +187,8 @@ class Sheet(DocumentItem, IterDataMixin):
     def __init__(self, data: RegularStreamInterface, name: str = ''):
         if isinstance(data, RegularStreamInterface) or hasattr(data, 'collect'):
             data = data.collect()
+        else:
+            raise TypeError(f'Expected data as RegularStream, got {data} as {type(data)}')
         super().__init__(data=data, name=name)
 
     @classmethod
@@ -269,7 +274,8 @@ class Sheet(DocumentItem, IterDataMixin):
     def get_count_repr(self, default: str = '<iter>') -> str:
         if not self.get_data().is_in_memory():
             self.set_data(self.get_data().collect(), inplace=True)
-        return '{count} items'.format(count=self.get_data().get_count())
+        count = self.get_data().get_count()
+        return f'{count} items'
 
 
 class Chart(DocumentItem):
@@ -365,19 +371,21 @@ class CompositionType(DynamicEnum):
 
 
 class Container(DocumentItem, IterDataMixin):
-    def get_html_lines(self) -> Iterator[str]:
-        tag = self.get_html_tag_name()
-        if tag:
-            yield self.get_html_open_tag()
-        for item in self.get_data():
-            if isinstance(item, DocumentItem) or hasattr(item, 'get_html_lines'):
-                yield from item.get_html_lines()
-            elif isinstance(item, str):
-                yield item
-            else:
-                raise TypeError(f'Expected item as DocumentItem or str, got item {repr(item)} as {type(item)}')
-        if tag:
-            yield self.get_html_close_tag()
+    def get_html_lines(self, skip_missing: bool = True) -> Iterator[str]:
+        if self.has_data() or not skip_missing:
+            tag = self.get_html_tag_name()
+            if tag:
+                yield self.get_html_open_tag()
+            if self.has_data():
+                for item in self.get_data():
+                    if isinstance(item, DocumentItem) or hasattr(item, 'get_html_lines'):
+                        yield from item.get_html_lines()
+                    elif isinstance(item, str):
+                        yield item
+                    else:
+                        raise TypeError(f'Expected item as DocumentItem or str, got item {repr(item)} as {type(item)}')
+            if tag:
+                yield self.get_html_close_tag()
 
 
 class MultiChart(Chart, Container):
