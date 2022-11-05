@@ -366,54 +366,21 @@ class LeafConnector(
             count: Optional[int] = DEFAULT_EXAMPLE_COUNT,
             columns: Optional[Array] = None,
             show_header: bool = True,
+            comment: Optional[str] = None,
             safe_filter: bool = True,
             actualize: AutoBool = AUTO,
-            comment: Optional[str] = None,
             display: AutoDisplay = AUTO,
             **filter_kwargs
     ) -> Native:
         display = self.get_display(display)
-        if show_header:
-            display.display_paragraph(self.get_name(), level=1)
-            display.display_paragraph(self.get_str_headers(actualize=False))
-        if comment:
-            display.display_paragraph(comment)
-        struct = self.get_struct()
-        if show_header or struct:
-            struct_title, example_item, example_stream, example_comment = self._prepare_examples_with_title(
-                *filter_args, **filter_kwargs, safe_filter=safe_filter,
-                example_row_count=count, actualize=actualize,
-                verbose=False,
-            )
-            display.append(struct_title)
-            if self.get_invalid_fields_count():
-                line = 'Invalid columns: {}'.format(get_str_from_args_kwargs(*self.get_invalid_columns()))
-                display.append(line)
-            display.display_paragraph()
-        else:
-            example_item, example_stream, example_comment = None, None, None
-        if isinstance(struct, StructInterface) or hasattr(struct, 'describe'):
-            struct.describe(
-                show_header=False,
-                example=example_item,
-                comment=example_comment,
-                display=display,
-            )
-        elif struct:
-            display.append(f'[TYPE_ERROR] Expected struct as StructInterface, got {struct} instead')
-        else:
-            display.append('Struct is not defined.')
-        if example_stream and count:
-            display.display_paragraph('Example', level=3)
-            if example_comment:
-                display.display_paragraph(example_comment)
-            example_records, example_columns = self._get_demo_records_and_columns(
-                count=count,
-                example=example_stream,
-                columns=columns,
-            )
-            display.display_sheet(records=example_records, columns=example_columns)
-        display.display_paragraph()
+        for i in self.get_description_items(
+            count, columns=columns, show_header=show_header, comment=comment, actualize=actualize,
+            filters=filter_args, named_filters=filter_kwargs, safe_filter=safe_filter,
+        ):
+            if isinstance(i, str):
+                display.append(i)
+            else:  # isinstance(i, DocumentItem):
+                display.display(i)
         return self
 
     @staticmethod
