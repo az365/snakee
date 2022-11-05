@@ -138,14 +138,20 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
         yield self.get_one_line_repr()
 
     def get_str_title(self) -> str:
-        title = self.get_name()
-        if not title:
-            title = f'Unnamed {self.__class__.__name__}'
+        obj_name = self.get_name()
+        class_name = self.__class__.__name__
+        if obj_name:
+            title = f'{class_name}: {obj_name}'
+        else:
+            title = f'Unnamed {class_name}'
         return title
 
     def get_brief_repr(self) -> str:
-        repr_line = repr(self)
-        if len(repr_line) > MAX_BRIEF_REPR_LEN:
+        try:
+            repr_line = repr(self)
+        except RecursionError:
+            repr_line = None
+        if repr_line is None or len(repr_line) > MAX_BRIEF_REPR_LEN:
             if self.get_name():
                 repr_line = super().get_brief_repr()  # AbstractNamed.get_brief_repr()
             else:
