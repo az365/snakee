@@ -1,5 +1,6 @@
-from typing import Optional, Iterable
+from typing import Optional, Iterable, Iterator, Generator
 import gc
+from itertools import chain
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
@@ -32,6 +33,7 @@ class StreamBuilder(StreamBuilderInterface):
             cls,
             data: Iterable,
             stream_type: StreamItemType = AUTO,
+            register: bool = True,
             **kwargs
     ) -> Stream:
         default_class = cls.get_default_stream_class()
@@ -48,6 +50,8 @@ class StreamBuilder(StreamBuilderInterface):
                 else:
                     example_item = cls._get_one_item(data)
                     item_type = cls._detect_item_type(example_item)
+                    if isinstance(data, (Iterator, Generator)):
+                        data = chain([example_item], data)
                 kwargs['item_type'] = item_type
         return stream_class(data, **kwargs)
 
