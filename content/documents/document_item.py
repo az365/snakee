@@ -1,27 +1,27 @@
-from typing import Optional, Callable, Iterable, Iterator, Tuple, Union, Any
+from typing import Optional, Callable, Iterable, Iterator, Sequence, Tuple, Union, Any
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.typing import AUTO, Auto
+    from base.constants.chars import EMPTY, SPACE, HTML_SPACE, HTML_INDENT, PARAGRAPH_CHAR, REPR_DELIMITER
+    from base.interfaces.sheet_interface import SheetInterface, Record, Row, FormattedRow
+    from base.classes.simple_sheet import SimpleSheet, SheetMixin, get_name, Count, Columns, DEFAULT_LINE_LEN
     from base.classes.enum import DynamicEnum
-    from base.constants.chars import EMPTY, SPACE, HTML_SPACE, HTML_INDENT, PARAGRAPH_CHAR
+    from base.classes.typing import AUTO, Auto, Name
     from base.abstract.simple_data import SimpleDataWrapper, SimpleDataInterface
     from base.mixin.iter_data_mixin import IterDataMixin
     from base.mixin.map_data_mixin import MapDataMixin
     from functions.primary.items import get_fields_values_from_item, get_field_value_from_item
-    from streams.interfaces.regular_stream_interface import RegularStreamInterface
-    from streams.stream_builder import StreamBuilder, StreamType, ItemType
     from utils.external import Markdown, HTML, display
     from content.documents.display_mode import DisplayMode
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...base.classes.typing import AUTO, Auto
+    from ...base.constants.chars import EMPTY, SPACE, HTML_SPACE, HTML_INDENT, PARAGRAPH_CHAR, REPR_DELIMITER
+    from ...base.interfaces.sheet_interface import SheetInterface, Record, Row, FormattedRow
+    from ...base.classes.simple_sheet import SimpleSheet, SheetMixin, get_name, Count, Columns, DEFAULT_LINE_LEN
     from ...base.classes.enum import DynamicEnum
-    from ...base.constants.chars import EMPTY, SPACE, HTML_SPACE, HTML_INDENT, PARAGRAPH_CHAR
+    from ...base.classes.typing import AUTO, Auto, Name
     from ...base.abstract.simple_data import SimpleDataWrapper, SimpleDataInterface
     from ...base.mixin.iter_data_mixin import IterDataMixin
     from ...base.mixin.map_data_mixin import MapDataMixin
     from ...functions.primary.items import get_fields_values_from_item, get_field_value_from_item
-    from ...streams.interfaces.regular_stream_interface import RegularStreamInterface
-    from ...streams.stream_builder import StreamBuilder, StreamType, ItemType
     from ...utils.external import Markdown, HTML, display
     from .display_mode import DisplayMode
 
@@ -30,6 +30,7 @@ ContentStyle = Any
 Style = Union[HtmlStyle, ContentStyle]
 OptStyle = Optional[Style]
 DisplayObject = Union[str, Markdown, HTML]
+SheetItems = Union[Iterable[Row], Iterable[Record]]
 
 H_STYLE = None
 P_STYLE = 'line-height: 1.1em; margin-top: 0em; margin-bottom: 0em; padding-top: 0em; padding-bottom: 0em;'
@@ -191,51 +192,148 @@ class DocumentItem(SimpleDataWrapper):
 Native = Union[DocumentItem, IterDataMixin]
 
 
-class Sheet(DocumentItem, IterDataMixin):
-    def __init__(self, data: RegularStreamInterface, name: str = ''):
-        if isinstance(data, RegularStreamInterface) or hasattr(data, 'collect'):
-            data = data.collect()
+class Sheet(DocumentItem, IterDataMixin, SheetMixin, SheetInterface):
+    def __init__(self, data: SheetItems, columns: Columns = None, name: str = ''):
+        self._struct = None
+        super().__init__(data=list(), name=name)
+        self._set_struct_inplace(columns)
+        self._set_items_inplace(data)
+
+    def _set_items_inplace(self, items: SheetItems) -> None:
+        expected_columns = self.get_columns()
+        detected_struct = None
+        if hasattr(items, 'collect'):  # isinstance(items, RegularStreamInterface)
+            items = items.collect()
+            self._set_data_inplace(items)
+            if items and not expected_columns:
+                detected_struct = items.get_struct()
+        elif isinstance(items, Iterable) and not isinstance(items, str):
+            items = list(items)
+            super()._set_items_inplace(items)
+            if items and not expected_columns:
+                detected_struct = self._get_column_names_from_items(items)
         else:
-            raise TypeError(f'Expected data as RegularStream, got {data} as {type(data)}')
-        super().__init__(data=data, name=name)
+            raise TypeError(f'Expected items as RegularStream, got {items} as {type(items)}')
+        if detected_struct:
+            self._set_struct_inplace(detected_struct)
 
     @classmethod
-    def from_record(cls, record: dict) -> Native:
-        properties = list()
-        for field in sorted(record):
-            value = record[field]
-            current_record = dict(field=field, value=value)
-            properties.append(current_record)
-        stream = StreamBuilder.stream(properties, item_type=ItemType.Record, struct=('field', 'value'), verbose=False)
-        return Sheet(stream)
+    def from_records(cls, records: Iterable[Record], columns: Columns = None, name: Name = EMPTY) -> Native:
+        if Auto.is_defined(columns):
+            column_names = cls._get_column_names_from_columns(columns)
+        else:
+            records = list(records)
+            column_names = cls._get_column_names_from_records(records)
+            columns = column_names
+        rows = list()
+        for record in records:
+            row = [record.get(c) for c in column_names]
+            rows.append(tuple(row))
+        return Sheet(data=rows, columns=columns, name=name)
 
-    def get_data(self) -> RegularStreamInterface:
+    def get_data(self) -> SheetItems:
         data = super().get_data()
-        assert isinstance(data, RegularStreamInterface), f'got {data}'
         return data
 
+    def get_struct(self) -> Sequence:
+        return self._struct
+
+    def _set_struct_inplace(self, struct: Sequence):
+        self._struct = struct
+
     def get_columns(self) -> list:
-        return list(self.get_data().get_columns())
+        struct = self.get_struct()
+        if hasattr(struct, 'get_columns'):  # isinstance(struct, StructInterface)
+            columns = struct.get_columns()
+        elif isinstance(struct, Iterable):
+            columns = self._get_column_names_from_columns(struct)
+        else:
+            columns = self._get_column_names_from_items(self.get_data())
+        return list(columns)
+
+    def get_column_names(self) -> list:
+        column_names = list()
+        for no, field in enumerate(self.get_struct() or []):
+            if isinstance(field, (list, tuple)) and not isinstance(field, str):
+                if field:
+                    name = field[0]
+                else:
+                    name = no
+            else:
+                name = get_name(field)
+            column_names.append(name)
+        return column_names
+
+    def get_column_lens(self, default: Optional[int] = None) -> list:
+        column_lens = list()
+        struct = self.get_struct()
+        if struct:
+            for field in struct:
+                if isinstance(field, (list, tuple)) and not isinstance(field, str):
+                    if len(field) > 1:
+                        length = field[-1]
+                    else:
+                        length = None
+                elif hasattr(field, 'get_representation'):  # isinstance(field, AnyField):
+                    length = field.get_representation().get_max_value_len()
+                if length is None:
+                    length = default
+                column_lens.append(length)
+        else:
+            count = len(self.get_columns())
+            column_lens = [default] * count
+            return column_lens
 
     def get_records(self) -> Iterable:
-        return self.get_data().get_records()
+        data = self.get_data()
+        if hasattr(data, 'get_records'):  # isinstance(data, RegularStreamInterface):
+            return data.get_records()
+        else:
+            return super().get_records()
 
-    def get_rows(self) -> Iterator:
-        return self.get_data().get_rows()
+    def get_rows(self, with_title: bool = False, upper_title: bool = False) -> Iterator[Row]:
+        if with_title:
+            yield self.get_title_row(upper_title=upper_title)
+        data = self.get_data()
+        if hasattr(data, 'get_rows'):  # isinstance(data, RegularStreamInterface):
+            yield from map(Row, data.get_rows())
+        else:
+            yield from super().get_rows(with_title=False)
 
-    def get_formatted_rows(self) -> Iterator[str]:
-        return self.get_rows()
+    def get_formatted_rows(self, with_title: bool = True, max_len: Count = DEFAULT_LINE_LEN) -> Iterator[FormattedRow]:
+        struct = self.get_struct()
+        if hasattr(struct, 'get_field_representations'):  # isinstance(struct, FlatStruct):
+            for row in self.get_rows(with_title=with_title):
+                # yield struct.format(row)
+                formatted_row = list()
+                for cell, representation in zip(row, struct.get_field_representations()):
+                    if representation and hasattr(representation, 'format'):  # isinstance(representation, RepresentationInterface):
+                        formatted_cell = representation.format(cell)
+                    else:
+                        formatted_cell = self._crop_cell(cell, max_len)
+                    formatted_row.append(formatted_cell)
+                yield Row(formatted_row)
+        else:
+            yield from super().get_formatted_rows(with_title=with_title, max_len=max_len)
 
-    def get_lines(self) -> Iterator[str]:
+    def get_lines(self, delimiter: str = REPR_DELIMITER) -> Iterator[str]:
         data = self.get_data()
         if hasattr(data, 'get_lines'):  # isinstance(data, RegularStreamInterface)
             return data.get_lines()
         elif hasattr(data, 'get_items_of_type'):  # isinstance(data, RegularStreamInterface)
-            return data.get_items_of_type(ItemType.Line)
+            return data.get_items_of_type('line')
         elif hasattr(data, 'get_items()'):
             return map(str, data.get_items())
         elif isinstance(data, Iterable):
-            return map(str, data)
+            struct = self.get_struct()
+            if hasattr(struct, 'format'):  # isinstance(struct, FlatStruct):
+                for row in self.get_rows(with_title=True):
+                    yield struct.format(row)
+            else:
+                placeholders = ['{:' + str(min_len) + '}' for min_len in self.get_column_lens()]
+                formatter = delimiter.join(placeholders)
+                for row in self.get_formatted_rows(with_title=True):
+                    yield formatter.format(row)
         else:
             raise TypeError(f'Expected RegularStream, SimpleData or Iterable, got {data}')
 
@@ -260,7 +358,7 @@ class Sheet(DocumentItem, IterDataMixin):
 
     def get_items_html_lines(self, count: Optional[int] = None) -> Iterator[str]:
         style = self.get_html_style()
-        for n, row in enumerate(self.get_formatted_rows()):
+        for n, row in enumerate(self.get_formatted_rows(with_title=False)):
             yield '<tr>'
             for cell in row:
                 if Auto.is_defined(style):
@@ -294,6 +392,9 @@ class Sheet(DocumentItem, IterDataMixin):
             self.set_data(self.get_data().collect(), inplace=True)
         count = self.get_data().get_count()
         return f'{count} items'
+
+
+SimpleSheet.set_class(Sheet)
 
 
 class Chart(DocumentItem):

@@ -346,7 +346,7 @@ class ValidateMixin(ABC):
         struct = self.get_struct()
         if show_header or struct:
             struct_title, example_item, example_stream, example_comment = self._prepare_examples_with_title(
-                *filters, **named_filters, safe_filter=safe_filter,
+                *filters or list(), **named_filters or dict(), safe_filter=safe_filter,
                 example_row_count=count, actualize=actualize,
                 verbose=False,
             )
