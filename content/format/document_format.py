@@ -3,7 +3,7 @@ from typing import Optional, Callable, Iterable, Iterator, Generator, Sequence, 
 try:  # Assume we're a submodule in a package.
     from interfaces import Item, ItemType, ContentType, Class, Count, AutoCount, Auto, AUTO
     from base.constants.chars import SPACE, HTML_SPACE
-    from base.classes.display import DefaultDisplay, PREFIX_FIELD
+    from base.classes.display import DisplayInterface, DefaultDisplay, PREFIX_FIELD
     from base.mixin.display_mixin import DisplayMixin, Class
     from utils.external import display, clear_output, Markdown, HTML
     from utils.decorators import deprecated_with_alternative
@@ -11,16 +11,17 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import Item, ItemType, ContentType, Class, Count, AutoCount, Auto, AUTO
     from ...base.constants.chars import SPACE, HTML_SPACE
-    from ...base.classes.display import DefaultDisplay, PREFIX_FIELD
+    from ...base.classes.display import DisplayInterface, DefaultDisplay, PREFIX_FIELD
     from ...base.mixin.display_mixin import DisplayMixin, Class
     from ...utils.external import display, clear_output, Markdown, HTML
     from ...utils.decorators import deprecated_with_alternative
     from .text_format import TextFormat, Compress, DEFAULT_ENDING, DEFAULT_ENCODING
 
-Native = Union[TextFormat, DefaultDisplay]
-DisplayObject = Union[str, Markdown, HTML]
-Paragraph = Union[str, Iterable, None]
+Native = Union[DefaultDisplay, TextFormat]
 Style = Union[str, Auto]
+FormattedDisplayTypes = Union[Markdown, HTML]
+DisplayObject = Union[FormattedDisplayTypes, str]
+Paragraph = Union[str, Iterable, None]
 
 H_STYLE = None
 P_STYLE = 'line-height: 1.1em; margin-top: 0em; margin-bottom: 0em; padding-top: 0em; padding-bottom: 0em;'
@@ -88,8 +89,16 @@ class DocumentFormat(TextFormat, DefaultDisplay):
             return self.display_paragraph()
 
     @staticmethod
-    def _get_display_method() -> Callable:
-        return display
+    def _get_display_method(method: Union[Callable, Auto, None] = AUTO) -> Callable:
+        if Auto.is_defined(display):
+            if isinstance(display, Callable):
+                return display
+            elif isinstance(display, DisplayInterface) or hasattr(display, 'display'):
+                return display.display
+            else:
+                raise TypeError(f'Expected DisplayInterface, got {display}')
+        else:
+            return display
 
     def display_paragraph(self, paragraph: Optional[Iterable] = None, level: Count = None, style: Style = AUTO):
         if level and paragraph:
@@ -143,6 +152,16 @@ class HtmlFormat(DocumentFormat):
     @staticmethod
     def _get_display_class():
         return HTML
+
+    @classmethod
+    def _get_display_object(cls, data: Union[str, Iterable, None]) -> Optional[DisplayObject]:
+        if not data:
+            return None
+        if hasattr(data, 'get_html_lines'):
+            data = data.get_html_lines()
+        else:
+            return super()._get_display_object(data)
+        return super()._get_display_object(data)
 
     def get_encoded_paragraph(
             self,

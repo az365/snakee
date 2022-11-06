@@ -145,10 +145,8 @@ class AbstractBaseObject(BaseInterface, ABC):
         new_meta.update(old_meta)
         if check:
             unsupported = [k for k in meta if k not in old_meta]
-            assert not unsupported, 'class {} does not support these properties: {}'.format(
-                self.__class__.__name__,
-                unsupported,
-            )
+            class_name = self.__class__.__name__
+            assert not unsupported, f'class {class_name} does not support these properties: {unsupported}'
         for key, value in new_meta.items():
             if value is None or value == AUTO:
                 new_meta[key] = old_meta.get(key)
@@ -292,8 +290,12 @@ class AbstractBaseObject(BaseInterface, ABC):
     @staticmethod
     def _get_display_method(display=AUTO) -> Callable:
         if Auto.is_defined(display):
-            assert hasattr(display, 'display_paragraph'), f'Expected DisplayInterface, got {display}'
-            return display.display_paragraph
+            if isinstance(display, Callable):
+                return display
+            elif hasattr(display, 'display_paragraph'):  # isinstance(display, DisplayInterface):
+                return display.display_paragraph
+            else:
+                raise TypeError(f'Expected DisplayInterface, got {display}')
         else:
             return print
 
