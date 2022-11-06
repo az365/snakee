@@ -113,6 +113,10 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
 
     item_type = property(get_item_type, _set_item_type_inplace)
 
+    def get_struct_from_source(self) -> Struct:
+        columns = self.get_detected_columns()
+        return FlatStruct(columns)
+
     def get_struct(self) -> Struct:
         return self._struct
 
