@@ -4,7 +4,7 @@ from typing import Optional, Callable, Iterable, Generator, Union
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         ConnectorInterface, LeafConnectorInterface, StructInterface, ContentFormatInterface,
-        ItemType, StreamType, ContentType, Context, Stream, Name, Count, Array,
+        ItemType, StreamType, ContentType, Context, Stream, Name, Count, Columns, Array,
         AUTO, Auto, AutoBool, AutoName, AutoCount, AutoDisplay, AutoConnector, AutoContext,
     )
     from base.functions.arguments import get_name, get_str_from_args_kwargs
@@ -17,7 +17,7 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         ConnectorInterface, LeafConnectorInterface, StructInterface, ContentFormatInterface,
-        ItemType, StreamType, ContentType, Context, Stream, Name, Count, Array,
+        ItemType, StreamType, ContentType, Context, Stream, Name, Count, Columns, Array,
         AUTO, Auto, AutoBool, AutoName, AutoCount, AutoDisplay, AutoConnector, AutoContext,
     )
     from ...base.functions.arguments import get_name, get_str_from_args_kwargs
@@ -283,6 +283,25 @@ class LeafConnector(
         copy.set_declared_format(self.get_declared_format().copy(), inplace=True)
         copy.set_detected_format(self.get_detected_format().copy(), inplace=True)
         return copy
+
+    def _get_demo_example(
+            self,
+            count: int = DEFAULT_EXAMPLE_COUNT,
+            filters: Columns = None,
+            columns: Columns = None,
+            example: Optional[Stream] = None,
+    ) -> Optional[Stream]:
+        if self.is_existing():
+            stream = self
+            if Auto.is_defined(filters):
+                stream = stream.filter(*filters)
+            if Auto.is_defined(count):
+                stream = stream.take(count)
+            if Auto.is_defined(columns) and hasattr(stream, 'select'):
+                stream = stream.select(columns)
+            stream = stream.collect()
+            self.close()
+            return stream
 
     def get_items(
             self,
