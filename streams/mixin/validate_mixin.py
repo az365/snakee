@@ -231,6 +231,15 @@ class ValidateMixin(ABC):
             message = f'{tag} There are no valid items in stream_dataset {repr(self)}'
         return item_example, stream_example, message
 
+    def get_str_title(self) -> str:
+        obj_name = self.get_name()
+        class_name = self.__class__.__name__
+        if obj_name:
+            title = f'{class_name}: {obj_name}'
+        else:
+            title = f'Unnamed {class_name}'
+        return title
+
     def get_struct_chapter(
             self,
             example_item: Optional[Item] = None,
