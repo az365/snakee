@@ -56,10 +56,18 @@ class DocumentItem(SimpleDataWrapper):
         data = self.get_data()
         if isinstance(data, str):
             yield data
-        elif isinstance(data, Iterable):
-            yield from data
         elif hasattr(data, 'get_lines'):  # isinstance(data, RegularStream)
             yield from data.get_lines()
+        elif isinstance(data, Iterable):
+            for i in data:
+                if isinstance(i, str):
+                    yield i
+                elif isinstance(i, DocumentItem) or hasattr(i, 'get_lines'):
+                    yield from i.get_lines()
+                elif hasattr(i, 'get_text'):
+                    yield i.get_text()
+                else:
+                    yield str(i)
         elif data:
             raise TypeError(f'Expected str, Iterable or Stream, got {data}')
 
@@ -218,8 +226,18 @@ class Sheet(DocumentItem, IterDataMixin):
     def get_formatted_rows(self) -> Iterator[str]:
         return self.get_rows()
 
-    def get_lines(self) -> str:
-        return self.get_data().get_lines()
+    def get_lines(self) -> Iterator[str]:
+        data = self.get_data()
+        if hasattr(data, 'get_lines'):  # isinstance(data, RegularStreamInterface)
+            return data.get_lines()
+        elif hasattr(data, 'get_items_of_type'):  # isinstance(data, RegularStreamInterface)
+            return data.get_items_of_type(ItemType.Line)
+        elif hasattr(data, 'get_items()'):
+            return map(str, data.get_items())
+        elif isinstance(data, Iterable):
+            return map(str, data)
+        else:
+            raise TypeError(f'Expected RegularStream, SimpleData or Iterable, got {data}')
 
     def has_html_tags(self) -> bool:
         return True
