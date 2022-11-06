@@ -164,36 +164,41 @@ class LocalFile(LeafConnector, ActualizeMixin):
             return name.startswith(self.get_path_delimiter()) or ':' in name
 
     def get_path(self) -> str:
-        if self.has_path_from_root() or not self.get_folder():
-            return self.get_name()
+        folder = self.get_folder()
+        file_name = self.get_name()
+        path_delimiter = self.get_path_delimiter()
+        if self.has_path_from_root() or not folder:
+            return file_name
         else:
-            folder_path = self.get_folder().get_path()
+            folder_path = folder.get_path()
             if OS_PLACEHOLDER in folder_path:  # isinstance(self.get_parent(), LocalMask):
                 folder_path = folder_path.replace(OS_PLACEHOLDER, PY_PLACEHOLDER)
             if is_formatter(folder_path):  # isinstance(self.get_parent(), LocalMask):
-                return folder_path.format(self.get_name())
-            elif folder_path.endswith(self.get_path_delimiter()):
-                return folder_path + self.get_name()
+                return folder_path.format(file_name)
+            elif folder_path.endswith(path_delimiter):
+                return folder_path + file_name
             elif folder_path:
-                return f'{folder_path}{self.get_path_delimiter()}{self.get_name()}'
+                return f'{folder_path}{path_delimiter}{file_name}'
             else:
-                return self.get_name()
+                return file_name
 
     def get_full_path(self) -> str:
         folder = self.get_folder()
+        file_name = self.get_name()
+        path_delimiter = self.get_path_delimiter()
         if not folder:
             folder = self.get_storage()  # job_folder
         folder_path = folder.get_full_path()
         if OS_PLACEHOLDER in folder_path:  # isinstance(self.get_parent(), LocalMask):
             folder_path = folder_path.replace(OS_PLACEHOLDER, PY_PLACEHOLDER)
         if is_formatter(folder_path):  # isinstance(self.get_parent(), LocalMask):
-            return folder_path.format(self.get_name())
-        elif folder_path.endswith(self.get_path_delimiter()):
-            return folder_path + self.get_name()
+            return folder_path.format(file_name)
+        elif folder_path.endswith(path_delimiter):
+            return folder_path + file_name
         elif folder_path:
-            return f'{folder_path}{self.get_path_delimiter()}{self.get_name()}'
+            return f'{folder_path}{path_delimiter}{file_name}'
         else:
-            return self.get_name()
+            return file_name
 
     def get_list_path(self) -> Iterable:
         return self.get_path().split(self.get_path_delimiter())
@@ -260,7 +265,7 @@ class LocalFile(LeafConnector, ActualizeMixin):
         return 1
 
     def is_existing(self, verbose: AutoBool = AUTO) -> bool:
-        return os.path.exists(self.get_path())
+        return os.path.exists(self.get_path()) or os.path.exists(self.get_full_path())
 
     def is_empty(self) -> bool:
         count = self.get_count(allow_slow_mode=False) or 0
