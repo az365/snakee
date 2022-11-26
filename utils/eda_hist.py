@@ -2,7 +2,7 @@ from typing import Optional, Iterable, Union
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
-        LoggerInterface, RegularStreamInterface, StreamType, ItemType,
+        LoggerInterface, RegularStreamInterface, StreamType, ItemType, MutableRecord, LoggingLevel,
         AUTO, Auto, AutoBool, Count, Message, Array,
     )
     from functions.primary import numeric as nm
@@ -10,7 +10,7 @@ try:  # Assume we're a submodule in a package.
     from streams.stream_builder import StreamBuilder
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..interfaces import (
-        LoggerInterface, RegularStreamInterface, StreamType, ItemType,
+        LoggerInterface, RegularStreamInterface, StreamType, ItemType, MutableRecord, LoggingLevel,
         AUTO, Auto, AutoBool, Count, Message, Array,
     )
     from ..functions.primary import numeric as nm
@@ -26,12 +26,11 @@ TOP_COUNT = 3
 def get_hist_records(
         stream: RegularStreamInterface,
         fields: Iterable,
-        in_memory: AutoBool = AUTO,
         logger: Union[LoggerInterface, Auto] = AUTO,
         msg: Optional[Message] = None,
 ) -> Iterable:
     if Auto.is_defined(logger):
-        logger.log(msg if msg else 'calc hist in memory...')
+        logger.log(msg=msg if msg else 'calc hist in memory...', level=LoggingLevel.Info)
     dict_hist = {f: dict() for f in fields}
     for i in stream.get_items():
         for f in fields:
@@ -41,8 +40,8 @@ def get_hist_records(
             dict_hist[f][v] = dict_hist[f].get(v, 0) + 1
     for f in fields:
         cur_hist = dict_hist[f]
-        for v, c in cur_hist.items():
-            yield dict(field=f, value=v, count=c)
+        for v, c in sorted(cur_hist.items(), key=fs.second(), reverse=True):
+            yield MutableRecord(field=f, value=v, count=c)
 
 
 def hist(
@@ -53,15 +52,16 @@ def hist(
         logger: Union[LoggerInterface, Auto] = AUTO,
         msg: Optional[Message] = None,
 ) -> RegularStreamInterface:
-    stream = _stream(data)
+    output_columns = 'field', 'value', 'count', 'share', 'total_count'
+    stream = _build_stream(data)
     total_count = stream.get_count()
     in_memory = Auto.acquire(in_memory, stream.is_in_memory())
     logger = Auto.acquire(logger, stream.get_logger, delayed=True)
     # if in_memory:
     if in_memory or len(fields) > 1:
         stream = stream.stream(
-            get_hist_records(stream, fields, in_memory=in_memory, logger=logger, msg=msg),
-            stream_type='RecordStream',
+            get_hist_records(stream, fields, logger=logger, msg=msg),
+            stream_type=ItemType.Record,
         )
     else:
         stream = stream if len(fields) <= 1 else stream.tee_stream()
@@ -69,7 +69,7 @@ def hist(
         if logger:
             logger.log('Calc hist for field {}...'.format(f))
         stream = stream.to_stream(
-            stream_type='RecordStream',
+            stream_type=ItemType.Record,
             columns=fields,
         ).select(
             f,
@@ -81,14 +81,20 @@ def hist(
             field=lambda r, k=f: k,
             value=f,
             count=('-', len),
-        ).sort('value')
+        ).sort(
+            'value',
+            reverse=True,
+        )
     if not total_count:
         stream = stream.to_memory()
-        total_count = sum(stream.filter(field=fields[0]).get_one_column_values('count'))
+        any_single_field = fields[0]
+        total_count = sum(stream.filter(field=any_single_field).get_one_column_values('count'))
     stream = stream.select(
         '*',
         total_count=fs.const(total_count),
-        share=('count', 'total_count', lambda c, t: c / t if t else None),
+        share=('count', 'total_count', fs.div()),
+    ).set_struct(
+        output_columns,
     )
     return _assume_native(stream)
 
@@ -137,7 +143,7 @@ def stat(
 
 
 def hist_by_cat(data: Data, cat_fields: Array, hist_fields: Array):
-    return _stream(data).group_to_pairs(
+    return _build_stream(data).group_to_pairs(
         cat_fields,
         verbose=False,
     ).map_values(
@@ -146,7 +152,7 @@ def hist_by_cat(data: Data, cat_fields: Array, hist_fields: Array):
 
 
 def stat_by_cat(data: Data, cat_fields, hist_fields):
-    return _stream(data).group_to_pairs(
+    return _build_stream(data).group_to_pairs(
         cat_fields,
         verbose=False,
     ).map(
@@ -169,7 +175,7 @@ def _merge_two_records(r1, r2):
     return {k: v for k, v in (list(r1.items()) + list(r2.items()))}
 
 
-def _stream(data: Data) -> RegularStreamInterface:
+def _build_stream(data: Data) -> RegularStreamInterface:
     if hasattr(data, 'is_file'):
         if data.is_file():
             if hasattr(data, 'to_record_stream'):
