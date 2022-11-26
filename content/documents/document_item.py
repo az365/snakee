@@ -2,8 +2,8 @@ from typing import Optional, Callable, Iterable, Iterator, Sequence, Tuple, Unio
 
 try:  # Assume we're a submodule in a package.
     from base.constants.chars import EMPTY, SPACE, HTML_SPACE, HTML_INDENT, PARAGRAPH_CHAR, REPR_DELIMITER
-    from base.interfaces.sheet_interface import SheetInterface, Record, Row, FormattedRow
-    from base.classes.simple_sheet import SimpleSheet, SheetMixin, get_name, Count, Columns, DEFAULT_LINE_LEN
+    from base.interfaces.sheet_interface import SheetInterface, Record, Row, FormattedRow, Columns, Count
+    from base.classes.simple_sheet import SimpleSheet, SheetMixin, SheetItems, get_name, DEFAULT_LINE_LEN
     from base.classes.enum import DynamicEnum
     from base.classes.typing import AUTO, Auto, Name
     from base.abstract.simple_data import SimpleDataWrapper, SimpleDataInterface
@@ -14,8 +14,8 @@ try:  # Assume we're a submodule in a package.
     from content.documents.display_mode import DisplayMode
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.constants.chars import EMPTY, SPACE, HTML_SPACE, HTML_INDENT, PARAGRAPH_CHAR, REPR_DELIMITER
-    from ...base.interfaces.sheet_interface import SheetInterface, Record, Row, FormattedRow
-    from ...base.classes.simple_sheet import SimpleSheet, SheetMixin, get_name, Count, Columns, DEFAULT_LINE_LEN
+    from ...base.interfaces.sheet_interface import SheetInterface, Record, Row, FormattedRow, Columns, Count
+    from ...base.classes.simple_sheet import SimpleSheet, SheetMixin, SheetItems, get_name, DEFAULT_LINE_LEN
     from ...base.classes.enum import DynamicEnum
     from ...base.classes.typing import AUTO, Auto, Name
     from ...base.abstract.simple_data import SimpleDataWrapper, SimpleDataInterface
@@ -30,7 +30,6 @@ ContentStyle = Any
 Style = Union[HtmlStyle, ContentStyle]
 OptStyle = Optional[Style]
 DisplayObject = Union[str, Markdown, HTML]
-SheetItems = Union[Iterable[Row], Iterable[Record]]
 
 H_STYLE = None
 P_STYLE = 'line-height: 1.1em; margin-top: 0em; margin-bottom: 0em; padding-top: 0em; padding-bottom: 0em;'
@@ -202,16 +201,17 @@ class Sheet(DocumentItem, IterDataMixin, SheetMixin, SheetInterface):
     def _set_items_inplace(self, items: SheetItems) -> None:
         expected_columns = self.get_columns()
         detected_struct = None
-        if hasattr(items, 'collect'):  # isinstance(items, RegularStreamInterface)
-            items = items.collect()
+        if hasattr(items, 'get_list'):  # isinstance(items, RegularStreamInterface)
             self._set_data_inplace(items)
-            if items and not expected_columns:
+            if hasattr(items, 'get_struct') and not expected_columns:  # isinstance(items, Stream):
                 detected_struct = items.get_struct()
-        elif isinstance(items, Iterable) and not isinstance(items, str):
-            items = list(items)
+                if not detected_struct:
+                    detected_struct = items.get_columns()
+                if detected_struct:
+                    self._set_struct_inplace(detected_struct)
             super()._set_items_inplace(items)
-            if items and not expected_columns:
-                detected_struct = self._get_column_names_from_items(items)
+        elif isinstance(items, Iterable) and not isinstance(items, str):
+            super()._set_items_inplace(items)
         else:
             raise TypeError(f'Expected items as RegularStream, got {items} as {type(items)}')
         if detected_struct:
@@ -269,6 +269,7 @@ class Sheet(DocumentItem, IterDataMixin, SheetMixin, SheetInterface):
         struct = self.get_struct()
         if struct:
             for field in struct:
+                length = None
                 if isinstance(field, (list, tuple)) and not isinstance(field, str):
                     if len(field) > 1:
                         length = field[-1]
@@ -282,7 +283,7 @@ class Sheet(DocumentItem, IterDataMixin, SheetMixin, SheetInterface):
         else:
             count = len(self.get_columns())
             column_lens = [default] * count
-            return column_lens
+        return column_lens
 
     def get_records(self) -> Iterable:
         data = self.get_data()
@@ -352,13 +353,14 @@ class Sheet(DocumentItem, IterDataMixin, SheetMixin, SheetInterface):
         yield f'<{tag}>'
         yield HTML_INDENT + '<tr>'
         for c in self.get_columns():
-            yield (HTML_INDENT * 2) + f'<th>{c}</th>'
+            yield str(HTML_INDENT * 2) + f'<th>{c}</th>'
         yield HTML_INDENT + '</tr>'
         yield f'</{tag}>'
 
     def get_items_html_lines(self, count: Optional[int] = None) -> Iterator[str]:
         style = self.get_html_style()
-        for n, row in enumerate(self.get_formatted_rows(with_title=False)):
+        formatted_rows = self.get_formatted_rows(with_title=False)
+        for n, row in enumerate(formatted_rows):
             yield '<tr>'
             for cell in row:
                 if Auto.is_defined(style):

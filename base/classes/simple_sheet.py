@@ -17,6 +17,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..mixin.iter_data_mixin import IterDataMixin
 
 Native = Union[SimpleDataWrapper, IterDataMixin, SheetInterface]
+SheetItems = Union[Iterable[Row], Iterable[Record]]
 
 
 class SheetMixin(ABC):
@@ -77,6 +78,7 @@ class SheetMixin(ABC):
         column_lens = self.get_column_lens(default=max_len)
         for row in self.get_rows(with_title=with_title, upper_title=True):
             formatted_row = list()
+            assert self.get_columns() and column_lens, self.get_column_names_and_lens()
             for cell, max_cell_len in zip(row, column_lens):
                 if max_cell_len is None:
                     max_cell_len = max_len
@@ -123,17 +125,20 @@ class SheetMixin(ABC):
         else:
             return SimpleSheet(data=self.get_data(), columns=columns, name=self.get_name(), caption=self.get_caption())
 
-    def _set_items_inplace(self, items: Union[Iterable[Row], Iterable[Record]]) -> None:
+    def _set_items_inplace(self, items: SheetItems) -> None:
         items = list(items)
         if items:
             first_item = items[0]
             if isinstance(first_item, Row):
+                columns = None
                 rows = items
             elif isinstance(first_item, Record):
                 columns = self.get_column_names() or self._get_column_names_from_records(items)
                 rows = [tuple([i.get(c) for c in columns]) for i in items]
             else:
                 raise TypeError(f'Expected items as Rows or Records, got {first_item} as {type(first_item)}')
+            if columns:
+                self._set_columns_inplace(columns)
         else:
             rows = items
         self.set_data(rows, inplace=True)
