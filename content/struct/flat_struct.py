@@ -681,7 +681,8 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
                 is_valid = '>' if is_valid == '.' else str(is_valid).upper()
             if example:
                 value = str(example.get(name))
-            yield dict(n=n, name=name, type_name=type_name, example=value, valid=is_valid, caption=caption)
+            record = dict(n=n, name=name, type_name=type_name, example=value, valid=is_valid, caption=caption)
+            yield record
             if Auto.is_defined(count):
                 if n >= count - 1:
                     break
@@ -726,7 +727,7 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
         if title:
             display.display_paragraph(title, level=3)
         data_sheet = self.get_data_sheet(count, example=example, select_fields=select_fields, name=f'{title} sheet')
-        return display.display(data_sheet)
+        return data_sheet.show()
 
     def get_dataframe(self) -> DataFrame:
         data = self.get_struct_description_rows(include_header=True)

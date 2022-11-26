@@ -113,6 +113,10 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
 
     item_type = property(get_item_type, _set_item_type_inplace)
 
+    def get_struct_from_source(self) -> Struct:
+        columns = self.get_detected_columns()
+        return FlatStruct(columns)
+
     def get_struct(self) -> Struct:
         return self._struct
 
@@ -631,93 +635,6 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
     def actualize(self) -> Native:  # used in ValidateMixin.prepare_examples_with_title()
         return self
 
-    def get_meta_sheet(
-            self,
-            name: str = 'MetaInformation sheet',
-    ) -> Sheet:
-        meta_stream = StreamBuilder.stream(self.get_meta_records(), struct=COLS_FOR_META)
-        return Sheet(meta_stream, name=name)
-
-    def get_meta_chapter(
-            self,
-            level: Optional[int] = DEFAULT_CHAPTER_TITLE_LEVEL,
-            name: str = 'MetaInformation',
-    ) -> Chapter:
-        chapter = Chapter(name=name)
-        if level:
-            title = Paragraph([name], level=level, name=f'{name} title')
-            chapter.add_items([title])
-        meta_sheet = self.get_meta_sheet(name=f'{name} sheet')
-        chapter.add_items([meta_sheet])
-        return chapter
-
-    def get_struct_chapter(
-            self,
-            example_item: Optional[Item] = None,
-            comment: Optional[str] = None,
-            level: Optional[int] = DEFAULT_CHAPTER_TITLE_LEVEL,
-            name: str = 'Columns',
-    ) -> Chapter:
-        content = list()
-        if level:
-            title = Paragraph([name], level=level, name=f'{name} title')
-            content.append(title)
-        if comment:
-            content.append(comment)
-        struct = self.get_struct()
-        if not Auto.is_defined(struct):
-            struct = FlatStruct(self.get_columns())
-        if isinstance(struct, StructInterface) or hasattr(struct, 'get_data_sheet'):
-            struct_sheet = struct.get_data_sheet(example=example_item)
-            content.append(struct_sheet)
-        else:
-            if struct:
-                tag, err = '[TYPE_ERROR]', f'Expected struct as StructInterface, got {struct} instead.'
-            else:
-                tag, err = '[EMPTY]', 'Struct is not defined.'
-            content.append(f'{tag} {err}')
-        chapter = Chapter(content, name=name)
-        return chapter
-
-    def get_example_chapter(
-            self,
-            count: int = DEFAULT_EXAMPLE_COUNT,
-            columns: Columns = None,
-            example: Stream = None,
-            comment: Optional[str] = None,
-            level: Optional[int] = DEFAULT_CHAPTER_TITLE_LEVEL,
-            name: str = 'Example',
-    ) -> Chapter:
-        example_sheet = self.get_example_sheet(count=count, columns=columns, example=example, name=f'{name} sheet')
-        items = list()
-        if level:
-            title = Paragraph([name], level=level, name=f'{name} title')
-            items.append(title)
-        if comment:
-            comment = Paragraph([comment], name=f'{name} comment')
-            items.append(comment)
-        items.append(example_sheet)
-        chapter = Chapter(items, name=name)
-        return chapter
-
-    def get_example_sheet(
-            self,
-            count: int = DEFAULT_EXAMPLE_COUNT,
-            columns: Columns = None,
-            example: Stream = None,
-            name: str = 'Example sheet',
-    ) -> Sheet:
-        example = self._get_demo_example(count, columns=columns, example=example)
-        example = self._assume_native(example)
-        return Sheet(example, name=name)
-
-    def get_data_sheet(
-            self,
-            count: AutoCount = AUTO,
-            name: str = 'Data sheet',
-    ):
-        return self.get_example_sheet(count, name=name)
-
     def describe(
             self,
             *filter_args,
@@ -731,39 +648,14 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
             **filter_kwargs
     ) -> Native:
         display = self.get_display(display)
-        if show_header:
-            display.display_paragraph(self.get_name(), level=1)
-            display.display_paragraph(self.get_str_headers())
-        if comment:
-            display.display_paragraph(comment)
-        struct = self.get_struct()
-        if show_header or struct:
-            struct_title, example_item, example_stream, example_comment = self._prepare_examples_with_title(
-                *filter_args, **filter_kwargs, safe_filter=safe_filter,
-                example_row_count=count, actualize=actualize,
-                verbose=False,
-            )
-            display.append(struct_title)
-            if self.get_invalid_fields_count():
-                invalid_columns_str = get_str_from_args_kwargs(*self.get_invalid_columns())
-                line = f'Invalid columns: {invalid_columns_str}'
-                display.append(line)
-            display.display_paragraph()
-        else:
-            example_item, example_stream, example_comment = None, None, None
-        struct_chapter = self.get_struct_chapter(
-            example_item=example_item, comment=example_comment,
-            level=DEFAULT_CHAPTER_TITLE_LEVEL, name='Struct',
-        )
-        display.display(struct_chapter)
-        if example_stream and count:
-            example_chapter = self.get_example_chapter(
-                count, columns=columns, example=example_stream,
-                comment=example_comment, level=DEFAULT_CHAPTER_TITLE_LEVEL, name='Example',
-            )
-            display.display(example_chapter)
-        meta_chapter = self.get_meta_chapter(level=DEFAULT_CHAPTER_TITLE_LEVEL, name='MetaInformation')
-        display.display_item(meta_chapter)
+        for i in self.get_description_items(
+            count, columns=columns, show_header=show_header, comment=comment, actualize=actualize,
+            filters=filter_args, named_filters=filter_kwargs, safe_filter=safe_filter,
+        ):
+            if isinstance(i, str):
+                display.append(i)
+            else:  # isinstance(i, DocumentItem):
+                display.display(i)
         return self
 
     @staticmethod

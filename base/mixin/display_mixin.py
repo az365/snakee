@@ -18,18 +18,17 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 
 AutoDisplay = Union[Auto, DisplayInterface]
 
-_display = DefaultDisplay()
-
 
 class DisplayMixin(DisplayInterface, ABC):
+    _display_class: DisplayInterface = DefaultDisplay()
+
     def get_display(self, display: AutoDisplay = AUTO) -> DisplayInterface:
         if isinstance(display, (DefaultDisplay, DisplayInterface)) or hasattr(display, 'display_item'):
             return display
         elif Auto.is_defined(display):
             raise TypeError(display)
         else:
-            global _display
-            return _display
+            return self._display_class
 
     @classmethod
     def set_display(cls, display: DisplayInterface):
@@ -41,8 +40,7 @@ class DisplayMixin(DisplayInterface, ABC):
 
     @classmethod
     def set_display_inplace(cls, display: DisplayInterface):
-        global _display
-        _display = display
+        cls._display_class = display
 
     display = property(get_display, _set_display_inplace)
 
@@ -52,7 +50,8 @@ class DisplayMixin(DisplayInterface, ABC):
 
     @deprecated_with_alternative('get_display().append()')
     def output_line(self, line: str, output=AUTO) -> None:
-        return self.get_display(output).append(line)
+        current_display = self.get_display(output)
+        return current_display.append(line)
 
     @deprecated_with_alternative('get_display().display_paragraph()')
     def display_paragraph(
@@ -75,5 +74,5 @@ class DisplayMixin(DisplayInterface, ABC):
         return self.get_display().display_sheet(records, columns, count=count, with_title=with_title, style=style)
 
     @deprecated_with_alternative('get_display().display_item()')
-    def display_item(self, item, item_type='line', output=AUTO, **kwargs) -> None:
+    def display_item(self, item, item_type='paragraph', output=AUTO, **kwargs) -> None:
         return self.get_display(output).display_item(item, item_type=item_type, **kwargs)

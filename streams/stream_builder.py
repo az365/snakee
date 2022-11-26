@@ -1,30 +1,39 @@
-from typing import Union, Iterable
+from typing import Optional, Iterable, Iterator, Generator
 import gc
+from itertools import chain
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
-        StreamInterface, Stream, StreamBuilderInterface,
-        StreamType, ItemType, StreamItemType, JoinType, How, Class, OptionalFields, Auto, AUTO,
+        StreamBuilderInterface,
+        StreamInterface, LocalStreamInterface, ContextInterface, ConnectorInterface, TemporaryLocationInterface,
+        StreamType, ItemType, StreamItemType, JoinType,
+        Stream, How, Class, OptionalFields, Auto, AUTO,
     )
     from base.functions.arguments import update
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..interfaces import (
-        StreamInterface, Stream, StreamBuilderInterface,
-        StreamType, ItemType, StreamItemType, JoinType, How, Class, OptionalFields, Auto, AUTO,
+        StreamBuilderInterface,
+        StreamInterface, LocalStreamInterface, ContextInterface, ConnectorInterface, TemporaryLocationInterface,
+        StreamType, ItemType, StreamItemType, JoinType,
+        Stream, How, Class, OptionalFields, Auto, AUTO,
     )
     from ..base.functions.arguments import update
+
+Native = StreamBuilderInterface
 
 
 class StreamBuilder(StreamBuilderInterface):
     _default_stream_class = None  # will be substituted in stream_classes.py
     _dict_classes = dict()
     _stream_types = StreamType
+    _context = None
 
     @classmethod
     def stream(
             cls,
             data: Iterable,
             stream_type: StreamItemType = AUTO,
+            register: bool = True,
             **kwargs
     ) -> Stream:
         default_class = cls.get_default_stream_class()
@@ -41,6 +50,8 @@ class StreamBuilder(StreamBuilderInterface):
                 else:
                     example_item = cls._get_one_item(data)
                     item_type = cls._detect_item_type(example_item)
+                    if isinstance(data, (Iterator, Generator)):
+                        data = chain([example_item], data)
                 kwargs['item_type'] = item_type
         return stream_class(data, **kwargs)
 
@@ -124,3 +135,31 @@ class StreamBuilder(StreamBuilderInterface):
     @classmethod
     def set_default_stream_class(cls, stream_class: Class) -> None:
         cls._default_stream_class = stream_class
+
+    @classmethod
+    def get_context(cls) -> Optional[ContextInterface]:
+        return cls._context
+
+    @classmethod
+    def set_context(cls, cx: ContextInterface, set_storage: bool = False) -> Native:
+        cls._context = cx
+        if set_storage:
+            storage = cx.get_local_storage()
+            if Auto.is_defined(storage):
+                assert isinstance(storage, TemporaryLocationInterface)
+                cls.set_temporary_location(storage)
+        return cls()
+
+    def _set_context_inplace(self, cx: ContextInterface) -> None:
+        self.set_context(cx)
+
+    context = property(get_context, _set_context_inplace)
+
+    @classmethod
+    def set_temporary_location(cls, storage: TemporaryLocationInterface) -> Native:
+        default_stream_class = cls.get_default_stream_class()
+        if Auto.is_defined(default_stream_class) and hasattr(default_stream_class, 'get_tmp_files'):
+            temporary_location = default_stream_class.get_tmp_files()
+            assert isinstance(storage, ConnectorInterface)
+            temporary_location.set_default_storage(storage)
+        return cls()

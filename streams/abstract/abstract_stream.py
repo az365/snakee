@@ -15,8 +15,8 @@ try:  # Assume we're a submodule in a package.
     from base.abstract.contextual_data import ContextualDataWrapper
     from utils.decorators import deprecated_with_alternative
     from loggers.fallback_logger import FallbackLogger
-    from streams import stream_classes as sm
     from streams.interfaces.abstract_stream_interface import StreamInterface, DEFAULT_EXAMPLE_COUNT
+    from streams.stream_builder import StreamBuilder
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         StreamInterface, LoggerInterface, LeafConnectorInterface,
@@ -29,8 +29,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.abstract.contextual_data import ContextualDataWrapper
     from ...utils.decorators import deprecated_with_alternative
     from ...loggers.fallback_logger import FallbackLogger
-    from .. import stream_classes as sm
     from ..interfaces.abstract_stream_interface import StreamInterface, DEFAULT_EXAMPLE_COUNT
+    from ..stream_builder import StreamBuilder
 
 Native = StreamInterface
 
@@ -54,7 +54,7 @@ class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
         if source and not context:
             context = source.get_context()
         if not context:
-            context = sm.get_context()
+            context = StreamBuilder.get_context()
         super().__init__(name=name, caption=caption, data=data, source=source, context=context, check=check)
 
     def set_name(self, name: str, register: bool = True, inplace: bool = False) -> Optional[Native]:
@@ -137,7 +137,7 @@ class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
     @classmethod
     def get_class(cls, other: Stream = None) -> Class:
         if not Auto.is_auto(other):
-            return sm.StreamBuilder.get_default_stream_class()
+            return StreamBuilder.get_default_stream_class()
         elif isinstance(other, (StreamType, str)):
             return StreamType(other).get_class()
         elif inspect.isclass(other):

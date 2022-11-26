@@ -12,7 +12,7 @@ try:  # Assume we're a submodule in a package.
     from base.constants.chars import TAB_CHAR
     from content.items.simple_items import FULL_ITEM_FIELD, MutableRecord, MutableRow, ImmutableRow, SimpleRow
     from content.struct.flat_struct import FlatStruct
-    from content.struct.struct_row import StructRow, StructRowInterface, ROW_SUBCLASSES
+    from content.struct.struct_row import StructRow, StructRowInterface, ROW_SUBCLASSES, RECORD_SUBCLASSES
     from functions.secondary import all_secondary_functions as fs
     from utils.external import pd, DataFrame
     from utils.decorators import deprecated_with_alternative
@@ -30,7 +30,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.constants.chars import TAB_CHAR
     from ...content.items.simple_items import FULL_ITEM_FIELD, MutableRecord, MutableRow, ImmutableRow, SimpleRow
     from ...content.struct.flat_struct import FlatStruct
-    from ...content.struct.struct_row import StructRow, StructRowInterface, ROW_SUBCLASSES
+    from ...content.struct.struct_row import StructRow, StructRowInterface, ROW_SUBCLASSES, RECORD_SUBCLASSES
     from ...functions.secondary import all_secondary_functions as fs
     from ...utils.external import pd, DataFrame
     from ...utils.decorators import deprecated_with_alternative
@@ -59,7 +59,8 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
 
     def get_items_of_type(self, item_type: ItemType) -> Iterator:
         err_msg = 'StructStream.get_items_of_type(item_type): Expected StructRow, Row, Record, got item_type={}'
-        columns = list(self.get_columns())
+        struct = self._get_struct()
+        columns = list(self._get_columns())
         for i in self.get_stream_data():
             if isinstance(i, StructRowInterface) or hasattr(i, 'get_data'):
                 if item_type == ItemType.StructRow:
@@ -77,11 +78,35 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
                     yield StructRow(i, self._get_struct())
                 elif item_type == ItemType.Record:
                     yield {k: v for k, v in zip(columns, i)}
+                elif item_type == ItemType.Line:
+                    if Auto.is_defined(struct) and isinstance(struct, FlatStruct):
+                        yield struct.format(i)
+                    else:
+                        yield DEFAULT_COL_DELIMITER.join(i)
+                else:
+                    raise ValueError(err_msg.format(item_type))
+            elif isinstance(i, RECORD_SUBCLASSES):
+                struct = self._get_struct()
+                if item_type == ItemType.Row:
+                    yield [i.get(c) for c in columns]
+                elif item_type == ItemType.StructRow:
+                    yield StructRow(i, self._get_struct())
+                elif item_type == ItemType.Record:
+                    yield i
+                elif item_type == ItemType.Line:
+                    if Auto.is_defined(struct) and isinstance(struct, FlatStruct):
+                        yield struct.format(i)
+                    else:
+                        row = [i.get(c) for c in columns]
+                        yield DEFAULT_COL_DELIMITER.join(row)
                 else:
                     raise ValueError(err_msg.format(item_type))
             else:
                 msg = 'StructStream.get_items_of_type(item_type={}): Expected items as Row or StructRow, got {} as {}'
                 raise TypeError(msg.format(item_type, i, type(i)))
+
+    def get_lines(self) -> Iterable[str]:
+        return self.get_items_of_type(ItemType.Line)
 
     def get_rows(self, columns: StructOrColumns = AUTO) -> Iterator[SimpleRow]:
         if isinstance(self, RegularStreamInterface) or hasattr(self, 'get_item_type'):

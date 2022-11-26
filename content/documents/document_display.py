@@ -8,7 +8,6 @@ try:  # Assume we're a submodule in a package.
     from base.mixin.display_mixin import DisplayMixin, Class
     from base.mixin.iter_data_mixin import IterDataMixin
     from utils.external import display, clear_output, HTML, Markdown
-    from streams.stream_builder import StreamBuilder
     from content.documents.display_mode import DisplayMode
     from content.documents.document_item import DocumentItem, Paragraph, Sheet, Chart, Chapter
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -19,7 +18,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.mixin.display_mixin import DisplayMixin, Class
     from ...base.mixin.iter_data_mixin import IterDataMixin
     from ...utils.external import display, clear_output, HTML, Markdown
-    from ...streams.stream_builder import StreamBuilder
     from .display_mode import DisplayMode
     from .document_item import DocumentItem, Paragraph, Sheet, Chart, Chapter
 
@@ -100,7 +98,7 @@ class DocumentDisplay(DefaultDisplay, IterDataMixin):
     def _get_display_object(cls, data: Union[DocumentItem, str, Iterable, None]) -> Optional[DisplayObject]:
         if not data:
             return None
-        elif isinstance(data, DocumentItem):  # Text, Paragraph, Sheet, Chart, Container, Page, ...
+        elif isinstance(data, DocumentItem) or hasattr(data, 'get_text'):  # Text, Paragraph, Sheet, Chart, Container, Page, ...
             if cls.display_mode == DisplayMode.Text:
                 code = data.get_text()
             elif cls.display_mode == DisplayMode.Md:
@@ -209,10 +207,7 @@ class DocumentDisplay(DefaultDisplay, IterDataMixin):
             style: Union[str, Auto, None] = AUTO,
     ):
         self.display_current_paragraph(save=True, clear=True)
-        column_names = self._extract_column_names(columns)
-        stream = StreamBuilder.stream(records, item_type=item_type, struct=column_names)
-        stream = stream.collect()
-        sheet = Sheet(stream)
+        sheet = Sheet.from_records(records, columns=columns)
         return self.display(sheet)
 
     @staticmethod
