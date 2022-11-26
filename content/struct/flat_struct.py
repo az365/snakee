@@ -15,7 +15,6 @@ try:  # Assume we're a submodule in a package.
     from functions.secondary import array_functions as fs
     from utils.external import pd, get_use_objects_for_output, DataFrame
     from utils.decorators import deprecated_with_alternative
-    from streams.stream_builder import StreamBuilder
     from content.fields.any_field import AnyField
     from content.items.simple_items import SelectableItem, is_row, is_record
     from content.selection.abstract_expression import AbstractDescription
@@ -36,7 +35,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...functions.secondary import array_functions as fs
     from ...utils.external import pd, get_use_objects_for_output, DataFrame
     from ...utils.decorators import deprecated_with_alternative
-    from ...streams.stream_builder import StreamBuilder
     from ..fields.any_field import AnyField
     from ..items.simple_items import SelectableItem, is_row, is_record
     from ..selection.abstract_expression import AbstractDescription
@@ -712,8 +710,7 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
     ) -> Sheet:
         columns = self._get_describe_columns(example, with_lens=True)
         records = self.get_struct_repr_records(example=example, select_fields=select_fields, count=count)
-        stream = StreamBuilder.stream(records, struct=columns)
-        return Sheet(stream, name=name)
+        return Sheet.from_records(records, columns=columns, name=name)
 
     def display_data_sheet(
             self,
@@ -727,7 +724,7 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
         if title:
             display.display_paragraph(title, level=3)
         data_sheet = self.get_data_sheet(count, example=example, select_fields=select_fields, name=f'{title} sheet')
-        return data_sheet.show()
+        return display.display(data_sheet)
 
     def get_dataframe(self) -> DataFrame:
         data = self.get_struct_description_rows(include_header=True)
