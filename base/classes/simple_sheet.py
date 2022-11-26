@@ -100,17 +100,21 @@ class SheetMixin(ABC):
         return self._column_names
 
     def get_column_lens(self, default: Optional[int] = None) -> list:
+        self.set_default_column_lens(default)
+        return self._column_lens
+
+    def get_column_names_and_lens(self) -> list[Tuple[Name, Count]]:
+        names_and_lens = zip(self.get_columns(), self.get_column_lens())
+        return list(names_and_lens)
+
+    def set_default_column_lens(self, default: int) -> Native:
         count = len(self.get_columns())
         for i in range(count):
             if len(self._column_lens) < i + 1:
                 self._column_lens.append(default)
             elif self._column_lens[i] is None:
                 self._column_lens[i] = default
-        return self._column_lens
-
-    def get_column_names_and_lens(self) -> list[Tuple[Name, Count]]:
-        names_and_lens = zip(self.get_columns(), self.get_column_lens())
-        return list(names_and_lens)
+        return self
 
     def set_columns(self, columns: Iterable, inplace: bool = True) -> Native:
         if inplace:
