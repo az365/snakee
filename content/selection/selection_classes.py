@@ -3,7 +3,7 @@ from typing import Callable, Iterable, Union
 try:  # Assume we're a submodule in a package.
     from base.classes.auto import AUTO
     from base.classes.typing import FieldNo, FieldName
-    from base.constants.chars import STAR, NOT_SET
+    from base.constants.chars import ALL, NOT_SET
     from base.functions.arguments import get_name
     from utils.decorators import deprecated
     from content.items.item_type import ItemType
@@ -22,7 +22,7 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.classes.auto import AUTO
     from ...base.classes.typing import FieldNo, FieldName
-    from ...base.constants.chars import STAR, NOT_SET
+    from ...base.constants.chars import ALL, NOT_SET
     from ...base.functions.arguments import get_name
     from ...utils.decorators import deprecated
     from ..items.item_type import ItemType
@@ -43,9 +43,9 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 def get_selection_tuple(description: Union[AbstractDescription, Iterable], or_star: bool = True) -> Union[tuple, str]:
     if isinstance(description, AbstractDescription) or hasattr(description, 'get_selection_tuple'):
         return description.get_selection_tuple(including_target=True)
-    elif str(description) == STAR:
+    elif str(description) == ALL:  # *
         if or_star:
-            return STAR
+            return ALL  # *
         else:
             return description,
     elif isinstance(description, (FieldNo, FieldName, Callable)):
@@ -105,6 +105,7 @@ def get_output_struct(
         target_item_type=ItemType.Auto,
         input_item_type=ItemType.Auto,
         input_struct=None,
+        skip_missing=False,
         logger=None,
         selection_logger=AUTO,
         **expressions
@@ -120,6 +121,14 @@ def get_output_struct(
             selection_logger=selection_logger,
         )
         return transform.get_output_struct()
+    elif skip_missing:
+        output_fields = list()
+        for f in fields:
+            if f == ALL or isinstance(f, StarDescription):
+                return None
+            field_name = get_name(f, or_callable=False, or_class=False)
+            output_fields.append(field_name)
+        return output_fields + list(expressions)
 
 
 @deprecated

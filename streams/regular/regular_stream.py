@@ -17,7 +17,6 @@ try:  # Assume we're a submodule in a package.
     from content.items.item_getters import get_filter_function
     from content.selection import selection_classes as sn
     from content.struct.flat_struct import FlatStruct
-    from content.documents.document_item import Chapter, Paragraph, Sheet, DEFAULT_CHAPTER_TITLE_LEVEL
     from streams.abstract.local_stream import LocalStream
     from streams.interfaces.regular_stream_interface import (
         RegularStreamInterface, StreamItemType,
@@ -41,7 +40,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...content.items.item_getters import get_filter_function
     from ...content.selection import selection_classes as sn
     from ...content.struct.flat_struct import FlatStruct
-    from ...content.documents.document_item import Chapter, Paragraph, Sheet, DEFAULT_CHAPTER_TITLE_LEVEL
     from ..abstract.local_stream import LocalStream
     from ..interfaces.regular_stream_interface import (
         RegularStreamInterface, StreamItemType,
@@ -340,7 +338,7 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
             use_extended_method = self.get_item_type() in (ItemType.Row, ItemType.StructRow)
         input_item_type = self.get_item_type()
         target_item_type = self._get_target_item_type(*columns, **expressions)
-        target_struct = sn.get_output_struct(*columns, **expressions)
+        target_struct = sn.get_output_struct(*columns, **expressions, skip_missing=True)
         select_function = sn.get_selection_function(
             *columns, **expressions,
             input_item_type=input_item_type, target_item_type=target_item_type,
