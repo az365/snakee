@@ -12,7 +12,6 @@ try:  # Assume we're a submodule in a package.
     from base.abstract.named import COLS_FOR_META
     from content.documents.document_item import Chapter, Paragraph, Sheet, DEFAULT_CHAPTER_TITLE_LEVEL
     from streams.interfaces.abstract_stream_interface import StreamInterface, DEFAULT_EXAMPLE_COUNT
-    from streams.stream_builder import StreamBuilder
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         LeafConnectorInterface, StructInterface,
@@ -24,7 +23,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.abstract.named import COLS_FOR_META
     from ...content.documents.document_item import Chapter, Paragraph, Sheet, DEFAULT_CHAPTER_TITLE_LEVEL
     from ..interfaces.abstract_stream_interface import StreamInterface, DEFAULT_EXAMPLE_COUNT
-    from ..stream_builder import StreamBuilder
 
 Native = Union[StreamInterface, LeafConnectorInterface]
 
@@ -41,7 +39,7 @@ class ValidateMixin(ABC):
                 expected_struct = self.get_struct_from_source(set_struct=True, verbose=True)
         else:
             expected_struct = self.get_struct()
-        actual_struct = self.get_struct_from_source(set_struct=False, verbose=False)
+        actual_struct = self.get_struct_from_source(set_struct=False, verbose=False, skip_missing=skip_disconnected)
         if actual_struct:
             actual_struct = self._get_native_struct(actual_struct)
             validated_struct = actual_struct.validate_about(expected_struct)
@@ -73,7 +71,7 @@ class ValidateMixin(ABC):
 
     def get_validation_message(self, skip_disconnected: bool = True) -> str:
         if self.is_accessible():
-            self.validate_fields()
+            self.validate_fields(skip_disconnected=True)
             row_count = self.get_count(allow_slow_mode=False)
             column_count = self.get_column_count()
             error_count = self.get_invalid_fields_count()
@@ -311,8 +309,7 @@ class ValidateMixin(ABC):
             self,
             name: str = 'MetaInformation sheet',
     ) -> Sheet:
-        meta_stream = StreamBuilder.stream(self.get_meta_records(), register=False, struct=COLS_FOR_META)
-        return Sheet(meta_stream, name=name)
+        return Sheet.from_records(self.get_meta_records(), columns=COLS_FOR_META, name=name)
 
     def get_meta_chapter(
             self,

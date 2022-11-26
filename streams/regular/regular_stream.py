@@ -111,8 +111,8 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
 
     item_type = property(get_item_type, _set_item_type_inplace)
 
-    def get_struct_from_source(self) -> Struct:
-        columns = self.get_detected_columns()
+    def get_struct_from_source(self, skip_missing: bool = False) -> Struct:
+        columns = self.get_detected_columns(skip_errors=skip_missing)
         return FlatStruct(columns)
 
     def get_struct(self) -> Struct:
@@ -156,6 +156,7 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
             by_items_count: int = DEFAULT_ANALYZE_COUNT,
             sort: bool = True,
             get_max: bool = True,
+            skip_errors: bool = False,
     ) -> Sequence:
         item_type = self.get_item_type()
         if item_type in (ItemType.Any, ItemType.Line):
@@ -181,7 +182,7 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
             return range(max_row_len)
         elif item_type == ItemType.StructRow:  # deprecated
             return self.get_struct().get_columns()
-        else:
+        elif not skip_errors:
             raise NotImplementedError(item_type)
 
     def get_declared_columns(self) -> Optional[list]:
@@ -275,7 +276,7 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
             errors = self._get_validation_errors(i, struct=struct)
             if errors:
                 method_name = f'{self.__class__.__name__}._get_validated_items()'
-                message = f'{method_name} found invalid item {i} for {repr(self)}: {errors}'
+                message = f'{method_name} found invalid item {i} for {repr(self)} with errors: {errors}'
                 if skip_errors:
                     if logger:
                         logger.log(msg=message, level=LoggingLevel.Warning)
@@ -422,6 +423,7 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
             stream = self.memory_sort(key_function, reverse=reverse, verbose=verbose)
         else:
             stream = self.disk_sort(key_function, reverse=reverse, step=step, verbose=verbose)
+        self._assume_native(stream).set_struct(self.get_struct(), check=False, inplace=True)
         return self._assume_native(stream)
 
     def join(
@@ -547,6 +549,7 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
             as_pairs: bool = False,  # deprecated argument, use group_to_pairs() instead
             take_hash: bool = True,
             step: AutoCount = AUTO,
+            skip_missing: bool = False,
             verbose: bool = True,
     ) -> Stream:
         keys = unfold_structs_to_fields(keys)
@@ -562,6 +565,7 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
             *keys,
             values=values,
             as_pairs=as_pairs,
+            skip_missing=skip_missing,
         )
 
     @deprecated_with_alternative('RegularStream.group_by(as_pairs=True)')
