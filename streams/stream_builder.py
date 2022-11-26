@@ -45,8 +45,10 @@ class StreamBuilder(StreamBuilderInterface):
                 if isinstance(stream_type, ItemType):
                     item_type = stream_type
                 elif Auto.is_defined(stream_type):
-                    msg = f'StreamBuilder.stream(): expected stream_type as StreamType or ItemType, got {stream_type}'
-                    raise TypeError(msg)
+                    try:
+                        item_type = ItemType(stream_type)
+                    except (TypeError, ValueError):
+                        item_type = StreamType(stream_type).get_item_type()
                 else:
                     example_item = cls._get_one_item(data)
                     item_type = cls._detect_item_type(example_item)
@@ -56,8 +58,9 @@ class StreamBuilder(StreamBuilderInterface):
         return stream_class(data, **kwargs)
 
     @classmethod
-    def empty(cls, **kwargs) -> StreamInterface:
-        pass
+    def empty(cls, register: bool = False, **kwargs) -> StreamInterface:
+        empty_data = list()
+        return cls.stream(empty_data, register=register, **kwargs)
 
     @staticmethod
     def is_same_stream_type(*iter_streams) -> bool:

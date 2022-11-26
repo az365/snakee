@@ -9,6 +9,7 @@ try:  # Assume we're a submodule in a package.
         AUTO, Auto, StreamItemType, AutoBool, AutoCount, AutoName, Array, OptionalFields,
     )
     from base.functions.arguments import get_generated_name
+    from utils.decorators import deprecated_with_alternative
     from streams.mixin.columnar_mixin import ColumnarMixin
     from streams.stream_builder import StreamBuilder
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -19,6 +20,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         AUTO, Auto, StreamItemType, AutoBool, AutoCount, AutoName, Array, OptionalFields,
     )
     from ...base.functions.arguments import get_generated_name
+    from ...utils.decorators import deprecated_with_alternative
     from ...streams.mixin.columnar_mixin import ColumnarMixin
     from ...streams.stream_builder import StreamBuilder
 
@@ -48,7 +50,7 @@ class StreamableMixin(ColumnarMixin, ABC):
                 stream_type = StreamType.detect(item_type)
         return stream_type
 
-    # @deprecated_with_alternative('StreamBuilder.stream')
+    @deprecated_with_alternative('StreamBuilder.stream')
     def _get_stream_class(self, stream_type: StreamItemType = AUTO):
         try:  # assume we're RegularStream
             return self.get_stream_class()
@@ -56,23 +58,12 @@ class StreamableMixin(ColumnarMixin, ABC):
             return StreamBuilder.get_default_stream_class()
 
     def _get_item_type(self, stream: Union[StreamItemType, RegularStreamInterface] = AUTO) -> ItemType:
-        if isinstance(stream, RegularStreamInterface) or hasattr(stream, 'get_item_type'):
-            try:
-                return stream.get_item_type()
-            except TypeError:  # class of stream provided
-                pass
-        if isinstance(stream, StreamType) or hasattr(stream, 'get_class'):
-            stream_class = self._get_stream_class(stream)
-        elif Auto.is_defined(stream):
-            stream_class = stream
+        if isinstance(stream, StreamType) or hasattr(stream, 'get_item_type'):
+            return stream.get_item_type()
+        elif hasattr(stream, 'get_default_item_type'):
+            return stream.get_default_item_type()
         else:
-            stream_class = self._get_stream_class()
-        assert isinstance(stream_class, RegularStreamInterface) or hasattr(stream_class, 'get_item_type')
-        if hasattr(stream_class, 'get_default_item_type'):
-            return stream_class.get_default_item_type()
-        else:
-            stream_obj = stream_class([])
-            return stream_obj.get_item_type()
+            return ItemType.Any
 
     def _get_generated_stream_name(self) -> str:
         return get_generated_name('{}:stream'.format(self.get_name()), include_random=True, include_datetime=False)
@@ -144,33 +135,27 @@ class StreamableMixin(ColumnarMixin, ABC):
             self,
             data: Union[Iterable, Auto] = AUTO,
             name: AutoName = AUTO,
-            stream_type: StreamItemType = AUTO,
+            stream_type: StreamItemType = ItemType.Auto,
             ex: OptionalFields = None,
             step: AutoCount = AUTO,
             **kwargs
     ) -> Stream:
         name = Auto.delayed_acquire(name, self._get_generated_stream_name)
-        stream_type = self._get_stream_type(stream_type)
-        stream_class = self._get_stream_class(stream_type)
-        if hasattr(stream_class, 'get_item_type'):
-            item_type = stream_class.get_item_type()
+        if isinstance(stream_type, StreamType) or hasattr(stream_type, 'get_item_type'):
+            item_type = stream_type.get_item_type()
         else:
-            stream_obj = stream_class([])
-            if hasattr(stream_obj, 'get_item_type'):
-                item_type = stream_obj.get_item_type()
-            else:
-                item_type = AUTO
+            item_type = stream_type
         if Auto.is_defined(data):
             struct_source = data
         else:
             data = self._get_items_of_type(item_type, verbose=kwargs.get('verbose', AUTO), step=step)
             struct_source = self
-        meta = self.get_compatible_meta(stream_class, name=name, ex=ex, **kwargs)
+        meta = self.get_compatible_meta(StreamBuilder.empty(), name=name, ex=ex, **kwargs)
         if 'count' not in meta and 'count' not in kwargs:
             meta['count'] = self._get_fast_count()
         if 'source' not in meta:
             meta['source'] = self
-        stream = stream_class(data, **meta)
+        stream = StreamBuilder.stream(data, stream_type=stream_type, **meta)
         if isinstance(struct_source, StructMixinInterface) or hasattr(struct_source, 'get_struct'):
             if isinstance(stream, StructMixinInterface) or hasattr(stream, 'set_struct'):
                 stream.set_struct(struct_source.get_struct(), inplace=True)
@@ -197,8 +182,8 @@ class StreamableMixin(ColumnarMixin, ABC):
         if not Auto.is_defined(data):
             data = self._get_items_of_type(item_type, step=step, verbose=verbose, message=message)
         stream_kwargs = self.get_stream_kwargs(data=data, step=step, verbose=verbose, **kwargs)
-        stream_class = self._get_stream_class()
-        return stream_class(**stream_kwargs)
+        stream = StreamBuilder.stream(**stream_kwargs)
+        return self._assume_stream(stream)
 
     def to_any_stream(self, step: AutoCount = AUTO, verbose: AutoBool = AUTO, **kwargs) -> Stream:
         return self.to_stream_type(StreamType.AnyStream, step=step, verbose=verbose, **kwargs)
@@ -251,8 +236,7 @@ class StreamableMixin(ColumnarMixin, ABC):
             elif not skip_missing:
                 raise TypeError('stream {} of type {} can not be collected'.format(stream, stream.get_stream_type()))
         elif skip_missing:
-            stream_class = self._get_stream_class()
-            stream = stream_class([])
+            stream = StreamBuilder.empty()
         else:
             raise FileNotFoundError('File {} not found'.format(self.get_name()))
         return self._assume_stream(stream)

@@ -7,7 +7,9 @@ try:  # Assume we're a submodule in a package.
         ARRAY_TYPES, Array, Name, Count, OptionalFields, Links,
         AUTO, Auto, AutoBool, AutoName, AutoCount, AutoLinks, AutoContext,
     )
+    from base.constants.chars import CROP_SUFFIX
     from base.functions.arguments import update, get_str_from_args_kwargs
+    from streams.stream_builder import StreamBuilder
     from content.struct.flat_struct import FlatStruct
     from connectors.abstract.leaf_connector import LeafConnector
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -17,7 +19,9 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         ARRAY_TYPES, Array, Name, Count, OptionalFields, Links,
         AUTO, Auto, AutoBool, AutoName, AutoCount, AutoLinks, AutoContext,
     )
+    from ...base.constants.chars import CROP_SUFFIX
     from ...base.functions.arguments import update, get_str_from_args_kwargs
+    from ...streams.stream_builder import StreamBuilder
     from ...content.struct.flat_struct import FlatStruct
     from ..abstract.leaf_connector import LeafConnector
 
@@ -29,7 +33,6 @@ META_MEMBER_MAPPING = dict(_source='database')
 MAX_ITEMS_IN_MEMORY = 10000
 EXAMPLE_ROW_COUNT = 10
 EXAMPLE_STR_LEN = 12
-CONTINUE_SYMBOL = '..'
 
 
 class Table(LeafConnector):
@@ -237,15 +240,15 @@ class Table(LeafConnector):
         yield from self.execute_select(fields='*', count=count, verbose=verbose)
         self.close()
 
-    def get_rows(self, verbose: AutoBool = AUTO) -> Iterable:
+    def get_rows(self, verbose: AutoBool = AUTO, step: AutoCount = AUTO) -> Iterable:
         database = self.get_database()
         return database.select_all(self.get_name(), verbose=verbose)
 
     def get_data(self, verbose: AutoBool = AUTO) -> Iterable:
         return self.get_rows(verbose=verbose)
 
-    def get_items(self, verbose: AutoBool = AUTO) -> Iterable:
-        return self.get_rows(verbose=verbose)
+    def get_items(self, verbose: AutoBool = AUTO, step: AutoCount = AUTO) -> Iterable:
+        return self.get_rows(verbose=verbose, step=step)
 
     def get_items_of_type(
             self,
@@ -339,10 +342,10 @@ class Table(LeafConnector):
         if stream_type == StreamType.SqlStream:
             assert not Auto.is_defined(data)
             name = Auto.delayed_acquire(name, self._get_generated_stream_name)
-            stream_class = stream_type.get_class()
-            meta = self.get_compatible_meta(stream_class, name=name, ex=ex, **kwargs)
+            stream_example = StreamBuilder.empty(stream_type=stream_type)
+            meta = self.get_compatible_meta(stream_example, name=name, ex=ex, **kwargs)
             meta['source'] = self
-            return stream_class(data, **meta)
+            return StreamBuilder.stream(data, **meta)
         else:
             return super().to_stream(
                 data=data, name=name,
@@ -375,7 +378,6 @@ class Table(LeafConnector):
             verbose: AutoBool = AUTO,
     ) -> Stream:
         stream_type = Auto.acquire(stream_type, ItemType.Record)
-        stream_builder = self._get_stream_class()
         stream_rows = self.execute_select(fields=fields, filters=filters, sort=sort, count=count, verbose=verbose)
         if stream_type in (StreamType.RowStream, ItemType.Row):
             stream_data = stream_rows
@@ -388,7 +390,7 @@ class Table(LeafConnector):
             if count < MAX_ITEMS_IN_MEMORY:
                 stream_data = list(stream_data)
                 count = len(stream_data)
-        return stream_builder(stream_data, count=count, source=self, context=self.get_context())
+        return StreamBuilder.stream(stream_data, count=count, source=self, context=self.get_context())
 
     def select(self, *columns, **expressions) -> Stream:
         stream = self.to_stream().select(*columns, **expressions)
@@ -429,13 +431,13 @@ class Table(LeafConnector):
                 for k, v in item_example.items():
                     v = str(v)
                     if len(v) > example_str_len:
-                        fixed_len = example_str_len - len(CONTINUE_SYMBOL)
+                        fixed_len = example_str_len - len(CROP_SUFFIX)
                         if fixed_len < 0:
                             fixed_len = 0
-                            continue_symbol = CONTINUE_SYMBOL[:example_str_len]
+                            crop_suffix = CROP_SUFFIX[:example_str_len]
                         else:
-                            continue_symbol = CONTINUE_SYMBOL
-                        item_example[k] = str(v)[:fixed_len] + continue_symbol
+                            crop_suffix = CROP_SUFFIX
+                        item_example[k] = str(v)[:fixed_len] + crop_suffix
         else:
             item_example = dict()
             stream_example = None
