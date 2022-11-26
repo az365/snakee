@@ -48,6 +48,7 @@ class StreamableMixin(ColumnarMixin, ABC):
                 stream_type = StreamType.detect(item_type)
         return stream_type
 
+    # @deprecated_with_alternative('StreamBuilder.stream')
     def _get_stream_class(self, stream_type: StreamItemType = AUTO):
         try:  # assume we're RegularStream
             return self.get_stream_class()
@@ -159,14 +160,20 @@ class StreamableMixin(ColumnarMixin, ABC):
                 item_type = stream_obj.get_item_type()
             else:
                 item_type = AUTO
-        if not Auto.is_defined(data):
+        if Auto.is_defined(data):
+            struct_source = data
+        else:
             data = self._get_items_of_type(item_type, verbose=kwargs.get('verbose', AUTO), step=step)
+            struct_source = self
         meta = self.get_compatible_meta(stream_class, name=name, ex=ex, **kwargs)
         if 'count' not in meta and 'count' not in kwargs:
             meta['count'] = self._get_fast_count()
         if 'source' not in meta:
             meta['source'] = self
         stream = stream_class(data, **meta)
+        if isinstance(struct_source, StructMixinInterface) or hasattr(struct_source, 'get_struct'):
+            if isinstance(stream, StructMixinInterface) or hasattr(stream, 'set_struct'):
+                stream.set_struct(struct_source.get_struct(), inplace=True)
         return self._assume_stream(stream)
 
     def to_stream_type(
@@ -190,8 +197,8 @@ class StreamableMixin(ColumnarMixin, ABC):
         if not Auto.is_defined(data):
             data = self._get_items_of_type(item_type, step=step, verbose=verbose, message=message)
         stream_kwargs = self.get_stream_kwargs(data=data, step=step, verbose=verbose, **kwargs)
-        stream = self._get_stream_class()
-        return stream(**stream_kwargs)
+        stream_class = self._get_stream_class()
+        return stream_class(**stream_kwargs)
 
     def to_any_stream(self, step: AutoCount = AUTO, verbose: AutoBool = AUTO, **kwargs) -> Stream:
         return self.to_stream_type(StreamType.AnyStream, step=step, verbose=verbose, **kwargs)
@@ -244,7 +251,8 @@ class StreamableMixin(ColumnarMixin, ABC):
             elif not skip_missing:
                 raise TypeError('stream {} of type {} can not be collected'.format(stream, stream.get_stream_type()))
         elif skip_missing:
-            stream = self._get_stream_class()([])
+            stream_class = self._get_stream_class()
+            stream = stream_class([])
         else:
             raise FileNotFoundError('File {} not found'.format(self.get_name()))
         return self._assume_stream(stream)

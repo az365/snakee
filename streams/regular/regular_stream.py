@@ -322,6 +322,11 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
                 secondary=self.get_stream_type(),
             )
 
+    def take(self, count: Union[int, bool] = 1, inplace: bool = False) -> Native:
+        stream = super().take(count, inplace=inplace) or self
+        stream.set_struct(self.get_struct(), check=False, inplace=True)
+        return stream
+
     def skip(self, count: int = 1, inplace: bool = False) -> Native:
         stream = super().skip(count, inplace=inplace)
         assert isinstance(stream, RegularStream)
@@ -509,6 +514,9 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
         keys = unfold_structs_to_fields(keys)
         key_function = self._get_key_function(keys, take_hash=take_hash)
         iter_groups = self._get_groups(key_function, as_pairs=as_pairs)
+        count = self.get_count() or self.get_estimated_count()
+        if count == 0 and not skip_missing:
+            raise AssertionError('Got empty stream.')
         if Auto.is_defined(output_struct):
             expected_struct = output_struct
         elif as_pairs:
@@ -539,7 +547,7 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
         if self.is_in_memory():
             return stream_groups.to_memory()
         else:
-            stream_groups.set_estimated_count(self.get_count() or self.get_estimated_count(), inplace=True)
+            stream_groups.set_estimated_count(count, inplace=True)
             return stream_groups
 
     def group_by(
