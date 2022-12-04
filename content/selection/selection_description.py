@@ -3,7 +3,7 @@ from typing import Optional, Callable, Iterable, Union
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         StructInterface, LoggerInterface,
-        ItemType, Item, Row, Record, Field, Name, Array, ARRAY_TYPES,
+        ItemType, Item, Row, Record, Field, Name, FieldName, FieldNo, Array, ARRAY_TYPES,
         AUTO, Auto,
     )
     from base.abstract.simple_data import SimpleDataWrapper
@@ -18,7 +18,7 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         StructInterface, LoggerInterface,
-        ItemType, Item, Row, Record, Field, Name, Array, ARRAY_TYPES,
+        ItemType, Item, Row, Record, Field, Name, FieldName, FieldNo, Array, ARRAY_TYPES,
         AUTO, Auto,
     )
     from ...base.abstract.simple_data import SimpleDataWrapper
@@ -32,10 +32,11 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .selection_functions import topologically_sorted
 
 Logger = Optional[LoggerInterface]
-Struct = Union[Optional[StructInterface], Iterable]
+Struct = Union[StructInterface, Iterable, None]
 Description = AbstractDescription
-NAME_TYPES = int, str
-DESC_TYPES = int, str, Description
+NAME_TYPES = FieldName, FieldNo
+DESC_TYPES = FieldName, FieldNo, Description
+FIELD_TYPES = FieldName, FieldNo, AnyField
 
 META_MEMBER_MAPPING = dict(_data='descriptions')
 
@@ -51,7 +52,7 @@ def is_expression_description(obj) -> bool:
         return hasattr(obj, 'get_selection_tuple')
 
 
-def build_expression_description(left: Field, right: Union[Optional[Array], Callable] = None, **kwargs) -> Description:
+def build_expression_description(left: Field, right: Union[Array, Callable, None] = None, **kwargs) -> Description:
     if is_expression_description(left):
         assert right is None
         return left
@@ -68,7 +69,7 @@ def build_expression_description(left: Field, right: Union[Optional[Array], Call
     if isinstance(desc, Callable):
         return FunctionDescription(target, function=desc, **kwargs)
     elif desc is not None:
-        assert isinstance(desc, (int, str)), 'int or str expected, got {}'.format(desc)
+        assert isinstance(desc, FIELD_TYPES), f'field as {FIELD_TYPES} expected, got {desc}'
         return AliasDescription(alias=target, source=desc, **kwargs)
     elif target == '*':
         return StarDescription(**kwargs)
@@ -85,7 +86,7 @@ def compose_descriptions(
         logger: Logger = None,
         selection_logger: Logger = None,
 ) -> Iterable:
-    assert isinstance(target_item_type, ItemType)
+    assert isinstance(target_item_type, ItemType) or hasattr(target_item_type, 'get_field_getter'), target_item_type
     target_is_row = target_item_type == ItemType.Row
     kwargs = dict(
         target_item_type=target_item_type, input_item_type=input_item_type,
@@ -107,7 +108,7 @@ def compose_descriptions(
 
 
 def translate_names_to_columns(expression, struct: StructInterface) -> tuple:
-    if isinstance(expression, str):
+    if isinstance(expression, FieldName):
         return struct.get_field_position(expression),
     elif isinstance(expression, Iterable):
         processed_expression = list()
@@ -278,7 +279,7 @@ class SelectionDescription(SimpleDataWrapper, IterDataMixin):
     def apply_outplace(self, item: Item, target_item_type: ItemType) -> Item:
         output_item = target_item_type.build()
         for d in self.get_descriptions():
-            assert isinstance(d, SingleFieldDescription)
+            assert isinstance(d, SingleFieldDescription) or hasattr(d, 'get_target_field_name'), f'got {d}'
             it.set_to_item_inplace(
                 field=d.get_target_field_name(),
                 value=d.get_value_from_item(item),
