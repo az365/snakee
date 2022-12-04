@@ -2,20 +2,19 @@ from abc import ABC, abstractmethod
 from typing import Optional, Iterable, Iterator, Tuple, Union, Any
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.typing import Name, Count
+    from base.classes.typing import Name, Count, FormattedRow, Row, Record, Line
     from base.constants.chars import EMPTY, REPR_DELIMITER, DEFAULT_LINE_LEN
     from base.interfaces.iterable_interface import IterableInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..classes.typing import Name, Count
+    from ..classes.typing import Name, Count, FormattedRow, Row, Record, Line
     from ..constants.chars import EMPTY, REPR_DELIMITER, DEFAULT_LINE_LEN
     from .iterable_interface import IterableInterface
 
 Native = IterableInterface
-Row, Record = tuple, dict
-FormattedRow = Tuple[str]
 AnyField = Any
-Column = Union[Name, Tuple[Name, Count], AnyField]
-Columns = Optional[Iterable[Column]]
+NameCountPair = Tuple[Name, Count]
+Column = Union[Name, NameCountPair, AnyField]
+Columns = Iterable[Column]
 
 
 class SheetInterface(IterableInterface, ABC):
@@ -26,12 +25,12 @@ class SheetInterface(IterableInterface, ABC):
 
     @classmethod
     @abstractmethod
-    def from_records(cls, records: Iterable[Record], columns: Columns = None, name: Name = EMPTY) -> Native:
+    def from_records(cls, records: Iterable[Record], columns: Optional[Columns] = None, name: Name = EMPTY) -> Native:
         pass
 
     @classmethod
     @abstractmethod
-    def from_rows(cls, rows: Iterable[Row], columns: Columns, name: Name = EMPTY) -> Native:
+    def from_rows(cls, rows: Iterable[Row], columns: Optional[Columns], name: Name = EMPTY) -> Native:
         pass
 
     @abstractmethod
@@ -39,7 +38,7 @@ class SheetInterface(IterableInterface, ABC):
         pass
 
     @abstractmethod
-    def get_lines(self, delimiter: str = REPR_DELIMITER) -> Iterable[str]:
+    def get_lines(self, delimiter: str = REPR_DELIMITER) -> Iterable[Line]:
         pass
 
     @abstractmethod
@@ -55,5 +54,5 @@ class SheetInterface(IterableInterface, ABC):
         pass
 
     @abstractmethod
-    def set_columns(self, columns: Iterable, inplace: bool = True) -> Native:
+    def set_columns(self, columns: Columns, inplace: bool = True) -> Native:
         pass
