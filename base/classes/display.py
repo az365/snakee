@@ -18,6 +18,8 @@ PREFIX_FIELD = 'prefix'
 
 
 class DefaultDisplay(DisplayInterface):
+    _sheet_class: Class = None
+
     def get_display(self, display: AutoDisplay = AUTO) -> DisplayInterface:
         if isinstance(display, DisplayInterface):
             return display
@@ -58,6 +60,7 @@ class DefaultDisplay(DisplayInterface):
             else:
                 raise TypeError(f'Expected paragraph as Paragraph, str or Iterable, got {paragraph}')
 
+    # @deprecated
     def display_sheet(
             self,
             records: Iterable,
@@ -65,10 +68,15 @@ class DefaultDisplay(DisplayInterface):
             count: AutoCount = None,
             with_title: bool = True,
             style: AutoStyle = AUTO,
+            name: str = EMPTY,
     ) -> None:
-        columnar_lines = self._get_columnar_lines(records, columns=columns, count=count, with_title=with_title)
-        for line in columnar_lines:
-            self.display(line)
+        sheet_class = self.get_sheet_class()
+        if sheet_class:
+            assert hasattr(sheet_class, 'from_records'), sheet_class  # isinstance(sheet_class, SheetInterface)
+            sheet = sheet_class.from_records(records, columns=columns, name=name)
+        else:
+            sheet = self._get_columnar_lines(records, columns=columns, count=count, with_title=with_title)
+        self.display(sheet)
 
     def display_item(self, item: Item, item_type='paragraph', **kwargs) -> None:
         item_type_value = get_value(item_type)
@@ -174,6 +182,14 @@ class DefaultDisplay(DisplayInterface):
                 r[PREFIX_FIELD] = prefix
             r = cls._get_cropped_record(r, columns=columns, max_len=max_len)
             yield formatter.format(**r)
+
+    @classmethod
+    def get_sheet_class(cls) -> Optional[Class]:
+        return cls._sheet_class
+
+    @classmethod
+    def set_sheet_class_inplace(cls, sheet_class: Class):
+        cls._sheet_class = sheet_class
 
     def get_encoded_sheet(self, records, columns, count, with_title, style=AUTO) -> Iterator[str]:
         return self._get_columnar_lines(records, columns=columns, count=count, with_title=with_title)
