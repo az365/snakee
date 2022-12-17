@@ -3,7 +3,7 @@ from typing import Optional, Callable, Iterable, Sequence, Union
 try:  # Assume we're a submodule in a package.
     from interfaces import Item, ItemType, ContentType, Class, Count, AutoCount, AutoBool, Auto, AUTO
     from base.constants.chars import EMPTY, SPACE, HTML_SPACE, PARAGRAPH_CHAR
-    from base.classes.display import DefaultDisplay, PREFIX_FIELD
+    from base.classes.display import DefaultDisplay, DEFAULT_CHAPTER_TITLE_LEVEL
     from base.classes.enum import ClassType
     from base.functions.arguments import get_name
     from base.mixin.display_mixin import DisplayMixin, Class
@@ -14,7 +14,7 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import Item, ItemType, ContentType, Class, Count, AutoCount, AutoBool, Auto, AUTO
     from ...base.constants.chars import EMPTY, SPACE, HTML_SPACE, PARAGRAPH_CHAR
-    from ...base.classes.display import DefaultDisplay, PREFIX_FIELD
+    from ...base.classes.display import DefaultDisplay, DEFAULT_CHAPTER_TITLE_LEVEL
     from ...base.classes.enum import ClassType
     from ...base.functions.arguments import get_name
     from ...base.mixin.display_mixin import DisplayMixin, Class
@@ -30,7 +30,6 @@ DisplayedItem = Union[DocumentItem, FormattedDisplayTypes, Auto]
 DisplayedData = Union[DocumentItem, str, Iterable, None]
 DisplayObject = Union[FormattedDisplayTypes, str]
 FORMATTED_DISPLAY_TYPES = Markdown, HTML
-DEFAULT_CHAPTER_TITLE_LEVEL = 3
 
 
 class DocumentDisplay(DefaultDisplay, IterDataMixin):
@@ -246,6 +245,12 @@ class DocumentDisplay(DefaultDisplay, IterDataMixin):
     @staticmethod
     def _get_display_method() -> Callable:
         return display
+
+    @staticmethod
+    def build_paragraph(data: Iterable, level: Count = 0, name: str = EMPTY) -> Paragraph:
+        if isinstance(data, str):
+            data = [data]
+        return Paragraph(data, level=level, name=name)
 
     # @deprecated
     def display_paragraph(

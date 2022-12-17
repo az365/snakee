@@ -1,16 +1,22 @@
 from typing import Optional, Callable, Iterable, Generator, Iterator, Sequence, Union
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.typing import AUTO, Auto, AutoCount, Class
+    from base.classes.typing import AUTO, Auto, AutoCount, Count, Class
     from base.functions.arguments import get_name, get_value, get_str_from_args_kwargs
-    from base.constants.chars import DEFAULT_LINE_LEN, REPR_DELIMITER, SMALL_INDENT, EMPTY
+    from base.constants.chars import (
+        REPR_DELIMITER, SMALL_INDENT, MD_HEADER, PARAGRAPH_CHAR, ITEM, EMPTY,
+        DEFAULT_LINE_LEN,
+    )
     from base.interfaces.base_interface import BaseInterface
     from base.interfaces.display_interface import DisplayInterface, Item, AutoStyle, AutoDisplay, DEFAULT_EXAMPLE_COUNT
     from utils.decorators import deprecated_with_alternative
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..classes.typing import AUTO, Auto, AutoCount, Class
+    from ..classes.typing import AUTO, Auto, AutoCount, Count, Class
     from ..functions.arguments import get_name, get_value, get_str_from_args_kwargs
-    from ..constants.chars import DEFAULT_LINE_LEN, REPR_DELIMITER, SMALL_INDENT, EMPTY
+    from ..constants.chars import (
+        REPR_DELIMITER, SMALL_INDENT, MD_HEADER, PARAGRAPH_CHAR, ITEM, EMPTY,
+        DEFAULT_LINE_LEN,
+    )
     from ..interfaces.base_interface import BaseInterface
     from ..interfaces.display_interface import DisplayInterface, Item, AutoStyle, AutoDisplay, DEFAULT_EXAMPLE_COUNT
     from ...utils.decorators import deprecated_with_alternative
@@ -18,6 +24,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 DEFAULT_INT_WIDTH, DEFAULT_FLOAT_WIDTH = 7, 12
 PREFIX_FIELD = 'prefix'
 COLS_FOR_META = ('defined', 3), ('key', 20), ('value', 30), ('actual_type', 14), ('expected_type', 20), ('default', 20)
+DEFAULT_CHAPTER_TITLE_LEVEL = 3
 
 
 class DefaultDisplay(DisplayInterface):
@@ -53,6 +60,21 @@ class DefaultDisplay(DisplayInterface):
     # @deprecated_with_alternative('display_item()')
     def append(self, text: str) -> None:
         self.display(text)
+
+    @staticmethod
+    def build_paragraph(data: Iterable, level: Count = 0, name: str = EMPTY):
+        if isinstance(data, str):
+            data = [data]
+        text = ''
+        for line in data:
+            if level:
+                if level > 0:
+                    prefix = MD_HEADER * level
+                elif level < 0:
+                    prefix = SMALL_INDENT * (-1 - level) + ITEM
+                line = f'{prefix} {text}'
+            text = text + line + PARAGRAPH_CHAR
+        return text
 
     # @deprecated_with_alternative('display_item()')
     def display_paragraph(
@@ -100,11 +122,11 @@ class DefaultDisplay(DisplayInterface):
             title = obj.get_str_title()
         else:
             title = get_name(obj)
-        yield title
+        yield cls.build_paragraph(title, level=level)
         if comment:
-            yield comment
+            yield cls.build_paragraph(comment)
         if hasattr(obj, 'get_str_headers'):
-            yield from obj.get_str_headers()
+            yield cls.build_paragraph(obj.get_str_headers())
 
     @classmethod
     def get_meta_sheet_for(cls, obj, name: str = 'MetaInformation sheet'):
@@ -120,13 +142,18 @@ class DefaultDisplay(DisplayInterface):
             return get_str_from_args_kwargs(**meta)
 
     @classmethod
-    def get_meta_chapter_for(cls, obj, level: Optional[int] = 3, name: str = 'Meta') -> Iterable:
+    def get_meta_chapter_for(
+            cls,
+            obj,
+            level: Optional[int] = DEFAULT_CHAPTER_TITLE_LEVEL,
+            name: str = 'Meta',
+    ) -> Iterable:
         if level:
-            yield name  # title
+            yield cls.build_paragraph(name, level=level)
         if isinstance(obj, BaseInterface) or hasattr(obj, 'get_meta_records'):
             count = len(list(obj.get_meta_records()))
             comment = f'{repr(obj)} has {count} attributes in meta-data:'
-            yield comment
+            yield cls.build_paragraph(comment)
         yield cls.get_meta_sheet_for(obj, name=f'{name} sheet')
 
     @classmethod
@@ -151,7 +178,7 @@ class DefaultDisplay(DisplayInterface):
             ex = [ex]
         for c in columns:
             if c in ex:
-                yield ''
+                yield EMPTY
             elif isinstance(c, (int, str)):
                 yield c
             elif isinstance(c, Sequence):
@@ -236,9 +263,11 @@ class DefaultDisplay(DisplayInterface):
     def set_sheet_class_inplace(cls, sheet_class: Class):
         cls._sheet_class = sheet_class
 
+    # @deprecated
     def get_encoded_sheet(self, records, columns, count, with_title, style=AUTO) -> Iterator[str]:
         return self._get_columnar_lines(records, columns=columns, count=count, with_title=with_title)
 
+    @deprecated_with_alternative('build_paragraph()')
     def get_encoded_paragraph(
             self,
             paragraph: Optional[Iterable] = None,
@@ -247,7 +276,7 @@ class DefaultDisplay(DisplayInterface):
             clear: bool = False,
     ) -> Iterator[str]:
         if isinstance(paragraph, str):
-            yield from paragraph.split('\n')
+            yield from paragraph.split(PARAGRAPH_CHAR)
         elif isinstance(paragraph, Iterable):
             yield from paragraph
         elif paragraph:
@@ -260,7 +289,7 @@ class DefaultDisplay(DisplayInterface):
         if hasattr(data, 'get_lines'):  # isinstance(data, DocumentItem)
             data = data.get_lines()
         if isinstance(data, Iterable) and not isinstance(data, str):
-            data = '\n'.join(data)
+            data = PARAGRAPH_CHAR.join(data)
         return data
 
     @staticmethod

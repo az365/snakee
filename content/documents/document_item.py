@@ -192,6 +192,10 @@ class DocumentItem(SimpleDataWrapper):
         else:
             return obj
 
+    @staticmethod
+    def build_paragraph(data: Iterable, level: Count = 0, name: str = ''):
+        return Paragraph(data, level=level, name=name)
+
 
 Native = Union[DocumentItem, IterDataMixin]
 Items = Iterable[DocumentItem]
