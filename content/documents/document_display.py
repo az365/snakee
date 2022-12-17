@@ -5,6 +5,7 @@ try:  # Assume we're a submodule in a package.
     from base.constants.chars import EMPTY, SPACE, HTML_SPACE, PARAGRAPH_CHAR
     from base.classes.display import DefaultDisplay, PREFIX_FIELD
     from base.classes.enum import ClassType
+    from base.functions.arguments import get_name
     from base.mixin.display_mixin import DisplayMixin, Class
     from base.mixin.iter_data_mixin import IterDataMixin
     from utils.external import display, clear_output, HTML, Markdown
@@ -15,6 +16,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.constants.chars import EMPTY, SPACE, HTML_SPACE, PARAGRAPH_CHAR
     from ...base.classes.display import DefaultDisplay, PREFIX_FIELD
     from ...base.classes.enum import ClassType
+    from ...base.functions.arguments import get_name
     from ...base.mixin.display_mixin import DisplayMixin, Class
     from ...base.mixin.iter_data_mixin import IterDataMixin
     from ...utils.external import display, clear_output, HTML, Markdown
@@ -92,6 +94,29 @@ class DocumentDisplay(DefaultDisplay, IterDataMixin):
         if not wait:
             self.display_current_paragraph(save=False, clear=False)
         return self
+
+    @classmethod
+    def get_header_chapter_for(cls, obj, level: int = 1, comment: str = EMPTY, name: Optional[str] = None) -> Chapter:
+        obj_name = get_name(obj)
+        if hasattr(obj, 'get_str_title'):
+            title = obj.get_str_title()
+        else:
+            title = obj_name
+        if not Auto.is_defined(name):
+            name = f'{obj_name} header'
+        chapter = Chapter(name=name)
+        if level:
+            chapter.append(Paragraph(title, level=level), inplace=True)
+        str_headers = None
+        if hasattr(obj, 'get_str_headers'):
+            str_headers = list(obj.get_str_headers())
+        if hasattr(obj, 'get_caption') and not str_headers:
+            str_headers = [obj.get_caption()]
+        if comment:
+            str_headers.append(comment)
+        if str_headers:
+            chapter.append(Paragraph(str_headers), inplace=True)
+        return chapter
 
     @classmethod
     def get_meta_chapter_for(

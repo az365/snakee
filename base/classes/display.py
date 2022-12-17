@@ -50,14 +50,6 @@ class DefaultDisplay(DisplayInterface):
     def get_output(self, output: AutoDisplay = AUTO) -> DisplayInterface:
         return self.get_display(output)
 
-    @deprecated_with_alternative('display_paragraph()')
-    def output_blank_line(self, output: AutoDisplay = AUTO) -> None:
-        self.get_display(output).display_paragraph(EMPTY)
-
-    @deprecated_with_alternative('append()')
-    def output_line(self, line: str, output: AutoDisplay = AUTO) -> None:
-        return self.append(line)
-
     # @deprecated_with_alternative('display_item()')
     def append(self, text: str) -> None:
         self.display(text)
@@ -101,6 +93,18 @@ class DefaultDisplay(DisplayInterface):
         method_name = f'display_{item_type_value}'
         method = getattr(self, method_name, self.display_paragraph)
         return method(item, **kwargs)
+
+    @classmethod
+    def get_header_chapter_for(cls, obj, level: int = 1, comment: str = EMPTY) -> Iterable:
+        if hasattr(obj, 'get_str_title'):
+            title = obj.get_str_title()
+        else:
+            title = get_name(obj)
+        yield title
+        if comment:
+            yield comment
+        if hasattr(obj, 'get_str_headers'):
+            yield from obj.get_str_headers()
 
     @classmethod
     def get_meta_sheet_for(cls, obj, name: str = 'MetaInformation sheet'):

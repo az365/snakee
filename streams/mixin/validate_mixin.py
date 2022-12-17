@@ -233,7 +233,7 @@ class ValidateMixin(ABC):
         obj_name = self.get_name()
         class_name = self.__class__.__name__
         if obj_name:
-            title = f'{class_name}: {obj_name}'
+            title = f'{obj_name} {class_name}'
         else:
             title = f'Unnamed {class_name}'
         return title
@@ -316,11 +316,8 @@ class ValidateMixin(ABC):
             filters: Optional[Iterable] = None,
             named_filters: Optional[dict] = None,
     ) -> Generator:
-        if show_header:
-            yield Paragraph([self.get_str_title()], level=1)
-            yield Paragraph(self.get_str_headers())
-        if comment:
-            yield comment
+        if show_header or comment:
+            yield self.get_display().get_header_chapter_for(self, level=1, comment=comment)
         struct = self.get_struct()
         if show_header or struct:
             struct_title, example_item, example_stream, example_comment = self._prepare_examples_with_title(

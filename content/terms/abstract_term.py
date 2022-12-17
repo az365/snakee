@@ -191,7 +191,6 @@ class AbstractTerm(SimpleDataWrapper, MultiMapDataMixin, TermInterface, ABC):
         return self.get_item(key, subkey, skip_missing=True, default=default)
 
     def get_str_headers(self) -> Generator:
-        yield self.get_brief_repr()
         yield self.get_caption()
 
     def display_data_sheet(

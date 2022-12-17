@@ -5,6 +5,7 @@ try:  # Assume we're a submodule in a package.
     from base.interfaces.sheet_interface import SheetInterface, Record, Row, FormattedRow, Columns, Count
     from base.classes.simple_sheet import SimpleSheet, SheetMixin, SheetItems, get_name, DEFAULT_LINE_LEN
     from base.classes.enum import DynamicEnum
+    from base.constants.chars import CROP_SUFFIX
     from base.classes.typing import AUTO, Auto, Name
     from base.abstract.simple_data import SimpleDataWrapper, SimpleDataInterface
     from base.mixin.iter_data_mixin import IterDataMixin
@@ -17,6 +18,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.interfaces.sheet_interface import SheetInterface, Record, Row, FormattedRow, Columns, Count
     from ...base.classes.simple_sheet import SimpleSheet, SheetMixin, SheetItems, get_name, DEFAULT_LINE_LEN
     from ...base.classes.enum import DynamicEnum
+    from ...base.constants.chars import CROP_SUFFIX
     from ...base.classes.typing import AUTO, Auto, Name
     from ...base.abstract.simple_data import SimpleDataWrapper, SimpleDataInterface
     from ...base.mixin.iter_data_mixin import IterDataMixin
@@ -34,6 +36,7 @@ DisplayObject = Union[str, Markdown, HTML]
 H_STYLE = None
 P_STYLE = 'line-height: 1.1em; margin-top: 0em; margin-bottom: 0em; padding-top: 0em; padding-bottom: 0em;'
 DEFAULT_CHAPTER_TITLE_LEVEL = 3
+SHORT_LINE_LEN = 20
 
 
 class DocumentItem(SimpleDataWrapper):
@@ -448,6 +451,28 @@ class Text(DocumentItem, IterDataMixin):
     def get_html_code(self) -> str:
         return EMPTY.join(self.get_html_lines())
 
+    def get_cropped_text(self, max_len: int = SHORT_LINE_LEN) -> str:
+        text = self.get_text()
+        if Auto.is_defined(max_len):
+            if len(text) > max_len:
+                suffix_len = len(CROP_SUFFIX)
+                crop_len = max_len - suffix_len
+                if crop_len < 0:
+                    crop_len = 0
+                text = text[:crop_len] + CROP_SUFFIX
+        return text
+
+    def get_brief_repr(self) -> str:
+        cls_name = self.__class__.__name__
+        obj_name = self.get_name()
+        str_args = repr(self.get_cropped_text())
+        if obj_name:
+            str_args += f', name={repr(obj_name)}'
+        return f'{cls_name}({str_args})'
+
+    def __str__(self):
+        return self.get_text()
+
 
 class Link(Text):
     def __init__(
@@ -476,6 +501,9 @@ class Link(Text):
 
     def get_html_close_tag(self) -> str:
         return '</a>'
+
+    def __str__(self):
+        return self.get_md_code()
 
 
 class CompositionType(DynamicEnum):
@@ -579,6 +607,17 @@ class Paragraph(Text, Container):
         close_tag = f'</{tag}>'
         if text:
             yield f'{open_tag}{text}{close_tag}'
+
+    def get_brief_repr(self) -> str:
+        cls_name = self.__class__.__name__
+        obj_name = self.get_name()
+        str_args = repr(self.get_cropped_text())
+        level = self.get_level()
+        if level:
+            str_args += f', level={repr(level)}'
+        if obj_name:
+            str_args += f', name={repr(obj_name)}'
+        return f'{cls_name}({str_args})'
 
 
 class Chapter(Text, Container):

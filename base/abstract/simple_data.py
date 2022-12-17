@@ -141,7 +141,7 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
         obj_name = self.get_name()
         class_name = self.__class__.__name__
         if obj_name:
-            title = f'{class_name}: {obj_name}'
+            title = f'{obj_name} {class_name}'
         else:
             title = f'Unnamed {class_name}'
         return title
@@ -275,9 +275,8 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
         display = self.get_display(display)
         show_meta = show_header or not self.has_data()
         if show_header:
-            display.display_paragraph(self.get_str_title(), level=1)
-            display.append(comment)
-            display.display_paragraph(self.get_str_headers())
+            header = display.get_header_chapter_for(self, comment=comment)
+            display.display(header)
         elif comment:
             display.display_paragraph(comment)
         if show_meta:

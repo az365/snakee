@@ -91,10 +91,8 @@ class AbstractNamed(AbstractBaseObject, DisplayMixin, ABC):
     ) -> Native:
         display = self.get_display(display)
         if show_header:
-            display.display_paragraph(self.get_name(), level=1)
-            display.display_paragraph(self.get_str_headers())
-        if comment:
-            display.append(comment)
+            header = display.get_header_chapter_for(self, comment=comment)
+            display.display(header)
         meta_chapter = display.get_meta_chapter_for(self)
         self.display(meta_chapter)
         if depth > 0:

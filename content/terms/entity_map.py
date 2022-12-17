@@ -53,7 +53,6 @@ class EntityMap(SimpleDataWrapper):
 
     def get_str_headers(self) -> Generator:
         yield from self.get_brief_meta_description()
-        yield EMPTY
 
     def show(self, **kwargs):
         records = self.get_entity_records()

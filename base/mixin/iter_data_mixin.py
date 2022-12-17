@@ -328,7 +328,7 @@ class IterDataMixin(DataMixin, ABC):
     def append(self, item, inplace: bool) -> Native:
         data = self.get_data()
         if inplace and (isinstance(data, list) or hasattr(data, 'append')):
-            data.append(data)
+            data.append(item)
             return self
         else:
             items = chain(self.get_items(), [item])
