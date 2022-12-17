@@ -1,23 +1,27 @@
-from typing import Optional, Callable, Iterable, Generator, Iterator, Sequence, Union, Any
+from typing import Optional, Callable, Iterable, Generator, Iterator, Sequence, Union
 
 try:  # Assume we're a submodule in a package.
     from base.classes.typing import AUTO, Auto, AutoCount, Class
-    from base.functions.arguments import get_name, get_value
+    from base.functions.arguments import get_name, get_value, get_str_from_args_kwargs
     from base.constants.chars import DEFAULT_LINE_LEN, REPR_DELIMITER, SMALL_INDENT, EMPTY
+    from base.interfaces.base_interface import BaseInterface
     from base.interfaces.display_interface import DisplayInterface, Item, AutoStyle, AutoDisplay, DEFAULT_EXAMPLE_COUNT
     from utils.decorators import deprecated_with_alternative
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.typing import AUTO, Auto, AutoCount, Class
-    from ..functions.arguments import get_name, get_value
+    from ..functions.arguments import get_name, get_value, get_str_from_args_kwargs
     from ..constants.chars import DEFAULT_LINE_LEN, REPR_DELIMITER, SMALL_INDENT, EMPTY
+    from ..interfaces.base_interface import BaseInterface
     from ..interfaces.display_interface import DisplayInterface, Item, AutoStyle, AutoDisplay, DEFAULT_EXAMPLE_COUNT
     from ...utils.decorators import deprecated_with_alternative
 
 DEFAULT_INT_WIDTH, DEFAULT_FLOAT_WIDTH = 7, 12
 PREFIX_FIELD = 'prefix'
+COLS_FOR_META = ('defined', 3), ('key', 20), ('value', 30), ('actual_type', 14), ('expected_type', 20), ('default', 20)
 
 
 class DefaultDisplay(DisplayInterface):
+    _display: DisplayInterface
     _sheet_class: Class = None
 
     def get_display(self, display: AutoDisplay = AUTO) -> DisplayInterface:
@@ -25,12 +29,24 @@ class DefaultDisplay(DisplayInterface):
             return display
         elif not Auto.is_defined(display):
             if hasattr(self, '_display'):
-                return self._display
+                display = self._display
+            if Auto.is_defined(display):
+                return display
             else:
                 return self
         else:
             raise TypeError(f'expected Display, got {display}')
 
+    def set_display(self, display: DisplayInterface) -> DisplayInterface:
+        self._set_display_inplace(display)
+        return self
+
+    def _set_display_inplace(self, display: DisplayInterface) -> None:
+        self._display = display
+
+    display = property(get_display, _set_display_inplace)
+
+    @deprecated_with_alternative('get_display()')
     def get_output(self, output: AutoDisplay = AUTO) -> DisplayInterface:
         return self.get_display(output)
 
@@ -42,9 +58,11 @@ class DefaultDisplay(DisplayInterface):
     def output_line(self, line: str, output: AutoDisplay = AUTO) -> None:
         return self.append(line)
 
+    # @deprecated_with_alternative('display_item()')
     def append(self, text: str) -> None:
         self.display(text)
 
+    # @deprecated_with_alternative('display_item()')
     def display_paragraph(
             self,
             paragraph: Optional[Iterable] = None,
@@ -60,7 +78,7 @@ class DefaultDisplay(DisplayInterface):
             else:
                 raise TypeError(f'Expected paragraph as Paragraph, str or Iterable, got {paragraph}')
 
-    # @deprecated
+    # @deprecated_with_alternative('display_item()')
     def display_sheet(
             self,
             records: Iterable,
@@ -83,6 +101,29 @@ class DefaultDisplay(DisplayInterface):
         method_name = f'display_{item_type_value}'
         method = getattr(self, method_name, self.display_paragraph)
         return method(item, **kwargs)
+
+    @classmethod
+    def get_meta_sheet_for(cls, obj, name: str = 'MetaInformation sheet'):
+        sheet_class = cls.get_sheet_class()
+        if sheet_class and (isinstance(obj, BaseInterface) or hasattr(obj, 'get_meta_records')):
+            meta_records = obj.get_meta_records()
+            assert hasattr(sheet_class, 'from_records'), sheet_class  # isinstance(sheet_class, SheetInterface)
+            return sheet_class.from_records(meta_records, columns=COLS_FOR_META, name=name)
+        elif hasattr(obj, 'get_brief_meta_description'):  # isinstance(obj, AbstractNamed):
+            return obj.get_brief_meta_description()
+        else:  # tmp
+            meta = obj.get_meta(ex=['name', 'caption'])
+            return get_str_from_args_kwargs(**meta)
+
+    @classmethod
+    def get_meta_chapter_for(cls, obj, level: Optional[int] = 3, name: str = 'Meta') -> Iterable:
+        if level:
+            yield name  # title
+        if isinstance(obj, BaseInterface) or hasattr(obj, 'get_meta_records'):
+            count = len(list(obj.get_meta_records()))
+            comment = f'{repr(obj)} has {count} attributes in meta-data:'
+            yield comment
+        yield cls.get_meta_sheet_for(obj, name=f'{name} sheet')
 
     @classmethod
     def _get_formatter(cls, columns: Sequence, delimiter: str = REPR_DELIMITER) -> str:

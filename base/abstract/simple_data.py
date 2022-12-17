@@ -281,8 +281,8 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
         elif comment:
             display.display_paragraph(comment)
         if show_meta:
-            for item in self.get_meta_chapter():
-                display.display(item)
+            meta_chapter = display.get_meta_chapter_for(self)
+            display.display(meta_chapter)
         if self.has_data():
             self.display_data_sheet(count=count, display=display, **kwargs)
         elif depth > 0:

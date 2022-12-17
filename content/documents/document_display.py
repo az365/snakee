@@ -28,6 +28,7 @@ DisplayedItem = Union[DocumentItem, FormattedDisplayTypes, Auto]
 DisplayedData = Union[DocumentItem, str, Iterable, None]
 DisplayObject = Union[FormattedDisplayTypes, str]
 FORMATTED_DISPLAY_TYPES = Markdown, HTML
+DEFAULT_CHAPTER_TITLE_LEVEL = 3
 
 
 class DocumentDisplay(DefaultDisplay, IterDataMixin):
@@ -91,6 +92,21 @@ class DocumentDisplay(DefaultDisplay, IterDataMixin):
         if not wait:
             self.display_current_paragraph(save=False, clear=False)
         return self
+
+    @classmethod
+    def get_meta_chapter_for(
+            cls,
+            obj,
+            level: Optional[int] = DEFAULT_CHAPTER_TITLE_LEVEL,
+            name: str = 'Meta',
+    ) -> Chapter:
+        chapter = Chapter(name=name)
+        if level:
+            title = Paragraph([name], level=level, name=f'{name} title')
+            chapter.add(title, inplace=True)
+        meta_sheet = cls.get_meta_sheet_for(obj, name=f'{name} sheet')
+        chapter.add_items([meta_sheet], inplace=True)
+        return chapter
 
     @staticmethod
     def _is_formatted_item(item: DisplayedItem) -> bool:
@@ -269,3 +285,4 @@ if HTML:
     DocumentDisplay.display_mode = DisplayMode.Html
 DocumentDisplay.set_sheet_class_inplace(Sheet)
 DisplayMixin.set_display(DocumentDisplay())
+DefaultDisplay.display = DocumentDisplay()

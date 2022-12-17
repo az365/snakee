@@ -71,31 +71,10 @@ class AbstractNamed(AbstractBaseObject, DisplayMixin, ABC):
             line = BRIEF_META_ROW_FORMATTER.format(prefix=prefix, key='meta:', value=get_str_from_args_kwargs(**meta))
             yield line[:DEFAULT_LINE_LEN]
 
-    def get_meta_sheet(self, name: str = 'MetaInformation sheet'):
-        # display = self.get_display(display)
-        display = self.get_display()
-        if isinstance(display, DisplayInterface) or hasattr(display, 'get_sheet_class'):
-            sheet_class = display.get_sheet_class()
-        else:
-            sheet_class = None
-        if sheet_class:
-            assert hasattr(sheet_class, 'from_records'), sheet_class  # isinstance(sheet_class, SheetInterface)
-            return sheet_class.from_records(self.get_meta_records(), columns=COLS_FOR_META, name=name)
-        else:
-            return self.get_brief_meta_description()
-
-    def get_meta_chapter(self, level: Optional[int] = None, name: str = 'MetaInformation') -> Iterable:
-        if level:
-            yield name
-        obj = self.get_brief_repr()
-        count = len(list(self.get_meta_records()))
-        comment = f'{obj} has {count} attributes in meta-data:'
-        yield comment
-        meta_sheet = self.get_meta_sheet(name=f'{name} sheet')
-        yield meta_sheet
-
     def get_brief_repr(self) -> str:
-        return "{cls}('{name}')".format(cls=self.__class__.__name__, name=self.get_name())
+        cls_name = self.__class__.__name__
+        obj_name = self.get_name()
+        return f'{cls_name}({repr(obj_name)})'
 
     def __repr__(self):
         return self.get_brief_repr()
@@ -116,8 +95,8 @@ class AbstractNamed(AbstractBaseObject, DisplayMixin, ABC):
             display.display_paragraph(self.get_str_headers())
         if comment:
             display.append(comment)
-        for item in self.get_meta_chapter():
-            display.display(item)
+        meta_chapter = display.get_meta_chapter_for(self)
+        self.display(meta_chapter)
         if depth > 0:
             for attribute, value in self.get_meta_items():
                 if isinstance(value, AbstractBaseObject) or hasattr(value, 'describe'):

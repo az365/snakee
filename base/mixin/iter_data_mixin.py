@@ -325,6 +325,15 @@ class IterDataMixin(DataMixin, ABC):
             chain_items = list(chain_items)
         return self.set_items(chain_items, count=result_count, inplace=inplace)
 
+    def append(self, item, inplace: bool) -> Native:
+        data = self.get_data()
+        if inplace and (isinstance(data, list) or hasattr(data, 'append')):
+            data.append(data)
+            return self
+        else:
+            items = chain(self.get_items(), [item])
+            return self.set_items(items, inplace=inplace)
+
     def split_by_pos(self, pos: int) -> tuple:
         first_stream, second_stream = self.get_tee_clones(2)
         return first_stream.take(pos), second_stream.skip(pos)

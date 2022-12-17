@@ -189,6 +189,7 @@ class DocumentItem(SimpleDataWrapper):
 
 
 Native = Union[DocumentItem, IterDataMixin]
+Items = Iterable[DocumentItem]
 
 
 class Sheet(DocumentItem, IterDataMixin, SheetMixin, SheetInterface):
@@ -408,9 +409,6 @@ class Text(DocumentItem, IterDataMixin):
         self._style = style
         super().__init__(data=data, name=name)
 
-    def append(self, text: Union[str, Iterable]) -> Native:
-        return self.add(text, before=False)
-
     def add(
             self,
             text: Union[Native, Iterable],
@@ -487,6 +485,10 @@ class CompositionType(DynamicEnum):
 
 
 class Container(DocumentItem, IterDataMixin):
+    def set_data(self, data: Items, inplace: bool, reset_dynamic_meta: bool = True, safe=True, **kwargs) -> Native:
+        data = list(data)
+        return super().set_data(data, inplace=inplace, reset_dynamic_meta=reset_dynamic_meta, safe=safe, **kwargs)
+
     def get_html_lines(self, skip_missing: bool = True) -> Iterator[str]:
         if self.has_data() or not skip_missing:
             tag = self.get_html_tag_name()
@@ -580,7 +582,15 @@ class Paragraph(Text, Container):
 
 
 class Chapter(Text, Container):
-    pass
+    def add(
+            self,
+            item: Union[Native, Iterable],
+            before: bool = False,
+            inplace: bool = False,
+            **kwargs
+    ) -> Native:
+        assert not kwargs, f'Text.add() does not support kwargs, got {kwargs}'
+        return self.add_items([item], before=before, inplace=inplace)
 
 
 class Page(Container):

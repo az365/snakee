@@ -305,25 +305,6 @@ class ValidateMixin(ABC):
     ):
         return self.get_example_sheet(count, name=name)
 
-    def get_meta_sheet(
-            self,
-            name: str = 'MetaInformation sheet',
-    ) -> Sheet:
-        return Sheet.from_records(self.get_meta_records(), columns=COLS_FOR_META, name=name)
-
-    def get_meta_chapter(
-            self,
-            level: Optional[int] = DEFAULT_CHAPTER_TITLE_LEVEL,
-            name: str = 'MetaInformation',
-    ) -> Chapter:
-        chapter = Chapter(name=name)
-        if level:
-            title = Paragraph([name], level=level, name=f'{name} title')
-            chapter.add_items([title])
-        meta_sheet = self.get_meta_sheet(name=f'{name} sheet')
-        chapter.add_items([meta_sheet])
-        return chapter
-
     def get_description_items(
             self,
             count: Count = DEFAULT_EXAMPLE_COUNT,
@@ -364,5 +345,5 @@ class ValidateMixin(ABC):
                 count, columns=columns, example=example_stream, comment=example_comment,
                 level=DEFAULT_CHAPTER_TITLE_LEVEL, name='Example',
             )
-        if show_header:
-            yield self.get_meta_chapter(level=DEFAULT_CHAPTER_TITLE_LEVEL, name='MetaInformation')
+        if not show_header:
+            yield self.get_display().get_meta_chapter_for(self, level=DEFAULT_CHAPTER_TITLE_LEVEL, name='Meta')
