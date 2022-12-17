@@ -263,27 +263,6 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
         display.display_paragraph()
         return self
 
-    def display_meta(
-            self,
-            with_title: bool = True,
-            with_summary: bool = True,
-            prefix: str = SMALL_INDENT,  # deprecated
-            delimiter: str = REPR_DELIMITER,  # deprecated
-            display: AutoDisplay = AUTO,
-    ) -> Native:
-        display = self.get_display(display)
-        if with_summary:
-            obj = self.get_brief_repr()
-            count = len(list(self.get_meta_records()))
-            line = f'{obj} has {count} attributes in meta-data:'
-            display.append(line)
-        display.display_sheet(
-            records=self.get_meta_records(),
-            columns=COLS_FOR_META,
-            with_title=with_title,
-        )
-        return self
-
     def describe(
             self,
             show_header: bool = True,
@@ -302,7 +281,8 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
         elif comment:
             display.display_paragraph(comment)
         if show_meta:
-            self.display_meta()
+            for item in self.get_meta_chapter():
+                display.display(item)
         if self.has_data():
             self.display_data_sheet(count=count, display=display, **kwargs)
         elif depth > 0:
