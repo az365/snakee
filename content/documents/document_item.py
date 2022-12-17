@@ -3,10 +3,11 @@ from typing import Optional, Callable, Iterable, Iterator, Sequence, Tuple, Unio
 try:  # Assume we're a submodule in a package.
     from base.constants.chars import EMPTY, SPACE, HTML_SPACE, HTML_INDENT, PARAGRAPH_CHAR, REPR_DELIMITER
     from base.interfaces.sheet_interface import SheetInterface, Record, Row, FormattedRow, Columns, Count
-    from base.classes.simple_sheet import SimpleSheet, SheetMixin, SheetItems, get_name, DEFAULT_LINE_LEN
+    from base.classes.simple_sheet import SimpleSheet, SheetMixin, SheetItems
     from base.classes.enum import DynamicEnum
-    from base.constants.chars import CROP_SUFFIX
+    from base.constants.chars import CROP_SUFFIX, DEFAULT_LINE_LEN
     from base.classes.typing import AUTO, Auto, Name
+    from base.functions.arguments import get_name
     from base.abstract.simple_data import SimpleDataWrapper, SimpleDataInterface
     from base.mixin.iter_data_mixin import IterDataMixin
     from base.mixin.map_data_mixin import MapDataMixin
@@ -16,10 +17,11 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.constants.chars import EMPTY, SPACE, HTML_SPACE, HTML_INDENT, PARAGRAPH_CHAR, REPR_DELIMITER
     from ...base.interfaces.sheet_interface import SheetInterface, Record, Row, FormattedRow, Columns, Count
-    from ...base.classes.simple_sheet import SimpleSheet, SheetMixin, SheetItems, get_name, DEFAULT_LINE_LEN
+    from ...base.classes.simple_sheet import SimpleSheet, SheetMixin, SheetItems
     from ...base.classes.enum import DynamicEnum
-    from ...base.constants.chars import CROP_SUFFIX
+    from ...base.constants.chars import CROP_SUFFIX, DEFAULT_LINE_LEN
     from ...base.classes.typing import AUTO, Auto, Name
+    from ...base.functions.arguments import get_name
     from ...base.abstract.simple_data import SimpleDataWrapper, SimpleDataInterface
     from ...base.mixin.iter_data_mixin import IterDataMixin
     from ...base.mixin.map_data_mixin import MapDataMixin
