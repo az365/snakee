@@ -226,18 +226,22 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
     ) -> Native:
         display = self.get_display(display)
         max_len = Auto.acquire(max_len, DEFAULT_LINE_LEN)
-        display.display_paragraph(title, level=3)
+        title = display.build_paragraph(title, level=3)
+        display.display(title)
         if comment:
+            comment = display.build_paragraph(comment)
             display.append(comment)
         if hasattr(self, 'get_data_caption'):
-            display.append(self.get_data_caption())
+            data_caption = display.build_paragraph(self.get_data_caption())
+            display.append(data_caption)
         if hasattr(self, 'get_data'):
             data = self.get_data()
             if data:
                 shape_repr = self.get_shape_repr()
                 if Auto.is_defined(count) and shape_repr:
                     line = 'First {count} data items from {shape}:'.format(count=count, shape=shape_repr)
-                    display.append(line)
+                    shape_repr = display.build_paragraph(line)
+                    display.display(shape_repr)
                 if isinstance(data, dict):
                     records = map(
                         lambda i: dict(key=i[0], value=i[1], defined='+' if Auto.is_defined(i[1]) else '-'),
@@ -257,10 +261,11 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
                     line = str(data)
                     display.append(line[:max_len])
             else:
-                display.append('(data attribute is empty)')
+                msg = display.build_paragraph('(data attribute is empty)')
+                display.display(msg)
         else:
-            display.append('(data attribute not found)')
-        display.display_paragraph()
+            msg = display.build_paragraph('(data attribute not found)')
+            display.display(msg)
         return self
 
     def describe(
@@ -278,7 +283,8 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
             header = display.get_header_chapter_for(self, comment=comment)
             display.display(header)
         elif comment:
-            display.display_paragraph(comment)
+            comment = display.build_paragraph(comment)
+            display.display(comment)
         if show_meta:
             meta_chapter = display.get_meta_chapter_for(self)
             display.display(meta_chapter)
@@ -287,7 +293,8 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
         elif depth > 0:
             for attribute, value in self.get_meta_items():
                 if isinstance(value, BaseInterface) or hasattr(value, 'describe'):
-                    display.display_paragraph(f'{attribute}:', level=3)
+                    title = display.build_paragraph(f'{attribute}:', level=3)
+                    display.display(title)
                     value.describe(show_header=False, depth=depth - 1, display=display)
         display.display_paragraph()
         return self
