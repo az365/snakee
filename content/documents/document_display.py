@@ -24,6 +24,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 Native = Union[DefaultDisplay, IterDataMixin]
 Style = Union[str, Auto]
 FormattedDisplayTypes = Union[Markdown, HTML]
+DisplayedItem = Union[DocumentItem, FormattedDisplayTypes, Auto]
+DisplayedData = Union[DocumentItem, str, Iterable, None]
 DisplayObject = Union[FormattedDisplayTypes, str]
 FORMATTED_DISPLAY_TYPES = Markdown, HTML
 
@@ -90,6 +92,12 @@ class DocumentDisplay(DefaultDisplay, IterDataMixin):
             self.display_current_paragraph(save=False, clear=False)
         return self
 
+    @staticmethod
+    def _is_formatted_item(item: DisplayedItem) -> bool:
+        is_formatted_types_imported = min(map(bool, FORMATTED_DISPLAY_TYPES))
+        if is_formatted_types_imported:
+            return isinstance(item, FORMATTED_DISPLAY_TYPES)
+
     @classmethod
     def _get_display_class(cls) -> Class:
         return cls.display_mode.get_class()
@@ -132,7 +140,7 @@ class DocumentDisplay(DefaultDisplay, IterDataMixin):
             return self.display_all(refresh=True)
         else:
             method = self._get_display_method()
-            if isinstance(item, FORMATTED_DISPLAY_TYPES):
+            if self._is_formatted_item(item):
                 return method(item)
             else:
                 obj = self._get_display_object(item)
@@ -236,4 +244,5 @@ class DocumentDisplay(DefaultDisplay, IterDataMixin):
 
 if HTML:
     DocumentDisplay.display_mode = DisplayMode.Html
+DocumentDisplay.set_sheet_class_inplace(Sheet)
 DisplayMixin.set_display(DocumentDisplay())

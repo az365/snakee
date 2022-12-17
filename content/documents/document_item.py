@@ -76,7 +76,7 @@ class DocumentItem(SimpleDataWrapper):
         if isinstance(data, str):
             return data
         elif isinstance(data, Iterable):
-            return PARAGRAPH_CHAR.join(data)
+            return PARAGRAPH_CHAR.join(map(str, data))
 
     def get_style(self) -> OptStyle:
         return self._style
@@ -200,7 +200,6 @@ class Sheet(DocumentItem, IterDataMixin, SheetMixin, SheetInterface):
 
     def _set_items_inplace(self, items: SheetItems) -> None:
         expected_columns = self.get_columns()
-        detected_struct = None
         if hasattr(items, 'get_list'):  # isinstance(items, RegularStreamInterface)
             self._set_data_inplace(items)
             if hasattr(items, 'get_struct') and not expected_columns:  # isinstance(items, Stream):
@@ -214,8 +213,6 @@ class Sheet(DocumentItem, IterDataMixin, SheetMixin, SheetInterface):
             super()._set_items_inplace(items)
         else:
             raise TypeError(f'Expected items as RegularStream, got {items} as {type(items)}')
-        if detected_struct:
-            self._set_struct_inplace(detected_struct)
 
     @classmethod
     def from_records(cls, records: Iterable[Record], columns: Columns = None, name: Name = EMPTY) -> Native:
@@ -273,8 +270,6 @@ class Sheet(DocumentItem, IterDataMixin, SheetMixin, SheetInterface):
                 if isinstance(field, (list, tuple)) and not isinstance(field, str):
                     if len(field) > 1:
                         length = field[-1]
-                    else:
-                        length = None
                 elif hasattr(field, 'get_representation'):  # isinstance(field, AnyField):
                     length = field.get_representation().get_max_value_len()
                 if length is None:

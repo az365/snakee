@@ -14,6 +14,7 @@ try:  # Assume we're a submodule in a package.
     from connectors import connector_classes as ct
     from connectors.filesystem.temporary_files import TemporaryLocation
     from loggers import logger_classes as lg
+    from content.documents import document_classes as dc
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from .utils.decorators import singleton
     from .interfaces import (
@@ -27,6 +28,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .connectors import connector_classes as ct
     from .connectors.filesystem.temporary_files import TemporaryLocation
     from .loggers import logger_classes as lg
+    from .content.documents import document_classes as dc
 
 Logger = Union[LoggerInterface, ExtendedLoggerInterface]
 Child = Union[Logger, Connector, Stream]
