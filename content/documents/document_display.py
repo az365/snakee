@@ -99,37 +99,58 @@ class DocumentDisplay(DefaultDisplay, IterDataMixin):
             return isinstance(item, FORMATTED_DISPLAY_TYPES)
 
     @classmethod
+    def _get_display_code_from_document_item(cls, data: DocumentItem) -> str:
+        if cls.display_mode == DisplayMode.Text:
+            return data.get_text()
+        elif cls.display_mode == DisplayMode.Md:
+            return data.get_md_code()
+        elif cls.display_mode == DisplayMode.Html:
+            return data.get_html_code()
+        else:
+            return str(data)
+
+    @classmethod
+    def _get_display_code_from_document_iterable(cls, data: Iterable) -> str:
+        lines = list()
+        for i in data:
+            if isinstance(i, DocumentItem):
+                lines.append(cls._get_display_code_from_document_item(i))
+            elif isinstance(i, str):
+                lines.append(i)
+            else:
+                lines.append(str(i))
+        return PARAGRAPH_CHAR.join(lines)
+
+    @classmethod
+    def _get_display_code(cls, data: DisplayedData) -> Optional[str]:
+        if not data:
+            return None
+        elif isinstance(data, DocumentItem) or hasattr(data, 'get_text'):  # Text, Paragraph, Sheet, Chart, Container...
+            return cls._get_display_code_from_document_item(data)
+        elif isinstance(data, str):
+            return data
+        elif isinstance(data, Iterable):
+            return cls._get_display_code_from_document_iterable(data)
+        else:
+            raise TypeError(f'Expected data as DocumentItem, Iterable or str, got {data}')
+
+    @classmethod
     def _get_display_class(cls) -> Class:
         return cls.display_mode.get_class()
 
     @classmethod
-    def _get_display_object(cls, data: Union[DocumentItem, str, Iterable, None]) -> Optional[DisplayObject]:
-        if not data:
-            return None
-        elif isinstance(data, DocumentItem) or hasattr(data, 'get_text'):  # Text, Paragraph, Sheet, Chart, Container, Page, ...
-            if cls.display_mode == DisplayMode.Text:
-                code = data.get_text()
-            elif cls.display_mode == DisplayMode.Md:
-                code = data.get_md_code()
-            elif cls.display_mode == DisplayMode.Html:
-                code = data.get_html_code()
+    def _get_display_object(cls, data: DisplayedData) -> Optional[DisplayObject]:
+        code = cls._get_display_code(data)
+        if code:
+            display_class = cls._get_display_class()
+            if display_class:
+                return display_class(code)
             else:
-                code = data
-        elif isinstance(data, str):
-            code = data
-        elif isinstance(data, Iterable):
-            code = PARAGRAPH_CHAR.join(data)
-        else:
-            raise TypeError
-        display_class = cls._get_display_class()
-        if display_class:
-            return display_class(code)
-        else:
-            return str(code)
+                return str(code)
 
     def display(
             self,
-            item: Union[DocumentItem, FormattedDisplayTypes, Auto] = AUTO,
+            item: DisplayedItem = AUTO,
             save: bool = False,
             refresh: AutoBool = AUTO,
     ):
@@ -185,6 +206,7 @@ class DocumentDisplay(DefaultDisplay, IterDataMixin):
     def _get_display_method() -> Callable:
         return display
 
+    # @deprecated
     def display_paragraph(
             self,
             paragraph: Union[Paragraph, Iterable, str, None] = None,
@@ -205,6 +227,7 @@ class DocumentDisplay(DefaultDisplay, IterDataMixin):
         self.clear_current_paragraph()
         return response
 
+    # @deprecated
     def display_sheet(
             self,
             records: Iterable,
