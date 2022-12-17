@@ -27,25 +27,14 @@ H_STYLE = None
 P_STYLE = 'line-height: 1.1em; margin-top: 0em; margin-bottom: 0em; padding-top: 0em; padding-bottom: 0em;'
 
 
-class DocumentFormat(TextFormat, DefaultDisplay):
+class DocumentFormat(TextFormat):
     def __init__(
             self,
             ending: str = DEFAULT_ENDING,
             encoding: str = DEFAULT_ENCODING,
             compress: Compress = None,
     ):
-        self._current_paragraph = list()
         super().__init__(ending=ending, encoding=encoding, compress=compress)
-
-    def get_current_paragraph(self) -> list:
-        return self._current_paragraph
-
-    def set_current_paragraph(self, paragraph: list) -> Native:
-        self._current_paragraph = paragraph
-        return self
-
-    def clear_current_paragraph(self) -> Native:
-        return self.set_current_paragraph(list())
 
     def get_encoded_paragraph(
             self,
@@ -54,7 +43,6 @@ class DocumentFormat(TextFormat, DefaultDisplay):
             style: Style = AUTO,
             clear: bool = True,  # deprecated
     ) -> Iterator[str]:
-        yield from self.get_current_paragraph()
         if clear:  # by default
             self.clear_current_paragraph()
         yield from super().get_encoded_paragraph(paragraph)
@@ -77,17 +65,6 @@ class DocumentFormat(TextFormat, DefaultDisplay):
         else:
             return str(data)
 
-    @deprecated_with_alternative('append()')
-    def append_to_current_paragraph(self, line: str) -> Native:
-        self._current_paragraph.append(line)
-        return self
-
-    def append(self, line: str) -> None:
-        if line:
-            self._current_paragraph.append(line)
-        else:
-            return self.display_paragraph()
-
     @staticmethod
     def _get_display_method(method: Union[Callable, Auto, None] = AUTO) -> Callable:
         if Auto.is_defined(display):
@@ -99,28 +76,6 @@ class DocumentFormat(TextFormat, DefaultDisplay):
                 raise TypeError(f'Expected DisplayInterface, got {display}')
         else:
             return display
-
-    def display_paragraph(self, paragraph: Optional[Iterable] = None, level: Count = None, style: Style = AUTO):
-        if level and paragraph:
-            self.display_paragraph(None)
-        data = self.get_encoded_paragraph(paragraph, level=level, style=style, clear=True)
-        data = list(data)
-        if data:
-            obj = self._get_display_object(data)
-            return display(obj)
-
-    def display_sheet(
-            self,
-            records: Iterable,
-            columns: Sequence,
-            count: AutoCount = None,
-            with_title: bool = True,
-            style: Union[str, Auto, None] = AUTO,
-    ):
-        self.display_paragraph()
-        data = self.get_encoded_sheet(records, columns=columns, count=count, with_title=with_title, style=style)
-        sheet = self._get_display_object(data)
-        return display(sheet)
 
 
 class MarkdownFormat(DocumentFormat):
@@ -152,16 +107,6 @@ class HtmlFormat(DocumentFormat):
     @staticmethod
     def _get_display_class():
         return HTML
-
-    @classmethod
-    def _get_display_object(cls, data: Union[str, Iterable, None]) -> Optional[DisplayObject]:
-        if not data:
-            return None
-        if hasattr(data, 'get_html_lines'):
-            data = data.get_html_lines()
-        else:
-            return super()._get_display_object(data)
-        return super()._get_display_object(data)
 
     def get_encoded_paragraph(
             self,
@@ -242,7 +187,3 @@ class HtmlFormat(DocumentFormat):
     def clear_output(self):
         self.display_paragraph()
         clear_output()
-
-
-if HTML:
-    DisplayMixin.set_display(HtmlFormat())
