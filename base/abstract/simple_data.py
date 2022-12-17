@@ -216,56 +216,52 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
         else:
             yield '(data attribute not found)'
 
+    def get_data_sheet(self, count: int = DEFAULT_EXAMPLE_COUNT, name: Optional[str] = 'Data sheet'):
+        display = self.get_display()
+        sheet_class = display.get_sheet_class()
+        data = self.get_data()
+        if isinstance(data, dict):
+            data_sheet = sheet_class.from_one_record(data, name=name)
+        elif isinstance(data, Iterable):
+            data_sheet = sheet_class.from_items(data, name=name)
+        elif isinstance(data, SimpleDataWrapper) or hasattr(data, 'get_data_sheet'):
+            data_sheet = data.get_data_sheet()
+        else:
+            data_sheet = sheet_class.from_items([data], name=name)
+        return data_sheet
+
+    def get_data_chapter(
+            self,
+            count: int = DEFAULT_EXAMPLE_COUNT,
+            title: Optional[str] = 'Data',
+            comment: Optional[str] = None,
+    ) -> Generator:
+        display = self.get_display()
+        yield display.build_paragraph(title, level=3, name=f'{title} title')
+        if comment:
+            yield display.build_paragraph(comment, name=f'{title} comment')
+        if hasattr(self, 'get_data_caption'):
+            yield self.get_data_caption()
+        if self.has_data():
+            shape_repr = self.get_shape_repr()
+            if Auto.is_defined(count) and shape_repr:
+                yield f'First {count} data items from {shape_repr}:'
+            yield self.get_data_sheet(count=count, name=f'{title} sheet')
+        else:
+            yield '(data attribute is empty)'
+
+    # @deprecated_with_alternative('build_data_sheet()')
     def display_data_sheet(
             self,
             count: int = DEFAULT_EXAMPLE_COUNT,
             title: Optional[str] = 'Data',
             comment: Optional[str] = None,
-            max_len: AutoCount = AUTO,
+            # max_len: AutoCount = AUTO,
             display: AutoDisplay = AUTO,
     ) -> Native:
         display = self.get_display(display)
-        max_len = Auto.acquire(max_len, DEFAULT_LINE_LEN)
-        title = display.build_paragraph(title, level=3)
-        display.display(title)
-        if comment:
-            comment = display.build_paragraph(comment)
-            display.append(comment)
-        if hasattr(self, 'get_data_caption'):
-            data_caption = display.build_paragraph(self.get_data_caption())
-            display.append(data_caption)
-        if hasattr(self, 'get_data'):
-            data = self.get_data()
-            if data:
-                shape_repr = self.get_shape_repr()
-                if Auto.is_defined(count) and shape_repr:
-                    line = 'First {count} data items from {shape}:'.format(count=count, shape=shape_repr)
-                    shape_repr = display.build_paragraph(line)
-                    display.display(shape_repr)
-                if isinstance(data, dict):
-                    records = map(
-                        lambda i: dict(key=i[0], value=i[1], defined='+' if Auto.is_defined(i[1]) else '-'),
-                        data.items(),
-                    )
-                    display.display_sheet(records, columns=COLS_FOR_DICT, count=count)
-                elif isinstance(data, Iterable):
-                    for n, item in enumerate(data):
-                        if Auto.is_defined(count):
-                            if n >= count:
-                                break
-                        line = '    - ' + str(item)
-                        display.append(line[:max_len])
-                elif isinstance(data, SimpleDataInterface) or hasattr(data, 'describe'):
-                    data.describe()
-                else:
-                    line = str(data)
-                    display.append(line[:max_len])
-            else:
-                msg = display.build_paragraph('(data attribute is empty)')
-                display.display(msg)
-        else:
-            msg = display.build_paragraph('(data attribute not found)')
-            display.display(msg)
+        data_chapter = self.get_data_chapter(count=count, title=title, comment=comment)
+        display.display(data_chapter)
         return self
 
     def describe(

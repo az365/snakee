@@ -712,6 +712,34 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
         records = self.get_struct_repr_records(example=example, select_fields=select_fields, count=count)
         return Sheet.from_records(records, columns=columns, name=name)
 
+    def get_data_chapter(
+            self,
+            count: int = DEFAULT_EXAMPLE_COUNT,
+            title: Optional[str] = 'Columns',
+            comment: Optional[str] = None,
+            example: Optional[dict] = None,
+    ) -> Generator:
+        display = self.get_display()
+        yield display.build_paragraph(title, level=3, name=f'{title} title')
+        caption = list()
+        if comment:
+            caption.append(comment)
+        if hasattr(self, 'get_data_caption'):
+            yield self.get_data_caption()
+        if self.has_data():
+            shape_repr = self.get_shape_repr()
+            if shape_repr:
+                if Auto.is_defined(count) and shape_repr:
+                    caption.append(f'First {count} fields from {shape_repr}:')
+                else:
+                    caption.append(f'{shape_repr}:')
+        else:
+            caption.append('(data attribute is empty)')
+        yield display.build_paragraph(caption, name=f'{title} caption')
+        if self.has_data():
+            yield self.get_data_sheet(count=count, name=f'{title} sheet')
+
+    @deprecated_with_alternative('get_data_chapter()')
     def display_data_sheet(
             self,
             count: AutoCount = AUTO,  # DEFAULT_EXAMPLE_COUNT
@@ -721,10 +749,8 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
             display=AUTO,
     ) -> None:
         display = self.get_display(display)
-        if title:
-            display.display_paragraph(title, level=3)
-        data_sheet = self.get_data_sheet(count, example=example, select_fields=select_fields, name=f'{title} sheet')
-        return display.display(data_sheet)
+        data_chapter = self.get_data_chapter(count, example=example, select_fields=select_fields, name=f'{title} chapter')
+        return display.display(data_chapter)
 
     def get_dataframe(self) -> DataFrame:
         data = self.get_struct_description_rows(include_header=True)

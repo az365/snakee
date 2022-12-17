@@ -43,8 +43,7 @@ class SheetMixin(ABC):
         for record in records:
             row = [record.get(c) for c in column_names]
             rows.append(tuple(row))
-        sheet_class = cls.get_class()
-        return sheet_class(data=rows, columns=columns, name=name)
+        return cls(data=rows, columns=columns, name=name)
 
     @classmethod
     def from_rows(cls, rows: Iterable[Row], columns: Columns, name: Name = EMPTY) -> Native:
@@ -55,8 +54,27 @@ class SheetMixin(ABC):
                 columns = list(range(count))
             else:
                 columns = list()
-        sheet_class = cls.get_class()
-        return sheet_class(data=rows, columns=columns, name=name)
+        return cls(data=rows, columns=columns, name=name)
+
+    @classmethod
+    def from_items(cls, items: Iterable, columns: Columns = None, name: Name = EMPTY) -> Native:
+        items = list(items)
+        if items:
+            first_item = items[0]
+            if isinstance(first_item, Record):
+                return cls.from_records(items, columns=columns, name=name)
+            elif isinstance(first_item, Row):
+                if not Auto.is_defined(columns):
+                    columns = list(range(first_item))
+                return cls.from_rows(items, columns=columns, name=name)
+            else:
+                if not Auto.is_defined(columns):
+                    columns = 'item',
+                return cls.from_rows([(i, ) for i in items], columns=columns, name=name)
+        else:
+            columns = ['items']
+            rows = [('data is empty', )]
+            return cls.from_rows(rows, columns=columns, name=name)
 
     def get_records(self) -> Iterator[Record]:
         columns = self.get_columns()

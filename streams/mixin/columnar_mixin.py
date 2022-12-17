@@ -415,19 +415,18 @@ class ColumnarMixin(IterDataMixin, ABC):
             columns: Columns = None,
             comment: Optional[str] = None,
             allow_collect: bool = True,
-            show_header: bool = True,
             struct_as_dataframe: bool = False,  # deprecated
             delimiter: str = ' ',
             output=AUTO,  # deprecated
             **filter_kwargs
     ) -> Native:
         display = self.get_display()
-        if show_header:
-            display.display_paragraph(self.get_name(), level=1)
-            for line in self.get_str_headers():
-                display.append(line)
+        title = display.build_paragraph(self.get_name(), level=1)
+        display.display(title)
+        header = display.build_paragraph(self.get_str_headers())
         if comment:
-            display.append(comment)
+            header.append(comment)
+        display.display(header)
         example = self.example(*filters, **filter_kwargs, count=count)
         if hasattr(self, 'get_struct'):
             expected_st = self.get_struct()
@@ -445,19 +444,26 @@ class ColumnarMixin(IterDataMixin, ABC):
             assert isinstance(detected_st, fc.FlatStruct) or hasattr(expected_st, 'validate_about'), detected_st
             detected_st.validate_about(expected_st)
             validation_message = f'{source_str} {expected_st.get_validation_message()}'
-            display.append(validation_message)
-            expected_st.display_data_sheet(example=example.get_one_item())
+            struct_chapter = expected_st.get_data_chapter(example=example.get_one_item())
         elif detected_st:
             validation_message = 'Expected struct not defined, displaying detected struct:'
-            display.append(validation_message)
             assert isinstance(detected_st, fc.FlatStruct) or hasattr(detected_st, 'display_data_sheet'), detected_st
-            detected_st.display_data_sheet(example=example.get_one_item())
+            struct_chapter = expected_st.get_data_chapter(example=example.get_one_item())
         else:
             validation_message = '[EMPTY] Struct is not detected.'
-            display.append(validation_message)
-        display.display_paragraph('Rows sample', level=3)
-        if hasattr(self, 'display_data_sheet'):
-            self.display_data_sheet()
+            struct_chapter = None
+        if validation_message:
+            validation_paragraph = display.build_paragraph(validation_message)
+            display.display(validation_paragraph)
+        if struct_chapter:
+            display.display(struct_chapter)
+        subtitle = display.build_paragraph('Rows sample', level=3)
+        display.display(subtitle)
+        if hasattr(self, 'get_data_sheet'):
+            data_sheet = self.get_data_sheet()
+            display.display(data_sheet)
+        elif hasattr(self, 'display_data_sheet'):
+            self.display_data_sheet()  # deprecated
         else:
             records = example.get_records()
             if records:
@@ -466,7 +472,10 @@ class ColumnarMixin(IterDataMixin, ABC):
                     if not isinstance(records[0], dict):
                         records = [{'item': i} for i in records]
                     columns = records[0].keys()
-                display.display_sheet(records, columns=columns)
+                sheet_class = display.get_sheet_class()
+                data_sheet = sheet_class.from_records(records, columns=columns)
+                display.display(data_sheet)
             else:
-                display.display_paragraph('[EMPTY] Dataset is empty.')
+                msg = display.build_paragraph('[EMPTY] Dataset is empty.')
+                display.display(msg)
         return self
