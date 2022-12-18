@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Optional, Callable, Iterable, Iterator, Sequence, Union
+from typing import Optional, Callable, Iterable, Iterator, Generator, Sequence, Union
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
@@ -18,6 +18,7 @@ try:  # Assume we're a submodule in a package.
     )
     from content.selection.concrete_expression import AliasDescription
     from content.struct.flat_struct import FlatStruct
+    from content.documents.document_item import Paragraph, Sheet, Chapter
     from streams.interfaces.abstract_stream_interface import StreamInterface, DEFAULT_EXAMPLE_COUNT
     from streams.abstract.wrapper_stream import WrapperStream
     from streams.stream_builder import StreamBuilder
@@ -38,6 +39,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     )
     from ...content.selection.concrete_expression import AliasDescription
     from ...content.struct.flat_struct import FlatStruct
+    from ...content.documents.document_item import Paragraph, Sheet, Chapter
     from ..interfaces.abstract_stream_interface import StreamInterface, DEFAULT_EXAMPLE_COUNT
     from ..abstract.wrapper_stream import WrapperStream
     from ..stream_builder import StreamBuilder
@@ -616,6 +618,29 @@ class SqlStream(WrapperStream):
             data_repr = data_repr[:max_len - len(CROP_SUFFIX)] + CROP_SUFFIX
         return data_repr
 
+    def get_struct_sheet(self, name: str = 'Columns sheet') -> Union[Sheet, Paragraph]:
+        struct = self.get_output_struct(skip_missing=True)
+        if isinstance(struct, StructInterface) or hasattr(struct, 'get_data_sheet'):
+            return struct.get_data_sheet(name=name)
+        else:
+            return Paragraph([f'Undefined struct: {struct}'])
+
+    def get_struct_chapter(self, name='Columns') -> Chapter:
+        chapter = Chapter(name=name)
+        title = Paragraph(['Columns'], level=3)
+        chapter.append(title, inplace=True)
+        output_columns = self.get_output_columns(skip_missing=True)
+        input_struct = self.get_source_table().get_struct()
+        caption = Paragraph([f'Expected output columns: {output_columns}', f'Expected input struct: {input_struct}'])
+        chapter.append(caption, inplace=True)
+        chapter.append(self.get_struct_sheet(name=f'{name} sheet'), inplace=True)
+        return chapter
+
+    def get_str_headers(self, comment: str = '') -> Iterator[str]:
+        yield self.get_stream_representation()
+        if comment:
+            yield comment
+
     def get_description_lines(self) -> Iterator[str]:
         yield repr(self)
         yield self.get_stream_representation()
@@ -627,34 +652,33 @@ class SqlStream(WrapperStream):
         if hasattr(struct, 'get_struct_repr_lines'):
             yield from struct.get_struct_repr_lines(select_fields=self.get_output_columns())
 
+    def get_description_items(
+            self,
+            comment: Optional[str] = None,
+            depth: int = 2,
+            enumerated: bool = False,
+    ) -> Generator:
+        yield Paragraph([self.get_query_name()], level=1, name='Title')
+        yield Paragraph(self.get_str_headers(comment=comment))
+        yield Paragraph(['Generated SQL query'], level=3)
+        if enumerated:
+            query_records = self.get_query_records()
+            yield Sheet.from_records(query_records, columns=QUERY_SHEET_COLUMNS, style=MONOSPACE_HTML_STYLE)
+        else:
+            query_lines = self.get_query_lines()
+            yield Paragraph(query_lines, style=CODE_HTML_STYLE, name='SQL query lines')
+        yield self.get_struct_chapter()
+
     def describe(
             self,
-            show_header: bool = True,
             comment: Optional[str] = None,
+            depth: int = 2,
             enumerated: bool = False,
             display: AutoDisplay = AUTO,
     ) -> Native:
         display = self.get_display(display)
-        if show_header:
-            display.display_paragraph(self.get_query_name(), level=1)
-            display.append(repr(self))
-            display.append(self.get_stream_representation())
-            if comment:
-                display.display_paragraph(comment)
-            display.display_paragraph('Generated SQL query', level=3)
-        if enumerated:
-            query_records = self.get_query_records()
-            display.display_sheet(query_records, columns=QUERY_SHEET_COLUMNS, style=MONOSPACE_HTML_STYLE)
-        else:
-            display.display_paragraph(self.get_query_lines(), style=CODE_HTML_STYLE)
-        display.display_paragraph('Columns', level=3)
-        display.append('Expected output columns: {}'.format(self.get_output_columns(skip_missing=True)))
-        display.append('Expected input struct: {}'.format(self.get_source_table().get_struct()))
-        struct = self.get_output_struct(skip_missing=True)
-        if isinstance(struct, StructInterface) or hasattr(struct, 'display_data_sheet'):
-            struct.display_data_sheet(title=None)
-        else:
-            display.display_paragraph(f'Undefined struct: {struct}')
+        for i in self.get_description_items(comment=comment, depth=depth, enumerated=enumerated):
+            display.display(i)
         return self
 
     @staticmethod
