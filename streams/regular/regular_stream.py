@@ -329,14 +329,18 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
 
     def skip(self, count: int = 1, inplace: bool = False) -> Native:
         stream = super().skip(count, inplace=inplace)
-        assert isinstance(stream, RegularStream)
-        stream.set_struct(self.get_struct(), check=False, inplace=True)
+        struct = self.get_struct()
+        if Auto.is_defined(struct) and (isinstance(stream, RegularStreamInterface) or hasattr(stream, 'set_struct')):
+            stream.set_struct(struct, check=False, inplace=True)
         return stream
 
     def filter(self, *fields, skip_errors: bool = True, inplace: bool = False, **expressions) -> Native:
-        item_type = self.get_item_type()  # ItemType.Any
+        item_type = self.get_item_type()
         filter_function = get_filter_function(*fields, **expressions, item_type=item_type, skip_errors=skip_errors)
         stream = super().filter(filter_function, inplace=inplace)
+        struct = self.get_struct()
+        if Auto.is_defined(struct) and (isinstance(stream, RegularStreamInterface) or hasattr(stream, 'set_struct')):
+            stream.set_struct(struct, check=False, inplace=True)
         return self._assume_native(stream)
 
     def select(self, *columns, use_extended_method: AutoBool = AUTO, **expressions) -> Native:

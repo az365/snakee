@@ -145,11 +145,12 @@ class IterDataMixin(DataMixin, ABC):
         else:
             return count > 0
 
-    def set_items(self, items: Iterable, inplace: bool, count: Optional[int] = None) -> Optional[Native]:
+    def set_items(self, items: Iterable, inplace: bool, count: Optional[int] = None) -> Native:
         if inplace:
             self.set_data(items, inplace=True)
             if Auto.is_defined(count):
                 self._set_count(count, inplace=True)
+            return self
         else:
             obj = self.set_data(items, inplace=False)
             if Auto.is_defined(count):
@@ -232,14 +233,14 @@ class IterDataMixin(DataMixin, ABC):
         else:
             raise TypeError('Expected count as int or boolean, got {}'.format(count))
 
-    def skip(self, count: int = 1, inplace: bool = False) -> Optional[Native]:
-        if self.get_count() and count >= self.get_count():
+    def skip(self, count: int = 1, inplace: bool = False) -> Native:
+        old_count = self.get_count()
+        if Auto.is_defined(old_count) and count >= old_count:
             items = list()
         else:
             items = self.get_items()[count:] if self.is_in_memory() else self._get_second_items(count)
         result_count = None
-        if self._has_count_attribute():
-            old_count = self.get_count()
+        if self._has_count_attribute():  # in init-annotation
             if old_count:
                 result_count = old_count - count
                 if result_count < 0:

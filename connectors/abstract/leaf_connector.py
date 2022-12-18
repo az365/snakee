@@ -3,7 +3,7 @@ from typing import Optional, Callable, Iterable, Generator, Union
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
-        ConnectorInterface, LeafConnectorInterface, StructInterface, ContentFormatInterface,
+        ConnectorInterface, LeafConnectorInterface, StructInterface, ContentFormatInterface, RegularStreamInterface,
         ItemType, StreamType, ContentType, Context, Stream, Name, Count, Columns, Array,
         AUTO, Auto, AutoBool, AutoName, AutoCount, AutoDisplay, AutoConnector, AutoContext,
     )
@@ -16,7 +16,7 @@ try:  # Assume we're a submodule in a package.
     from connectors.mixin.streamable_mixin import StreamableMixin
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
-        ConnectorInterface, LeafConnectorInterface, StructInterface, ContentFormatInterface,
+        ConnectorInterface, LeafConnectorInterface, StructInterface, ContentFormatInterface, RegularStreamInterface,
         ItemType, StreamType, ContentType, Context, Stream, Name, Count, Columns, Array,
         AUTO, Auto, AutoBool, AutoName, AutoCount, AutoDisplay, AutoConnector, AutoContext,
     )
@@ -291,7 +291,7 @@ class LeafConnector(
             columns: Columns = None,
             example: Optional[Stream] = None,
     ) -> Optional[Stream]:
-        if self.is_existing():
+        if self.is_existing() and self.is_accessible():
             stream = self
             if Auto.is_defined(filters):
                 stream = stream.filter(*filters)
@@ -331,39 +331,21 @@ class LeafConnector(
         items = content_format.get_items_from_lines(lines, item_type=item_type)
         return items
 
-    def map(self, function: Callable, inplace: bool = False) -> Optional[Native]:
-        if inplace and isinstance(self.get_items(), list):
-            return self._apply_map_inplace(function) or self
-        else:
-            items = self._get_mapped_items(function, flat=False)
-            return self.set_items(items, count=self.get_count(), inplace=inplace)
-
     def filter(self, *args, item_type: ItemType = ItemType.Auto, skip_errors: bool = False, **kwargs) -> Stream:
         item_type = Auto.delayed_acquire(item_type, self.get_item_type)
-        stream_type = self.get_stream_type()
-        assert isinstance(stream_type, StreamType), f'Expected StreamType, got {stream_type}'
         filtered_items = self._get_filtered_items(*args, item_type=item_type, skip_errors=skip_errors, **kwargs)
-        stream = self.to_stream(data=filtered_items, stream_type=stream_type)
+        stream = self.to_stream(data=filtered_items, stream_type=item_type)
         return self._assume_stream(stream)
 
     def skip(self, count: int = 1, inplace: bool = False) -> Optional[Native]:
-        if self.get_count() and count >= self.get_count():
-            items = list()
-        else:
-            items = self.get_items()[count:] if self.is_in_memory() else self._get_second_items(count)
-        result_count = None
-        if self._has_count_attribute():
-            old_count = self.get_count()
-            if old_count:
-                result_count = old_count - count
-                if result_count < 0:
-                    result_count = 0
-        return self.set_items(items, count=result_count, inplace=inplace)
+        stream = super().skip(count, inplace=inplace)
+        struct = self.get_struct()
+        if Auto.is_defined(struct) and (isinstance(stream, RegularStreamInterface) or hasattr(stream, 'set_struct')):
+            stream.set_struct(struct, check=False, inplace=True)
+        return self._assume_stream(stream)
 
     def get_one_item(self):
-        if self.is_sequence() and self.has_items():
-            return self.get_list()[0]
-        for i in self.get_iter():
+        for i in self.get_items():
             return i
 
     def get_str_headers(self, actualize: bool = False) -> Generator:
