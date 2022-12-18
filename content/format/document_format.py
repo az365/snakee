@@ -3,7 +3,7 @@ from typing import Optional, Callable, Iterable, Iterator, Generator, Sequence, 
 try:  # Assume we're a submodule in a package.
     from interfaces import Item, ItemType, ContentType, Class, Count, AutoCount, Auto, AUTO
     from base.constants.chars import SPACE, HTML_SPACE
-    from base.classes.display import DisplayInterface, DefaultDisplay, PREFIX_FIELD
+    from base.classes.display import DisplayInterface, DefaultDisplay
     from base.mixin.display_mixin import DisplayMixin, Class
     from utils.external import display, clear_output, Markdown, HTML
     from utils.decorators import deprecated_with_alternative
@@ -11,7 +11,7 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import Item, ItemType, ContentType, Class, Count, AutoCount, Auto, AUTO
     from ...base.constants.chars import SPACE, HTML_SPACE
-    from ...base.classes.display import DisplayInterface, DefaultDisplay, PREFIX_FIELD
+    from ...base.classes.display import DisplayInterface, DefaultDisplay
     from ...base.mixin.display_mixin import DisplayMixin, Class
     from ...utils.external import display, clear_output, Markdown, HTML
     from ...utils.decorators import deprecated_with_alternative

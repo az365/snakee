@@ -9,7 +9,7 @@ try:  # Assume we're a submodule in a package.
     from base.interfaces.sourced_interface import SourcedInterface, COLS_FOR_META, COLS_FOR_DICT
     from base.interfaces.context_interface import ContextInterface
     from base.interfaces.data_interface import SimpleDataInterface
-    from base.mixin.display_mixin import DisplayMixin, PREFIX_FIELD, DEFAULT_EXAMPLE_COUNT
+    from base.mixin.display_mixin import DisplayMixin, DEFAULT_EXAMPLE_COUNT
     from base.mixin.data_mixin import DataMixin
     from base.abstract.named import AbstractNamed, AutoDisplay
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -20,7 +20,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..interfaces.sourced_interface import SourcedInterface, COLS_FOR_META, COLS_FOR_DICT
     from ..interfaces.context_interface import ContextInterface
     from ..interfaces.data_interface import SimpleDataInterface
-    from ..mixin.display_mixin import DisplayMixin, PREFIX_FIELD, DEFAULT_EXAMPLE_COUNT
+    from ..mixin.display_mixin import DisplayMixin, DEFAULT_EXAMPLE_COUNT
     from ..mixin.data_mixin import DataMixin
     from .named import AbstractNamed, AutoDisplay
 

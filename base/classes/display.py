@@ -22,7 +22,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils.decorators import deprecated_with_alternative
 
 DEFAULT_INT_WIDTH, DEFAULT_FLOAT_WIDTH = 7, 12
-PREFIX_FIELD = 'prefix'
 COLS_FOR_META = ('defined', 3), ('key', 20), ('value', 30), ('actual_type', 14), ('expected_type', 20), ('default', 20)
 DEFAULT_CHAPTER_TITLE_LEVEL = 3
 
@@ -166,8 +165,7 @@ class DefaultDisplay(DisplayInterface):
                 formatter = '{name}:{size}'.format(name=name, size=size)
             else:
                 formatter = EMPTY
-            if name != PREFIX_FIELD:
-                meta_description_placeholders.append('{open}{f}{close}'.format(open='{', f=formatter, close='}'))
+            meta_description_placeholders.append('{' + str(formatter) + '}')
         return delimiter.join(meta_description_placeholders)
 
     @staticmethod
@@ -237,21 +235,18 @@ class DefaultDisplay(DisplayInterface):
             columns: Sequence,
             count: AutoCount = None,
             with_title: bool = True,
-            prefix: str = SMALL_INDENT,
             delimiter: str = REPR_DELIMITER,
             max_len: int = DEFAULT_LINE_LEN,
     ) -> Generator:
         count = Auto.acquire(count, DEFAULT_EXAMPLE_COUNT)
         formatter = cls._get_formatter(columns=columns, delimiter=delimiter)
         if with_title:
-            column_names = cls._get_column_names(columns, ex=PREFIX_FIELD)
-            title_record = cls._get_cropped_record(column_names, columns=columns, max_len=max_len, ex=PREFIX_FIELD)
+            column_names = cls._get_column_names(columns)
+            title_record = cls._get_cropped_record(column_names, columns=columns, max_len=max_len)
             yield formatter.format(**{k: v.upper() for k, v in title_record.items()})
         for n, r in enumerate(records):
             if count is not None and n >= count:
                 break
-            if prefix and PREFIX_FIELD not in r:
-                r[PREFIX_FIELD] = prefix
             r = cls._get_cropped_record(r, columns=columns, max_len=max_len)
             yield formatter.format(**r)
 
