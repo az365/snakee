@@ -202,9 +202,9 @@ Items = Iterable[DocumentItem]
 
 
 class Sheet(DocumentItem, IterDataMixin, SheetMixin, SheetInterface):
-    def __init__(self, data: SheetItems, columns: Columns = None, name: str = ''):
+    def __init__(self, data: SheetItems, columns: Columns = None, style: OptStyle = None, name: str = ''):
         self._struct = None
-        super().__init__(data=list(), name=name)
+        super().__init__(data=list(), style=style, name=name)
         self._set_struct_inplace(columns)
         self._set_items_inplace(data)
 
@@ -225,7 +225,13 @@ class Sheet(DocumentItem, IterDataMixin, SheetMixin, SheetInterface):
             raise TypeError(f'Expected items as RegularStream, got {items} as {type(items)}')
 
     @classmethod
-    def from_records(cls, records: Iterable[Record], columns: Columns = None, name: Name = EMPTY) -> Native:
+    def from_records(
+            cls,
+            records: Iterable[Record],
+            columns: Columns = None,
+            style: OptStyle = None,
+            name: Name = EMPTY,
+    ) -> Native:
         if Auto.is_defined(columns):
             column_names = cls._get_column_names_from_columns(columns)
         else:
