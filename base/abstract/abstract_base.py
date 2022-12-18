@@ -299,16 +299,24 @@ class AbstractBaseObject(BaseInterface, ABC):
         else:
             return print
 
+    def get_description_items(self, comment: Optional[str] = None, depth: int = 2) -> Generator:
+        yield self.get_detailed_repr()
+        yield comment
+        if depth > 0:
+            for attribute, value in self.get_meta_items():
+                if isinstance(value, AbstractBaseObject) or hasattr(value, 'describe'):
+                    yield value.get_description_items(depth=depth - 1)
+
     def describe(
             self,
-            show_header: bool = True,
             comment: Optional[str] = None,
             depth: int = 1,
             display=AUTO,
     ):
         display_method = self._get_display_method(display)
-        display_method(self.get_detailed_repr())
-        display_method(comment)
+        for i in self.get_description_items():
+            display_method(i)
+        return self
 
     def __repr__(self):
         return self.get_detailed_repr()

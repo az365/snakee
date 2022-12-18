@@ -264,33 +264,11 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
         display.display(data_chapter)
         return self
 
-    def describe(
-            self,
-            show_header: bool = True,
-            count: AutoCount = AUTO,
-            comment: Optional[str] = None,
-            depth: int = 1,
-            display: AutoDisplay = AUTO,
-            **kwargs
-    ) -> Native:
-        display = self.get_display(display)
-        show_meta = show_header or not self.has_data()
-        if show_header:
-            header = display.get_header_chapter_for(self, comment=comment)
-            display.display(header)
-        elif comment:
-            comment = display.build_paragraph(comment)
-            display.display(comment)
-        if show_meta:
-            meta_chapter = display.get_meta_chapter_for(self)
-            display.display(meta_chapter)
+    def get_description_items(self, comment: Optional[str] = None, depth: int = 1, count: AutoCount = AUTO) -> Generator:
+        display = self.get_display()
+        yield display.get_header_chapter_for(self, comment=comment)
+        if depth > 0:
+            yield display.get_meta_chapter_for(self)
         if self.has_data():
-            self.display_data_sheet(count=count, display=display, **kwargs)
-        elif depth > 0:
-            for attribute, value in self.get_meta_items():
-                if isinstance(value, BaseInterface) or hasattr(value, 'describe'):
-                    title = display.build_paragraph(f'{attribute}:', level=3)
-                    display.display(title)
-                    value.describe(show_header=False, depth=depth - 1, display=display)
-        display.display_paragraph()
-        return self
+            yield self.get_data_chapter(count=count)
+        yield from self.get_child_description_items(depth)

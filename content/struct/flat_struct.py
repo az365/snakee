@@ -739,19 +739,6 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
         if self.has_data():
             yield self.get_data_sheet(count=count, name=f'{title} sheet')
 
-    @deprecated_with_alternative('get_data_chapter()')
-    def display_data_sheet(
-            self,
-            count: AutoCount = AUTO,  # DEFAULT_EXAMPLE_COUNT
-            title: Optional[str] = 'Columns',
-            example: Optional[dict] = None,
-            select_fields: Optional[Array] = None,
-            display=AUTO,
-    ) -> None:
-        display = self.get_display(display)
-        data_chapter = self.get_data_chapter(count, example=example, select_fields=select_fields, name=f'{title} chapter')
-        return display.display(data_chapter)
-
     def get_dataframe(self) -> DataFrame:
         data = self.get_struct_description_rows(include_header=True)
         columns = ('n', 'type', 'name', 'caption', 'valid')

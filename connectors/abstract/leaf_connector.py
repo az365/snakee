@@ -303,11 +303,7 @@ class LeafConnector(
             self.close()
             return stream
 
-    def get_items(
-            self,
-            verbose: AutoBool = AUTO,
-            step: AutoCount = AUTO,
-    ) -> Iterable:
+    def get_items(self, verbose: AutoBool = AUTO, step: AutoCount = AUTO) -> Iterable:
         return self.get_items_of_type(item_type=AUTO, verbose=verbose, step=step)
 
     def get_items_of_type(
@@ -371,20 +367,34 @@ class LeafConnector(
             return i
 
     def get_str_headers(self, actualize: bool = False) -> Generator:
-        cls = self.__class__.__name__
-        name = repr(self.get_name())
+        cls_name = self.__class__.__name__
+        obj_name = repr(self.get_name())
         shape = self.get_shape_repr(actualize=actualize)
-        str_header = f'{cls}({name}) {shape}'
+        str_header = f'{cls_name}({obj_name}) {shape}'
         if len(str_header) > DEFAULT_LINE_LEN:
             str_header = str_header[:DEFAULT_LINE_LEN - len(CROP_SUFFIX)] + CROP_SUFFIX
         yield str_header
+
+    def get_description_items(
+            self,
+            count: Count = DEFAULT_EXAMPLE_COUNT,
+            columns: Optional[Array] = None,
+            comment: Optional[str] = None,
+            safe_filter: bool = True,
+            actualize: AutoBool = AUTO,
+            filters: Optional[Iterable] = None,
+            named_filters: Optional[dict] = None,
+    ) -> Generator:
+        yield from self.get_extended_description_items(
+            count, columns=columns, comment=comment, actualize=actualize,
+            filters=filters, named_filters=named_filters, safe_filter=safe_filter,
+        )
 
     def describe(
             self,
             *filter_args,
             count: Optional[int] = DEFAULT_EXAMPLE_COUNT,
             columns: Optional[Array] = None,
-            show_header: bool = True,
             comment: Optional[str] = None,
             safe_filter: bool = True,
             actualize: AutoBool = AUTO,
@@ -393,7 +403,7 @@ class LeafConnector(
     ) -> Native:
         display = self.get_display(display)
         for i in self.get_description_items(
-            count, columns=columns, show_header=show_header, comment=comment, actualize=actualize,
+            count, columns=columns, comment=comment, actualize=actualize,
             filters=filter_args, named_filters=filter_kwargs, safe_filter=safe_filter,
         ):
             if isinstance(i, str):

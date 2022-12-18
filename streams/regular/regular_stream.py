@@ -645,12 +645,26 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
     def actualize(self) -> Native:  # used in ValidateMixin.prepare_examples_with_title()
         return self
 
+    def get_description_items(
+            self,
+            count: Count = DEFAULT_EXAMPLE_COUNT,
+            columns: Optional[Array] = None,
+            comment: Optional[str] = None,
+            safe_filter: bool = True,
+            actualize: AutoBool = AUTO,
+            filters: Optional[Iterable] = None,
+            named_filters: Optional[dict] = None,
+    ) -> Generator:
+        yield from self.get_extended_description_items(
+            count, columns=columns, comment=comment, actualize=actualize,
+            filters=filters, named_filters=named_filters, safe_filter=safe_filter,
+        )
+
     def describe(
             self,
             *filter_args,
             count: Optional[int] = DEFAULT_EXAMPLE_COUNT,
             columns: Optional[Array] = None,
-            show_header: bool = True,
             comment: Optional[str] = None,
             safe_filter: bool = True,
             actualize: AutoBool = AUTO,
@@ -659,7 +673,7 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
     ) -> Native:
         display = self.get_display(display)
         for i in self.get_description_items(
-            count, columns=columns, show_header=show_header, comment=comment, actualize=actualize,
+            count, columns=columns, comment=comment, actualize=actualize,
             filters=filter_args, named_filters=filter_kwargs, safe_filter=safe_filter,
         ):
             if isinstance(i, str):

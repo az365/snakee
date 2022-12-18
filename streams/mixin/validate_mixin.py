@@ -245,25 +245,24 @@ class ValidateMixin(ABC):
             level: Optional[int] = DEFAULT_CHAPTER_TITLE_LEVEL,
             name: str = 'Columns',
     ) -> Chapter:
-        content = list()
+        chapter = Chapter(name=name)
         if level:
             title = Paragraph([name], level=level, name=f'{name} title')
-            content.append(title)
+            chapter.append(title, inplace=True)
         if comment:
-            content.append(comment)
+            chapter.append(Paragraph(comment, name=f'{name} comment'), inplace=True)
         struct = self.get_struct()
         if not Auto.is_defined(struct):
             struct = self.get_struct_from_source()
         if isinstance(struct, StructInterface) or hasattr(struct, 'get_data_sheet'):
             struct_sheet = struct.get_data_sheet(example=example_item)
-            content.append(struct_sheet)
+            chapter.append(struct_sheet, inplace=True)
         else:
             if struct:
                 tag, err = '[TYPE_ERROR]', f'Expected struct as StructInterface, got {struct} instead.'
             else:
                 tag, err = '[EMPTY]', 'Struct is not defined.'
-            content.append(f'{tag} {err}')
-        chapter = Chapter(content, name=name)
+            chapter.append(Paragraph([f'{tag} {err}'], name=f'{name} error'), inplace=True)
         return chapter
 
     def get_example_chapter(
@@ -305,34 +304,28 @@ class ValidateMixin(ABC):
     ):
         return self.get_example_sheet(count, name=name)
 
-    def get_description_items(
+    def get_extended_description_items(
             self,
             count: Count = DEFAULT_EXAMPLE_COUNT,
             columns: Optional[Array] = None,
-            show_header: bool = True,  # deprecated argument
             comment: Optional[str] = None,
             safe_filter: bool = True,
             actualize: AutoBool = AUTO,
             filters: Optional[Iterable] = None,
             named_filters: Optional[dict] = None,
     ) -> Generator:
-        if show_header or comment:
-            yield self.get_display().get_header_chapter_for(self, level=1, comment=comment)
-        struct = self.get_struct()
-        if show_header or struct:
-            struct_title, example_item, example_stream, example_comment = self._prepare_examples_with_title(
-                *filters or list(), **named_filters or dict(), safe_filter=safe_filter,
-                example_row_count=count, actualize=actualize,
-                verbose=False,
-            )
-            yield struct_title
-            invalid_columns = self.get_invalid_columns()
-            if invalid_columns:
-                invalid_columns_str = get_str_from_args_kwargs(*invalid_columns)
-                yield f'Invalid columns: {invalid_columns_str}'
-            yield ''
-        else:
-            example_item, example_stream, example_comment = None, None, None
+        yield self.get_display().get_header_chapter_for(self, level=1, comment=comment)
+        struct_title, example_item, example_stream, example_comment = self._prepare_examples_with_title(
+            *filters or list(), **named_filters or dict(), safe_filter=safe_filter,
+            example_row_count=count, actualize=actualize,
+            verbose=False,
+        )
+        yield struct_title
+        invalid_columns = self.get_invalid_columns()
+        if invalid_columns:
+            invalid_columns_str = get_str_from_args_kwargs(*invalid_columns)
+            yield f'Invalid columns: {invalid_columns_str}'
+        yield ''
         yield self.get_struct_chapter(
             example_item=example_item, comment=example_comment,
             level=DEFAULT_CHAPTER_TITLE_LEVEL, name='Columns',
@@ -342,5 +335,4 @@ class ValidateMixin(ABC):
                 count, columns=columns, example=example_stream, comment=example_comment,
                 level=DEFAULT_CHAPTER_TITLE_LEVEL, name='Example',
             )
-        if not show_header:
-            yield self.get_display().get_meta_chapter_for(self, level=DEFAULT_CHAPTER_TITLE_LEVEL, name='Meta')
+        yield self.get_display().get_meta_chapter_for(self, level=DEFAULT_CHAPTER_TITLE_LEVEL, name='Meta')
