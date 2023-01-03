@@ -5,12 +5,14 @@ try:  # Assume we're a submodule in a package.
     from base.classes.auto import AUTO, Auto
     from base.interfaces.context_interface import ContextInterface
     from base.abstract.tree_item import TreeItem
+    from functions.primary.dates import MINUTES_IN_HOUR, SECONDS_IN_MINUTE
     from loggers.extended_logger_interface import ExtendedLoggerInterface, LoggingLevel
     from loggers.progress_interface import ProgressInterface, OperationStatus
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..base.classes.auto import AUTO, Auto
     from ..base.interfaces.context_interface import ContextInterface
     from ..base.abstract.tree_item import TreeItem
+    from ..functions.primary.dates import MINUTES_IN_HOUR, SECONDS_IN_MINUTE
     from .extended_logger_interface import ExtendedLoggerInterface, LoggingLevel
     from .progress_interface import ProgressInterface, OperationStatus
 
@@ -20,8 +22,6 @@ Context = Optional[ContextInterface]
 
 DEFAULT_STEP = 10000
 SMALL_SHARE = 0.001
-SECONDS_IN_MINUTE = 60
-MINUTES_IN_HOUR = 60
 
 
 class Progress(TreeItem, ProgressInterface):
