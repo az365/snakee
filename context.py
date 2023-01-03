@@ -65,6 +65,7 @@ class SnakeeContext(bs.AbstractNamed, ContextInterface):
         self.sm.set_context(self)
         self.ct = ct
         self.ct.set_context(self)
+        self.dc = dc
 
         if clear_tmp:
             self.clear_tmp_files()
