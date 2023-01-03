@@ -10,7 +10,7 @@ try:  # Assume we're a submodule in a package.
         StreamType, LoggingLevel,
         AUTO, Auto, AutoName, OptionalFields, Array, Class, Message,
     )
-    from base.functions.arguments import get_generated_name
+    from base.functions.arguments import get_generated_name, get_cropped_text
     from base.constants.chars import CROP_SUFFIX, DEFAULT_LINE_LEN, EMPTY
     from base.abstract.contextual_data import ContextualDataWrapper
     from utils.decorators import deprecated_with_alternative
@@ -24,7 +24,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         StreamType, LoggingLevel,
         AUTO, Auto, AutoName, OptionalFields, Array, Class, Message,
     )
-    from ...base.functions.arguments import get_generated_name
+    from ...base.functions.arguments import get_generated_name, get_cropped_text
     from ...base.constants.chars import CROP_SUFFIX, DEFAULT_LINE_LEN, EMPTY
     from ...base.abstract.contextual_data import ContextualDataWrapper
     from ...utils.decorators import deprecated_with_alternative
@@ -210,7 +210,15 @@ class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
             crop: str = CROP_SUFFIX,
     ) -> str:
         str_meta = Auto.delayed_acquire(str_meta, self.get_str_meta)
-        return '{}({}, {})'.format(self.__class__.__name__, self.get_name(), str_meta)
+        cls_name = self.__class__.__name__
+        obj_name = self.get_name()
+        template = '{cls}({name}, {meta})'
+        line = template.format(cls=cls_name, name=obj_name, meta=str_meta)
+        if len(line) > max_len:
+            max_meta_len = len(template.format(cls=cls_name, name=obj_name, meta=EMPTY))
+            str_meta = get_cropped_text(str_meta, max_len=max_meta_len, crop_suffix=crop)
+            line = template.format(cls=cls_name, name=obj_name, meta=str_meta)
+        return line
 
     def __repr__(self):
         return self.get_brief_repr()

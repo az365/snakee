@@ -5,7 +5,7 @@ import logging
 try:  # Assume we're a submodule in a package.
     from base.classes.typing import AUTO, Auto, AutoName, AutoCount, Count, Name
     from base.constants.chars import DEFAULT_ENCODING, DEFAULT_LINE_LEN, LONG_LINE_LEN, CROP_SUFFIX, ELLIPSIS, SPACE
-    from base.functions.arguments import get_name, get_value, update
+    from base.functions.arguments import get_name, get_value, update, get_cropped_text
     from base.interfaces.context_interface import ContextInterface
     from base.abstract.named import AbstractNamed
     from base.abstract.tree_item import TreeItem
@@ -18,7 +18,7 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..base.classes.typing import AUTO, Auto, AutoName, AutoCount, Count, Name
     from ..base.constants.chars import DEFAULT_ENCODING, DEFAULT_LINE_LEN, LONG_LINE_LEN, CROP_SUFFIX, ELLIPSIS, SPACE
-    from ..base.functions.arguments import get_name, get_value, update
+    from ..base.functions.arguments import get_name, get_value, update, get_cropped_text
     from ..base.interfaces.context_interface import ContextInterface
     from ..base.abstract.named import AbstractNamed
     from ..base.abstract.tree_item import TreeItem
@@ -285,8 +285,8 @@ class ExtendedLogger(BaseLoggerWrapper, ExtendedLoggerInterface):
         messages = update(messages)
         max_len = Auto.acquire(max_len, self.max_line_len)
         message = SPACE.join([str(m) for m in messages])
-        if truncate and len(message) > max_len:
-            message = message[:max_len - 2] + CROP_SUFFIX
+        if truncate:
+            message = get_cropped_text(message, max_len=max_len)
         return message
 
     def clear_line(self) -> None:

@@ -4,14 +4,14 @@ from typing import Optional, Iterable, Iterator, Sequence, Tuple, Union
 try:  # Assume we're a submodule in a package.
     from base.classes.typing import Name, Count, Auto, ARRAY_TYPES
     from base.constants.chars import EMPTY, REPR_DELIMITER, CROP_SUFFIX, SHORT_CROP_SUFFIX, DEFAULT_LINE_LEN
-    from base.functions.arguments import get_name
+    from base.functions.arguments import get_name, get_cropped_text
     from base.abstract.simple_data import SimpleDataWrapper
     from base.interfaces.sheet_interface import SheetInterface, Record, Row, FormattedRow, Columns
     from base.mixin.iter_data_mixin import IterDataMixin
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.typing import Name, Count, Auto, ARRAY_TYPES
     from ..constants.chars import EMPTY, REPR_DELIMITER, CROP_SUFFIX, SHORT_CROP_SUFFIX, DEFAULT_LINE_LEN
-    from ..functions.arguments import get_name
+    from ..functions.arguments import get_name, get_cropped_text
     from ..abstract.simple_data import SimpleDataWrapper
     from ..interfaces.sheet_interface import SheetInterface, Record, Row, FormattedRow, Columns
     from .iter_data_mixin import IterDataMixin
@@ -235,16 +235,4 @@ class SheetMixin(ABC):
 
     @staticmethod
     def _crop_cell(value, max_len: Optional[int], crop_suffix: str = CROP_SUFFIX) -> str:
-        cell_str = str(value)
-        crop_len = len(crop_suffix)
-        if max_len is not None:
-            cell_len = len(cell_str)
-            if cell_len > max_len:
-                value_len = max_len - crop_len
-                if value_len > 0:
-                    cell_str = cell_str[:value_len] + crop_suffix
-                elif max_len > 1:
-                    cell_str = cell_str[:max_len - 1] + SHORT_CROP_SUFFIX
-                else:
-                    cell_str = cell_str[:max_len]
-        return cell_str
+        return get_cropped_text(value, max_len=max_len, crop_suffix=crop_suffix)

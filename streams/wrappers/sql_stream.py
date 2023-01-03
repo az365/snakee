@@ -8,8 +8,12 @@ try:  # Assume we're a submodule in a package.
         AutoContext, AutoName, AutoDisplay, AutoBool, Auto, AUTO,
         Item, Name, FieldName, FieldNo, Links, Columns, OptionalFields, Array, ARRAY_TYPES,
     )
-    from base.functions.arguments import get_names, get_name, get_generated_name, get_str_from_args_kwargs
+    from base.functions.arguments import (
+        get_names, get_name, get_generated_name,
+        get_str_from_args_kwargs, get_cropped_text,
+    )
     from base.constants.chars import EMPTY, ALL, CROP_SUFFIX, ITEMS_DELIMITER, SQL_INDENT
+    from utils.decorators import deprecated
     from functions.primary.text import remove_extra_spaces
     from content.fields.any_field import AnyField
     from content.selection.abstract_expression import (
@@ -29,8 +33,12 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         AutoContext, AutoName, AutoDisplay, AutoBool, Auto, AUTO,
         Item, Name, FieldName, FieldNo, Links, Columns, OptionalFields, Array, ARRAY_TYPES,
     )
-    from ...base.functions.arguments import get_names, get_name, get_generated_name, get_str_from_args_kwargs
+    from ...base.functions.arguments import (
+        get_names, get_name, get_generated_name,
+        get_str_from_args_kwargs, get_cropped_text,
+    )
     from ...base.constants.chars import EMPTY, ALL, CROP_SUFFIX, ITEMS_DELIMITER, SQL_INDENT
+    from ...utils.decorators import deprecated
     from ...functions.primary.text import remove_extra_spaces
     from ...content.fields.any_field import AnyField
     from ...content.selection.abstract_expression import (
@@ -608,15 +616,13 @@ class SqlStream(WrapperStream):
             sm_repr += '.select({})'.format(ITEMS_DELIMITER.join(str_select_expressions))
         return sm_repr
 
-    # @deprecated
+    @deprecated
     def get_data_representation(self, max_len: int = 50) -> str:
-        return self.get_data_repr()
+        return self.get_data_repr(max_len=max_len)
 
     def get_data_repr(self, max_len: int = 50) -> str:
         data_repr = self.get_stream_representation()
-        if len(data_repr) > max_len:
-            data_repr = data_repr[:max_len - len(CROP_SUFFIX)] + CROP_SUFFIX
-        return data_repr
+        return get_cropped_text(data_repr, max_len=max_len)
 
     def get_struct_sheet(self, name: str = 'Columns sheet') -> Union[Sheet, Paragraph]:
         struct = self.get_output_struct(skip_missing=True)

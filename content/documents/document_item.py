@@ -7,7 +7,7 @@ try:  # Assume we're a submodule in a package.
     from base.classes.enum import DynamicEnum
     from base.constants.chars import CROP_SUFFIX, DEFAULT_LINE_LEN
     from base.classes.typing import AUTO, Auto, Name
-    from base.functions.arguments import get_name
+    from base.functions.arguments import get_name, get_cropped_text
     from base.abstract.simple_data import SimpleDataWrapper, SimpleDataInterface
     from base.mixin.iter_data_mixin import IterDataMixin
     from base.mixin.map_data_mixin import MapDataMixin
@@ -21,7 +21,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.classes.enum import DynamicEnum
     from ...base.constants.chars import CROP_SUFFIX, DEFAULT_LINE_LEN
     from ...base.classes.typing import AUTO, Auto, Name
-    from ...base.functions.arguments import get_name
+    from ...base.functions.arguments import get_name, get_cropped_text
     from ...base.abstract.simple_data import SimpleDataWrapper, SimpleDataInterface
     from ...base.mixin.iter_data_mixin import IterDataMixin
     from ...base.mixin.map_data_mixin import MapDataMixin
@@ -464,15 +464,7 @@ class Text(DocumentItem, IterDataMixin):
         return EMPTY.join(self.get_html_lines())
 
     def get_cropped_text(self, max_len: int = SHORT_LINE_LEN) -> str:
-        text = self.get_text()
-        if Auto.is_defined(max_len):
-            if len(text) > max_len:
-                suffix_len = len(CROP_SUFFIX)
-                crop_len = max_len - suffix_len
-                if crop_len < 0:
-                    crop_len = 0
-                text = text[:crop_len] + CROP_SUFFIX
-        return text
+        return get_cropped_text(self.get_text(), max_len=max_len)
 
     def get_brief_repr(self) -> str:
         cls_name = self.__class__.__name__

@@ -8,7 +8,7 @@ try:  # Assume we're a submodule in a package.
         AUTO, Auto, AutoBool, AutoName, AutoCount, AutoLinks, AutoContext,
     )
     from base.constants.chars import CROP_SUFFIX
-    from base.functions.arguments import update, get_str_from_args_kwargs
+    from base.functions.arguments import update, get_str_from_args_kwargs, get_cropped_text
     from streams.stream_builder import StreamBuilder
     from content.struct.flat_struct import FlatStruct
     from connectors.abstract.leaf_connector import LeafConnector
@@ -20,7 +20,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         AUTO, Auto, AutoBool, AutoName, AutoCount, AutoLinks, AutoContext,
     )
     from ...base.constants.chars import CROP_SUFFIX
-    from ...base.functions.arguments import update, get_str_from_args_kwargs
+    from ...base.functions.arguments import update, get_str_from_args_kwargs, get_cropped_text
     from ...streams.stream_builder import StreamBuilder
     from ...content.struct.flat_struct import FlatStruct
     from ..abstract.leaf_connector import LeafConnector
@@ -419,29 +419,23 @@ class Table(LeafConnector):
         item_example = stream_example.get_one_item()
         if item_example:
             if str_filters:
-                message = 'Example with filters: {}'.format(str_filters)
+                message = f'Example with filters: {str_filters}'
             else:
                 message = 'Example without any filters:'
         else:
-            message = '[EXAMPLE_NOT_FOUND] Example with this filters not found: {}'.format(str_filters)
+            tag = '[EXAMPLE_NOT_FOUND]'
+            message = f'{tag} Example with this filters not found: {str_filters}'
             stream_example = None
             item_example = self.get_one_item()
         if item_example:
-            if example_str_len:
+            if Auto.is_defined(example_str_len):
                 for k, v in item_example.items():
-                    v = str(v)
-                    if len(v) > example_str_len:
-                        fixed_len = example_str_len - len(CROP_SUFFIX)
-                        if fixed_len < 0:
-                            fixed_len = 0
-                            crop_suffix = CROP_SUFFIX[:example_str_len]
-                        else:
-                            crop_suffix = CROP_SUFFIX
-                        item_example[k] = str(v)[:fixed_len] + crop_suffix
+                    item_example[k] = get_cropped_text(v, max_len=example_str_len)
         else:
             item_example = dict()
             stream_example = None
-            message = '[EMPTY_DATA] There are no valid data in {}'.format(self.__repr__())
+            tag = '[EMPTY_DATA]'
+            message = f'{tag} There are no valid data in {repr(self)}'
         return item_example, stream_example, message
 
 

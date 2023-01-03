@@ -7,7 +7,7 @@ try:  # Assume we're a submodule in a package.
         Stream, Item, Columns, Array, Count,
         AUTO, Auto, AutoBool, AutoCount, AutoDisplay,
     )
-    from base.functions.arguments import get_str_from_args_kwargs
+    from base.functions.arguments import get_str_from_args_kwargs, get_cropped_text
     from base.constants.chars import EMPTY, CROP_SUFFIX
     from base.abstract.named import COLS_FOR_META
     from content.documents.document_item import Chapter, Paragraph, Sheet, DEFAULT_CHAPTER_TITLE_LEVEL
@@ -18,7 +18,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         Stream, Item, Columns, Array, Count,
         AUTO, Auto, AutoBool, AutoCount, AutoDisplay,
     )
-    from ...base.functions.arguments import get_str_from_args_kwargs
+    from ...base.functions.arguments import get_str_from_args_kwargs, get_cropped_text
     from ...base.constants.chars import EMPTY, CROP_SUFFIX
     from ...base.abstract.named import COLS_FOR_META
     from ...content.documents.document_item import Chapter, Paragraph, Sheet, DEFAULT_CHAPTER_TITLE_LEVEL
@@ -216,12 +216,9 @@ class ValidateMixin(ABC):
                 item_example = self.get_one_item()
             else:
                 item_example = dict()
-        if item_example:
-            if example_str_len:
-                for k, v in item_example.items():
-                    v = str(v)
-                    if len(v) > example_str_len:
-                        item_example[k] = str(v)[:example_str_len - len(crop_suffix)] + crop_suffix
+        if item_example and Auto.is_defined(example_str_len):
+            for k, v in item_example.items():
+                item_example[k] = get_cropped_text(v, max_len=example_str_len, crop_suffix=crop_suffix)
         else:
             item_example = dict()
             stream_example = None

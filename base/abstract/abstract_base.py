@@ -4,12 +4,12 @@ from inspect import getfullargspec
 
 try:  # Assume we're a submodule in a package.
     from base.classes.auto import Auto, AUTO
-    from base.functions.arguments import get_name, get_list, get_str_from_args_kwargs
+    from base.functions.arguments import get_name, get_list, get_str_from_args_kwargs, get_cropped_text
     from base.constants.chars import EMPTY, PLUS, MINUS, CROSS, COVERT, PROTECTED, DEFAULT_STR
     from base.interfaces.base_interface import BaseInterface, AutoOutput, CROP_SUFFIX, DEFAULT_LINE_LEN
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.auto import Auto, AUTO
-    from ..functions.arguments import get_name, get_list, get_str_from_args_kwargs
+    from ..functions.arguments import get_name, get_list, get_str_from_args_kwargs, get_cropped_text
     from ..constants.chars import EMPTY, PLUS, MINUS, CROSS, COVERT, PROTECTED, DEFAULT_STR
     from ..interfaces.base_interface import BaseInterface, AutoOutput, CROP_SUFFIX, DEFAULT_LINE_LEN
 
@@ -266,8 +266,8 @@ class AbstractBaseObject(BaseInterface, ABC):
         one_line_repr = template.format(cls=class_name, meta=str_meta)
         full_line_len = len(one_line_repr)
         if full_line_len > max_len:
-            exceeded_len = full_line_len + len(crop) - max_len
-            str_meta = str_meta[:-exceeded_len]
+            max_meta_len = max_len - len(template.format(cls=class_name, meta=EMPTY))
+            str_meta = get_cropped_text(str_meta, max_len=max_meta_len, crop_suffix=crop)
             one_line_repr = template.format(cls=class_name, meta=str_meta + crop)
         return one_line_repr
 

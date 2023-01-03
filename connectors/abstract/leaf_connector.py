@@ -7,7 +7,7 @@ try:  # Assume we're a submodule in a package.
         ItemType, StreamType, ContentType, Context, Stream, Name, Count, Columns, Array,
         AUTO, Auto, AutoBool, AutoName, AutoCount, AutoDisplay, AutoConnector, AutoContext,
     )
-    from base.functions.arguments import get_name, get_str_from_args_kwargs
+    from base.functions.arguments import get_name, get_str_from_args_kwargs, get_cropped_text
     from base.constants.chars import EMPTY, CROP_SUFFIX, ITEMS_DELIMITER, DEFAULT_LINE_LEN
     from content.format.format_classes import ParsedFormat
     from connectors.abstract.abstract_connector import AbstractConnector
@@ -20,7 +20,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         ItemType, StreamType, ContentType, Context, Stream, Name, Count, Columns, Array,
         AUTO, Auto, AutoBool, AutoName, AutoCount, AutoDisplay, AutoConnector, AutoContext,
     )
-    from ...base.functions.arguments import get_name, get_str_from_args_kwargs
+    from ...base.functions.arguments import get_name, get_str_from_args_kwargs, get_cropped_text
     from ...base.constants.chars import EMPTY, CROP_SUFFIX, ITEMS_DELIMITER, DEFAULT_LINE_LEN
     from ...content.format.format_classes import ParsedFormat
     from .abstract_connector import AbstractConnector
@@ -291,17 +291,19 @@ class LeafConnector(
             columns: Columns = None,
             example: Optional[Stream] = None,
     ) -> Optional[Stream]:
-        if self.is_existing() and self.is_accessible():
+        if Auto.is_defined(example):
+            stream = example
+        elif self.is_existing() and self.is_accessible():
             stream = self
-            if Auto.is_defined(filters):
-                stream = stream.filter(*filters)
-            if Auto.is_defined(count):
-                stream = stream.take(count)
-            if Auto.is_defined(columns) and hasattr(stream, 'select'):
-                stream = stream.select(columns)
-            stream = stream.collect()
-            self.close()
-            return stream
+        if Auto.is_defined(filters):
+            stream = stream.filter(*filters)
+        if Auto.is_defined(count):
+            stream = stream.take(count)
+        if Auto.is_defined(columns) and hasattr(stream, 'select'):
+            stream = stream.select(columns)
+        stream = stream.collect()
+        self.close()
+        return stream
 
     def get_items(self, verbose: AutoBool = AUTO, step: AutoCount = AUTO) -> Iterable:
         return self.get_items_of_type(item_type=AUTO, verbose=verbose, step=step)
@@ -337,7 +339,7 @@ class LeafConnector(
         stream = self.to_stream(data=filtered_items, stream_type=item_type)
         return self._assume_stream(stream)
 
-    def skip(self, count: int = 1, inplace: bool = False) -> Optional[Native]:
+    def skip(self, count: int = 1, inplace: bool = False) -> Stream:
         stream = super().skip(count, inplace=inplace)
         struct = self.get_struct()
         if Auto.is_defined(struct) and (isinstance(stream, RegularStreamInterface) or hasattr(stream, 'set_struct')):
@@ -353,9 +355,7 @@ class LeafConnector(
         obj_name = repr(self.get_name())
         shape = self.get_shape_repr(actualize=actualize)
         str_header = f'{cls_name}({obj_name}) {shape}'
-        if len(str_header) > DEFAULT_LINE_LEN:
-            str_header = str_header[:DEFAULT_LINE_LEN - len(CROP_SUFFIX)] + CROP_SUFFIX
-        yield str_header
+        yield get_cropped_text(str_header)
 
     def get_description_items(
             self,
