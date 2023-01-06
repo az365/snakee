@@ -19,7 +19,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .abstract_base import AbstractBaseObject
 
 Native = Union[AbstractBaseObject, DisplayMixin]
-Chapter = Iterable
 
 SPECIFIC_MEMBERS = '_name',
 BRIEF_META_ROW_FORMATTER = '{prefix}{key:10} {value}'
@@ -102,8 +101,8 @@ class AbstractNamed(AbstractBaseObject, DisplayMixin, ABC):
             display: AutoDisplay = AUTO,
     ) -> Native:
         display = self.get_display(display)
-        for i in self.get_description_items(comment=comment):
-            display.display(i)
+        for i in self.get_description_items(comment=comment, depth=depth):
+            display.display_item(i)
         return self
 
     @staticmethod

@@ -58,7 +58,7 @@ class DefaultDisplay(DisplayInterface):
 
     # @deprecated_with_alternative('display_item()')
     def append(self, text: str) -> None:
-        self.display(text)
+        self.display_item(text)
 
     @staticmethod
     def build_paragraph(data: Iterable, level: Count = 0, name: str = EMPTY):
@@ -84,10 +84,10 @@ class DefaultDisplay(DisplayInterface):
     ) -> None:
         if paragraph:
             if isinstance(paragraph, str):
-                return self.display(paragraph)
+                return self.display_item(paragraph)
             elif isinstance(paragraph, Iterable):
                 for line in paragraph:
-                    return self.display(line)
+                    return self.display_item(line)
             else:
                 raise TypeError(f'Expected paragraph as Paragraph, str or Iterable, got {paragraph}')
 
@@ -107,7 +107,7 @@ class DefaultDisplay(DisplayInterface):
             sheet = sheet_class.from_records(records, columns=columns, name=name)
         else:
             sheet = self._get_columnar_lines(records, columns=columns, count=count, with_title=with_title)
-        self.display(sheet)
+        self.display_item(sheet)
 
     def display_item(self, item: Item, item_type='paragraph', **kwargs) -> None:
         item_type_value = get_value(item_type)
@@ -291,6 +291,7 @@ class DefaultDisplay(DisplayInterface):
     def _get_display_method() -> Callable:
         return print
 
+    @deprecated_with_alternative('display_item()')
     def display(self, item: Item = AUTO):
         item = Auto.acquire(item, self)
         data = self._get_display_object(item)
@@ -299,4 +300,4 @@ class DefaultDisplay(DisplayInterface):
         return self
 
     def __call__(self, obj) -> None:
-        return self.display(obj)
+        return self.display_item(obj)

@@ -256,7 +256,7 @@ class AbstractTerm(SimpleDataWrapper, MultiMapDataMixin, TermInterface, ABC):
     ) -> Native:
         display = self.get_display(display)
         item = self.get_data_chapter()
-        display.display(item)
+        display.display_item(item)
         return self
 
     # @deprecated

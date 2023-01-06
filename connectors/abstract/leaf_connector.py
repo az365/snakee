@@ -391,7 +391,7 @@ class LeafConnector(
             if isinstance(i, str):
                 display.append(i)
             else:  # isinstance(i, DocumentItem):
-                display.display(i)
+                display.display_item(i)
         return self
 
     @staticmethod

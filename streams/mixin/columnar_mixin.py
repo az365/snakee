@@ -496,5 +496,5 @@ class ColumnarMixin(IterDataMixin, ABC):
             take_struct_from_source=take_struct_from_source,
             filters=filters, named_filters=filter_kwargs,
         ):
-            display.display(i)
+            display.display_item(i)
         return self

@@ -71,7 +71,7 @@ class DocumentFormat(TextFormat):
             if isinstance(display, Callable):
                 return display
             elif isinstance(display, DisplayInterface) or hasattr(display, 'display'):
-                return display.display
+                return display.display_item
             else:
                 raise TypeError(f'Expected DisplayInterface, got {display}')
         else:

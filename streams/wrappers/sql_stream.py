@@ -617,9 +617,6 @@ class SqlStream(WrapperStream):
         return sm_repr
 
     @deprecated
-    def get_data_representation(self, max_len: int = 50) -> str:
-        return self.get_data_repr(max_len=max_len)
-
     def get_data_repr(self, max_len: int = 50) -> str:
         data_repr = self.get_stream_representation()
         return get_cropped_text(data_repr, max_len=max_len)
@@ -684,7 +681,7 @@ class SqlStream(WrapperStream):
     ) -> Native:
         display = self.get_display(display)
         for i in self.get_description_items(comment=comment, depth=depth, enumerated=enumerated):
-            display.display(i)
+            display.display_item(i)
         return self
 
     @staticmethod
