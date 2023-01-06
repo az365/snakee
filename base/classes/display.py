@@ -60,6 +60,12 @@ class DefaultDisplay(DisplayInterface):
     def append(self, text: str) -> None:
         self.display_item(text)
 
+    @classmethod
+    def build_sheet(cls, records: Iterable[dict], columns: list):
+        sheet_class = cls.get_sheet_class()
+        assert sheet_class, '_sheet_class property must be defined for build sheet, use Display.set_sheet_class()'
+        return sheet_class.from_records(records, columns=columns)
+
     @staticmethod
     def build_paragraph(data: Iterable, level: Count = 0, name: str = EMPTY):
         if isinstance(data, str):
@@ -75,7 +81,7 @@ class DefaultDisplay(DisplayInterface):
             text = text + line + PARAGRAPH_CHAR
         return text
 
-    # @deprecated_with_alternative('display_item()')
+    @deprecated_with_alternative('display_item(build_paragraph())')
     def display_paragraph(
             self,
             paragraph: Optional[Iterable] = None,
@@ -91,22 +97,14 @@ class DefaultDisplay(DisplayInterface):
             else:
                 raise TypeError(f'Expected paragraph as Paragraph, str or Iterable, got {paragraph}')
 
-    # @deprecated_with_alternative('display_item()')
-    def display_sheet(
-            self,
-            records: Iterable,
-            columns: Sequence,
-            count: AutoCount = None,
-            with_title: bool = True,
-            style: AutoStyle = AUTO,
-            name: str = EMPTY,
-    ) -> None:
+    @deprecated_with_alternative('display_item(Sheet.from_records())')
+    def display_sheet(self, records: Iterable, columns: Sequence, name: str = EMPTY) -> None:
         sheet_class = self.get_sheet_class()
         if sheet_class:
             assert hasattr(sheet_class, 'from_records'), sheet_class  # isinstance(sheet_class, SheetInterface)
             sheet = sheet_class.from_records(records, columns=columns, name=name)
         else:
-            sheet = self._get_columnar_lines(records, columns=columns, count=count, with_title=with_title)
+            raise AssertionError('_sheet_class property must be defined for build sheet, use Display.set_sheet_class()')
         self.display_item(sheet)
 
     def display_item(self, item: Item, item_type='paragraph', **kwargs) -> None:
@@ -229,6 +227,7 @@ class DefaultDisplay(DisplayInterface):
         return {c: str(v)[:s] for c, v, s in zip(names, values, lens)}
 
     @classmethod
+    @deprecated_with_alternative('SimpleSheet.get_lines()')
     def _get_columnar_lines(
             cls,
             records: Iterable,
@@ -258,18 +257,13 @@ class DefaultDisplay(DisplayInterface):
     def set_sheet_class_inplace(cls, sheet_class: Class):
         cls._sheet_class = sheet_class
 
-    # @deprecated
-    def get_encoded_sheet(self, records, columns, count, with_title, style=AUTO) -> Iterator[str]:
-        return self._get_columnar_lines(records, columns=columns, count=count, with_title=with_title)
+    @deprecated_with_alternative('build_sheet().get_lines()')
+    def get_encoded_sheet(self, records, columns) -> Iterator[str]:
+        sheet = self.build_sheet(records, columns=columns)
+        return sheet.get_lines()
 
     @deprecated_with_alternative('build_paragraph()')
-    def get_encoded_paragraph(
-            self,
-            paragraph: Optional[Iterable] = None,
-            level: Optional[int] = None,
-            style=AUTO,
-            clear: bool = False,
-    ) -> Iterator[str]:
+    def get_encoded_paragraph(self, paragraph: Optional[Iterable] = None, level: Optional[int] = None) -> Iterator[str]:
         if isinstance(paragraph, str):
             yield from paragraph.split(PARAGRAPH_CHAR)
         elif isinstance(paragraph, Iterable):

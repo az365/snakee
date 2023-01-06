@@ -155,11 +155,14 @@ class ActualizeMixin(ValidateMixin, ABC):
         records, columns = self._get_demo_records_and_columns(count=count, example=example, columns=columns)
         if records or comment:
             display = self.get_display(display)
-            display.display_paragraph('Example', level=3)
+            title_paragraph = display.build_paragraph('Example', level=3, name='Example title')
+            display.display_item(title_paragraph)
             if comment:
-                display.display_paragraph(comment)
+                comment_paragraph = display.build_paragraph(comment, name='comment')
+                display.display_item(comment_paragraph)
             if records:
-                return display.display_sheet(records, columns=columns)
+                sheet = display.build_sheet(records, columns=columns)
+                return display.display_item(sheet)
 
     def show(
             self,
