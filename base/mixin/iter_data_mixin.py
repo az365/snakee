@@ -11,7 +11,7 @@ try:  # Assume we're a submodule in a package.
     from base.constants.chars import PARAGRAPH_CHAR
     from base.functions.arguments import get_names, update, is_in_memory, get_str_from_args_kwargs
     from base.interfaces.iterable_interface import IterableInterface, OptionalFields, Item, JoinType
-    from base.mixin.data_mixin import DataMixin
+    from base.mixin.data_mixin import DataMixin, UNK_COUNT_STUB
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...functions.secondary import item_functions as fs
     from ...utils.algo import map_side_join
@@ -20,13 +20,12 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..constants.chars import PARAGRAPH_CHAR
     from ..functions.arguments import get_names, update, is_in_memory, get_str_from_args_kwargs
     from ..interfaces.iterable_interface import IterableInterface, OptionalFields, Item, JoinType
-    from .data_mixin import DataMixin
+    from .data_mixin import DataMixin, UNK_COUNT_STUB
 
 Native = Union[IterableInterface, DataMixin]
 How = Union[JoinType, str]
 
 DEFAULT_COUNT = 10
-UNK_COUNT_STUB = '(iter)'
 LOGGING_LEVEL_INFO = 20
 
 
@@ -183,11 +182,6 @@ class IterDataMixin(DataMixin, ABC):
             return self.get_list()[0]
         for i in self.get_iter():
             return i
-
-    # @deprecated
-    def get_description(self) -> str:
-        count = self.get_str_count()
-        return f'{count} items'
 
     def _get_enumerated_items(self, first: int = 0, item_type=AUTO) -> Generator:
         if item_type == 'Any' or not Auto.is_defined(item_type):
