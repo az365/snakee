@@ -5,23 +5,21 @@ try:  # Assume we're a submodule in a package.
     from base.classes.typing import AUTO, Auto, AutoCount, AutoBool
     from base.constants.chars import EMPTY, REPR_DELIMITER, SMALL_INDENT, DEFAULT_LINE_LEN
     from base.functions.arguments import get_str_from_annotation, get_str_from_args_kwargs
-    from base.interfaces.base_interface import BaseInterface
-    from base.interfaces.sourced_interface import SourcedInterface, COLS_FOR_META, COLS_FOR_DICT
+    from base.interfaces.sourced_interface import SourcedInterface, COLS_FOR_DICT
     from base.interfaces.context_interface import ContextInterface
     from base.interfaces.data_interface import SimpleDataInterface
-    from base.mixin.display_mixin import DisplayMixin, DEFAULT_EXAMPLE_COUNT
-    from base.mixin.data_mixin import DataMixin, UNK_COUNT_STUB
+    from base.mixin.display_mixin import DEFAULT_EXAMPLE_COUNT
+    from base.mixin.data_mixin import DataMixin, UNK_COUNT_STUB, DEFAULT_CHAPTER_TITLE_LEVEL
     from base.abstract.named import AbstractNamed, AutoDisplay
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.typing import AUTO, Auto, AutoCount, AutoBool
     from ..constants.chars import EMPTY, REPR_DELIMITER, SMALL_INDENT, DEFAULT_LINE_LEN
     from ..functions.arguments import get_str_from_annotation, get_str_from_args_kwargs
-    from ..interfaces.base_interface import BaseInterface
-    from ..interfaces.sourced_interface import SourcedInterface, COLS_FOR_META, COLS_FOR_DICT
+    from ..interfaces.sourced_interface import SourcedInterface, COLS_FOR_DICT
     from ..interfaces.context_interface import ContextInterface
     from ..interfaces.data_interface import SimpleDataInterface
-    from ..mixin.display_mixin import DisplayMixin, DEFAULT_EXAMPLE_COUNT
-    from ..mixin.data_mixin import DataMixin, UNK_COUNT_STUB
+    from ..mixin.display_mixin import DEFAULT_EXAMPLE_COUNT
+    from ..mixin.data_mixin import DataMixin, UNK_COUNT_STUB, DEFAULT_CHAPTER_TITLE_LEVEL
     from .named import AbstractNamed, AutoDisplay
 
 Native = SimpleDataInterface
@@ -237,7 +235,7 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
             comment: Optional[str] = None,
     ) -> Generator:
         display = self.get_display()
-        yield display.build_paragraph(title, level=3, name=f'{title} title')
+        yield display.build_paragraph(title, level=DEFAULT_CHAPTER_TITLE_LEVEL, name=f'{title} title')
         if comment:
             yield display.build_paragraph(comment, name=f'{title} comment')
         if hasattr(self, 'get_data_caption'):

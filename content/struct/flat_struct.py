@@ -19,7 +19,7 @@ try:  # Assume we're a submodule in a package.
     from content.items.simple_items import SelectableItem, is_row, is_record
     from content.selection.abstract_expression import AbstractDescription
     from content.selection.selectable_mixin import SelectableMixin
-    from content.documents.document_item import Chapter, Paragraph, Sheet, DEFAULT_CHAPTER_TITLE_LEVEL
+    from content.documents.document_item import Chapter, Paragraph, Sheet
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         StructInterface, StructRowInterface, FieldInterface, RepresentationInterface,
@@ -39,7 +39,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..items.simple_items import SelectableItem, is_row, is_record
     from ..selection.abstract_expression import AbstractDescription
     from ..selection.selectable_mixin import SelectableMixin
-    from ..documents.document_item import Chapter, Paragraph, Sheet, DEFAULT_CHAPTER_TITLE_LEVEL
+    from ..documents.document_item import Chapter, Paragraph, Sheet
 
 Native = StructInterface
 Group = Union[Native, Iterable]

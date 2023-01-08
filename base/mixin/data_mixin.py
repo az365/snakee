@@ -25,6 +25,7 @@ DESCRIPTION_COL_NAMES = PREFIX, KEY, VALUE, CAPTION = 'prefix', 'key', 'value', 
 DESCRIPTION_COL_LENS = 3, 10, 20, 85  # prefix, key, value, caption
 DESCRIPTION_COLS = list(zip(DESCRIPTION_COL_NAMES, DESCRIPTION_COL_LENS))
 UNK_COUNT_STUB = '<iter>'  # used in SimpleDataWrapper, IterDataMixin, ContextualData
+DEFAULT_CHAPTER_TITLE_LEVEL = 3  # used in SimpleDataWrapper, ContextualData, FlatStruct
 
 
 class DataMixin(DisplayMixin, ABC):

@@ -1,16 +1,20 @@
-from typing import Union, Optional, Iterable, Any
+from typing import Optional, Iterable, Generator, Union, Any
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.auto import AUTO, Auto
+    from base.classes.typing import AUTO, Auto, AutoBool, Count, Array
+    from base.functions.arguments import get_str_from_args_kwargs
+    from base.interfaces.display_interface import DEFAULT_EXAMPLE_COUNT
     from base.interfaces.context_interface import ContextInterface
-    from base.mixin.data_mixin import DataMixin, UNK_COUNT_STUB
+    from base.mixin.data_mixin import DataMixin, EMPTY, UNK_COUNT_STUB, DEFAULT_CHAPTER_TITLE_LEVEL
     from base.mixin.contextual_mixin import ContextualMixin
     from base.abstract.abstract_base import AbstractBaseObject
     from base.abstract.sourced import Sourced, SourcedInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..classes.auto import AUTO, Auto
+    from ..classes.typing import AUTO, Auto, AutoBool, Count, Array
+    from ..functions.arguments import get_str_from_args_kwargs
+    from ..interfaces.display_interface import DEFAULT_EXAMPLE_COUNT
     from ..interfaces.context_interface import ContextInterface
-    from ..mixin.data_mixin import DataMixin, UNK_COUNT_STUB
+    from ..mixin.data_mixin import DataMixin, EMPTY, UNK_COUNT_STUB, DEFAULT_CHAPTER_TITLE_LEVEL
     from ..mixin.contextual_mixin import ContextualMixin
     from .abstract_base import AbstractBaseObject
     from .sourced import Sourced, SourcedInterface
@@ -30,7 +34,7 @@ class ContextualDataWrapper(Sourced, ContextualMixin, DataMixin):
             self,
             data: Data,
             name: str,
-            caption: str = '',
+            caption: str = EMPTY,
             source: Source = None,
             context: Context = None,
             check: bool = True,
@@ -42,7 +46,7 @@ class ContextualDataWrapper(Sourced, ContextualMixin, DataMixin):
 
     @classmethod
     def _get_data_member_names(cls):
-        return DATA_MEMBER_NAMES  # 'data',
+        return DATA_MEMBER_NAMES  # '_data',
 
     def get_data(self) -> Data:
         return self._data
@@ -91,3 +95,44 @@ class ContextualDataWrapper(Sourced, ContextualMixin, DataMixin):
         if not Auto.is_defined(count):
             count = default
         return f'{count} items'
+
+    def get_description_items(
+            self,
+            count: Count = DEFAULT_EXAMPLE_COUNT,
+            columns: Optional[Array] = None,
+            comment: Optional[str] = None,
+            safe_filter: bool = True,
+            actualize: AutoBool = AUTO,
+            filters: Optional[Iterable] = None,
+            named_filters: Optional[dict] = None,
+    ) -> Generator:
+        yield self.get_display().get_header_chapter_for(self, level=1, comment=comment)
+        if hasattr(self, '_prepare_examples_with_title'):  # isinstance(self, ValidateMixin):
+            struct_title, example_item, example_stream, example_comment = self._prepare_examples_with_title(
+                *filters or list(), **named_filters or dict(), safe_filter=safe_filter,
+                example_row_count=count, actualize=actualize,
+                verbose=False,
+            )
+            yield struct_title
+        else:
+            example_item = dict()
+            example_stream = None
+            example_comment = f'{repr(self)} has no example item(s)'
+        if hasattr(self, 'get_invalid_columns'):  # isinstance(self, ValidateMixin):
+            invalid_columns = self.get_invalid_columns()
+        else:
+            invalid_columns = None
+        if invalid_columns:
+            invalid_columns_str = get_str_from_args_kwargs(*invalid_columns)
+            yield f'Invalid columns: {invalid_columns_str}'
+        if hasattr(self, 'get_struct_chapter'):  # isinstance(self, (StructMixin, ColumnarMixin)):
+            yield self.get_struct_chapter(
+                example_item=example_item, comment=example_comment,
+                level=DEFAULT_CHAPTER_TITLE_LEVEL, name='Columns',
+            )
+        if example_stream and count and hasattr(self, 'get_example_chapter'):  # isinstance(self, ValidateMixin):
+            yield self.get_example_chapter(
+                count, columns=columns, example=example_stream, comment=example_comment,
+                level=DEFAULT_CHAPTER_TITLE_LEVEL, name='Example',
+            )
+        yield self.get_display().get_meta_chapter_for(self, level=DEFAULT_CHAPTER_TITLE_LEVEL, name='Meta')

@@ -1,31 +1,27 @@
 from typing import Optional, Callable, Iterable, Iterator, Sequence, Tuple, Union, Any
 
 try:  # Assume we're a submodule in a package.
-    from base.constants.chars import EMPTY, SPACE, HTML_SPACE, HTML_INDENT, PARAGRAPH_CHAR, REPR_DELIMITER
+    from base.constants.chars import EMPTY, SPACE, HTML_INDENT, PARAGRAPH_CHAR, REPR_DELIMITER
     from base.interfaces.sheet_interface import SheetInterface, Record, Row, FormattedRow, Columns, Count
     from base.classes.simple_sheet import SimpleSheet, SheetMixin, SheetItems
     from base.classes.enum import DynamicEnum
-    from base.constants.chars import CROP_SUFFIX, DEFAULT_LINE_LEN
+    from base.constants.chars import DEFAULT_LINE_LEN
     from base.classes.typing import AUTO, Auto, Name
     from base.functions.arguments import get_name, get_cropped_text
-    from base.abstract.simple_data import SimpleDataWrapper, SimpleDataInterface
+    from base.abstract.simple_data import SimpleDataWrapper, MAX_BRIEF_REPR_LEN
     from base.mixin.iter_data_mixin import IterDataMixin
-    from base.mixin.map_data_mixin import MapDataMixin
-    from functions.primary.items import get_fields_values_from_item, get_field_value_from_item
     from utils.external import Markdown, HTML, display
     from content.documents.display_mode import DisplayMode
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...base.constants.chars import EMPTY, SPACE, HTML_SPACE, HTML_INDENT, PARAGRAPH_CHAR, REPR_DELIMITER
+    from ...base.constants.chars import EMPTY, SPACE, HTML_INDENT, PARAGRAPH_CHAR, REPR_DELIMITER
     from ...base.interfaces.sheet_interface import SheetInterface, Record, Row, FormattedRow, Columns, Count
     from ...base.classes.simple_sheet import SimpleSheet, SheetMixin, SheetItems
     from ...base.classes.enum import DynamicEnum
-    from ...base.constants.chars import CROP_SUFFIX, DEFAULT_LINE_LEN
+    from ...base.constants.chars import DEFAULT_LINE_LEN
     from ...base.classes.typing import AUTO, Auto, Name
     from ...base.functions.arguments import get_name, get_cropped_text
-    from ...base.abstract.simple_data import SimpleDataWrapper, SimpleDataInterface
+    from ...base.abstract.simple_data import SimpleDataWrapper, MAX_BRIEF_REPR_LEN
     from ...base.mixin.iter_data_mixin import IterDataMixin
-    from ...base.mixin.map_data_mixin import MapDataMixin
-    from ...functions.primary.items import get_fields_values_from_item, get_field_value_from_item
     from ...utils.external import Markdown, HTML, display
     from .display_mode import DisplayMode
 
@@ -37,12 +33,10 @@ DisplayObject = Union[str, Markdown, HTML]
 
 H_STYLE = None
 P_STYLE = 'line-height: 1.1em; margin-top: 0em; margin-bottom: 0em; padding-top: 0em; padding-bottom: 0em;'
-DEFAULT_CHAPTER_TITLE_LEVEL = 3
-SHORT_LINE_LEN = 20
 
 
 class DocumentItem(SimpleDataWrapper):
-    def __init__(self, data, style: OptStyle = None, name: str = ''):
+    def __init__(self, data, style: OptStyle = None, name: str = EMPTY):
         self._style = style
         super().__init__(data=data, name=name)
 
@@ -193,7 +187,7 @@ class DocumentItem(SimpleDataWrapper):
             return obj
 
     @staticmethod
-    def build_paragraph(data: Iterable, level: Count = 0, name: str = ''):
+    def build_paragraph(data: Iterable, level: Count = 0, name: str = EMPTY):
         return Paragraph(data, level=level, name=name)
 
 
@@ -202,7 +196,7 @@ Items = Iterable[DocumentItem]
 
 
 class Sheet(DocumentItem, IterDataMixin, SheetMixin, SheetInterface):
-    def __init__(self, data: SheetItems, columns: Columns = None, style: OptStyle = None, name: str = ''):
+    def __init__(self, data: SheetItems, columns: Columns = None, style: OptStyle = None, name: str = EMPTY):
         self._struct = None
         super().__init__(data=list(), style=style, name=name)
         self._set_struct_inplace(columns)
@@ -419,7 +413,7 @@ class Text(DocumentItem, IterDataMixin):
             self,
             data: Union[str, list, None] = None,
             style: OptStyle = None,
-            name: str = '',
+            name: str = EMPTY,
     ):
         self._style = style
         super().__init__(data=data, name=name)
@@ -463,7 +457,8 @@ class Text(DocumentItem, IterDataMixin):
     def get_html_code(self) -> str:
         return EMPTY.join(self.get_html_lines())
 
-    def get_cropped_text(self, max_len: int = SHORT_LINE_LEN) -> str:
+    # @deprecated
+    def get_cropped_text(self, max_len: int = MAX_BRIEF_REPR_LEN) -> str:
         return get_cropped_text(self.get_text(), max_len=max_len)
 
     def get_brief_repr(self) -> str:
@@ -484,7 +479,7 @@ class Link(Text):
             data: Union[str, list, None],
             url: str,
             style: OptStyle = None,
-            name: str = '',
+            name: str = EMPTY,
     ):
         self._url = url
         super().__init__(data=data, style=style, name=name)
@@ -537,6 +532,17 @@ class Container(DocumentItem, IterDataMixin):
             if tag:
                 yield self.get_html_close_tag()
 
+    def get_brief_repr(self) -> str:
+        cls_name = self.__class__.__name__
+        obj_name = self.get_name()
+        count = self.get_count()
+        data_repr = f'<{count} items>'
+        if obj_name:
+            str_args = f'{data_repr}, name={repr(obj_name)}'
+        else:
+            str_args = data_repr
+        return f'{cls_name}({str_args})'
+
 
 class MultiChart(Chart, Container):
     pass
@@ -548,7 +554,7 @@ class Paragraph(Text, Container):
             data: Optional[list] = None,
             level: Optional[int] = None,
             style: OptStyle = None,
-            name: str = '',
+            name: str = EMPTY,
     ):
         self._level = level
         super().__init__(data=data, style=style, name=name)
@@ -624,7 +630,7 @@ class Paragraph(Text, Container):
         return f'{cls_name}({str_args})'
 
 
-class Chapter(Text, Container):
+class Chapter(Container, Text):
     def add(
             self,
             item: Union[Native, Iterable],

@@ -649,21 +649,6 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
     def actualize(self) -> Native:  # used in ValidateMixin.prepare_examples_with_title()
         return self
 
-    def get_description_items(
-            self,
-            count: Count = DEFAULT_EXAMPLE_COUNT,
-            columns: Optional[Array] = None,
-            comment: Optional[str] = None,
-            safe_filter: bool = True,
-            actualize: AutoBool = AUTO,
-            filters: Optional[Iterable] = None,
-            named_filters: Optional[dict] = None,
-    ) -> Generator:
-        yield from self.get_extended_description_items(
-            count, columns=columns, comment=comment, actualize=actualize,
-            filters=filters, named_filters=named_filters, safe_filter=safe_filter,
-        )
-
     def describe(
             self,
             *filter_args,

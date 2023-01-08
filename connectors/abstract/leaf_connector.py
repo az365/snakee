@@ -1,11 +1,11 @@
 from abc import ABC
-from typing import Optional, Callable, Iterable, Generator, Union
+from typing import Optional, Iterable, Generator, Union
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         ConnectorInterface, LeafConnectorInterface, StructInterface, ContentFormatInterface, RegularStreamInterface,
         ItemType, StreamType, ContentType, Context, Stream, Name, Count, Columns, Array,
-        AUTO, Auto, AutoBool, AutoName, AutoCount, AutoDisplay, AutoConnector, AutoContext,
+        AUTO, Auto, AutoBool, AutoName, AutoCount, AutoDisplay, AutoContext,
     )
     from base.functions.arguments import get_name, get_str_from_args_kwargs, get_cropped_text
     from base.constants.chars import EMPTY, CROP_SUFFIX, ITEMS_DELIMITER, DEFAULT_LINE_LEN
@@ -18,7 +18,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...interfaces import (
         ConnectorInterface, LeafConnectorInterface, StructInterface, ContentFormatInterface, RegularStreamInterface,
         ItemType, StreamType, ContentType, Context, Stream, Name, Count, Columns, Array,
-        AUTO, Auto, AutoBool, AutoName, AutoCount, AutoDisplay, AutoConnector, AutoContext,
+        AUTO, Auto, AutoBool, AutoName, AutoCount, AutoDisplay, AutoContext,
     )
     from ...base.functions.arguments import get_name, get_str_from_args_kwargs, get_cropped_text
     from ...base.constants.chars import EMPTY, CROP_SUFFIX, ITEMS_DELIMITER, DEFAULT_LINE_LEN
@@ -31,6 +31,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 Native = LeafConnectorInterface
 Parent = Union[Context, ConnectorInterface]
 Links = Optional[dict]
+AutoStruct = Union[StructInterface, Auto, None]
 
 META_MEMBER_MAPPING = dict(_data='streams', _source='parent', _declared_format='content_format')
 TEMPORARY_PARTITION_FORMAT = ContentType.JsonFile
@@ -45,7 +46,7 @@ class LeafConnector(
             self,
             name: Name,
             content_format: Union[ContentFormatInterface, ContentType, Auto] = AUTO,
-            struct: Union[StructInterface, Auto, None] = AUTO,
+            struct: AutoStruct = AUTO,
             first_line_is_title: AutoBool = AUTO,
             parent: Parent = None,
             context: AutoContext = AUTO,
@@ -206,7 +207,7 @@ class LeafConnector(
         self._modification_ts = timestamp
         return self
 
-    def get_expected_count(self) -> Union[int, Auto, None]:
+    def get_expected_count(self) -> AutoCount:
         return self._count
 
     def set_count(self, count: int) -> Native:
@@ -286,7 +287,7 @@ class LeafConnector(
 
     def _get_demo_example(
             self,
-            count: int = DEFAULT_EXAMPLE_COUNT,
+            count: Count = DEFAULT_EXAMPLE_COUNT,
             filters: Columns = None,
             columns: Columns = None,
             example: Optional[Stream] = None,
@@ -326,9 +327,8 @@ class LeafConnector(
             else:
                 message = verbose
         elif (count or 0) > 0:
-            template = '{count} lines expected from file {name}...'
-            msg = template.format(count=count, name=self.get_name())
-            self.log(msg, verbose=verbose)
+            file_name = self.get_name()
+            self.log(f'{count} lines expected from file {file_name}...', verbose=verbose)
         lines = self.get_lines(skip_first=self.is_first_line_title(), step=step, verbose=verbose, message=message)
         items = content_format.get_items_from_lines(lines, item_type=item_type)
         return items
@@ -357,25 +357,10 @@ class LeafConnector(
         str_header = f'{cls_name}({obj_name}) {shape}'
         yield get_cropped_text(str_header)
 
-    def get_description_items(
-            self,
-            count: Count = DEFAULT_EXAMPLE_COUNT,
-            columns: Optional[Array] = None,
-            comment: Optional[str] = None,
-            safe_filter: bool = True,
-            actualize: AutoBool = AUTO,
-            filters: Optional[Iterable] = None,
-            named_filters: Optional[dict] = None,
-    ) -> Generator:
-        yield from self.get_extended_description_items(
-            count, columns=columns, comment=comment, actualize=actualize,
-            filters=filters, named_filters=named_filters, safe_filter=safe_filter,
-        )
-
     def describe(
             self,
             *filter_args,
-            count: Optional[int] = DEFAULT_EXAMPLE_COUNT,
+            count: Count = DEFAULT_EXAMPLE_COUNT,
             columns: Optional[Array] = None,
             comment: Optional[str] = None,
             safe_filter: bool = True,

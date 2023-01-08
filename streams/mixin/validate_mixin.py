@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Optional, Iterable, Generator, Tuple, Union
+from typing import Optional, Tuple, Union
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
@@ -7,22 +7,24 @@ try:  # Assume we're a submodule in a package.
         Stream, Item, Columns, Array, Count,
         AUTO, Auto, AutoBool, AutoCount, AutoDisplay,
     )
+    from base.interfaces.display_interface import DEFAULT_EXAMPLE_COUNT
     from base.functions.arguments import get_str_from_args_kwargs, get_cropped_text
     from base.constants.chars import EMPTY, CROP_SUFFIX
-    from base.abstract.named import COLS_FOR_META
-    from content.documents.document_item import Chapter, Paragraph, Sheet, DEFAULT_CHAPTER_TITLE_LEVEL
-    from streams.interfaces.abstract_stream_interface import StreamInterface, DEFAULT_EXAMPLE_COUNT
+    from base.mixin.data_mixin import DEFAULT_CHAPTER_TITLE_LEVEL
+    from content.documents.document_item import Chapter, Paragraph, Sheet
+    from streams.interfaces.abstract_stream_interface import StreamInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         LeafConnectorInterface, StructInterface,
         Stream, Item, Columns, Array, Count,
         AUTO, Auto, AutoBool, AutoCount, AutoDisplay,
     )
+    from ...base.interfaces.display_interface import DEFAULT_EXAMPLE_COUNT
     from ...base.functions.arguments import get_str_from_args_kwargs, get_cropped_text
     from ...base.constants.chars import EMPTY, CROP_SUFFIX
-    from ...base.abstract.named import COLS_FOR_META
-    from ...content.documents.document_item import Chapter, Paragraph, Sheet, DEFAULT_CHAPTER_TITLE_LEVEL
-    from ..interfaces.abstract_stream_interface import StreamInterface, DEFAULT_EXAMPLE_COUNT
+    from ...base.mixin.data_mixin import DEFAULT_CHAPTER_TITLE_LEVEL
+    from ...content.documents.document_item import Chapter, Paragraph, Sheet
+    from ..interfaces.abstract_stream_interface import StreamInterface
 
 Native = Union[StreamInterface, LeafConnectorInterface]
 
@@ -300,36 +302,3 @@ class ValidateMixin(ABC):
             name: str = 'Data sheet',
     ):
         return self.get_example_sheet(count, name=name)
-
-    def get_extended_description_items(
-            self,
-            count: Count = DEFAULT_EXAMPLE_COUNT,
-            columns: Optional[Array] = None,
-            comment: Optional[str] = None,
-            safe_filter: bool = True,
-            actualize: AutoBool = AUTO,
-            filters: Optional[Iterable] = None,
-            named_filters: Optional[dict] = None,
-    ) -> Generator:
-        yield self.get_display().get_header_chapter_for(self, level=1, comment=comment)
-        struct_title, example_item, example_stream, example_comment = self._prepare_examples_with_title(
-            *filters or list(), **named_filters or dict(), safe_filter=safe_filter,
-            example_row_count=count, actualize=actualize,
-            verbose=False,
-        )
-        yield struct_title
-        invalid_columns = self.get_invalid_columns()
-        if invalid_columns:
-            invalid_columns_str = get_str_from_args_kwargs(*invalid_columns)
-            yield f'Invalid columns: {invalid_columns_str}'
-        yield ''
-        yield self.get_struct_chapter(
-            example_item=example_item, comment=example_comment,
-            level=DEFAULT_CHAPTER_TITLE_LEVEL, name='Columns',
-        )
-        if example_stream and count:
-            yield self.get_example_chapter(
-                count, columns=columns, example=example_stream, comment=example_comment,
-                level=DEFAULT_CHAPTER_TITLE_LEVEL, name='Example',
-            )
-        yield self.get_display().get_meta_chapter_for(self, level=DEFAULT_CHAPTER_TITLE_LEVEL, name='Meta')
