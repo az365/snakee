@@ -10,7 +10,7 @@ try:  # Assume we're a submodule in a package.
     from base.interfaces.context_interface import ContextInterface
     from base.interfaces.data_interface import SimpleDataInterface
     from base.mixin.display_mixin import DisplayMixin, DEFAULT_EXAMPLE_COUNT
-    from base.mixin.data_mixin import DataMixin
+    from base.mixin.data_mixin import DataMixin, UNK_COUNT_STUB
     from base.abstract.named import AbstractNamed, AutoDisplay
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.typing import AUTO, Auto, AutoCount, AutoBool
@@ -21,7 +21,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..interfaces.context_interface import ContextInterface
     from ..interfaces.data_interface import SimpleDataInterface
     from ..mixin.display_mixin import DisplayMixin, DEFAULT_EXAMPLE_COUNT
-    from ..mixin.data_mixin import DataMixin
+    from ..mixin.data_mixin import DataMixin, UNK_COUNT_STUB
     from .named import AbstractNamed, AutoDisplay
 
 Native = SimpleDataInterface
@@ -91,7 +91,7 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
 
     @staticmethod
     def _get_dynamic_meta_fields() -> tuple:
-        return DYNAMIC_META_FIELDS
+        return DYNAMIC_META_FIELDS  # empty (no meta fields)
 
     def get_static_meta(self, ex: OptionalFields = None) -> dict:
         meta = self.get_meta(ex=ex)
@@ -105,7 +105,7 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
             meta.pop(f, None)
         return meta
 
-    def get_str_count(self, default: Optional[str] = '(iter)') -> Optional[str]:
+    def get_str_count(self, default: Optional[str] = UNK_COUNT_STUB) -> Optional[str]:
         if hasattr(self, 'get_count'):
             count = self.get_count()
         else:
@@ -115,7 +115,7 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
         else:
             return default
 
-    def get_count_repr(self, default: str = '<iter>') -> str:
+    def get_count_repr(self, default: str = UNK_COUNT_STUB) -> str:
         count = self.get_str_count(default=default)
         if not Auto.is_defined(count):
             count = default

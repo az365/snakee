@@ -24,11 +24,12 @@ ItemType = Union[Type, DynamicEnum, str]
 DESCRIPTION_COL_NAMES = PREFIX, KEY, VALUE, CAPTION = 'prefix', 'key', 'value', 'caption'
 DESCRIPTION_COL_LENS = 3, 10, 20, 85  # prefix, key, value, caption
 DESCRIPTION_COLS = list(zip(DESCRIPTION_COL_NAMES, DESCRIPTION_COL_LENS))
+UNK_COUNT_STUB = '<iter>'  # used in SimpleDataWrapper, IterDataMixin, ContextualData
 
 
 class DataMixin(DisplayMixin, ABC):
     def _get_data(self) -> Iterable:
-        assert isinstance(self, SimpleDataInterface) or hasattr(self, 'get_data')
+        assert isinstance(self, SimpleDataInterface) or hasattr(self, 'get_data'), f'got {self}'
         return self.get_data()
 
     @staticmethod

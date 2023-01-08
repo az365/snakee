@@ -3,14 +3,14 @@ from typing import Union, Optional, Iterable, Any
 try:  # Assume we're a submodule in a package.
     from base.classes.auto import AUTO, Auto
     from base.interfaces.context_interface import ContextInterface
-    from base.mixin.data_mixin import DataMixin
+    from base.mixin.data_mixin import DataMixin, UNK_COUNT_STUB
     from base.mixin.contextual_mixin import ContextualMixin
     from base.abstract.abstract_base import AbstractBaseObject
     from base.abstract.sourced import Sourced, SourcedInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.auto import AUTO, Auto
     from ..interfaces.context_interface import ContextInterface
-    from ..mixin.data_mixin import DataMixin
+    from ..mixin.data_mixin import DataMixin, UNK_COUNT_STUB
     from ..mixin.contextual_mixin import ContextualMixin
     from .abstract_base import AbstractBaseObject
     from .sourced import Sourced, SourcedInterface
@@ -21,7 +21,7 @@ OptionalFields = Union[str, Iterable, None]
 Source = Optional[SourcedInterface]
 Context = Optional[ContextInterface]
 
-DATA_MEMBER_NAMES = ('_data', )
+DATA_MEMBER_NAMES = '_data',
 DYNAMIC_META_FIELDS = tuple()
 
 
@@ -42,7 +42,7 @@ class ContextualDataWrapper(Sourced, ContextualMixin, DataMixin):
 
     @classmethod
     def _get_data_member_names(cls):
-        return DATA_MEMBER_NAMES
+        return DATA_MEMBER_NAMES  # 'data',
 
     def get_data(self) -> Data:
         return self._data
@@ -55,14 +55,13 @@ class ContextualDataWrapper(Sourced, ContextualMixin, DataMixin):
             return self.__class__(data, **self.get_static_meta())
 
     def apply_to_data(self, function, *args, dynamic=False, **kwargs):
-        return self.__class__(
-            data=function(self._get_data(), *args, **kwargs),
-            **self.get_static_meta() if dynamic else self.get_meta()
-        )
+        data = function(self._get_data(), *args, **kwargs)
+        meta = self.get_static_meta() if dynamic else self.get_meta()
+        return self.__class__(data=data, **meta)
 
     @staticmethod
     def _get_dynamic_meta_fields() -> tuple:
-        return DYNAMIC_META_FIELDS
+        return DYNAMIC_META_FIELDS  # empty (no meta fields)
 
     def get_static_meta(self, ex: OptionalFields = None) -> dict:
         meta = self.get_meta(ex=ex)
@@ -76,7 +75,7 @@ class ContextualDataWrapper(Sourced, ContextualMixin, DataMixin):
             meta.pop(f, None)
         return meta
 
-    def get_str_count(self, default: str = '(iter)') -> str:
+    def get_str_count(self, default: str = UNK_COUNT_STUB) -> str:
         if hasattr(self, 'get_count'):
             count = self.get_count()
         else:
@@ -86,8 +85,9 @@ class ContextualDataWrapper(Sourced, ContextualMixin, DataMixin):
         else:
             return default
 
-    def get_count_repr(self, default: str = '<iter>') -> str:
+    # @deprecated
+    def get_count_repr(self, default: str = UNK_COUNT_STUB) -> str:
         count = self.get_str_count()
         if not Auto.is_defined(count):
             count = default
-        return '{} items'.format(count)
+        return f'{count} items'
