@@ -4,7 +4,7 @@ from typing import Optional, Tuple, Union
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         LeafConnectorInterface, StructInterface,
-        Stream, Item, Columns, Array, Count,
+        Item, Columns, Array, Count,
         AUTO, Auto, AutoBool, AutoCount, AutoDisplay,
     )
     from base.interfaces.display_interface import DEFAULT_EXAMPLE_COUNT
@@ -16,7 +16,7 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         LeafConnectorInterface, StructInterface,
-        Stream, Item, Columns, Array, Count,
+        Item, Columns, Array, Count,
         AUTO, Auto, AutoBool, AutoCount, AutoDisplay,
     )
     from ...base.interfaces.display_interface import DEFAULT_EXAMPLE_COUNT
@@ -102,7 +102,7 @@ class ValidateMixin(ABC):
             count: int = DEFAULT_EXAMPLE_COUNT,
             filters: Columns = None,
             columns: Columns = None,
-            example: Optional[Stream] = None,
+            example: Optional[StreamInterface] = None,
     ) -> Native:
         if hasattr(self, 'is_in_memory'):  # isinstance(self, IterableStream)
             is_in_memory = self.is_in_memory()
@@ -123,23 +123,6 @@ class ValidateMixin(ABC):
         if Auto.is_defined(columns) and hasattr(stream, 'select'):
             stream = stream.select(columns)
         return stream.collect()
-
-    def _get_demo_records_and_columns(
-            self,
-            count: int = DEFAULT_EXAMPLE_COUNT,
-            filters: Columns = None,
-            columns: Optional[Array] = None,
-            example: Optional[Stream] = None,
-    ) -> Tuple[Array, Array]:
-        example = self._get_demo_example(count=count, filters=filters, columns=columns, example=example)
-        if hasattr(example, 'get_columns') and hasattr(example, 'get_records'):  # RegularStream, SqlStream
-            records = example.get_records()  # ConvertMixin.get_records(), SqlStream.get_records()
-            columns = example.get_columns()  # StructMixin.get_columns(), RegularStream.get_columns()
-        else:
-            item_field = 'item'
-            records = [{item_field: i} for i in example]
-            columns = [item_field]
-        return records, columns
 
     def _prepare_examples_with_title(
             self,
@@ -192,7 +175,7 @@ class ValidateMixin(ABC):
             crop_suffix: str = CROP_SUFFIX,
             verbose: bool = AUTO,
             **filter_kwargs
-    ) -> Tuple[Item, Stream, str]:
+    ) -> Tuple[Item, StreamInterface, str]:
         filters = filters or list()
         if filter_kwargs and safe_filter:
             filter_kwargs = {k: v for k, v in filter_kwargs.items() if k in self.get_columns()}
@@ -268,7 +251,7 @@ class ValidateMixin(ABC):
             self,
             count: int = DEFAULT_EXAMPLE_COUNT,
             columns: Columns = None,
-            example: Stream = None,
+            example: StreamInterface = None,
             comment: Optional[str] = None,
             level: Optional[int] = DEFAULT_CHAPTER_TITLE_LEVEL,
             name: str = 'Example',
@@ -289,7 +272,7 @@ class ValidateMixin(ABC):
             self,
             count: int = DEFAULT_EXAMPLE_COUNT,
             columns: Columns = None,
-            example: Stream = None,
+            example: StreamInterface = None,
             name: str = 'Example sheet',
     ) -> Sheet:
         example = self._get_demo_example(count, columns=columns, example=example)

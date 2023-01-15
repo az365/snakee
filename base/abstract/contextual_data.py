@@ -1,4 +1,4 @@
-from typing import Optional, Iterable, Generator, Union, Any
+from typing import Optional, Iterable, Generator, Sequence, Tuple, Union, Any
 
 try:  # Assume we're a submodule in a package.
     from base.classes.typing import AUTO, Auto, AutoBool, Count, Array
@@ -96,6 +96,26 @@ class ContextualDataWrapper(Sourced, ContextualMixin, DataMixin):
         if not Auto.is_defined(count):
             count = default
         return f'{count} items'
+
+    def _get_demo_records_and_columns(
+            self,
+            count: int = DEFAULT_EXAMPLE_COUNT,
+            columns: Optional[Array] = None,
+            filters: Optional[Array] = None,
+            example: Optional[DataMixin] = None,
+    ) -> Tuple[Sequence, Sequence]:
+        if Auto.is_defined(example):
+            assert isinstance(example, DataMixin), f'got {example}'
+        else:
+            example = self._get_demo_example(count=count, columns=columns, filters=filters, example=example)
+        if hasattr(example, 'get_columns') and hasattr(example, 'get_records'):  # RegularStream, SqlStream
+            records = example.get_records()  # ConvertMixin.get_records(), SqlStream.get_records()
+            columns = example.get_columns()  # StructMixin.get_columns(), RegularStream.get_columns()
+        else:
+            item_field = 'item'
+            records = [{item_field: i} for i in example]
+            columns = [item_field]
+        return records, columns
 
     def get_description_items(
             self,

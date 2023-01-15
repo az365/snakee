@@ -6,7 +6,7 @@ import gc
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         StreamInterface, LoggerInterface, LeafConnectorInterface,
-        Stream, ExtLogger, Context, Connector, LeafConnector,
+        ExtLogger, Context, Connector, LeafConnector,
         StreamType, LoggingLevel,
         AUTO, Auto, AutoName, OptionalFields, Array, Class, Message,
     )
@@ -20,7 +20,7 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         StreamInterface, LoggerInterface, LeafConnectorInterface,
-        Stream, ExtLogger, Context, Connector, LeafConnector,
+        ExtLogger, Context, Connector, LeafConnector,
         StreamType, LoggingLevel,
         AUTO, Auto, AutoName, OptionalFields, Array, Class, Message,
     )
@@ -34,7 +34,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 
 Native = StreamInterface
 
-DATA_MEMBERS = '_data',
+DATA_MEMBER_NAMES = '_data',
 
 
 class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
@@ -68,7 +68,7 @@ class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
 
     @classmethod
     def _get_data_member_names(cls) -> tuple:
-        return DATA_MEMBERS
+        return DATA_MEMBER_NAMES
 
     @abstractmethod
     def get_count(self):
@@ -135,7 +135,7 @@ class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
         return stream_type
 
     @classmethod
-    def get_class(cls, other: Stream = None) -> Class:
+    def get_class(cls, other: StreamInterface = None) -> Class:
         if not Auto.is_auto(other):
             return StreamBuilder.get_default_stream_class()
         elif isinstance(other, (StreamType, str)):
@@ -231,7 +231,7 @@ class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
             count: int = DEFAULT_EXAMPLE_COUNT,
             filters: Optional[Array] = None,
             columns: Optional[Array] = None,
-            example: Optional[Stream] = None,
+            example: Optional[StreamInterface] = None,
     ) -> Native:
         if hasattr(self, 'is_in_memory'):  # isinstance(self, IterableStream)
             is_in_memory = self.is_in_memory()
@@ -250,23 +250,6 @@ class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
         if Auto.is_defined(columns) and hasattr(stream, 'select'):
             stream = stream.select(columns)
         return stream.collect()
-
-    def _get_demo_records_and_columns(
-            self,
-            count: int = DEFAULT_EXAMPLE_COUNT,
-            columns: Optional[Array] = None,
-            filters: Optional[Array] = None,
-            example: Union[Stream, None] = None,
-    ) -> Tuple[Sequence, Sequence]:
-        example = self._get_demo_example(count=count, columns=columns, filters=filters, example=example)
-        if hasattr(example, 'get_columns') and hasattr(example, 'get_records'):  # RegularStream, SqlStream
-            records = example.get_records()  # ConvertMixin.get_records(), SqlStream.get_records()
-            columns = example.get_columns()  # StructMixin.get_columns(), RegularStream.get_columns()
-        else:
-            item_field = 'item'
-            records = [{item_field: i} for i in example]
-            columns = [item_field]
-        return records, columns
 
     def show(self, *args, **kwargs):
         display = self.get_display()
