@@ -318,12 +318,14 @@ class SqlStream(WrapperStream):
     def get_query(self, finish: bool = True) -> str:
         return '\n'.join(list(self.get_query_lines(finish=finish)))
 
-    def get_query_lines(self, finish: bool = True) -> Iterable:
+    def get_query_lines(self, finish: bool = True) -> list[str]:
+        query_lines = list()
         for section in SECTIONS_ORDER:
             lines = self.get_section_lines(section)
-            yield from self._format_section_lines(section, lines)
+            query_lines = list(self._format_section_lines(section, lines))
         if finish:
-            yield ';'
+            query_lines += ';'
+        return query_lines
 
     def get_query_records(self) -> Iterator[dict]:
         for n, e in enumerate(self.get_query_lines()):
@@ -616,11 +618,6 @@ class SqlStream(WrapperStream):
             sm_repr += '.select({})'.format(ITEMS_DELIMITER.join(str_select_expressions))
         return sm_repr
 
-    @deprecated
-    def get_data_repr(self, max_len: int = 50) -> str:
-        data_repr = self.get_stream_representation()
-        return get_cropped_text(data_repr, max_len=max_len)
-
     def get_struct_sheet(self, name: str = 'Columns sheet') -> Union[Sheet, Paragraph]:
         struct = self.get_output_struct(skip_missing=True)
         if isinstance(struct, StructInterface) or hasattr(struct, 'get_data_sheet'):
@@ -660,7 +657,9 @@ class SqlStream(WrapperStream):
             comment: Optional[str] = None,
             depth: int = 2,
             enumerated: bool = False,
+            **kwargs
     ) -> Generator:
+        assert not kwargs, f'{self.__class__.__name__}.get_description_items(): kwargs not supported'
         yield Paragraph([self.get_query_name()], level=1, name='Title')
         yield Paragraph(self.get_str_headers(comment=comment))
         yield Paragraph(['Generated SQL query'], level=3)
@@ -671,18 +670,6 @@ class SqlStream(WrapperStream):
             query_lines = self.get_query_lines()
             yield Paragraph(query_lines, style=CODE_HTML_STYLE, name='SQL query lines')
         yield self.get_struct_chapter()
-
-    def describe(
-            self,
-            comment: Optional[str] = None,
-            depth: int = 2,
-            enumerated: bool = False,
-            display: AutoDisplay = AUTO,
-    ) -> Native:
-        display = self.get_display(display)
-        for i in self.get_description_items(comment=comment, depth=depth, enumerated=enumerated):
-            display.display_item(i)
-        return self
 
     @staticmethod
     def _assume_native(stream) -> Native:

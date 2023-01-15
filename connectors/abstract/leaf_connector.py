@@ -357,28 +357,6 @@ class LeafConnector(
         str_header = f'{cls_name}({obj_name}) {shape}'
         yield get_cropped_text(str_header)
 
-    def describe(
-            self,
-            *filter_args,
-            count: Count = DEFAULT_EXAMPLE_COUNT,
-            columns: Optional[Array] = None,
-            comment: Optional[str] = None,
-            safe_filter: bool = True,
-            actualize: AutoBool = AUTO,
-            display: AutoDisplay = AUTO,
-            **filter_kwargs
-    ) -> Native:
-        display = self.get_display(display)
-        for i in self.get_description_items(
-            count, columns=columns, comment=comment, actualize=actualize,
-            filters=filter_args, named_filters=filter_kwargs, safe_filter=safe_filter,
-        ):
-            if isinstance(i, str):
-                display.append(i)
-            else:  # isinstance(i, DocumentItem):
-                display.display_item(i)
-        return self
-
     @staticmethod
     def _assume_native(connector) -> Native:
         return connector

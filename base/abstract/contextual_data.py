@@ -3,7 +3,7 @@ from typing import Optional, Iterable, Generator, Union, Any
 try:  # Assume we're a submodule in a package.
     from base.classes.typing import AUTO, Auto, AutoBool, Count, Array
     from base.functions.arguments import get_str_from_args_kwargs
-    from base.interfaces.display_interface import DEFAULT_EXAMPLE_COUNT
+    from base.interfaces.display_interface import DisplayInterface, DEFAULT_EXAMPLE_COUNT
     from base.interfaces.context_interface import ContextInterface
     from base.mixin.data_mixin import DataMixin, EMPTY, UNK_COUNT_STUB, DEFAULT_CHAPTER_TITLE_LEVEL
     from base.mixin.contextual_mixin import ContextualMixin
@@ -12,7 +12,7 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.typing import AUTO, Auto, AutoBool, Count, Array
     from ..functions.arguments import get_str_from_args_kwargs
-    from ..interfaces.display_interface import DEFAULT_EXAMPLE_COUNT
+    from ..interfaces.display_interface import DisplayInterface, DEFAULT_EXAMPLE_COUNT
     from ..interfaces.context_interface import ContextInterface
     from ..mixin.data_mixin import DataMixin, EMPTY, UNK_COUNT_STUB, DEFAULT_CHAPTER_TITLE_LEVEL
     from ..mixin.contextual_mixin import ContextualMixin
@@ -24,6 +24,7 @@ Data = Any
 OptionalFields = Union[str, Iterable, None]
 Source = Optional[SourcedInterface]
 Context = Optional[ContextInterface]
+AutoDisplay = Union[Auto, DisplayInterface]
 
 DATA_MEMBER_NAMES = '_data',
 DYNAMIC_META_FIELDS = tuple()
@@ -98,16 +99,19 @@ class ContextualDataWrapper(Sourced, ContextualMixin, DataMixin):
 
     def get_description_items(
             self,
+            comment: Optional[str] = None,
+            depth: int = 1,
             count: Count = DEFAULT_EXAMPLE_COUNT,
             columns: Optional[Array] = None,
-            comment: Optional[str] = None,
-            safe_filter: bool = True,
             actualize: AutoBool = AUTO,
+            safe_filter: bool = True,
             filters: Optional[Iterable] = None,
             named_filters: Optional[dict] = None,
+            **kwargs
     ) -> Generator:
+        assert not kwargs, f'{self.__class__.__name__}.describe(): kwargs not supported'
         yield self.get_display().get_header_chapter_for(self, level=1, comment=comment)
-        if hasattr(self, '_prepare_examples_with_title'):  # isinstance(self, ValidateMixin):
+        if hasattr(self, '_prepare_examples_with_title'):  # isinstance(self, ValidateMixin)
             struct_title, example_item, example_stream, example_comment = self._prepare_examples_with_title(
                 *filters or list(), **named_filters or dict(), safe_filter=safe_filter,
                 example_row_count=count, actualize=actualize,
@@ -125,7 +129,7 @@ class ContextualDataWrapper(Sourced, ContextualMixin, DataMixin):
         if invalid_columns:
             invalid_columns_str = get_str_from_args_kwargs(*invalid_columns)
             yield f'Invalid columns: {invalid_columns_str}'
-        if hasattr(self, 'get_struct_chapter'):  # isinstance(self, (StructMixin, ColumnarMixin)):
+        if depth > 0 and hasattr(self, 'get_struct_chapter'):  # isinstance(self, (StructMixin, ColumnarMixin)):
             yield self.get_struct_chapter(
                 example_item=example_item, comment=example_comment,
                 level=DEFAULT_CHAPTER_TITLE_LEVEL, name='Columns',
@@ -135,4 +139,31 @@ class ContextualDataWrapper(Sourced, ContextualMixin, DataMixin):
                 count, columns=columns, example=example_stream, comment=example_comment,
                 level=DEFAULT_CHAPTER_TITLE_LEVEL, name='Example',
             )
-        yield self.get_display().get_meta_chapter_for(self, level=DEFAULT_CHAPTER_TITLE_LEVEL, name='Meta')
+        if depth > 1:
+            yield self.get_display().get_meta_chapter_for(self, level=DEFAULT_CHAPTER_TITLE_LEVEL, name='Meta')
+
+    def describe(
+            self,
+            comment: Optional[str] = None,
+            depth: int = 1,
+            display: AutoDisplay = AUTO,
+            count: Count = DEFAULT_EXAMPLE_COUNT,
+            columns: Optional[Array] = None,
+            actualize: AutoBool = AUTO,
+            safe_filter: bool = True,
+            filters: Optional[Iterable] = None,
+            named_filters: Optional[dict] = None,
+            **kwargs
+    ) -> Native:
+        display = self.get_display(display)
+        for i in self.get_description_items(
+            comment=comment, depth=depth,
+            count=count, columns=columns, actualize=actualize,
+            filters=filters, named_filters=named_filters, safe_filter=safe_filter,
+            **kwargs,
+        ):
+            if isinstance(i, str):
+                display.append(i)
+            else:  # isinstance(i, DocumentItem):
+                display.display_item(i)
+        return self
