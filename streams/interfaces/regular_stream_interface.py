@@ -100,6 +100,7 @@ class RegularStreamInterface(IterableStreamInterface, ABC):
             *keys,
             values: Optional[Iterable] = None,
             as_pairs: bool = False,
+            skip_missing: bool = False,
     ) -> Native:
         pass
 
@@ -111,6 +112,7 @@ class RegularStreamInterface(IterableStreamInterface, ABC):
             as_pairs: bool = False,
             take_hash: bool = True,
             step: Union[int, Auto] = AUTO,
+            skip_missing: bool = False,
             verbose: bool = True,
     ) -> Native:
         pass

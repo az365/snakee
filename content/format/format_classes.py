@@ -1,5 +1,6 @@
 try:  # Assume we're a submodule in a package.
-    from utils import arguments as arg
+    from base.classes.auto import AUTO
+    from base.constants.chars import COMMA
     from utils.decorators import deprecated_with_alternative
     from content.format.abstract_format import AbstractFormat, BinaryFormat, CompressibleFormat, ParsedFormat
     from content.format.text_format import TextFormat, JsonFormat, DEFAULT_ENDING, DEFAULT_ENCODING
@@ -8,7 +9,8 @@ try:  # Assume we're a submodule in a package.
     from content.format.lean_format import LeanFormat
     from content.format.content_type import ContentType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
+    from ...base.classes.auto import AUTO
+    from ...base.constants.chars import COMMA
     from ...utils.decorators import deprecated_with_alternative
     from .abstract_format import AbstractFormat, BinaryFormat, CompressibleFormat, ParsedFormat
     from .text_format import TextFormat, JsonFormat, DEFAULT_ENDING, DEFAULT_ENCODING
@@ -17,16 +19,14 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .lean_format import LeanFormat
     from .content_type import ContentType
 
-CSV_DELIMITER = ','
-
 
 class CsvFormat(FlatStructFormat):
     @deprecated_with_alternative('FlatStructFormat.__init__()')
     def __init__(
             self,
-            struct=arg.AUTO,
+            struct=AUTO,
             first_line_is_title: bool = True,
-            delimiter: str = CSV_DELIMITER,
+            delimiter: str = COMMA,
             ending: str = DEFAULT_ENDING,
             encoding: str = DEFAULT_ENCODING,
             compress=None,

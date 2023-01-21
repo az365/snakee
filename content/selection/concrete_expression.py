@@ -3,13 +3,13 @@ from typing import Optional, Callable, Union
 try:  # Assume we're a submodule in a package.
     from interfaces import ItemType, StructInterface, Item, Name, Field, Value, LoggerInterface, Array, Auto, AUTO
     from base.functions.arguments import get_name
-    from functions.primary import items as it
+    from functions.primary.items import ItemType, get_field_value_from_item, get_fields_names_from_item, ALL
     from content.selection.selection_functions import process_description, safe_apply_function
     from content.selection.abstract_expression import SingleFieldDescription, TrivialMultipleDescription, Struct
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import ItemType, StructInterface, Item, Name, Field, Value, LoggerInterface, Array, Auto, AUTO
     from ...base.functions.arguments import get_name
-    from ...functions.primary import items as it
+    from ...functions.primary.items import ItemType, get_field_value_from_item, get_fields_names_from_item, ALL
     from .selection_functions import process_description, safe_apply_function
     from .abstract_expression import SingleFieldDescription, TrivialMultipleDescription, Struct
 
@@ -38,7 +38,7 @@ class TrivialDescription(SingleFieldDescription):
         return [self.get_target_field()]
 
     def get_value_from_item(self, item: Item) -> Value:
-        return it.get_field_value_from_item(
+        return get_field_value_from_item(
             field=self.get_target_field_name(),
             item=item, item_type=self.get_input_item_type(),
             skip_errors=self.must_skip_errors(), logger=self.get_logger(), default=self.get_default_value(),
@@ -105,7 +105,7 @@ class AliasDescription(SingleFieldDescription):
         return [self.get_source_field()]
 
     def get_value_from_item(self, item: Field) -> Value:
-        return it.get_field_value_from_item(
+        return get_field_value_from_item(
             field=self.get_source_name(),
             item=item, item_type=self.get_input_item_type(),
             skip_errors=self.must_skip_errors(), logger=self.get_logger(), default=self.get_default_value(),
@@ -186,7 +186,7 @@ class FunctionDescription(SingleFieldDescription):
             target_item_type: ItemType = ItemType.Auto,
             input_item_type: ItemType = ItemType.Auto,
             skip_errors: bool = False,
-            logger: Optional[ LoggerInterface] = None,
+            logger: Optional[LoggerInterface] = None,
             default: Value = None,
     ):
         super().__init__(
@@ -210,7 +210,7 @@ class FunctionDescription(SingleFieldDescription):
         if self.give_same_field_to_input:
             return [self.get_target_field()]
         else:
-            return [it.ALL]
+            return [ALL]
 
     def get_input_field_types(self) -> dict:
         field_types = self.get_annotations().copy()
@@ -245,7 +245,7 @@ class StarDescription(TrivialMultipleDescription):
         if isinstance(item_or_struct, StructInterface) or hasattr(item_or_struct, 'get_columns'):
             return item_or_struct.get_columns()
         else:  # isinstance(item_or_struct, Item)
-            return it.get_fields_names_from_item(item_or_struct, item_type=item_type)
+            return get_fields_names_from_item(item_or_struct, item_type=item_type)
 
     def get_values_from_row(self, item: Item) -> Item:
         if self.get_target_item_type() == ItemType.Row:
@@ -274,5 +274,5 @@ class DropDescription(TrivialMultipleDescription):
         if isinstance(item_or_struct, StructInterface) or hasattr(item_or_struct, 'get_columns'):
             initial_fields = item_or_struct.get_columns()
         else:
-            initial_fields = it.get_fields_names_from_item(item_or_struct, item_type=self.get_input_item_type())
+            initial_fields = get_fields_names_from_item(item_or_struct, item_type=self.get_input_item_type())
         return [f for f in initial_fields if f not in self.get_drop_fields()]

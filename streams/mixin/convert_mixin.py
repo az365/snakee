@@ -8,7 +8,7 @@ try:  # Assume we're a submodule in a package.
         StructInterface, FieldInterface, FieldName, OptionalFields, UniKey,
         AUTO, Auto, AutoBool, AutoColumns, Columns, Class, Array, ARRAY_TYPES,
     )
-    from base.functions.arguments import get_names, get_list, update
+    from base.functions.arguments import get_names
     from base.constants.chars import TAB_CHAR
     from content.items.simple_items import FULL_ITEM_FIELD, MutableRecord, MutableRow, ImmutableRow, SimpleRow
     from content.struct.flat_struct import FlatStruct
@@ -16,6 +16,7 @@ try:  # Assume we're a submodule in a package.
     from functions.secondary import all_secondary_functions as fs
     from utils.external import pd, DataFrame
     from utils.decorators import deprecated_with_alternative
+    from streams.stream_builder import StreamBuilder
     from streams.interfaces.regular_stream_interface import RegularStreamInterface, StreamItemType
     from streams.abstract.iterable_stream import IterableStream
     from streams.mixin.validate_mixin import ValidateMixin
@@ -26,7 +27,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         StructInterface, FieldInterface, FieldName, OptionalFields, UniKey,
         AUTO, Auto, AutoBool, AutoColumns, Columns, Class, Array, ARRAY_TYPES,
     )
-    from ...base.functions.arguments import get_names, get_list, update
+    from ...base.functions.arguments import get_names
     from ...base.constants.chars import TAB_CHAR
     from ...content.items.simple_items import FULL_ITEM_FIELD, MutableRecord, MutableRow, ImmutableRow, SimpleRow
     from ...content.struct.flat_struct import FlatStruct
@@ -34,6 +35,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...functions.secondary import all_secondary_functions as fs
     from ...utils.external import pd, DataFrame
     from ...utils.decorators import deprecated_with_alternative
+    from ..stream_builder import StreamBuilder
     from ..interfaces.regular_stream_interface import RegularStreamInterface, StreamItemType
     from ..abstract.iterable_stream import IterableStream
     from .validate_mixin import ValidateMixin
@@ -142,7 +144,7 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
 
     def get_records(self, columns: StructOrColumns = AUTO) -> Iterable:
         item_type = self.get_item_type()
-        assert isinstance(item_type, ItemType)
+        assert isinstance(item_type, ItemType) or hasattr(item_type, 'get_field_getter')
         columns = self._get_columns(columns)
         if item_type == ItemType.Record:
             if Auto.is_defined(columns):
@@ -382,9 +384,9 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
                     item_type = ItemType(item_type)
                 except ValueError:  # stream_type is not a valid StreamType
                     item_type = StreamType(item_type)
-            if isinstance(item_type, ItemType):
+            if isinstance(item_type, ItemType) or hasattr(item_type, 'get_field_getter'):
                 return item_type
-            elif isinstance(item_type, StreamType):
+            elif isinstance(item_type, StreamType):  # deprecated
                 return item_type.get_item_type()
             elif isinstance(item_type, RegularStreamInterface) or hasattr(item_type, 'get_stream_type'):
                 stream_type = item_type.get_stream_type()
@@ -436,8 +438,7 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
             meta['context'] = self.get_context()
         if 'value_stream_type' in meta:
             meta.pop('value_stream_type')  # unify KeyValueStream to RegularStream
-        stream_class = self.get_stream_class()
-        stream = stream_class(data, **meta)
+        stream = StreamBuilder.stream(data, **meta)
         return stream
 
     def map_to_type(self, function: Callable, stream_type: StreamItemType = AUTO) -> Stream:

@@ -14,6 +14,7 @@ try:  # Assume we're a submodule in a package.
     from functions.secondary.item_functions import composite_key, merge_two_items, items_to_dict
     from content.fields import field_classes as fc
     from content.items.item_getters import get_filter_function
+    from content.documents.document_item import Paragraph, Chapter
     from utils import algo
     from utils.decorators import deprecated, deprecated_with_alternative
     from utils.external import pd, DataFrame, get_use_objects_for_output
@@ -30,6 +31,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...functions.secondary.item_functions import composite_key, merge_two_items, items_to_dict
     from ...content.fields import field_classes as fc
     from ...content.items.item_getters import get_filter_function
+    from ...content.documents.document_item import Paragraph, Chapter
     from ...utils import algo
     from ...utils.decorators import deprecated, deprecated_with_alternative
     from ...utils.external import pd, DataFrame, get_use_objects_for_output
@@ -408,65 +410,91 @@ class ColumnarMixin(IterDataMixin, ABC):
         else:
             return display.display_paragraph('[EMPTY] Demo example is empty.')
 
-    def describe(
-            self, *filters,
-            take_struct_from_source: bool = False,
-            count: Count = DEFAULT_SHOW_COUNT,
-            columns: Columns = None,
-            comment: Optional[str] = None,
-            allow_collect: bool = True,
-            show_header: bool = True,
-            struct_as_dataframe: bool = False,  # deprecated
-            delimiter: str = ' ',
-            output=AUTO,  # deprecated
-            **filter_kwargs
-    ) -> Native:
-        display = self.get_display()
-        if show_header:
-            display.display_paragraph(self.get_name(), level=1)
-            for line in self.get_str_headers():
-                display.append(line)
-        if comment:
-            display.append(comment)
-        example = self.example(*filters, **filter_kwargs, count=count)
+    def get_data_chapter(self, example, name: str = 'Rows sample') -> Chapter:
+        chapter = Chapter()
+        title = Paragraph(name, level=3, name=f'{name} title')
+        chapter.append(title, inplace=True)
+        if hasattr(example, 'get_data_sheet'):
+            data_sheet = example.get_data_sheet()
+        elif hasattr(self, 'get_data_sheet'):
+            data_sheet = self.get_data_sheet()
+        else:
+            msg = f'Expected obj or example having .get_data_sheet()-method, got example={example}, obj={self}'
+            raise TypeError(msg)
+        chapter.append(data_sheet, inplace=True)
+        return chapter
+
+    def get_struct_chapter(self, example, take_struct_from_source: bool = False, name: str = 'Columns') -> Chapter:
+        chapter = Chapter()
+        title = Paragraph(name, level=3, name=f'{name} title')
+        chapter.append(title, inplace=True)
         if hasattr(self, 'get_struct'):
             expected_st = self.get_struct()
             source_str = 'native'
         elif take_struct_from_source:
             expected_st = self.get_source_struct()
-            source_str = 'from source {}'.format(self.get_source().__repr__())
+            source_str = f'from source {repr(self.get_source())}'
         else:
             expected_st = self.get_detected_struct()
             source_str = 'detected from example items'
-        detected_st = example.get_detected_struct(count)
+        detected_st = example.get_detected_struct()  # count = ALL
         if expected_st:
             expected_st = fc.FlatStruct.convert_to_native(expected_st)
             assert isinstance(expected_st, fc.FlatStruct) or hasattr(expected_st, 'display_data_sheet'), expected_st
             assert isinstance(detected_st, fc.FlatStruct) or hasattr(expected_st, 'validate_about'), detected_st
             detected_st.validate_about(expected_st)
             validation_message = f'{source_str} {expected_st.get_validation_message()}'
-            display.append(validation_message)
-            expected_st.display_data_sheet(example=example.get_one_item())
+            struct_sheet = expected_st.get_data_sheet(example=example.get_one_item(), name=f'{name} sheet')
         elif detected_st:
             validation_message = 'Expected struct not defined, displaying detected struct:'
-            display.append(validation_message)
             assert isinstance(detected_st, fc.FlatStruct) or hasattr(detected_st, 'display_data_sheet'), detected_st
-            detected_st.display_data_sheet(example=example.get_one_item())
+            struct_sheet = expected_st.get_data_sheet(example=example.get_one_item(), name=f'{name} sheet')
         else:
             validation_message = '[EMPTY] Struct is not detected.'
-            display.append(validation_message)
-        display.display_paragraph('Rows sample', level=3)
-        if hasattr(self, 'display_data_sheet'):
-            self.display_data_sheet()
-        else:
-            records = example.get_records()
-            if records:
-                if not Auto.is_defined(columns):
-                    records = list(records)
-                    if not isinstance(records[0], dict):
-                        records = [{'item': i} for i in records]
-                    columns = records[0].keys()
-                display.display_sheet(records, columns=columns)
-            else:
-                display.display_paragraph('[EMPTY] Dataset is empty.')
+            struct_sheet = None
+        if validation_message:
+            validation_paragraph = Paragraph(validation_message, name=f'{name} validation message')
+            chapter.append(validation_paragraph, inplace=True)
+        if struct_sheet:
+            chapter.append(struct_sheet, inplace=True)
+        return chapter
+
+    def get_description_items(
+            self,
+            count: Count = DEFAULT_SHOW_COUNT,
+            comment: Optional[str] = None,
+            depth: int = 1,
+            take_struct_from_source: bool = False,
+            filters: Optional[Iterable] = None,
+            named_filters: Optional[dict] = None,
+    ) -> Generator:
+        display = self.get_display()
+        yield display.build_paragraph(self.get_name(), level=1)
+        headers = list(self.get_str_headers())
+        if comment:
+            headers.append(comment)
+        yield display.build_paragraph(headers)
+        example = self.example(*filters, **named_filters, count=count)
+        yield self.get_struct_chapter(example=example, take_struct_from_source=take_struct_from_source)
+        yield self.get_data_chapter(example=example)
+
+    def describe(
+            self,
+            *filters,
+            take_struct_from_source: bool = False,
+            count: Count = DEFAULT_SHOW_COUNT,
+            columns: Columns = None,
+            comment: Optional[str] = None,
+            allow_collect: bool = True,
+            depth: int = 1,
+            display=AUTO,
+            **filter_kwargs
+    ) -> Native:
+        display = self.get_display(display)
+        for i in self.get_description_items(
+            comment=comment, depth=depth,
+            take_struct_from_source=take_struct_from_source,
+            filters=filters, named_filters=filter_kwargs,
+        ):
+            display.display_item(i)
         return self

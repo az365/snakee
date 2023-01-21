@@ -4,14 +4,14 @@ from typing import Optional, Iterable, Sequence, Union
 try:  # Assume we're a submodule in a package.
     from utils.decorators import deprecated_with_alternative
     from base.classes.typing import AUTO, Auto, AutoCount, Class
-    from base.classes.display import DefaultDisplay, PREFIX_FIELD, DEFAULT_EXAMPLE_COUNT
+    from base.classes.display import DefaultDisplay, DEFAULT_EXAMPLE_COUNT
     from base.functions.arguments import get_name, get_value
     from base.constants.chars import DEFAULT_LINE_LEN, REPR_DELIMITER, SMALL_INDENT, EMPTY
     from base.interfaces.display_interface import DisplayInterface, AutoStyle
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils.decorators import deprecated_with_alternative
     from ..classes.typing import AUTO, Auto, AutoCount, Class
-    from ..classes.display import DefaultDisplay, PREFIX_FIELD, DEFAULT_EXAMPLE_COUNT
+    from ..classes.display import DefaultDisplay, DEFAULT_EXAMPLE_COUNT
     from ..functions.arguments import get_name, get_value
     from ..constants.chars import DEFAULT_LINE_LEN, REPR_DELIMITER, SMALL_INDENT, EMPTY
     from ..interfaces.display_interface import DisplayInterface, AutoStyle
@@ -20,38 +20,41 @@ AutoDisplay = Union[Auto, DisplayInterface]
 
 
 class DisplayMixin(DisplayInterface, ABC):
-    _display_class: DisplayInterface = DefaultDisplay()
+    _display_obj: DisplayInterface = DefaultDisplay()
 
-    def get_display(self, display: AutoDisplay = AUTO) -> DisplayInterface:
+    @classmethod
+    def get_display(cls, display: AutoDisplay = AUTO) -> DisplayInterface:
         if isinstance(display, (DefaultDisplay, DisplayInterface)) or hasattr(display, 'display_item'):
             return display
         elif Auto.is_defined(display):
             raise TypeError(display)
         else:
-            return self._display_class
+            return cls._display_obj
 
     @classmethod
-    def set_display(cls, display: DisplayInterface):
+    def set_display(cls, display: DisplayInterface) -> Class:
         cls.set_display_inplace(display)
         return cls
 
     def _set_display_inplace(self, display: DisplayInterface):
         self.set_display_inplace(display)
 
+    def _get_display(self):
+        return self._display_obj
+
     @classmethod
     def set_display_inplace(cls, display: DisplayInterface):
-        cls._display_class = display
+        cls._display_obj = display
 
-    display = property(get_display, _set_display_inplace)
+    display = property(_get_display, _set_display_inplace)
 
-    @deprecated_with_alternative('get_display().display_paragraph()')
-    def output_blank_line(self, output=AUTO) -> None:
-        self.get_display(output).display_paragraph(EMPTY)
+    @classmethod
+    def get_sheet_class(cls) -> Optional[Class]:
+        return cls.get_display().get_sheet_class()
 
-    @deprecated_with_alternative('get_display().append()')
-    def output_line(self, line: str, output=AUTO) -> None:
-        current_display = self.get_display(output)
-        return current_display.append(line)
+    @classmethod
+    def set_sheet_class_inplace(cls, sheet_class: Class):
+        cls.get_display().set_sheet_class_inplace(sheet_class)
 
     @deprecated_with_alternative('get_display().display_paragraph()')
     def display_paragraph(

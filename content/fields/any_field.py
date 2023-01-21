@@ -322,9 +322,7 @@ class AnyField(SimpleDataWrapper, SelectableMixin, MultiMapDataMixin, FieldInter
         return field_class(**meta)
 
     def get_str_headers(self) -> Generator:
-        yield self.get_brief_repr()
         yield from self.get_brief_meta_description()
-        yield EMPTY
 
     def get_count(self) -> int:
         return 1

@@ -3,8 +3,9 @@ from typing import Optional, Callable, Iterable, Sequence, Union
 try:  # Assume we're a submodule in a package.
     from interfaces import Item, ItemType, ContentType, Class, Count, AutoCount, AutoBool, Auto, AUTO
     from base.constants.chars import EMPTY, SPACE, HTML_SPACE, PARAGRAPH_CHAR
-    from base.classes.display import DefaultDisplay, PREFIX_FIELD
+    from base.classes.display import DefaultDisplay, DEFAULT_CHAPTER_TITLE_LEVEL
     from base.classes.enum import ClassType
+    from base.functions.arguments import get_name
     from base.mixin.display_mixin import DisplayMixin, Class
     from base.mixin.iter_data_mixin import IterDataMixin
     from utils.external import display, clear_output, HTML, Markdown
@@ -13,8 +14,9 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import Item, ItemType, ContentType, Class, Count, AutoCount, AutoBool, Auto, AUTO
     from ...base.constants.chars import EMPTY, SPACE, HTML_SPACE, PARAGRAPH_CHAR
-    from ...base.classes.display import DefaultDisplay, PREFIX_FIELD
+    from ...base.classes.display import DefaultDisplay, DEFAULT_CHAPTER_TITLE_LEVEL
     from ...base.classes.enum import ClassType
+    from ...base.functions.arguments import get_name
     from ...base.mixin.display_mixin import DisplayMixin, Class
     from ...base.mixin.iter_data_mixin import IterDataMixin
     from ...utils.external import display, clear_output, HTML, Markdown
@@ -24,6 +26,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 Native = Union[DefaultDisplay, IterDataMixin]
 Style = Union[str, Auto]
 FormattedDisplayTypes = Union[Markdown, HTML]
+DisplayedItem = Union[DocumentItem, FormattedDisplayTypes, Auto]
+DisplayedData = Union[DocumentItem, str, Iterable, None]
 DisplayObject = Union[FormattedDisplayTypes, str]
 FORMATTED_DISPLAY_TYPES = Markdown, HTML
 
@@ -91,37 +95,102 @@ class DocumentDisplay(DefaultDisplay, IterDataMixin):
         return self
 
     @classmethod
+    def get_header_chapter_for(cls, obj, level: int = 1, comment: str = EMPTY, name: Optional[str] = None) -> Chapter:
+        obj_name = get_name(obj)
+        if hasattr(obj, 'get_str_title'):
+            title = obj.get_str_title()
+        else:
+            title = obj_name
+        if not Auto.is_defined(name):
+            name = f'{obj_name} header'
+        chapter = Chapter(name=name)
+        if level:
+            chapter.append(Paragraph(title, level=level), inplace=True)
+        str_headers = None
+        if hasattr(obj, 'get_str_headers'):
+            str_headers = list(obj.get_str_headers())
+        if hasattr(obj, 'get_caption') and not str_headers:
+            str_headers = [obj.get_caption()]
+        if comment:
+            str_headers.append(comment)
+        if str_headers:
+            chapter.append(Paragraph(str_headers), inplace=True)
+        return chapter
+
+    @classmethod
+    def get_meta_chapter_for(
+            cls,
+            obj,
+            level: Optional[int] = DEFAULT_CHAPTER_TITLE_LEVEL,
+            name: str = 'Meta',
+    ) -> Chapter:
+        chapter = Chapter(name=name)
+        if level:
+            title = Paragraph([name], level=level, name=f'{name} title')
+            chapter.add(title, inplace=True)
+        meta_sheet = cls.get_meta_sheet_for(obj, name=f'{name} sheet')
+        chapter.add_items([meta_sheet], inplace=True)
+        return chapter
+
+    @staticmethod
+    def _is_formatted_item(item: DisplayedItem) -> bool:
+        is_formatted_types_imported = min(map(bool, FORMATTED_DISPLAY_TYPES))
+        if is_formatted_types_imported:
+            return isinstance(item, FORMATTED_DISPLAY_TYPES)
+
+    @classmethod
+    def _get_display_code_from_document_item(cls, data: DocumentItem) -> str:
+        if cls.display_mode == DisplayMode.Text:
+            return data.get_text()
+        elif cls.display_mode == DisplayMode.Md:
+            return data.get_md_code()
+        elif cls.display_mode == DisplayMode.Html:
+            return data.get_html_code()
+        else:
+            return str(data)
+
+    @classmethod
+    def _get_display_code_from_document_iterable(cls, data: Iterable) -> str:
+        lines = list()
+        for i in data:
+            if isinstance(i, DocumentItem):
+                lines.append(cls._get_display_code_from_document_item(i))
+            elif isinstance(i, str):
+                lines.append(i)
+            else:
+                lines.append(str(i))
+        return PARAGRAPH_CHAR.join(lines)
+
+    @classmethod
+    def _get_display_code(cls, data: DisplayedData) -> Optional[str]:
+        if not data:
+            return None
+        elif isinstance(data, DocumentItem) or hasattr(data, 'get_text'):  # Text, Paragraph, Sheet, Chart, Container...
+            return cls._get_display_code_from_document_item(data)
+        elif isinstance(data, str):
+            return data
+        elif isinstance(data, Iterable):
+            return cls._get_display_code_from_document_iterable(data)
+        else:
+            raise TypeError(f'Expected data as DocumentItem, Iterable or str, got {data}')
+
+    @classmethod
     def _get_display_class(cls) -> Class:
         return cls.display_mode.get_class()
 
     @classmethod
-    def _get_display_object(cls, data: Union[DocumentItem, str, Iterable, None]) -> Optional[DisplayObject]:
-        if not data:
-            return None
-        elif isinstance(data, DocumentItem) or hasattr(data, 'get_text'):  # Text, Paragraph, Sheet, Chart, Container, Page, ...
-            if cls.display_mode == DisplayMode.Text:
-                code = data.get_text()
-            elif cls.display_mode == DisplayMode.Md:
-                code = data.get_md_code()
-            elif cls.display_mode == DisplayMode.Html:
-                code = data.get_html_code()
+    def _get_display_object(cls, data: DisplayedData) -> Optional[DisplayObject]:
+        code = cls._get_display_code(data)
+        if code:
+            display_class = cls._get_display_class()
+            if display_class:
+                return display_class(code)
             else:
-                code = data
-        elif isinstance(data, str):
-            code = data
-        elif isinstance(data, Iterable):
-            code = PARAGRAPH_CHAR.join(data)
-        else:
-            raise TypeError
-        display_class = cls._get_display_class()
-        if display_class:
-            return display_class(code)
-        else:
-            return str(code)
+                return str(code)
 
     def display(
             self,
-            item: Union[DocumentItem, FormattedDisplayTypes, Auto] = AUTO,
+            item: DisplayedItem = AUTO,
             save: bool = False,
             refresh: AutoBool = AUTO,
     ):
@@ -132,7 +201,7 @@ class DocumentDisplay(DefaultDisplay, IterDataMixin):
             return self.display_all(refresh=True)
         else:
             method = self._get_display_method()
-            if isinstance(item, FORMATTED_DISPLAY_TYPES):
+            if self._is_formatted_item(item):
                 return method(item)
             else:
                 obj = self._get_display_object(item)
@@ -177,6 +246,13 @@ class DocumentDisplay(DefaultDisplay, IterDataMixin):
     def _get_display_method() -> Callable:
         return display
 
+    @staticmethod
+    def build_paragraph(data: Iterable, level: Count = 0, name: str = EMPTY) -> Paragraph:
+        if isinstance(data, str):
+            data = [data]
+        return Paragraph(data, level=level, name=name)
+
+    # @deprecated
     def display_paragraph(
             self,
             paragraph: Union[Paragraph, Iterable, str, None] = None,
@@ -197,6 +273,7 @@ class DocumentDisplay(DefaultDisplay, IterDataMixin):
         self.clear_current_paragraph()
         return response
 
+    # @deprecated
     def display_sheet(
             self,
             records: Iterable,
@@ -236,4 +313,6 @@ class DocumentDisplay(DefaultDisplay, IterDataMixin):
 
 if HTML:
     DocumentDisplay.display_mode = DisplayMode.Html
+DocumentDisplay.set_sheet_class_inplace(Sheet)
 DisplayMixin.set_display(DocumentDisplay())
+DefaultDisplay.display = DocumentDisplay()

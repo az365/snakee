@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Optional, Callable, Iterable, Iterator, Sequence, Union
+from typing import Optional, Callable, Iterable, Iterator, Generator, Sequence, Union
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
@@ -8,8 +8,12 @@ try:  # Assume we're a submodule in a package.
         AutoContext, AutoName, AutoDisplay, AutoBool, Auto, AUTO,
         Item, Name, FieldName, FieldNo, Links, Columns, OptionalFields, Array, ARRAY_TYPES,
     )
-    from base.functions.arguments import get_names, get_name, get_generated_name, get_str_from_args_kwargs
+    from base.functions.arguments import (
+        get_names, get_name, get_generated_name,
+        get_str_from_args_kwargs, get_cropped_text,
+    )
     from base.constants.chars import EMPTY, ALL, CROP_SUFFIX, ITEMS_DELIMITER, SQL_INDENT
+    from utils.decorators import deprecated
     from functions.primary.text import remove_extra_spaces
     from content.fields.any_field import AnyField
     from content.selection.abstract_expression import (
@@ -18,6 +22,7 @@ try:  # Assume we're a submodule in a package.
     )
     from content.selection.concrete_expression import AliasDescription
     from content.struct.flat_struct import FlatStruct
+    from content.documents.document_item import Paragraph, Sheet, Chapter
     from streams.interfaces.abstract_stream_interface import StreamInterface, DEFAULT_EXAMPLE_COUNT
     from streams.abstract.wrapper_stream import WrapperStream
     from streams.stream_builder import StreamBuilder
@@ -28,8 +33,12 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         AutoContext, AutoName, AutoDisplay, AutoBool, Auto, AUTO,
         Item, Name, FieldName, FieldNo, Links, Columns, OptionalFields, Array, ARRAY_TYPES,
     )
-    from ...base.functions.arguments import get_names, get_name, get_generated_name, get_str_from_args_kwargs
+    from ...base.functions.arguments import (
+        get_names, get_name, get_generated_name,
+        get_str_from_args_kwargs, get_cropped_text,
+    )
     from ...base.constants.chars import EMPTY, ALL, CROP_SUFFIX, ITEMS_DELIMITER, SQL_INDENT
+    from ...utils.decorators import deprecated
     from ...functions.primary.text import remove_extra_spaces
     from ...content.fields.any_field import AnyField
     from ...content.selection.abstract_expression import (
@@ -38,6 +47,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     )
     from ...content.selection.concrete_expression import AliasDescription
     from ...content.struct.flat_struct import FlatStruct
+    from ...content.documents.document_item import Paragraph, Sheet, Chapter
     from ..interfaces.abstract_stream_interface import StreamInterface, DEFAULT_EXAMPLE_COUNT
     from ..abstract.wrapper_stream import WrapperStream
     from ..stream_builder import StreamBuilder
@@ -308,12 +318,14 @@ class SqlStream(WrapperStream):
     def get_query(self, finish: bool = True) -> str:
         return '\n'.join(list(self.get_query_lines(finish=finish)))
 
-    def get_query_lines(self, finish: bool = True) -> Iterable:
+    def get_query_lines(self, finish: bool = True) -> list[str]:
+        query_lines = list()
         for section in SECTIONS_ORDER:
             lines = self.get_section_lines(section)
-            yield from self._format_section_lines(section, lines)
+            query_lines = list(self._format_section_lines(section, lines))
         if finish:
-            yield ';'
+            query_lines += ';'
+        return query_lines
 
     def get_query_records(self) -> Iterator[dict]:
         for n, e in enumerate(self.get_query_lines()):
@@ -606,15 +618,28 @@ class SqlStream(WrapperStream):
             sm_repr += '.select({})'.format(ITEMS_DELIMITER.join(str_select_expressions))
         return sm_repr
 
-    # @deprecated
-    def get_data_representation(self, max_len: int = 50) -> str:
-        return self.get_data_repr()
+    def get_struct_sheet(self, name: str = 'Columns sheet') -> Union[Sheet, Paragraph]:
+        struct = self.get_output_struct(skip_missing=True)
+        if isinstance(struct, StructInterface) or hasattr(struct, 'get_data_sheet'):
+            return struct.get_data_sheet(name=name)
+        else:
+            return Paragraph([f'Undefined struct: {struct}'])
 
-    def get_data_repr(self, max_len: int = 50) -> str:
-        data_repr = self.get_stream_representation()
-        if len(data_repr) > max_len:
-            data_repr = data_repr[:max_len - len(CROP_SUFFIX)] + CROP_SUFFIX
-        return data_repr
+    def get_struct_chapter(self, name='Columns') -> Chapter:
+        chapter = Chapter(name=name)
+        title = Paragraph(['Columns'], level=3)
+        chapter.append(title, inplace=True)
+        output_columns = self.get_output_columns(skip_missing=True)
+        input_struct = self.get_source_table().get_struct()
+        caption = Paragraph([f'Expected output columns: {output_columns}', f'Expected input struct: {input_struct}'])
+        chapter.append(caption, inplace=True)
+        chapter.append(self.get_struct_sheet(name=f'{name} sheet'), inplace=True)
+        return chapter
+
+    def get_str_headers(self, comment: str = '') -> Iterator[str]:
+        yield self.get_stream_representation()
+        if comment:
+            yield comment
 
     def get_description_lines(self) -> Iterator[str]:
         yield repr(self)
@@ -627,35 +652,24 @@ class SqlStream(WrapperStream):
         if hasattr(struct, 'get_struct_repr_lines'):
             yield from struct.get_struct_repr_lines(select_fields=self.get_output_columns())
 
-    def describe(
+    def get_description_items(
             self,
-            show_header: bool = True,
             comment: Optional[str] = None,
+            depth: int = 2,
             enumerated: bool = False,
-            display: AutoDisplay = AUTO,
-    ) -> Native:
-        display = self.get_display(display)
-        if show_header:
-            display.display_paragraph(self.get_query_name(), level=1)
-            display.append(repr(self))
-            display.append(self.get_stream_representation())
-            if comment:
-                display.display_paragraph(comment)
-            display.display_paragraph('Generated SQL query', level=3)
+            **kwargs
+    ) -> Generator:
+        assert not kwargs, f'{self.__class__.__name__}.get_description_items(): kwargs not supported'
+        yield Paragraph([self.get_query_name()], level=1, name='Title')
+        yield Paragraph(self.get_str_headers(comment=comment))
+        yield Paragraph(['Generated SQL query'], level=3)
         if enumerated:
             query_records = self.get_query_records()
-            display.display_sheet(query_records, columns=QUERY_SHEET_COLUMNS, style=MONOSPACE_HTML_STYLE)
+            yield Sheet.from_records(query_records, columns=QUERY_SHEET_COLUMNS, style=MONOSPACE_HTML_STYLE)
         else:
-            display.display_paragraph(self.get_query_lines(), style=CODE_HTML_STYLE)
-        display.display_paragraph('Columns', level=3)
-        display.append('Expected output columns: {}'.format(self.get_output_columns(skip_missing=True)))
-        display.append('Expected input struct: {}'.format(self.get_source_table().get_struct()))
-        struct = self.get_output_struct(skip_missing=True)
-        if isinstance(struct, StructInterface) or hasattr(struct, 'display_data_sheet'):
-            struct.display_data_sheet(title=None)
-        else:
-            display.display_paragraph(f'Undefined struct: {struct}')
-        return self
+            query_lines = self.get_query_lines()
+            yield Paragraph(query_lines, style=CODE_HTML_STYLE, name='SQL query lines')
+        yield self.get_struct_chapter()
 
     @staticmethod
     def _assume_native(stream) -> Native:

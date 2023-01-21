@@ -3,25 +3,23 @@ from typing import Optional, Iterable, Generator, Union, Any, NoReturn
 
 try:  # Assume we're a submodule in a package.
     from base.classes.typing import AUTO, Auto, AutoCount, AutoBool
-    from base.constants.chars import EMPTY, REPR_DELIMITER, SMALL_INDENT, CROP_SUFFIX, DEFAULT_LINE_LEN
+    from base.constants.chars import EMPTY, REPR_DELIMITER, SMALL_INDENT, DEFAULT_LINE_LEN
     from base.functions.arguments import get_str_from_annotation, get_str_from_args_kwargs
-    from base.interfaces.base_interface import BaseInterface
-    from base.interfaces.sourced_interface import SourcedInterface, COLS_FOR_META, COLS_FOR_DICT
+    from base.interfaces.sourced_interface import SourcedInterface, COLS_FOR_DICT
     from base.interfaces.context_interface import ContextInterface
     from base.interfaces.data_interface import SimpleDataInterface
-    from base.mixin.display_mixin import DisplayMixin, PREFIX_FIELD, DEFAULT_EXAMPLE_COUNT
-    from base.mixin.data_mixin import DataMixin
+    from base.mixin.display_mixin import DEFAULT_EXAMPLE_COUNT
+    from base.mixin.data_mixin import DataMixin, UNK_COUNT_STUB, DEFAULT_CHAPTER_TITLE_LEVEL
     from base.abstract.named import AbstractNamed, AutoDisplay
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.typing import AUTO, Auto, AutoCount, AutoBool
-    from ..constants.chars import EMPTY, REPR_DELIMITER, SMALL_INDENT, CROP_SUFFIX, DEFAULT_LINE_LEN
+    from ..constants.chars import EMPTY, REPR_DELIMITER, SMALL_INDENT, DEFAULT_LINE_LEN
     from ..functions.arguments import get_str_from_annotation, get_str_from_args_kwargs
-    from ..interfaces.base_interface import BaseInterface
-    from ..interfaces.sourced_interface import SourcedInterface, COLS_FOR_META, COLS_FOR_DICT
+    from ..interfaces.sourced_interface import SourcedInterface, COLS_FOR_DICT
     from ..interfaces.context_interface import ContextInterface
     from ..interfaces.data_interface import SimpleDataInterface
-    from ..mixin.display_mixin import DisplayMixin, PREFIX_FIELD, DEFAULT_EXAMPLE_COUNT
-    from ..mixin.data_mixin import DataMixin
+    from ..mixin.display_mixin import DEFAULT_EXAMPLE_COUNT
+    from ..mixin.data_mixin import DataMixin, UNK_COUNT_STUB, DEFAULT_CHAPTER_TITLE_LEVEL
     from .named import AbstractNamed, AutoDisplay
 
 Native = SimpleDataInterface
@@ -91,7 +89,7 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
 
     @staticmethod
     def _get_dynamic_meta_fields() -> tuple:
-        return DYNAMIC_META_FIELDS
+        return DYNAMIC_META_FIELDS  # empty (no meta fields)
 
     def get_static_meta(self, ex: OptionalFields = None) -> dict:
         meta = self.get_meta(ex=ex)
@@ -105,7 +103,7 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
             meta.pop(f, None)
         return meta
 
-    def get_str_count(self, default: Optional[str] = '(iter)') -> Optional[str]:
+    def get_str_count(self, default: Optional[str] = UNK_COUNT_STUB) -> Optional[str]:
         if hasattr(self, 'get_count'):
             count = self.get_count()
         else:
@@ -115,7 +113,7 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
         else:
             return default
 
-    def get_count_repr(self, default: str = '<iter>') -> str:
+    def get_count_repr(self, default: str = UNK_COUNT_STUB) -> str:
         count = self.get_str_count(default=default)
         if not Auto.is_defined(count):
             count = default
@@ -141,7 +139,7 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
         obj_name = self.get_name()
         class_name = self.__class__.__name__
         if obj_name:
-            title = f'{class_name}: {obj_name}'
+            title = f'{obj_name} {class_name}'
         else:
             title = f'Unnamed {class_name}'
         return title
@@ -216,99 +214,59 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
         else:
             yield '(data attribute not found)'
 
+    def get_data_sheet(self, count: int = DEFAULT_EXAMPLE_COUNT, name: Optional[str] = 'Data sheet'):
+        display = self.get_display()
+        sheet_class = display.get_sheet_class()
+        data = self.get_data()
+        if isinstance(data, dict):
+            data_sheet = sheet_class.from_one_record(data, name=name)
+        elif isinstance(data, Iterable):
+            data_sheet = sheet_class.from_items(data, name=name)
+        elif isinstance(data, SimpleDataWrapper) or hasattr(data, 'get_data_sheet'):
+            data_sheet = data.get_data_sheet()
+        else:
+            data_sheet = sheet_class.from_items([data], name=name)
+        return data_sheet
+
+    def get_data_chapter(
+            self,
+            count: int = DEFAULT_EXAMPLE_COUNT,
+            title: Optional[str] = 'Data',
+            comment: Optional[str] = None,
+    ) -> Generator:
+        display = self.get_display()
+        yield display.build_paragraph(title, level=DEFAULT_CHAPTER_TITLE_LEVEL, name=f'{title} title')
+        if comment:
+            yield display.build_paragraph(comment, name=f'{title} comment')
+        if hasattr(self, 'get_data_caption'):
+            yield self.get_data_caption()
+        if self.has_data():
+            shape_repr = self.get_shape_repr()
+            if Auto.is_defined(count) and shape_repr:
+                yield f'First {count} data items from {shape_repr}:'
+            yield self.get_data_sheet(count=count, name=f'{title} sheet')
+        else:
+            yield '(data attribute is empty)'
+
+    # @deprecated_with_alternative('build_data_sheet()')
     def display_data_sheet(
             self,
             count: int = DEFAULT_EXAMPLE_COUNT,
             title: Optional[str] = 'Data',
             comment: Optional[str] = None,
-            max_len: AutoCount = AUTO,
+            # max_len: AutoCount = AUTO,
             display: AutoDisplay = AUTO,
     ) -> Native:
         display = self.get_display(display)
-        max_len = Auto.acquire(max_len, DEFAULT_LINE_LEN)
-        display.display_paragraph(title, level=3)
-        if comment:
-            display.append(comment)
-        if hasattr(self, 'get_data_caption'):
-            display.append(self.get_data_caption())
-        if hasattr(self, 'get_data'):
-            data = self.get_data()
-            if data:
-                shape_repr = self.get_shape_repr()
-                if Auto.is_defined(count) and shape_repr:
-                    line = 'First {count} data items from {shape}:'.format(count=count, shape=shape_repr)
-                    display.append(line)
-                if isinstance(data, dict):
-                    records = map(
-                        lambda i: dict(key=i[0], value=i[1], defined='+' if Auto.is_defined(i[1]) else '-'),
-                        data.items(),
-                    )
-                    display.display_sheet(records, columns=COLS_FOR_DICT, count=count)
-                elif isinstance(data, Iterable):
-                    for n, item in enumerate(data):
-                        if Auto.is_defined(count):
-                            if n >= count:
-                                break
-                        line = '    - ' + str(item)
-                        display.append(line[:max_len])
-                elif isinstance(data, SimpleDataInterface) or hasattr(data, 'describe'):
-                    data.describe()
-                else:
-                    line = str(data)
-                    display.append(line[:max_len])
-            else:
-                display.append('(data attribute is empty)')
-        else:
-            display.append('(data attribute not found)')
-        display.display_paragraph()
+        data_chapter = self.get_data_chapter(count=count, title=title, comment=comment)
+        display.display_item(data_chapter)
         return self
 
-    def display_meta(
-            self,
-            with_title: bool = True,
-            with_summary: bool = True,
-            prefix: str = SMALL_INDENT,  # deprecated
-            delimiter: str = REPR_DELIMITER,  # deprecated
-            display: AutoDisplay = AUTO,
-    ) -> Native:
-        display = self.get_display(display)
-        if with_summary:
-            obj = self.get_brief_repr()
-            count = len(list(self.get_meta_records()))
-            line = f'{obj} has {count} attributes in meta-data:'
-            display.append(line)
-        display.display_sheet(
-            records=self.get_meta_records(),
-            columns=COLS_FOR_META,
-            with_title=with_title,
-        )
-        return self
-
-    def describe(
-            self,
-            show_header: bool = True,
-            count: AutoCount = AUTO,
-            comment: Optional[str] = None,
-            depth: int = 1,
-            display: AutoDisplay = AUTO,
-            **kwargs
-    ) -> Native:
-        display = self.get_display(display)
-        show_meta = show_header or not self.has_data()
-        if show_header:
-            display.display_paragraph(self.get_str_title(), level=1)
-            display.append(comment)
-            display.display_paragraph(self.get_str_headers())
-        elif comment:
-            display.display_paragraph(comment)
-        if show_meta:
-            self.display_meta()
+    def get_description_items(self, comment: Optional[str] = None, depth: int = 1, count: AutoCount = AUTO) -> Generator:
+        display = self.get_display()
+        yield display.get_header_chapter_for(self, comment=comment)
+        if depth > 0:
+            yield display.get_meta_chapter_for(self)
         if self.has_data():
-            self.display_data_sheet(count=count, display=display, **kwargs)
-        elif depth > 0:
-            for attribute, value in self.get_meta_items():
-                if isinstance(value, BaseInterface) or hasattr(value, 'describe'):
-                    display.display_paragraph(f'{attribute}:', level=3)
-                    value.describe(show_header=False, depth=depth - 1, display=display)
-        display.display_paragraph()
-        return self
+            yield self.get_data_chapter(count=count)
+        yield from self.get_child_description_items(depth)

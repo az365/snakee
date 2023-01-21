@@ -24,6 +24,11 @@ class DisplayInterface(ABC):
         pass
 
     @abstractmethod
+    def display_item(self, item, item_type='paragraph', **kwargs) -> None:
+        pass
+
+    # @deprecated
+    @abstractmethod
     def display_paragraph(
             self,
             paragraph: Optional[Iterable] = None,
@@ -32,6 +37,7 @@ class DisplayInterface(ABC):
     ) -> None:
         pass
 
+    # @deprecated
     @abstractmethod
     def display_sheet(
             self,
@@ -40,9 +46,16 @@ class DisplayInterface(ABC):
             count: AutoCount = None,
             with_title: bool = True,
             style: AutoStyle = AUTO,
+            name: str = '',
     ) -> None:
         pass
 
+    @classmethod
     @abstractmethod
-    def display_item(self, item, item_type='line', **kwargs) -> None:
+    def get_sheet_class(cls) -> Optional[Class]:
+        pass
+
+    @classmethod
+    @abstractmethod
+    def set_sheet_class_inplace(cls, sheet_class: Class):
         pass

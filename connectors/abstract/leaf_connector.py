@@ -1,13 +1,13 @@
 from abc import ABC
-from typing import Optional, Callable, Iterable, Generator, Union
+from typing import Optional, Iterable, Generator, Union
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
-        ConnectorInterface, LeafConnectorInterface, StructInterface, ContentFormatInterface,
+        ConnectorInterface, LeafConnectorInterface, StructInterface, ContentFormatInterface, RegularStreamInterface,
         ItemType, StreamType, ContentType, Context, Stream, Name, Count, Columns, Array,
-        AUTO, Auto, AutoBool, AutoName, AutoCount, AutoDisplay, AutoConnector, AutoContext,
+        AUTO, Auto, AutoBool, AutoName, AutoCount, AutoDisplay, AutoContext,
     )
-    from base.functions.arguments import get_name, get_str_from_args_kwargs
+    from base.functions.arguments import get_name, get_str_from_args_kwargs, get_cropped_text
     from base.constants.chars import EMPTY, CROP_SUFFIX, ITEMS_DELIMITER, DEFAULT_LINE_LEN
     from content.format.format_classes import ParsedFormat
     from connectors.abstract.abstract_connector import AbstractConnector
@@ -16,11 +16,11 @@ try:  # Assume we're a submodule in a package.
     from connectors.mixin.streamable_mixin import StreamableMixin
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
-        ConnectorInterface, LeafConnectorInterface, StructInterface, ContentFormatInterface,
+        ConnectorInterface, LeafConnectorInterface, StructInterface, ContentFormatInterface, RegularStreamInterface,
         ItemType, StreamType, ContentType, Context, Stream, Name, Count, Columns, Array,
-        AUTO, Auto, AutoBool, AutoName, AutoCount, AutoDisplay, AutoConnector, AutoContext,
+        AUTO, Auto, AutoBool, AutoName, AutoCount, AutoDisplay, AutoContext,
     )
-    from ...base.functions.arguments import get_name, get_str_from_args_kwargs
+    from ...base.functions.arguments import get_name, get_str_from_args_kwargs, get_cropped_text
     from ...base.constants.chars import EMPTY, CROP_SUFFIX, ITEMS_DELIMITER, DEFAULT_LINE_LEN
     from ...content.format.format_classes import ParsedFormat
     from .abstract_connector import AbstractConnector
@@ -31,6 +31,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 Native = LeafConnectorInterface
 Parent = Union[Context, ConnectorInterface]
 Links = Optional[dict]
+AutoStruct = Union[StructInterface, Auto, None]
 
 META_MEMBER_MAPPING = dict(_data='streams', _source='parent', _declared_format='content_format')
 TEMPORARY_PARTITION_FORMAT = ContentType.JsonFile
@@ -45,7 +46,7 @@ class LeafConnector(
             self,
             name: Name,
             content_format: Union[ContentFormatInterface, ContentType, Auto] = AUTO,
-            struct: Union[StructInterface, Auto, None] = AUTO,
+            struct: AutoStruct = AUTO,
             first_line_is_title: AutoBool = AUTO,
             parent: Parent = None,
             context: AutoContext = AUTO,
@@ -206,7 +207,7 @@ class LeafConnector(
         self._modification_ts = timestamp
         return self
 
-    def get_expected_count(self) -> Union[int, Auto, None]:
+    def get_expected_count(self) -> AutoCount:
         return self._count
 
     def set_count(self, count: int) -> Native:
@@ -286,28 +287,26 @@ class LeafConnector(
 
     def _get_demo_example(
             self,
-            count: int = DEFAULT_EXAMPLE_COUNT,
+            count: Count = DEFAULT_EXAMPLE_COUNT,
             filters: Columns = None,
             columns: Columns = None,
             example: Optional[Stream] = None,
     ) -> Optional[Stream]:
-        if self.is_existing():
+        if Auto.is_defined(example):
+            stream = example
+        elif self.is_existing() and self.is_accessible():
             stream = self
-            if Auto.is_defined(filters):
-                stream = stream.filter(*filters)
-            if Auto.is_defined(count):
-                stream = stream.take(count)
-            if Auto.is_defined(columns) and hasattr(stream, 'select'):
-                stream = stream.select(columns)
-            stream = stream.collect()
-            self.close()
-            return stream
+        if Auto.is_defined(filters):
+            stream = stream.filter(*filters)
+        if Auto.is_defined(count):
+            stream = stream.take(count)
+        if Auto.is_defined(columns) and hasattr(stream, 'select'):
+            stream = stream.select(columns)
+        stream = stream.collect()
+        self.close()
+        return stream
 
-    def get_items(
-            self,
-            verbose: AutoBool = AUTO,
-            step: AutoCount = AUTO,
-    ) -> Iterable:
+    def get_items(self, verbose: AutoBool = AUTO, step: AutoCount = AUTO) -> Iterable:
         return self.get_items_of_type(item_type=AUTO, verbose=verbose, step=step)
 
     def get_items_of_type(
@@ -328,79 +327,35 @@ class LeafConnector(
             else:
                 message = verbose
         elif (count or 0) > 0:
-            template = '{count} lines expected from file {name}...'
-            msg = template.format(count=count, name=self.get_name())
-            self.log(msg, verbose=verbose)
+            file_name = self.get_name()
+            self.log(f'{count} lines expected from file {file_name}...', verbose=verbose)
         lines = self.get_lines(skip_first=self.is_first_line_title(), step=step, verbose=verbose, message=message)
         items = content_format.get_items_from_lines(lines, item_type=item_type)
         return items
 
-    def map(self, function: Callable, inplace: bool = False) -> Optional[Native]:
-        if inplace and isinstance(self.get_items(), list):
-            return self._apply_map_inplace(function) or self
-        else:
-            items = self._get_mapped_items(function, flat=False)
-            return self.set_items(items, count=self.get_count(), inplace=inplace)
-
     def filter(self, *args, item_type: ItemType = ItemType.Auto, skip_errors: bool = False, **kwargs) -> Stream:
         item_type = Auto.delayed_acquire(item_type, self.get_item_type)
-        stream_type = self.get_stream_type()
-        assert isinstance(stream_type, StreamType), f'Expected StreamType, got {stream_type}'
         filtered_items = self._get_filtered_items(*args, item_type=item_type, skip_errors=skip_errors, **kwargs)
-        stream = self.to_stream(data=filtered_items, stream_type=stream_type)
+        stream = self.to_stream(data=filtered_items, stream_type=item_type)
         return self._assume_stream(stream)
 
-    def skip(self, count: int = 1, inplace: bool = False) -> Optional[Native]:
-        if self.get_count() and count >= self.get_count():
-            items = list()
-        else:
-            items = self.get_items()[count:] if self.is_in_memory() else self._get_second_items(count)
-        result_count = None
-        if self._has_count_attribute():
-            old_count = self.get_count()
-            if old_count:
-                result_count = old_count - count
-                if result_count < 0:
-                    result_count = 0
-        return self.set_items(items, count=result_count, inplace=inplace)
+    def skip(self, count: int = 1, inplace: bool = False) -> Stream:
+        stream = super().skip(count, inplace=inplace)
+        struct = self.get_struct()
+        if Auto.is_defined(struct) and (isinstance(stream, RegularStreamInterface) or hasattr(stream, 'set_struct')):
+            stream.set_struct(struct, check=False, inplace=True)
+        return self._assume_stream(stream)
 
     def get_one_item(self):
-        if self.is_sequence() and self.has_items():
-            return self.get_list()[0]
-        for i in self.get_iter():
+        for i in self.get_items():
             return i
 
     def get_str_headers(self, actualize: bool = False) -> Generator:
-        cls = self.__class__.__name__
-        name = repr(self.get_name())
+        cls_name = self.__class__.__name__
+        obj_name = repr(self.get_name())
         shape = self.get_shape_repr(actualize=actualize)
-        str_header = f'{cls}({name}) {shape}'
-        if len(str_header) > DEFAULT_LINE_LEN:
-            str_header = str_header[:DEFAULT_LINE_LEN - len(CROP_SUFFIX)] + CROP_SUFFIX
-        yield str_header
-
-    def describe(
-            self,
-            *filter_args,
-            count: Optional[int] = DEFAULT_EXAMPLE_COUNT,
-            columns: Optional[Array] = None,
-            show_header: bool = True,
-            comment: Optional[str] = None,
-            safe_filter: bool = True,
-            actualize: AutoBool = AUTO,
-            display: AutoDisplay = AUTO,
-            **filter_kwargs
-    ) -> Native:
-        display = self.get_display(display)
-        for i in self.get_description_items(
-            count, columns=columns, show_header=show_header, comment=comment, actualize=actualize,
-            filters=filter_args, named_filters=filter_kwargs, safe_filter=safe_filter,
-        ):
-            if isinstance(i, str):
-                display.append(i)
-            else:  # isinstance(i, DocumentItem):
-                display.display(i)
-        return self
+        str_header = f'{cls_name}({obj_name}) {shape}'
+        yield get_cropped_text(str_header)
 
     @staticmethod
     def _assume_native(connector) -> Native:

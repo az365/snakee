@@ -4,9 +4,15 @@ from datetime import datetime
 from random import randint
 
 try:  # Assume we're a submodule in a package.
-    from base.constants.chars import KV_DELIMITER, ARG_DELIMITER, ANN_DELIMITER
+    from base.constants.chars import (
+        KV_DELIMITER, ARG_DELIMITER, ANN_DELIMITER,
+        DEFAULT_LINE_LEN, CROP_SUFFIX, SHORT_CROP_SUFFIX,
+    )
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..constants.chars import KV_DELIMITER, ARG_DELIMITER, ANN_DELIMITER
+    from ..constants.chars import (
+        KV_DELIMITER, ARG_DELIMITER, ANN_DELIMITER,
+        DEFAULT_LINE_LEN, CROP_SUFFIX, SHORT_CROP_SUFFIX,
+    )
 
 DEFAULT_RANDOM_LEN = 6
 TYPING_PREFIX = 'typing.'
@@ -157,3 +163,24 @@ def get_str_from_annotation(class_or_func: Union[Callable, Type], _delimiter: st
     else:
         ann_str = '*args, **kwargs'
     return '{}({})'.format(name, ann_str)
+
+
+def get_cropped_text(
+        text,
+        max_len: int = DEFAULT_LINE_LEN,
+        crop_suffix: str = CROP_SUFFIX,
+        short_crop_suffix: str = SHORT_CROP_SUFFIX,
+) -> str:
+    text = str(text)
+    crop_len = len(crop_suffix)
+    if isinstance(max_len, int):
+        text_len = len(text)
+        if text_len > max_len:
+            value_len = max_len - crop_len
+            if value_len > 0:
+                text = text[:value_len] + crop_suffix
+            elif max_len > 1:
+                text = text[:max_len - 1] + short_crop_suffix
+            else:
+                text = text[:max_len]
+    return text

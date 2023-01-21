@@ -19,9 +19,9 @@ def test_add_fields():
 
 
 def test_transfer_selection():
-    expression_a = ce.TrivialDescription('field_a', target_item_type=ce.it.ItemType.Record)
+    expression_a = ce.TrivialDescription('field_a', target_item_type=ce.ItemType.Record)
     struct = fc.group(fc.field('field_a', float), fc.field('field_b', bool))
-    assert expression_a.get_target_item_type() == ce.it.ItemType.Record
+    assert expression_a.get_target_item_type() == ce.ItemType.Record
     assert expression_a.get_dict_output_field_types(struct) == {'field_a': fc.ValueType.Float}
     assert expression_a.get_value_from_item(dict(field_a=1.1, field_b=True)) == 1.1
 

@@ -13,6 +13,7 @@ try:  # Assume we're a submodule in a package.
     from base.mixin.map_data_mixin import MultiMapDataMixin
     from base.classes.enum import ClassType
     from content.fields.any_field import AnyField
+    from content.documents.document_item import Paragraph, Sheet, Chapter
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         TermInterface, FieldInterface,
@@ -25,6 +26,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.mixin.map_data_mixin import MultiMapDataMixin
     from ...base.classes.enum import ClassType
     from ..fields.any_field import AnyField
+    from ..documents.document_item import Paragraph, Sheet, Chapter
 
 Native = SimpleDataWrapper
 Field = Union[FieldInterface, str]
@@ -191,41 +193,70 @@ class AbstractTerm(SimpleDataWrapper, MultiMapDataMixin, TermInterface, ABC):
         return self.get_item(key, subkey, skip_missing=True, default=default)
 
     def get_str_headers(self) -> Generator:
-        yield self.get_brief_repr()
         yield self.get_caption()
 
+    def get_fields_sheet(
+            self,
+            fields_and_roles: Optional[Iterable] = None,
+            count: Optional[int] = None,
+            name: str = 'Fields sheet',
+    ) -> Sheet:
+        if not fields_and_roles:
+            fields_and_roles = self.get_data().get(TermDataAttribute.Fields)
+        columns = 'role', 'name', 'type', 'caption', 'repr'
+        records = list()
+        for n, (key, value) in enumerate(fields_and_roles.items()):
+            if Auto.is_defined(count):
+                if n >= count:
+                    break
+            r = dict(
+                role=key,
+                name=value.get_name(), caption=value.get_caption(),
+                type=value.get_value_type(), repr=value.get_representation(),
+            )
+            records.append(r)
+        return Sheet(records, columns=columns, name=name)
+
+    def get_data_chapter(
+            self,
+            count: Optional[int] = None,
+            title: Optional[str] = 'Data',
+            comment: Optional[str] = None,
+    ) -> Generator:
+        chapter = Chapter()
+        for key in TermDataAttribute.get_enum_items():  # fields, dictionaries, mappers, datasets, relations
+            data = self.get_data().get(key)
+            if data:
+                name = key.get_name()
+                title = Paragraph(name, level=3, name=f'{name} title')
+                chapter.append(title, inplace=True)
+                if key == TermDataAttribute.Fields:
+                    sheet = self.get_fields_sheet(data, count=count, name=f'{name} sheet')
+                    chapter.append(sheet, inplace=True)
+                elif isinstance(data, dict):
+                    records = map(lambda i: dict(key=repr(i[0]), value=repr(i[1])), data.items())
+                    sheet = Sheet(records, columns=('key', 'value'), name=f'{name} sheet')
+                    chapter.append(sheet, inplace=True)
+                elif isinstance(data, Iterable) and not isinstance(data, str):
+                    records = map(lambda n, i: {'#': n, 'item': repr(i)}, enumerate(data))
+                    sheet = Sheet(records, columns=('#', 'item'), name=f'{name} sheet')
+                    chapter.append(sheet, inplace=True)
+                else:
+                    paragraph = Paragraph(data, name=f'{name} paragraph')
+                    chapter.append(paragraph, inplace=True)
+        return chapter
+
+    # @deprecated_with_alternative('get_data_chapter()')
     def display_data_sheet(
             self,
             count: Optional[int] = None,
             title: Optional[str] = 'Data',
             comment: Optional[str] = None,
-            max_len: AutoCount = AUTO,
             display=AUTO,
     ) -> Native:
         display = self.get_display(display)
-        for key in TermDataAttribute.get_enum_items():  # fields, dictionaries, mappers, datasets, relations
-            data = self.get_data().get(key)
-            if data:
-                display.display_paragraph(key.get_name(), level=3)
-                if key == TermDataAttribute.Fields:
-                    columns = 'role', 'name', 'type', 'caption', 'repr'
-                    records = map(
-                        lambda i:
-                        dict(
-                            role=i[0], name=i[1].get_name(), caption=i[1].get_caption(),
-                            type=i[1].get_value_type(), repr=i[1].get_representation(),
-                        ),
-                        data.items(),
-                    )
-                    display.display_sheet(records, columns=columns, count=count)
-                elif isinstance(data, dict):
-                    records = map(lambda i: dict(key=i[0], value=i[1]), data.items())
-                    display.display_sheet(records, columns=('key', 'value'))
-                elif isinstance(data, Iterable) and not isinstance(data, str):
-                    records = map(lambda n, i: {'#': n, 'item': i}, enumerate(data))
-                    display.display_sheet(records, columns=('#', 'item'))
-                else:
-                    display.display_paragraph(data)
+        item = self.get_data_chapter()
+        display.display_item(item)
         return self
 
     # @deprecated

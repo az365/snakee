@@ -8,7 +8,7 @@ try:  # Assume we're a submodule in a package.
         ItemType, Item, Struct, UniKey, FieldInterface, FieldName, FieldNo, Field, Name, Value, Class, Array,
         AUTO, Auto,
     )
-    from base.functions.arguments import get_name, get_names
+    from base.functions.arguments import get_name, get_names, get_cropped_text
     from base.constants.chars import TAB_INDENT, ITEMS_DELIMITER, CROP_SUFFIX, NOT_SET, DEFAULT_LINE_LEN
     from base.abstract.abstract_base import AbstractBaseObject, BaseInterface
     from base.abstract.named import AbstractNamed
@@ -22,7 +22,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         ItemType, Item, Struct, UniKey, FieldInterface, FieldName, FieldNo, Field, Name, Value, Class, Array,
         AUTO, Auto,
     )
-    from ...base.functions.arguments import get_name, get_names
+    from ...base.functions.arguments import get_name, get_names, get_cropped_text
     from ...base.constants.chars import TAB_INDENT, ITEMS_DELIMITER, CROP_SUFFIX, NOT_SET, DEFAULT_LINE_LEN
     from ...base.abstract.abstract_base import AbstractBaseObject, BaseInterface
     from ...base.abstract.named import AbstractNamed
@@ -174,9 +174,7 @@ class AbstractDescription(AbstractBaseObject, DataMixin, ABC):
             else:
                 f_repr = repr(f)
             f_repr = prefix + f_repr
-            if len(f_repr) > max_len:
-                f_repr = f_repr[:max_len - len(CROP_SUFFIX)] + CROP_SUFFIX
-            yield f_repr
+            yield get_cropped_text(f_repr, max_len=max_len)
 
     def get_detailed_fields_description(self, prefix: str = TAB_INDENT) -> Generator:
         for f in self.get_linked_fields():

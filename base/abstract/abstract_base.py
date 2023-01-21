@@ -4,12 +4,12 @@ from inspect import getfullargspec
 
 try:  # Assume we're a submodule in a package.
     from base.classes.auto import Auto, AUTO
-    from base.functions.arguments import get_name, get_list, get_str_from_args_kwargs
+    from base.functions.arguments import get_name, get_list, get_str_from_args_kwargs, get_cropped_text
     from base.constants.chars import EMPTY, PLUS, MINUS, CROSS, COVERT, PROTECTED, DEFAULT_STR
     from base.interfaces.base_interface import BaseInterface, AutoOutput, CROP_SUFFIX, DEFAULT_LINE_LEN
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.auto import Auto, AUTO
-    from ..functions.arguments import get_name, get_list, get_str_from_args_kwargs
+    from ..functions.arguments import get_name, get_list, get_str_from_args_kwargs, get_cropped_text
     from ..constants.chars import EMPTY, PLUS, MINUS, CROSS, COVERT, PROTECTED, DEFAULT_STR
     from ..interfaces.base_interface import BaseInterface, AutoOutput, CROP_SUFFIX, DEFAULT_LINE_LEN
 
@@ -266,8 +266,8 @@ class AbstractBaseObject(BaseInterface, ABC):
         one_line_repr = template.format(cls=class_name, meta=str_meta)
         full_line_len = len(one_line_repr)
         if full_line_len > max_len:
-            exceeded_len = full_line_len + len(crop) - max_len
-            str_meta = str_meta[:-exceeded_len]
+            max_meta_len = max_len - len(template.format(cls=class_name, meta=EMPTY))
+            str_meta = get_cropped_text(str_meta, max_len=max_meta_len, crop_suffix=crop)
             one_line_repr = template.format(cls=class_name, meta=str_meta + crop)
         return one_line_repr
 
@@ -299,16 +299,24 @@ class AbstractBaseObject(BaseInterface, ABC):
         else:
             return print
 
+    def get_description_items(self, comment: Optional[str] = None, depth: int = 2) -> Generator:
+        yield self.get_detailed_repr()
+        yield comment
+        if depth > 0:
+            for attribute, value in self.get_meta_items():
+                if isinstance(value, AbstractBaseObject) or hasattr(value, 'describe'):
+                    yield value.get_description_items(depth=depth - 1)
+
     def describe(
             self,
-            show_header: bool = True,
             comment: Optional[str] = None,
             depth: int = 1,
             display=AUTO,
     ):
         display_method = self._get_display_method(display)
-        display_method(self.get_detailed_repr())
-        display_method(comment)
+        for i in self.get_description_items():
+            display_method(i)
+        return self
 
     def __repr__(self):
         return self.get_detailed_repr()

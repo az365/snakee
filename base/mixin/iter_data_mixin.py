@@ -8,20 +8,25 @@ try:  # Assume we're a submodule in a package.
     from utils.algo import map_side_join
     from base.classes.typing import ARRAY_TYPES, AUTO, Auto, Class
     from base.classes.enum import DynamicEnum
+    from base.constants.chars import PARAGRAPH_CHAR
     from base.functions.arguments import get_names, update, is_in_memory, get_str_from_args_kwargs
     from base.interfaces.iterable_interface import IterableInterface, OptionalFields, Item, JoinType
-    from base.mixin.data_mixin import DataMixin
+    from base.mixin.data_mixin import DataMixin, UNK_COUNT_STUB
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...functions.secondary import item_functions as fs
     from ...utils.algo import map_side_join
     from ..classes.typing import ARRAY_TYPES, AUTO, Auto, Class
     from ..classes.enum import DynamicEnum
+    from ..constants.chars import PARAGRAPH_CHAR
     from ..functions.arguments import get_names, update, is_in_memory, get_str_from_args_kwargs
     from ..interfaces.iterable_interface import IterableInterface, OptionalFields, Item, JoinType
-    from .data_mixin import DataMixin
+    from .data_mixin import DataMixin, UNK_COUNT_STUB
 
 Native = Union[IterableInterface, DataMixin]
 How = Union[JoinType, str]
+
+DEFAULT_COUNT = 10
+LOGGING_LEVEL_INFO = 20
 
 
 class IterDataMixin(DataMixin, ABC):
@@ -112,7 +117,7 @@ class IterDataMixin(DataMixin, ABC):
         elif skip_missing:
             result = None
         else:
-            raise AttributeError('Object {} has no attribute set_count()'.format(self))
+            raise AttributeError(f'Object {self} has no attribute set_count()')
         if not (inplace or result):
             result = self
         return result
@@ -124,7 +129,7 @@ class IterDataMixin(DataMixin, ABC):
         elif hasattr(super(), 'get_count'):
             return super().get_count()
 
-    def get_str_count(self, default: str = '(iter)') -> str:
+    def get_str_count(self, default: str = UNK_COUNT_STUB) -> str:
         count = self.get_count()
         if Auto.is_defined(count):
             return str(count)
@@ -145,14 +150,16 @@ class IterDataMixin(DataMixin, ABC):
         else:
             return count > 0
 
-    def set_items(self, items: Iterable, inplace: bool, count: Optional[int] = None) -> Optional[Native]:
+    def set_items(self, items: Iterable, inplace: bool, count: Optional[int] = None) -> Native:
         if inplace:
             self.set_data(items, inplace=True)
             if Auto.is_defined(count):
                 self._set_count(count, inplace=True)
+            return self
         else:
             obj = self.set_data(items, inplace=False)
             if Auto.is_defined(count):
+                assert isinstance(obj, IterDataMixin) or hasattr(obj, '_set_count')
                 obj = obj._set_count(count, inplace=False)
             return obj
 
@@ -176,9 +183,6 @@ class IterDataMixin(DataMixin, ABC):
         for i in self.get_iter():
             return i
 
-    def get_description(self) -> str:
-        return '{} items'.format(self.get_str_count())
-
     def _get_enumerated_items(self, first: int = 0, item_type=AUTO) -> Generator:
         if item_type == 'Any' or not Auto.is_defined(item_type):
             items = self.get_items()
@@ -188,7 +192,7 @@ class IterDataMixin(DataMixin, ABC):
             items = self.get_items()
             if hasattr(self, 'get_item_type'):
                 received_item_type = self.get_item_type()
-                assert item_type == received_item_type, '{} != {}'.format(item_type, received_item_type)
+                assert item_type == received_item_type, f'{item_type} != {received_item_type}'
         for n, i in enumerate(items):
             yield n + first, i
 
@@ -203,7 +207,7 @@ class IterDataMixin(DataMixin, ABC):
             if n >= skip:
                 yield i
 
-    def _get_last_items(self, count: int = 10) -> list:
+    def _get_last_items(self, count: int = DEFAULT_COUNT) -> list:
         count = abs(count)
         items = list()
         for i in self.get_items():
@@ -226,30 +230,30 @@ class IterDataMixin(DataMixin, ABC):
             if self.is_in_memory():
                 if not is_in_memory(items):
                     items = list(items)
-                if self._has_count_attribute():
+                if self._has_count_attribute():  # in init-annotation
                     result_count = len(items)
             return self.set_items(items, count=result_count, inplace=inplace)
         else:
-            raise TypeError('Expected count as int or boolean, got {}'.format(count))
+            raise TypeError(f'Expected count as int or boolean, got {count}')
 
-    def skip(self, count: int = 1, inplace: bool = False) -> Optional[Native]:
-        if self.get_count() and count >= self.get_count():
+    def skip(self, count: int = 1, inplace: bool = False) -> Native:
+        old_count = self.get_count()
+        if Auto.is_defined(old_count) and count >= old_count:
             items = list()
         else:
             items = self.get_items()[count:] if self.is_in_memory() else self._get_second_items(count)
         result_count = None
-        if self._has_count_attribute():
-            old_count = self.get_count()
+        if self._has_count_attribute():  # in init-annotation
             if old_count:
                 result_count = old_count - count
                 if result_count < 0:
                     result_count = 0
         return self.set_items(items, count=result_count, inplace=inplace)
 
-    def head(self, count: int = 10, inplace: bool = False) -> Optional[Native]:
+    def head(self, count: int = DEFAULT_COUNT, inplace: bool = False) -> Optional[Native]:
         return self.take(count, inplace=inplace)
 
-    def tail(self, count: int = 10, inplace: bool = False) -> Optional[Native]:
+    def tail(self, count: int = DEFAULT_COUNT, inplace: bool = False) -> Optional[Native]:
         return self.take(-count, inplace=inplace)
 
     def pass_items(self) -> Native:
@@ -277,7 +281,7 @@ class IterDataMixin(DataMixin, ABC):
 
     def make_new(self, *args, count: Optional[int] = None, ex: OptionalFields = None, **kwargs) -> Native:
         if args:
-            assert len(args) == 1, 'Expected one position argument (items), got *{}'.format(args)
+            assert len(args) == 1, f'Expected one position argument (items), got *{args}'
             items = args[0]
         elif 'items' in kwargs:
             items = kwargs['items']
@@ -325,6 +329,15 @@ class IterDataMixin(DataMixin, ABC):
             chain_items = list(chain_items)
         return self.set_items(chain_items, count=result_count, inplace=inplace)
 
+    def append(self, item, inplace: bool = True) -> Native:
+        data = self.get_data()
+        if inplace and (isinstance(data, list) or hasattr(data, 'append')):
+            data.append(item)
+            return self
+        else:
+            items = chain(self.get_items(), [item])
+            return self.set_items(items, inplace=inplace)
+
     def split_by_pos(self, pos: int) -> tuple:
         first_stream, second_stream = self.get_tee_clones(2)
         return first_stream.take(pos), second_stream.skip(pos)
@@ -369,7 +382,7 @@ class IterDataMixin(DataMixin, ABC):
             else:
                 return self.split_by_boolean(by)
         else:
-            raise TypeError('split(by): by-argument must be int, list, tuple or function, got {}'.format(by))
+            raise TypeError(f'split(by): by-argument must be int, list, tuple or function, got {by}')
 
     @staticmethod
     def _get_next_items(items: Iterable, step: int) -> list:
@@ -403,7 +416,7 @@ class IterDataMixin(DataMixin, ABC):
 
     def _apply_map_inplace(self, function: Callable) -> Native:
         items = self.get_items()
-        assert isinstance(items, list), 'expected list, got {}'.format(items)
+        assert isinstance(items, list), f'expected list, got {items}'
         for k, v in enumerate(items):
             items[k] = function(v)
         return self
@@ -455,7 +468,7 @@ class IterDataMixin(DataMixin, ABC):
 
     def show(self, *args, **kwargs):
         if hasattr(self, 'log'):
-            self.log(str(self), end='\n', verbose=True, truncate=False, force=True)
+            self.log(str(self), end=PARAGRAPH_CHAR, verbose=True, truncate=False, force=True)
         else:
             print(self)
         demo_example = self.get_demo_example(*args, **kwargs)
@@ -463,23 +476,22 @@ class IterDataMixin(DataMixin, ABC):
             demo_example = [str(i) for i in demo_example]
             if hasattr(self, 'log'):
                 for example_item in demo_example:
-                    msg = 'example: {}'.format(example_item)
-                    logging_level_info = 20
-                    self.log(msg=msg, level=logging_level_info, verbose=False)
-            return '\n'.join(demo_example)
+                    msg = f'example: {example_item}'
+                    self.log(msg=msg, level=LOGGING_LEVEL_INFO, verbose=False)
+            return PARAGRAPH_CHAR.join(demo_example)
         else:
             return demo_example
 
-    def _get_property(self, name, *args, **kwargs) -> Any:
-        if isinstance(name, Callable):
-            value = name(self)
-        elif isinstance(name, str):
+    def _get_property(self, name_or_func, *args, **kwargs) -> Any:
+        if isinstance(name_or_func, Callable):
+            value = name_or_func(self)
+        elif isinstance(name_or_func, str):
             meta = self.get_meta()
-            if name in meta:
-                value = meta.get(name)
+            if name_or_func in meta:
+                value = meta.get(name_or_func)
             else:
                 try:
-                    getter = self.__getattribute__(name)
+                    getter = getattr(self, name_or_func)
                     value = getter(*args, **kwargs)
                 except AttributeError:
                     value = None
@@ -513,7 +525,7 @@ class IterDataMixin(DataMixin, ABC):
                 cur_time = datetime.now().isoformat()
                 external_object[cur_time] = value
         else:
-            raise TypeError('external_object must be callable, list or dict')
+            raise TypeError(f'external_object must be callable, list or dict, got {external_object}')
         return self
 
     def print(
@@ -526,13 +538,13 @@ class IterDataMixin(DataMixin, ABC):
         value = self._get_property(stream_function, *args, **kwargs)
         if value is None:
             if assert_not_none:
-                template = '{}.print({}): None received'
-                msg = template.format(repr(self), get_str_from_args_kwargs(stream_function, *args, **kwargs))
-                raise ValueError(msg)
+                obj_str = repr(self)
+                arg_str = get_str_from_args_kwargs(stream_function, *args, **kwargs)
+                raise ValueError(f'{obj_str}.print({arg_str}): None received')
             else:
                 value = str(value)
         if hasattr(self, 'log'):
-            self.log(value, end='\n', verbose=True)
+            self.log(value, end=PARAGRAPH_CHAR, verbose=True)
         else:
             display.display_item(value)
         return self

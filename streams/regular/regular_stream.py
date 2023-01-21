@@ -17,7 +17,6 @@ try:  # Assume we're a submodule in a package.
     from content.items.item_getters import get_filter_function
     from content.selection import selection_classes as sn
     from content.struct.flat_struct import FlatStruct
-    from content.documents.document_item import Chapter, Paragraph, Sheet, DEFAULT_CHAPTER_TITLE_LEVEL
     from streams.abstract.local_stream import LocalStream
     from streams.interfaces.regular_stream_interface import (
         RegularStreamInterface, StreamItemType,
@@ -41,7 +40,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...content.items.item_getters import get_filter_function
     from ...content.selection import selection_classes as sn
     from ...content.struct.flat_struct import FlatStruct
-    from ...content.documents.document_item import Chapter, Paragraph, Sheet, DEFAULT_CHAPTER_TITLE_LEVEL
     from ..abstract.local_stream import LocalStream
     from ..interfaces.regular_stream_interface import (
         RegularStreamInterface, StreamItemType,
@@ -113,8 +111,8 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
 
     item_type = property(get_item_type, _set_item_type_inplace)
 
-    def get_struct_from_source(self) -> Struct:
-        columns = self.get_detected_columns()
+    def get_struct_from_source(self, skip_missing: bool = False) -> Struct:
+        columns = self.get_detected_columns(skip_errors=skip_missing)
         return FlatStruct(columns)
 
     def get_struct(self) -> Struct:
@@ -158,6 +156,7 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
             by_items_count: int = DEFAULT_ANALYZE_COUNT,
             sort: bool = True,
             get_max: bool = True,
+            skip_errors: bool = False,
     ) -> Sequence:
         item_type = self.get_item_type()
         if item_type in (ItemType.Any, ItemType.Line):
@@ -183,7 +182,7 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
             return range(max_row_len)
         elif item_type == ItemType.StructRow:  # deprecated
             return self.get_struct().get_columns()
-        else:
+        elif not skip_errors:
             raise NotImplementedError(item_type)
 
     def get_declared_columns(self) -> Optional[list]:
@@ -277,7 +276,7 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
             errors = self._get_validation_errors(i, struct=struct)
             if errors:
                 method_name = f'{self.__class__.__name__}._get_validated_items()'
-                message = f'{method_name} found invalid item {i} for {repr(self)}: {errors}'
+                message = f'{method_name} found invalid item {i} for {repr(self)} with errors: {errors}'
                 if skip_errors:
                     if logger:
                         logger.log(msg=message, level=LoggingLevel.Warning)
@@ -323,16 +322,25 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
                 secondary=self.get_stream_type(),
             )
 
-    def skip(self, count: int = 1, inplace: bool = False) -> Native:
-        stream = super().skip(count, inplace=inplace)
-        assert isinstance(stream, RegularStream)
+    def take(self, count: Union[int, bool] = 1, inplace: bool = False) -> Native:
+        stream = super().take(count, inplace=inplace) or self
         stream.set_struct(self.get_struct(), check=False, inplace=True)
         return stream
 
+    def skip(self, count: int = 1, inplace: bool = False) -> Native:
+        stream = super().skip(count, inplace=inplace)
+        struct = self.get_struct()
+        if Auto.is_defined(struct) and (isinstance(stream, RegularStreamInterface) or hasattr(stream, 'set_struct')):
+            stream.set_struct(struct, check=False, inplace=True)
+        return stream
+
     def filter(self, *fields, skip_errors: bool = True, inplace: bool = False, **expressions) -> Native:
-        item_type = self.get_item_type()  # ItemType.Any
+        item_type = self.get_item_type()
         filter_function = get_filter_function(*fields, **expressions, item_type=item_type, skip_errors=skip_errors)
         stream = super().filter(filter_function, inplace=inplace)
+        struct = self.get_struct()
+        if Auto.is_defined(struct) and (isinstance(stream, RegularStreamInterface) or hasattr(stream, 'set_struct')):
+            stream.set_struct(struct, check=False, inplace=True)
         return self._assume_native(stream)
 
     def select(self, *columns, use_extended_method: AutoBool = AUTO, **expressions) -> Native:
@@ -340,7 +348,7 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
             use_extended_method = self.get_item_type() in (ItemType.Row, ItemType.StructRow)
         input_item_type = self.get_item_type()
         target_item_type = self._get_target_item_type(*columns, **expressions)
-        target_struct = sn.get_output_struct(*columns, **expressions)
+        target_struct = sn.get_output_struct(*columns, **expressions, skip_missing=True)
         select_function = sn.get_selection_function(
             *columns, **expressions,
             input_item_type=input_item_type, target_item_type=target_item_type,
@@ -424,6 +432,7 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
             stream = self.memory_sort(key_function, reverse=reverse, verbose=verbose)
         else:
             stream = self.disk_sort(key_function, reverse=reverse, step=step, verbose=verbose)
+        self._assume_native(stream).set_struct(self.get_struct(), check=False, inplace=True)
         return self._assume_native(stream)
 
     def join(
@@ -509,6 +518,9 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
         keys = unfold_structs_to_fields(keys)
         key_function = self._get_key_function(keys, take_hash=take_hash)
         iter_groups = self._get_groups(key_function, as_pairs=as_pairs)
+        count = self.get_count() or self.get_estimated_count()
+        if count == 0 and not skip_missing:
+            raise AssertionError('Got empty stream.')
         if Auto.is_defined(output_struct):
             expected_struct = output_struct
         elif as_pairs:
@@ -539,7 +551,7 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
         if self.is_in_memory():
             return stream_groups.to_memory()
         else:
-            stream_groups.set_estimated_count(self.get_count() or self.get_estimated_count(), inplace=True)
+            stream_groups.set_estimated_count(count, inplace=True)
             return stream_groups
 
     def group_by(
@@ -549,6 +561,7 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
             as_pairs: bool = False,  # deprecated argument, use group_to_pairs() instead
             take_hash: bool = True,
             step: AutoCount = AUTO,
+            skip_missing: bool = False,
             verbose: bool = True,
     ) -> Stream:
         keys = unfold_structs_to_fields(keys)
@@ -564,6 +577,7 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
             *keys,
             values=values,
             as_pairs=as_pairs,
+            skip_missing=skip_missing,
         )
 
     @deprecated_with_alternative('RegularStream.group_by(as_pairs=True)')
@@ -633,29 +647,6 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
         return True
 
     def actualize(self) -> Native:  # used in ValidateMixin.prepare_examples_with_title()
-        return self
-
-    def describe(
-            self,
-            *filter_args,
-            count: Optional[int] = DEFAULT_EXAMPLE_COUNT,
-            columns: Optional[Array] = None,
-            show_header: bool = True,
-            comment: Optional[str] = None,
-            safe_filter: bool = True,
-            actualize: AutoBool = AUTO,
-            display: AutoDisplay = AUTO,
-            **filter_kwargs
-    ) -> Native:
-        display = self.get_display(display)
-        for i in self.get_description_items(
-            count, columns=columns, show_header=show_header, comment=comment, actualize=actualize,
-            filters=filter_args, named_filters=filter_kwargs, safe_filter=safe_filter,
-        ):
-            if isinstance(i, str):
-                display.append(i)
-            else:  # isinstance(i, DocumentItem):
-                display.display(i)
         return self
 
     @staticmethod

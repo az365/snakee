@@ -15,12 +15,11 @@ try:  # Assume we're a submodule in a package.
     from functions.secondary import array_functions as fs
     from utils.external import pd, get_use_objects_for_output, DataFrame
     from utils.decorators import deprecated_with_alternative
-    from streams.stream_builder import StreamBuilder
     from content.fields.any_field import AnyField
     from content.items.simple_items import SelectableItem, is_row, is_record
     from content.selection.abstract_expression import AbstractDescription
     from content.selection.selectable_mixin import SelectableMixin
-    from content.documents.document_item import Chapter, Paragraph, Sheet, DEFAULT_CHAPTER_TITLE_LEVEL
+    from content.documents.document_item import Chapter, Paragraph, Sheet
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         StructInterface, StructRowInterface, FieldInterface, RepresentationInterface,
@@ -36,12 +35,11 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...functions.secondary import array_functions as fs
     from ...utils.external import pd, get_use_objects_for_output, DataFrame
     from ...utils.decorators import deprecated_with_alternative
-    from ...streams.stream_builder import StreamBuilder
     from ..fields.any_field import AnyField
     from ..items.simple_items import SelectableItem, is_row, is_record
     from ..selection.abstract_expression import AbstractDescription
     from ..selection.selectable_mixin import SelectableMixin
-    from ..documents.document_item import Chapter, Paragraph, Sheet, DEFAULT_CHAPTER_TITLE_LEVEL
+    from ..documents.document_item import Chapter, Paragraph, Sheet
 
 Native = StructInterface
 Group = Union[Native, Iterable]
@@ -712,22 +710,34 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
     ) -> Sheet:
         columns = self._get_describe_columns(example, with_lens=True)
         records = self.get_struct_repr_records(example=example, select_fields=select_fields, count=count)
-        stream = StreamBuilder.stream(records, struct=columns)
-        return Sheet(stream, name=name)
+        return Sheet.from_records(records, columns=columns, name=name)
 
-    def display_data_sheet(
+    def get_data_chapter(
             self,
-            count: AutoCount = AUTO,  # DEFAULT_EXAMPLE_COUNT
+            count: int = DEFAULT_EXAMPLE_COUNT,
             title: Optional[str] = 'Columns',
+            comment: Optional[str] = None,
             example: Optional[dict] = None,
-            select_fields: Optional[Array] = None,
-            display=AUTO,
-    ) -> None:
-        display = self.get_display(display)
-        if title:
-            display.display_paragraph(title, level=3)
-        data_sheet = self.get_data_sheet(count, example=example, select_fields=select_fields, name=f'{title} sheet')
-        return data_sheet.show()
+    ) -> Generator:
+        display = self.get_display()
+        yield display.build_paragraph(title, level=3, name=f'{title} title')
+        caption = list()
+        if comment:
+            caption.append(comment)
+        if hasattr(self, 'get_data_caption'):
+            yield self.get_data_caption()
+        if self.has_data():
+            shape_repr = self.get_shape_repr()
+            if shape_repr:
+                if Auto.is_defined(count) and shape_repr:
+                    caption.append(f'First {count} fields from {shape_repr}:')
+                else:
+                    caption.append(f'{shape_repr}:')
+        else:
+            caption.append('(data attribute is empty)')
+        yield display.build_paragraph(caption, name=f'{title} caption')
+        if self.has_data():
+            yield self.get_data_sheet(count=count, name=f'{title} sheet')
 
     def get_dataframe(self) -> DataFrame:
         data = self.get_struct_description_rows(include_header=True)

@@ -73,8 +73,13 @@ class LocalStream(IterableStream, LocalStreamInterface):
         self.max_items_in_memory = count
         return self
 
-    def get_list(self) -> list:
-        return list(self.get_items())
+    def get_list(self, inplace: bool = True) -> list:
+        if inplace:
+            data = list(self.get_data())
+            self.set_data(data, inplace=True)
+        else:
+            data = list(self.get_items())
+        return data
 
     def is_file(self) -> bool:
         if hasattr(self, 'is_leaf'):
@@ -88,12 +93,6 @@ class LocalStream(IterableStream, LocalStreamInterface):
             ex=self._get_dynamic_meta_fields() if dynamic else None,
         )
 
-    def is_in_memory(self) -> bool:
-        if self.is_file():
-            return False
-        else:
-            return is_in_memory(self.get_data())
-
     def close(
             self,
             recursively: bool = False, return_closed_links: bool = False, remove_tmp_files: bool = True,
@@ -102,10 +101,6 @@ class LocalStream(IterableStream, LocalStreamInterface):
         if remove_tmp_files:
             self.remove_tmp_files()
         return result
-
-    def to_iter(self) -> Native:
-        stream = self.stream(self.get_iter())
-        return self._assume_native(stream)
 
     def can_be_in_memory(self, step: AutoCount = AUTO) -> bool:
         step = Auto.delayed_acquire(step, self.get_limit_items_in_memory)
@@ -118,10 +113,20 @@ class LocalStream(IterableStream, LocalStreamInterface):
             else:
                 return count <= step
 
+    def is_in_memory(self) -> bool:
+        if self.is_file():
+            return False
+        else:
+            return is_in_memory(self.get_data())
+
     def to_memory(self) -> Native:
         items_as_list_in_memory = self.get_list()
         count = len(items_as_list_in_memory)
-        stream = self.stream(items_as_list_in_memory, count=count, check=False)
+        self.set_items(items_as_list_in_memory, count=count, inplace=True)
+        return self
+
+    def to_iter(self) -> Native:
+        stream = self.stream(self.get_iter())
         return self._assume_native(stream)
 
     def collect(self, inplace: bool = False, log: AutoBool = AUTO) -> Native:

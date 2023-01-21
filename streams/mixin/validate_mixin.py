@@ -1,30 +1,30 @@
 from abc import ABC
-from typing import Optional, Iterable, Generator, Tuple, Union
+from typing import Optional, Tuple, Union
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         LeafConnectorInterface, StructInterface,
-        Stream, Item, Columns, Array, Count,
+        Item, Columns, Array, Count,
         AUTO, Auto, AutoBool, AutoCount, AutoDisplay,
     )
-    from base.functions.arguments import get_str_from_args_kwargs
+    from base.interfaces.display_interface import DEFAULT_EXAMPLE_COUNT
+    from base.functions.arguments import get_str_from_args_kwargs, get_cropped_text
     from base.constants.chars import EMPTY, CROP_SUFFIX
-    from base.abstract.named import COLS_FOR_META
-    from content.documents.document_item import Chapter, Paragraph, Sheet, DEFAULT_CHAPTER_TITLE_LEVEL
-    from streams.interfaces.abstract_stream_interface import StreamInterface, DEFAULT_EXAMPLE_COUNT
-    from streams.stream_builder import StreamBuilder
+    from base.mixin.data_mixin import DEFAULT_CHAPTER_TITLE_LEVEL
+    from content.documents.document_item import Chapter, Paragraph, Sheet
+    from streams.interfaces.abstract_stream_interface import StreamInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         LeafConnectorInterface, StructInterface,
-        Stream, Item, Columns, Array, Count,
+        Item, Columns, Array, Count,
         AUTO, Auto, AutoBool, AutoCount, AutoDisplay,
     )
-    from ...base.functions.arguments import get_str_from_args_kwargs
+    from ...base.interfaces.display_interface import DEFAULT_EXAMPLE_COUNT
+    from ...base.functions.arguments import get_str_from_args_kwargs, get_cropped_text
     from ...base.constants.chars import EMPTY, CROP_SUFFIX
-    from ...base.abstract.named import COLS_FOR_META
-    from ...content.documents.document_item import Chapter, Paragraph, Sheet, DEFAULT_CHAPTER_TITLE_LEVEL
-    from ..interfaces.abstract_stream_interface import StreamInterface, DEFAULT_EXAMPLE_COUNT
-    from ..stream_builder import StreamBuilder
+    from ...base.mixin.data_mixin import DEFAULT_CHAPTER_TITLE_LEVEL
+    from ...content.documents.document_item import Chapter, Paragraph, Sheet
+    from ..interfaces.abstract_stream_interface import StreamInterface
 
 Native = Union[StreamInterface, LeafConnectorInterface]
 
@@ -41,7 +41,7 @@ class ValidateMixin(ABC):
                 expected_struct = self.get_struct_from_source(set_struct=True, verbose=True)
         else:
             expected_struct = self.get_struct()
-        actual_struct = self.get_struct_from_source(set_struct=False, verbose=False)
+        actual_struct = self.get_struct_from_source(set_struct=False, verbose=False, skip_missing=skip_disconnected)
         if actual_struct:
             actual_struct = self._get_native_struct(actual_struct)
             validated_struct = actual_struct.validate_about(expected_struct)
@@ -73,7 +73,7 @@ class ValidateMixin(ABC):
 
     def get_validation_message(self, skip_disconnected: bool = True) -> str:
         if self.is_accessible():
-            self.validate_fields()
+            self.validate_fields(skip_disconnected=True)
             row_count = self.get_count(allow_slow_mode=False)
             column_count = self.get_column_count()
             error_count = self.get_invalid_fields_count()
@@ -102,7 +102,7 @@ class ValidateMixin(ABC):
             count: int = DEFAULT_EXAMPLE_COUNT,
             filters: Columns = None,
             columns: Columns = None,
-            example: Optional[Stream] = None,
+            example: Optional[StreamInterface] = None,
     ) -> Native:
         if hasattr(self, 'is_in_memory'):  # isinstance(self, IterableStream)
             is_in_memory = self.is_in_memory()
@@ -123,23 +123,6 @@ class ValidateMixin(ABC):
         if Auto.is_defined(columns) and hasattr(stream, 'select'):
             stream = stream.select(columns)
         return stream.collect()
-
-    def _get_demo_records_and_columns(
-            self,
-            count: int = DEFAULT_EXAMPLE_COUNT,
-            filters: Columns = None,
-            columns: Optional[Array] = None,
-            example: Optional[Stream] = None,
-    ) -> Tuple[Array, Array]:
-        example = self._get_demo_example(count=count, filters=filters, columns=columns, example=example)
-        if hasattr(example, 'get_columns') and hasattr(example, 'get_records'):  # RegularStream, SqlStream
-            records = example.get_records()  # ConvertMixin.get_records(), SqlStream.get_records()
-            columns = example.get_columns()  # StructMixin.get_columns(), RegularStream.get_columns()
-        else:
-            item_field = 'item'
-            records = [{item_field: i} for i in example]
-            columns = [item_field]
-        return records, columns
 
     def _prepare_examples_with_title(
             self,
@@ -192,7 +175,7 @@ class ValidateMixin(ABC):
             crop_suffix: str = CROP_SUFFIX,
             verbose: bool = AUTO,
             **filter_kwargs
-    ) -> Tuple[Item, Stream, str]:
+    ) -> Tuple[Item, StreamInterface, str]:
         filters = filters or list()
         if filter_kwargs and safe_filter:
             filter_kwargs = {k: v for k, v in filter_kwargs.items() if k in self.get_columns()}
@@ -218,12 +201,9 @@ class ValidateMixin(ABC):
                 item_example = self.get_one_item()
             else:
                 item_example = dict()
-        if item_example:
-            if example_str_len:
-                for k, v in item_example.items():
-                    v = str(v)
-                    if len(v) > example_str_len:
-                        item_example[k] = str(v)[:example_str_len - len(crop_suffix)] + crop_suffix
+        if item_example and Auto.is_defined(example_str_len):
+            for k, v in item_example.items():
+                item_example[k] = get_cropped_text(v, max_len=example_str_len, crop_suffix=crop_suffix)
         else:
             item_example = dict()
             stream_example = None
@@ -235,7 +215,7 @@ class ValidateMixin(ABC):
         obj_name = self.get_name()
         class_name = self.__class__.__name__
         if obj_name:
-            title = f'{class_name}: {obj_name}'
+            title = f'{obj_name} {class_name}'
         else:
             title = f'Unnamed {class_name}'
         return title
@@ -247,32 +227,31 @@ class ValidateMixin(ABC):
             level: Optional[int] = DEFAULT_CHAPTER_TITLE_LEVEL,
             name: str = 'Columns',
     ) -> Chapter:
-        content = list()
+        chapter = Chapter(name=name)
         if level:
             title = Paragraph([name], level=level, name=f'{name} title')
-            content.append(title)
+            chapter.append(title, inplace=True)
         if comment:
-            content.append(comment)
+            chapter.append(Paragraph(comment, name=f'{name} comment'), inplace=True)
         struct = self.get_struct()
         if not Auto.is_defined(struct):
             struct = self.get_struct_from_source()
         if isinstance(struct, StructInterface) or hasattr(struct, 'get_data_sheet'):
             struct_sheet = struct.get_data_sheet(example=example_item)
-            content.append(struct_sheet)
+            chapter.append(struct_sheet, inplace=True)
         else:
             if struct:
                 tag, err = '[TYPE_ERROR]', f'Expected struct as StructInterface, got {struct} instead.'
             else:
                 tag, err = '[EMPTY]', 'Struct is not defined.'
-            content.append(f'{tag} {err}')
-        chapter = Chapter(content, name=name)
+            chapter.append(Paragraph([f'{tag} {err}'], name=f'{name} error'), inplace=True)
         return chapter
 
     def get_example_chapter(
             self,
             count: int = DEFAULT_EXAMPLE_COUNT,
             columns: Columns = None,
-            example: Stream = None,
+            example: StreamInterface = None,
             comment: Optional[str] = None,
             level: Optional[int] = DEFAULT_CHAPTER_TITLE_LEVEL,
             name: str = 'Example',
@@ -293,7 +272,7 @@ class ValidateMixin(ABC):
             self,
             count: int = DEFAULT_EXAMPLE_COUNT,
             columns: Columns = None,
-            example: Stream = None,
+            example: StreamInterface = None,
             name: str = 'Example sheet',
     ) -> Sheet:
         example = self._get_demo_example(count, columns=columns, example=example)
@@ -306,66 +285,3 @@ class ValidateMixin(ABC):
             name: str = 'Data sheet',
     ):
         return self.get_example_sheet(count, name=name)
-
-    def get_meta_sheet(
-            self,
-            name: str = 'MetaInformation sheet',
-    ) -> Sheet:
-        meta_stream = StreamBuilder.stream(self.get_meta_records(), register=False, struct=COLS_FOR_META)
-        return Sheet(meta_stream, name=name)
-
-    def get_meta_chapter(
-            self,
-            level: Optional[int] = DEFAULT_CHAPTER_TITLE_LEVEL,
-            name: str = 'MetaInformation',
-    ) -> Chapter:
-        chapter = Chapter(name=name)
-        if level:
-            title = Paragraph([name], level=level, name=f'{name} title')
-            chapter.add_items([title])
-        meta_sheet = self.get_meta_sheet(name=f'{name} sheet')
-        chapter.add_items([meta_sheet])
-        return chapter
-
-    def get_description_items(
-            self,
-            count: Count = DEFAULT_EXAMPLE_COUNT,
-            columns: Optional[Array] = None,
-            show_header: bool = True,  # deprecated argument
-            comment: Optional[str] = None,
-            safe_filter: bool = True,
-            actualize: AutoBool = AUTO,
-            filters: Optional[Iterable] = None,
-            named_filters: Optional[dict] = None,
-    ) -> Generator:
-        if show_header:
-            yield Paragraph([self.get_str_title()], level=1)
-            yield Paragraph(self.get_str_headers())
-        if comment:
-            yield comment
-        struct = self.get_struct()
-        if show_header or struct:
-            struct_title, example_item, example_stream, example_comment = self._prepare_examples_with_title(
-                *filters or list(), **named_filters or dict(), safe_filter=safe_filter,
-                example_row_count=count, actualize=actualize,
-                verbose=False,
-            )
-            yield struct_title
-            invalid_columns = self.get_invalid_columns()
-            if invalid_columns:
-                invalid_columns_str = get_str_from_args_kwargs(*invalid_columns)
-                yield f'Invalid columns: {invalid_columns_str}'
-            yield ''
-        else:
-            example_item, example_stream, example_comment = None, None, None
-        yield self.get_struct_chapter(
-            example_item=example_item, comment=example_comment,
-            level=DEFAULT_CHAPTER_TITLE_LEVEL, name='Columns',
-        )
-        if example_stream and count:
-            yield self.get_example_chapter(
-                count, columns=columns, example=example_stream, comment=example_comment,
-                level=DEFAULT_CHAPTER_TITLE_LEVEL, name='Example',
-            )
-        if show_header:
-            yield self.get_meta_chapter(level=DEFAULT_CHAPTER_TITLE_LEVEL, name='MetaInformation')

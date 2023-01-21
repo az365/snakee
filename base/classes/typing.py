@@ -1,4 +1,4 @@
-from typing import Type, Optional, Callable, Union, Any
+from typing import Type, Optional, Callable, Tuple, Union, Any
 
 try:  # Assume we're a submodule in a package.
     from base.classes.auto import Auto, AUTO
@@ -13,6 +13,11 @@ Class = Union[Type, Callable]
 Array = Union[list, tuple]
 ARRAY_TYPES = list, tuple
 PRIMITIVE_TYPES = str, int, float, bool
+
+Line = str
+Record = dict
+Row = tuple
+FormattedRow = Tuple[str]
 
 Name = FieldID
 Count = Optional[int]
