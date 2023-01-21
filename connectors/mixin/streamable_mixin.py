@@ -57,11 +57,13 @@ class StreamableMixin(ColumnarMixin, ABC):
         except AttributeError:
             return StreamBuilder.get_default_stream_class()
 
-    def _get_item_type(self, stream: Union[StreamItemType, RegularStreamInterface] = AUTO) -> ItemType:
-        if isinstance(stream, StreamType) or hasattr(stream, 'get_item_type'):
-            return stream.get_item_type()
-        elif hasattr(stream, 'get_default_item_type'):
-            return stream.get_default_item_type()
+    def _get_item_type(self, stream_or_type: Union[StreamItemType, RegularStreamInterface] = AUTO) -> ItemType:
+        if isinstance(stream_or_type, ItemType) or hasattr(stream_or_type, 'get_value_from_item'):
+            return stream_or_type
+        elif isinstance(stream_or_type, StreamType) or hasattr(stream_or_type, 'get_item_type'):
+            return stream_or_type.get_item_type()
+        elif hasattr(stream_or_type, 'get_default_item_type'):
+            return stream_or_type.get_default_item_type()
         else:
             return ItemType.Any
 
