@@ -50,13 +50,6 @@ class StreamableMixin(ColumnarMixin, ABC):
                 stream_type = StreamType.detect(item_type)
         return stream_type
 
-    @deprecated_with_alternative('StreamBuilder.stream')
-    def _get_stream_class(self, stream_type: StreamItemType = AUTO):
-        try:  # assume we're RegularStream
-            return self.get_stream_class()
-        except AttributeError:
-            return StreamBuilder.get_default_stream_class()
-
     def _get_item_type(self, stream_or_type: Union[StreamItemType, RegularStreamInterface] = AUTO) -> ItemType:
         if isinstance(stream_or_type, ItemType) or hasattr(stream_or_type, 'get_value_from_item'):
             return stream_or_type
