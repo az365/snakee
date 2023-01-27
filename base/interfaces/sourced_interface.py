@@ -9,12 +9,12 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..interfaces.base_interface import BaseInterface
 
 Source = Optional[BaseInterface]
-Logger = Optional[LoggerInterface]
 
 COLS_FOR_META = ('defined', 3), ('key', 20), ('value', 30), ('actual_type', 14), ('expected_type', 20), ('default', 20)
 COLS_FOR_DICT = [('key', 20), 'value']
 
 
+# @deprecated
 class SourcedInterface(ABC):
     @abstractmethod
     def get_name(self) -> str:
@@ -33,9 +33,9 @@ class SourcedInterface(ABC):
         pass
 
     @abstractmethod
-    def register(self, check: bool = True) -> BaseInterface:
+    def register_in_source(self, check: bool = True) -> BaseInterface:
         pass
 
     @abstractmethod
-    def get_logger(self) -> Logger:
+    def get_logger(self) -> Optional[LoggerInterface]:
         pass

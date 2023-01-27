@@ -2,18 +2,17 @@ from abc import ABC
 from typing import Optional
 
 try:  # Assume we're a submodule in a package.
-    from loggers.logger_interface import LoggerInterface, LoggingLevel
+    from loggers.logger_interface import LoggerInterface
     from base.classes.auto import Auto
     from base.interfaces.sourced_interface import SourcedInterface
     from base.abstract.named import AbstractNamed
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...loggers.logger_interface import LoggerInterface, LoggingLevel
+    from ...loggers.logger_interface import LoggerInterface
     from ..classes.auto import Auto
     from ..interfaces.sourced_interface import SourcedInterface
     from ..abstract.named import AbstractNamed
 
 Source = Optional[AbstractNamed]
-Logger = Optional[LoggerInterface]
 
 
 class SourcedMixin(ABC):
@@ -34,7 +33,7 @@ class SourcedMixin(ABC):
             if reset or not self.get_source():
                 self.set_source_inplace(source)
             if register:
-                self.register()
+                self.register_in_source()
             return self
         else:
             sourced_obj = self.set_outplace(source=source)
@@ -42,7 +41,7 @@ class SourcedMixin(ABC):
             sourced_obj.register()
             return sourced_obj
 
-    def register(self, check: bool = True) -> SourcedInterface:
+    def register_in_source(self, check: bool = True) -> SourcedInterface:
         source = self.get_source()
         while hasattr(source, 'get_source') and not hasattr(source, 'get_child'):
             source = source.get_source()
@@ -59,7 +58,7 @@ class SourcedMixin(ABC):
             source.add_child(self)
         return self
 
-    def get_logger(self, skip_missing: bool = False) -> Logger:
+    def get_logger(self, skip_missing: bool = False) -> Optional[LoggerInterface]:
         source = self.get_source()
         if source:
             if hasattr(source, 'get_logger'):

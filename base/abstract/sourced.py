@@ -35,7 +35,7 @@ class Sourced(AbstractNamed, SourcedMixin, SourcedInterface, ABC):
         self._source = source
         super().__init__(name=name, caption=caption)
         if Auto.is_defined(source):
-            self.register(check=check)
+            self.register_in_source(check=check)
 
     @classmethod
     def _get_meta_member_names(cls) -> list:
