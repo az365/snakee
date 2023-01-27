@@ -10,6 +10,7 @@ try:  # Assume we're a submodule in a package.
     from base.abstract.simple_data import SimpleDataWrapper
     from base.abstract.tree_item import TreeItem
     from base.mixin.display_mixin import DisplayMixin
+    from base.mixin.sourced_mixin import SourcedMixin
     from base.mixin.data_mixin import DataMixin
     from base.mixin.map_data_mixin import MapDataMixin, MultiMapDataMixin
     from base.mixin.iter_data_mixin import IterableInterface, IterDataMixin
@@ -27,6 +28,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .abstract.simple_data import SimpleDataWrapper
     from .abstract.tree_item import TreeItem
     from .mixin.display_mixin import DisplayMixin
+    from .mixin.sourced_mixin import SourcedMixin
     from .mixin.data_mixin import DataMixin
     from .mixin.map_data_mixin import MapDataMixin, MultiMapDataMixin
     from .mixin.iter_data_mixin import IterableInterface, IterDataMixin
