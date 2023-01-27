@@ -10,9 +10,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 
 Source = Optional[BaseInterface]
 
-COLS_FOR_META = ('defined', 3), ('key', 20), ('value', 30), ('actual_type', 14), ('expected_type', 20), ('default', 20)
-COLS_FOR_DICT = [('key', 20), 'value']
-
 
 # @deprecated
 class SourcedInterface(ABC):

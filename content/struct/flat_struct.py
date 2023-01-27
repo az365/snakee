@@ -685,22 +685,6 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
                 if n >= count - 1:
                     break
 
-    def get_data_description(
-            self,
-            count: AutoCount = AUTO,  # DEFAULT_EXAMPLE_COUNT
-            title: Optional[str] = 'Columns:',
-            example: Optional[dict] = None,
-            select_fields: Optional[Array] = None,
-            max_len: int = JUPYTER_LINE_LEN,
-            delimiter: str = REPR_DELIMITER,
-    ) -> Generator:
-        struct_description_lines = self.get_struct_repr_lines(
-            example=example, delimiter=delimiter, select_fields=select_fields,
-            count=count,
-        )
-        for line in struct_description_lines:
-            yield line[:max_len]
-
     def get_data_sheet(
             self,
             count: AutoCount = AUTO,  # DEFAULT_EXAMPLE_COUNT

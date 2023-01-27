@@ -10,7 +10,6 @@ try:  # Assume we're a submodule in a package.
         AUTO, Auto, AutoDisplay, AutoBool, AutoName, AutoCount, Array, ARRAY_TYPES,
     )
     from base.functions.arguments import get_name, get_names, get_str_from_args_kwargs
-    from base.abstract.named import COLS_FOR_META
     from utils.decorators import deprecated_with_alternative
     from functions.primary.items import set_to_item, merge_two_items, unfold_structs_to_fields
     from functions.secondary import all_secondary_functions as fs
@@ -33,7 +32,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         AUTO, Auto, AutoDisplay, AutoBool, AutoName, AutoCount, Array, ARRAY_TYPES,
     )
     from ...base.functions.arguments import get_name, get_names, get_str_from_args_kwargs
-    from ...base.abstract.named import COLS_FOR_META
     from ...utils.decorators import deprecated_with_alternative
     from ...functions.primary.items import set_to_item, merge_two_items, unfold_structs_to_fields
     from ...functions.secondary import all_secondary_functions as fs

@@ -5,7 +5,6 @@ try:  # Assume we're a submodule in a package.
     from base.classes.auto import AUTO, Auto
     from base.constants.chars import EMPTY, TAB_INDENT, REPR_DELIMITER, DEFAULT_LINE_LEN
     from base.functions.arguments import get_str_from_args_kwargs
-    from base.interfaces.sourced_interface import COLS_FOR_META
     from base.interfaces.display_interface import DisplayInterface
     from base.mixin.display_mixin import DisplayMixin, AutoDisplay
     from base.abstract.abstract_base import AbstractBaseObject
@@ -13,7 +12,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..classes.auto import AUTO, Auto
     from ..constants.chars import EMPTY, TAB_INDENT, REPR_DELIMITER, DEFAULT_LINE_LEN
     from ..functions.arguments import get_str_from_args_kwargs
-    from ..interfaces.sourced_interface import COLS_FOR_META
     from ..interfaces.display_interface import DisplayInterface
     from ..mixin.display_mixin import DisplayMixin, AutoDisplay
     from .abstract_base import AbstractBaseObject

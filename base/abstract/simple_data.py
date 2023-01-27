@@ -5,8 +5,6 @@ try:  # Assume we're a submodule in a package.
     from base.classes.typing import AUTO, Auto, AutoCount, AutoBool
     from base.constants.chars import EMPTY, REPR_DELIMITER, SMALL_INDENT, DEFAULT_LINE_LEN
     from base.functions.arguments import get_str_from_annotation, get_str_from_args_kwargs
-    from base.interfaces.sourced_interface import SourcedInterface, COLS_FOR_DICT
-    from base.interfaces.context_interface import ContextInterface
     from base.interfaces.data_interface import SimpleDataInterface
     from base.mixin.display_mixin import DEFAULT_EXAMPLE_COUNT
     from base.mixin.data_mixin import DataMixin, UNK_COUNT_STUB, DEFAULT_CHAPTER_TITLE_LEVEL
@@ -15,8 +13,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..classes.typing import AUTO, Auto, AutoCount, AutoBool
     from ..constants.chars import EMPTY, REPR_DELIMITER, SMALL_INDENT, DEFAULT_LINE_LEN
     from ..functions.arguments import get_str_from_annotation, get_str_from_args_kwargs
-    from ..interfaces.sourced_interface import SourcedInterface, COLS_FOR_DICT
-    from ..interfaces.context_interface import ContextInterface
     from ..interfaces.data_interface import SimpleDataInterface
     from ..mixin.display_mixin import DEFAULT_EXAMPLE_COUNT
     from ..mixin.data_mixin import DataMixin, UNK_COUNT_STUB, DEFAULT_CHAPTER_TITLE_LEVEL
@@ -25,8 +21,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 Native = SimpleDataInterface
 Data = Any
 OptionalFields = Optional[Union[str, Iterable]]
-Source = Optional[SourcedInterface]
-Context = Optional[ContextInterface]
 
 DATA_MEMBER_NAMES = '_data',
 DYNAMIC_META_FIELDS = tuple()
@@ -170,49 +164,6 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
 
     def has_data(self) -> bool:
         return bool(self.get_data())
-
-    def get_data_description(
-            self,
-            count: int = DEFAULT_EXAMPLE_COUNT,
-            title: Optional[str] = 'Data:',
-            max_len: AutoCount = AUTO,
-    ) -> Generator:
-        max_len = Auto.acquire(max_len, DEFAULT_LINE_LEN)
-        if title:
-            yield title
-        if hasattr(self, 'get_data_caption'):
-            yield self.get_data_caption()
-        if hasattr(self, 'get_data'):
-            data = self.get_data()
-            if data:
-                shape_repr = self.get_shape_repr()
-                if Auto.is_defined(count) and shape_repr:
-                    yield 'First {count} data items from {shape}:'.format(count=count, shape=shape_repr)
-                if isinstance(data, dict):
-                    records = map(
-                        lambda i: dict(key=i[0], value=i[1], defined='+' if Auto.is_defined(i[1]) else '-'),
-                        data.items(),
-                    )
-                    yield from self._get_columnar_lines(
-                        records, columns=COLS_FOR_DICT, count=count, max_len=max_len,
-                    )
-                elif isinstance(data, Iterable):
-                    for n, item in enumerate(data):
-                        if Auto.is_defined(count):
-                            if n >= count:
-                                break
-                        line = '    - ' + str(item)
-                        yield line[:max_len]
-                elif isinstance(data, SimpleDataInterface) or hasattr(data, 'get_meta_description'):
-                    for line in data.get_meta_description():
-                        yield line
-                else:
-                    line = str(data)
-                    yield line[:max_len]
-            else:
-                yield '(data attribute is empty)'
-        else:
-            yield '(data attribute not found)'
 
     def get_data_sheet(self, count: int = DEFAULT_EXAMPLE_COUNT, name: Optional[str] = 'Data sheet'):
         display = self.get_display()
