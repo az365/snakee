@@ -2,52 +2,67 @@ from typing import Optional, Iterable, Generator, Sequence, Tuple, Union, Any
 
 try:  # Assume we're a submodule in a package.
     from base.classes.typing import AUTO, Auto, AutoBool, Count, Array
-    from base.functions.arguments import get_str_from_args_kwargs
+    from base.functions.arguments import get_str_from_args_kwargs, get_generated_name
     from base.interfaces.display_interface import DisplayInterface, DEFAULT_EXAMPLE_COUNT
     from base.interfaces.context_interface import ContextInterface
     from base.mixin.data_mixin import DataMixin, EMPTY, UNK_COUNT_STUB, DEFAULT_CHAPTER_TITLE_LEVEL
+    from base.mixin.sourced_mixin import SourcedMixin
     from base.mixin.contextual_mixin import ContextualMixin
     from base.abstract.abstract_base import AbstractBaseObject
-    from base.abstract.sourced import Sourced, SourcedInterface
+    from base.abstract.named import AbstractNamed
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.typing import AUTO, Auto, AutoBool, Count, Array
-    from ..functions.arguments import get_str_from_args_kwargs
+    from ..functions.arguments import get_str_from_args_kwargs, get_generated_name
     from ..interfaces.display_interface import DisplayInterface, DEFAULT_EXAMPLE_COUNT
     from ..interfaces.context_interface import ContextInterface
     from ..mixin.data_mixin import DataMixin, EMPTY, UNK_COUNT_STUB, DEFAULT_CHAPTER_TITLE_LEVEL
+    from ..mixin.sourced_mixin import SourcedMixin
     from ..mixin.contextual_mixin import ContextualMixin
     from .abstract_base import AbstractBaseObject
-    from .sourced import Sourced, SourcedInterface
+    from .named import AbstractNamed
 
-Native = Union[Sourced, ContextualMixin, DataMixin]
+Native = Union[AbstractNamed, SourcedMixin, ContextualMixin, DataMixin]
 Data = Any
-OptionalFields = Union[str, Iterable, None]
-Source = Optional[SourcedInterface]
 Context = Optional[ContextInterface]
+OptionalFields = Union[str, Iterable, None]
 AutoDisplay = Union[Auto, DisplayInterface]
 
 DATA_MEMBER_NAMES = '_data',
+SPECIFIC_MEMBER_NAMES = '_source',
 DYNAMIC_META_FIELDS = tuple()
 
 
-class ContextualDataWrapper(Sourced, ContextualMixin, DataMixin):
+class ContextualDataWrapper(AbstractNamed, SourcedMixin, ContextualMixin, DataMixin):
     def __init__(
             self,
             data: Data,
             name: str,
             caption: str = EMPTY,
-            source: Source = None,
+            source: Native = None,
             context: Context = None,
             check: bool = True,
     ):
         self._data = data
-        super().__init__(name=name, caption=caption, source=source, check=check)
+        if name == AUTO:
+            name = get_generated_name(prefix=self.__class__.__name__)
+        self._source = source
+        super().__init__(name=name, caption=caption)
+        if Auto.is_defined(source):
+            self.register_in_source(check=check)
         if Auto.is_defined(context):
             self.set_context(context, reset=not check, inplace=True)
 
     @classmethod
     def _get_data_member_names(cls):
         return DATA_MEMBER_NAMES  # '_data',
+
+    @classmethod
+    def _get_meta_member_names(cls) -> list:
+        return super()._get_meta_member_names() + list(SPECIFIC_MEMBER_NAMES)
+
+    @classmethod
+    def _get_key_member_names(cls) -> list:
+        return super()._get_key_member_names() + list(SPECIFIC_MEMBER_NAMES)
 
     def get_data(self) -> Data:
         return self._data

@@ -5,16 +5,16 @@ try:  # Assume we're a submodule in a package.
     from base.classes.auto import Auto, AUTO
     from base.interfaces.context_interface import ContextInterface
     from base.abstract.named import AbstractNamed
-    from base.abstract.sourced import Sourced
+    from base.mixin.sourced_mixin import SourcedMixin
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.auto import Auto, AUTO
     from ..interfaces.context_interface import ContextInterface
     from ..abstract.named import AbstractNamed
-    from ..abstract.sourced import Sourced
+    from .sourced_mixin import SourcedMixin
 
-Native = Sourced
+Native = SourcedMixin
 Context = Optional[ContextInterface]
-Source = Union[Context, Sourced]
+Source = Union[Context, SourcedMixin]
 
 
 class ContextualMixin(ABC):
@@ -24,8 +24,8 @@ class ContextualMixin(ABC):
         elif hasattr(self, '_source'):
             source = self._source
         else:
-            formatter = 'get_source_of_context(): Expected Sourced object having get_source() method, got {obj}'
-            raise AttributeError(formatter.format(obj=self))
+            msg = f'get_source_of_context(): Expected Sourced object having get_source() method, got {repr(self)}'
+            raise AttributeError(msg)
         return self._assume_native(source)
 
     def _has_context_as_source(self) -> bool:
