@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Optional, Iterable, Generator, Union
+from typing import Optional, Callable, Iterable, Generator, Union
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
@@ -332,6 +332,13 @@ class LeafConnector(
         lines = self.get_lines(skip_first=self.is_first_line_title(), step=step, verbose=verbose, message=message)
         items = content_format.get_items_from_lines(lines, item_type=item_type)
         return items
+
+    def map(self, function: Callable, inplace: bool = False) -> Stream:
+        if inplace and isinstance(self.get_items(), list):
+            return self._apply_map_inplace(function) or self
+        else:
+            items = self._get_mapped_items(function, flat=False)
+            return self.set_items(items, count=self.get_count(), inplace=inplace)
 
     def filter(self, *args, item_type: ItemType = ItemType.Auto, skip_errors: bool = False, **kwargs) -> Stream:
         item_type = Auto.delayed_acquire(item_type, self.get_item_type)

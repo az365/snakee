@@ -3,27 +3,25 @@ from typing import Optional, Iterable, Union
 
 try:  # Assume we're a submodule in a package.
     from base.classes.auto import Auto, AUTO
-    from base.interfaces.sourced_interface import SourcedInterface
+    from base.interfaces.tree_interface import TreeInterface
     from loggers.logger_interface import LoggerInterface, LoggingLevel
     from loggers.extended_logger_interface import ExtendedLoggerInterface
     from loggers.progress_interface import ProgressInterface
     from connectors.conn_type import ConnType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.classes.auto import Auto, AUTO
-    from ...base.interfaces.sourced_interface import SourcedInterface
+    from ...base.interfaces.tree_interface import TreeInterface
     from ...loggers.logger_interface import LoggerInterface, LoggingLevel
     from ...loggers.extended_logger_interface import ExtendedLoggerInterface
     from ...loggers.progress_interface import ProgressInterface
     from ..conn_type import ConnType
 
 Logger = Union[LoggerInterface, ExtendedLoggerInterface]
-OptionalParent = Optional[SourcedInterface]
-
-DEFAULT_PATH_DELIMITER = '/'
-CHUNK_SIZE = 8192
+Parent = TreeInterface
+Child = TreeInterface
 
 
-class ConnectorInterface(SourcedInterface, ABC):
+class ConnectorInterface(TreeInterface, ABC):
     @abstractmethod
     def get_conn_type(self) -> ConnType:
         """Returns type of connector
@@ -71,12 +69,12 @@ class ConnectorInterface(SourcedInterface, ABC):
         pass
 
     @abstractmethod
-    def get_parent(self) -> OptionalParent:
+    def get_parent(self) -> Optional[Parent]:
         """Returns parent connector (i.e. folder for file) if provided."""
         pass
 
     @abstractmethod
-    def set_parent(self, parent: SourcedInterface, reset: bool = False, inplace: bool = True):
+    def set_parent(self, parent: Parent, reset: bool = False, inplace: bool = True):
         """Remember provided connector (or context) object as parent of this connector
         and register this connector as child of provided parend after initialization.
         """
@@ -93,22 +91,22 @@ class ConnectorInterface(SourcedInterface, ABC):
         pass
 
     @abstractmethod
-    def get_child(self, name: str) -> SourcedInterface:
+    def get_child(self, name: str) -> Child:
         """Find children connector object by name."""
         pass
 
     @abstractmethod
-    def add_child(self, child: SourcedInterface):
+    def add_child(self, child: Child):
         """Remember new child connector (i.e. register new file in folder)."""
         pass
 
     @abstractmethod
-    def forget_child(self, child_or_name: Union[SourcedInterface, str], skip_errors: bool = False):
+    def forget_child(self, child_or_name: Union[Child, str], skip_errors: bool = False):
         """Closes related connection(s) and lets SnakeeContext forget the link to this connector."""
         pass
 
     @abstractmethod
-    def get_storage(self) -> OptionalParent:
+    def get_storage(self) -> Optional[Parent]:
         """Returns parent storage of local file or s3 object."""
         pass
 

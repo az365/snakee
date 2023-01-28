@@ -3,22 +3,22 @@ from typing import Optional, Iterable, Sequence, Union, Any
 
 try:  # Assume we're a submodule in a package.
     from content.items.simple_items import Class
+    from loggers.logger_interface import LoggerInterface
     from base.interfaces.data_interface import SimpleDataInterface
-    from base.interfaces.sourced_interface import SourcedInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...content.items.simple_items import Class
+    from ...loggers.logger_interface import LoggerInterface
     from .data_interface import SimpleDataInterface
-    from .sourced_interface import SourcedInterface
 
-ContextualDataInterface = Union[SimpleDataInterface, SourcedInterface]
-Parent = Optional[Union[ContextualDataInterface, Any]]
-Child = Optional[ContextualDataInterface]
-OptionalFields = Optional[Union[str, Iterable]]
+Native = SimpleDataInterface
+Parent = Union[Native, Any, None]
+Child = Optional[Native]
+OptionalFields = Union[str, Iterable, None]
 
 META_MEMBER_MAPPING = dict(_data='children', _source='parent')
 
 
-class TreeInterface(SimpleDataInterface, SourcedInterface, ABC):
+class TreeInterface(SimpleDataInterface, ABC):
     @abstractmethod
     def get_parent(self) -> Parent:
         pass
@@ -40,11 +40,11 @@ class TreeInterface(SimpleDataInterface, SourcedInterface, ABC):
         pass
 
     @abstractmethod
-    def add_child(self, child: ContextualDataInterface):
+    def add_child(self, child: Native):
         pass
 
     @abstractmethod
-    def forget_child(self, child_or_name: Union[ContextualDataInterface, str], skip_errors=False):
+    def forget_child(self, child_or_name: Union[Native, str], skip_errors: bool = False):
         pass
 
     @abstractmethod
