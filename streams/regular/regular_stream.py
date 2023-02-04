@@ -303,7 +303,7 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
             field: Field = SHARP,  # '#'
             first: int = 1,
             item_type: ItemType = AUTO,
-            inplace: bool = True,
+            inplace: bool = False,
     ) -> Iterator[Item]:
         field_name = get_name(field)
         item_type = Auto.delayed_acquire(item_type, self.get_item_type)

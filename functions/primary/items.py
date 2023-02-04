@@ -97,7 +97,7 @@ def set_to_item(
         inplace: bool = True,
 ) -> Optional[ConcreteItem]:
     if item_type is None or item_type == ItemType.Any:
-        if field == SHARP:
+        if field == SHARP and not inplace:
             return value, item
     if not inplace:
         item = get_copy(item)
