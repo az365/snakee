@@ -18,7 +18,7 @@ MINUS = '-'
 UNDER = '_'
 EQUAL = '='
 TILDA = '~'
-HASH = '#'
+SHARP = HASH = '#'
 SLASH = '/'
 BACKSLASH = '\\'
 

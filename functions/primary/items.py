@@ -2,6 +2,7 @@ from typing import Optional, Iterable, Callable, Union, Any
 
 try:  # Assume we're a submodule in a package.
     from base.classes.auto import AUTO, Auto
+    from base.constants.chars import SHARP
     from content.items.item_type import ItemType, SubclassesType
     from content.struct.struct_interface import StructInterface
     from content.struct.struct_row_interface import StructRowInterface
@@ -14,6 +15,7 @@ try:  # Assume we're a submodule in a package.
     )
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.classes.auto import AUTO, Auto
+    from ...base.constants.chars import SHARP
     from ...content.items.item_type import ItemType, SubclassesType
     from ...content.struct.struct_interface import StructInterface
     from ...content.struct.struct_row_interface import StructRowInterface
@@ -82,9 +84,9 @@ def set_to_item_inplace(
                 item += [None] * (field + 1 - cur_item_len)
             item[field] = value
         else:
-            raise TypeError('Expected Row or StructRow, got {}'.format(item))
+            raise TypeError(f'Expected Row or StructRow, got {item}')
     else:  # item_type == 'any' or not item_type:
-        raise TypeError('type {} not supported'.format(item_type))
+        raise TypeError(f'type {item_type} not supported')
 
 
 def set_to_item(
@@ -93,9 +95,9 @@ def set_to_item(
         item: SelectableItem,
         item_type: ItemType = ItemType.Auto,
         inplace: bool = True,
-):
+) -> Optional[ConcreteItem]:
     if item_type is None or item_type == ItemType.Any:
-        if field == '#':
+        if field == SHARP:
             return value, item
     if not inplace:
         item = get_copy(item)
@@ -111,7 +113,7 @@ def get_fields_names_from_item(item: SelectableItem, item_type: ItemType = ItemT
     elif item_type == ItemType.StructRow:
         return item.get_columns()
     else:
-        raise TypeError('type {} not supported'.format(item_type))
+        raise TypeError(f'type {item_type} not supported')
 
 
 def get_field_value_from_item(

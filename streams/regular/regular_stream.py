@@ -10,6 +10,7 @@ try:  # Assume we're a submodule in a package.
         AUTO, Auto, AutoDisplay, AutoBool, AutoName, AutoCount, Array, ARRAY_TYPES,
     )
     from base.functions.arguments import get_name, get_names, get_str_from_args_kwargs
+    from base.constants.chars import SHARP
     from utils.decorators import deprecated_with_alternative
     from functions.primary.items import set_to_item, merge_two_items, unfold_structs_to_fields
     from functions.secondary import all_secondary_functions as fs
@@ -32,6 +33,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         AUTO, Auto, AutoDisplay, AutoBool, AutoName, AutoCount, Array, ARRAY_TYPES,
     )
     from ...base.functions.arguments import get_name, get_names, get_str_from_args_kwargs
+    from ...base.constants.chars import SHARP
     from ...utils.decorators import deprecated_with_alternative
     from ...functions.primary.items import set_to_item, merge_two_items, unfold_structs_to_fields
     from ...functions.secondary import all_secondary_functions as fs
@@ -298,7 +300,7 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
 
     def _get_enumerated_items(
             self,
-            field: Field = '#',
+            field: Field = SHARP,  # '#'
             first: int = 1,
             item_type: ItemType = AUTO,
             inplace: bool = True,
@@ -308,7 +310,7 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
         for n, i in super()._get_enumerated_items(item_type=item_type):
             yield set_to_item(field_name, n + first, i, item_type=item_type, inplace=inplace)
 
-    def enumerate(self, field: str = '#', first: int = 0, native: bool = True) -> Stream:
+    def enumerate(self, field: str = SHARP, first: int = 0, native: bool = True) -> Stream:
         if native:
             return self.stream(
                 self._get_enumerated_items(field=field, first=first),
