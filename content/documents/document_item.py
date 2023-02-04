@@ -205,7 +205,6 @@ class Sheet(DocumentItem, IterDataMixin, SheetMixin, SheetInterface):
     def _set_items_inplace(self, items: SheetItems) -> None:
         expected_columns = self.get_columns()
         if hasattr(items, 'get_list'):  # isinstance(items, RegularStreamInterface)
-            self._set_data_inplace(items)
             if hasattr(items, 'get_struct') and not expected_columns:  # isinstance(items, Stream):
                 detected_struct = items.get_struct()
                 if not detected_struct:
@@ -457,14 +456,10 @@ class Text(DocumentItem, IterDataMixin):
     def get_html_code(self) -> str:
         return EMPTY.join(self.get_html_lines())
 
-    # @deprecated
-    def get_cropped_text(self, max_len: int = MAX_BRIEF_REPR_LEN) -> str:
-        return get_cropped_text(self.get_text(), max_len=max_len)
-
     def get_brief_repr(self) -> str:
         cls_name = self.__class__.__name__
         obj_name = self.get_name()
-        str_args = repr(self.get_cropped_text())
+        str_args = repr(get_cropped_text(self.get_text(), max_len=MAX_BRIEF_REPR_LEN))
         if obj_name:
             str_args += f', name={repr(obj_name)}'
         return f'{cls_name}({str_args})'
@@ -621,7 +616,7 @@ class Paragraph(Text, Container):
     def get_brief_repr(self) -> str:
         cls_name = self.__class__.__name__
         obj_name = self.get_name()
-        str_args = repr(self.get_cropped_text())
+        str_args = repr(get_cropped_text(self.get_text(), max_len=MAX_BRIEF_REPR_LEN))
         level = self.get_level()
         if level:
             str_args += f', level={repr(level)}'
