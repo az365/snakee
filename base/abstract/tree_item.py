@@ -3,14 +3,14 @@ from inspect import isclass
 
 try:  # Assume we're a submodule in a package.
     from content.items.simple_items import Class
-    from base.classes.auto import Auto, AUTO
+    from base.classes.auto import Auto
     from base.interfaces.tree_interface import TreeInterface
     from base.interfaces.context_interface import ContextInterface
     from base.abstract.abstract_base import AbstractBaseObject
     from base.abstract.contextual_data import ContextualDataWrapper
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...content.items.simple_items import Class
-    from ..classes.auto import Auto, AUTO
+    from ..classes.auto import Auto
     from ..interfaces.tree_interface import TreeInterface
     from ..interfaces.context_interface import ContextInterface
     from .abstract_base import AbstractBaseObject
@@ -261,11 +261,11 @@ class TreeItem(ContextualDataWrapper, TreeInterface):
     @classmethod
     def _assert_is_appropriate_parent(
             cls, obj,
-            msg: Union[str, Auto] = AUTO,
+            msg: Optional[str] = None,
             skip_missing: bool = False,
     ) -> None:
         if not cls._is_appropriate_parent(obj, skip_missing=skip_missing):
-            if not Auto.is_defined(msg):
+            if not Auto.is_defined(msg, check_name=False):
                 template = '{}._assert_is_appropriate_parent({}): Expected parent as {} instance, got {}'
                 expected_class_names = [c.__name__ for c in cls.get_parent_obj_classes()]
                 msg = template.format(cls.__name__, obj, ', '.join(expected_class_names), type(obj))
@@ -274,7 +274,7 @@ class TreeItem(ContextualDataWrapper, TreeInterface):
     @classmethod
     def _assert_is_appropriate_child(
             cls, obj,
-            msg: Union[str, Auto] = AUTO,
+            msg: Optional[str] = None,
             skip_missing: bool = False,
     ) -> None:
         if not cls._is_appropriate_child(obj, skip_missing=skip_missing):

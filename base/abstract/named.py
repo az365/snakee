@@ -1,19 +1,19 @@
 from abc import ABC
-from typing import Optional, Iterable, Iterator, Generator, Union
+from typing import Optional, Iterator, Generator, Union
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.auto import AUTO, Auto
+    from base.classes.auto import Auto
     from base.constants.chars import EMPTY, TAB_INDENT, REPR_DELIMITER, DEFAULT_LINE_LEN
     from base.functions.arguments import get_str_from_args_kwargs
     from base.interfaces.display_interface import DisplayInterface
-    from base.mixin.display_mixin import DisplayMixin, AutoDisplay
+    from base.mixin.display_mixin import DisplayMixin
     from base.abstract.abstract_base import AbstractBaseObject
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..classes.auto import AUTO, Auto
+    from ..classes.auto import Auto
     from ..constants.chars import EMPTY, TAB_INDENT, REPR_DELIMITER, DEFAULT_LINE_LEN
     from ..functions.arguments import get_str_from_args_kwargs
     from ..interfaces.display_interface import DisplayInterface
-    from ..mixin.display_mixin import DisplayMixin, AutoDisplay
+    from ..mixin.display_mixin import DisplayMixin
     from .abstract_base import AbstractBaseObject
 
 Native = Union[AbstractBaseObject, DisplayMixin]
@@ -96,7 +96,7 @@ class AbstractNamed(AbstractBaseObject, DisplayMixin, ABC):
             self,
             comment: Optional[str] = None,
             depth: int = 2,
-            display: AutoDisplay = AUTO,
+            display: Optional[DisplayInterface] = None,
     ) -> Native:
         display = self.get_display(display)
         for i in self.get_description_items(comment=comment, depth=depth):

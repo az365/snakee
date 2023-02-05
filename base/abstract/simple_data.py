@@ -2,21 +2,21 @@ from abc import ABC
 from typing import Optional, Iterable, Generator, Union, Any, NoReturn
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.typing import AUTO, Auto, AutoCount, AutoBool
+    from base.classes.typing import Auto, AutoCount, AutoBool
     from base.constants.chars import EMPTY, REPR_DELIMITER, SMALL_INDENT, DEFAULT_LINE_LEN
     from base.functions.arguments import get_str_from_annotation, get_str_from_args_kwargs
     from base.interfaces.data_interface import SimpleDataInterface
     from base.mixin.display_mixin import DEFAULT_EXAMPLE_COUNT
     from base.mixin.data_mixin import DataMixin, UNK_COUNT_STUB, DEFAULT_CHAPTER_TITLE_LEVEL
-    from base.abstract.named import AbstractNamed, AutoDisplay
+    from base.abstract.named import AbstractNamed, DisplayInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..classes.typing import AUTO, Auto, AutoCount, AutoBool
+    from ..classes.typing import Auto, AutoCount, AutoBool
     from ..constants.chars import EMPTY, REPR_DELIMITER, SMALL_INDENT, DEFAULT_LINE_LEN
     from ..functions.arguments import get_str_from_annotation, get_str_from_args_kwargs
     from ..interfaces.data_interface import SimpleDataInterface
     from ..mixin.display_mixin import DEFAULT_EXAMPLE_COUNT
     from ..mixin.data_mixin import DataMixin, UNK_COUNT_STUB, DEFAULT_CHAPTER_TITLE_LEVEL
-    from .named import AbstractNamed, AutoDisplay
+    from .named import AbstractNamed, DisplayInterface
 
 Native = SimpleDataInterface
 Data = Any
@@ -91,7 +91,7 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
             meta.pop(f, None)
         return meta
 
-    def get_compatible_static_meta(self, other=AUTO, ex=None, **kwargs) -> dict:
+    def get_compatible_static_meta(self, other=None, ex=None, **kwargs) -> dict:
         meta = self.get_compatible_meta(other=other, ex=ex, **kwargs)
         for f in self._get_dynamic_meta_fields():
             meta.pop(f, None)
@@ -205,15 +205,21 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
             count: int = DEFAULT_EXAMPLE_COUNT,
             title: Optional[str] = 'Data',
             comment: Optional[str] = None,
+            depth: int = 1,
             # max_len: AutoCount = AUTO,
-            display: AutoDisplay = AUTO,
+            display: Optional[DisplayInterface] = None,
     ) -> Native:
         display = self.get_display(display)
         data_chapter = self.get_data_chapter(count=count, title=title, comment=comment)
         display.display_item(data_chapter)
         return self
 
-    def get_description_items(self, comment: Optional[str] = None, depth: int = 1, count: AutoCount = AUTO) -> Generator:
+    def get_description_items(
+            self,
+            comment: Optional[str] = None,
+            depth: int = 1,
+            count: AutoCount = None,
+    ) -> Generator:
         display = self.get_display()
         yield display.get_header_chapter_for(self, comment=comment)
         if depth > 0:

@@ -1,19 +1,16 @@
 from abc import ABC
-from typing import Optional, Callable, Iterable, Union
+from typing import Optional, Callable, Iterable
 
-try:  # Assume we're a sub-module in a package.
-    from utils import arguments as arg
+try:  # Assume we're a submodule in a package.
     from utils.decorators import deprecated_with_alternative
-    from interfaces import AUTO, Auto, AutoBool, AutoContext, Class
+    from interfaces import Auto, Context, Class
     from connectors.abstract.hierarchic_connector import HierarchicConnector
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
     from ...utils.decorators import deprecated_with_alternative
-    from ...interfaces import AUTO, Auto, AutoBool, AutoContext, Class
+    from ...interfaces import Auto, Context, Class
     from .hierarchic_connector import HierarchicConnector
 
 Native = HierarchicConnector
-AutoParent = Union[HierarchicConnector, Auto]
 
 
 class AbstractFolder(HierarchicConnector, ABC):
@@ -22,8 +19,8 @@ class AbstractFolder(HierarchicConnector, ABC):
             name: str,
             parent: HierarchicConnector,
             children: Optional[dict] = None,
-            context: AutoContext = AUTO,
-            verbose: AutoBool = AUTO,
+            context: Context = None,
+            verbose: Optional[bool] = None,
     ):
         super().__init__(
             name=name,
@@ -50,7 +47,7 @@ class FlatFolder(AbstractFolder):
             self,
             name,
             parent,
-            verbose=AUTO,
+            verbose=None,
     ):
         super().__init__(name=name, parent=parent, verbose=verbose)
 
@@ -60,7 +57,7 @@ class HierarchicFolder(AbstractFolder):
             self,
             name: str,
             parent: HierarchicConnector,
-            verbose: AutoBool = arg.AUTO,
+            verbose: Optional[bool] = None,
     ):
         super().__init__(name=name, parent=parent, verbose=verbose)
 
@@ -72,7 +69,7 @@ class HierarchicFolder(AbstractFolder):
     @classmethod
     def get_default_child_obj_class(cls, skip_missing: bool = False) -> Class:
         child_class = super().get_default_child_obj_class()
-        if not arg.is_defined(child_class):
+        if not Auto.is_defined(child_class):
             child_class = cls
         return child_class
 

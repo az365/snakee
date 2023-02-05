@@ -4,10 +4,10 @@ from functools import total_ordering
 
 try:  # Assume we're a submodule in a package.
     from base.functions.arguments import get_name, get_str_from_args_kwargs
-    from base.classes.auto import Auto, AUTO
+    from base.classes.auto import Auto
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..functions.arguments import get_name, get_str_from_args_kwargs
-    from .auto import Auto, AUTO
+    from .auto import Auto
 
 Name = str
 Value = Union[str, int, Auto]
@@ -20,11 +20,12 @@ AUX_NAMES = ('name', 'value', 'is_prepared')
 class EnumItem:
     _auto_value = True
 
-    def __init__(self, name: Name, value: Union[Value, Auto] = AUTO, update: bool = False):
+    def __init__(self, name: Name, value: Union[Value, Auto] = None, update: bool = False):
         if update or not self._is_initialized():
             name = get_name(name)
             if self._auto_value:
-                value = Auto.acquire(value, name)
+                if not Auto.is_defined(value):
+                    value = name
             self.name = name
             self.value = value
 
@@ -113,7 +114,7 @@ class DynamicEnum(EnumItem):
     def convert(
             cls,
             obj: Union[EnumItem, Name],
-            default: Union[EnumItem, Auto, None] = AUTO,
+            default: Union[EnumItem, Auto, None] = None,
             skip_missing: bool = False,
     ):
         assert cls.is_prepared(), 'DynamicEnum must be prepared before usage'
@@ -123,7 +124,8 @@ class DynamicEnum(EnumItem):
             instance = cls.find_instance(string)
             if instance:
                 return instance
-        default = Auto.delayed_acquire(default, cls.get_default)
+        if not Auto.is_defined(default):
+            default = cls.get_default()
         if default:
             return cls.convert(default)
         elif not skip_missing:
@@ -171,7 +173,7 @@ class DynamicEnum(EnumItem):
                 item = cls(name, value)
                 cls.add_enum_item(item)
                 setattr(cls, name, item)
-                if value == AUTO:
+                if not Auto.is_defined(value):
                     cls.set_default(item)
         cls.set_prepared(True)
         return cls

@@ -4,7 +4,7 @@ from inspect import isclass
 _AUTO_VALUE = 'Auto'
 
 
-# @singleton
+# @deprecated
 class Auto:
     @staticmethod
     def get_value():
@@ -43,7 +43,8 @@ class Auto:
         elif hasattr(obj, 'is_defined') and not isclass(obj):
             result = obj.is_defined()
         elif hasattr(obj, 'get_value'):
-            result = cls.is_defined(obj.get_value())
+            value = obj.get_value()
+            result = cls.is_defined(value)
         elif hasattr(obj, 'get_name') and check_name:
             try:
                 name = obj.get_name()
@@ -53,7 +54,7 @@ class Auto:
         elif hasattr(obj, 'value'):
             result = cls.is_defined(obj.value)
         else:
-            result = bool(obj)
+            result = obj is not None
         return result
 
     def __eq__(self, other):
@@ -99,4 +100,5 @@ class Auto:
             return values[0]
 
 
+# @deprecated
 AUTO = Auto()

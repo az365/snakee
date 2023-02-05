@@ -1,26 +1,24 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Iterable, Sequence, Union, Any
+from typing import Optional, Iterable, Sequence, Any
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.typing import AUTO, Auto, AutoCount, Class
+    from base.classes.typing import Class
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..classes.typing import AUTO, Auto, AutoCount, Class
+    from ..classes.typing import Class
 
 Item = Any
-Display = Class
-AutoDisplay = Union[Auto, Display]
-AutoStyle = Union[Auto, str]
+Style = Optional[str]
 
 DEFAULT_EXAMPLE_COUNT = 10
 
 
 class DisplayInterface(ABC):
     @abstractmethod
-    def get_display(self, display: AutoDisplay = AUTO) -> Display:
+    def get_display(self, display=None):
         pass
 
     @abstractmethod
-    def display(self, item: Item = AUTO) -> None:
+    def display(self, item: Item = None) -> None:
         pass
 
     @abstractmethod
@@ -33,7 +31,7 @@ class DisplayInterface(ABC):
             self,
             paragraph: Optional[Iterable] = None,
             level: Optional[int] = None,
-            style: AutoStyle = AUTO,
+            style=None,
     ) -> None:
         pass
 
@@ -43,9 +41,9 @@ class DisplayInterface(ABC):
             self,
             records: Iterable,
             columns: Sequence,
-            count: AutoCount = None,
+            count: Optional[int] = None,
             with_title: bool = True,
-            style: AutoStyle = AUTO,
+            style=None,
             name: str = '',
     ) -> None:
         pass

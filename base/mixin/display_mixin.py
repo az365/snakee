@@ -1,29 +1,27 @@
 from abc import ABC
-from typing import Optional, Iterable, Sequence, Union
+from typing import Optional, Iterable, Sequence
 
 try:  # Assume we're a submodule in a package.
     from utils.decorators import deprecated_with_alternative
-    from base.classes.typing import AUTO, Auto, AutoCount, Class
+    from base.classes.typing import Auto, Count, Class
     from base.classes.display import DefaultDisplay, DEFAULT_EXAMPLE_COUNT
     from base.functions.arguments import get_name, get_value
     from base.constants.chars import DEFAULT_LINE_LEN, REPR_DELIMITER, SMALL_INDENT, EMPTY
-    from base.interfaces.display_interface import DisplayInterface, AutoStyle
+    from base.interfaces.display_interface import DisplayInterface, Style
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils.decorators import deprecated_with_alternative
-    from ..classes.typing import AUTO, Auto, AutoCount, Class
+    from ..classes.typing import Auto, Count, Class
     from ..classes.display import DefaultDisplay, DEFAULT_EXAMPLE_COUNT
     from ..functions.arguments import get_name, get_value
     from ..constants.chars import DEFAULT_LINE_LEN, REPR_DELIMITER, SMALL_INDENT, EMPTY
-    from ..interfaces.display_interface import DisplayInterface, AutoStyle
-
-AutoDisplay = Union[Auto, DisplayInterface]
+    from ..interfaces.display_interface import DisplayInterface, Style
 
 
 class DisplayMixin(DisplayInterface, ABC):
     _display_obj: DisplayInterface = DefaultDisplay()
 
     @classmethod
-    def get_display(cls, display: AutoDisplay = AUTO) -> DisplayInterface:
+    def get_display(cls, display: Optional[DisplayInterface] = None) -> DisplayInterface:
         if isinstance(display, (DefaultDisplay, DisplayInterface)) or hasattr(display, 'display_item'):
             return display
         elif Auto.is_defined(display):
@@ -61,7 +59,7 @@ class DisplayMixin(DisplayInterface, ABC):
             self,
             paragraph: Optional[Iterable] = None,
             level: Optional[int] = None,
-            style: AutoStyle = AUTO,
+            style: Style = None,
     ) -> None:
         return self.get_display().display_paragraph(paragraph, level=level, style=style)
 
@@ -70,12 +68,12 @@ class DisplayMixin(DisplayInterface, ABC):
             self,
             records: Iterable,
             columns: Sequence,
-            count: AutoCount = None,
+            count: Count = None,
             with_title: bool = True,
-            style: AutoStyle = AUTO,
+            style: Style = None,
     ) -> None:
         return self.get_display().display_sheet(records, columns, count=count, with_title=with_title, style=style)
 
     @deprecated_with_alternative('get_display().display_item()')
-    def display_item(self, item, item_type='paragraph', output=AUTO, **kwargs) -> None:
+    def display_item(self, item, item_type='paragraph', output=None, **kwargs) -> None:
         return self.get_display(output).display_item(item, item_type=item_type, **kwargs)

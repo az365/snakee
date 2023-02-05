@@ -1,7 +1,7 @@
 from typing import Optional, Iterable, Generator, Sequence, Tuple, Union, Any
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.typing import AUTO, Auto, AutoBool, Count, Array
+    from base.classes.typing import Auto, Count, Array
     from base.functions.arguments import get_str_from_args_kwargs, get_generated_name
     from base.interfaces.display_interface import DisplayInterface, DEFAULT_EXAMPLE_COUNT
     from base.interfaces.context_interface import ContextInterface
@@ -11,7 +11,7 @@ try:  # Assume we're a submodule in a package.
     from base.abstract.abstract_base import AbstractBaseObject
     from base.abstract.named import AbstractNamed
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..classes.typing import AUTO, Auto, AutoBool, Count, Array
+    from ..classes.typing import Auto, Count, Array
     from ..functions.arguments import get_str_from_args_kwargs, get_generated_name
     from ..interfaces.display_interface import DisplayInterface, DEFAULT_EXAMPLE_COUNT
     from ..interfaces.context_interface import ContextInterface
@@ -25,7 +25,7 @@ Native = Union[AbstractNamed, SourcedMixin, ContextualMixin, DataMixin]
 Data = Any
 Context = Optional[ContextInterface]
 OptionalFields = Union[str, Iterable, None]
-AutoDisplay = Union[Auto, DisplayInterface]
+Display = Optional[DisplayInterface]
 
 DATA_MEMBER_NAMES = '_data',
 SPECIFIC_MEMBER_NAMES = '_source',
@@ -43,7 +43,7 @@ class ContextualDataWrapper(AbstractNamed, SourcedMixin, ContextualMixin, DataMi
             check: bool = True,
     ):
         self._data = data
-        if name == AUTO:
+        if not Auto.is_defined(name, check_name=False):
             name = get_generated_name(prefix=self.__class__.__name__)
         self._source = source
         super().__init__(name=name, caption=caption)
@@ -89,7 +89,7 @@ class ContextualDataWrapper(AbstractNamed, SourcedMixin, ContextualMixin, DataMi
             meta.pop(f, None)
         return meta
 
-    def get_compatible_static_meta(self, other=AUTO, ex=None, **kwargs) -> dict:
+    def get_compatible_static_meta(self, other=None, ex=None, **kwargs) -> dict:
         meta = self.get_compatible_meta(other=other, ex=ex, **kwargs)
         for f in self._get_dynamic_meta_fields():
             meta.pop(f, None)
@@ -138,7 +138,7 @@ class ContextualDataWrapper(AbstractNamed, SourcedMixin, ContextualMixin, DataMi
             depth: int = 1,
             count: Count = DEFAULT_EXAMPLE_COUNT,
             columns: Optional[Array] = None,
-            actualize: AutoBool = AUTO,
+            actualize: Optional[bool] = None,
             safe_filter: bool = True,
             filters: Optional[Iterable] = None,
             named_filters: Optional[dict] = None,
@@ -181,10 +181,10 @@ class ContextualDataWrapper(AbstractNamed, SourcedMixin, ContextualMixin, DataMi
             self,
             comment: Optional[str] = None,
             depth: int = 1,
-            display: AutoDisplay = AUTO,
+            display: Display = None,
             count: Count = DEFAULT_EXAMPLE_COUNT,
             columns: Optional[Array] = None,
-            actualize: AutoBool = AUTO,
+            actualize: Optional[bool] = None,
             safe_filter: bool = True,
             filters: Optional[Iterable] = None,
             named_filters: Optional[dict] = None,
