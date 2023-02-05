@@ -40,6 +40,7 @@ DEFAULT_STREAM_CONFIG = dict(
     tmp_files_template=sm.TMP_FILES_TEMPLATE,
     tmp_files_encoding=sm.TMP_FILES_ENCODING,
 )
+DEFAULT_CONN_CONFIG = dict()
 
 
 @singleton
@@ -52,9 +53,15 @@ class SnakeeContext(bs.AbstractNamed, ContextInterface):
             logger: Union[Logger, Auto, None] = AUTO,
             clear_tmp: bool = False,
     ):
+        if not Auto.is_defined(name):
+            name = NAME
+        if not Auto.is_defined(stream_config):
+            stream_config = DEFAULT_STREAM_CONFIG
+        if not Auto.is_defined(conn_config):
+            conn_config = DEFAULT_CONN_CONFIG
         self.logger = logger
-        self.stream_config = Auto.acquire(stream_config, DEFAULT_STREAM_CONFIG)
-        self.conn_config = Auto.acquire(conn_config, dict())
+        self.stream_config = stream_config
+        self.conn_config = conn_config
         self.stream_instances = dict()
         self.conn_instances = dict()
 
@@ -109,9 +116,11 @@ class SnakeeContext(bs.AbstractNamed, ContextInterface):
 
     def log(
             self,
-            msg: str, level: Union[LoggingLevel, int, Auto] = AUTO,
+            msg: str,
+            level: Union[LoggingLevel, int, Auto] = AUTO,
             stacklevel: Optional[int] = None,
-            end: Union[str, Auto] = AUTO, verbose: bool = True,
+            end: Union[str, Auto] = AUTO,
+            verbose: bool = True,
     ) -> None:
         logger = self.get_logger()
         if logger is not None:
@@ -168,7 +177,8 @@ class SnakeeContext(bs.AbstractNamed, ContextInterface):
             check: bool = True, redefine: bool = True,
             **kwargs
     ) -> Connector:
-        name = Auto.acquire(name, get_generated_name('Connection'))
+        if not Auto.is_defined(Name):
+            name = get_generated_name('Connection')
         conn_object = self.conn_instances.get(name)
         if conn_object:
             if redefine or ct.is_conn(conn):
@@ -200,7 +210,8 @@ class SnakeeContext(bs.AbstractNamed, ContextInterface):
             check: bool = True,
             **kwargs
     ) -> Stream:
-        name = Auto.acquire(name, get_generated_name('Stream'))
+        if not Auto.is_defined(name):
+            name = get_generated_name('Stream')
         if isinstance(stream_type, Stream) or sm.is_stream(stream_type):
             stream_object = stream_type
         else:

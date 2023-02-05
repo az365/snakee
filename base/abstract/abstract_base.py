@@ -3,15 +3,15 @@ from typing import Optional, Callable, Iterable, Generator, Union, Any
 from inspect import getfullargspec
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.auto import Auto, AUTO
+    from base.classes.auto import Auto
     from base.functions.arguments import get_name, get_list, get_str_from_args_kwargs, get_cropped_text
     from base.constants.chars import EMPTY, PLUS, MINUS, CROSS, COVERT, PROTECTED, DEFAULT_STR
-    from base.interfaces.base_interface import BaseInterface, AutoOutput, CROP_SUFFIX, DEFAULT_LINE_LEN
+    from base.interfaces.base_interface import BaseInterface, CROP_SUFFIX, DEFAULT_LINE_LEN
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..classes.auto import Auto, AUTO
+    from ..classes.auto import Auto
     from ..functions.arguments import get_name, get_list, get_str_from_args_kwargs, get_cropped_text
     from ..constants.chars import EMPTY, PLUS, MINUS, CROSS, COVERT, PROTECTED, DEFAULT_STR
-    from ..interfaces.base_interface import BaseInterface, AutoOutput, CROP_SUFFIX, DEFAULT_LINE_LEN
+    from ..interfaces.base_interface import BaseInterface, CROP_SUFFIX, DEFAULT_LINE_LEN
 
 Native = BaseInterface
 OptionalFields = Union[str, Iterable, None]
@@ -83,12 +83,10 @@ class AbstractBaseObject(BaseInterface, ABC):
         return [cls._get_meta_field_by_member_name(k) for k in cls._get_meta_member_names()]
 
     @staticmethod
-    def _get_other_meta_fields_list(other: Union[Native, Auto] = AUTO) -> tuple:
-        if other == AUTO:
-            return tuple()
-        elif isinstance(other, AbstractBaseObject) or hasattr(other, '_get_init_args'):
+    def _get_other_meta_fields_list(other: Optional[Native] = None) -> tuple:
+        if isinstance(other, AbstractBaseObject) or hasattr(other, '_get_init_args'):
             other_meta = other._get_init_args()
-        elif hasattr(other, 'get_meta_fields_list'):
+        elif hasattr(other, 'get_meta_fields_list'):  # isinstance(other, BaseInterface):
             other_meta = other.get_meta_fields_list()
         elif hasattr(other, 'get_meta'):
             other_meta = tuple(other.get_meta())
@@ -148,11 +146,11 @@ class AbstractBaseObject(BaseInterface, ABC):
             class_name = self.__class__.__name__
             assert not unsupported, f'class {class_name} does not support these properties: {unsupported}'
         for key, value in new_meta.items():
-            if value is None or value == AUTO:
+            if not Auto.is_defined(value):
                 new_meta[key] = old_meta.get(key)
         return self.__class__(*self._get_data_member_items(), **new_meta)
 
-    def get_compatible_meta(self, other=AUTO, ex: OptionalFields = None, **kwargs) -> dict:
+    def get_compatible_meta(self, other: Optional[Native] = None, ex: OptionalFields = None, **kwargs) -> dict:
         other_meta = self._get_other_meta_fields_list(other)
         compatible_meta = dict()
         for k, v in list(self.get_meta(ex=ex).items()) + list(kwargs.items()):
@@ -160,13 +158,15 @@ class AbstractBaseObject(BaseInterface, ABC):
                 compatible_meta[k] = v
         return compatible_meta
 
-    def get_meta_items(self, meta: Union[dict, Auto] = AUTO, ex: OptionalFields = None) -> Generator:
-        meta = Auto.delayed_acquire(meta, self.get_meta)
+    def get_meta_items(self, meta: Optional[dict] = None, ex: OptionalFields = None) -> Generator:
+        if not Auto.is_defined(meta):
+            meta = self.get_meta()
         for k in self.get_ordered_meta_names(meta, ex=ex):
             yield k, meta[k]
 
-    def get_ordered_meta_names(self, meta: Union[dict, Auto] = AUTO, ex: OptionalFields = None) -> Generator:
-        meta = Auto.delayed_acquire(meta, self.get_meta)
+    def get_ordered_meta_names(self, meta: Optional[dict] = None, ex: OptionalFields = None) -> Generator:
+        if not Auto.is_defined(meta):
+            meta = self.get_meta()
         ex_list = get_list(ex)
         args = self._get_init_args()
         for k in args:
@@ -235,6 +235,13 @@ class AbstractBaseObject(BaseInterface, ABC):
                 caption = value.get_caption()
             else:
                 caption = EMPTY
+            if Auto.is_defined(value):
+                if value == default:
+                    sign_defined = MINUS
+                else:
+                    sign_defined = PLUS
+            else:
+                sign_defined = CROSS
             yield dict(
                 key=key,
                 obj=value,
@@ -243,7 +250,7 @@ class AbstractBaseObject(BaseInterface, ABC):
                 default=self._get_value_repr(default),
                 actual_type=actual_type,
                 expected_type=expected_type or DEFAULT_STR,
-                defined=MINUS if value == default else PLUS if Auto.is_defined(value) else CROSS,
+                defined=sign_defined,
             )
 
     def get_str_meta(self) -> str:
@@ -252,17 +259,20 @@ class AbstractBaseObject(BaseInterface, ABC):
         return get_str_from_args_kwargs(*args_str, **meta_kwargs, _kwargs_order=self.get_ordered_meta_names())
 
     def get_detailed_repr(self) -> str:
-        return '{}({})'.format(self.__class__.__name__, self.get_str_meta())
+        cls = self.__class__.__name__
+        meta = self.get_str_meta()
+        return f'{cls}({meta})'
 
     def get_one_line_repr(
             self,
-            str_meta: Union[str, Auto, None] = AUTO,
+            str_meta: Optional[str] = None,
             max_len: int = DEFAULT_LINE_LEN,
             crop: str = CROP_SUFFIX,
     ) -> str:
         template = '{cls}({meta})'
         class_name = self.__class__.__name__
-        str_meta = Auto.delayed_acquire(str_meta, self.get_str_meta)
+        if not Auto.is_defined(str_meta):
+            str_meta = self.get_str_meta()
         one_line_repr = template.format(cls=class_name, meta=str_meta)
         full_line_len = len(one_line_repr)
         if full_line_len > max_len:
@@ -288,7 +298,7 @@ class AbstractBaseObject(BaseInterface, ABC):
             return default
 
     @staticmethod
-    def _get_display_method(display=AUTO) -> Callable:
+    def _get_display_method(display=None) -> Callable:
         if Auto.is_defined(display):
             if isinstance(display, Callable):
                 return display
@@ -311,7 +321,7 @@ class AbstractBaseObject(BaseInterface, ABC):
             self,
             comment: Optional[str] = None,
             depth: int = 1,
-            display=AUTO,
+            display=None,
     ):
         display_method = self._get_display_method(display)
         for i in self.get_description_items():

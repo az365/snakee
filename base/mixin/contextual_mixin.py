@@ -2,12 +2,12 @@ from abc import ABC
 from typing import Optional, Union
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.auto import Auto, AUTO
+    from base.classes.auto import Auto
     from base.interfaces.context_interface import ContextInterface
     from base.abstract.named import AbstractNamed
     from base.mixin.sourced_mixin import SourcedMixin
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..classes.auto import Auto, AUTO
+    from ..classes.auto import Auto
     from ..interfaces.context_interface import ContextInterface
     from ..abstract.named import AbstractNamed
     from .sourced_mixin import SourcedMixin

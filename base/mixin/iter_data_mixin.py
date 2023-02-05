@@ -6,7 +6,7 @@ from datetime import datetime
 try:  # Assume we're a submodule in a package.
     from functions.secondary import item_functions as fs
     from utils.algo import map_side_join
-    from base.classes.typing import ARRAY_TYPES, AUTO, Auto, Class
+    from base.classes.typing import ARRAY_TYPES, Auto, Class
     from base.classes.enum import DynamicEnum
     from base.constants.chars import PARAGRAPH_CHAR
     from base.functions.arguments import get_names, update, is_in_memory, get_str_from_args_kwargs
@@ -15,7 +15,7 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...functions.secondary import item_functions as fs
     from ...utils.algo import map_side_join
-    from ..classes.typing import ARRAY_TYPES, AUTO, Auto, Class
+    from ..classes.typing import ARRAY_TYPES, Auto, Class
     from ..classes.enum import DynamicEnum
     from ..constants.chars import PARAGRAPH_CHAR
     from ..functions.arguments import get_names, update, is_in_memory, get_str_from_args_kwargs
@@ -183,7 +183,7 @@ class IterDataMixin(DataMixin, ABC):
         for i in self.get_iter():
             return i
 
-    def _get_enumerated_items(self, first: int = 0, item_type=AUTO) -> Generator:
+    def _get_enumerated_items(self, first: int = 0, item_type=None) -> Generator:
         if item_type == 'Any' or not Auto.is_defined(item_type):
             items = self.get_items()
         elif hasattr(self, 'get_items_of_type'):
@@ -196,13 +196,13 @@ class IterDataMixin(DataMixin, ABC):
         for n, i in enumerate(items):
             yield n + first, i
 
-    def _get_first_items(self, count: int = 1, item_type=AUTO) -> Generator:
+    def _get_first_items(self, count: int = 1, item_type=None) -> Generator:
         for n, i in self._get_enumerated_items(first=1, item_type=item_type):
             yield i
             if n >= count:
                 break
 
-    def _get_second_items(self, skip: int = 1, item_type=AUTO) -> Generator:
+    def _get_second_items(self, skip: int = 1, item_type=None) -> Generator:
         for n, i in self._get_enumerated_items(first=0, item_type=item_type):
             if n >= skip:
                 yield i
@@ -217,7 +217,7 @@ class IterDataMixin(DataMixin, ABC):
         return items
 
     def take(self, count: Union[int, bool] = 1, inplace: bool = False) -> Optional[Native]:
-        if (count and isinstance(count, bool)) or not Auto.is_defined(count):  # True, None, AUTO
+        if (count and isinstance(count, bool)) or not Auto.is_defined(count):  # True, None
             return self
         elif isinstance(count, int):
             if count > 0:
