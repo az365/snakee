@@ -1,10 +1,10 @@
 from typing import Optional, Callable
 
 try:  # Assume we're a submodule in a package.
-    from interfaces import Name, Options, StreamItemType, Stream, ConnectorInterface, AutoContext, Auto, AUTO
+    from interfaces import Name, Options, StreamItemType, Stream, ConnectorInterface, Context, Auto
     from connectors.operations.abstract_sync import AbstractSync, SRC_ID, DST_ID
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...interfaces import Name, Options, StreamItemType, Stream, ConnectorInterface, AutoContext, Auto, AUTO
+    from ...interfaces import Name, Options, StreamItemType, Stream, ConnectorInterface, Context, Auto
     from .abstract_sync import AbstractSync, SRC_ID, DST_ID
 
 
@@ -18,8 +18,8 @@ class MultiSync(AbstractSync):
             procedure: Optional[Callable],
             options: Optional[dict] = None,
             apply_to_stream: bool = True,
-            stream_type: StreamItemType = AUTO,
-            context: AutoContext = AUTO,
+            stream_type: StreamItemType = None,
+            context: Context = None,
     ):
         connectors = dict()
         for c in inputs, outputs, intermediates:
@@ -49,14 +49,15 @@ class MultiSync(AbstractSync):
     def run_now(
             self,
             return_stream: bool = True,
-            stream_type: StreamItemType = AUTO,
+            stream_type: StreamItemType = None,
             options: Options = None,
             verbose: bool = True,
     ) -> Stream:
-        stream_type = Auto.delayed_acquire(stream_type, self.get_stream_type)
+        if not Auto.is_defined(stream_type):
+            stream_type = self.get_stream_type()
         stream = self.get_src().to_stream(stream_type=stream_type)
         if verbose:
-            self.log('Running operation: {}'.format(self.get_name()))
+            self.log(f'Running operation: {self.get_name()}')
         if self.has_procedure():
             if self._apply_to_stream:
                 stream = self.get_procedure()(stream, **self.get_kwargs(ex=SRC_ID, upd=options))
@@ -68,22 +69,24 @@ class MultiSync(AbstractSync):
             self,
             raise_error_if_exists: bool = False,
             return_stream: bool = True,
-            stream_type: StreamItemType = AUTO,
+            stream_type: StreamItemType = None,
             options: Options = None,
             verbose: bool = True,
     ) -> Optional[Stream]:
-        stream_type = Auto.acquire(stream_type, self.get_stream_type())
+        if not Auto.is_defined(stream_type):
+            stream_type = self.get_stream_type()
         if not self.is_done():
             return self.run_now(return_stream=return_stream, stream_type=stream_type, verbose=verbose)
         elif raise_error_if_exists:
-            raise ValueError('object {} already exists'.format(self.get_dst()))
+            raise ValueError(f'object {self.get_dst()} already exists')
         elif return_stream:
             if verbose:
-                self.log('Operation is already done: {}'.format(self.get_name()))
+                self.log(f'Operation is already done: {self.get_name()}')
             return self.get_dst().to_stream(stream_type=stream_type)
 
-    def to_stream(self, stream_type=AUTO, **kwargs):
-        stream_type = Auto.acquire(stream_type, self.get_stream_type())
+    def to_stream(self, stream_type: StreamItemType = None, **kwargs):
+        if not Auto.is_defined(stream_type):
+            stream_type = self.get_stream_type()
         return self.run_if_not_yet(raise_error_if_exists=False, return_stream=True, stream_type=stream_type)
 
     def from_stream(self, stream: Stream, rewrite: bool = False) -> Optional[ConnectorInterface]:

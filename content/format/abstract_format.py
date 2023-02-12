@@ -2,17 +2,11 @@ from abc import ABC, abstractmethod
 from typing import Optional, Iterable, Generator, Union
 
 try:  # Assume we're a submodule in a package.
-    from interfaces import (
-        ContentFormatInterface, ContentType, StreamType, ItemType, Item,
-        AUTO, Auto, AutoName, AutoCount, StreamItemType, AutoBool, AutoConnector, OptionalFields, Array, ARRAY_TYPES,
-    )
+    from interfaces import ContentFormatInterface, ContentType, StreamType, ItemType, Item, Auto
     from base.abstract.abstract_base import AbstractBaseObject
     from streams.stream_builder import StreamBuilder
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...interfaces import (
-        ContentFormatInterface, ContentType, StreamType, ItemType, Item,
-        AUTO, Auto, AutoName, AutoCount, StreamItemType, AutoBool, AutoConnector, OptionalFields, Array, ARRAY_TYPES,
-    )
+    from ...interfaces import ContentFormatInterface, ContentType, StreamType, ItemType, Item, Auto
     from ...base.abstract.abstract_base import AbstractBaseObject
     from ...streams.stream_builder import StreamBuilder
 
@@ -47,7 +41,7 @@ class BinaryFormat(AbstractFormat):
     def cab_be_stream(self) -> bool:
         return False
 
-    def get_lines(self, items: Iterable, item_type: ItemType, add_title_row: AutoBool = AUTO) -> Generator:
+    def get_lines(self, items: Iterable, item_type: ItemType, add_title_row: Optional[bool] = None) -> Generator:
         raise NotImplementedError
 
 
@@ -86,23 +80,23 @@ class ParsedFormat(CompressibleFormat, ABC):
         pass
 
     @abstractmethod
-    def get_formatted_item(self, item: Item, item_type: Union[ItemType, Auto] = AUTO) -> str:
+    def get_formatted_item(self, item: Item, item_type: ItemType = ItemType.Auto) -> str:
         pass
 
-    def get_lines(self, items: Iterable, item_type: ItemType, add_title_row: AutoBool = AUTO) -> Generator:
+    def get_lines(self, items: Iterable, item_type: ItemType, add_title_row: Optional[bool] = None) -> Generator:
         if Auto.is_defined(add_title_row):
             assert not add_title_row, 'title_row available in FlatStructFormat only'
         for i in items:
             yield self.get_formatted_item(i, item_type=item_type)
 
     @abstractmethod
-    def get_parsed_line(self, line: str, item_type: Union[ItemType, Auto] = AUTO) -> Item:
+    def get_parsed_line(self, line: str, item_type: ItemType = ItemType.Auto) -> Item:
         pass
 
     def get_items_from_lines(
             self,
             lines: Iterable,
-            item_type: Union[ItemType, Auto] = AUTO,
+            item_type: ItemType = ItemType.Auto,
             **kwargs,
     ) -> Generator:
         assert not kwargs
@@ -112,7 +106,7 @@ class ParsedFormat(CompressibleFormat, ABC):
     def get_stream(
             self,
             lines: Iterable,
-            item_type: ItemType = AUTO,
+            item_type: ItemType = ItemType.Auto,
             **kwargs
     ):
         item_kwargs = dict(struct=kwargs['struct']) if 'struct' in kwargs else dict()

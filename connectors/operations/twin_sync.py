@@ -2,20 +2,18 @@ from typing import Optional, Iterable, Callable, Union
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
-        ContextInterface, StreamInterface, Stream, Connector,
-        AUTO, Auto, AutoContext, StreamItemType, StreamType, Name,
+        Context, StreamInterface, Stream, Connector,
+        Auto, StreamItemType, StreamType, Name,
     )
     from connectors import connector_classes as ct
     from connectors.operations.abstract_sync import AbstractSync, SRC_ID, DST_ID
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
-        ContextInterface, StreamInterface, Stream, Connector,
-        AUTO, Auto, AutoContext, StreamItemType, StreamType, Name,
+        Context, StreamInterface, Stream, Connector,
+        Auto, StreamItemType, StreamType, Name,
     )
     from .. import connector_classes as ct
     from .abstract_sync import AbstractSync, SRC_ID, DST_ID
-
-Options = Union[dict, Auto, None]
 
 
 class TwinSync(AbstractSync):
@@ -25,10 +23,10 @@ class TwinSync(AbstractSync):
             src: Connector,
             dst: Connector,
             procedure: Optional[Callable],
-            options: Options = None,
+            options: Optional[dict] = None,
             apply_to_stream: bool = True,
-            stream_type: StreamItemType = AUTO,
-            context: AutoContext = AUTO,
+            stream_type: StreamItemType = None,
+            context: Context = None,
     ):
         if not Auto.is_defined(options):
             options = dict()
@@ -66,11 +64,12 @@ class TwinSync(AbstractSync):
     def run_now(
             self,
             return_stream: bool = True,
-            stream_type: StreamItemType = AUTO,
-            options: Options = None,
+            stream_type: StreamItemType = None,
+            options: Optional[dict] = None,
             verbose: bool = True,
     ) -> Stream:
-        stream_type = Auto.delayed_acquire(stream_type, self.get_stream_type)
+        if not Auto.is_defined(stream_type):
+            stream_type = self.get_stream_type()
         stream = self.get_src().to_stream(stream_type=stream_type)
         if verbose:
             self.log('Running operation: {}'.format(self.get_name()))

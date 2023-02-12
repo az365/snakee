@@ -1,9 +1,9 @@
 from typing import Optional, Iterable
 
 try:  # Assume we're a submodule in a package.
-    from connectors.databases.postgres_database import PostgresDatabase, TEST_QUERY, AUTO, Auto, AutoBool
-except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import
-    from ..databases.postgres_database import PostgresDatabase, TEST_QUERY, AUTO, Auto, AutoBool
+    from connectors.databases.postgres_database import PostgresDatabase, TEST_QUERY
+except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
+    from ..databases.postgres_database import PostgresDatabase, TEST_QUERY
 
 
 class DatabaseTestStub(PostgresDatabase):
@@ -11,7 +11,7 @@ class DatabaseTestStub(PostgresDatabase):
             self,
             name: str, host: str, port: int, db: str,
             user: Optional[str] = None, password: Optional[str] = None,
-            context=AUTO,
+            context=None,
             **kwargs
     ):
         self.test_stub_response = None
@@ -25,13 +25,13 @@ class DatabaseTestStub(PostgresDatabase):
     def execute(
             self,
             query: str = TEST_QUERY,
-            get_data: AutoBool = AUTO,
-            commit: AutoBool = AUTO,
+            get_data: Optional[bool] = None,
+            commit: Optional[bool] = None,
             data: Optional[Iterable] = None,
-            verbose: AutoBool = AUTO,
+            verbose: Optional[bool] = None,
     ):
         query = self._get_compact_query_view(query)
         if query.startswith('SELECT'):
             return self.test_stub_response
         else:
-            raise NotImplementedError('Received query: {query}'.format(query=query))
+            raise NotImplementedError(f'Received query: {query}')

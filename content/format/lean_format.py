@@ -1,14 +1,12 @@
-from typing import Union
+from typing import Optional
 
 try:  # Assume we're a submodule in a package.
-    from utils import arguments as arg
-    from interfaces import Item, ItemType, StreamType, ContentType, StructInterface, Auto, AUTO
+    from interfaces import Item, ItemType, StreamType, ContentType, StructInterface
     from content.format.abstract_format import ParsedFormat, Compress
     from content.format.text_format import TextFormat, JsonFormat
     from content.format.columnar_format import ColumnarFormat, FlatStructFormat
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
-    from ...interfaces import Item, ItemType, StreamType, ContentType, StructInterface, Auto, AUTO
+    from ...interfaces import Item, ItemType, StreamType, ContentType, StructInterface
     from .abstract_format import ParsedFormat, Compress
     from .text_format import TextFormat, JsonFormat
     from .columnar_format import ColumnarFormat, FlatStructFormat
@@ -79,11 +77,11 @@ class LeanFormat(ParsedFormat):
     def is_text(self) -> bool:
         return self.get_content_type() in TEXT_TYPES
 
-    def get_formatted_item(self, item: Item, item_type: Union[ItemType, Auto] = AUTO):
+    def get_formatted_item(self, item: Item, item_type: Optional[ItemType] = None):
         defined_format = self.get_defined(skip_errors=False)
         return defined_format.get_formatted_item(item, item_type=item_type)
 
-    def get_parsed_line(self, line: str, item_type: Union[ItemType, Auto] = AUTO) -> Item:
+    def get_parsed_line(self, line: str, item_type: Optional[ItemType] = None) -> Item:
         defined_format = self.get_defined(skip_errors=False)
         return defined_format.get_parsed_line(line, item_type=item_type)
 

@@ -1,10 +1,10 @@
 from typing import Optional, Iterable, Callable, Any
 
 try:  # Assume we're a submodule in a package.
-    from interfaces import AUTO, Auto, AutoContext, StreamItemType, Name, Options
+    from interfaces import Auto, Context, StreamItemType, Name, Options
     from connectors import connector_classes as ct
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...interfaces import AUTO, Auto, AutoContext, StreamItemType, Name, Options
+    from ...interfaces import Auto, Context, StreamItemType, Name, Options
     from .. import connector_classes as ct
 
 
@@ -15,13 +15,11 @@ class Operation(ct.HierarchicConnector):
             connectors: dict,
             procedure: Optional[Callable],
             options: Optional[dict] = None,
-            context: AutoContext = AUTO,
+            context: Context = None,
     ):
-        super().__init__(
-            name=name,
-            children=connectors,
-            parent=Auto.delayed_acquire(context, ct.get_context),
-        )
+        if not Auto.is_defined(context):
+            context = ct.get_context()
+        super().__init__(name=name, parent=context, children=connectors)
         assert procedure is None or isinstance(procedure, Callable)
         self._procedure = procedure
         self._options = options or dict()

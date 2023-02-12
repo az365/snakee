@@ -1,7 +1,7 @@
 from typing import Optional, Callable, Iterable, Sequence, Union
 
 try:  # Assume we're a submodule in a package.
-    from interfaces import Item, ItemType, ContentType, Class, Count, AutoCount, AutoBool, Auto, AUTO
+    from interfaces import Item, ItemType, ContentType, Class, Count, Auto
     from base.constants.chars import EMPTY, SPACE, HTML_SPACE, PARAGRAPH_CHAR
     from base.classes.display import DefaultDisplay, DEFAULT_CHAPTER_TITLE_LEVEL
     from base.classes.enum import ClassType
@@ -12,7 +12,7 @@ try:  # Assume we're a submodule in a package.
     from content.documents.display_mode import DisplayMode
     from content.documents.document_item import DocumentItem, Paragraph, Sheet, Chart, Chapter
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...interfaces import Item, ItemType, ContentType, Class, Count, AutoCount, AutoBool, Auto, AUTO
+    from ...interfaces import Item, ItemType, ContentType, Class, Count, Auto
     from ...base.constants.chars import EMPTY, SPACE, HTML_SPACE, PARAGRAPH_CHAR
     from ...base.classes.display import DefaultDisplay, DEFAULT_CHAPTER_TITLE_LEVEL
     from ...base.classes.enum import ClassType
@@ -24,9 +24,9 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .document_item import DocumentItem, Paragraph, Sheet, Chart, Chapter
 
 Native = Union[DefaultDisplay, IterDataMixin]
-Style = Union[str, Auto]
+Style = Optional[str]
 FormattedDisplayTypes = Union[Markdown, HTML]
-DisplayedItem = Union[DocumentItem, FormattedDisplayTypes, Auto]
+DisplayedItem = Union[DocumentItem, FormattedDisplayTypes, None]
 DisplayedData = Union[DocumentItem, str, Iterable, None]
 DisplayObject = Union[FormattedDisplayTypes, str]
 FORMATTED_DISPLAY_TYPES = Markdown, HTML
@@ -190,13 +190,14 @@ class DocumentDisplay(DefaultDisplay, IterDataMixin):
 
     def display(
             self,
-            item: DisplayedItem = AUTO,
+            item: DisplayedItem = None,
             save: bool = False,
-            refresh: AutoBool = AUTO,
+            refresh: Optional[bool] = None,
     ):
         if save:
             self.append(item, show=False)
-        refresh = Auto.delayed_acquire(refresh, self.is_partially_shown)
+        if not Auto.is_defined(refresh):
+            refresh = self.is_partially_shown()
         if refresh:
             return self.display_all(refresh=True)
         else:
@@ -227,7 +228,7 @@ class DocumentDisplay(DefaultDisplay, IterDataMixin):
         self.display(self.get_accumulated_document(), save=False, refresh=False)
         return self
 
-    def append(self, item: Union[DocumentItem, str], show: bool = True, refresh: AutoBool = AUTO) -> Native:
+    def append(self, item: Union[DocumentItem, str], show: bool = True, refresh: Optional[bool] = None) -> Native:
         if item:
             if isinstance(item, str):
                 self.add_to_paragraph(item)
@@ -257,8 +258,8 @@ class DocumentDisplay(DefaultDisplay, IterDataMixin):
             self,
             paragraph: Union[Paragraph, Iterable, str, None] = None,
             level: Count = None,
-            style: Style = AUTO,
-            name: str = '',
+            style: Style = None,
+            name: str = EMPTY,
     ):
         if level and paragraph:
             self.display_current_paragraph(save=True, clear=True, refresh=False)
@@ -278,10 +279,10 @@ class DocumentDisplay(DefaultDisplay, IterDataMixin):
             self,
             records: Iterable,
             columns: Sequence,
-            count: AutoCount = None,
+            count: Count = None,
             item_type: ItemType = ItemType.Record,
             with_title: bool = True,
-            style: Union[str, Auto, None] = AUTO,
+            style: Style = None,
     ):
         self.display_current_paragraph(save=True, clear=True)
         sheet = Sheet.from_records(records, columns=columns)

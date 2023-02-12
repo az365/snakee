@@ -5,11 +5,10 @@ import inspect
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         StructRowInterface, StructInterface, LoggerInterface, LoggingLevel,
-        ItemType, Item, Struct, UniKey, FieldInterface, FieldName, FieldNo, Field, Name, Value, Class, Array,
-        AUTO, Auto,
+        ItemType, Item, Struct, UniKey, FieldInterface, FieldName, FieldNo, Field, Name, Value, Class, Array, Auto,
     )
     from base.functions.arguments import get_name, get_names, get_cropped_text
-    from base.constants.chars import TAB_INDENT, ITEMS_DELIMITER, CROP_SUFFIX, NOT_SET, DEFAULT_LINE_LEN
+    from base.constants.chars import TAB_INDENT, ITEMS_DELIMITER, CROP_SUFFIX, UNDER, NOT_SET, DEFAULT_LINE_LEN
     from base.abstract.abstract_base import AbstractBaseObject, BaseInterface
     from base.abstract.named import AbstractNamed
     from base.mixin.data_mixin import DataMixin
@@ -19,11 +18,10 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         StructRowInterface, StructInterface, LoggerInterface, LoggingLevel,
-        ItemType, Item, Struct, UniKey, FieldInterface, FieldName, FieldNo, Field, Name, Value, Class, Array,
-        AUTO, Auto,
+        ItemType, Item, Struct, UniKey, FieldInterface, FieldName, FieldNo, Field, Name, Value, Class, Array, Auto,
     )
     from ...base.functions.arguments import get_name, get_names, get_cropped_text
-    from ...base.constants.chars import TAB_INDENT, ITEMS_DELIMITER, CROP_SUFFIX, NOT_SET, DEFAULT_LINE_LEN
+    from ...base.constants.chars import TAB_INDENT, ITEMS_DELIMITER, CROP_SUFFIX, UNDER, NOT_SET, DEFAULT_LINE_LEN
     from ...base.abstract.abstract_base import AbstractBaseObject, BaseInterface
     from ...base.abstract.named import AbstractNamed
     from ...base.mixin.data_mixin import DataMixin
@@ -113,9 +111,10 @@ class AbstractDescription(AbstractBaseObject, DataMixin, ABC):
         else:
             return (self.get_function(), *self.get_input_field_names())
 
-    def get_mapper(self, struct: Struct = None, item_type: Union[ItemType, Auto] = AUTO) -> Callable:
+    def get_mapper(self, struct: Struct = None, item_type: ItemType = ItemType.Auto) -> Callable:
         field_names = self.get_input_field_names()
-        item_type = Auto.delayed_acquire(item_type, self.get_input_item_type)
+        if item_type == ItemType.Auto or item_type is None:
+            item_type = self.get_input_item_type()
         if Auto.is_defined(item_type):
             return item_type.get_single_mapper(*field_names, function=self.get_function(), struct=struct)
         else:
@@ -160,12 +159,14 @@ class AbstractDescription(AbstractBaseObject, DataMixin, ABC):
 
     def _get_linked_fields_descriptions(
             self,
-            fields: Union[Iterable, Auto] = AUTO,
+            fields: Optional[Iterable] = None,
             group_name: str = 'used',
             prefix: str = '    - ',
             max_len: int = DEFAULT_LINE_LEN,
     ) -> Generator:
-        fields = list(Auto.delayed_acquire(fields, self.get_linked_fields))
+        if not Auto.is_defined(fields):
+            fields = self.get_linked_fields()
+        fields = list(fields)
         count = len(fields)
         yield '{count} {name} fields:'.format(count=count, name=group_name)
         for f in fields:
@@ -214,7 +215,7 @@ class AbstractDescription(AbstractBaseObject, DataMixin, ABC):
             show_header: bool = True,
             comment: Optional[str] = None,
             depth: int = 1,
-            display=AUTO,
+            display=None,
     ) -> Native:
         display = self.get_display(display)
         if show_header:
@@ -323,7 +324,7 @@ class SingleFieldDescription(AbstractDescription, ABC):
 
     def to(self, field: Field) -> AbstractDescription:
         known_target_field = self.get_target_field()
-        if known_target_field in ('_', AUTO, None):
+        if known_target_field in (UNDER, None):
             return self.set_target_field(field, inplace=True) or self
         elif field == known_target_field:
             return self
@@ -337,7 +338,7 @@ class SingleFieldDescription(AbstractDescription, ABC):
 
     def apply_inplace(self, item: Item) -> None:
         item_type = self.get_input_item_type()
-        if item_type == AUTO:
+        if item_type == ItemType.Auto or item_type is None:
             item_type = ItemType.detect(item, default=ItemType.Any)
         it.set_to_item_inplace(
             field=self.get_target_field_name(),

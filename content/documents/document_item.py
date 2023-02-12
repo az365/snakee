@@ -6,7 +6,7 @@ try:  # Assume we're a submodule in a package.
     from base.classes.simple_sheet import SimpleSheet, SheetMixin, SheetItems
     from base.classes.enum import DynamicEnum
     from base.constants.chars import DEFAULT_LINE_LEN
-    from base.classes.typing import AUTO, Auto, Name
+    from base.classes.typing import Auto, Name
     from base.functions.arguments import get_name, get_cropped_text
     from base.abstract.simple_data import SimpleDataWrapper, MAX_BRIEF_REPR_LEN
     from base.mixin.iter_data_mixin import IterDataMixin
@@ -18,7 +18,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.classes.simple_sheet import SimpleSheet, SheetMixin, SheetItems
     from ...base.classes.enum import DynamicEnum
     from ...base.constants.chars import DEFAULT_LINE_LEN
-    from ...base.classes.typing import AUTO, Auto, Name
+    from ...base.classes.typing import Auto, Name
     from ...base.functions.arguments import get_name, get_cropped_text
     from ...base.abstract.simple_data import SimpleDataWrapper, MAX_BRIEF_REPR_LEN
     from ...base.mixin.iter_data_mixin import IterDataMixin
@@ -172,7 +172,7 @@ class DocumentItem(SimpleDataWrapper):
             return self.get_text()
 
     @staticmethod
-    def _get_display_method(method: Union[Callable, Auto, None] = AUTO) -> Callable:
+    def _get_display_method(method: Optional[Callable] = None) -> Callable:
         if Auto.is_defined(method):
             return method
         else:
@@ -596,7 +596,7 @@ class Paragraph(Text, Container):
     def get_html_text_code(
             lines: Iterable[str],
             level: Optional[int] = None,
-            style: Union[str, Auto] = AUTO,
+            style: OptStyle = None,
     ) -> Iterator[str]:
         if isinstance(lines, str):
             lines = lines.split(PARAGRAPH_CHAR)
@@ -604,10 +604,12 @@ class Paragraph(Text, Container):
         text = f'<br>{PARAGRAPH_CHAR}'.join(lines)
         if level:
             tag = f'h{level}'
-            style = Auto.acquire(style, H_STYLE)
+            if not Auto.is_defined(style):
+                style = H_STYLE
         else:
             tag = 'p'
-            style = Auto.acquire(style, P_STYLE)
+            if not Auto.is_defined(style):
+                style = P_STYLE
         open_tag = f'<{tag} style="{style}">' if style else f'<{tag}>'
         close_tag = f'</{tag}>'
         if text:

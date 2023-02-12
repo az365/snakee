@@ -1,19 +1,20 @@
 from typing import Optional, Iterable, Union
 
 try:  # Assume we're a submodule in a package.
-    from base.interfaces.context_interface import ContextInterface, Auto, AUTO
+    from base.classes.auto import Auto
+    from base.interfaces.context_interface import ContextInterface
     from connectors.abstract.hierarchic_connector import HierarchicConnector
     from connectors.operations.operation import Operation
     from connectors import connector_classes as ct
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...base.interfaces.context_interface import ContextInterface, Auto, AUTO
+    from ...base.classes.auto import Auto
+    from ...base.interfaces.context_interface import ContextInterface
     from ..abstract.hierarchic_connector import HierarchicConnector
     from .operation import Operation
     from .. import connector_classes as ct
 
 Name = str
 Native = HierarchicConnector
-AutoContext = Union[ContextInterface, Auto]
 
 
 class Job(HierarchicConnector):
@@ -23,9 +24,10 @@ class Job(HierarchicConnector):
             operations: Optional[dict] = None,
             queue: Optional[list] = None,
             options: Optional[dict] = None,
-            context: AutoContext = AUTO,
+            context: Optional[ContextInterface] = None,
     ):
-        context = Auto.delayed_acquire(context, ct.get_context)
+        if not Auto.is_defined(context):
+            context = ct.get_context()
         super().__init__(
             name=name,
             children=operations,
@@ -130,11 +132,12 @@ class Job(HierarchicConnector):
 
     def run(
             self,
-            operations: Union[list, Auto] = AUTO,
+            operations: Optional[list] = None,
             if_not_yet: bool = True,
             options: Optional[dict] = None,
     ):
-        operations = Auto.delayed_acquire(operations, self.get_queue)
+        if not Auto.is_defined(operations):
+            operations = self.get_queue()
         operations = [self.get_operation(op) for op in operations]
         names = [op.get_name() for op in operations]
         for name, operation in zip(names, operations):

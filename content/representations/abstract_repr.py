@@ -1,13 +1,13 @@
 from abc import ABC
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.auto import Auto, AUTO
+    from base.classes.auto import Auto
     from base.classes.typing import Value, Count
     from base.constants.chars import EMPTY, FILL_CHAR, DEFAULT_STR, CROP_SUFFIX
     from base.abstract.abstract_base import AbstractBaseObject
     from content.representations.repr_interface import RepresentationInterface, ReprType, OptKey
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...base.classes.auto import Auto, AUTO
+    from ...base.classes.auto import Auto
     from ...base.classes.typing import Value, Count
     from ...base.constants.chars import EMPTY, FILL_CHAR, DEFAULT_STR, CROP_SUFFIX
     from ...base.abstract.abstract_base import AbstractBaseObject
@@ -20,8 +20,8 @@ class AbstractRepresentation(AbstractBaseObject, RepresentationInterface, ABC):
     def __init__(
             self,
             align_right: bool = False,
-            min_len: Count = AUTO,
-            max_len: Count = AUTO,
+            min_len: Count = None,
+            max_len: Count = None,
             including_framing: bool = False,
             crop: str = CROP_SUFFIX,
             fill: str = FILL_CHAR,
@@ -59,14 +59,14 @@ class AbstractRepresentation(AbstractBaseObject, RepresentationInterface, ABC):
 
     def get_min_value_len(self, or_max: bool = True) -> Count:
         min_value_len = self._min_len
-        if Auto.is_auto(min_value_len):
+        if not Auto.is_defined(min_value_len):
             return self.get_max_value_len(or_min=False) if or_max else None
         else:
             return min_value_len
 
     def get_max_value_len(self, or_min: bool = True) -> Count:
         max_value_len = self._max_len
-        if Auto.is_auto(max_value_len):
+        if not Auto.is_defined(max_value_len):
             return self.get_min_value_len(or_max=False) if or_min else None
         else:
             return max_value_len

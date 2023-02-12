@@ -7,12 +7,10 @@ except ImportError:
     from collections.abc import Mapping
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.auto import Auto, AUTO
     from base.classes.typing import FieldName, FieldNo, FieldID, Value, Class, Array, ARRAY_TYPES
     from base.constants.chars import ALL
     from base.functions.arguments import get_name
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...base.classes.auto import Auto, AUTO
     from ...base.classes.typing import FieldName, FieldNo, FieldID, Value, Class, Array, ARRAY_TYPES
     from ...base.constants.chars import ALL
     from ...base.functions.arguments import get_name

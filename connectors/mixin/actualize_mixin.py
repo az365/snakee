@@ -1,21 +1,15 @@
 from abc import ABC
-from typing import Optional, Union
+from typing import Optional
 
 try:  # Assume we're a submodule in a package.
-    from interfaces import (
-        LeafConnectorInterface, Stream,
-        AUTO, Auto, AutoCount, AutoBool, AutoDisplay, Columns, Array, Count,
-    )
+    from interfaces import LeafConnectorInterface, DisplayInterface, Stream, Auto, Columns, Count
     from base.functions.arguments import get_name, get_str_from_args_kwargs
     from base.constants.chars import EMPTY, CROP_SUFFIX, ITEMS_DELIMITER, DEFAULT_LINE_LEN
     from utils.decorators import deprecated_with_alternative
     from functions.primary import dates as dt
     from streams.mixin.validate_mixin import ValidateMixin, DEFAULT_EXAMPLE_COUNT
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...interfaces import (
-        LeafConnectorInterface, Stream,
-        AUTO, Auto, AutoCount, AutoBool, AutoDisplay, Columns, Array, Count,
-    )
+    from ...interfaces import LeafConnectorInterface, DisplayInterface, Stream, Auto, Columns, Count
     from ...base.functions.arguments import get_name, get_str_from_args_kwargs
     from ...base.constants.chars import EMPTY, CROP_SUFFIX, ITEMS_DELIMITER, DEFAULT_LINE_LEN
     from ...utils.decorators import deprecated_with_alternative
@@ -43,8 +37,9 @@ class ActualizeMixin(ValidateMixin, ABC):
         timestamp = dt.datetime.fromtimestamp(self.get_modification_timestamp())
         return dt.get_formatted_datetime(timestamp)
 
-    def reset_modification_timestamp(self, timestamp: Union[float, Auto, None] = AUTO) -> Native:
-        timestamp = Auto.acquire(timestamp, self.get_modification_timestamp(reset=False))
+    def reset_modification_timestamp(self, timestamp: Optional[float] = None) -> Native:
+        if not Auto.is_defined(timestamp):
+            timestamp = self.get_modification_timestamp(reset=False)
         return self.set_prev_modification_timestamp(timestamp) or self
 
     def get_file_age_str(self):
@@ -62,15 +57,17 @@ class ActualizeMixin(ValidateMixin, ABC):
     def get_datetime_str(self, actualize: bool = True) -> str:
         if actualize:
             if self.is_existing():
-                times = self.get_modification_time_str(), self.get_file_age_str(), dt.get_current_time_str()
-                return '{} + {} = {}'.format(*times)
+                modification_time = self.get_modification_time_str()
+                data_age = self.get_file_age_str()
+                current_time = dt.get_current_time_str()
+                return f'{modification_time} + {data_age} = {current_time}'
         return dt.get_current_time_str()
 
     @staticmethod
     def _get_current_timestamp() -> float:
         return dt.get_current_timestamp()
 
-    def get_prev_lines_count(self) -> Optional[AutoCount]:
+    def get_prev_lines_count(self) -> Count:
         return self.get_expected_count()
 
     def get_count(self, allow_reopen: bool = True, allow_slow_mode: bool = True, force: bool = False) -> Count:
@@ -129,7 +126,7 @@ class ActualizeMixin(ValidateMixin, ABC):
 
     def get_one_line_repr(
             self,
-            str_meta: Union[str, Auto, None] = AUTO,
+            str_meta: Optional[str] = None,
             max_len: int = DEFAULT_LINE_LEN,
             crop: str = CROP_SUFFIX,
     ) -> str:
@@ -148,9 +145,9 @@ class ActualizeMixin(ValidateMixin, ABC):
             self,
             count: int = DEFAULT_EXAMPLE_COUNT,
             example: Optional[Stream] = None,
-            columns: Optional[Array] = None,
+            columns: Columns = None,
             comment: str = EMPTY,
-            display: AutoDisplay = AUTO,
+            display: Optional[DisplayInterface] = None,
     ):
         records, columns = self._get_demo_records_and_columns(count=count, example=example, columns=columns)
         if records or comment:
@@ -170,10 +167,10 @@ class ActualizeMixin(ValidateMixin, ABC):
             message: Optional[str] = None,
             filters: Columns = None,
             columns: Columns = None,
-            actualize: AutoBool = AUTO,
+            actualize: Optional[bool] = None,
             **kwargs
     ):
-        if actualize == AUTO:
+        if not Auto.is_defined(actualize):
             self.actualize(if_outdated=True)
         elif actualize:
             self.actualize(if_outdated=False)

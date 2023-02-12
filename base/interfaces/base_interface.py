@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Type, Optional, Callable, Iterable, Generator, Union
+from typing import Optional, Iterable, Generator, Union
 
 try:  # Assume we're a submodule in a package.
     from base.constants.chars import CROP_SUFFIX, DEFAULT_LINE_LEN

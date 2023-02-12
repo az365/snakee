@@ -6,7 +6,7 @@ try:  # Assume we're a submodule in a package.
         SelectionLoggerInterface, ExtLogger,
         ValueType, DialectType,
         FieldNo, FieldName, SimpleRow, Item,
-        AUTO, Auto, AutoCount, Name, Array, ARRAY_TYPES, ROW_SUBCLASSES, RECORD_SUBCLASSES,
+        Auto, Name, Count, Array, ARRAY_TYPES, ROW_SUBCLASSES, RECORD_SUBCLASSES,
     )
     from base.functions.arguments import update, get_generated_name, get_name, get_names
     from base.constants.chars import EMPTY, REPR_DELIMITER, TITLE_PREFIX, ITEM, DEL, ABOUT, JUPYTER_LINE_LEN
@@ -26,7 +26,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         SelectionLoggerInterface, ExtLogger,
         ValueType, DialectType,
         FieldNo, FieldName, SimpleRow, Item,
-        AUTO, Auto, AutoCount, Name, Array, ARRAY_TYPES, ROW_SUBCLASSES, RECORD_SUBCLASSES,
+        Auto, Name, Count, Array, ARRAY_TYPES, ROW_SUBCLASSES, RECORD_SUBCLASSES,
     )
     from ...base.functions.arguments import update, get_generated_name, get_name, get_names
     from ...base.constants.chars import EMPTY, REPR_DELIMITER, TITLE_PREFIX, ITEM, DEL, ABOUT, JUPYTER_LINE_LEN
@@ -45,12 +45,12 @@ Native = StructInterface
 Group = Union[Native, Iterable]
 StructName = Optional[Name]
 Field = Union[Name, dict, FieldInterface]
-Type = Union[ValueType, type, Auto]
-Comment = Union[StructName, Auto]
+Type = Union[ValueType, type, None]
+Comment = Optional[str]
 
 META_MEMBER_MAPPING = dict(_data='fields')
 GROUP_TYPE_STR = 'GROUP'
-DICT_VALID_SIGN = {'True': ITEM, 'False': DEL, 'None': ITEM, AUTO.get_value(): ABOUT}  # '-', 'x', '-', '~'
+DICT_VALID_SIGN = {'True': ITEM, 'False': DEL, 'None': ITEM, 'Auto': ABOUT, None: ABOUT}  # '-', 'x', '-', '~'
 
 COMPARISON_TAGS = dict(
     this_only='THIS_ONLY', other_only='OTHER_ONLY', moved='MOVED',
@@ -68,11 +68,10 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
             fields: Iterable,
             name: StructName = None,
             caption: Optional[str] = None,
-            default_type: Type = AUTO,
+            default_type: Type = None,
             exclude_duplicates: bool = False,
             reassign_struct_name: bool = False,
     ):
-        name = Auto.acquire(name, get_generated_name(prefix='FieldGroup'))
         self._caption = caption or EMPTY
         super().__init__(name=name, data=list())
         for field_or_struct in fields:
@@ -245,7 +244,7 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
     def get_fields_count(self) -> int:
         return len(self.get_fields())
 
-    def get_type_count(self, field_type: Type = AUTO, by_prefix: bool = True) -> int:
+    def get_type_count(self, field_type: Type = None, by_prefix: bool = True) -> int:
         count = 0
         field_type_name = get_name(field_type, or_callable=False)
         for f in self.get_fields():
@@ -309,13 +308,13 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
     def get_columns(self) -> list:
         return [c.get_name() for c in self.get_fields()]
 
-    def get_types_list(self, dialect: Union[DialectType, Auto] = DialectType.String) -> list:
+    def get_types_list(self, dialect: Optional[DialectType] = DialectType.String) -> list:
         if Auto.is_defined(dialect):
             return [f.get_type_in(dialect) for f in self.get_fields()]
         else:
             return [f.get_value_type() for f in self.get_fields()]
 
-    def get_types_dict(self, dialect: Union[DialectType, Auto] = AUTO) -> dict:
+    def get_types_dict(self, dialect: Optional[DialectType] = None) -> dict:
         names = map(lambda f: get_name(f), self.get_fields())
         types = self.get_types_list(dialect)
         return dict(zip(names, types))
@@ -457,8 +456,15 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
         else:
             yield '{}: Struct is actual, will not be changed'.format(title)
 
-    def compare_with(self, other: StructInterface, ignore_moved: bool = True, tags: dict = AUTO, set_valid: bool = False) -> Native:
-        tags = Auto.acquire(tags, COMPARISON_TAGS)
+    def compare_with(
+            self,
+            other: StructInterface,
+            ignore_moved: bool = True,
+            tags: Optional[dict] = None,
+            set_valid: bool = False,
+    ) -> Native:
+        if not Auto.is_defined(tags):
+            tags = COMPARISON_TAGS
         expected_struct = self.convert_to_native(other)
         remaining_struct = expected_struct.copy()
         assert isinstance(expected_struct, StructInterface) or hasattr(expected_struct, 'get_field_names'), 'got {}'.format(expected_struct)
@@ -510,16 +516,16 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
         tags = VALIDATION_TAGS
         return self.compare_with(standard, ignore_moved=ignore_moved, tags=tags, set_valid=True)
 
-    def get_validation_message(self, standard: Union[StructInterface, Auto, None] = AUTO) -> str:
+    def get_validation_message(self, standard: Optional[StructInterface] = None) -> str:
         if Auto.is_defined(standard):
             self.validate_about(standard)
+        count = self.get_column_count()
         if self.is_valid_struct():
-            message = 'struct has {} valid columns:'.format(self.get_column_count())
+            message = f'struct has {count} valid columns:'
         else:
-            valid_count = self.get_column_count() - self.get_invalid_fields_count()
-            message = '[INVALID] struct has {} columns = {} valid + {} invalid:'.format(
-                self.get_column_count(), valid_count, self.get_invalid_fields_count(),
-            )
+            invalid = self.get_invalid_fields_count()
+            valid = count - invalid
+            message = f'[INVALID] struct has {count} columns = {valid} valid + {invalid} invalid:'
         return message
 
     @staticmethod
@@ -602,10 +608,12 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
     def to(self, field: Field):
         return self.map(lambda *a: tuple(a)).to(field)
 
-    def get_group_header(self, name: Comment = AUTO, caption: Comment = AUTO, comment: Comment = None) -> Iterator[str]:
-        is_title_row = name == AUTO
-        name = Auto.acquire(name, self.get_name())
-        caption = Auto.acquire(caption, self.get_caption())
+    def get_group_header(self, name: Comment = None, caption: Comment = None, comment: Comment = None) -> Iterator[str]:
+        is_title_row = name is None
+        if not Auto.is_defined(name):
+            name = self.get_name()
+        if not Auto.is_defined(caption):
+            caption = self.get_caption()
         if Auto.is_defined(name):
             yield name
         if Auto.is_defined(caption):
@@ -687,7 +695,7 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
 
     def get_data_sheet(
             self,
-            count: AutoCount = AUTO,  # DEFAULT_EXAMPLE_COUNT
+            count: Count = None,  # DEFAULT_EXAMPLE_COUNT
             example: Optional[dict] = None,
             select_fields: Optional[Array] = None,
             name: str = 'Data sheet',

@@ -1,9 +1,9 @@
 from inspect import isclass
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.enum import ClassType, Auto, AUTO
+    from base.classes.enum import ClassType, Auto
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..base.classes.enum import ClassType, Auto, AUTO
+    from ..base.classes.enum import ClassType, Auto
 
 MAX_ITEMS_IN_MEMORY = 5000000
 TMP_FILES_TEMPLATE = 'stream_{}.tmp'
@@ -35,7 +35,7 @@ class StreamType(ClassType):
         global DICT_METHOD_SUFFIX
         return DICT_METHOD_SUFFIX.get(self.get_name())
 
-    def stream(self, data, source=AUTO, context=AUTO, *args, **kwargs):
+    def stream(self, data, source=None, context=None, *args, **kwargs):
         if Auto.is_defined(source):
             kwargs['source'] = source
         if Auto.is_defined(context):
@@ -44,7 +44,7 @@ class StreamType(ClassType):
         return stream_class(data, *args, **kwargs)
 
     @classmethod
-    def detect(cls, obj, default=AUTO) -> ClassType:
+    def detect(cls, obj, default=None) -> ClassType:
         if isinstance(obj, StreamType):
             return obj
         elif isinstance(obj, str):
@@ -61,7 +61,10 @@ class StreamType(ClassType):
                     stream_type_name = '{}Stream'.format(item_type_name)
                     stream_type_obj = cls.find_instance(stream_type_name)
                 if stream_type_obj is None:
-                    stream_type_obj = Auto.delayed_acquire(default, cls.get_default)
+                    if Auto.is_defined(default):
+                        stream_type_obj = default
+                    else:
+                        stream_type_obj = cls.get_default()
                 return stream_type_obj
         return StreamType(name)
 

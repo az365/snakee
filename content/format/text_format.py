@@ -1,21 +1,22 @@
-from typing import Union
+from typing import Optional
 import json
 
 try:  # Assume we're a submodule in a package.
-    from interfaces import Item, ItemType, StreamType, ContentType, Auto, AUTO, ARRAY_TYPES
+    from interfaces import Item, ItemType, StreamType, ContentType, Auto, ARRAY_TYPES
+    from base.constants.chars import PARAGRAPH_CHAR
     from content.format.abstract_format import AbstractFormat, ParsedFormat, Compress
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...interfaces import Item, ItemType, StreamType, ContentType, Auto, AUTO, ARRAY_TYPES
+    from ...interfaces import Item, ItemType, StreamType, ContentType, Auto, ARRAY_TYPES
+    from ...base.constants.chars import PARAGRAPH_CHAR
     from .abstract_format import AbstractFormat, ParsedFormat, Compress
 
-DEFAULT_ENDING = '\n'
 DEFAULT_ENCODING = 'utf8'
 
 
 class TextFormat(ParsedFormat):
     def __init__(
             self,
-            ending: str = DEFAULT_ENDING,
+            ending: str = PARAGRAPH_CHAR,
             encoding: str = DEFAULT_ENCODING,
             compress: Compress = None,
     ):
@@ -56,11 +57,12 @@ class TextFormat(ParsedFormat):
     def get_defined(self) -> ParsedFormat:
         return self
 
-    def get_formatted_item(self, item: Item, item_type: Union[ItemType, Auto] = AUTO) -> str:
+    def get_formatted_item(self, item: Item, item_type: Optional[ItemType] = None) -> str:
         return str(item)
 
-    def get_parsed_line(self, line: str, item_type: Union[ItemType, Auto] = AUTO) -> Item:
-        item_type = Auto.delayed_acquire(item_type, self.get_default_item_type)
+    def get_parsed_line(self, line: str, item_type: ItemType = ItemType.Auto) -> Item:
+        if item_type == ItemType.Auto or item_type is None:
+            item_type = self.get_default_item_type()
         if item_type in (ItemType.Line, ItemType.Any, ItemType.Auto):
             return line
         elif item_type == ItemType.Row:
@@ -80,7 +82,7 @@ class TextFormat(ParsedFormat):
 class JsonFormat(TextFormat):
     def __init__(
             self,
-            ending: str = DEFAULT_ENDING,
+            ending: str = PARAGRAPH_CHAR,
             encoding: str = DEFAULT_ENCODING,
             compress: Compress = None,
     ):
@@ -99,7 +101,7 @@ class JsonFormat(TextFormat):
     def get_default_item_type(self) -> ItemType:
         return ItemType.Record
 
-    def get_formatted_item(self, item: Item, item_type: Union[ItemType, Auto] = AUTO) -> str:
+    def get_formatted_item(self, item: Item, item_type: Optional[ItemType] = None) -> str:
         return json.dumps(item)
 
     @staticmethod
@@ -112,8 +114,9 @@ class JsonFormat(TextFormat):
             else:
                 raise json.JSONDecodeError(err.msg, err.doc, err.pos)
 
-    def get_parsed_line(self, line: str, item_type: Union[ItemType, Auto] = AUTO, default_value=None) -> Item:
-        item_type = Auto.delayed_acquire(item_type, self.get_default_item_type)
+    def get_parsed_line(self, line: str, item_type: ItemType = ItemType.Auto, default_value=None) -> Item:
+        if item_type == ItemType.Auto or item_type is None:
+            item_type = self.get_default_item_type()
         if item_type in (ItemType.Record, ItemType.Row, ItemType.Any, ItemType.Auto):
             parsed = self._parse_json_line(line, default_value=default_value)
             if isinstance(parsed, ARRAY_TYPES) and item_type == ItemType.Record:

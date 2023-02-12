@@ -1,11 +1,9 @@
 from abc import abstractmethod
 from typing import Callable, Iterable, Union
 
-try:  # Assume we're a sub-module in a package.
-    from utils import arguments as arg
+try:  # Assume we're a submodule in a package.
     from connectors.interfaces.connector_interface import ConnectorInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
     from .connector_interface import ConnectorInterface
 
 Name = Union[str, int]
@@ -71,5 +69,5 @@ class TemporaryFilesMaskInterface(ConnectorInterface):
         pass
 
     @abstractmethod
-    def file(self, name: Name, filetype=arg.AUTO, **kwargs):
+    def file(self, name: Name, filetype=None, **kwargs):
         pass

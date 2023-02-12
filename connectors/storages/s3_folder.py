@@ -1,23 +1,21 @@
-from typing import Generator
+from typing import Optional, Generator
 
 try:  # Assume we're a submodule in a package.
-    from utils import arguments as arg
     from utils.decorators import deprecated_with_alternative
     from utils.external import boto3
-    from interfaces import ConnectorInterface, ConnType, Class, Name, AutoBool, Auto, AUTO
+    from interfaces import ConnectorInterface, ConnType, Class, Name
     from connectors.abstract.abstract_folder import HierarchicFolder
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
     from ...utils.decorators import deprecated_with_alternative
     from ...utils.external import boto3
-    from ...interfaces import ConnectorInterface, ConnType, Class, Name, AutoBool, Auto, AUTO
+    from ...interfaces import ConnectorInterface, ConnType, Class, Name
     from ..abstract.abstract_folder import HierarchicFolder
 
 Response = dict
 
 
 class S3Folder(HierarchicFolder):
-    def __init__(self, name: Name, bucket: ConnectorInterface, verbose: AutoBool = AUTO):
+    def __init__(self, name: Name, bucket: ConnectorInterface, verbose: Optional[bool] = None):
         bucket = self._assume_native(bucket)
         super().__init__(name=name, parent=bucket, verbose=verbose)
 

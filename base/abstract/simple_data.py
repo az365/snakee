@@ -2,7 +2,7 @@ from abc import ABC
 from typing import Optional, Iterable, Generator, Union, Any, NoReturn
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.typing import Auto, AutoCount, AutoBool
+    from base.classes.typing import Auto, Count
     from base.constants.chars import EMPTY, REPR_DELIMITER, SMALL_INDENT, DEFAULT_LINE_LEN
     from base.functions.arguments import get_str_from_annotation, get_str_from_args_kwargs
     from base.interfaces.data_interface import SimpleDataInterface
@@ -10,7 +10,7 @@ try:  # Assume we're a submodule in a package.
     from base.mixin.data_mixin import DataMixin, UNK_COUNT_STUB, DEFAULT_CHAPTER_TITLE_LEVEL
     from base.abstract.named import AbstractNamed, DisplayInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..classes.typing import Auto, AutoCount, AutoBool
+    from ..classes.typing import Auto, Count
     from ..constants.chars import EMPTY, REPR_DELIMITER, SMALL_INDENT, DEFAULT_LINE_LEN
     from ..functions.arguments import get_str_from_annotation, get_str_from_args_kwargs
     from ..interfaces.data_interface import SimpleDataInterface
@@ -218,7 +218,7 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
             self,
             comment: Optional[str] = None,
             depth: int = 1,
-            count: AutoCount = None,
+            count: Count = None,
     ) -> Generator:
         display = self.get_display()
         yield display.get_header_chapter_for(self, comment=comment)

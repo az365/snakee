@@ -1,47 +1,53 @@
-from typing import Union, Any, Callable, Optional
+from typing import Optional, Callable, Union
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.typing import AUTO, Auto, Array, ARRAY_TYPES
+    from base.classes.typing import Array, ARRAY_TYPES
     from base.constants.chars import STAR
     from base.functions.arguments import get_names, update
+    from base.classes.typing import FieldNo, FieldName
     from loggers.logger_interface import LoggerInterface
     from functions.primary.items import get_fields_values_from_item, get_field_value_from_item
     from content.selection.selection_functions import (
         Description, safe_apply_function,
         process_description, flatten_descriptions, support_simple_filter_expressions
     )
+    from content.items.simple_items import Record, MutableRecord, Row, ImmutableRow, Item, Value
     from content.items.item_type import ItemType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...base.classes.typing import AUTO, Auto, Array, ARRAY_TYPES
+    from ...base.classes.typing import Array, ARRAY_TYPES
     from ...base.constants.chars import STAR
     from ...base.functions.arguments import get_names, update
+    from ...base.classes.typing import FieldNo, FieldName
     from ...loggers.logger_interface import LoggerInterface
     from ...functions.primary.items import get_fields_values_from_item, get_field_value_from_item
     from ..selection.selection_functions import (
         Description, safe_apply_function,
         process_description, flatten_descriptions, support_simple_filter_expressions
     )
+    from .simple_items import Record, MutableRecord, Row, ImmutableRow, Item, Value
     from .item_type import ItemType
 
 
-def value_from_row(row: Array, description: Description, logger=None, skip_errors=True) -> Any:
+def value_from_row(row: Row, description: Description, logger=None, skip_errors=True) -> Value:
     if isinstance(description, Callable):
         return description(row)
     elif isinstance(description, ARRAY_TYPES):
         function, columns = process_description(description)
         values = [row[f] for f in columns]
         return safe_apply_function(function, columns, values, item=row, logger=logger, skip_errors=skip_errors)
-    elif isinstance(description, int):
+    elif isinstance(description, FieldNo):
         return row[description]
     else:
-        message = 'field description must be int, callable or tuple ({} as {} given)'
-        raise TypeError(message.format(description, type(description)))
+        arg = 'description'
+        expected = 'int, callable or tuple'
+        raise TypeError(f'expected {arg} as {expected}, got {description} as {type(description)}')
 
 
-def value_from_struct_row(row, description: Description, logger=None, skip_errors=True) -> Any:
+# @deprecated
+def value_from_struct_row(row, description: Description, logger=None, skip_errors=True) -> Value:
     if isinstance(description, Callable):
         return description(row)
-    elif isinstance(description, (int, str)):
+    elif isinstance(description, (FieldNo, FieldName)):
         return row.get_value(description)
     elif isinstance(description, ARRAY_TYPES):
         function, fields = process_description(description)
@@ -49,7 +55,7 @@ def value_from_struct_row(row, description: Description, logger=None, skip_error
         return safe_apply_function(function, fields, values, item=row, logger=logger, skip_errors=skip_errors)
 
 
-def value_from_record(record: dict, description: Description, logger=None, skip_errors=True) -> Any:
+def value_from_record(record: Record, description: Description, logger=None, skip_errors=True) -> Value:
     if isinstance(description, Callable):
         return description(record)
     elif isinstance(description, ARRAY_TYPES):
@@ -64,7 +70,7 @@ def value_from_record(record: dict, description: Description, logger=None, skip_
         return record.get(description)
 
 
-def value_from_any(item, description: Description, logger=None, skip_errors=True) -> Any:
+def value_from_any(item: Item, description: Description, logger=None, skip_errors=True) -> Value:
     if isinstance(description, Callable):
         return description(item)
     elif isinstance(description, ARRAY_TYPES):
@@ -75,7 +81,14 @@ def value_from_any(item, description: Description, logger=None, skip_errors=True
         return get_field_value_from_item(description, item)
 
 
-def value_from_item(item, description: Description, item_type=AUTO, logger=None, skip_errors=True, default=None):
+def value_from_item(
+        item: Item,
+        description: Description,
+        item_type: ItemType = ItemType.Auto,
+        logger: Optional[LoggerInterface] = None,
+        skip_errors: bool = True,
+        default: Value = None,
+) -> Value:
     if hasattr(description, 'get_mapper'):
         try:
             description = description.get_mapper(item_type=item_type)
@@ -85,7 +98,7 @@ def value_from_item(item, description: Description, item_type=AUTO, logger=None,
         description = description.get_name()
     if isinstance(description, Callable):
         return description(item)
-    elif isinstance(description, (int, str)):
+    elif isinstance(description, (FieldNo, FieldName)):
         return get_field_value_from_item(
             field=description, item=item, item_type=item_type,
             skip_errors=skip_errors, logger=logger, default=default,
@@ -99,11 +112,19 @@ def value_from_item(item, description: Description, item_type=AUTO, logger=None,
         )
         return safe_apply_function(function, fields, values, item=item, logger=logger, skip_errors=skip_errors)
     else:
-        message = 'field description must be int, callable or tuple ({} as {} given)'
-        raise TypeError(message.format(description, type(description)))
+        expected = 'int, callable or tuple'
+        got = description
+        arg = 'description'
+        raise TypeError(f'expected {arg} as {expected}, got {got} as {type(got)}')
 
 
-def get_composite_key(item, keys_descriptions: Array, item_type=AUTO, logger=None, skip_errors=True) -> tuple:
+def get_composite_key(
+        item: Item,
+        keys_descriptions: Array,
+        item_type: ItemType = ItemType.Any,
+        logger: Optional[LoggerInterface] = None,
+        skip_errors: bool = True,
+) -> ImmutableRow:
     keys_descriptions = update(keys_descriptions)
     keys_descriptions = [d.get_field_names() if hasattr(d, 'get_field_names') else d for d in keys_descriptions]
     result = list()
@@ -113,14 +134,14 @@ def get_composite_key(item, keys_descriptions: Array, item_type=AUTO, logger=Non
         else:
             value = value_from_item(item, d, item_type=item_type, logger=logger, skip_errors=skip_errors)
         result.append(value)
-    return tuple(result)
+    return ImmutableRow(result)
 
 
-def tuple_from_record(record: dict, descriptions: Array, logger=None) -> tuple:
+def tuple_from_record(record: Record, descriptions: Array, logger=None) -> tuple:
     return tuple([value_from_record(record, d, logger=logger) for d in descriptions])
 
 
-def row_from_row(row_in: Array, *descriptions) -> tuple:
+def row_from_row(row_in: Row, *descriptions) -> ImmutableRow:
     row_out = [None] * len(descriptions)
     c = 0
     for d in descriptions:
@@ -130,10 +151,10 @@ def row_from_row(row_in: Array, *descriptions) -> tuple:
         else:
             row_out[c] = value_from_row(row_in, d)
             c += 1
-    return tuple(row_out)
+    return ImmutableRow(row_out)
 
 
-def row_from_any(item_in, *descriptions) -> tuple:
+def row_from_any(item_in: Item, *descriptions) -> ImmutableRow:
     row_out = [None] * len(descriptions)
     c = 0
     for desc in descriptions:
@@ -147,13 +168,13 @@ def row_from_any(item_in, *descriptions) -> tuple:
         else:
             row_out[c] = value_from_any(item_in, desc)
             c += 1
-    return tuple(row_out)
+    return ImmutableRow(row_out)
 
 
-def record_from_any(item_in, *descriptions, logger=None) -> dict:
-    rec_out = dict()
+def record_from_any(item_in: Item, *descriptions, logger=None) -> MutableRecord:
+    rec_out = MutableRecord()
     for desc in descriptions:
-        assert isinstance(desc, ARRAY_TYPES) and len(desc) > 1, 'for AnyStream items description {} is not applicable'
+        assert isinstance(desc, ARRAY_TYPES) and len(desc) > 1, 'for RegularStream items description {} is not applicable'
         f_out = desc[0]
         if len(desc) == 2:
             f_in = desc[1]
@@ -167,7 +188,7 @@ def record_from_any(item_in, *descriptions, logger=None) -> dict:
     return rec_out
 
 
-def record_from_record(rec_in: dict, *descriptions, logger=None) -> dict:
+def record_from_record(rec_in: MutableRecord, *descriptions, logger: Optional[LoggerInterface] = None) -> MutableRecord:
     record = rec_in.copy()
     fields_out = list()
     for desc in descriptions:
@@ -190,7 +211,7 @@ def record_from_record(rec_in: dict, *descriptions, logger=None) -> dict:
     return {f: record[f] for f in fields_out}
 
 
-def auto_to_auto(item, *descriptions, logger=None) -> Any:
+def auto_to_auto(item: Item, *descriptions, logger: Optional[LoggerInterface] = None) -> Item:
     item_type = ItemType.detect(item, default=ItemType.Any)
     if item_type == ItemType.Record:
         return record_from_record(item, *descriptions, logger=logger)
@@ -202,10 +223,10 @@ def auto_to_auto(item, *descriptions, logger=None) -> Any:
 
 def get_selection_mapper(
         *fields,
-        target_item_type: ItemType = AUTO,
-        input_item_type: ItemType = AUTO,
+        target_item_type: ItemType = ItemType.Auto,
+        input_item_type: ItemType = ItemType.Auto,
         logger: Optional[LoggerInterface] = None,
-        selection_logger: Union[LoggerInterface, Auto] = AUTO,
+        selection_logger: Optional[LoggerInterface] = None,
         **expressions
 ) -> Callable:
     descriptions = flatten_descriptions(*fields, **expressions, logger=logger)
@@ -222,7 +243,13 @@ def get_selection_mapper(
     return lambda i: auto_to_auto(i, *descriptions, logger=logger)
 
 
-def get_filter_function(*fields, item_type=AUTO, skip_errors=False, logger=None, **expressions) -> Callable:
+def get_filter_function(
+        *fields,
+        item_type: ItemType = ItemType.Auto,
+        skip_errors: bool = False,
+        logger: Optional[LoggerInterface] = None,
+        **expressions
+) -> Callable:
     extended_filters_list = support_simple_filter_expressions(*fields, **expressions)
     return lambda i: apply_filter_list_to_item(
         item=i, filter_list=extended_filters_list,
@@ -233,9 +260,9 @@ def get_filter_function(*fields, item_type=AUTO, skip_errors=False, logger=None,
 def apply_filter_list_to_item(
         item,
         filter_list: Array,
-        item_type=AUTO,
-        skip_errors=False,
-        logger=None,
+        item_type: ItemType = ItemType.Auto,
+        skip_errors: bool = False,
+        logger: Optional[LoggerInterface] = None,
 ) -> bool:
     for filter_desc in filter_list:
         if not value_from_item(item, filter_desc, item_type=item_type, logger=logger, skip_errors=skip_errors):

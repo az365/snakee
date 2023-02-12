@@ -1,13 +1,13 @@
-from typing import Iterable
+from typing import Optional, Iterable
 import fnmatch
 
 try:  # Assume we're a submodule in a package.
-    from interfaces import ConnType, AUTO, Auto, AutoBool, AutoContext
+    from interfaces import ConnType, Auto, Context
     from connectors.abstract.hierarchic_connector import HierarchicConnector
     from connectors.abstract.abstract_folder import HierarchicFolder
     from connectors.filesystem.local_folder import LocalFolder
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...interfaces import ConnType, AUTO, Auto, AutoBool, AutoContext
+    from ...interfaces import ConnType, Auto, Context
     from ..abstract.hierarchic_connector import HierarchicConnector
     from ..abstract.abstract_folder import HierarchicFolder
     from .local_folder import LocalFolder
@@ -18,8 +18,8 @@ class LocalMask(LocalFolder):
             self,
             mask: str,
             parent: HierarchicConnector,
-            context: AutoContext = None,
-            verbose: AutoBool = AUTO,
+            context: Context = None,
+            verbose: Optional[bool] = None,
     ):
         if not Auto.is_defined(parent):
             if Auto.is_defined(context):

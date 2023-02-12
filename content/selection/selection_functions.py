@@ -1,7 +1,6 @@
 from typing import Callable, Union, Any
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.auto import AUTO, Auto
     from base.classes.typing import PRIMITIVE_TYPES, Array
     from base.functions.arguments import get_name, get_names, update
     from loggers.logger_interface import LoggerInterface
@@ -10,7 +9,6 @@ try:  # Assume we're a submodule in a package.
     from utils.decorators import deprecated_with_alternative
     from content.items.item_type import ItemType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...base.classes.auto import AUTO, Auto
     from ...base.classes.typing import PRIMITIVE_TYPES, Array
     from ...base.functions.arguments import get_name, get_names, update
     from ...loggers.logger_interface import LoggerInterface

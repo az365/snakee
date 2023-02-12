@@ -2,10 +2,10 @@ from abc import ABC
 from typing import Optional
 
 try:  # Assume we're a submodule in a package.
-    from interfaces import ContextInterface, Context, AutoContext, Name, Auto
+    from interfaces import ContextInterface, Context, Name, Auto
     from connectors.abstract.hierarchic_connector import HierarchicConnector
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...interfaces import ContextInterface, Context, AutoContext, Name, Auto
+    from ...interfaces import ContextInterface, Context, Name, Auto
     from .hierarchic_connector import HierarchicConnector
 
 Native = HierarchicConnector
@@ -48,7 +48,7 @@ class AbstractStorage(HierarchicConnector, ABC):
     def get_path_as_list(self):
         return [self.get_path()]
 
-    def set_context(self, context: AutoContext, reset: bool = False, inplace: bool = True) -> Optional[Native]:
+    def set_context(self, context: Context, reset: bool = False, inplace: bool = True) -> Optional[Native]:
         if not Auto.is_defined(context):
             if not self.get_context(skip_missing=True):
                 context = self.get_default_context()

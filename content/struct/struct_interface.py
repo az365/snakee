@@ -4,11 +4,11 @@ from typing import Type, Optional, Iterable, Union
 try:  # Assume we're a submodule in a package.
     from connectors.databases.dialect_type import DialectType
     from content.fields.field_interface import FieldInterface
-    from content.items.simple_items import FieldNo, FieldID, AUTO
+    from content.items.simple_items import FieldNo, FieldID
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...connectors.databases.dialect_type import DialectType
     from ..fields.field_interface import FieldInterface
-    from ..items.simple_items import FieldNo, FieldID, AUTO
+    from ..items.simple_items import FieldNo, FieldID
 
 Field = Union[FieldID, FieldInterface]
 
@@ -61,7 +61,7 @@ class StructMixinInterface(ABC):
             columns: Optional[Iterable] = None,
             show_header: bool = True,
             safe_filter: bool = True,
-            display=AUTO,
+            display=None,
             **filter_kwargs
     ):
         pass

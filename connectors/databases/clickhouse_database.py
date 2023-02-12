@@ -3,17 +3,17 @@ import requests
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
-        ConnectorInterface,
+        ConnectorInterface, Context,
         ConnType, DialectType, LoggingLevel,
-        AUTO, Auto, AutoBool, AutoContext, AutoName, Name, Count, Array, ARRAY_TYPES,
+        Auto, Name, Count, Array, ARRAY_TYPES,
     )
     from base.functions.arguments import get_name
     from connectors.databases.abstract_database import AbstractDatabase, TEST_QUERY, DEFAULT_STEP
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
-        ConnectorInterface,
+        ConnectorInterface, Context,
         ConnType, DialectType, LoggingLevel,
-        AUTO, Auto, AutoBool, AutoContext, AutoName, Name, Count, Array, ARRAY_TYPES,
+        Auto, Name, Count, Array, ARRAY_TYPES,
     )
     from ...base.functions.arguments import get_name
     from .abstract_database import AbstractDatabase, TEST_QUERY, DEFAULT_STEP
@@ -26,9 +26,9 @@ class ClickhouseDatabase(AbstractDatabase):
             host: Name = 'localhost',
             port: int = 8443,
             db: Name = 'public',
-            user: AutoName = AUTO,
-            password: AutoName = AUTO,
-            context: AutoContext = AUTO,
+            user: Optional[str] = None,
+            password: Optional[str] = None,
+            context: Context = None,
             **kwargs
     ):
         super().__init__(
@@ -46,8 +46,8 @@ class ClickhouseDatabase(AbstractDatabase):
     def execute(
             self,
             query: str = TEST_QUERY,
-            get_data: AutoBool = AUTO,
-            commit: AutoBool = AUTO,
+            get_data: Optional[bool] = None,
+            commit: Optional[bool] = None,
             verbose: bool = True,
     ) -> Optional[Iterable]:
         url = 'https://{host}:{port}/?database={db}&query={query}'.format(
@@ -68,12 +68,12 @@ class ClickhouseDatabase(AbstractDatabase):
         if get_data:
             return res.text
 
-    def exists_table(self, name: Name, verbose: AutoBool = AUTO):
-        query = 'EXISTS TABLE {}'.format(name)
+    def exists_table(self, name: Name, verbose: Optional[bool] = None):
+        query = f'EXISTS TABLE {name}'
         answer = self.execute(query, verbose=verbose)
         return answer[0] == '1'
 
-    def describe_table(self, name: Name, output_format: Optional[str] = None, verbose: AutoBool = AUTO):
+    def describe_table(self, name: Name, output_format: Optional[str] = None, verbose: Optional[bool] = None):
         query = 'DESCRIBE TABLE {table}'.format(table=self.get_path())
         if output_format:
             query = '{} FORMAT {}'.format(query, output_format)
@@ -88,13 +88,14 @@ class ClickhouseDatabase(AbstractDatabase):
             skip_errors: bool = False,
             expected_count: Count = None,
             return_count: bool = True,
-            verbose: AutoBool = AUTO,
+            verbose: Optional[bool] = None,
     ):
-        verbose = Auto.delayed_acquire(verbose, self.is_verbose)
+        if not Auto.is_defined(verbose):
+            verbose = self.is_verbose()
         table_name = get_name(table)
         count = len(rows) if isinstance(rows, ARRAY_TYPES) else expected_count
         if count == 0:
-            message = 'Rows are empty, nothing to insert into {}.'.format(table)
+            message = f'Rows are empty, nothing to insert into {table}.'
             if skip_errors:
                 self.log(message, verbose=verbose)
             else:

@@ -4,8 +4,7 @@ from typing import Optional, Callable, Iterable, Generator, Union
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         ConnectorInterface, LeafConnectorInterface, StructInterface, ContentFormatInterface, RegularStreamInterface,
-        ItemType, StreamType, ContentType, Context, Stream, Name, Count, Columns, Array,
-        AUTO, Auto, AutoBool, AutoName, AutoCount, AutoDisplay, AutoContext,
+        ItemType, StreamType, ContentType, Context, Stream, Name, Count, Columns, Array, Auto,
     )
     from base.functions.arguments import get_name, get_str_from_args_kwargs, get_cropped_text
     from base.constants.chars import EMPTY, CROP_SUFFIX, ITEMS_DELIMITER, DEFAULT_LINE_LEN
@@ -17,8 +16,7 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         ConnectorInterface, LeafConnectorInterface, StructInterface, ContentFormatInterface, RegularStreamInterface,
-        ItemType, StreamType, ContentType, Context, Stream, Name, Count, Columns, Array,
-        AUTO, Auto, AutoBool, AutoName, AutoCount, AutoDisplay, AutoContext,
+        ItemType, StreamType, ContentType, Context, Stream, Name, Count, Columns, Array, Auto,
     )
     from ...base.functions.arguments import get_name, get_str_from_args_kwargs, get_cropped_text
     from ...base.constants.chars import EMPTY, CROP_SUFFIX, ITEMS_DELIMITER, DEFAULT_LINE_LEN
@@ -31,7 +29,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 Native = LeafConnectorInterface
 Parent = Union[Context, ConnectorInterface]
 Links = Optional[dict]
-AutoStruct = Union[StructInterface, Auto, None]
 
 META_MEMBER_MAPPING = dict(_data='streams', _source='parent', _declared_format='content_format')
 TEMPORARY_PARTITION_FORMAT = ContentType.JsonFile
@@ -45,15 +42,16 @@ class LeafConnector(
     def __init__(
             self,
             name: Name,
-            content_format: Union[ContentFormatInterface, ContentType, Auto] = AUTO,
-            struct: AutoStruct = AUTO,
-            first_line_is_title: AutoBool = AUTO,
+            content_format: Union[ContentFormatInterface, ContentType, None] = None,
+            struct: Optional[StructInterface] = None,
+            detect_struct: bool = True,
+            first_line_is_title: Optional[bool] = None,
             parent: Parent = None,
-            context: AutoContext = AUTO,
+            context: Context = None,
             streams: Links = None,
-            expected_count: AutoCount = AUTO,
+            expected_count: Count = None,
             caption: Optional[str] = None,
-            verbose: AutoBool = AUTO,
+            verbose: Optional[bool] = None,
             **kwargs
     ):
         self._declared_format = None
@@ -62,7 +60,8 @@ class LeafConnector(
         self._count = expected_count
         self._caption = caption
         super().__init__(name=name, parent=parent, context=context, children=streams, verbose=verbose)
-        content_format = Auto.delayed_acquire(content_format, self._get_detected_format_by_name, name, **kwargs)
+        if not Auto.is_defined(content_format):
+            content_format = self._get_detected_format_by_name(name, **kwargs)
         suit_classes = ContentType, ContentFormatInterface, str
         is_deprecated_class = hasattr(content_format, 'get_value') and not isinstance(content_format, suit_classes)
         if is_deprecated_class:
@@ -83,10 +82,9 @@ class LeafConnector(
         assert isinstance(content_format, ContentFormatInterface), 'Expect ContentFormat, got {}'.format(content_format)
         self.set_content_format(content_format, inplace=True)
         self.set_first_line_title(first_line_is_title, verbose=self.is_verbose())
+        if detect_struct and struct is None:
+            struct = self._get_detected_struct(use_declared_types=False, skip_missing=True)
         if struct is not None:
-            if struct == AUTO:
-                if self.is_accessible():
-                    struct = self._get_detected_struct(use_declared_types=False, skip_missing=True)
             if Auto.is_defined(struct, check_name=False):
                 self.set_struct(struct, inplace=True)
 
@@ -115,7 +113,7 @@ class LeafConnector(
             set_struct: bool = False,
             use_declared_types: bool = False,
             skip_missing: bool = False,
-            verbose: AutoBool = False,
+            verbose: Optional[bool] = False,
     ) -> Optional[StructInterface]:
         if skip_missing and not self.is_accessible():
             return None
@@ -130,7 +128,7 @@ class LeafConnector(
                 )
                 return struct
 
-    def get_content_format(self, verbose: AutoBool = AUTO) -> ContentFormatInterface:
+    def get_content_format(self, verbose: Optional[bool] = None) -> ContentFormatInterface:
         detected_format = self.get_detected_format(detect=False, verbose=verbose)
         if Auto.is_defined(detected_format):
             return detected_format
@@ -145,7 +143,7 @@ class LeafConnector(
             detect: bool = True,
             force: bool = False,
             skip_missing: bool = True,
-            verbose: AutoBool = AUTO,
+            verbose: Optional[bool] = None,
     ) -> ContentFormatInterface:
         if force or (detect and not Auto.is_defined(self._detected_format)):
             self.reset_detected_format(use_declared_types=True, skip_missing=skip_missing, verbose=verbose)
@@ -164,7 +162,7 @@ class LeafConnector(
             self,
             use_declared_types: bool = True,
             skip_missing: bool = False,
-            verbose: AutoBool = AUTO,
+            verbose: Optional[bool] = None,
     ) -> Native:
         if self.is_existing(verbose=verbose):
             content_format = self.get_declared_format().copy()
@@ -191,7 +189,7 @@ class LeafConnector(
             new.set_declared_format(initial_format, inplace=True)
             return new
 
-    def set_first_line_title(self, first_line_is_title: AutoBool, verbose: AutoBool = AUTO) -> Native:
+    def set_first_line_title(self, first_line_is_title: Optional[bool], verbose: Optional[bool] = None) -> Native:
         declared_format = self.get_declared_format()
         detected_format = self.get_detected_format(detect=False, verbose=verbose)
         if hasattr(declared_format, 'set_first_line_title'):
@@ -207,7 +205,7 @@ class LeafConnector(
         self._modification_ts = timestamp
         return self
 
-    def get_expected_count(self) -> AutoCount:
+    def get_expected_count(self) -> Count:
         return self._count
 
     def set_count(self, count: int) -> Native:
@@ -243,7 +241,7 @@ class LeafConnector(
             assert self.is_existing(), 'object {} must exists'.format(self.get_name())
         return self
 
-    def has_lines(self, skip_missing: bool = True, verbose: AutoBool = AUTO) -> bool:
+    def has_lines(self, skip_missing: bool = True, verbose: Optional[bool] = None) -> bool:
         if not self.is_accessible(verbose=verbose):
             if skip_missing:
                 return False
@@ -261,7 +259,12 @@ class LeafConnector(
                 raise ValueError(f'For receive first line file/object must be non-empty: {self}')
         return True
 
-    def get_first_line(self, close: bool = True, skip_missing: bool = False, verbose: AutoBool = AUTO) -> Optional[str]:
+    def get_first_line(
+            self,
+            close: bool = True,
+            skip_missing: bool = False,
+            verbose: Optional[bool] = None,
+    ) -> Optional[str]:
         if not self.has_lines(skip_missing=skip_missing, verbose=verbose):
             return None
         iter_lines = self.get_lines(count=1, skip_first=False, skip_missing=skip_missing, verbose=verbose)
@@ -306,18 +309,20 @@ class LeafConnector(
         self.close()
         return stream
 
-    def get_items(self, verbose: AutoBool = AUTO, step: AutoCount = AUTO) -> Iterable:
-        return self.get_items_of_type(item_type=AUTO, verbose=verbose, step=step)
+    def get_items(self, verbose: Optional[bool] = None, step: Count = None) -> Iterable:
+        return self.get_items_of_type(item_type=ItemType.Auto, verbose=verbose, step=step)
 
     def get_items_of_type(
             self,
-            item_type: Union[ItemType, Auto],
-            verbose: AutoBool = AUTO,
-            message: AutoName = AUTO,
-            step: AutoCount = AUTO,
+            item_type: ItemType,
+            verbose: Optional[bool] = None,
+            message: Optional[str] = None,
+            step: Count = None,
     ) -> Iterable:
-        item_type = Auto.acquire(item_type, self.get_default_item_type())
-        verbose = Auto.acquire(verbose, self.is_verbose())
+        if item_type == ItemType.Auto or item_type is None:
+            item_type = self.get_default_item_type()
+        if not Auto.is_defined(verbose):
+            verbose = self.is_verbose()
         content_format = self.get_content_format()
         assert isinstance(content_format, ParsedFormat) or hasattr(content_format, 'get_items_from_lines')
         count = self.get_count(allow_slow_mode=False)
@@ -341,7 +346,8 @@ class LeafConnector(
             return self.set_items(items, count=self.get_count(), inplace=inplace)
 
     def filter(self, *args, item_type: ItemType = ItemType.Auto, skip_errors: bool = False, **kwargs) -> Stream:
-        item_type = Auto.delayed_acquire(item_type, self.get_item_type)
+        if item_type == ItemType.Auto or item_type is None:
+            item_type = self.get_item_type()
         filtered_items = self._get_filtered_items(*args, item_type=item_type, skip_errors=skip_errors, **kwargs)
         stream = self.to_stream(data=filtered_items, stream_type=item_type)
         return self._assume_stream(stream)

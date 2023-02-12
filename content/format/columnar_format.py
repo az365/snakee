@@ -1,38 +1,31 @@
 from typing import Optional, Union, Iterable, Generator, Callable
 
 try:  # Assume we're a submodule in a package.
-    from interfaces import (
-        Item, Row, StructInterface,
-        ItemType, StreamType, ContentType,
-        AUTO, Auto, AutoBool, Array, ARRAY_TYPES,
-    )
+    from interfaces import Item, Row, StructInterface, ItemType, StreamType, ContentType, Auto, ARRAY_TYPES
+    from base.constants.chars import PARAGRAPH_CHAR, TAB_CHAR
     from base.functions.arguments import get_name
     from functions.secondary import item_functions as fs
     from utils.decorators import deprecated_with_alternative
-    from content.format.text_format import TextFormat, Compress, DEFAULT_ENDING, DEFAULT_ENCODING
+    from content.format.text_format import TextFormat, Compress, DEFAULT_ENCODING
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...interfaces import (
-        Item, Row, StructInterface,
-        ItemType, StreamType, ContentType,
-        AUTO, Auto, AutoBool, Array, ARRAY_TYPES,
-    )
+    from ...interfaces import Item, Row, StructInterface, ItemType, StreamType, ContentType, Auto, ARRAY_TYPES
+    from ...base.constants.chars import PARAGRAPH_CHAR, TAB_CHAR
     from ...base.functions.arguments import get_name
     from ...functions.secondary import item_functions as fs
     from ...utils.decorators import deprecated_with_alternative
-    from .text_format import TextFormat, Compress, DEFAULT_ENDING, DEFAULT_ENCODING
+    from .text_format import TextFormat, Compress, DEFAULT_ENCODING
 
 DEFAULT_IS_FIRST_LINE_TITLE = True
-DEFAULT_DELIMITER = '\t'
 POPULAR_DELIMITERS = '\t', '; ', ', ', ';', ',', ' '
 
 
 class ColumnarFormat(TextFormat):
     def __init__(
             self,
-            first_line_is_title: bool = DEFAULT_IS_FIRST_LINE_TITLE,
-            delimiter: str = DEFAULT_DELIMITER,
-            ending: str = DEFAULT_ENDING,
-            encoding: str = DEFAULT_ENCODING,
+            first_line_is_title: bool = DEFAULT_IS_FIRST_LINE_TITLE,  # True
+            delimiter: str = TAB_CHAR,  # '\t'
+            ending: str = PARAGRAPH_CHAR,  # '\n'
+            encoding: str = DEFAULT_ENCODING,  # 'utf8'
             compress: Compress = None,
     ):
         assert isinstance(delimiter, str)
@@ -51,8 +44,10 @@ class ColumnarFormat(TextFormat):
     def is_first_line_title(self) -> bool:
         return self._first_line_is_title
 
-    def set_first_line_title(self, first_line_is_title: AutoBool) -> TextFormat:
-        self._first_line_is_title = Auto.acquire(first_line_is_title, DEFAULT_IS_FIRST_LINE_TITLE)
+    def set_first_line_title(self, first_line_is_title: Optional[bool]) -> TextFormat:
+        if not Auto.is_defined(first_line_is_title):
+            first_line_is_title = DEFAULT_IS_FIRST_LINE_TITLE
+        self._first_line_is_title = first_line_is_title
         return self
 
     def get_delimiter(self) -> str:
@@ -65,11 +60,15 @@ class ColumnarFormat(TextFormat):
             return self.make_new(delimiter=delimiter)
 
     @staticmethod
-    def detect_delimiter_by_example_line(line: str, expected_delimiters=POPULAR_DELIMITERS) -> str:
+    def detect_delimiter_by_example_line(
+            line: str,
+            expected_delimiters: Iterable = POPULAR_DELIMITERS,
+            default: str = TAB_CHAR,
+    ) -> str:
         for delimiter in expected_delimiters:
             if delimiter in line:
                 return delimiter
-        return DEFAULT_DELIMITER
+        return default
 
     def get_default_stream_type(self) -> StreamType:
         return StreamType.RowStream
@@ -83,7 +82,7 @@ class ColumnarFormat(TextFormat):
         else:
             return FlatStructFormat(struct=struct, **self.get_props())
 
-    def get_formatted_item(self, item: Item, item_type: Union[ItemType, Auto] = AUTO) -> str:
+    def get_formatted_item(self, item: Item, item_type: ItemType = ItemType.Auto) -> str:
         if not Auto.is_defined(item_type):
             item_type = ItemType.detect(item)
         if item_type in (ItemType.Row, ItemType.StructRow):
@@ -95,7 +94,7 @@ class ColumnarFormat(TextFormat):
         elif item_type == ItemType.Record:
             raise ValueError('For format record to row struct mus be defined in FlatStructFormat')
         else:
-            raise ValueError('item_type {} not supported for ColumnarFormat'.format(item_type))
+            raise ValueError(f'item_type {item_type} not supported for ColumnarFormat')
         row = map(str, row)
         return self.get_delimiter().join(row)
 
@@ -106,10 +105,11 @@ class ColumnarFormat(TextFormat):
     def get_parsed_line(
             self,
             line: str,
-            item_type: Union[ItemType, Auto] = AUTO,
-            struct: Union[Array, StructInterface, Auto] = AUTO,
+            item_type: ItemType = ItemType.Auto,
+            struct: Optional[StructInterface] = None,
     ) -> Item:
-        item_type = Auto.delayed_acquire(item_type, self.get_default_item_type)
+        if item_type == ItemType.Auto or item_type is None:
+            item_type = self.get_default_item_type()
         if item_type == ItemType.Line:
             return line
         line_parser = fs.csv_loads(delimiter=self.get_delimiter())
@@ -118,7 +118,7 @@ class ColumnarFormat(TextFormat):
             field_converters = struct.get_converters()
             row_converter = self._get_row_converter(converters=field_converters)
             row = row_converter(row)
-        if item_type in (ItemType.Row, ItemType.Any, ItemType.Auto):
+        if item_type in (ItemType.Row, ItemType.Any, ItemType.Auto, None):
             return row
         if not Auto.is_defined(struct, check_name=False):
             column_count = len(row)
@@ -128,17 +128,18 @@ class ColumnarFormat(TextFormat):
         elif item_type == ItemType.StructRow:
             return ItemType.StructRow.build(data=row, struct=struct)
         else:
-            msg = 'item_type {} is not supported for {}.parse_lines()'
-            raise ValueError(msg.format(item_type, self.__class__.__name__))
+            class_name = self.__class__.__name__
+            raise ValueError(f'item_type {item_type} is not supported for {class_name}.parse_lines()')
 
     def get_items_from_lines(
             self,
             lines: Iterable,
-            item_type: Union[ItemType, Auto] = AUTO,
-            struct: Union[Array, StructInterface, Auto] = AUTO,
+            item_type: ItemType = ItemType.Auto,
+            struct: Union[StructInterface] = None,
     ) -> Generator:
-        item_type = Auto.delayed_acquire(item_type, self.get_default_item_type)
-        if item_type in (ItemType.Record, ItemType.Row, ItemType.StructRow, ItemType.Any, ItemType.Auto):
+        if item_type == ItemType.Auto or item_type is None:
+            item_type = self.get_default_item_type()
+        if item_type in (ItemType.Record, ItemType.Row, ItemType.StructRow, ItemType.Any, ItemType.Auto, None):
             iter_parser = fs.csv_reader(delimiter=self.get_delimiter())
             rows = iter_parser(lines)
             if isinstance(struct, StructInterface):
@@ -149,7 +150,7 @@ class ColumnarFormat(TextFormat):
                 column_names = struct
             else:
                 column_names = None
-            if item_type in (ItemType.Row, ItemType.Any, ItemType.Auto):
+            if item_type in (ItemType.Row, ItemType.Any, ItemType.Auto, None):
                 yield from rows
             elif item_type == ItemType.Record:
                 for r in rows:
@@ -169,11 +170,11 @@ class ColumnarFormat(TextFormat):
 class FlatStructFormat(ColumnarFormat):
     def __init__(
             self,
-            struct: Union[StructInterface, Auto] = AUTO,
-            first_line_is_title: bool = DEFAULT_IS_FIRST_LINE_TITLE,
-            delimiter: str = DEFAULT_DELIMITER,
-            ending: str = DEFAULT_ENDING,
-            encoding: str = DEFAULT_ENCODING,
+            struct: Optional[StructInterface] = None,
+            first_line_is_title: bool = DEFAULT_IS_FIRST_LINE_TITLE,  # True
+            delimiter: str = TAB_CHAR,  # '\t'
+            ending: str = PARAGRAPH_CHAR,  # '\n'
+            encoding: str = DEFAULT_ENCODING,  # 'utf8'
             compress: Compress = None,
     ):
         self._struct = struct
@@ -184,7 +185,7 @@ class FlatStructFormat(ColumnarFormat):
         )
 
     def get_content_type(self) -> ContentType:
-        if self.get_delimiter() == DEFAULT_DELIMITER:
+        if self.get_delimiter() == TAB_CHAR:  # '\t'
             return ContentType.TsvFile
         else:
             return ContentType.CsvFile
@@ -206,8 +207,8 @@ class FlatStructFormat(ColumnarFormat):
 
     def _get_validated_struct(
             self,
-            struct: Union[Array, StructInterface, Auto] = AUTO,
-    ) -> Union[Array, StructInterface]:
+            struct: Optional[StructInterface] = None,
+    ) -> Union[list, StructInterface]:
         if Auto.is_defined(struct, check_name=False):
             if isinstance(struct, ARRAY_TYPES):
                 assert struct == self.get_struct().get_columns()
@@ -215,8 +216,9 @@ class FlatStructFormat(ColumnarFormat):
             struct = self.get_struct()
         return struct
 
-    def get_lines(self, items: Iterable, item_type: ItemType, add_title_row: AutoBool = AUTO) -> Generator:
-        add_title_row = Auto.delayed_acquire(add_title_row, self.is_first_line_title)
+    def get_lines(self, items: Iterable, item_type: ItemType, add_title_row: Optional[bool] = None) -> Generator:
+        if not Auto.is_defined(add_title_row):
+            add_title_row = self.is_first_line_title()
         if add_title_row:
             assert self.is_first_line_title()
             title_row = self.get_struct().get_columns()
@@ -224,8 +226,8 @@ class FlatStructFormat(ColumnarFormat):
         for i in items:
             yield self.get_formatted_item(i, item_type=item_type)
 
-    def get_formatted_item(self, item: Item, item_type: Union[ItemType, Auto] = AUTO, validate=True) -> str:
-        if not Auto.is_defined(item_type):
+    def get_formatted_item(self, item: Item, item_type: ItemType = ItemType.Auto, validate: bool = True) -> str:
+        if item_type == ItemType.Auto or item_type is None:
             item_type = ItemType.detect(item)
         if item_type == ItemType.Record:
             row = [str(item.get(f)) for f in self.get_struct().get_columns()]
@@ -239,8 +241,8 @@ class FlatStructFormat(ColumnarFormat):
     def get_parsed_line(
             self,
             line: str,
-            item_type: Union[ItemType, Auto] = AUTO,
-            struct: Union[Array, StructInterface, Auto] = AUTO,
+            item_type: ItemType = ItemType.Auto,
+            struct: Optional[StructInterface] = None,
     ) -> Item:
         struct = self._get_validated_struct(struct)
         return super().get_parsed_line(line, item_type=item_type, struct=struct)
@@ -248,8 +250,8 @@ class FlatStructFormat(ColumnarFormat):
     def get_items_from_lines(
             self,
             lines: Iterable,
-            item_type: Union[ItemType, Auto] = AUTO,
-            struct: Union[Array, StructInterface, Auto] = AUTO,
+            item_type: ItemType = ItemType.Auto,
+            struct: Optional[StructInterface] = None,
     ) -> Generator:
         struct = self._get_validated_struct(struct)
         return super().get_items_from_lines(lines, item_type=item_type, struct=struct)

@@ -2,14 +2,12 @@ from abc import ABC, abstractmethod
 from typing import Optional, Iterable, Union
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.auto import Auto, AUTO
     from base.interfaces.tree_interface import TreeInterface
     from loggers.logger_interface import LoggerInterface, LoggingLevel
     from loggers.extended_logger_interface import ExtendedLoggerInterface
     from loggers.progress_interface import ProgressInterface
     from connectors.conn_type import ConnType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...base.classes.auto import Auto, AUTO
     from ...base.interfaces.tree_interface import TreeInterface
     from ...loggers.logger_interface import LoggerInterface, LoggingLevel
     from ...loggers.extended_logger_interface import ExtendedLoggerInterface
@@ -205,8 +203,8 @@ class ConnectorInterface(TreeInterface, ABC):
     def log(
             self,
             msg: str,
-            level: Union[LoggingLevel, int, Auto] = AUTO,
-            end: Union[str, Auto] = AUTO,
+            level: Union[LoggingLevel, int, None] = None,
+            end: Optional[str] = None,
             verbose: bool = True,
     ) -> None:
         """Log message with using current common logger
@@ -220,7 +218,7 @@ class ConnectorInterface(TreeInterface, ABC):
         pass
 
     @abstractmethod
-    def get_new_progress(self, name, count: Optional[int] = None, context=AUTO) -> ProgressInterface:
+    def get_new_progress(self, name, count: Optional[int] = None, context=None) -> ProgressInterface:
         """Initialize new progress-bar using ExtendedLogger
 
         :param name: name of Progress object corresponding title message for progress-bar

@@ -7,9 +7,9 @@ try:  # Assume we're a submodule in a package.
         Context, Connector, ConnectorInterface, ContentFormatInterface, StructInterface,
         IterableStreamInterface, RegularStreamInterface,
         ContentType, ConnType, ItemType, StreamType, StreamItemType,
-        AUTO, Auto, AutoCount, AutoBool, AutoName, OptionalFields, UniKey, Array, ARRAY_TYPES,
+        Auto, Count, OptionalFields, UniKey, ARRAY_TYPES,
     )
-    from base.constants.chars import OS_PLACEHOLDER, PY_PLACEHOLDER
+    from base.constants.chars import EMPTY, OS_PLACEHOLDER, PY_PLACEHOLDER
     from functions.primary.text import is_formatter
     from content.format.format_classes import (
         AbstractFormat, ParsedFormat, LeanFormat,
@@ -23,9 +23,9 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         Context, Connector, ConnectorInterface, ContentFormatInterface, StructInterface,
         IterableStreamInterface, RegularStreamInterface,
         ContentType, ConnType, ItemType, StreamType, StreamItemType,
-        AUTO, Auto, AutoCount, AutoBool, AutoName, OptionalFields, UniKey, Array, ARRAY_TYPES,
+        Auto, Count, OptionalFields, UniKey, ARRAY_TYPES,
     )
-    from ...base.constants.chars import OS_PLACEHOLDER, PY_PLACEHOLDER
+    from ...base.constants.chars import EMPTY, OS_PLACEHOLDER, PY_PLACEHOLDER
     from ...functions.primary.text import is_formatter
     from ...content.format.format_classes import (
         AbstractFormat, ParsedFormat, LeanFormat,
@@ -50,14 +50,14 @@ class LocalFile(LeafConnector, ActualizeMixin):
     def __init__(
             self,
             name: str,
-            content_format: Union[ContentFormatInterface, Auto] = AUTO,
-            struct: Union[Struct, Auto, None] = AUTO,
+            content_format: Optional[ContentFormatInterface] = None,
+            struct: Optional[Struct] = None,
             folder: Connector = None,
-            context: Context = AUTO,
-            first_line_is_title: AutoBool = AUTO,
-            expected_count: AutoCount = AUTO,
+            context: Context = None,
+            first_line_is_title: Optional[bool] = None,
+            expected_count: Count = None,
             caption: Optional[str] = None,
-            verbose: AutoBool = AUTO,
+            verbose: Optional[bool] = None,
             **kwargs
     ):
         parent = kwargs.pop('parent', None)
@@ -72,7 +72,7 @@ class LocalFile(LeafConnector, ActualizeMixin):
         else:
             folder = self.get_default_folder()
         self._fileholder = None
-        if Auto.is_auto(first_line_is_title):
+        if not Auto.is_defined(first_line_is_title):
             if Auto.is_defined(content_format):
                 is_title = isinstance(content_format, ColumnarFormat) or hasattr(content_format, 'is_first_line_title')
             elif isinstance(struct, StructInterface) or hasattr(struct, 'get_columns'):
@@ -81,11 +81,10 @@ class LocalFile(LeafConnector, ActualizeMixin):
                 is_title = name.endswith('.csv') or name.endswith('.tsv')
             first_line_is_title = is_title
         super().__init__(
-            name=name,
+            name=name, caption=caption,
             content_format=content_format, struct=struct,
             first_line_is_title=first_line_is_title,
             expected_count=expected_count,
-            caption=caption,
             parent=folder, context=context, verbose=verbose,
             **kwargs,
         )
@@ -96,14 +95,14 @@ class LocalFile(LeafConnector, ActualizeMixin):
     def get_children(self) -> dict:
         return self._data
 
-    def get_slow_lines_count(self, verbose: AutoBool = AUTO) -> int:
+    def get_slow_lines_count(self, verbose: Optional[bool] = None) -> int:
         count = 0
         for _ in self.get_lines(message='Slow counting lines in {}...', allow_reopen=True, verbose=verbose):
             count += 1
         self.set_count(count)
         return count
 
-    def get_fast_lines_count(self, ending: Union[str, Auto] = AUTO, verbose: AutoBool = AUTO) -> int:
+    def get_fast_lines_count(self, ending: Optional[str] = None, verbose: Optional[bool] = None) -> int:
         if self.is_gzip():
             raise ValueError('get_fast_lines_count() method is not available for gzip-files')
         if not Auto.is_defined(ending):
@@ -111,8 +110,9 @@ class LocalFile(LeafConnector, ActualizeMixin):
                 ending = self.get_content_format().get_ending()
             else:
                 ending = '\n'
-        verbose = Auto.acquire(verbose, self.is_verbose())
-        self.log('Counting lines in {}...'.format(self.get_name()), end='\r', verbose=verbose)
+        if not Auto.is_defined(verbose):
+            verbose = self.is_verbose()
+        self.log(f'Counting lines in {self.get_name()}...', end='\r', verbose=verbose)
         count_n_symbol = sum(chunk.count(ending) for chunk in self.get_chunks())
         count_lines = count_n_symbol + 1
         self.set_count(count_lines)
@@ -206,8 +206,9 @@ class LocalFile(LeafConnector, ActualizeMixin):
     def get_folder_path(self) -> str:
         return self.get_path_delimiter().join(self.get_list_path()[:-1])
 
-    def is_inside_folder(self, folder: Union[str, Connector, Auto] = AUTO) -> bool:
-        folder_obj = Auto.acquire(folder, self.get_folder())
+    def is_inside_folder(self, folder: Union[str, Connector, None] = None) -> bool:
+        if not Auto.is_defined(folder, check_name=False):
+            folder_obj = self.get_folder()
         if isinstance(folder_obj, str):
             folder_path = folder_obj
         else:  # elif isinstance(folder_obj, LocalFolder)
@@ -264,7 +265,7 @@ class LocalFile(LeafConnector, ActualizeMixin):
             self.get_logger().log('Successfully removed {}.'.format(file_path), level=level)
         return 1
 
-    def is_existing(self, verbose: AutoBool = AUTO) -> bool:
+    def is_existing(self, verbose: Optional[bool] = None) -> bool:
         return os.path.exists(self.get_path()) or os.path.exists(self.get_full_path())
 
     def is_empty(self) -> bool:
@@ -325,15 +326,16 @@ class LocalFile(LeafConnector, ActualizeMixin):
             skip_first: bool = False,
             skip_missing: bool = True,
             allow_reopen: bool = True,
-            verbose: AutoBool = AUTO,
-            message: AutoName = AUTO,
-            step: AutoCount = AUTO,
+            verbose: Optional[bool] = None,
+            message: Optional[str] = None,
+            step: Count = None,
     ) -> Generator:
         if not (skip_missing or self.is_gzip()):
-            assert not self.is_empty(), 'for get_lines() file must be non-empty: {}'.format(self)
+            assert not self.is_empty(), f'for get_lines() file must be non-empty: {self}'
         self.open(allow_reopen=allow_reopen)
         lines = self.get_next_lines(count=count, skip_first=skip_first, close=True)
-        verbose = Auto.acquire(verbose, self.is_verbose())
+        if not Auto.is_defined(verbose):
+            verbose = self.is_verbose()
         if verbose or Auto.is_defined(message):
             if not Auto.is_defined(message):
                 message = 'Reading {}'
@@ -347,10 +349,11 @@ class LocalFile(LeafConnector, ActualizeMixin):
         return lines
 
     def get_chunks(self, chunk_size=CHUNK_SIZE) -> Iterable:
-        return iter(lambda: self.get_fileholder().read(chunk_size), '')
+        return iter(lambda: self.get_fileholder().read(chunk_size), EMPTY)
 
-    def write_lines(self, lines: Iterable, verbose: AutoBool = AUTO) -> Native:
-        verbose = Auto.acquire(verbose, self.is_verbose())
+    def write_lines(self, lines: Iterable, verbose: Optional[bool] = None) -> Native:
+        if not Auto.is_defined(verbose):
+            verbose = self.is_verbose()
         ending = self.get_ending().encode(self.get_encoding()) if self.is_gzip() else self.get_ending()
         self.open('w', allow_reopen=True)
         n = 0
@@ -368,11 +371,12 @@ class LocalFile(LeafConnector, ActualizeMixin):
     def write_items(
             self,
             items: Iterable,
-            item_type: Union[ItemType, Auto] = AUTO,
-            add_title_row: AutoBool = AUTO,
-            verbose: AutoBool = AUTO,
+            item_type: ItemType = ItemType.Auto,
+            add_title_row: Optional[bool] = None,
+            verbose: Optional[bool] = None,
     ) -> Native:
-        item_type = Auto.delayed_acquire(item_type, self.get_default_item_type)
+        if item_type == ItemType.Auto or item_type is None:
+            item_type = self.get_default_item_type()
         content_format = self.get_content_format()
         assert isinstance(content_format, ParsedFormat)
         lines = content_format.get_lines(items, item_type=item_type, add_title_row=add_title_row)
@@ -381,8 +385,8 @@ class LocalFile(LeafConnector, ActualizeMixin):
     def write_stream(
             self,
             stream: IterableStreamInterface,
-            add_title_row: AutoBool = AUTO,
-            verbose: AutoBool = AUTO,
+            add_title_row: Optional[bool] = None,
+            verbose: Optional[bool] = None,
     ) -> Native:
         if hasattr(stream, 'get_item_type'):
             item_type = stream.get_item_type()
@@ -392,16 +396,17 @@ class LocalFile(LeafConnector, ActualizeMixin):
 
     def to_stream(
             self,
-            data: Union[Iterable, Auto] = AUTO,
-            name: AutoName = AUTO,
-            stream_type: StreamItemType = AUTO,
+            data: Optional[Iterable] = None,
+            name: Optional[str] = None,
+            stream_type: StreamItemType = None,
             ex: OptionalFields = None,
-            step: AutoCount = AUTO,
+            step: Count = None,
             **kwargs
     ) -> Stream:
         if Auto.is_defined(data):
             kwargs['data'] = data
-        stream_type = Auto.delayed_acquire(stream_type, self.get_stream_type)
+        if not Auto.is_defined(stream_type):
+            stream_type = self.get_stream_type()
         assert not ex, f'ex-argument for LocalFile.to_stream() not supported (got {ex})'
         return self.to_stream_type(stream_type=stream_type, step=step, **kwargs)
 
@@ -413,7 +418,7 @@ class LocalFile(LeafConnector, ActualizeMixin):
     def set_default_folder(cls, folder: ConnectorInterface) -> None:
         cls._default_folder = folder
 
-    def _get_field_getter(self, field: UniKey, item_type: Union[ItemType, Auto] = AUTO, default=None):
+    def _get_field_getter(self, field: UniKey, item_type: Optional[ItemType] = None, default=None):
         if self.get_struct():
             if isinstance(field, ARRAY_TYPES):
                 fields_positions = self.get_fields_positions(field)

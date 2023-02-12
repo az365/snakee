@@ -65,7 +65,6 @@ class SnakeeContext(bs.AbstractNamed, ContextInterface):
         self.stream_instances = dict()
         self.conn_instances = dict()
 
-        name = Auto.acquire(name, NAME)
         super().__init__(name)
 
         self.sm = sm

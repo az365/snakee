@@ -1,8 +1,7 @@
 from typing import Callable, Iterable, Union
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.auto import AUTO
-    from base.classes.typing import FieldNo, FieldName
+    from base.classes.typing import FieldNo, FieldName, Value
     from base.constants.chars import ALL, NOT_SET
     from base.functions.arguments import get_name
     from utils.decorators import deprecated
@@ -16,12 +15,10 @@ try:  # Assume we're a submodule in a package.
     from content.selection.concrete_expression import (
         TrivialDescription, AliasDescription, RegularDescription, FunctionDescription,
         StarDescription, DropDescription,
-        Value,
     )
     from content.selection.selection_description import SelectionDescription, translate_names_to_columns
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...base.classes.auto import AUTO
-    from ...base.classes.typing import FieldNo, FieldName
+    from ...base.classes.typing import FieldNo, FieldName, Value
     from ...base.constants.chars import ALL, NOT_SET
     from ...base.functions.arguments import get_name
     from ...utils.decorators import deprecated
@@ -35,7 +32,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .concrete_expression import (
         TrivialDescription, AliasDescription, RegularDescription, FunctionDescription,
         StarDescription, DropDescription,
-        Value,
     )
     from .selection_description import SelectionDescription, translate_names_to_columns
 
@@ -74,11 +70,11 @@ def get_compatible_expression_tuples(expressions: dict) -> dict:
 
 def get_selection_function(
         *fields,
-        target_item_type=ItemType.Auto,
-        input_item_type=ItemType.Auto,
+        target_item_type: ItemType = ItemType.Auto,
+        input_item_type: ItemType = ItemType.Auto,
         input_struct=None,
         logger=None,
-        selection_logger=AUTO,
+        selection_logger=None,
         use_extended_method=True,
         **expressions
 ):
@@ -102,12 +98,12 @@ def get_selection_function(
 
 def get_output_struct(
         *fields,
-        target_item_type=ItemType.Auto,
-        input_item_type=ItemType.Auto,
+        target_item_type: ItemType = ItemType.Auto,
+        input_item_type: ItemType = ItemType.Auto,
         input_struct=None,
-        skip_missing=False,
+        skip_missing: bool = False,
         logger=None,
-        selection_logger=AUTO,
+        selection_logger=None,
         **expressions
 ):
     if input_struct:
@@ -137,4 +133,4 @@ def drop(*fields, **kwargs):
 
 
 def const(value: Value) -> RegularDescription:
-    return RegularDescription(target=NOT_SET, function=lambda i: value, inputs=[], target_item_type=AUTO)
+    return RegularDescription(target=NOT_SET, function=lambda i: value, inputs=[], target_item_type=ItemType.Auto)

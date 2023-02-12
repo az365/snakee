@@ -2,17 +2,14 @@ from abc import abstractmethod
 from typing import Optional
 
 try:  # Assume we're a submodule in a package.
-    from utils import arguments as arg
     from utils.decorators import deprecated_with_alternative
-    from interfaces import Context, ConnectorInterface, ConnType, Class, Name
+    from interfaces import Context, ConnectorInterface, ConnType, Class, Name, Auto
     from connectors.abstract.abstract_storage import AbstractStorage
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
     from ...utils.decorators import deprecated_with_alternative
-    from ...interfaces import Context, ConnectorInterface, ConnType, Class, Name
+    from ...interfaces import Context, ConnectorInterface, ConnType, Class, Name, Auto
     from ..abstract.abstract_storage import AbstractStorage
 
-AUTO = arg.AUTO
 COVERT_PROPS = 'access_key', 'secret_key'
 DEFAULT_PATH_DELIMITER = '/'
 FIRST_PATH_DELIMITER = '://'
@@ -81,21 +78,25 @@ class S3Storage(AbstractObjectStorage):
     def get_buckets(self) -> dict:
         return self.get_children()
 
-    def bucket(self, name: Name, access_key=AUTO, secret_key=AUTO) -> ConnectorInterface:
+    def bucket(
+            self,
+            name: Name,
+            access_key: Optional[str] = None,
+            secret_key: Optional[str] = None,
+    ) -> ConnectorInterface:
         bucket = self.get_buckets().get(name)
         if bucket:
-            if arg.is_defined(access_key) and hasattr(bucket, 'set_access_key'):
+            if Auto.is_defined(access_key) and hasattr(bucket, 'set_access_key'):
                 bucket.set_access_key(access_key)
-            if arg.is_defined(secret_key) and hasattr(bucket, 'set_secret_key'):
+            if Auto.is_defined(secret_key) and hasattr(bucket, 'set_secret_key'):
                 bucket.set_secret_key(secret_key)
         else:
             bucket_class = self.get_default_child_obj_class()
-            bucket = bucket_class(
-                name=name,
-                storage=self,
-                access_key=arg.delayed_acquire(access_key, self.get_access_key),
-                secret_key=arg.delayed_acquire(secret_key, self.get_secret_key),
-            )
+            if not Auto.is_defined(access_key):
+                access_key = self.get_access_key()
+            if not Auto.is_defined(secret_key):
+                secret_key = self.get_secret_key()
+            bucket = bucket_class(name=name, storage=self, access_key=access_key, secret_key=secret_key)
         return bucket
 
     def get_resource_properties(self) -> dict:

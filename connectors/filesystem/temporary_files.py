@@ -1,22 +1,24 @@
 from typing import Optional, Iterable, Callable, Union
 
-try:  # Assume we're a sub-module in a package.
-    from utils import arguments as arg, algo
+try:  # Assume we're a submodule in a package.
     from interfaces import (
         ContextInterface, StreamInterface, ConnectorInterface, LeafConnectorInterface,
         TemporaryLocationInterface, TemporaryFilesMaskInterface,
         Context, Stream, Connector, TmpFiles,
-        AUTO, Auto, AutoBool, Name, Source,
+        Auto, Name, Source,
     )
+    from utils.algo import merge_iter
+    from functions.primary.text import is_formatter
     from connectors.filesystem.local_mask import LocalFolder, LocalMask
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg, algo
     from ...interfaces import (
         ContextInterface, StreamInterface, ConnectorInterface, LeafConnectorInterface,
         TemporaryLocationInterface, TemporaryFilesMaskInterface,
         Context, Stream, Connector, TmpFiles,
-        AUTO, Auto, AutoBool, Name, Source,
+        Auto, Name, Source,
     )
+    from ...utils.algo import merge_iter
+    from ...functions.primary.text import is_formatter
     from .local_mask import LocalFolder, LocalMask
 
 DEFAULT_FOLDER = 'tmp'
@@ -31,12 +33,12 @@ class TemporaryLocation(LocalFolder, TemporaryLocationInterface):
             path: Name = DEFAULT_FOLDER,
             mask: Name = DEFAULT_MASK,
             path_is_relative: bool = True,
-            parent: Source = AUTO,
-            context: Context = AUTO,
-            verbose: AutoBool = AUTO,
+            parent: Source = None,
+            context: Context = None,
+            verbose: Optional[bool] = None,
     ):
         mask = mask.replace('*', '{}')
-        assert arg.is_formatter(mask, 2)
+        assert is_formatter(mask, 2)
         self._mask = mask
         super().__init__(
             path=path, path_is_relative=path_is_relative,
@@ -83,14 +85,15 @@ class TemporaryFilesMask(LocalMask, TemporaryFilesMaskInterface):
             name: Name,
             encoding: str = DEFAULT_ENCODING,
             stream: Optional[Stream] = None,
-            parent: Source = AUTO,
-            context: Context = AUTO,
-            verbose: AutoBool = AUTO,
+            parent: Source = None,
+            context: Context = None,
+            verbose: Optional[bool] = None,
     ):
-        parent = arg.acquire(parent, TemporaryLocation(context=context))
+        if not Auto.is_defined(parent):
+            parent = TemporaryLocation(context=context)
         assert hasattr(parent, 'get_str_mask_template'), 'got {}'.format(parent)
         location_mask = parent.get_str_mask_template()
-        assert arg.is_formatter(location_mask, 2)
+        assert is_formatter(location_mask, 2)
         stream_mask = location_mask.format(name, PART_PLACEHOLDER)
         super().__init__(
             mask=stream_mask,
@@ -146,7 +149,7 @@ class TemporaryFilesMask(LocalMask, TemporaryFilesMaskInterface):
         iterables = [f.get_items() for f in parts]
         counts = [f.get_count() or 0 for f in parts]
         self.log('Merging {} parts...'.format(len(iterables)), verbose=verbose)
-        merged_items = algo.merge_iter(iterables, key_function=key_function, reverse=reverse)
+        merged_items = merge_iter(iterables, key_function=key_function, reverse=reverse)
         if return_count:
             yield sum(counts)
             yield merged_items
