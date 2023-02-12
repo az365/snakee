@@ -3,18 +3,16 @@ from typing import Optional, Union, Iterable, Generator
 from datetime import timedelta, datetime
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.auto import AUTO, Auto
     from base.classes.enum import DynamicEnum
     from base.interfaces.tree_interface import TreeInterface
     from loggers.extended_logger_interface import ExtendedLoggerInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..base.classes.auto import AUTO, Auto
     from ..base.classes.enum import DynamicEnum
     from ..base.interfaces.tree_interface import TreeInterface
     from .extended_logger_interface import ExtendedLoggerInterface
 
 Native = Union[TreeInterface, ExtendedLoggerInterface]
-Logger = Union[ExtendedLoggerInterface, Auto]
+Logger = Optional[ExtendedLoggerInterface]
 
 
 class OperationStatus(DynamicEnum):
@@ -72,21 +70,21 @@ class ProgressInterface(TreeInterface, ABC):
         pass
 
     @abstractmethod
-    def get_selection_logger(self, name=AUTO) -> Logger:
+    def get_selection_logger(self, name: Optional[str] = None) -> Logger:
         pass
 
     @abstractmethod
     def log(
             self,
             msg: str,
-            level: Union[int, Auto] = AUTO,
-            end: Union[str, Auto] = AUTO,
-            verbose: Union[bool, Auto] = AUTO,
+            level: Optional[int] = None,
+            end: Optional[str] = None,
+            verbose: Optional[bool] = None,
     ) -> None:
         pass
 
     @abstractmethod
-    def log_selection_batch(self, level: Union[int, Auto] = AUTO, reset_after: bool = True) -> None:
+    def log_selection_batch(self, level: Optional[int] = None, reset_after: bool = True) -> None:
         pass
 
     @abstractmethod
@@ -131,7 +129,7 @@ class ProgressInterface(TreeInterface, ABC):
             items: Iterable,
             name: Optional[str] = None,
             expected_count: Optional[int] = None,
-            step: Union[int, Auto] = AUTO,
+            step: Optional[int] = None,
             log_selection_batch: bool = True
     ) -> Generator:
         pass

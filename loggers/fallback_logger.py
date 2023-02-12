@@ -18,7 +18,6 @@ class FallbackLogger(LoggerInterface):
             name: Optional[str] = None,
             ignore_warnings: bool = False,
     ):
-        # name = Auto.acquire(name, DEFAULT_LOGGER_NAME)
         if name is None:
             name = DEFAULT_LOGGER_NAME
         self._name = name

@@ -2,16 +2,17 @@ from abc import ABC, abstractmethod
 from typing import Callable, Union, Any
 
 try:  # Assume we're a submodule in a package.
+    from base.classes.typing import Name
     from series.series_type import SeriesType
-    from series.interfaces.any_series_interface import AnySeriesInterface, Name
+    from series.interfaces.any_series_interface import AnySeriesInterface
     from series.interfaces.date_series_interface import DateSeriesInterface
     from series.interfaces.numeric_series_interface import NumericSeriesInterface
     from series.interfaces.sorted_series_interface import SortedSeriesInterface
     from series.interfaces.key_value_series_interface import KeyValueSeriesInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...functions.primary import numeric as nm, dates as dt
+    from ...base.classes.typing import Name
     from ..series_type import SeriesType
-    from .any_series_interface import AnySeriesInterface, Name
+    from .any_series_interface import AnySeriesInterface
     from .date_series_interface import DateSeriesInterface
     from .numeric_series_interface import NumericSeriesInterface
     from .sorted_series_interface import SortedSeriesInterface

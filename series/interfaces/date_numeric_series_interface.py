@@ -2,19 +2,19 @@ from abc import ABC, abstractmethod
 from typing import Optional, Callable, Iterable, Union
 
 try:  # Assume we're a submodule in a package.
-    from utils.arguments import Auto, AUTO
+    from base.classes.typing import Name
     from functions.primary.dates import DateScale, DAYS_IN_WEEK, MAX_DAYS_IN_MONTH
     from series.interpolation_type import InterpolationType
-    from series.interfaces.any_series_interface import AnySeriesInterface, Name
+    from series.interfaces.any_series_interface import AnySeriesInterface
     from series.interfaces.date_series_interface import DateSeriesInterface, Date
     from series.interfaces.numeric_series_interface import NumericSeriesInterface, NumericValue
     from series.interfaces.sorted_numeric_series_interface import SortedNumericSeriesInterface
     from series.interfaces.sorted_numeric_key_value_series_interface import SortedNumericKeyValueSeriesInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils.arguments import Auto, AUTO
+    from ...base.classes.typing import Name
     from ...functions.primary.dates import DateScale, DAYS_IN_WEEK, MAX_DAYS_IN_MONTH
     from ..interpolation_type import InterpolationType
-    from .any_series_interface import AnySeriesInterface, Name
+    from .any_series_interface import AnySeriesInterface
     from .date_series_interface import DateSeriesInterface, Date
     from .numeric_series_interface import NumericSeriesInterface, NumericValue
     from .sorted_numeric_series_interface import SortedNumericSeriesInterface
@@ -22,7 +22,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 
 Native = Union[SortedNumericKeyValueSeriesInterface, DateSeriesInterface]
 Series = Union[Native, AnySeriesInterface]
-AutoBool = Union[Auto, bool]
 Window = Union[list, tuple]
 
 WINDOW_WEEKLY_DEFAULT = -DAYS_IN_WEEK, 0, DAYS_IN_WEEK  # (-7, 0, 7)
@@ -56,7 +55,7 @@ class DateNumericSeriesInterface(SortedNumericKeyValueSeriesInterface, DateSerie
         pass
 
     @abstractmethod
-    def round_to(self, scale: DateScale, as_iso_date: AutoBool = AUTO, inplace: bool = False) -> Native:
+    def round_to(self, scale: DateScale, as_iso_date: Optional[bool] = None, inplace: bool = False) -> Native:
         pass
 
     @abstractmethod
@@ -68,7 +67,7 @@ class DateNumericSeriesInterface(SortedNumericKeyValueSeriesInterface, DateSerie
             self,
             dates: Iterable,
             weight_benchmark: Series,
-            internal: InterpolationType = 'linear',
+            internal: InterpolationType = InterpolationType.Linear,
     ) -> Native:
         pass
 

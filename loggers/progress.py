@@ -1,15 +1,13 @@
-from typing import Optional, Iterable, Generator, Union
+from typing import Optional, Iterable, Generator
 from datetime import timedelta, datetime
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.auto import AUTO, Auto
     from base.interfaces.context_interface import ContextInterface
     from base.abstract.tree_item import TreeItem
     from functions.primary.dates import MINUTES_IN_HOUR, SECONDS_IN_MINUTE
     from loggers.extended_logger_interface import ExtendedLoggerInterface, LoggingLevel
     from loggers.progress_interface import ProgressInterface, OperationStatus
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..base.classes.auto import AUTO, Auto
     from ..base.interfaces.context_interface import ContextInterface
     from ..base.abstract.tree_item import TreeItem
     from ..functions.primary.dates import MINUTES_IN_HOUR, SECONDS_IN_MINUTE
@@ -17,7 +15,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .progress_interface import ProgressInterface, OperationStatus
 
 Native = ProgressInterface
-Logger = Union[ExtendedLoggerInterface, Auto]
+Logger = Optional[ExtendedLoggerInterface]
 Context = Optional[ContextInterface]
 
 DEFAULT_STEP = 10000
@@ -31,8 +29,8 @@ class Progress(TreeItem, ProgressInterface):
             count: Optional[int] = None,
             timing: bool = True,
             verbose: bool = True,
-            logger: Logger = AUTO,
-            context: ContextInterface = None,
+            logger: Logger = None,
+            context: Context = None,
     ):
         self._expected_count = count
         self._verbose = verbose
@@ -41,14 +39,14 @@ class Progress(TreeItem, ProgressInterface):
         self._timing = timing
         self._start_time = None
         self._past_time = timedelta(0)
-        if logger is None:
+        if logger is None and context is not None:
+            if isinstance(context, ContextInterface) or hasattr(context, 'get_logger'):
+                logger = context.get_logger()
+        elif context is None and logger is not None:
+            if isinstance(logger, ExtendedLoggerInterface) or hasattr(logger, 'get_context') and not context:
+                context = logger.get_context()
+        if not logger:
             logger = None
-        elif logger == AUTO:
-            logger = context.get_logger()
-        else:
-            logger = logger
-        if hasattr(logger, 'get_context') and not context:
-            context = logger.get_context()
         super().__init__(name=name, parent=logger, context=context, check=False)
 
     @staticmethod
@@ -104,8 +102,9 @@ class Progress(TreeItem, ProgressInterface):
     def _get_selection_logger_name(self) -> str:
         return f'{self.get_name()}:_selection'
 
-    def get_selection_logger(self, name: Union[str, Auto] = AUTO) -> Logger:
-        name = Auto.acquire(name, self._get_selection_logger_name, delayed=True)
+    def get_selection_logger(self, name: Optional[str] = None) -> Logger:
+        if not isinstance(name, str):
+            name = self._get_selection_logger_name()
         selection_logger = self.get_child(name)
         if not selection_logger:
             logger = self.get_logger()
@@ -123,7 +122,7 @@ class Progress(TreeItem, ProgressInterface):
             self.add_child(selection_logger)
         return selection_logger
 
-    def reset_selection_logger(self, name=AUTO, **kwargs) -> None:
+    def reset_selection_logger(self, name: Optional[str] = None, **kwargs) -> None:
         logger = self.get_logger()
         logger.reset_selection_logger(name, **kwargs)
 
@@ -137,19 +136,17 @@ class Progress(TreeItem, ProgressInterface):
     def log(
             self,
             msg: str,
-            level: Union[LoggingLevel, Auto] = AUTO,
-            end: Union[str, Auto] = AUTO,
-            verbose: Union[bool, Auto] = AUTO,
+            level: Optional[LoggingLevel] = None,
+            end: Optional[str] = None,
+            verbose: Optional[bool] = None,
     ) -> None:
+        if not isinstance(verbose, bool):
+            verbose = self.is_verbose()
         logger = self.get_logger()
         if logger is not None:
-            logger.log(
-                logger=self.get_logger(),
-                msg=msg, level=level, end=end,
-                verbose=Auto.acquire(verbose, self.is_verbose()),
-            )
+            logger.log(logger=self.get_logger(), msg=msg, level=level, end=end, verbose=verbose)
 
-    def log_selection_batch(self, level: Union[LoggingLevel, Auto] = AUTO, reset_after: bool = True) -> None:
+    def log_selection_batch(self, level: Optional[LoggingLevel] = None, reset_after: bool = True) -> None:
         selection_logger = self.get_selection_logger()
         if selection_logger:
             if selection_logger.has_errors():
@@ -237,23 +234,24 @@ class Progress(TreeItem, ProgressInterface):
             line = '{} {} ({} it/sec)'.format(self.get_timing_str(), line, self.evaluate_speed())
         self.log(line, level=LoggingLevel.Debug, end='\r')
 
-    def update_with_step(self, position: int, step: Union[int, Auto] = AUTO):
-        step = Auto.acquire(step, DEFAULT_STEP)
+    def update_with_step(self, position: int, step: Optional[int] = None):
+        if not isinstance(step, int):
+            step = DEFAULT_STEP
         cur_increment = position - (self.position or 0)
         self.position = position
         step_passed = (self.position + 1) % step == 0
         step_passed = step_passed or (cur_increment >= step)
         expected_count = self.expected_count
-        if not Auto.is_defined(expected_count):
+        if not isinstance(expected_count, int):
             expected_count = 0
         pool_finished = 0 < expected_count < (self.position + 1)
         if step_passed or pool_finished:
             self.update_now(position)
 
-    def update(self, position: int, step: Union[int, Auto, None] = None, message: Optional[str] = None):
-        if Auto.is_defined(message):
+    def update(self, position: int, step: Optional[int] = None, message: Optional[str] = None):
+        if isinstance(message, str):
             self.set_name(message, inplace=True)
-        if step == 1 or not Auto.is_defined(step):
+        if step == 1 or not isinstance(step, int):
             self.update_now(position)
         else:
             self.update_with_step(position, step)
@@ -286,17 +284,18 @@ class Progress(TreeItem, ProgressInterface):
             items: Iterable,
             name: Optional[str] = None,
             expected_count: Optional[int] = None,
-            step: Union[int, Auto] = AUTO,
+            step: Optional[int] = None,
             log_selection_batch: bool = True,
     ) -> Generator:
-        if Auto.is_defined(name):
+        if isinstance(name, (str, int)):
             self.set_name(name, inplace=True)
+        if not isinstance(step, int):
+            step = DEFAULT_STEP
         if isinstance(items, (set, list, tuple)):
             self.expected_count = len(items)
         elif expected_count:
             self.expected_count = expected_count
         n = 0
-        step = Auto.acquire(step, DEFAULT_STEP)
         self.start()
         for n, item in enumerate(items):
             self.update(n, step)

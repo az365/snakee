@@ -2,14 +2,14 @@ from abc import ABC, abstractmethod
 from typing import Optional, Iterable, Union
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.typing import ARRAY_TYPES, AUTO, Auto, Value
+    from base.classes.typing import Value
     from base.abstract.simple_data import SimpleDataWrapper
     from base.mixin.iter_data_mixin import IterDataMixin, IterableInterface
     from utils.decorators import deprecated_with_alternative
     from functions.primary.numeric import MUTABLE, Mutable
     from series.series_type import SeriesType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..base.classes.typing import ARRAY_TYPES, AUTO, Auto, Value
+    from ..base.classes.typing import Value
     from ..base.abstract.simple_data import SimpleDataWrapper
     from ..base.mixin.iter_data_mixin import IterDataMixin, IterableInterface
     from ..utils.decorators import deprecated_with_alternative
