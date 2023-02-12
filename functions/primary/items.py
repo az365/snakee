@@ -1,7 +1,6 @@
 from typing import Optional, Iterable, Callable, Union, Any
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.auto import AUTO, Auto
     from base.constants.chars import SHARP
     from content.items.item_type import ItemType, SubclassesType
     from content.struct.struct_interface import StructInterface
@@ -14,7 +13,6 @@ try:  # Assume we're a submodule in a package.
         merge_two_rows, merge_two_records,
     )
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...base.classes.auto import AUTO, Auto
     from ...base.constants.chars import SHARP
     from ...content.items.item_type import ItemType, SubclassesType
     from ...content.struct.struct_interface import StructInterface
@@ -35,7 +33,7 @@ def get_canonic_item_type(
         item_type: Union[ItemType, SubclassesType, str],
         example_item: Optional[ConcreteItem] = None,
 ) -> ItemType:
-    if item_type == ItemType.Auto or not Auto.is_defined(item_type):
+    if item_type == ItemType.Auto or item_type is None:
         assert example_item is not None, 'get_canonic_item_type(): for detect item_type example_item must be defined'
         item_type = ItemType.detect(example_item, default=ItemType.Any)
     else:
@@ -57,7 +55,8 @@ def set_to_item_inplace(
         item: SelectableItem,
         item_type: ItemType = ItemType.Auto,
 ) -> None:
-    item_type = Auto.delayed_acquire(item_type, ItemType.detect, item, default=ItemType.Any)
+    if item_type == ItemType.Auto or item_type is None:
+        item_type = ItemType.detect(item, default=ItemType.Any)
     if not isinstance(item_type, ItemType):
         if hasattr(item_type, 'value'):
             item_type = ItemType(item_type.value)
@@ -105,7 +104,8 @@ def set_to_item(
 
 
 def get_fields_names_from_item(item: SelectableItem, item_type: ItemType = ItemType.Auto) -> Row:
-    item_type = Auto.delayed_acquire(item_type, ItemType.detect, item, default=ItemType.Any)
+    if item_type == ItemType.Auto or item_type is None:
+        item_type = ItemType.detect(item, default=ItemType.Any)
     if item_type == ItemType.Row:
         return list(range(len(item)))
     elif item_type == ItemType.Record:
@@ -154,14 +154,19 @@ def get_field_value_from_item(
 
 
 def get_fields_values_from_item(
-        fields: Array, item: SelectableItem, item_type=ItemType.Auto,
-        skip_errors: bool = False, logger=None, default: Value = None,
+        fields: Array,
+        item: SelectableItem,
+        item_type: ItemType = ItemType.Auto,
+        skip_errors: bool = False,
+        logger=None,
+        default: Value = None,
 ) -> list:
     return [get_field_value_from_item(f, item, item_type, skip_errors, logger, default) for f in fields]
 
 
 def simple_select_fields(fields: Array, item: SelectableItem, item_type: ItemType = ItemType.Auto) -> SelectableItem:
-    item_type = Auto.delayed_acquire(item_type, ItemType.detect, item, default=ItemType.Any)
+    if item_type == ItemType.Auto or item_type is None:
+        item_type = ItemType.detect(item, default=ItemType.Any)
     if isinstance(item_type, str):
         item_type = ItemType(item_type)
     if item_type == ItemType.Record:

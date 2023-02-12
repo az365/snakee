@@ -2,11 +2,6 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Union, Optional
 
-try:  # Assume we're a submodule in a package.
-    from base.classes.auto import Auto
-except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..base.classes.auto import Auto
-
 
 class LoggingLevel(Enum):
     Debug = 10
@@ -42,4 +37,4 @@ class LoggerInterface(ABC):
         pass
 
 
-AutoLogger = Union[LoggerInterface, Auto, None]
+AutoLogger = Optional[LoggerInterface]  # deprecated

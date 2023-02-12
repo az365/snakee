@@ -1,7 +1,6 @@
 from functools import wraps
 
-try:  # Assume we're a sub-module in a package.
-    from utils import arguments as arg
+try:  # Assume we're a submodule in a package.
     from loggers.logger_interface import LoggerInterface
     from loggers.extended_logger_interface import ExtendedLoggerInterface, LoggingLevel
     from loggers.selection_logger_interface import SelectionLoggerInterface
@@ -13,7 +12,6 @@ try:  # Assume we're a sub-module in a package.
     from loggers.logging_context_stub import LoggingContextStub
     from loggers.fallback_logger import FallbackLogger
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..utils import arguments as arg
     from .logger_interface import LoggerInterface
     from .extended_logger_interface import ExtendedLoggerInterface, LoggingLevel
     from .selection_logger_interface import SelectionLoggerInterface

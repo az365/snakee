@@ -3,8 +3,11 @@ from inspect import getframeinfo, stack
 import logging
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.typing import AUTO, Auto, AutoName, AutoCount, Count, Name
-    from base.constants.chars import DEFAULT_ENCODING, DEFAULT_LINE_LEN, LONG_LINE_LEN, CROP_SUFFIX, ELLIPSIS, SPACE
+    from base.classes.typing import Auto, Count, Name
+    from base.constants.chars import (
+        EMPTY, CROP_SUFFIX, ELLIPSIS, SPACE, RETURN_CHAR, PARAGRAPH_CHAR, SLASH, BACKSLASH,
+        DEFAULT_ENCODING, DEFAULT_LINE_LEN, LONG_LINE_LEN,
+    )
     from base.functions.arguments import get_name, get_value, update, get_cropped_text
     from base.interfaces.context_interface import ContextInterface
     from base.abstract.named import AbstractNamed
@@ -16,8 +19,11 @@ try:  # Assume we're a submodule in a package.
     from loggers.progress_interface import ProgressInterface
     from loggers.progress import Progress
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..base.classes.typing import AUTO, Auto, AutoName, AutoCount, Count, Name
-    from ..base.constants.chars import DEFAULT_ENCODING, DEFAULT_LINE_LEN, LONG_LINE_LEN, CROP_SUFFIX, ELLIPSIS, SPACE
+    from ..base.classes.typing import Auto, Count, Name
+    from ..base.constants.chars import (
+        EMPTY, CROP_SUFFIX, ELLIPSIS, SPACE, RETURN_CHAR, PARAGRAPH_CHAR, SLASH, BACKSLASH,
+        DEFAULT_ENCODING, DEFAULT_LINE_LEN, LONG_LINE_LEN,
+    )
     from ..base.functions.arguments import get_name, get_value, update, get_cropped_text
     from ..base.interfaces.context_interface import ContextInterface
     from ..base.abstract.named import AbstractNamed
@@ -30,12 +36,11 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .progress import Progress
 
 Native = Union[TreeItem, LoggerInterface]
-Level = Union[LoggingLevel, int, Auto]
+Level = Union[LoggingLevel, int, None]
 Formatter = Union[str, logging.Formatter]
 Context = Optional[ContextInterface]
-OptContext = Union[Context, Auto]
 BaseLogger = Union[LoggerInterface, Any]
-SubLoggers = Optional[Union[list, dict]]
+SubLoggers = Union[list, dict, None]
 File = AbstractNamed
 
 DEFAULT_LOGGER_NAME = 'default'
@@ -47,16 +52,19 @@ REWRITE_SUFFIX = ELLIPSIS
 class BaseLoggerWrapper(TreeItem, LoggerInterface):
     def __init__(
             self,
-            name: AutoName = AUTO,
-            level: Level = AUTO,
-            formatter: Union[Formatter, Auto] = AUTO,
-            loggers: SubLoggers = AUTO,
+            name: Optional[Name] = None,
+            level: Level = None,
+            formatter: Optional[Formatter] = None,
+            loggers: SubLoggers = None,
             context: Context = None,
             file: Union[File, Name, None] = None,
     ):
-        name = Auto.acquire(name, DEFAULT_LOGGER_NAME)
-        level = Auto.acquire(level, DEFAULT_LOGGING_LEVEL)
-        formatter = Auto.acquire(formatter, DEFAULT_FORMATTER)
+        if not Auto.is_defined(name):
+            name = DEFAULT_LOGGER_NAME
+        if not Auto.is_defined(level):
+            level = DEFAULT_LOGGING_LEVEL
+        if not Auto.is_defined(formatter):
+            formatter = DEFAULT_FORMATTER
         if not isinstance(level, LoggingLevel):
             level = LoggingLevel(level)
         if isinstance(loggers, list):
@@ -141,8 +149,8 @@ class BaseLoggerWrapper(TreeItem, LoggerInterface):
     def warning(self, msg: str, category: Optional[Type] = None, stacklevel: Optional[int] = None) -> None:
         if stacklevel:
             caller = getframeinfo(stack()[stacklevel][0])
-            category_name = get_name(category) if category else ''
-            msg = '{}:{}: {} {}'.format(caller.filename, caller.lineno, category_name, msg)
+            category_name = get_name(category) if category else EMPTY
+            msg = f'{caller.filename}:{caller.lineno}: {category_name} {msg}'
         self.log(msg=msg, level=LoggingLevel.Warning)
 
     def error(self, msg: str) -> None:
@@ -155,14 +163,16 @@ class BaseLoggerWrapper(TreeItem, LoggerInterface):
 class ExtendedLogger(BaseLoggerWrapper, ExtendedLoggerInterface):
     def __init__(
             self,
-            name: Union[Name, Auto] = AUTO,
-            level: Level = AUTO,
-            formatter: Union[Formatter, Auto] = AUTO,
-            max_line_len=AUTO,
+            name: Optional[Name] = None,
+            level: Level = None,
+            formatter: Optional[Formatter] = None,
+            max_line_len: Optional[int] = None,
             context: Context = None,
             file: Union[File, Name, None] = None,
     ):
-        self.max_line_len = Auto.acquire(max_line_len, DEFAULT_LINE_LEN)
+        if not Auto.is_defined(max_line_len):
+            max_line_len = DEFAULT_LINE_LEN
+        self.max_line_len = max_line_len
         progress_trackers = dict()
         self.LoggingLevel = LoggingLevel
         super().__init__(
@@ -186,13 +196,10 @@ class ExtendedLogger(BaseLoggerWrapper, ExtendedLoggerInterface):
                         assert is_same_logger, 'Context already has logger registered'
             context.set_logger(self)
 
-    def get_new_progress(self, name: Name, count: Count = None, context: OptContext = AUTO) -> ProgressInterface:
-        progress = Progress(
-            name=name,
-            count=count,
-            logger=self,
-            context=Auto.acquire(context, self.get_context, delayed=True),
-        )
+    def get_new_progress(self, name: Name, count: Count = None, context: Context = None) -> ProgressInterface:
+        if not Auto.is_defined(context):
+            context = self.get_context()
+        progress = Progress(name=name, count=count, logger=self, context=context)
         self.add_child(progress, check=False)
         return progress
 
@@ -201,13 +208,14 @@ class ExtendedLogger(BaseLoggerWrapper, ExtendedLoggerInterface):
             items: Iterable,
             name: Name = 'Progress',
             count: Count = None,
-            step: AutoCount = AUTO,
-            context: OptContext = AUTO,
+            step: Count = None,
+            context: Context = None,
     ) -> Generator:
         return self.get_new_progress(name, count=count, context=context).iterate(items, step=step)
 
-    def get_selection_logger(self, name: AutoName = AUTO, **kwargs) -> Optional[SelectionLoggerInterface]:
-        name = Auto.acquire(name, SELECTION_LOGGER_NAME)
+    def get_selection_logger(self, name: Optional[Name] = None, **kwargs) -> Optional[SelectionLoggerInterface]:
+        if not Auto.is_defined(name):
+            name = SELECTION_LOGGER_NAME
         selection_logger = self.get_child(name)
         if selection_logger:
             if kwargs:
@@ -222,10 +230,11 @@ class ExtendedLogger(BaseLoggerWrapper, ExtendedLoggerInterface):
             return self
         except ValueError as e:
             if not skip_errors:
-                raise ValueError('{obj}: {e}'.format(obj=self, e=e))
+                raise ValueError(f'{self}: {e}')
 
-    def reset_selection_logger(self, name: AutoName = AUTO, **kwargs) -> Optional[SelectionLoggerInterface]:
-        name = Auto.acquire(name, SELECTION_LOGGER_NAME)
+    def reset_selection_logger(self, name: Optional[Name] = Name, **kwargs) -> Optional[SelectionLoggerInterface]:
+        if not Auto.is_defined(name):
+            name = SELECTION_LOGGER_NAME
         context = self.get_context()
         if context:
             selection_logger = context.get_new_selection_logger(name, **kwargs)
@@ -241,16 +250,18 @@ class ExtendedLogger(BaseLoggerWrapper, ExtendedLoggerInterface):
     def log(
             self,
             msg: Union[str, list, tuple],
-            level: Level = AUTO,
-            logger: Union[BaseLogger, Auto] = AUTO,
-            end: Union[str, Auto] = AUTO,
+            level: Level = None,
+            logger: Optional[BaseLogger] = None,
+            end: Optional[str] = None,
             verbose: bool = True,
             truncate: bool = True,
             category: Optional[Type] = None,
             stacklevel: Optional[int] = None,
     ) -> None:
-        level = Auto.acquire(level, LoggingLevel.Info if verbose else LoggingLevel.Debug)
-        logger = Auto.delayed_acquire(logger, self.get_base_logger)
+        if not Auto.is_defined(level):
+            level = LoggingLevel.Info if verbose else LoggingLevel.Debug
+        if not Auto.is_defined(logger):
+            logger = self.get_base_logger()
         if isinstance(msg, BaseException):
             msg = str(msg)
         if isinstance(msg, str):
@@ -258,14 +269,14 @@ class ExtendedLogger(BaseLoggerWrapper, ExtendedLoggerInterface):
         elif isinstance(msg, Iterable):
             msg = list(msg)
         else:
-            raise TypeError('Expected msg as str or list[str], got {}'.format(msg))
+            raise TypeError(f'Expected msg as str or list[str], got {msg}')
         if category:
             category_name = get_name(category)
             msg = [category_name] + msg
         if Auto.is_defined(stacklevel):
             caller = getframeinfo(stack()[stacklevel + 1][0])
-            file_name_without_path = caller.filename.split('\\')[-1].split('/')[-1]
-            msg = ['{}:{}:'.format(file_name_without_path, caller.lineno)] + msg
+            file_name_without_path = caller.filename.split(BACKSLASH)[-1].split(SLASH)[-1]
+            msg = [f'{file_name_without_path}:{caller.lineno}:'] + msg
         if isinstance(msg, (list, tuple)):
             msg = self.format_message(*msg)
         if not isinstance(level, LoggingLevel):
@@ -278,33 +289,34 @@ class ExtendedLogger(BaseLoggerWrapper, ExtendedLoggerInterface):
             self.show(msg, end=end, truncate=truncate)
 
     def format_message(
-            self, *messages,
-            max_len: Union[int, Auto] = AUTO,
+            self,
+            *messages,
+            max_len: Optional[int] = None,
             truncate: bool = True,
     ) -> str:
         messages = update(messages)
-        max_len = Auto.acquire(max_len, self.max_line_len)
+        if not Auto.is_defined(max_len):
+            max_len = self.max_line_len
         message = SPACE.join([str(m) for m in messages])
         if truncate:
             message = get_cropped_text(message, max_len=max_len)
         return message
 
     def clear_line(self) -> None:
-        print('\r', end='')
-        print(SPACE * self.max_line_len, end='\r')
+        print(RETURN_CHAR, end=EMPTY)
+        print(SPACE * self.max_line_len, end=RETURN_CHAR)
 
     def show(
-            self, *messages,
-            end: Union[str, Auto] = AUTO,
+            self,
+            *messages,
+            end: Optional[str] = None,
             clear_before: bool = True,
             truncate: bool = True,
     ) -> None:
-        message = self.format_message(
-            *messages,
-            max_len=LONG_LINE_LEN if end == '\n' else self.max_line_len,
-            truncate=truncate,
-        )
-        end = Auto.acquire(end, '\r' if message.endswith(REWRITE_SUFFIX) else '\n')
+        max_len = LONG_LINE_LEN if end == PARAGRAPH_CHAR else self.max_line_len
+        message = self.format_message(*messages, max_len=max_len, truncate=truncate)
+        if not Auto.is_defined(end):
+            end = RETURN_CHAR if message.endswith(REWRITE_SUFFIX) else PARAGRAPH_CHAR
         if clear_before:
             remainder = self.max_line_len - len(message)
             message += SPACE * remainder

@@ -4,12 +4,10 @@ from typing import Optional, Iterable, Generator, Union, Any
 import logging
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.auto import Auto, AUTO
     from base.interfaces.base_interface import BaseInterface
     from base.interfaces.tree_interface import TreeInterface
     from loggers.logger_interface import LoggerInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..base.classes.auto import Auto, AUTO
     from ..base.interfaces.base_interface import BaseInterface
     from ..base.interfaces.tree_interface import TreeInterface
     from .logger_interface import LoggerInterface
@@ -19,7 +17,6 @@ Context = Optional[BaseInterface]
 Name = str
 Count = Optional[int]
 Formatter = Union[str, logging.Formatter]
-AutoContext = Union[Context, Auto]
 File = BaseInterface
 
 DEFAULT_LOGGER_NAME = 'default'
@@ -57,7 +54,7 @@ class LoggingLevel(Enum):
         return cls.Warning
 
 
-Level = Union[LoggingLevel, int, Auto]
+Level = Union[LoggingLevel, int, None]
 
 DEFAULT_LOGGING_LEVEL = LoggingLevel.get_default()
 
@@ -102,17 +99,17 @@ class ExtendedLoggerInterface(TreeInterface, LoggerInterface, ABC):
             items: Iterable,
             name: Name = 'Progress',
             count: Count = None,
-            step: Union[Count, Auto] = AUTO,
-            context: AutoContext = AUTO,
+            step: Count = None,
+            context: Context = None,
     ) -> Generator:
         pass
 
     @abstractmethod
-    def get_new_progress(self, name: Name, count: Count = None, context: AutoContext = AUTO):
+    def get_new_progress(self, name: Name, count: Count = None, context: Context = None):
         pass
 
     @abstractmethod
-    def get_selection_logger(self, name: Union[Name, Auto] = AUTO, **kwargs):
+    def get_selection_logger(self, name: Optional[Name] = None, **kwargs):
         pass
 
     @abstractmethod
@@ -123,9 +120,9 @@ class ExtendedLoggerInterface(TreeInterface, LoggerInterface, ABC):
     def log(
             self,
             msg: Union[str, list, tuple],
-            level: Level = AUTO,
-            logger: Union[BaseLogger, Auto] = AUTO,
-            end: Union[str, Auto] = AUTO,
+            level: Level = None,
+            logger: Optional[BaseLogger] = None,
+            end: Optional[str] = None,
             verbose: bool = True,
             truncate: bool = True,
             **kwargs

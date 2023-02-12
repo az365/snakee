@@ -1,13 +1,13 @@
 from typing import Callable
 
-try:  # Assume we're a sub-module in a package.
-    from utils import arguments as arg
+try:  # Assume we're a submodule in a package.
+    from base.functions.arguments import update
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
+    from ...base.functions.arguments import update
 
 
 def maybe(*conditions) -> Callable:
-    conditions = arg.update(conditions)
+    conditions = update(conditions)
 
     def func_conditioned(value) -> bool:
         for c in conditions:
@@ -25,7 +25,7 @@ def maybe(*conditions) -> Callable:
 
 
 def always(*conditions) -> Callable:
-    conditions = arg.update(conditions)
+    conditions = update(conditions)
 
     def func_conditioned(value) -> bool:
         for c in conditions:
@@ -34,7 +34,7 @@ def always(*conditions) -> Callable:
         return True
 
     def func_simple(*values) -> bool:
-        values = arg.update(values)
+        values = update(values)
         return min(map(bool, values))
 
     if conditions:
@@ -44,7 +44,7 @@ def always(*conditions) -> Callable:
 
 
 def never(*conditions) -> Callable:
-    conditions = arg.update(conditions)
+    conditions = update(conditions)
 
     def func_conditioned(value) -> bool:
         for c in conditions:
