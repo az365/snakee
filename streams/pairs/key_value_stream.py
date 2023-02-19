@@ -1,9 +1,10 @@
-from typing import Union, Callable, Iterable
+from typing import Optional, Callable, Iterable, Union
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
-        RegularStreamInterface, PairStreamInterface, StreamType, ItemType, Struct,
-        AUTO, Auto, AutoName, AutoCount, StreamItemType,
+        RegularStreamInterface, PairStreamInterface, Struct, Connector, Context, TmpFiles,
+        StreamType, ItemType, StreamItemType,
+        Auto, Name, Count,
     )
     from utils.decorators import deprecated, deprecated_with_alternative
     from content.struct.flat_struct import FlatStruct
@@ -11,8 +12,9 @@ try:  # Assume we're a submodule in a package.
     from streams.regular.row_stream import RowStream
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
-        RegularStreamInterface, PairStreamInterface, StreamType, ItemType, Struct,
-        AUTO, Auto, AutoName, AutoCount, StreamItemType,
+        RegularStreamInterface, PairStreamInterface, Struct, Connector, Context, TmpFiles,
+        StreamType, ItemType, StreamItemType,
+        Auto, Name, Count,
     )
     from ...functions.secondary import array_functions as fs
     from ...content.struct.flat_struct import FlatStruct
@@ -32,18 +34,18 @@ class KeyValueStream(RowStream, PairStreamInterface):
     def __init__(
             self,
             data,
-            name: AutoName = AUTO,
+            name: Optional[Name] = None,
             caption: str = '',
             item_type: ItemType = EXPECTED_ITEM_TYPE,
             value_stream_type: Union[StreamType, str] = None,
             struct: Struct = None,
-            source=None,
-            context=None,
-            count=None,
-            less_than=None,
-            max_items_in_memory: AutoCount = AUTO,
-            tmp_files=AUTO,
-            check=True,
+            source: Connector = None,
+            context: Context = None,
+            count: Count = None,
+            less_than: Count = None,
+            max_items_in_memory: Count = None,
+            tmp_files: TmpFiles = None,
+            check: bool = True,
     ):
         super().__init__(
             data=data, check=check,
@@ -94,9 +96,10 @@ class KeyValueStream(RowStream, PairStreamInterface):
         return self._assume_regular(stream)
 
     @deprecated_with_alternative('get_one_column_values()')
-    def keys(self, uniq: bool, stream_type: Union[ItemType, Auto] = AUTO) -> RegularStreamInterface:
+    def keys(self, uniq: bool, stream_type: ItemType = ItemType.Auto) -> RegularStreamInterface:
         items = self.get_uniq_keys() if uniq else self._get_mapped_items(KEY)
-        stream_type = Auto.acquire(stream_type, ItemType.Any)
+        if not Auto.is_defined(stream_type):
+            stream_type = ItemType.Any
         stream = self.stream(items, stream_type=stream_type)
         return self._assume_regular(stream)
 

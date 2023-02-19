@@ -2,11 +2,7 @@ from abc import ABC
 from typing import Optional, Tuple, Union
 
 try:  # Assume we're a submodule in a package.
-    from interfaces import (
-        LeafConnectorInterface, StructInterface,
-        Item, Columns, Array, Count,
-        AUTO, Auto, AutoBool, AutoCount, AutoDisplay,
-    )
+    from interfaces import LeafConnectorInterface, StructInterface, Item, Columns, Array, Count, Auto
     from base.interfaces.display_interface import DEFAULT_EXAMPLE_COUNT
     from base.functions.arguments import get_str_from_args_kwargs, get_cropped_text
     from base.constants.chars import EMPTY, CROP_SUFFIX
@@ -14,11 +10,7 @@ try:  # Assume we're a submodule in a package.
     from content.documents.document_item import Chapter, Paragraph, Sheet
     from streams.interfaces.abstract_stream_interface import StreamInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...interfaces import (
-        LeafConnectorInterface, StructInterface,
-        Item, Columns, Array, Count,
-        AUTO, Auto, AutoBool, AutoCount, AutoDisplay,
-    )
+    from ...interfaces import LeafConnectorInterface, StructInterface, Item, Columns, Array, Count, Auto
     from ...base.interfaces.display_interface import DEFAULT_EXAMPLE_COUNT
     from ...base.functions.arguments import get_str_from_args_kwargs, get_cropped_text
     from ...base.constants.chars import EMPTY, CROP_SUFFIX
@@ -130,14 +122,15 @@ class ValidateMixin(ABC):
             safe_filter: bool = True,
             example_row_count: Count = None,
             example_str_len: int = EXAMPLE_STR_LEN,
-            actualize: AutoBool = AUTO,
+            actualize: Optional[bool] = None,
             verbose: bool = True,
             **filter_kwargs
     ) -> tuple:
         example_item, example_stream, example_comment = dict(), None, EMPTY
         is_existing, is_empty = None, None
         is_actual = self.is_actual()
-        actualize = Auto.acquire(actualize, not is_actual)
+        if not Auto.is_defined(actualize):
+            actualize = not is_actual
         if actualize or is_actual:
             is_existing = self.is_existing()
         if actualize and is_existing:
@@ -173,7 +166,7 @@ class ValidateMixin(ABC):
             example_row_count: Count = None,
             example_str_len: int = EXAMPLE_STR_LEN,
             crop_suffix: str = CROP_SUFFIX,
-            verbose: bool = AUTO,
+            verbose: Optional[bool] = None,
             **filter_kwargs
     ) -> Tuple[Item, StreamInterface, str]:
         filters = filters or list()
@@ -281,7 +274,7 @@ class ValidateMixin(ABC):
 
     def get_data_sheet(
             self,
-            count: AutoCount = AUTO,
+            count: Count = None,
             name: str = 'Data sheet',
     ):
         return self.get_example_sheet(count, name=name)

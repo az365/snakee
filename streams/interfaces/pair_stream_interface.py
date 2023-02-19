@@ -1,22 +1,17 @@
 from abc import ABC, abstractmethod
-from typing import Iterable, Callable, Union
+from typing import Iterable, Callable
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.auto import AUTO, Auto
     from content.items.item_type import ItemType
-    from streams.stream_type import StreamType
-    from streams.interfaces.abstract_stream_interface import StreamInterface
+    from streams.interfaces.abstract_stream_interface import StreamInterface, OptionalFields
     from streams.interfaces.regular_stream_interface import RegularStreamInterface, StreamItemType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...base.classes.auto import AUTO, Auto
     from ...content.items.item_type import ItemType
-    from ..stream_type import StreamType
-    from .abstract_stream_interface import StreamInterface
+    from .abstract_stream_interface import StreamInterface, OptionalFields
     from .regular_stream_interface import RegularStreamInterface, StreamItemType
 
 Stream = StreamInterface
 Native = StreamInterface
-OptionalFields = Union[Iterable, str, None]
 
 
 class PairStreamInterface(StreamInterface, ABC):
@@ -25,7 +20,7 @@ class PairStreamInterface(StreamInterface, ABC):
         pass
 
     @abstractmethod
-    def keys(self, uniq: bool, stream_type: StreamItemType = AUTO) -> Stream:
+    def keys(self, uniq: bool, stream_type: StreamItemType = ItemType.Auto) -> Stream:
         pass
 
     @abstractmethod
@@ -41,7 +36,7 @@ class PairStreamInterface(StreamInterface, ABC):
         pass
 
     @abstractmethod
-    def stream(self, data: Iterable, stream_type: StreamItemType = AUTO, **kwargs) -> Stream:
+    def stream(self, data: Iterable, stream_type: StreamItemType = ItemType.Auto, **kwargs) -> Stream:
         pass
 
     @abstractmethod

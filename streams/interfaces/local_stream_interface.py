@@ -1,26 +1,23 @@
 from abc import ABC, abstractmethod
 from typing import Optional, Iterable, Callable, Union
 
-try:  # Assume we're a sub-module in a package.
-    from utils import arguments as arg
+try:  # Assume we're a submodule in a package.
+    from base.classes.typing import Count, Array
+    from base.constants.chars import DEFAULT_ENCODING
     from utils.algo import JoinType
     from connectors.interfaces.connector_interface import ConnectorInterface
     from connectors.interfaces.temporary_interface import TemporaryFilesMaskInterface
     from streams.interfaces.iterable_stream_interface import IterableStreamInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
+    from ...base.classes.typing import Count, Array
+    from ...base.constants.chars import DEFAULT_ENCODING
     from ...utils.algo import JoinType
     from ...connectors.interfaces.connector_interface import ConnectorInterface
     from ...connectors.interfaces.temporary_interface import TemporaryFilesMaskInterface
     from .iterable_stream_interface import IterableStreamInterface
 
 Native = IterableStreamInterface
-Array = Union[list, tuple]
 Key = Union[str, Array, Callable]
-Count = Union[int, arg.Auto, None]
-Verbose = Union[bool, arg.Auto]
-
-AUTO = arg.AUTO
 
 
 class LocalStreamInterface(IterableStreamInterface, ABC):
@@ -45,7 +42,7 @@ class LocalStreamInterface(IterableStreamInterface, ABC):
         pass
 
     @abstractmethod
-    def can_be_in_memory(self, step: Count = AUTO) -> bool:
+    def can_be_in_memory(self, step: Count = None) -> bool:
         pass
 
     @abstractmethod
@@ -64,13 +61,13 @@ class LocalStreamInterface(IterableStreamInterface, ABC):
             self,
             key: Key = lambda a: a,
             reverse: bool = False,
-            step: Count = AUTO,
+            step: Count = None,
             verbose: bool = False,
     ) -> Native:
         pass
 
     @abstractmethod
-    def sort(self, *keys, reverse: bool = False, step: Count = arg.AUTO, verbose: bool = True) -> Native:
+    def sort(self, *keys, reverse: bool = False, step: Count = None, verbose: bool = True) -> Native:
         pass
 
     @abstractmethod
@@ -88,18 +85,20 @@ class LocalStreamInterface(IterableStreamInterface, ABC):
             self,
             right: Native,
             key: Key,
-            how: Union[JoinType, str] = JoinType.Left,
+            how: JoinType = JoinType.Left,
             reverse: bool = False,
-            is_sorted=False, right_is_uniq: bool = False,
-            allow_map_side: bool = True, force_map_side: bool = True,
-            verbose: Verbose = AUTO,
+            is_sorted: bool = False,
+            right_is_uniq: bool = False,
+            allow_map_side: bool = True,
+            force_map_side: bool = True,
+            verbose: Optional[bool] = None,
     ) -> Native:
         pass
 
     @abstractmethod
     def split_to_disk_by_step(
             self,
-            step: Count = arg.AUTO,
+            step: Count = None,
             sort_each_by: Optional[str] = None,
             reverse: bool = False,
             verbose: bool = True,
@@ -123,7 +122,7 @@ class LocalStreamInterface(IterableStreamInterface, ABC):
         pass
 
     @abstractmethod
-    def get_encoding(self, default: str = 'utf8') -> str:
+    def get_encoding(self, default: str = DEFAULT_ENCODING) -> str:
         pass
 
     @abstractmethod

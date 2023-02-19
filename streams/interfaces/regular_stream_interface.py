@@ -2,24 +2,24 @@ from abc import ABC, abstractmethod
 from typing import Optional, Iterable, Sequence, Callable, Union
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.auto import AUTO, Auto
     from utils.external import DataFrame
     from content.struct.struct_interface import StructInterface, Field
     from content.items.item_type import ItemType
     from streams.stream_type import StreamType
-    from streams.interfaces.iterable_stream_interface import IterableStreamInterface, DEFAULT_EXAMPLE_COUNT
+    from streams.interfaces.abstract_stream_interface import DEFAULT_EXAMPLE_COUNT
+    from streams.interfaces.iterable_stream_interface import IterableStreamInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...base.classes.auto import AUTO, Auto
     from ...utils.external import DataFrame
     from ...content.struct.struct_interface import StructInterface, Field
     from ...content.items.item_type import ItemType
     from ..stream_type import StreamType
-    from ..interfaces.iterable_stream_interface import IterableStreamInterface, DEFAULT_EXAMPLE_COUNT
+    from ..interfaces.abstract_stream_interface import DEFAULT_EXAMPLE_COUNT
+    from ..interfaces.iterable_stream_interface import IterableStreamInterface
 
 Native = IterableStreamInterface
 Struct = Optional[StructInterface]
 OptionalFields = Union[Iterable, str, None]
-StreamItemType = Union[StreamType, ItemType, Auto]
+StreamItemType = Union[StreamType, ItemType, None]
 
 DEFAULT_ANALYZE_COUNT = 100
 
@@ -111,7 +111,7 @@ class RegularStreamInterface(IterableStreamInterface, ABC):
             values: Optional[Iterable] = None,
             as_pairs: bool = False,
             take_hash: bool = True,
-            step: Union[int, Auto] = AUTO,
+            step: Optional[int] = None,
             skip_missing: bool = False,
             verbose: bool = True,
     ) -> Native:
@@ -124,8 +124,8 @@ class RegularStreamInterface(IterableStreamInterface, ABC):
     @abstractmethod
     def to_stream(
             self,
-            data: Union[Iterable, Auto] = AUTO,
-            stream_type: StreamItemType = AUTO,
+            data: Optional[Iterable] = None,
+            stream_type: StreamItemType = ItemType.Auto,
             ex: OptionalFields = None,
             **kwargs
     ) -> Native:
@@ -138,8 +138,8 @@ class RegularStreamInterface(IterableStreamInterface, ABC):
     @abstractmethod
     def get_dict(
             self,
-            key: Union[Field, Struct, Sequence, Callable, Auto] = AUTO,
-            value: Union[Field, Struct, Sequence, Callable, Auto] = AUTO,
+            key: Union[Field, Struct, Sequence, Callable, None] = None,
+            value: Union[Field, Struct, Sequence, Callable, None] = None,
             of_lists: bool = False,
             skip_errors: bool = False,
     ) -> dict:

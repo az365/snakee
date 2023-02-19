@@ -2,12 +2,10 @@ from abc import ABC, abstractmethod
 from typing import Optional, Iterable, Callable, Union, Any
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.auto import AUTO, Auto
     from base.interfaces.iterable_interface import DEFAULT_EXAMPLE_COUNT, IterableInterface, OptionalFields
     from base.interfaces.tree_interface import TreeInterface
     from loggers.logger_interface import LoggerInterface, LoggingLevel
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...base.classes.auto import AUTO, Auto
     from ...base.interfaces.iterable_interface import DEFAULT_EXAMPLE_COUNT, IterableInterface, OptionalFields
     from ...base.interfaces.tree_interface import TreeInterface
     from ...loggers.logger_interface import LoggerInterface, LoggingLevel
@@ -119,8 +117,8 @@ class StreamInterface(ABC):
     def log(
             self,
             msg: str,
-            level: Union[LoggingLevel, int] = AUTO,
-            end: Union[str, Auto] = AUTO,
+            level: Optional[LoggingLevel] = None,
+            end: Optional[str] = None,
             verbose: bool = True,
             truncate: bool = True,
             force: bool = False,
