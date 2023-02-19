@@ -1,12 +1,12 @@
-from typing import Iterable, Union
+from typing import Optional, Iterable
 
 try:  # Assume we're a submodule in a package.
-    from interfaces import Struct, ItemType, Name, Count, Source, Context, TmpFiles, Auto, AUTO
+    from interfaces import Struct, ItemType, Name, Count, Source, Context, TmpFiles
     from content.struct.struct_mixin import StructMixin
     from streams.mixin.convert_mixin import ConvertMixin
     from streams.regular.row_stream import RowStream, deprecated_with_alternative
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...interfaces import Struct, ItemType, Name, Count, Source, Context, TmpFiles, Auto, AUTO
+    from ...interfaces import Struct, ItemType, Name, Count, Source, Context, TmpFiles
     from ...content.struct.struct_mixin import StructMixin
     from ..mixin.convert_mixin import ConvertMixin
     from .row_stream import RowStream, deprecated_with_alternative
@@ -19,7 +19,7 @@ class StructStream(RowStream, StructMixin, ConvertMixin):
     def __init__(
             self,
             data: Iterable,
-            name: Union[Name, Auto] = AUTO,
+            name: Optional[Name] = None,
             caption: str = '',
             item_type: ItemType = EXPECTED_ITEM_TYPE,
             struct: Struct = None,
@@ -27,8 +27,8 @@ class StructStream(RowStream, StructMixin, ConvertMixin):
             context: Context = None,
             count: Count = None,
             less_than: Count = None,
-            max_items_in_memory: Count = AUTO,
-            tmp_files: TmpFiles = AUTO,
+            max_items_in_memory: Count = None,
+            tmp_files: TmpFiles = None,
             check: bool = True,
     ):
         super().__init__(

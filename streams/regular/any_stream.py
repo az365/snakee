@@ -1,17 +1,11 @@
-from typing import Union, Iterable
+from typing import Optional, Iterable
 
 try:  # Assume we're a submodule in a package.
     from utils.decorators import deprecated_with_alternative
-    from streams.regular.regular_stream import (
-        RegularStream, Item, ItemType,
-        Count, Struct, Source, Context, TmpFiles, Auto, AUTO,
-    )
+    from streams.regular.regular_stream import RegularStream, Item, ItemType, Count, Struct, Source, Context, TmpFiles
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils.decorators import deprecated_with_alternative
-    from .regular_stream import (
-        RegularStream, Item, ItemType,
-        Count, Struct, Source, Context, TmpFiles, Auto, AUTO,
-    )
+    from .regular_stream import RegularStream, Item, ItemType, Count, Struct, Source, Context, TmpFiles
 
 EXPECTED_ITEM_TYPE = ItemType.Any
 
@@ -21,7 +15,7 @@ class AnyStream(RegularStream):
     def __init__(
             self,
             data: Iterable[Item],
-            name: Union[str, Auto] = AUTO,
+            name: Optional[str] = None,
             caption: str = '',
             item_type: ItemType = ItemType.Any,
             struct: Struct = None,
@@ -29,8 +23,8 @@ class AnyStream(RegularStream):
             less_than: Count = None,
             source: Source = None,
             context: Context = None,
-            max_items_in_memory: Count = AUTO,
-            tmp_files: TmpFiles = AUTO,
+            max_items_in_memory: Count = None,
+            tmp_files: TmpFiles = None,
             check: bool = False,
     ):
         super().__init__(

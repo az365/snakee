@@ -6,16 +6,16 @@ try:  # Assume we're a submodule in a package.
     from interfaces import (
         StreamBuilderInterface,
         StreamInterface, LocalStreamInterface, ContextInterface, ConnectorInterface, TemporaryLocationInterface,
-        StreamType, ItemType, StreamItemType, JoinType,
-        Stream, How, Class, OptionalFields, Auto, AUTO,
+        StreamType, ItemType, JoinType,
+        Stream, How, Class, OptionalFields, Auto,
     )
     from base.functions.arguments import update
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..interfaces import (
         StreamBuilderInterface,
         StreamInterface, LocalStreamInterface, ContextInterface, ConnectorInterface, TemporaryLocationInterface,
-        StreamType, ItemType, StreamItemType, JoinType,
-        Stream, How, Class, OptionalFields, Auto, AUTO,
+        StreamType, ItemType, JoinType,
+        Stream, How, Class, OptionalFields, Auto,
     )
     from ..base.functions.arguments import update
 
@@ -32,7 +32,7 @@ class StreamBuilder(StreamBuilderInterface):
     def stream(
             cls,
             data: Iterable,
-            stream_type: StreamItemType = AUTO,
+            stream_type: ItemType = ItemType.Auto,
             register: bool = True,
             **kwargs
     ) -> Stream:
@@ -69,7 +69,7 @@ class StreamBuilder(StreamBuilderInterface):
         return len(set(stream_types)) == 1
 
     @classmethod
-    def stack(cls, *iter_streams, how: How = 'vertical', name=AUTO, context=None, **kwargs):
+    def stack(cls, *iter_streams, how: How = 'vertical', name: Optional[str] = None, context=None, **kwargs):
         iter_streams = update(iter_streams)
         assert cls.is_same_stream_type(iter_streams), 'concat(): streams must have same type: {}'.format(iter_streams)
         result = None
@@ -92,11 +92,11 @@ class StreamBuilder(StreamBuilderInterface):
         return result
 
     @classmethod
-    def concat(cls, *iter_streams, name=AUTO, context=None):
+    def concat(cls, *iter_streams, name: Optional[str] = None, context=None):
         return cls.stack(*iter_streams, name=name, context=context)
 
     @classmethod
-    def join(cls, *iter_streams, key, how: How = JoinType.Left, step=AUTO, name=AUTO, context=None):
+    def join(cls, *iter_streams, key, how: How = JoinType.Left, step: Optional[int] = None, name=None, context=None):
         return cls.stack(*iter_streams, key=key, how=how, step=step, name=name, context=context)
 
     @classmethod

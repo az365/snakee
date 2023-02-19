@@ -4,13 +4,13 @@ from inspect import isclass
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         StructInterface, FieldInterface, LeafConnectorInterface,
-        Stream, LocalStream, Context, Connector, Source, TmpFiles,
+        Stream, Context, Source, TmpFiles,
         StreamType, ItemType, ValueType, JoinType, How, LoggingLevel,
-        Count, Item, Struct, Columns, Field, FieldNo, OptionalFields, UniKey, Source, Class,
-        AUTO, Auto, AutoDisplay, AutoBool, AutoName, AutoCount, Array, ARRAY_TYPES,
+        Count, Item, Struct, Columns, Field, FieldNo, OptionalFields, UniKey, Class,
+        Auto, Name, Array, ARRAY_TYPES,
     )
     from base.functions.arguments import get_name, get_names, get_str_from_args_kwargs
-    from base.constants.chars import SHARP
+    from base.constants.chars import EMPTY, SHARP
     from utils.decorators import deprecated_with_alternative
     from functions.primary.items import set_to_item, merge_two_items, unfold_structs_to_fields
     from functions.secondary import all_secondary_functions as fs
@@ -18,22 +18,20 @@ try:  # Assume we're a submodule in a package.
     from content.selection import selection_classes as sn
     from content.struct.flat_struct import FlatStruct
     from streams.abstract.local_stream import LocalStream
-    from streams.interfaces.regular_stream_interface import (
-        RegularStreamInterface, StreamItemType,
-        DEFAULT_EXAMPLE_COUNT, DEFAULT_ANALYZE_COUNT,
-    )
+    from streams.interfaces.abstract_stream_interface import DEFAULT_EXAMPLE_COUNT
+    from streams.interfaces.regular_stream_interface import RegularStreamInterface, DEFAULT_ANALYZE_COUNT
     from streams.mixin.convert_mixin import ConvertMixin
     from streams.stream_builder import StreamBuilder
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         StructInterface, FieldInterface, LeafConnectorInterface,
-        Stream, LocalStream, Context, Connector, Source, TmpFiles,
+        Stream, Context, Source, TmpFiles,
         StreamType, ItemType, ValueType, JoinType, How, LoggingLevel,
-        Count, Item, Struct, Columns, Field, FieldNo, OptionalFields, UniKey, Source, Class,
-        AUTO, Auto, AutoDisplay, AutoBool, AutoName, AutoCount, Array, ARRAY_TYPES,
+        Count, Item, Struct, Columns, Field, FieldNo, OptionalFields, UniKey, Class,
+        Auto, Name, Array, ARRAY_TYPES,
     )
     from ...base.functions.arguments import get_name, get_names, get_str_from_args_kwargs
-    from ...base.constants.chars import SHARP
+    from ...base.constants.chars import EMPTY, SHARP
     from ...utils.decorators import deprecated_with_alternative
     from ...functions.primary.items import set_to_item, merge_two_items, unfold_structs_to_fields
     from ...functions.secondary import all_secondary_functions as fs
@@ -41,16 +39,13 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...content.selection import selection_classes as sn
     from ...content.struct.flat_struct import FlatStruct
     from ..abstract.local_stream import LocalStream
-    from ..interfaces.regular_stream_interface import (
-        RegularStreamInterface, StreamItemType,
-        DEFAULT_EXAMPLE_COUNT, DEFAULT_ANALYZE_COUNT,
-    )
+    from ..interfaces.abstract_stream_interface import DEFAULT_EXAMPLE_COUNT
+    from ..interfaces.regular_stream_interface import RegularStreamInterface, DEFAULT_ANALYZE_COUNT
     from ..mixin.convert_mixin import ConvertMixin
     from ..stream_builder import StreamBuilder
 
 Native = Union[LocalStream, RegularStreamInterface]
-Data = Union[Auto, Iterable]
-AutoStruct = Union[Auto, Struct]
+FileObj = LeafConnectorInterface
 FileName = str
 
 DYNAMIC_META_FIELDS = 'struct', 'count', 'less_than'
@@ -60,16 +55,16 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
     def __init__(
             self,
             data: Iterable[Item],
-            name: AutoName = AUTO,
-            caption: str = '',
+            name: Optional[Name] = None,
+            caption: str = EMPTY,
             item_type: ItemType = ItemType.Any,
             struct: Struct = None,
             source: Source = None,
             context: Context = None,
             count: Count = None,
             less_than: Count = None,
-            max_items_in_memory: Count = AUTO,
-            tmp_files: TmpFiles = AUTO,
+            max_items_in_memory: Count = None,
+            tmp_files: TmpFiles = None,
             check: bool = False,
     ):
         if struct and not isinstance(struct, (FlatStruct, StructInterface)):
@@ -222,9 +217,10 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
         else:
             return True
 
-    def _is_valid_item(self, item: Item, struct: AutoStruct = AUTO) -> bool:
+    def _is_valid_item(self, item: Item, struct: Struct = None) -> bool:
         if self.is_valid_item_type(item):
-            struct = Auto.delayed_acquire(struct, self.get_struct)
+            if not Auto.is_defined(struct):
+                struct = self.get_struct()
             if isinstance(struct, StructInterface) or hasattr(struct, 'get_validation_errors'):
                 errors = struct.get_validation_errors(item)
                 return not errors
@@ -233,18 +229,20 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
         else:
             return False
 
-    def _get_validation_errors(self, item: Union[Item, Auto, None] = None, struct: AutoStruct = AUTO) -> list:
+    def _get_validation_errors(self, item: Union[Item, None] = None, struct: Struct = None) -> list:
         if not Auto.is_defined(item):
             item = self.get_one_item()
         if self.is_valid_item_type(item):
-            struct = Auto.delayed_acquire(struct, self.get_struct)
+            if not Auto.is_defined(struct):
+                struct = self.get_struct()
             if isinstance(struct, StructInterface) or hasattr(struct, 'get_validation_errors'):
                 return struct.get_validation_errors(item)
             else:
                 return list()
         else:
             expected = self.get_item_type().get_subclasses(skip_missing=True)
-            msg = f'type({item} is not {expected} for {self.get_item_type()}'
+            item_type = self.get_item_type()
+            msg = f'type({item} is not {expected} for {item_type}'
             return [msg]
 
     def _get_typing_validated_items(
@@ -257,7 +255,8 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
             if self.is_valid_item_type(i):
                 yield i
             else:
-                message = f'_get_typing_validated_items() found invalid item {i} for {self.get_stream_type()}'
+                item_type = self.get_item_type()
+                message = f'_get_typing_validated_items() found invalid item {i} for {item_type}'
                 if skip_errors:
                     if context:
                         context.get_logger().log(msg=message, level=LoggingLevel.Warning)
@@ -267,7 +266,7 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
     def _get_validated_items(
             self,
             items: Iterable,
-            struct: AutoStruct = AUTO,
+            struct: Struct = None,
             skip_errors: bool = False,
             context: Context = None,  # used for validate items before initialization
     ) -> Generator:
@@ -302,11 +301,12 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
             self,
             field: Field = SHARP,  # '#'
             first: int = 1,
-            item_type: ItemType = AUTO,
+            item_type: ItemType = ItemType.Auto,
             inplace: bool = False,
     ) -> Iterator[Item]:
         field_name = get_name(field)
-        item_type = Auto.delayed_acquire(item_type, self.get_item_type)
+        if not Auto.is_defined(item_type):
+            item_type = self.get_item_type()
         for n, i in super()._get_enumerated_items(item_type=item_type):
             yield set_to_item(field_name, n + first, i, item_type=item_type, inplace=inplace)
 
@@ -343,8 +343,8 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
             stream.set_struct(struct, check=False, inplace=True)
         return self._assume_native(stream)
 
-    def select(self, *columns, use_extended_method: AutoBool = AUTO, **expressions) -> Native:
-        if Auto.is_auto(use_extended_method):
+    def select(self, *columns, use_extended_method: Optional[bool] = None, **expressions) -> Native:
+        if not Auto.is_defined(use_extended_method):
             use_extended_method = self.get_item_type() in (ItemType.Row, ItemType.StructRow)
         input_item_type = self.get_item_type()
         target_item_type = self._get_target_item_type(*columns, **expressions)
@@ -358,20 +358,20 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
         stream = self.map_to_type(function=select_function, stream_type=target_item_type, struct=target_struct)
         return self._assume_native(stream)
 
-    def flat_map(self, function: Callable, to: ItemType = AUTO) -> Stream:
+    def flat_map(self, function: Callable, to: ItemType = ItemType.Auto) -> Stream:
         items = self._get_mapped_items(function=function, flat=True)
         return self.stream(items, stream_type=to, save_count=False)
 
-    def _get_stream_class_by_type(self, item_type: StreamItemType) -> Class:
+    def _get_stream_class_by_type(self, item_type: ItemType) -> Class:
         if Auto.is_defined(item_type):
-            stream_type = AUTO
+            stream_type = ItemType.Auto
             if isinstance(item_type, str):
                 try:
                     stream_type = StreamType(item_type)
                     item_type = stream_type.get_item_type()
                 except ValueError:  # stream_type is not a valid StreamType
                     item_type = ItemType(stream_type)
-            if Auto.is_auto(stream_type):
+            if not Auto.is_defined(stream_type):
                 item_type_name = item_type.get_name()
                 stream_type_name = f'{item_type_name}Stream'
                 stream_type = StreamType(stream_type_name)
@@ -399,7 +399,7 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
             function: Callable,
             *args,
             dynamic: bool = True,
-            stream_type: StreamItemType = AUTO,
+            stream_type: ItemType = ItemType.Auto,
             **kwargs
     ) -> Stream:
         return self.stream(
@@ -422,8 +422,9 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
         else:
             return values
 
-    def sort(self, *keys, reverse: bool = False, step: AutoCount = AUTO, verbose: bool = True) -> Native:
-        step = Auto.delayed_acquire(step, self.get_limit_items_in_memory)
+    def sort(self, *keys, reverse: bool = False, step: Count = None, verbose: bool = True) -> Native:
+        if not Auto.is_defined(step):
+            step = self.get_limit_items_in_memory()
         if keys:
             key_function = self._get_key_function(keys, take_hash=False)
         else:
@@ -445,11 +446,12 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
             right_is_uniq: bool = False,
             allow_map_side: bool = True,
             force_map_side: bool = True,
-            merge_function: Union[Callable, Auto] = AUTO,
-            verbose: AutoBool = AUTO,
+            merge_function: Optional[Callable] = None,
+            verbose: Optional[bool] = None,
     ) -> Native:
         item_type = self.get_item_type()
-        merge_function = Auto.acquire(merge_function, fs.merge_two_items(item_type=item_type))
+        if not Auto.is_defined(merge_function):
+            merge_function = fs.merge_two_items(item_type=item_type)
         stream = super(RegularStream, self).join(
             right, key=key, how=how,
             reverse=reverse, is_sorted=is_sorted, right_is_uniq=right_is_uniq,
@@ -465,7 +467,7 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
         output_struct = FlatStruct([])
         if values is None:
             values = list()
-        elif Auto.is_auto(values) and Auto.is_defined(input_struct):
+        elif Auto.is_defined(input_struct) or not Auto.is_defined(values):
             values = list()
             for f in input_struct.get_field_names():
                 if f not in get_names(keys):
@@ -485,9 +487,9 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
             elif isinstance(f, FieldInterface) or hasattr(f, 'get_value_type'):
                 value_type = f.get_value_type()
             elif input_struct:
-                value_type = input_struct.get_field_description(f).get_value_type() or AUTO
+                value_type = input_struct.get_field_description(f).get_value_type() or ValueType.Any
             else:
-                value_type = AUTO
+                value_type = ValueType.Any
             output_struct.append_field(field_name, value_type)
         return output_struct
 
@@ -512,7 +514,7 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
             values: Columns = None,
             skip_missing: bool = False,
             as_pairs: bool = False,  # deprecated argument
-            output_struct: AutoStruct = AUTO,
+            output_struct: Struct = None,
             take_hash: bool = False,
     ) -> Stream:
         keys = unfold_structs_to_fields(keys)
@@ -560,7 +562,7 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
             values: Columns = None,
             as_pairs: bool = False,  # deprecated argument, use group_to_pairs() instead
             take_hash: bool = True,
-            step: AutoCount = AUTO,
+            step: Count = None,
             skip_missing: bool = False,
             verbose: bool = True,
     ) -> Stream:
@@ -585,7 +587,7 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
             self,
             *keys,
             values: Columns = None,
-            step: AutoCount = AUTO,
+            step: Count = None,
             verbose: bool = True,
     ) -> RegularStreamInterface:
         grouped_stream = self.group_by(*keys, values=values, step=step, as_pairs=True, take_hash=False, verbose=verbose)
@@ -604,11 +606,13 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
         keys = unfold_structs_to_fields(keys)
         key_fields = get_names(keys)
         key_function = self._get_key_function(key_fields, take_hash=False)
-        prev_value = AUTO
+        prev_value = None
+        is_first = True
         for i in self.get_items():
             value = key_function(i)
-            if value != prev_value:
+            if is_first or value != prev_value:
                 yield i
+                is_first = False
             prev_value = value
 
     def get_dict(
@@ -650,7 +654,7 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
         return self
 
     @staticmethod
-    def _assume_stream(stream) -> Stream:
+    def _assume_stream(stream) -> RegularStreamInterface:
         return stream
 
     @staticmethod
@@ -659,12 +663,13 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
 
     def to_stream(
             self,
-            data: Data = AUTO,
-            stream_type: StreamItemType = AUTO,
+            data: Optional[Iterable] = None,
+            stream_type: ItemType = ItemType.Auto,
             ex: OptionalFields = None,
             **kwargs
     ) -> Stream:
-        stream_type = Auto.delayed_acquire(stream_type, self.get_stream_type)
+        if not Auto.is_defined(stream_type):
+            stream_type = self.get_stream_type()
         stream_class = self._get_stream_class_by_type(stream_type)
         if not Auto.is_defined(data):
             if hasattr(self, 'get_items_of_type'):
@@ -683,15 +688,15 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
 
     def to_file(
             self,
-            file: Union[LeafConnectorInterface, FileName],
+            file: Union[FileObj, FileName],
             verbose: bool = True,
             return_stream: bool = True,
             **kwargs
     ) -> Native:
         if isinstance(file, FileName):
             file = self.get_context().get_job_folder().file(file, **kwargs)
-        if not (isinstance(file, LeafConnectorInterface) or hasattr(file, 'write_stream')):
-            raise TypeError('Expected TsvFile, got {} as {}'.format(file, type(file)))
+        if not (isinstance(file, FileObj) or hasattr(file, 'write_stream')):
+            raise TypeError(f'Expected TsvFile, got {file} as {file}')
         meta = self.get_meta()
         file.write_stream(self, verbose=verbose)
         if return_stream:
@@ -700,10 +705,13 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
     @classmethod
     @deprecated_with_alternative('connectors.filesystem.local_file.JsonFile.to_stream()')
     def from_json_file(
-            cls, filename: str,
-            stream_type: StreamItemType = ItemType.Record,
-            skip_first_line=False, max_count=None,
-            check=AUTO, verbose=False,
+            cls,
+            filename: str,
+            stream_type: ItemType = ItemType.Record,
+            skip_first_line: bool = False,
+            max_count: Count = None,
+            check: Optional[bool] = None,
+            verbose: bool = False,
     ) -> Stream:
         line_stream_class = StreamType.LineStream.get_class()
         return line_stream_class.from_text_file(

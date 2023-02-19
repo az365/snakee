@@ -4,7 +4,7 @@ import gc
 try:  # Assume we're a submodule in a package.
     from utils.decorators import singleton
     from interfaces import (
-        Context, ContextInterface, Connector, ConnType, Stream, StreamItemType,
+        Context, ContextInterface, Connector, ConnType, Stream, ItemType,
         TemporaryLocationInterface, LoggerInterface, ExtendedLoggerInterface, SelectionLoggerInterface, LoggingLevel,
         AUTO, Auto, Name, ARRAY_TYPES,
     )
@@ -18,7 +18,7 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from .utils.decorators import singleton
     from .interfaces import (
-        Context, ContextInterface, Connector, ConnType, Stream, StreamItemType,
+        Context, ContextInterface, Connector, ConnType, Stream, ItemType,
         TemporaryLocationInterface, LoggerInterface, ExtendedLoggerInterface, SelectionLoggerInterface, LoggingLevel,
         AUTO, Auto, Name, ARRAY_TYPES,
     )
@@ -32,7 +32,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 
 Logger = Union[LoggerInterface, ExtendedLoggerInterface]
 Child = Union[Logger, Connector, Stream]
-ChildType = Union[ConnType, Child, Name, Auto]
+ChildType = Union[ConnType, Child, Name]
 
 NAME = 'cx'
 DEFAULT_STREAM_CONFIG = dict(
@@ -47,10 +47,10 @@ DEFAULT_CONN_CONFIG = dict()
 class SnakeeContext(bs.AbstractNamed, ContextInterface):
     def __init__(
             self,
-            name: Union[Name, Auto] = AUTO,
-            stream_config: Union[dict, Auto] = AUTO,
-            conn_config: Union[dict, Auto] = AUTO,
-            logger: Union[Logger, Auto, None] = AUTO,
+            name: Optional[Name] = None,
+            stream_config: Optional[dict] = None,
+            conn_config: Optional[dict] = None,
+            logger: Optional[Logger] = None,
             clear_tmp: bool = False,
     ):
         if not Auto.is_defined(name):
@@ -101,7 +101,7 @@ class SnakeeContext(bs.AbstractNamed, ContextInterface):
     def get_new_selection_logger(name: Name, **kwargs) -> lg.SelectionLoggerInterface:
         return lg.SelectionMessageCollector(name, **kwargs)
 
-    def get_selection_logger(self, name: Union[Name, Auto] = AUTO, **kwargs) -> SelectionLoggerInterface:
+    def get_selection_logger(self, name: Optional[Name] = None, **kwargs) -> SelectionLoggerInterface:
         logger = self.get_logger()
         if hasattr(logger, 'get_selection_logger'):
             selection_logger = logger.get_selection_logger(name=name, **kwargs)
@@ -116,9 +116,9 @@ class SnakeeContext(bs.AbstractNamed, ContextInterface):
     def log(
             self,
             msg: str,
-            level: Union[LoggingLevel, int, Auto] = AUTO,
+            level: Optional[LoggingLevel] = None,
             stacklevel: Optional[int] = None,
-            end: Union[str, Auto] = AUTO,
+            end: Optional[str] = None,
             verbose: bool = True,
     ) -> None:
         logger = self.get_logger()
@@ -172,8 +172,9 @@ class SnakeeContext(bs.AbstractNamed, ContextInterface):
     def conn(
             self,
             conn: Union[Connector, ChildType],
-            name: Union[Name, Auto] = AUTO,
-            check: bool = True, redefine: bool = True,
+            name: Optional[Name] = None,
+            check: bool = True,
+            redefine: bool = True,
             **kwargs
     ) -> Connector:
         if not Auto.is_defined(Name):
@@ -204,8 +205,8 @@ class SnakeeContext(bs.AbstractNamed, ContextInterface):
 
     def stream(
             self,
-            stream_type: Union[StreamItemType, Stream],
-            name: Union[Name, Auto] = AUTO,
+            stream_type: Union[ItemType, Stream],
+            name: Optional[Name] = None,
             check: bool = True,
             **kwargs
     ) -> Stream:
@@ -238,7 +239,7 @@ class SnakeeContext(bs.AbstractNamed, ContextInterface):
         else:
             return self.conn_instances[name]
 
-    def get_child(self, name: Name, class_or_type: ChildType = AUTO, deep: bool = True) -> Child:
+    def get_child(self, name: Name, class_or_type: ChildType = None, deep: bool = True) -> Child:
         if 'Stream' in str(class_or_type):
             return self.get_stream(name)
         elif 'Conn' in str(class_or_type):

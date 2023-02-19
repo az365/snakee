@@ -3,10 +3,9 @@ from typing import Optional, Callable, Iterable, Iterator, Generator, Sequence, 
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
-        ContextInterface, LeafConnectorInterface, StructInterface, Stream, RegularStream,
-        ConnType, LoggingLevel, ItemType, StreamType, StreamItemType, JoinType,
-        AutoContext, AutoName, AutoDisplay, AutoBool, Auto, AUTO,
-        Item, Name, FieldName, FieldNo, Links, Columns, OptionalFields, Array, ARRAY_TYPES,
+        LeafConnectorInterface, StructInterface, Stream, RegularStream,
+        ConnType, LoggingLevel, ItemType, StreamType, JoinType,
+        Context, Item, Name, FieldName, FieldNo, Links, Columns, OptionalFields, Auto, Array, ARRAY_TYPES,
     )
     from base.functions.arguments import (
         get_names, get_name, get_generated_name,
@@ -28,10 +27,9 @@ try:  # Assume we're a submodule in a package.
     from streams.stream_builder import StreamBuilder
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
-        ContextInterface, LeafConnectorInterface, StructInterface, Stream, RegularStream,
-        ConnType, LoggingLevel, ItemType, StreamType, StreamItemType, JoinType,
-        AutoContext, AutoName, AutoDisplay, AutoBool, Auto, AUTO,
-        Item, Name, FieldName, FieldNo, Links, Columns, OptionalFields, Array, ARRAY_TYPES,
+        LeafConnectorInterface, StructInterface, Stream, RegularStream,
+        ConnType, LoggingLevel, ItemType, StreamType, JoinType,
+        Context, Item, Name, FieldName, FieldNo, Links, Columns, OptionalFields, Auto, Array, ARRAY_TYPES,
     )
     from ...base.functions.arguments import (
         get_names, get_name, get_generated_name,
@@ -87,10 +85,10 @@ class SqlStream(WrapperStream):
     def __init__(
             self,
             data: Links = None,
-            name: AutoName = AUTO,
+            name: Optional[Name] = None,
             caption: str = EMPTY,
             source: TableOrQuery = None,
-            context: AutoContext = AUTO,
+            context: Context = None,
     ):
         if not Auto.is_defined(data):
             data = dict()
@@ -114,19 +112,19 @@ class SqlStream(WrapperStream):
         elif isinstance(source, SqlStream) or hasattr(source, 'get_source_table'):
             return source.get_source_table()
         else:
-            raise TypeError('Expected source as Table or SqlStream, got {}'.format(source))
+            raise TypeError(f'Expected source as Table or SqlStream, got {source}')
 
     def get_database(self):
         table = self.get_source_table()
         if hasattr(table, 'get_database'):
             return table.get_database()
         else:
-            raise TypeError('Expected source as Table or SqlStream, got {}'.format(table))
+            raise TypeError(f'Expected source as Table or SqlStream, got {table}')
 
     def close(self) -> int:
         return self.get_database().close()
 
-    def execute_query(self, verbose: AutoBool = AUTO) -> Iterable:
+    def execute_query(self, verbose: Optional[bool] = None) -> Iterable:
         db = self.get_database()
         return db.execute(self.get_query(), get_data=True, verbose=verbose)
 
@@ -234,16 +232,17 @@ class SqlStream(WrapperStream):
                     else:
                         yield '{} = {}'.format(target_field, value)
                 if len(expression) == 2:
-                    raise NotImplemented('got {}'.format(description))
+                    raise NotImplemented(f'got {description}')
             else:
-                raise ValueError('expected field name or tuple, got {}'.format(description))
+                raise ValueError(f'expected field name or tuple, got {description}')
 
-    def get_from_lines(self, subquery_name: AutoName = AUTO) -> Iterator[str]:
+    def get_from_lines(self, subquery_name: Optional[Name] = None) -> Iterator[str]:
         from_section = list(self.get_expressions_for(SqlSection.From))
         if len(from_section) == 1:
             from_obj = from_section[0]
-            if Auto.is_auto(subquery_name) and (isinstance(from_obj, SqlStream) or hasattr(from_obj, 'get_query_name')):
-                subquery_name = from_obj.get_query_name()
+            if not Auto.is_defined(subquery_name):
+                if isinstance(from_obj, SqlStream) or hasattr(from_obj, 'get_query_name'):
+                    subquery_name = from_obj.get_query_name()
             if not (subquery_name or Auto.is_defined(subquery_name)):
                 subquery_name = self._get_generated_name()
             if isinstance(from_obj, FieldName):
@@ -253,13 +252,17 @@ class SqlStream(WrapperStream):
             elif hasattr(from_obj, 'get_query_lines'):  # isinstance(from_obj, SqlTransform)
                 yield '('
                 yield from from_obj.get_query_lines(finish=False)
-                yield ') AS {}'.format(subquery_name)
+                yield f') AS {subquery_name}'
             else:
-                raise ValueError('from-section data must be Table or Name(str), got {}'.format(from_obj))
+                raise ValueError(f'from-section data must be Table or Name(str), got {from_obj}')
         else:
             yield from from_section
 
-    def get_join_lines(self, left_subquery_name: AutoName = AUTO, right_subquery_name: AutoName = AUTO) -> Iterator[str]:
+    def get_join_lines(
+            self,
+            left_subquery_name: Optional[Name] = None,
+            right_subquery_name: Optional[Name] = None,
+    ) -> Iterator[str]:
         join_section = list(self.get_expressions_for(SqlSection.Join))
         if join_section:
             assert len(join_section) == 1
@@ -267,9 +270,9 @@ class SqlStream(WrapperStream):
             table_or_query, key, how = join_section[0]
             field_name = get_name(key)
             subquery_name = self._get_generated_name()
-            if Auto.is_auto(left_subquery_name):
+            if not Auto.is_defined(left_subquery_name):
                 left_subquery_name = self.get_source().get_query_name()
-            if Auto.is_auto(right_subquery_name):
+            if not Auto.is_defined(right_subquery_name):
                 if isinstance(table_or_query, SqlStream) or hasattr(table_or_query, 'get_query_name'):
                     right_subquery_name = table_or_query.get_query_name()
             if not Auto.is_defined(right_subquery_name):
@@ -381,7 +384,7 @@ class SqlStream(WrapperStream):
             return self.new().select(*fields, **expressions)
         else:
             stream = self.copy()
-            assert isinstance(stream, SqlStream) or hasattr(stream, 'add_expression_for'), 'got {}'.format(stream)
+            assert isinstance(stream, SqlStream) or hasattr(stream, 'add_expression_for'), f'got {stream}'
             list_expressions = list(fields)
             for target, source in expressions.items():
                 if isinstance(source, ARRAY_TYPES):
@@ -397,7 +400,7 @@ class SqlStream(WrapperStream):
             return self.new().filter(*fields, **expressions)
         else:
             stream = self.copy()
-            assert isinstance(stream, SqlStream) or hasattr(stream, 'add_expression_for'), 'got {}'.format(stream)
+            assert isinstance(stream, SqlStream) or hasattr(stream, 'add_expression_for'), f'got {stream}'
             list_expressions = list(fields) + [(field, value) for field, value in expressions.items()]
             for expressions in list_expressions:
                 stream.add_expression_for(SqlSection.Where, expressions)
@@ -413,17 +416,17 @@ class SqlStream(WrapperStream):
             stream = self.new().group_by(*fields)
         else:
             stream = self.copy()
-            assert isinstance(stream, SqlStream) or hasattr(stream, 'add_expression_for'), 'got {}'.format(stream)
+            assert isinstance(stream, SqlStream) or hasattr(stream, 'add_expression_for'), f'got {stream}'
             for f in fields:
                 stream.add_expression_for(SqlSection.GroupBy, f)
         if values:
-            assert isinstance(stream, SqlStream) or hasattr(stream, 'select'), 'got {}'.format(stream)
+            assert isinstance(stream, SqlStream) or hasattr(stream, 'select'), f'got {stream}'
             stream = stream.select(*fields, *values)
         return stream
 
     def sort(self, *fields) -> Native:
         stream = self.copy()
-        assert isinstance(stream, SqlStream) or hasattr(stream, 'add_expression_for'), 'got {}'.format(stream)
+        assert isinstance(stream, SqlStream) or hasattr(stream, 'add_expression_for'), f'got {stream}'
         for f in fields:
             stream.add_expression_for(SqlSection.OrderBy, f)
         return stream
@@ -551,11 +554,12 @@ class SqlStream(WrapperStream):
     def to_stream(
             self,
             data: Optional[Iterable] = None,
-            stream_type: StreamItemType = AUTO,
+            stream_type: ItemType = ItemType.Auto,
             ex: OptionalFields = None,
             **kwargs
     ) -> Union[RegularStream, Native]:
-        stream_type = Auto.acquire(stream_type, self.get_stream_type())
+        if not Auto.is_defined(stream_type):
+            stream_type = self.get_stream_type()
         if data:
             stream_class = StreamBuilder.get_default_stream_class()
             meta = self.get_compatible_meta(stream_class, ex=ex)
@@ -569,17 +573,17 @@ class SqlStream(WrapperStream):
             return self
         else:
             method_suffix = StreamType.of(stream_type).get_method_suffix()
-            method_name = 'to_{}'.format(method_suffix)
+            method_name = f'to_{method_suffix}'
             stream_method = self.__getattribute__(method_name)
             return stream_method()
 
-    def collect(self, stream_type: StreamItemType = ItemType.Record) -> Stream:
+    def collect(self, stream_type: ItemType = ItemType.Record) -> Stream:
         stream = self.to_stream(stream_type=stream_type).collect()
         return self._assume_native(stream)
 
     def one(self) -> Stream:
         stream = self.copy().take(1)
-        assert isinstance(stream, SqlStream) or hasattr(stream, 'collect'), 'got {}'.format(stream)
+        assert isinstance(stream, SqlStream) or hasattr(stream, 'collect'), f'got {stream}'
         return stream.collect()
 
     def get_one_item(self) -> Item:
@@ -614,8 +618,11 @@ class SqlStream(WrapperStream):
                 if isinstance(i, (AbstractDescription, AnyField)) or hasattr(i, 'get_brief_repr'):
                     str_select_expressions.append(i.get_brief_repr())
                 elif isinstance(i, ARRAY_TYPES):
-                    str_select_expressions.append('{}={}'.format(get_name(i[0]), repr(i[1]) if len(i) == 2 else i[1:]))
-            sm_repr += '.select({})'.format(ITEMS_DELIMITER.join(str_select_expressions))
+                    name = get_name(i[0])
+                    value = repr(i[1]) if len(i) == 2 else i[1:]
+                    str_select_expressions.append(f'{name}={value}')
+            str_select_line = ITEMS_DELIMITER.join(str_select_expressions)
+            sm_repr += f'.select({str_select_line})'
         return sm_repr
 
     def get_struct_sheet(self, name: str = 'Columns sheet') -> Union[Sheet, Paragraph]:

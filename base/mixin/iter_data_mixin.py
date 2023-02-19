@@ -10,6 +10,7 @@ try:  # Assume we're a submodule in a package.
     from base.classes.enum import DynamicEnum
     from base.constants.chars import PARAGRAPH_CHAR
     from base.functions.arguments import get_names, update, is_in_memory, get_str_from_args_kwargs
+    from base.interfaces.display_interface import DEFAULT_EXAMPLE_COUNT
     from base.interfaces.iterable_interface import IterableInterface, OptionalFields, Item, JoinType
     from base.mixin.data_mixin import DataMixin, UNK_COUNT_STUB
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -19,13 +20,13 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..classes.enum import DynamicEnum
     from ..constants.chars import PARAGRAPH_CHAR
     from ..functions.arguments import get_names, update, is_in_memory, get_str_from_args_kwargs
+    from ..interfaces.display_interface import DEFAULT_EXAMPLE_COUNT
     from ..interfaces.iterable_interface import IterableInterface, OptionalFields, Item, JoinType
     from .data_mixin import DataMixin, UNK_COUNT_STUB
 
 Native = Union[IterableInterface, DataMixin]
 How = Union[JoinType, str]
 
-DEFAULT_COUNT = 10
 LOGGING_LEVEL_INFO = 20
 
 
@@ -197,17 +198,17 @@ class IterDataMixin(DataMixin, ABC):
             yield n + first, i
 
     def _get_first_items(self, count: int = 1, item_type=None) -> Generator:
-        for n, i in self._get_enumerated_items(first=1, item_type=item_type):
-            yield i
+        for n, i in enumerate(self.get_items()):
             if n >= count:
                 break
+            yield i
 
     def _get_second_items(self, skip: int = 1, item_type=None) -> Generator:
-        for n, i in self._get_enumerated_items(first=0, item_type=item_type):
+        for n, i in enumerate(self.get_items()):
             if n >= skip:
                 yield i
 
-    def _get_last_items(self, count: int = DEFAULT_COUNT) -> list:
+    def _get_last_items(self, count: int = DEFAULT_EXAMPLE_COUNT) -> list:
         count = abs(count)
         items = list()
         for i in self.get_items():
@@ -250,10 +251,10 @@ class IterDataMixin(DataMixin, ABC):
                     result_count = 0
         return self.set_items(items, count=result_count, inplace=inplace)
 
-    def head(self, count: int = DEFAULT_COUNT, inplace: bool = False) -> Optional[Native]:
+    def head(self, count: int = DEFAULT_EXAMPLE_COUNT, inplace: bool = False) -> Optional[Native]:
         return self.take(count, inplace=inplace)
 
-    def tail(self, count: int = DEFAULT_COUNT, inplace: bool = False) -> Optional[Native]:
+    def tail(self, count: int = DEFAULT_EXAMPLE_COUNT, inplace: bool = False) -> Optional[Native]:
         return self.take(-count, inplace=inplace)
 
     def pass_items(self) -> Native:

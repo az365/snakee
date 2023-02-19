@@ -1,10 +1,9 @@
-from typing import Optional, Iterable, Union
+from typing import Optional, Iterable
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         RegularStreamInterface, Struct, Context, Connector, TmpFiles,
-        ItemType, StreamType,
-        AUTO, Auto, AutoName, AutoCount, Count,
+        ItemType, StreamType, Count,
     )
     from utils.decorators import deprecated_with_alternative
     from streams.mixin.convert_mixin import ConvertMixin
@@ -14,8 +13,7 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         RegularStreamInterface, Struct, Context, Connector, TmpFiles,
-        ItemType, StreamType,
-        AUTO, Auto, AutoName, AutoCount, Count,
+        ItemType, StreamType, Count,
     )
     from ...utils.decorators import deprecated_with_alternative
     from ..mixin.convert_mixin import ConvertMixin
@@ -31,7 +29,7 @@ class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
     def __init__(
             self,
             data: Iterable,
-            name: AutoName = AUTO,
+            name: Optional[str] = None,
             caption: str = '',
             item_type: ItemType = EXPECTED_ITEM_TYPE,
             struct: Struct = None,
@@ -39,8 +37,8 @@ class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
             context: Context = None,
             count: Count = None,
             less_than: Count = None,
-            max_items_in_memory: AutoCount = AUTO,
-            tmp_files: TmpFiles = AUTO,
+            max_items_in_memory: Count = None,
+            tmp_files: TmpFiles = None,
             check: bool = False,
     ):
         super().__init__(
@@ -59,15 +57,21 @@ class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
 
     @deprecated_with_alternative('RegularStream.write_to()')
     def to_column_file(
-            self, filename: str, columns: Union[Iterable, Auto] = AUTO,
-            add_title_row=True, delimiter='\t',
-            check=True, verbose=True, return_stream=True,
+            self,
+            filename: str,
+            columns: Optional[Iterable] = None,
+            add_title_row: bool = True,
+            delimiter: str = '\t',
+            check: bool = True,
+            verbose: bool = True,
+            return_stream: bool = True,
     ) -> Optional[RegularStreamInterface]:
         meta = self.get_meta()
-        columns = Auto.delayed_acquire(columns, self.get_columns)
+        if not columns:
+            columns = self.get_columns()
         row_stream = self.to_row_stream(columns=columns)
         if add_title_row:
-            assert Auto.is_defined(columns)
+            assert isinstance(columns, Iterable), f'got {columns}'
             row_stream.add_items([columns], before=True, inplace=True)
         line_stream = row_stream.to_line_stream(delimiter=delimiter)
         sm_csv_file = line_stream.to_text_file(
@@ -91,9 +95,13 @@ class RecordStream(AnyStream, ColumnarMixin, ConvertMixin):
     @deprecated_with_alternative('connectors.ColumnFile().to_stream()')
     def from_column_file(
             cls,
-            filename, columns, delimiter='\t',
-            skip_first_line=True, check=AUTO,
-            expected_count=AUTO, verbose=True,
+            filename,
+            columns,
+            delimiter: str = '\t',
+            skip_first_line: bool = True,
+            check: Optional[bool] = None,
+            expected_count: Count = None,
+            verbose: bool = True,
     ) -> RegularStreamInterface:
         return LineStream.from_text_file(
             filename, skip_first_line=skip_first_line,

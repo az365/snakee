@@ -4,12 +4,12 @@ from functools import wraps
 import inspect
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.auto import AUTO, Auto
+    from base.classes.auto import Auto
     from base.functions.arguments import get_name, get_str_from_args_kwargs
     from loggers.logger_interface import LoggerInterface
     from loggers.fallback_logger import FallbackLogger
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..base.classes.auto import AUTO, Auto
+    from ..base.classes.auto import Auto
     from ..base.functions.arguments import get_name, get_str_from_args_kwargs
     from ..loggers.logger_interface import LoggerInterface
     from ..loggers.fallback_logger import FallbackLogger
@@ -82,7 +82,7 @@ def singleton(cls):
 
 
 class WrappedFunction(Callable, ABC):
-    def __init__(self, py_func: Callable, name: Union[str, Auto] = AUTO, *args, **kwargs):
+    def __init__(self, py_func: Callable, name: Optional[str] = None, *args, **kwargs):
         self._py_func = py_func
         if not Auto.is_defined(name):
             name = get_name(py_func, or_callable=False)
@@ -108,10 +108,14 @@ class WrappedFunction(Callable, ABC):
         return self._name
 
     def __repr__(self):
-        return '{}({})'.format(self.get_name(), get_str_from_args_kwargs(*self._args, **self._kwargs))
+        name = self.get_name()
+        args_str = get_str_from_args_kwargs(*self._args, **self._kwargs)
+        return f'{name}({args_str})'
 
     def __str__(self):
-        return '{cls}({name})'.format(cls=self.__class__.__name__, name=repr(self.get_name()))
+        cls_name = self.__class__.__name__
+        obj_name = repr(self.get_name())
+        return f'{cls_name}({obj_name})'
 
 
 def sql_compatible(func):

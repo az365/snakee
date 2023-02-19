@@ -12,7 +12,6 @@ try:  # Assume we're a submodule in a package.
     from base.mixin.data_mixin import DataMixin
     from base.mixin.map_data_mixin import MapDataMixin, MultiMapDataMixin
     from base.mixin.iter_data_mixin import IterableInterface, IterDataMixin
-    from base.classes.auto import Auto, AUTO
     from base.classes.enum import EnumItem, DynamicEnum, ClassType, SubclassesType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from .interfaces.base_interface import BaseInterface
@@ -28,5 +27,4 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .mixin.data_mixin import DataMixin
     from .mixin.map_data_mixin import MapDataMixin, MultiMapDataMixin
     from .mixin.iter_data_mixin import IterableInterface, IterDataMixin
-    from .classes.auto import Auto, AUTO
     from .classes.enum import EnumItem, DynamicEnum, ClassType, SubclassesType

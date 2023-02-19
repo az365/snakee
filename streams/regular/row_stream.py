@@ -1,20 +1,14 @@
-from typing import Optional, Iterable, Union
+from typing import Optional, Iterable
 
 try:  # Assume we're a submodule in a package.
-    from interfaces import (
-        Struct, Connector, Context, TmpFiles, ItemType, StreamType,
-        AUTO, Auto, AutoBool, AutoCount, Count, Name,
-    )
+    from interfaces import Struct, Connector, Context, TmpFiles, ItemType, StreamType, Count, Name
     from base.constants.chars import EMPTY, TAB_CHAR
     from utils.decorators import deprecated_with_alternative
     from streams.mixin.columnar_mixin import ColumnarMixin
     from streams.regular.any_stream import AnyStream
     from streams.regular.line_stream import LineStream
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...interfaces import (
-        Struct, Connector, Context, TmpFiles, ItemType, StreamType,
-        AUTO, Auto, AutoBool, AutoCount, Count, Name,
-    )
+    from ...interfaces import Struct, Connector, Context, TmpFiles, ItemType, StreamType, Count, Name
     from ...base.constants.chars import EMPTY, TAB_CHAR
     from ...utils.decorators import deprecated_with_alternative
     from ..mixin.columnar_mixin import ColumnarMixin
@@ -29,7 +23,7 @@ class RowStream(AnyStream, ColumnarMixin):
     def __init__(
             self,
             data: Iterable,
-            name: Name = AUTO,
+            name: Name = None,
             caption: str = EMPTY,
             item_type: ItemType = EXPECTED_ITEM_TYPE,
             struct: Struct = None,
@@ -37,8 +31,8 @@ class RowStream(AnyStream, ColumnarMixin):
             context: Context = None,
             count: Count = None,
             less_than: Count = None,
-            max_items_in_memory: AutoCount = AUTO,
-            tmp_files: Union[TmpFiles, Auto] = AUTO,
+            max_items_in_memory: Count = None,
+            tmp_files: Optional[TmpFiles] = None,
             check: bool = False,
     ):
         super().__init__(
@@ -63,7 +57,7 @@ class RowStream(AnyStream, ColumnarMixin):
             delimiter: str = TAB_CHAR,
             skip_first_line: bool = False,
             max_count: Count = None,
-            check: AutoBool = AUTO,
+            check: Optional[bool] = None,
             verbose: bool = False,
     ) -> AnyStream:
         stream = LineStream.from_text_file(
@@ -81,7 +75,7 @@ class RowStream(AnyStream, ColumnarMixin):
             self,
             filename: str,
             delimiter: str = TAB_CHAR,
-            check: AutoBool = AUTO,
+            check: Optional[bool] = None,
             verbose: bool = True,
             return_stream: bool = True,
     ) -> Optional[AnyStream]:
