@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Iterable, Sequence, Any
+from typing import Optional, Any
 
 try:  # Assume we're a submodule in a package.
     from base.classes.typing import Class
@@ -23,29 +23,6 @@ class DisplayInterface(ABC):
 
     @abstractmethod
     def display_item(self, item, item_type='paragraph', **kwargs) -> None:
-        pass
-
-    # @deprecated
-    @abstractmethod
-    def display_paragraph(
-            self,
-            paragraph: Optional[Iterable] = None,
-            level: Optional[int] = None,
-            style=None,
-    ) -> None:
-        pass
-
-    # @deprecated
-    @abstractmethod
-    def display_sheet(
-            self,
-            records: Iterable,
-            columns: Sequence,
-            count: Optional[int] = None,
-            with_title: bool = True,
-            style=None,
-            name: str = '',
-    ) -> None:
         pass
 
     @classmethod
