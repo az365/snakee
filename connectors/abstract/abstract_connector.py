@@ -4,15 +4,17 @@ from typing import Optional, Union
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         Context, Connector, ConnectorInterface, ConnType,
-        LoggerInterface, ExtendedLoggerInterface, LoggingLevel, Message, Auto,
+        LoggerInterface, ExtendedLoggerInterface, LoggingLevel, Message,
     )
+    from base.classes.auto import Auto
     from base.abstract.tree_item import TreeItem
     from loggers.logging_context_stub import LoggingContextStub
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         Context, Connector, ConnectorInterface, ConnType,
-        LoggerInterface, ExtendedLoggerInterface, LoggingLevel, Message, Auto,
+        LoggerInterface, ExtendedLoggerInterface, LoggingLevel, Message,
     )
+    from ...base.classes.auto import Auto
     from ...base.abstract.tree_item import TreeItem
     from ...loggers.logging_context_stub import LoggingContextStub
 

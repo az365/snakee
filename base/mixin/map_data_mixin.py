@@ -3,7 +3,7 @@ from typing import Optional, Iterable, Generator, Sequence, Union
 from itertools import chain
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.typing import Auto, Count, Class
+    from base.classes.typing import Count, Class
     from base.functions.arguments import get_name
     from base.constants.chars import EMPTY, REPR_DELIMITER
     from base.classes.enum import DynamicEnum, ClassType
@@ -11,7 +11,7 @@ try:  # Assume we're a submodule in a package.
     from base.mixin.data_mixin import Key, Item, KEY, VALUE, DESCRIPTION_COLS
     from base.mixin.iter_data_mixin import IterDataMixin
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..classes.typing import Auto, Count, Class
+    from ..classes.typing import Count, Class
     from ..functions.arguments import get_name
     from ..constants.chars import EMPTY, REPR_DELIMITER
     from ..classes.enum import DynamicEnum, ClassType
@@ -190,7 +190,7 @@ class MultiMapDataMixin(MapDataMixin, ABC):
             return data[key].get(subkey)
 
     def get_item(self, key: Key, subkey: Key, skip_missing: Optional[bool] = None, default=None):
-        if not Auto.is_defined(skip_missing):
+        if not isinstance(skip_missing, bool):
             skip_missing = default is not None
         data_dict = self.get_from_data(key)
         if subkey in data_dict:

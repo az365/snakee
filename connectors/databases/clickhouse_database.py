@@ -5,7 +5,7 @@ try:  # Assume we're a submodule in a package.
     from interfaces import (
         ConnectorInterface, Context,
         ConnType, DialectType, LoggingLevel,
-        Auto, Name, Count, Array, ARRAY_TYPES,
+        Name, Count, Array, ARRAY_TYPES,
     )
     from base.functions.arguments import get_name
     from connectors.databases.abstract_database import AbstractDatabase, TEST_QUERY, DEFAULT_STEP
@@ -13,7 +13,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...interfaces import (
         ConnectorInterface, Context,
         ConnType, DialectType, LoggingLevel,
-        Auto, Name, Count, Array, ARRAY_TYPES,
+        Name, Count, Array, ARRAY_TYPES,
     )
     from ...base.functions.arguments import get_name
     from .abstract_database import AbstractDatabase, TEST_QUERY, DEFAULT_STEP
@@ -90,7 +90,7 @@ class ClickhouseDatabase(AbstractDatabase):
             return_count: bool = True,
             verbose: Optional[bool] = None,
     ):
-        if not Auto.is_defined(verbose):
+        if verbose is None:
             verbose = self.is_verbose()
         table_name = get_name(table)
         count = len(rows) if isinstance(rows, ARRAY_TYPES) else expected_count

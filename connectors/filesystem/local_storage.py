@@ -2,11 +2,11 @@ from typing import Type, Callable, Iterable, Union
 import os
 
 try:  # Assume we're a submodule in a package.
-    from interfaces import ConnType, ConnectorInterface, Auto
+    from interfaces import ConnType, ConnectorInterface
     from connectors.abstract.abstract_storage import AbstractStorage
     from loggers.extended_logger import SingletonLogger
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...interfaces import ConnType, ConnectorInterface, Auto
+    from ...interfaces import ConnType, ConnectorInterface
     from ..abstract.abstract_storage import AbstractStorage
     from ...loggers.extended_logger import SingletonLogger
 
@@ -23,7 +23,7 @@ class LocalStorage(AbstractStorage):
             verbose=True,
             path_delimiter=PATH_DELIMITER,
     ):
-        if Auto.is_defined(context):
+        if context:
             registered_local_storage = context.get_local_storage(create_if_not_yet=False)
             if registered_local_storage:
                 assert name != registered_local_storage.get_name(), 'Default local storage already registered'
@@ -44,7 +44,7 @@ class LocalStorage(AbstractStorage):
     @classmethod
     def get_default_child_class(cls) -> Class:
         child_class = cls.get_default_child_type().get_class
-        if not Auto.is_defined(child_class):
+        if child_class is None:
             child_class = cls.get_default_child_obj_class()
         return child_class
 

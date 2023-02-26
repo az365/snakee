@@ -2,16 +2,18 @@ from abc import ABC
 from typing import Optional, Iterable, Generator, Union, Any, NoReturn
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.typing import Auto, Count
-    from base.constants.chars import EMPTY, REPR_DELIMITER, SMALL_INDENT, DEFAULT_LINE_LEN
+    from base.classes.auto import Auto
+    from base.classes.typing import Count
+    from base.constants.chars import EMPTY, REPR_DELIMITER, SMALL_INDENT, PARAGRAPH_CHAR, DEFAULT_LINE_LEN
     from base.functions.arguments import get_str_from_annotation, get_str_from_args_kwargs
     from base.interfaces.data_interface import SimpleDataInterface
     from base.mixin.display_mixin import DEFAULT_EXAMPLE_COUNT
     from base.mixin.data_mixin import DataMixin, UNK_COUNT_STUB, DEFAULT_CHAPTER_TITLE_LEVEL
     from base.abstract.named import AbstractNamed, DisplayInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..classes.typing import Auto, Count
-    from ..constants.chars import EMPTY, REPR_DELIMITER, SMALL_INDENT, DEFAULT_LINE_LEN
+    from ..classes.auto import Auto
+    from ..classes.typing import Count
+    from ..constants.chars import EMPTY, REPR_DELIMITER, SMALL_INDENT, PARAGRAPH_CHAR, DEFAULT_LINE_LEN
     from ..functions.arguments import get_str_from_annotation, get_str_from_args_kwargs
     from ..interfaces.data_interface import SimpleDataInterface
     from ..mixin.display_mixin import DEFAULT_EXAMPLE_COUNT
@@ -73,9 +75,9 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
     def _raise_init_error(self, msg: str, *args, **kwargs) -> NoReturn:
         class_name = self.__class__.__name__
         annotations = get_str_from_annotation(self.__class__)
-        ann_str = '\n(available args are: {})'.format(annotations) if annotations else ''
+        ann_str = f'{PARAGRAPH_CHAR}(available args are: {annotations})' if annotations else EMPTY
         arg_str = get_str_from_args_kwargs(*args, **kwargs)
-        raise TypeError('{}: {}({}) {}'.format(msg, class_name, arg_str, ann_str))
+        raise TypeError(f'{msg}: {class_name}({arg_str}) {ann_str}')
 
     def apply_to_data(self, function, *args, dynamic=False, inplace: bool = False, **kwargs) -> Native:
         data = function(self.get_data(), *args, **kwargs)
@@ -91,7 +93,7 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
             meta.pop(f, None)
         return meta
 
-    def get_compatible_static_meta(self, other=None, ex=None, **kwargs) -> dict:
+    def get_compatible_static_meta(self, other: Optional[Native] = None, ex=None, **kwargs) -> dict:
         meta = self.get_compatible_meta(other=other, ex=ex, **kwargs)
         for f in self._get_dynamic_meta_fields():
             meta.pop(f, None)
@@ -111,7 +113,7 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
         count = self.get_str_count(default=default)
         if not Auto.is_defined(count):
             count = default
-        return '{} items'.format(count)
+        return f'{count} items'
 
     def get_shape_repr(self) -> str:
         len_repr = self.get_count_repr()
