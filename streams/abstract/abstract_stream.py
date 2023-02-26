@@ -5,11 +5,10 @@ import gc
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
-        StreamInterface, LoggerInterface, LeafConnectorInterface,
-        ExtLogger, Context, Connector, LeafConnector,
-        StreamType, LoggingLevel,
-        Auto, Name, OptionalFields, Array, Class, Message,
+        StreamInterface, LoggerInterface, LeafConnectorInterface, LeafConnector, Connector, Context, ExtLogger,
+        StreamType, LoggingLevel, Message, Name, OptionalFields, Array, Class,
     )
+    from base.classes.auto import Auto
     from base.functions.arguments import get_generated_name, get_cropped_text
     from base.constants.chars import CROP_SUFFIX, DEFAULT_LINE_LEN, EMPTY
     from base.abstract.contextual_data import ContextualDataWrapper
@@ -19,11 +18,10 @@ try:  # Assume we're a submodule in a package.
     from streams.stream_builder import StreamBuilder
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
-        StreamInterface, LoggerInterface, LeafConnectorInterface,
-        ExtLogger, Context, Connector, LeafConnector,
-        StreamType, LoggingLevel,
-        Auto, Name, OptionalFields, Array, Class, Message,
+        StreamInterface, LoggerInterface, LeafConnectorInterface, LeafConnector, Connector, Context, ExtLogger,
+        StreamType, LoggingLevel, Message, Name, OptionalFields, Array, Class,
     )
+    from ...base.classes.auto import Auto
     from ...base.functions.arguments import get_generated_name, get_cropped_text
     from ...base.constants.chars import CROP_SUFFIX, DEFAULT_LINE_LEN, EMPTY
     from ...base.abstract.contextual_data import ContextualDataWrapper
@@ -210,7 +208,7 @@ class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
             max_len: int = DEFAULT_LINE_LEN,
             crop: str = CROP_SUFFIX,
     ) -> str:
-        if not Auto.os_defined(str_meta):
+        if not Auto.is_defined(str_meta):
             str_meta = self.get_str_meta()
         cls_name = self.__class__.__name__
         obj_name = self.get_name()

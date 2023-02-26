@@ -2,19 +2,13 @@ from typing import Optional, Union
 
 try:  # Assume we're a submodule in a package.
     from utils.decorators import singleton
-    from interfaces import (
-        ContextInterface, LoggerInterface, ExtendedLoggerInterface,
-        AUTO, Auto, Name,
-    )
+    from interfaces import ContextInterface, LoggerInterface, ExtendedLoggerInterface, Name
     from base.abstract.tree_item import TreeItem
     from loggers.extended_logger import SingletonLogger
     from loggers.message_collector import SelectionMessageCollector
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils.decorators import singleton
-    from ..interfaces import (
-        ContextInterface, LoggerInterface, ExtendedLoggerInterface,
-        AUTO, Auto, Name,
-    )
+    from ..interfaces import ContextInterface, LoggerInterface, ExtendedLoggerInterface, Name
     from ..base.abstract.tree_item import TreeItem
     from .extended_logger import SingletonLogger
     from .message_collector import SelectionMessageCollector

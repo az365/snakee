@@ -2,11 +2,11 @@ from typing import Optional, Iterable, Sized
 import gc
 
 try:  # Assume we're a submodule in a package.
-    from interfaces import ConnType, DialectType, LoggingLevel, Auto, Count, Array, ARRAY_TYPES
+    from interfaces import ConnType, DialectType, LoggingLevel, Count, Array, ARRAY_TYPES
     from utils.external import psycopg2
     from connectors.databases.abstract_database import AbstractDatabase, TEST_QUERY, DEFAULT_STEP, DEFAULT_GROUP
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...interfaces import ConnType, DialectType, LoggingLevel, Auto, Count, Array, ARRAY_TYPES
+    from ...interfaces import ConnType, DialectType, LoggingLevel, Count, Array, ARRAY_TYPES
     from ...utils.external import psycopg2
     from ..databases.abstract_database import AbstractDatabase, TEST_QUERY, DEFAULT_STEP, DEFAULT_GROUP
 
@@ -55,7 +55,7 @@ class PostgresDatabase(AbstractDatabase):
         return self.connection
 
     def disconnect(self, skip_errors: bool = False, verbose: Optional[bool] = None) -> Count:
-        if not Auto.is_defined(verbose):
+        if verbose is None:
             verbose = self.is_verbose()
         if self.is_connected():
             if not psycopg2:
@@ -86,11 +86,11 @@ class PostgresDatabase(AbstractDatabase):
             data: Optional[Iterable] = None,
             verbose: Optional[bool] = None,
     ):
-        if not Auto.is_defined(verbose):
+        if verbose is None:
             verbose = self.is_verbose()
         message = self._get_execution_message(query, verbose=verbose)
         self.log(message, level=LoggingLevel.Debug, end='\r', verbose=verbose)
-        if not Auto.is_defined(get_data):
+        if get_data is None:
             if 'SELECT' in query and 'GRANT' not in query:
                 get_data, commit = True, False
             else:
@@ -115,7 +115,7 @@ class PostgresDatabase(AbstractDatabase):
             return result
 
     def execute_batch(self, query: str, batch: Iterable, step: int = DEFAULT_STEP, cursor=None) -> None:
-        if not Auto.is_defined(cursor):
+        if cursor is None:
             cursor = self.connect().cursor()
         if not psycopg2:
             raise ImportError('psycopg2 must be installed (pip install psycopg2)')
@@ -124,22 +124,15 @@ class PostgresDatabase(AbstractDatabase):
     def grant_permission(
             self,
             name: str,
-            permission='SELECT',
-            group=DEFAULT_GROUP,
+            permission: str = 'SELECT',
+            group: str = DEFAULT_GROUP,
             verbose: Optional[bool] = None,
     ) -> None:
-        if not Auto.is_defined(verbose):
+        if verbose is None:
             verbose = self.is_verbose()
-        message = 'Grant access:'
-        query = 'GRANT {permission} ON {name} TO {group};'.format(
-            name=name,
-            permission=permission,
-            group=group,
-        )
-        self.execute(
-            query, get_data=False, commit=True,
-            verbose=message if verbose is True else verbose,
-        )
+        message = 'Grant access:' if verbose else False
+        query = f'GRANT {permission} ON {name} TO {group};'
+        self.execute(query, get_data=False, commit=True, verbose=message)
 
     def post_create_action(self, name: str, verbose: Optional[bool] = None) -> None:
         self.grant_permission(name, verbose=verbose)
@@ -183,7 +176,7 @@ class PostgresDatabase(AbstractDatabase):
             verbose: Optional[bool] = None,
     ) -> Count:
         assert isinstance(columns, ARRAY_TYPES), 'list or tuple expected, got {}'.format(columns)
-        if not Auto.is_defined(verbose):
+        if verbose is None:
             verbose = self.is_verbose()
         if isinstance(rows, Sized):
             count = len(rows)

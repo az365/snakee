@@ -4,7 +4,7 @@ try:  # Assume we're a submodule in a package.
     from interfaces import (
         RegularStreamInterface, PairStreamInterface, Struct, Connector, Context, TmpFiles,
         StreamType, ItemType, StreamItemType,
-        Auto, Name, Count,
+        Name, Count,
     )
     from utils.decorators import deprecated, deprecated_with_alternative
     from content.struct.flat_struct import FlatStruct
@@ -14,7 +14,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...interfaces import (
         RegularStreamInterface, PairStreamInterface, Struct, Connector, Context, TmpFiles,
         StreamType, ItemType, StreamItemType,
-        Auto, Name, Count,
+        Name, Count,
     )
     from ...functions.secondary import array_functions as fs
     from ...content.struct.flat_struct import FlatStruct
@@ -63,8 +63,8 @@ class KeyValueStream(RowStream, PairStreamInterface):
     def get_value_stream_type(self) -> StreamType:
         return self.value_stream_type
 
-    def set_value_stream_type(self, value_stream_type: StreamType) -> Native:
-        if not Auto.is_defined(value_stream_type):
+    def set_value_stream_type(self, value_stream_type: ItemType) -> Native:
+        if value_stream_type in (ItemType.Auto, None):
             self.value_stream_type = StreamType.AnyStream
         else:
             try:
@@ -98,7 +98,7 @@ class KeyValueStream(RowStream, PairStreamInterface):
     @deprecated_with_alternative('get_one_column_values()')
     def keys(self, uniq: bool, stream_type: ItemType = ItemType.Auto) -> RegularStreamInterface:
         items = self.get_uniq_keys() if uniq else self._get_mapped_items(KEY)
-        if not Auto.is_defined(stream_type):
+        if stream_type in (ItemType.Auto, None):
             stream_type = ItemType.Any
         stream = self.stream(items, stream_type=stream_type)
         return self._assume_regular(stream)

@@ -2,7 +2,8 @@ from abc import ABC
 from typing import Optional, Tuple, Union
 
 try:  # Assume we're a submodule in a package.
-    from interfaces import LeafConnectorInterface, StructInterface, Item, Columns, Array, Count, Auto
+    from interfaces import LeafConnectorInterface, StructInterface, Item, Columns, Array, Count
+    from base.classes.auto import Auto
     from base.interfaces.display_interface import DEFAULT_EXAMPLE_COUNT
     from base.functions.arguments import get_str_from_args_kwargs, get_cropped_text
     from base.constants.chars import EMPTY, CROP_SUFFIX
@@ -10,7 +11,8 @@ try:  # Assume we're a submodule in a package.
     from content.documents.document_item import Chapter, Paragraph, Sheet
     from streams.interfaces.abstract_stream_interface import StreamInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...interfaces import LeafConnectorInterface, StructInterface, Item, Columns, Array, Count, Auto
+    from ...interfaces import LeafConnectorInterface, StructInterface, Item, Columns, Array, Count
+    from ...base.classes.auto import Auto
     from ...base.interfaces.display_interface import DEFAULT_EXAMPLE_COUNT
     from ...base.functions.arguments import get_str_from_args_kwargs, get_cropped_text
     from ...base.constants.chars import EMPTY, CROP_SUFFIX

@@ -1,7 +1,8 @@
 from typing import Optional, Iterable, Generator, Sequence, Tuple, Union, Any
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.typing import Auto, Count, Array
+    from base.classes.auto import Auto
+    from base.classes.typing import Count, Array
     from base.functions.arguments import get_str_from_args_kwargs, get_generated_name
     from base.interfaces.display_interface import DisplayInterface, DEFAULT_EXAMPLE_COUNT
     from base.interfaces.context_interface import ContextInterface
@@ -11,7 +12,8 @@ try:  # Assume we're a submodule in a package.
     from base.abstract.abstract_base import AbstractBaseObject
     from base.abstract.named import AbstractNamed
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..classes.typing import Auto, Count, Array
+    from ..classes.auto import Auto
+    from ..classes.typing import Count, Array
     from ..functions.arguments import get_str_from_args_kwargs, get_generated_name
     from ..interfaces.display_interface import DisplayInterface, DEFAULT_EXAMPLE_COUNT
     from ..interfaces.context_interface import ContextInterface

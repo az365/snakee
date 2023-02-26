@@ -3,11 +3,11 @@ from typing import Optional, Iterable
 
 try:  # Assume we're a submodule in a package.
     from utils.decorators import deprecated_with_alternative
-    from interfaces import Auto, Context, Connector, Class, Name
+    from interfaces import Context, Connector, Class, Name
     from connectors.abstract.abstract_connector import AbstractConnector
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils.decorators import deprecated_with_alternative
-    from ...interfaces import Auto, Context, Connector, Class, Name
+    from ...interfaces import Context, Connector, Class, Name
     from .abstract_connector import AbstractConnector
 
 
@@ -54,7 +54,7 @@ class HierarchicConnector(AbstractConnector, ABC):
             child_class = cls.get_default_child_type().get_class(skip_missing=skip_missing)
         else:
             child_class = None
-        if not Auto.is_defined(child_class):
+        if not child_class:
             child_class = super().get_default_child_obj_class(skip_missing=skip_missing)
         return child_class
 

@@ -6,10 +6,11 @@ try:  # Assume we're a submodule in a package.
         SelectionLoggerInterface, ExtLogger,
         ValueType, DialectType,
         FieldNo, FieldName, SimpleRow, Item,
-        Auto, Name, Count, Array, ARRAY_TYPES, ROW_SUBCLASSES, RECORD_SUBCLASSES,
+        Name, Count, Array, ARRAY_TYPES, ROW_SUBCLASSES, RECORD_SUBCLASSES,
     )
-    from base.functions.arguments import update, get_generated_name, get_name, get_names
     from base.constants.chars import EMPTY, REPR_DELIMITER, TITLE_PREFIX, ITEM, DEL, ABOUT, JUPYTER_LINE_LEN
+    from base.classes.auto import Auto
+    from base.functions.arguments import update, get_generated_name, get_name, get_names
     from base.abstract.simple_data import SimpleDataWrapper, DEFAULT_EXAMPLE_COUNT
     from base.mixin.iter_data_mixin import IterDataMixin
     from functions.secondary import array_functions as fs
@@ -26,10 +27,11 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         SelectionLoggerInterface, ExtLogger,
         ValueType, DialectType,
         FieldNo, FieldName, SimpleRow, Item,
-        Auto, Name, Count, Array, ARRAY_TYPES, ROW_SUBCLASSES, RECORD_SUBCLASSES,
+        Name, Count, Array, ARRAY_TYPES, ROW_SUBCLASSES, RECORD_SUBCLASSES,
     )
-    from ...base.functions.arguments import update, get_generated_name, get_name, get_names
     from ...base.constants.chars import EMPTY, REPR_DELIMITER, TITLE_PREFIX, ITEM, DEL, ABOUT, JUPYTER_LINE_LEN
+    from ...base.classes.auto import Auto
+    from ...base.functions.arguments import update, get_generated_name, get_name, get_names
     from ...base.abstract.simple_data import SimpleDataWrapper, DEFAULT_EXAMPLE_COUNT
     from ...base.mixin.iter_data_mixin import IterDataMixin
     from ...functions.secondary import array_functions as fs

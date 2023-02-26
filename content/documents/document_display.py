@@ -1,7 +1,7 @@
 from typing import Optional, Callable, Iterable, Sequence, Union
 
 try:  # Assume we're a submodule in a package.
-    from interfaces import Item, ItemType, ContentType, Class, Count, Auto
+    from interfaces import Item, ItemType, ContentType, Class, Count
     from base.constants.chars import EMPTY, SPACE, HTML_SPACE, PARAGRAPH_CHAR
     from base.classes.display import DefaultDisplay, DEFAULT_CHAPTER_TITLE_LEVEL
     from base.classes.enum import ClassType
@@ -12,7 +12,7 @@ try:  # Assume we're a submodule in a package.
     from content.documents.display_mode import DisplayMode
     from content.documents.document_item import DocumentItem, Paragraph, Sheet, Chart, Chapter
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...interfaces import Item, ItemType, ContentType, Class, Count, Auto
+    from ...interfaces import Item, ItemType, ContentType, Class, Count
     from ...base.constants.chars import EMPTY, SPACE, HTML_SPACE, PARAGRAPH_CHAR
     from ...base.classes.display import DefaultDisplay, DEFAULT_CHAPTER_TITLE_LEVEL
     from ...base.classes.enum import ClassType
@@ -101,7 +101,7 @@ class DocumentDisplay(DefaultDisplay, IterDataMixin):
             title = obj.get_str_title()
         else:
             title = obj_name
-        if not Auto.is_defined(name):
+        if not name:
             name = f'{obj_name} header'
         chapter = Chapter(name=name)
         if level:
@@ -196,7 +196,7 @@ class DocumentDisplay(DefaultDisplay, IterDataMixin):
     ):
         if save:
             self.append(item, show=False)
-        if not Auto.is_defined(refresh):
+        if refresh is None:
             refresh = self.is_partially_shown()
         if refresh:
             return self.display_all(refresh=True)

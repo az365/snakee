@@ -3,12 +3,12 @@ from datetime import date, timedelta, datetime
 
 try:  # Assume we're a submodule in a package.
     from base.classes.enum import DynamicEnum
-    from base.classes.typing import Auto
+    from base.classes.auto import Auto
     from base.constants.chars import DOT, MINUS, SPACE
     from base.functions.arguments import get_str_from_args_kwargs
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.classes.enum import DynamicEnum
-    from ...base.classes.typing import Auto
+    from ...base.classes.auto import Auto
     from ...base.constants.chars import DOT, MINUS, SPACE
     from ...base.functions.arguments import get_str_from_args_kwargs
 

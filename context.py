@@ -6,9 +6,10 @@ try:  # Assume we're a submodule in a package.
     from interfaces import (
         Context, ContextInterface, Connector, ConnType, Stream, ItemType,
         TemporaryLocationInterface, LoggerInterface, ExtendedLoggerInterface, SelectionLoggerInterface, LoggingLevel,
-        AUTO, Auto, Name, ARRAY_TYPES,
+        Name, ARRAY_TYPES,
     )
     from base.functions.arguments import get_names, get_generated_name
+    from base.classes.auto import Auto
     from base import base_classes as bs
     from streams import stream_classes as sm
     from connectors import connector_classes as ct
@@ -20,9 +21,10 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .interfaces import (
         Context, ContextInterface, Connector, ConnType, Stream, ItemType,
         TemporaryLocationInterface, LoggerInterface, ExtendedLoggerInterface, SelectionLoggerInterface, LoggingLevel,
-        AUTO, Auto, Name, ARRAY_TYPES,
+        Name, ARRAY_TYPES,
     )
     from .base.functions.arguments import get_names, get_generated_name
+    from .base.classes.auto import Auto
     from .base import base_classes as bs
     from .streams import stream_classes as sm
     from .connectors import connector_classes as ct

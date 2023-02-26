@@ -7,16 +7,18 @@ try:  # Assume we're a submodule in a package.
         StreamBuilderInterface,
         StreamInterface, LocalStreamInterface, ContextInterface, ConnectorInterface, TemporaryLocationInterface,
         StreamType, ItemType, JoinType,
-        Stream, How, Class, OptionalFields, Auto,
+        Stream, How, Class, OptionalFields,
     )
+    from base.classes.auto import Auto
     from base.functions.arguments import update
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..interfaces import (
         StreamBuilderInterface,
         StreamInterface, LocalStreamInterface, ContextInterface, ConnectorInterface, TemporaryLocationInterface,
         StreamType, ItemType, JoinType,
-        Stream, How, Class, OptionalFields, Auto,
+        Stream, How, Class, OptionalFields,
     )
+    from ..base.classes.auto import Auto
     from ..base.functions.arguments import update
 
 Native = StreamBuilderInterface

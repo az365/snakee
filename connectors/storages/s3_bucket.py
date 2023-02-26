@@ -2,13 +2,13 @@ from typing import Optional, Iterable, Generator, Union
 import io
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.typing import Auto
+    from base.classes.auto import Auto
     from utils.decorators import deprecated_with_alternative
     from utils.external import boto3, boto_core_client
     from interfaces import ConnType, ConnectorInterface, Class, Name
     from connectors.abstract.abstract_folder import HierarchicFolder
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...base.classes.typing import Auto
+    from ...base.classes.auto import Auto
     from ...utils.decorators import deprecated_with_alternative
     from ...utils.external import boto3, boto_core_client
     from ...interfaces import ConnType, ConnectorInterface, Class, Name

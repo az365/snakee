@@ -1,7 +1,8 @@
 from typing import Optional, Callable, Iterable, Generator, Iterator, Sequence, Union
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.typing import Auto, AutoCount, Count, Class
+    from base.classes.auto import Auto
+    from base.classes.typing import Count, Class
     from base.functions.arguments import get_name, get_value, get_str_from_args_kwargs
     from base.constants.chars import (
         REPR_DELIMITER, SMALL_INDENT, MD_HEADER, PARAGRAPH_CHAR, ITEM, EMPTY,
@@ -11,7 +12,8 @@ try:  # Assume we're a submodule in a package.
     from base.interfaces.display_interface import DisplayInterface, Item, Style, DEFAULT_EXAMPLE_COUNT
     from utils.decorators import deprecated_with_alternative
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..classes.typing import Auto, AutoCount, Count, Class
+    from ..classes.auto import Auto
+    from ..classes.typing import Count, Class
     from ..functions.arguments import get_name, get_value, get_str_from_args_kwargs
     from ..constants.chars import (
         REPR_DELIMITER, SMALL_INDENT, MD_HEADER, PARAGRAPH_CHAR, ITEM, EMPTY,
@@ -232,12 +234,13 @@ class DefaultDisplay(DisplayInterface):
             cls,
             records: Iterable,
             columns: Sequence,
-            count: AutoCount = None,
+            count: Count = None,
             with_title: bool = True,
             delimiter: str = REPR_DELIMITER,
             max_len: int = DEFAULT_LINE_LEN,
     ) -> Generator:
-        count = Auto.acquire(count, DEFAULT_EXAMPLE_COUNT)
+        if not Auto.is_defined(count):
+            count = DEFAULT_EXAMPLE_COUNT
         formatter = cls._get_formatter(columns=columns, delimiter=delimiter)
         if with_title:
             column_names = cls._get_column_names(columns)

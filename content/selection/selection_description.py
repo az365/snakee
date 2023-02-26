@@ -4,7 +4,7 @@ try:  # Assume we're a submodule in a package.
     from interfaces import (
         StructInterface, LoggerInterface,
         ItemType, Item, Row, Record, Field, Name, FieldName, FieldNo,
-        ARRAY_TYPES, Array, Auto,
+        ARRAY_TYPES, Array,
     )
     from base.abstract.simple_data import SimpleDataWrapper
     from base.mixin.iter_data_mixin import IterDataMixin
@@ -19,7 +19,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...interfaces import (
         StructInterface, LoggerInterface,
         ItemType, Item, Row, Record, Field, Name, FieldName, FieldNo,
-        ARRAY_TYPES, Array, Auto,
+        ARRAY_TYPES, Array,
     )
     from ...base.abstract.simple_data import SimpleDataWrapper
     from ...base.mixin.iter_data_mixin import IterDataMixin
@@ -135,7 +135,7 @@ class SelectionDescription(SimpleDataWrapper, IterDataMixin):
             name: str = 'select',
             caption: str = '',
     ):
-        if not Auto.is_defined(selection_logger):
+        if not selection_logger:
             selection_logger = getattr(logger, 'get_selection_logger', NULL_LOGGER)
         self._target_item_type = target_item_type
         self._input_item_type = input_item_type
@@ -190,7 +190,7 @@ class SelectionDescription(SimpleDataWrapper, IterDataMixin):
             logger: Logger = None,
             selection_logger: Logger = None,
     ) -> None:
-        if not Auto.is_defined(selection_logger):
+        if not selection_logger:
             selection_logger = getattr(logger, 'get_selection_logger', NULL_LOGGER)
         self._logger = logger
         self._selection_logger = selection_logger
@@ -227,7 +227,7 @@ class SelectionDescription(SimpleDataWrapper, IterDataMixin):
         self._has_trivial_multiple_selectors = value
 
     def check_has_trivial_multiple_selectors(self) -> bool:
-        if not Auto.is_defined(self.has_trivial_multiple_selectors()):
+        if self.has_trivial_multiple_selectors() is None:
             self.mark_trivial_multiple_selectors(False)
             for d in self.get_descriptions():
                 if hasattr(d, 'is_trivial_multiple'):
@@ -257,13 +257,13 @@ class SelectionDescription(SimpleDataWrapper, IterDataMixin):
             return self
 
     def get_output_field_names(self, item: Optional[Item] = None) -> list:
-        if Auto.is_defined(item, check_name=False):
-            if self.check_changing_output_fields() or not Auto.is_defined(self.get_known_output_field_names()):
+        if item is not None:
+            if self.check_changing_output_fields() or self.get_known_output_field_names() is None:
                 self.reset_output_field_names(item, inplace=True)
         return self.get_known_output_field_names()
 
     def get_dict_output_field_types(self, struct: Struct = None) -> dict:
-        if not Auto.is_defined(struct):
+        if struct is None:
             struct = self.get_input_struct()
         output_types = dict()
         for d in self.get_descriptions():
@@ -302,9 +302,9 @@ class SelectionDescription(SimpleDataWrapper, IterDataMixin):
     def process_item(self, item: Item) -> Item:
         input_item_type = self.get_input_item_type()
         target_item_type = self.get_target_item_type()
-        if input_item_type == ItemType.Auto or input_item_type is None:
+        if input_item_type in (ItemType.Auto, None):
             input_item_type = ItemType.detect(item, default=ItemType.Any)
-        if target_item_type == ItemType.Auto or target_item_type is None:
+        if target_item_type in (ItemType.Auto, None):
             target_item_type = input_item_type
         if target_item_type == input_item_type and target_item_type != ItemType.Row:
             new_item = it.get_copy(item)
@@ -315,7 +315,7 @@ class SelectionDescription(SimpleDataWrapper, IterDataMixin):
         return it.get_frozen(new_item)
 
     def get_mapper(self, logger: Logger = None) -> Callable:
-        if Auto.is_defined(logger):
+        if logger:
             self.set_selection_logger(logger)
         return self.process_item
 

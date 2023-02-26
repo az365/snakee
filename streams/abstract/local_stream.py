@@ -4,8 +4,9 @@ try:  # Assume we're a submodule in a package.
     from interfaces import (
         LocalStreamInterface, RegularStreamInterface, ContextInterface, ConnectorInterface, TemporaryFilesMaskInterface,
         ContentType, ItemType, StreamType, StreamItemType, JoinType, How,
-        Context, Connector, Array, Count, Name, FieldID, UniKey, OptionalFields, Auto,
+        Context, Connector, Array, Count, Name, FieldID, UniKey, OptionalFields,
     )
+    from base.classes.auto import Auto
     from base.functions.arguments import update, get_optional_len, is_in_memory
     from functions.secondary import basic_functions as bf, item_functions as fs
     from utils import algo
@@ -17,8 +18,9 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...interfaces import (
         LocalStreamInterface, RegularStreamInterface, ContextInterface, ConnectorInterface, TemporaryFilesMaskInterface,
         ContentType, ItemType, StreamType, StreamItemType, JoinType, How,
-        Context, Connector, Array, Count, Name, FieldID, UniKey, OptionalFields, Auto,
+        Context, Connector, Array, Count, Name, FieldID, UniKey, OptionalFields,
     )
+    from ...base.classes.auto import Auto
     from ...base.functions.arguments import update, get_optional_len, is_in_memory
     from ...functions.secondary import basic_functions as bf, item_functions as fs
     from ...utils import algo
@@ -228,13 +230,9 @@ class LocalStream(IterableStream, LocalStreamInterface):
         key_function = fs.composite_key(key)
         list_to_sort = self.get_list()
         count = len(list_to_sort)
-        self.log('Sorting {} items in memory...'.format(count), end='\r', verbose=verbose)
-        sorted_items = sorted(
-            list_to_sort,
-            key=key_function,
-            reverse=reverse,
-        )
-        self.log('Sorting has been finished.', end='\r', verbose=verbose)
+        self.log(f'Sorting {count} items in memory...', end='\r', verbose=verbose)
+        sorted_items = sorted(list_to_sort, key=key_function, reverse=reverse)
+        self.log(f'Sorting {count} items has been finished.', end='\r', verbose=verbose)
         self._count = len(sorted_items)
         stream = self.stream(sorted_items)
         return self._assume_native(stream)
@@ -249,22 +247,19 @@ class LocalStream(IterableStream, LocalStreamInterface):
         if not Auto.is_defined(step):
             step = self.get_limit_items_in_memory()
         key_function = fs.composite_key(key)
-        stream_parts = self.split_to_disk_by_step(
-            step=step,
-            sort_each_by=key_function, reverse=reverse,
-            verbose=verbose,
-        )
+        stream_parts = self.split_to_disk_by_step(step, sort_each_by=key_function, reverse=reverse, verbose=verbose)
         assert stream_parts, 'streams must be non-empty'
         iterables = [f.get_iter() for f in stream_parts]
-        counts = [f.get_count() or 0 for f in stream_parts]
-        self.log('Merging {} parts... '.format(len(iterables)), verbose=verbose)
+        parts_count = len(iterables)
+        item_counts = [f.get_count() or 0 for f in stream_parts]
+        self.log(f'Merging {parts_count} parts... ', verbose=verbose)
         items = algo.merge_iter(
             iterables,
             key_function=key_function,
             reverse=reverse,
             post_action=self.get_tmp_files().remove_all,
         )
-        stream = self.stream(items, count=sum(counts))
+        stream = self.stream(items, count=sum(item_counts))
         return self._assume_native(stream)
 
     def sort(self, *keys, reverse: bool = False, step: Count = None, verbose: Optional[bool] = True) -> Native:
@@ -363,7 +358,7 @@ class LocalStream(IterableStream, LocalStreamInterface):
             if is_single_part:
                 self.log('Sorting single part without saving...', verbose=verbose)
             else:
-                self.log('Sorting part {} and saving into {} ... '.format(part_no, part_fn), verbose=verbose)
+                self.log(f'Sorting part {part_no} and saving into {part_fn} ... ', verbose=verbose)
             if sort_each_by:
                 sm_part = sm_part.memory_sort(
                     key=sort_each_by,
@@ -371,7 +366,7 @@ class LocalStream(IterableStream, LocalStreamInterface):
                     verbose=verbose,
                 )
             if not is_single_part:
-                self.log('Writing {} ...'.format(part_fn), end='\r', verbose=verbose)
+                self.log('Writing {part_fn} ...', end='\r', verbose=verbose)
                 sm_part = sm_part.to_json().write_to(
                     file_part,
                 ).map_to_type(

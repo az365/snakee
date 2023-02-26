@@ -7,8 +7,9 @@ try:  # Assume we're a submodule in a package.
         Context, Connector, ConnectorInterface, ContentFormatInterface, StructInterface,
         IterableStreamInterface, RegularStreamInterface,
         ContentType, ConnType, ItemType, StreamType, StreamItemType,
-        Auto, Count, OptionalFields, UniKey, ARRAY_TYPES,
+        Count, OptionalFields, UniKey, ARRAY_TYPES,
     )
+    from base.classes.auto import Auto
     from base.constants.chars import EMPTY, OS_PLACEHOLDER, PY_PLACEHOLDER
     from functions.primary.text import is_formatter
     from content.format.format_classes import (
@@ -23,8 +24,9 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         Context, Connector, ConnectorInterface, ContentFormatInterface, StructInterface,
         IterableStreamInterface, RegularStreamInterface,
         ContentType, ConnType, ItemType, StreamType, StreamItemType,
-        Auto, Count, OptionalFields, UniKey, ARRAY_TYPES,
+        Count, OptionalFields, UniKey, ARRAY_TYPES,
     )
+    from ...base.classes.auto import Auto
     from ...base.constants.chars import EMPTY, OS_PLACEHOLDER, PY_PLACEHOLDER
     from ...functions.primary.text import is_formatter
     from ...content.format.format_classes import (
@@ -62,7 +64,7 @@ class LocalFile(LeafConnector, ActualizeMixin):
     ):
         parent = kwargs.pop('parent', None)
         if folder:
-            message = 'only LocalFolder supported for *File instances (got {})'.format(type(folder))
+            message = f'only LocalFolder supported for *File instances (got {folder})'
             assert isinstance(folder, ConnectorInterface) or folder.is_folder(), message
             assert folder == parent or not Auto.is_defined(parent)
         elif Auto.is_defined(parent):

@@ -3,8 +3,8 @@ from typing import Iterable, Union, Optional
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         Connector, Stream, Context,
-        ConnType, StreamItemType, ContentType, ContentFormatInterface,
-        Auto, OptionalFields,
+        ConnType, ItemType, ContentType, ContentFormatInterface,
+        OptionalFields,
     )
     from connectors.abstract.hierarchic_connector import HierarchicConnector
     from connectors.abstract.leaf_connector import LeafConnector
@@ -15,8 +15,8 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         Connector, Stream, Context,
-        ConnType, StreamItemType, ContentType, ContentFormatInterface,
-        Auto, OptionalFields,
+        ConnType, ItemType, ContentType, ContentFormatInterface,
+        OptionalFields,
     )
     from ..abstract.hierarchic_connector import HierarchicConnector
     from ..abstract.leaf_connector import LeafConnector
@@ -84,10 +84,10 @@ class PartitionedLocalFile(LocalMask, LocalFile):
             content_format: ContentFormat = None,
             **kwargs
     ) -> Connector:
-        if Auto.is_defined(suffix):
-            acquired_suffix = suffix
-        else:
+        if suffix is None:
             acquired_suffix = self.get_suffix()
+        else:
+            acquired_suffix = suffix
         assert acquired_suffix, f'suffix must be defined, got argument {suffix}, default {self.get_suffix()}'
         filename = self.get_mask().format(acquired_suffix)
         return super().file(filename, content_format=content_format, **kwargs)
@@ -132,7 +132,7 @@ class PartitionedLocalFile(LocalMask, LocalFile):
             self,
             data: Optional[Iterable] = None,
             name: Optional[str] = None,
-            stream_type: StreamItemType = None,
+            stream_type: ItemType = ItemType.Auto,
             ex: OptionalFields = None,
             **kwargs
     ) -> Stream:

@@ -5,10 +5,10 @@ try:  # Assume we're a submodule in a package.
     from interfaces import (
         TermInterface, FieldInterface,
         TermType, TermDataAttribute, TermRelation, FieldRoleType, ValueType,
-        Auto,
     )
-    from base.functions.arguments import get_name, get_names, get_value
+    from base.classes.auto import Auto
     from base.constants.chars import EMPTY, UNDER, SMALL_INDENT, REPR_DELIMITER, JUPYTER_LINE_LEN
+    from base.functions.arguments import get_name, get_names, get_value
     from base.abstract.simple_data import SimpleDataWrapper
     from base.mixin.map_data_mixin import MultiMapDataMixin
     from base.classes.enum import ClassType
@@ -18,10 +18,10 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...interfaces import (
         TermInterface, FieldInterface,
         TermType, TermDataAttribute, TermRelation, FieldRoleType, ValueType,
-        Auto,
     )
-    from ...base.functions.arguments import get_name, get_names, get_value
+    from ...base.classes.auto import Auto
     from ...base.constants.chars import EMPTY, UNDER, SMALL_INDENT, REPR_DELIMITER, JUPYTER_LINE_LEN
+    from ...base.functions.arguments import get_name, get_names, get_value
     from ...base.abstract.simple_data import SimpleDataWrapper
     from ...base.mixin.map_data_mixin import MultiMapDataMixin
     from ...base.classes.enum import ClassType

@@ -1,14 +1,14 @@
 from typing import Optional, Union, Iterable, Generator, Callable
 
 try:  # Assume we're a submodule in a package.
-    from interfaces import Item, Row, StructInterface, ItemType, StreamType, ContentType, Auto, ARRAY_TYPES
+    from interfaces import Item, Row, StructInterface, ItemType, StreamType, ContentType, ARRAY_TYPES
     from base.constants.chars import PARAGRAPH_CHAR, TAB_CHAR
     from base.functions.arguments import get_name
     from functions.secondary import item_functions as fs
     from utils.decorators import deprecated_with_alternative
     from content.format.text_format import TextFormat, Compress, DEFAULT_ENCODING
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...interfaces import Item, Row, StructInterface, ItemType, StreamType, ContentType, Auto, ARRAY_TYPES
+    from ...interfaces import Item, Row, StructInterface, ItemType, StreamType, ContentType, ARRAY_TYPES
     from ...base.constants.chars import PARAGRAPH_CHAR, TAB_CHAR
     from ...base.functions.arguments import get_name
     from ...functions.secondary import item_functions as fs
@@ -45,7 +45,7 @@ class ColumnarFormat(TextFormat):
         return self._first_line_is_title
 
     def set_first_line_title(self, first_line_is_title: Optional[bool]) -> TextFormat:
-        if not Auto.is_defined(first_line_is_title):
+        if first_line_is_title is None:
             first_line_is_title = DEFAULT_IS_FIRST_LINE_TITLE
         self._first_line_is_title = first_line_is_title
         return self
@@ -83,7 +83,7 @@ class ColumnarFormat(TextFormat):
             return FlatStructFormat(struct=struct, **self.get_props())
 
     def get_formatted_item(self, item: Item, item_type: ItemType = ItemType.Auto) -> str:
-        if not Auto.is_defined(item_type):
+        if item_type in (ItemType.Auto, None):
             item_type = ItemType.detect(item)
         if item_type in (ItemType.Row, ItemType.StructRow):
             row = item
@@ -108,7 +108,7 @@ class ColumnarFormat(TextFormat):
             item_type: ItemType = ItemType.Auto,
             struct: Optional[StructInterface] = None,
     ) -> Item:
-        if item_type == ItemType.Auto or item_type is None:
+        if item_type in (ItemType.Auto, None):
             item_type = self.get_default_item_type()
         if item_type == ItemType.Line:
             return line
@@ -120,7 +120,7 @@ class ColumnarFormat(TextFormat):
             row = row_converter(row)
         if item_type in (ItemType.Row, ItemType.Any, ItemType.Auto, None):
             return row
-        if not Auto.is_defined(struct, check_name=False):
+        if struct is None:
             column_count = len(row)
             struct = list(range(column_count))
         if item_type == ItemType.Record:
@@ -137,7 +137,7 @@ class ColumnarFormat(TextFormat):
             item_type: ItemType = ItemType.Auto,
             struct: Union[StructInterface] = None,
     ) -> Generator:
-        if item_type == ItemType.Auto or item_type is None:
+        if item_type in (ItemType.Auto, None):
             item_type = self.get_default_item_type()
         if item_type in (ItemType.Record, ItemType.Row, ItemType.StructRow, ItemType.Any, ItemType.Auto, None):
             iter_parser = fs.csv_reader(delimiter=self.get_delimiter())
@@ -159,7 +159,7 @@ class ColumnarFormat(TextFormat):
                     else:
                         yield {k: v for k, v in enumerate(r)}
             elif item_type == ItemType.StructRow:
-                assert Auto.is_defined(struct, check_name=False)
+                assert struct, f'for {item_type} struct must be defined, got struct={struct}'
                 for r in rows:
                     yield ItemType.StructRow.build(data=r, struct=struct)
         else:  # item_type == ItemType.Line
@@ -209,15 +209,14 @@ class FlatStructFormat(ColumnarFormat):
             self,
             struct: Optional[StructInterface] = None,
     ) -> Union[list, StructInterface]:
-        if Auto.is_defined(struct, check_name=False):
-            if isinstance(struct, ARRAY_TYPES):
-                assert struct == self.get_struct().get_columns()
-        else:
+        if struct is None:
             struct = self.get_struct()
+        elif isinstance(struct, ARRAY_TYPES):
+            assert struct == self.get_struct().get_columns()
         return struct
 
     def get_lines(self, items: Iterable, item_type: ItemType, add_title_row: Optional[bool] = None) -> Generator:
-        if not Auto.is_defined(add_title_row):
+        if add_title_row is None:
             add_title_row = self.is_first_line_title()
         if add_title_row:
             assert self.is_first_line_title()
@@ -227,7 +226,7 @@ class FlatStructFormat(ColumnarFormat):
             yield self.get_formatted_item(i, item_type=item_type)
 
     def get_formatted_item(self, item: Item, item_type: ItemType = ItemType.Auto, validate: bool = True) -> str:
-        if item_type == ItemType.Auto or item_type is None:
+        if item_type in (ItemType.Auto, None):
             item_type = ItemType.detect(item)
         if item_type == ItemType.Record:
             row = [str(item.get(f)) for f in self.get_struct().get_columns()]

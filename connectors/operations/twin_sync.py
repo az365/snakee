@@ -1,17 +1,11 @@
-from typing import Optional, Iterable, Callable, Union
+from typing import Optional, Iterable, Callable
 
 try:  # Assume we're a submodule in a package.
-    from interfaces import (
-        Context, StreamInterface, Stream, Connector,
-        Auto, StreamItemType, StreamType, Name,
-    )
+    from interfaces import Context, StreamInterface, Stream, Connector, ItemType, StreamType, Name
     from connectors import connector_classes as ct
     from connectors.operations.abstract_sync import AbstractSync, SRC_ID, DST_ID
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...interfaces import (
-        Context, StreamInterface, Stream, Connector,
-        Auto, StreamItemType, StreamType, Name,
-    )
+    from ...interfaces import Context, StreamInterface, Stream, Connector, ItemType, StreamType, Name
     from .. import connector_classes as ct
     from .abstract_sync import AbstractSync, SRC_ID, DST_ID
 
@@ -25,10 +19,10 @@ class TwinSync(AbstractSync):
             procedure: Optional[Callable],
             options: Optional[dict] = None,
             apply_to_stream: bool = True,
-            stream_type: StreamItemType = None,
+            stream_type: ItemType = ItemType.Auto,
             context: Context = None,
     ):
-        if not Auto.is_defined(options):
+        if options is None:
             options = dict()
         super().__init__(
             name=name,
@@ -57,22 +51,22 @@ class TwinSync(AbstractSync):
         if ex:
             for k in ex:
                 kwargs.pop(k)
-        if Auto.is_defined(upd):
+        if upd is not None:
             kwargs.update(upd)
         return kwargs
 
     def run_now(
             self,
             return_stream: bool = True,
-            stream_type: StreamItemType = None,
+            stream_type: ItemType = ItemType.Auto,
             options: Optional[dict] = None,
             verbose: bool = True,
     ) -> Stream:
-        if not Auto.is_defined(stream_type):
+        if stream_type in (ItemType.Auto, None):
             stream_type = self.get_stream_type()
         stream = self.get_src().to_stream(stream_type=stream_type)
         if verbose:
-            self.log('Running operation: {}'.format(self.get_name()))
+            self.log(f'Running operation: {self.get_name()}')
         if self.has_procedure():
             if self.has_apply_to_stream():
                 stream = self.get_procedure()(stream, **self.get_kwargs(upd=options))

@@ -4,8 +4,9 @@ from typing import Optional, Callable, Iterable, Generator, Union
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         ConnectorInterface, LeafConnectorInterface, StructInterface, ContentFormatInterface, RegularStreamInterface,
-        ItemType, StreamType, ContentType, Context, Stream, Name, Count, Columns, Array, Auto,
+        ItemType, StreamType, ContentType, Context, Stream, Name, Count, Columns, Array,
     )
+    from base.classes.auto import Auto
     from base.functions.arguments import get_name, get_str_from_args_kwargs, get_cropped_text
     from base.constants.chars import EMPTY, CROP_SUFFIX, ITEMS_DELIMITER, DEFAULT_LINE_LEN
     from content.format.format_classes import ParsedFormat
@@ -16,8 +17,9 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         ConnectorInterface, LeafConnectorInterface, StructInterface, ContentFormatInterface, RegularStreamInterface,
-        ItemType, StreamType, ContentType, Context, Stream, Name, Count, Columns, Array, Auto,
+        ItemType, StreamType, ContentType, Context, Stream, Name, Count, Columns, Array,
     )
+    from ...base.classes.auto import Auto
     from ...base.functions.arguments import get_name, get_str_from_args_kwargs, get_cropped_text
     from ...base.constants.chars import EMPTY, CROP_SUFFIX, ITEMS_DELIMITER, DEFAULT_LINE_LEN
     from ...content.format.format_classes import ParsedFormat

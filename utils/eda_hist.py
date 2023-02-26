@@ -3,16 +3,18 @@ from typing import Optional, Iterable, Union
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         LoggerInterface, RegularStreamInterface, StreamType, ItemType, MutableRecord, LoggingLevel,
-        Message, Count, Array, Auto,
+        Message, Count, Array,
     )
+    from base.classes.auto import Auto
     from functions.primary import numeric as nm
     from functions.secondary import all_secondary_functions as fs
     from streams.stream_builder import StreamBuilder
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..interfaces import (
         LoggerInterface, RegularStreamInterface, StreamType, ItemType, MutableRecord, LoggingLevel,
-        Message, Count, Array, Auto,
+        Message, Count, Array,
     )
+    from ..base.classes.auto import Auto
     from ..functions.primary import numeric as nm
     from ..functions.secondary import all_secondary_functions as fs
     from ..streams.stream_builder import StreamBuilder

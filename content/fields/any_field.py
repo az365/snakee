@@ -4,7 +4,7 @@ try:  # Assume we're a submodule in a package.
     from interfaces import (
         FieldInterface, RepresentationInterface, StructInterface, ExtLogger, SelectionLogger,
         ValueType, FieldRoleType, ReprType, ItemType, DialectType,
-        PRIMITIVE_TYPES, ARRAY_TYPES, Auto, Class,
+        PRIMITIVE_TYPES, ARRAY_TYPES, Class,
     )
     from base.functions.arguments import get_name, get_value, get_plural
     from base.abstract.simple_data import SimpleDataWrapper, EMPTY
@@ -16,7 +16,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...interfaces import (
         FieldInterface, RepresentationInterface, StructInterface, ExtLogger, SelectionLogger,
         ValueType, FieldRoleType, ReprType, ItemType, DialectType,
-        PRIMITIVE_TYPES, ARRAY_TYPES, Auto, Class,
+        PRIMITIVE_TYPES, ARRAY_TYPES, Class,
     )
     from ...base.functions.arguments import get_name, get_value, get_plural
     from ...base.abstract.simple_data import SimpleDataWrapper, EMPTY
@@ -48,12 +48,12 @@ class AnyField(SimpleDataWrapper, SelectableMixin, MultiMapDataMixin, FieldInter
             group_caption: Optional[str] = None,  # deprecated
             data: Optional[dict] = None
     ):
-        if not Auto.is_defined(data):
+        if data is None:
             data = dict()
-        if not Auto.is_defined(value_type):
+        if value_type is None:
             value_type = ValueType.detect_by_name(name)
         value_type = ValueType.get_canonic_type(value_type, ignore_missing=True)
-        assert isinstance(value_type, ValueType), 'Expected ValueType, got {}'.format(value_type)
+        assert isinstance(value_type, ValueType), f'Expected ValueType, got {value_type}'
         self._value_type = value_type
         self._representation = representation
         self._default_value = default_value
@@ -91,12 +91,12 @@ class AnyField(SimpleDataWrapper, SelectableMixin, MultiMapDataMixin, FieldInter
             return self._assume_native(field)
 
     def set_repr(self, representation: OptRepr = None, inplace: bool = False, **kwargs) -> Native:
-        assert Auto.is_defined(inplace), inplace
-        if not Auto.is_defined(representation):
+        assert inplace is not None
+        if representation is None:
             representation = self.get_representation()
         if kwargs:
-            if Auto.is_defined(representation):
-                assert isinstance(representation, RepresentationInterface), 'got {}'.format(representation)
+            if representation is not None:
+                assert isinstance(representation, RepresentationInterface), f'got {representation}'
                 representation = representation.update_meta(**kwargs, inplace=False)
             else:
                 repr_class = self.get_repr_class()
@@ -205,7 +205,7 @@ class AnyField(SimpleDataWrapper, SelectableMixin, MultiMapDataMixin, FieldInter
 
     def format(self, value, skip_errors: bool = False) -> str:
         representation = self.get_representation()
-        if Auto.is_defined(representation):
+        if representation is not None:
             try:
                 return representation.format(value, skip_errors=skip_errors)
             except AttributeError:
@@ -314,7 +314,7 @@ class AnyField(SimpleDataWrapper, SelectableMixin, MultiMapDataMixin, FieldInter
 
     def get_plural(self, suffix: Optional[str] = None, caption_prefix: str = 'list of ', **kwargs) -> Native:
         name = self.get_name()
-        if Auto.is_defined(suffix):
+        if suffix is not None:
             plural_name = get_plural(name, suffix)
         else:
             plural_name = get_plural(name)

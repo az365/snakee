@@ -2,15 +2,13 @@ from typing import Optional
 import json
 
 try:  # Assume we're a submodule in a package.
-    from interfaces import Item, ItemType, StreamType, ContentType, Auto, ARRAY_TYPES
-    from base.constants.chars import PARAGRAPH_CHAR
+    from interfaces import Item, ItemType, StreamType, ContentType, ARRAY_TYPES
+    from base.constants.chars import PARAGRAPH_CHAR, DEFAULT_ENCODING
     from content.format.abstract_format import AbstractFormat, ParsedFormat, Compress
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...interfaces import Item, ItemType, StreamType, ContentType, Auto, ARRAY_TYPES
-    from ...base.constants.chars import PARAGRAPH_CHAR
+    from ...interfaces import Item, ItemType, StreamType, ContentType, ARRAY_TYPES
+    from ...base.constants.chars import PARAGRAPH_CHAR, DEFAULT_ENCODING
     from .abstract_format import AbstractFormat, ParsedFormat, Compress
-
-DEFAULT_ENCODING = 'utf8'
 
 
 class TextFormat(ParsedFormat):
@@ -61,7 +59,7 @@ class TextFormat(ParsedFormat):
         return str(item)
 
     def get_parsed_line(self, line: str, item_type: ItemType = ItemType.Auto) -> Item:
-        if item_type == ItemType.Auto or item_type is None:
+        if item_type in (ItemType.Auto, None):
             item_type = self.get_default_item_type()
         if item_type in (ItemType.Line, ItemType.Any, ItemType.Auto):
             return line
@@ -72,8 +70,8 @@ class TextFormat(ParsedFormat):
         elif item_type == ItemType.StructRow:
             return ItemType.StructRow.build(data=[line], struct=['line'])
         else:
-            msg = 'item_type {} is not supported for {}.parse_lines()'
-            raise ValueError(msg.format(item_type, self.__class__.__name__))
+            class_name = self.__class__.__name__
+            raise ValueError(f'item_type {item_type} is not supported for {class_name}.get_parsed_line()')
 
     def __repr__(self):
         return super().__repr__().replace('\t', '\\t').replace('\n', '\\n')
@@ -115,7 +113,7 @@ class JsonFormat(TextFormat):
                 raise json.JSONDecodeError(err.msg, err.doc, err.pos)
 
     def get_parsed_line(self, line: str, item_type: ItemType = ItemType.Auto, default_value=None) -> Item:
-        if item_type == ItemType.Auto or item_type is None:
+        if item_type in (ItemType.Auto, None):
             item_type = self.get_default_item_type()
         if item_type in (ItemType.Record, ItemType.Row, ItemType.Any, ItemType.Auto):
             parsed = self._parse_json_line(line, default_value=default_value)
@@ -130,5 +128,5 @@ class JsonFormat(TextFormat):
         elif item_type == ItemType.StructRow:
             return ItemType.StructRow.build(data=[line], struct=['line'])
         else:
-            msg = 'item_type {} is not supported for {}.parse_lines()'
-            raise ValueError(msg.format(item_type, self.__class__.__name__))
+            class_name = self.__class__.__name__
+            raise ValueError(f'item_type {item_type} is not supported for {class_name}.get_parsed_line()')

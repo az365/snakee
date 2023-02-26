@@ -4,8 +4,9 @@ try:  # Assume we're a submodule in a package.
     from interfaces import (
         ConnectorInterface, StructInterface, ColumnarInterface, RegularStream, ExtendedLoggerInterface,
         ContentFormatInterface, ContentType, ConnType, ItemType, StreamType, StreamItemType, LoggingLevel,
-        ARRAY_TYPES, Array, Name, Count, OptionalFields, Links, Context, Auto,
+        ARRAY_TYPES, Array, Name, Count, OptionalFields, Links, Context,
     )
+    from base.classes.auto import Auto
     from base.constants.chars import CROP_SUFFIX
     from base.functions.arguments import update, get_str_from_args_kwargs, get_cropped_text
     from streams.stream_builder import StreamBuilder
@@ -15,8 +16,9 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...interfaces import (
         ConnectorInterface, StructInterface, ColumnarInterface, RegularStream, ExtendedLoggerInterface,
         ContentFormatInterface, ContentType, ConnType, ItemType, StreamType, StreamItemType, LoggingLevel,
-        ARRAY_TYPES, Array, Name, Count, OptionalFields, Links, Context, Auto,
+        ARRAY_TYPES, Array, Name, Count, OptionalFields, Links, Context,
     )
+    from ...base.classes.auto import Auto
     from ...base.constants.chars import CROP_SUFFIX
     from ...base.functions.arguments import update, get_str_from_args_kwargs, get_cropped_text
     from ...streams.stream_builder import StreamBuilder

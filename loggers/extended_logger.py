@@ -3,7 +3,8 @@ from inspect import getframeinfo, stack
 import logging
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.typing import Auto, Count, Name
+    from base.classes.auto import Auto
+    from base.classes.typing import Count, Name
     from base.constants.chars import (
         EMPTY, CROP_SUFFIX, ELLIPSIS, SPACE, RETURN_CHAR, PARAGRAPH_CHAR, SLASH, BACKSLASH,
         DEFAULT_ENCODING, DEFAULT_LINE_LEN, LONG_LINE_LEN,
@@ -19,7 +20,8 @@ try:  # Assume we're a submodule in a package.
     from loggers.progress_interface import ProgressInterface
     from loggers.progress import Progress
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..base.classes.typing import Auto, Count, Name
+    from ..base.classes.auto import Auto
+    from ..base.classes.typing import Count, Name
     from ..base.constants.chars import (
         EMPTY, CROP_SUFFIX, ELLIPSIS, SPACE, RETURN_CHAR, PARAGRAPH_CHAR, SLASH, BACKSLASH,
         DEFAULT_ENCODING, DEFAULT_LINE_LEN, LONG_LINE_LEN,
@@ -262,7 +264,7 @@ class ExtendedLogger(BaseLoggerWrapper, ExtendedLoggerInterface):
             level = LoggingLevel.Info if verbose else LoggingLevel.Debug
         if not Auto.is_defined(logger):
             logger = self.get_base_logger()
-        if isinstance(msg, BaseException):
+        if not isinstance(msg, (str, Iterable)):
             msg = str(msg)
         if isinstance(msg, str):
             msg = [msg]

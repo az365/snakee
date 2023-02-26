@@ -6,8 +6,9 @@ try:  # Assume we're a submodule in a package.
         Context, LoggerInterface, SelectionLogger, ExtLogger, LoggingLevel,
         Stream, RegularStream, RegularStreamInterface, StructStream, StructInterface, ColumnarInterface,
         StreamType, ItemType, JoinType, How,
-        Auto, Count, UniKey, Item, Array, Columns, OptionalFields,
+        Count, UniKey, Item, Array, Columns, OptionalFields,
     )
+    from base.classes.auto import Auto
     from base.functions.arguments import get_name, get_names, update
     from base.mixin.iter_data_mixin import IterDataMixin
     from functions.secondary.item_functions import composite_key, merge_two_items, items_to_dict
@@ -23,8 +24,9 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         Context, LoggerInterface, SelectionLogger, ExtLogger, LoggingLevel,
         Stream, RegularStream, RegularStreamInterface, StructStream, StructInterface, ColumnarInterface,
         StreamType, ItemType, JoinType, How,
-        Auto, Count, UniKey, Item, Array, Columns, OptionalFields,
+        Count, UniKey, Item, Array, Columns, OptionalFields,
     )
+    from ...base.classes.auto import Auto
     from ...base.functions.arguments import get_name, get_names, update
     from ...base.mixin.iter_data_mixin import IterDataMixin
     from ...functions.secondary.item_functions import composite_key, merge_two_items, items_to_dict

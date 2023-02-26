@@ -3,11 +3,11 @@ from typing import Optional
 
 try:  # Assume we're a submodule in a package.
     from utils.decorators import deprecated_with_alternative
-    from interfaces import Context, ConnectorInterface, ConnType, Class, Name, Auto
+    from interfaces import Context, ConnectorInterface, ConnType, Class, Name
     from connectors.abstract.abstract_storage import AbstractStorage
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils.decorators import deprecated_with_alternative
-    from ...interfaces import Context, ConnectorInterface, ConnType, Class, Name, Auto
+    from ...interfaces import Context, ConnectorInterface, ConnType, Class, Name
     from ..abstract.abstract_storage import AbstractStorage
 
 COVERT_PROPS = 'access_key', 'secret_key'
@@ -86,15 +86,15 @@ class S3Storage(AbstractObjectStorage):
     ) -> ConnectorInterface:
         bucket = self.get_buckets().get(name)
         if bucket:
-            if Auto.is_defined(access_key) and hasattr(bucket, 'set_access_key'):
+            if hasattr(bucket, 'set_access_key') and access_key is not None:
                 bucket.set_access_key(access_key)
-            if Auto.is_defined(secret_key) and hasattr(bucket, 'set_secret_key'):
+            if hasattr(bucket, 'set_secret_key') and secret_key is not None:
                 bucket.set_secret_key(secret_key)
         else:
             bucket_class = self.get_default_child_obj_class()
-            if not Auto.is_defined(access_key):
+            if access_key is None:
                 access_key = self.get_access_key()
-            if not Auto.is_defined(secret_key):
+            if secret_key is None:
                 secret_key = self.get_secret_key()
             bucket = bucket_class(name=name, storage=self, access_key=access_key, secret_key=secret_key)
         return bucket

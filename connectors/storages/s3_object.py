@@ -4,15 +4,17 @@ try:  # Assume we're a submodule in a package.
     from interfaces import (
         ConnectorInterface, ContentFormatInterface, Stream, StructInterface,
         ContentType, ConnType, StreamType, StreamItemType,
-        Auto, Context, Count, Name,
+        Context, Count, Name,
     )
+    from base.classes.auto import Auto
     from connectors.abstract.leaf_connector import LeafConnector
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         ConnectorInterface, ContentFormatInterface, Stream, StructInterface,
         ContentType, ConnType, StreamType, StreamItemType,
-        AUTO, Auto, Context, Count, Name,
+        Context, Count, Name,
     )
+    from ...base.classes.auto import Auto
     from ..abstract.leaf_connector import LeafConnector
 
 Response = dict
@@ -117,7 +119,7 @@ class S3Object(LeafConnector):
             if '{}' in message:
                 message = message.format(self.get_name())
             logger = self.get_logger()
-            assert hasattr(logger, 'progress'), '{} has no progress in {}'.format(self, logger)
+            assert hasattr(logger, 'progress'), f'{self} has no progress in {logger}'
             if not count:
                 count = self.get_count(allow_slow_mode=False)
             lines = self.get_logger().progress(lines, name=message, count=count, step=step)
@@ -162,7 +164,7 @@ class S3Object(LeafConnector):
             if hasattr(bucket, 'list_object_names'):  # isinstance(bucket, S3Bucket)
                 return self.get_object_path_in_bucket() in bucket.list_object_names(verbose=verbose)
             else:
-                raise TypeError('Expected bucket as S3Bucket, got {}'.format(bucket))
+                raise TypeError(f'Expected bucket as S3Bucket, got {bucket}')
         else:
             return False
 

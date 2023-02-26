@@ -4,8 +4,9 @@ import os
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         ContextInterface, ConnectorInterface, Connector, Context, ContentFormatInterface,
-        ConnType, ContentType, Class, LoggingLevel, Auto,
+        ConnType, ContentType, Class, LoggingLevel,
     )
+    from base.classes.auto import Auto
     from base.constants.chars import EMPTY, OS_EXT_DELIMITER, OS_PARENT_PATH, BACKSLASH, OS_PLACEHOLDER
     from functions.primary.text import is_absolute_path
     from connectors.abstract.hierarchic_connector import HierarchicConnector
@@ -14,8 +15,9 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         ContextInterface, ConnectorInterface, Connector, Context, ContentFormatInterface,
-        ConnType, ContentType, Class, LoggingLevel, Auto,
+        ConnType, ContentType, Class, LoggingLevel,
     )
+    from ...base.classes.auto import Auto
     from ...base.constants.chars import EMPTY, OS_EXT_DELIMITER, OS_PARENT_PATH, BACKSLASH, OS_PLACEHOLDER
     from ...functions.primary.text import is_absolute_path
     from ..abstract.hierarchic_connector import HierarchicConnector

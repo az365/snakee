@@ -1,13 +1,13 @@
 from typing import Optional, Callable, Union
 
 try:  # Assume we're a submodule in a package.
-    from interfaces import ItemType, StructInterface, Item, Name, Field, Value, LoggerInterface, Array, Auto, AUTO
+    from interfaces import ItemType, StructInterface, Item, Name, Field, Value, LoggerInterface, Array
     from base.functions.arguments import get_name
     from functions.primary.items import ItemType, get_field_value_from_item, get_fields_names_from_item, ALL
     from content.selection.selection_functions import process_description, safe_apply_function
     from content.selection.abstract_expression import SingleFieldDescription, TrivialMultipleDescription, Struct
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...interfaces import ItemType, StructInterface, Item, Name, Field, Value, LoggerInterface, Array, Auto, AUTO
+    from ...interfaces import ItemType, StructInterface, Item, Name, Field, Value, LoggerInterface, Array
     from ...base.functions.arguments import get_name
     from ...functions.primary.items import ItemType, get_field_value_from_item, get_fields_names_from_item, ALL
     from .selection_functions import process_description, safe_apply_function
@@ -44,9 +44,9 @@ class TrivialDescription(SingleFieldDescription):
 
     def get_mapper(self, struct: Struct = None, item_type: ItemType = ItemType.Auto, default: Value = None) -> Callable:
         field = self.get_target_field_name()
-        if item_type == ItemType.Auto or item_type is None:
+        if item_type in (ItemType.Auto, None):
             item_type = self.get_input_item_type()
-        if Auto.is_defined(item_type):
+        if item_type not in (ItemType.Auto, None):
             return item_type.get_field_getter(field, struct=struct, default=default)
         else:
             return lambda i: item_type.get_value_from_item(item=i, field=field, struct=struct, default=default)
@@ -88,9 +88,9 @@ class AliasDescription(SingleFieldDescription):
 
     def get_mapper(self, struct: Struct = None, item_type: ItemType = ItemType.Auto, default: Value = None) -> Callable:
         field = self.get_source_name()
-        if item_type == ItemType.Auto or item_type is None:
+        if item_type in (ItemType.Auto, None):
             item_type = self.get_input_item_type()
-        if Auto.is_defined(item_type):
+        if item_type not in (ItemType.Auto, None):
             return item_type.get_field_getter(field, struct=struct, default=default)
         else:
             return lambda i: item_type.get_value_from_item(item=i, field=field, struct=struct, default=default)

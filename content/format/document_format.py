@@ -1,7 +1,7 @@
 from typing import Optional, Iterable, Iterator, Generator, Sequence, Union
 
 try:  # Assume we're a submodule in a package.
-    from interfaces import Item, ItemType, ContentType, Class, Count, Auto
+    from interfaces import Item, ItemType, ContentType, Class, Count
     from base.constants.chars import PARAGRAPH_CHAR, SPACE, HTML_SPACE, SHARP
     from base.classes.display import DisplayInterface, DefaultDisplay
     from base.mixin.display_mixin import DisplayMixin, Class
@@ -9,7 +9,7 @@ try:  # Assume we're a submodule in a package.
     from utils.decorators import deprecated_with_alternative
     from content.format.text_format import TextFormat, Compress, DEFAULT_ENCODING
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...interfaces import Item, ItemType, ContentType, Class, Count, Auto
+    from ...interfaces import Item, ItemType, ContentType, Class, Count
     from ...base.constants.chars import PARAGRAPH_CHAR, SPACE, HTML_SPACE, SHARP
     from ...base.classes.display import DisplayInterface, DefaultDisplay
     from ...base.mixin.display_mixin import DisplayMixin, Class
@@ -132,11 +132,11 @@ class HtmlFormat(DocumentFormat):
         text = delimiter.join(lines)
         if level:
             tag = f'h{level}'
-            if not Auto.is_defined(style):
+            if style is None:
                 style = H_STYLE
         else:
             tag = 'p'
-            if not Auto.is_defined(style):
+            if style is None:
                 style = P_STYLE
         open_tag = f'<{tag} style="{style}">' if style else f'<{tag}>'
         close_tag = f'</{tag}>'
@@ -161,16 +161,16 @@ class HtmlFormat(DocumentFormat):
         yield '</thead>'
         yield '<tbody>'
         for n, r in list(enumerate(records)):
-            if Auto.is_defined(count):
+            if count is None:
                 if n >= count:
                     break
             yield '<tr>'
             for col in columns:
                 value = r.get(col)
-                if Auto.is_defined(style):
-                    yield f'<td>{value}</td>'
-                else:
+                if style:
                     yield f'<td style="{style}">{value}</td>'
+                else:
+                    yield f'<td>{value}</td>'
             yield '</tr>'
         yield '</tbody>'
         yield '</table>'

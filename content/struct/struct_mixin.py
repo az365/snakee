@@ -5,15 +5,17 @@ try:  # Assume we're a submodule in a package.
     from interfaces import (
         StructInterface, StructMixinInterface,
         ItemType, DialectType, ValueType, Field, FieldName, FieldNo,
-        Auto, Links, Array, ARRAY_TYPES,
+        Links, Array, ARRAY_TYPES,
     )
+    from base.classes.auto import Auto
     from base.functions.arguments import get_name
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         StructInterface, StructMixinInterface,
         ItemType, DialectType, ValueType, Field, FieldName, FieldNo,
-        Auto, Links, Array, ARRAY_TYPES,
+        Links, Array, ARRAY_TYPES,
     )
+    from ...base.classes.auto import Auto
     from ...base.functions.arguments import get_name
 
 Struct = Optional[StructInterface]

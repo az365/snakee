@@ -5,7 +5,7 @@ import inspect
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         StructRowInterface, StructInterface, LoggerInterface, LoggingLevel,
-        ItemType, Item, Struct, UniKey, FieldInterface, FieldName, FieldNo, Field, Name, Value, Class, Array, Auto,
+        ItemType, Item, Struct, UniKey, FieldInterface, FieldName, FieldNo, Field, Name, Value, Class, Array,
     )
     from base.functions.arguments import get_name, get_names, get_cropped_text
     from base.constants.chars import TAB_INDENT, ITEMS_DELIMITER, CROP_SUFFIX, UNDER, NOT_SET, DEFAULT_LINE_LEN
@@ -18,7 +18,7 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         StructRowInterface, StructInterface, LoggerInterface, LoggingLevel,
-        ItemType, Item, Struct, UniKey, FieldInterface, FieldName, FieldNo, Field, Name, Value, Class, Array, Auto,
+        ItemType, Item, Struct, UniKey, FieldInterface, FieldName, FieldNo, Field, Name, Value, Class, Array,
     )
     from ...base.functions.arguments import get_name, get_names, get_cropped_text
     from ...base.constants.chars import TAB_INDENT, ITEMS_DELIMITER, CROP_SUFFIX, UNDER, NOT_SET, DEFAULT_LINE_LEN
@@ -113,12 +113,12 @@ class AbstractDescription(AbstractBaseObject, DataMixin, ABC):
 
     def get_mapper(self, struct: Struct = None, item_type: ItemType = ItemType.Auto) -> Callable:
         field_names = self.get_input_field_names()
-        if item_type == ItemType.Auto or item_type is None:
+        if item_type in (ItemType.Auto, None):
             item_type = self.get_input_item_type()
-        if Auto.is_defined(item_type):
+        if item_type not in (ItemType.Auto, None):
             return item_type.get_single_mapper(*field_names, function=self.get_function(), struct=struct)
         else:
-            raise ValueError('item_type must be defined')
+            raise ValueError(f'AbstractExpression.get_mapper(): item_type must be defined, got {item_type}')
 
     def get_sql_expression(self) -> str:
         function = self.get_function()
@@ -157,6 +157,7 @@ class AbstractDescription(AbstractBaseObject, DataMixin, ABC):
             logger = FallbackLogger()
         return logger.warning(msg)
 
+    # @deprecated
     def _get_linked_fields_descriptions(
             self,
             fields: Optional[Iterable] = None,
@@ -164,7 +165,7 @@ class AbstractDescription(AbstractBaseObject, DataMixin, ABC):
             prefix: str = '    - ',
             max_len: int = DEFAULT_LINE_LEN,
     ) -> Generator:
-        if not Auto.is_defined(fields):
+        if fields is None:
             fields = self.get_linked_fields()
         fields = list(fields)
         count = len(fields)
@@ -338,7 +339,7 @@ class SingleFieldDescription(AbstractDescription, ABC):
 
     def apply_inplace(self, item: Item) -> None:
         item_type = self.get_input_item_type()
-        if item_type == ItemType.Auto or item_type is None:
+        if item_type in (ItemType.Auto, None):
             item_type = ItemType.detect(item, default=ItemType.Any)
         it.set_to_item_inplace(
             field=self.get_target_field_name(),

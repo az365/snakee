@@ -260,12 +260,13 @@ class TreeItem(ContextualDataWrapper, TreeInterface):
 
     @classmethod
     def _assert_is_appropriate_parent(
-            cls, obj,
+            cls,
+            obj,
             msg: Optional[str] = None,
             skip_missing: bool = False,
     ) -> None:
         if not cls._is_appropriate_parent(obj, skip_missing=skip_missing):
-            if not Auto.is_defined(msg, check_name=False):
+            if msg is None:
                 template = '{}._assert_is_appropriate_parent({}): Expected parent as {} instance, got {}'
                 expected_class_names = [c.__name__ for c in cls.get_parent_obj_classes()]
                 msg = template.format(cls.__name__, obj, ', '.join(expected_class_names), type(obj))
@@ -273,12 +274,13 @@ class TreeItem(ContextualDataWrapper, TreeInterface):
 
     @classmethod
     def _assert_is_appropriate_child(
-            cls, obj,
+            cls,
+            obj,
             msg: Optional[str] = None,
             skip_missing: bool = False,
     ) -> None:
         if not cls._is_appropriate_child(obj, skip_missing=skip_missing):
-            if not Auto.is_defined(msg):
+            if msg is None:
                 template = '{}._assert_is_appropriate_child({}): Expected child as {} instance, got {}'
                 expected_class_names = [c.__name__ for c in cls.get_child_obj_classes()]
                 msg = template.format(cls.__name__, obj, ', '.join(expected_class_names), type(obj))

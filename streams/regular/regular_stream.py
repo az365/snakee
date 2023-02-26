@@ -7,8 +7,9 @@ try:  # Assume we're a submodule in a package.
         Stream, Context, Source, TmpFiles,
         StreamType, ItemType, ValueType, JoinType, How, LoggingLevel,
         Count, Item, Struct, Columns, Field, FieldNo, OptionalFields, UniKey, Class,
-        Auto, Name, Array, ARRAY_TYPES,
+        Name, Array, ARRAY_TYPES,
     )
+    from base.classes.auto import Auto
     from base.functions.arguments import get_name, get_names, get_str_from_args_kwargs
     from base.constants.chars import EMPTY, SHARP
     from utils.decorators import deprecated_with_alternative
@@ -28,8 +29,9 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         Stream, Context, Source, TmpFiles,
         StreamType, ItemType, ValueType, JoinType, How, LoggingLevel,
         Count, Item, Struct, Columns, Field, FieldNo, OptionalFields, UniKey, Class,
-        Auto, Name, Array, ARRAY_TYPES,
+        Name, Array, ARRAY_TYPES,
     )
+    from ...base.classes.auto import Auto
     from ...base.functions.arguments import get_name, get_names, get_str_from_args_kwargs
     from ...base.constants.chars import EMPTY, SHARP
     from ...utils.decorators import deprecated_with_alternative
@@ -533,7 +535,13 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
             stream_class = StreamType.KeyValueStream.get_class()
             stream_groups = stream_class(iter_groups, value_stream_type=self.get_stream_type())
         else:
-            stream_groups = self.stream(iter_groups, item_type=ItemType.Row, struct=expected_struct, check=False)
+            stream_groups = self.stream(
+                iter_groups,
+                stream_type=ItemType.Row,
+                item_type=ItemType.Row,
+                struct=expected_struct,
+                check=False,
+            )
         if values:
             item_type = self.get_item_type()
             if item_type == ItemType.Any:

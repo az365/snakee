@@ -3,11 +3,11 @@ from typing import Optional, Callable, Iterable
 
 try:  # Assume we're a submodule in a package.
     from utils.decorators import deprecated_with_alternative
-    from interfaces import Auto, Context, Class
+    from interfaces import Context, Class
     from connectors.abstract.hierarchic_connector import HierarchicConnector
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils.decorators import deprecated_with_alternative
-    from ...interfaces import Auto, Context, Class
+    from ...interfaces import Context, Class
     from .hierarchic_connector import HierarchicConnector
 
 Native = HierarchicConnector
@@ -69,7 +69,7 @@ class HierarchicFolder(AbstractFolder):
     @classmethod
     def get_default_child_obj_class(cls, skip_missing: bool = False) -> Class:
         child_class = super().get_default_child_obj_class()
-        if not Auto.is_defined(child_class):
+        if not child_class:
             child_class = cls
         return child_class
 

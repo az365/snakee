@@ -1,24 +1,24 @@
 from typing import Optional, Callable, Iterable, Iterator, Sequence, Tuple, Union, Any
 
 try:  # Assume we're a submodule in a package.
-    from base.constants.chars import EMPTY, SPACE, HTML_INDENT, PARAGRAPH_CHAR, REPR_DELIMITER
+    from base.constants.chars import EMPTY, SPACE, HTML_INDENT, PARAGRAPH_CHAR, REPR_DELIMITER, DEFAULT_LINE_LEN
     from base.interfaces.sheet_interface import SheetInterface, Record, Row, FormattedRow, Columns, Count
-    from base.classes.simple_sheet import SimpleSheet, SheetMixin, SheetItems
+    from base.classes.typing import Name
+    from base.classes.auto import Auto
     from base.classes.enum import DynamicEnum
-    from base.constants.chars import DEFAULT_LINE_LEN
-    from base.classes.typing import Auto, Name
+    from base.classes.simple_sheet import SimpleSheet, SheetMixin, SheetItems
     from base.functions.arguments import get_name, get_cropped_text
     from base.abstract.simple_data import SimpleDataWrapper, MAX_BRIEF_REPR_LEN
     from base.mixin.iter_data_mixin import IterDataMixin
     from utils.external import Markdown, HTML, display
     from content.documents.display_mode import DisplayMode
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...base.constants.chars import EMPTY, SPACE, HTML_INDENT, PARAGRAPH_CHAR, REPR_DELIMITER
+    from ...base.constants.chars import EMPTY, SPACE, HTML_INDENT, PARAGRAPH_CHAR, REPR_DELIMITER, DEFAULT_LINE_LEN
     from ...base.interfaces.sheet_interface import SheetInterface, Record, Row, FormattedRow, Columns, Count
-    from ...base.classes.simple_sheet import SimpleSheet, SheetMixin, SheetItems
+    from ...base.classes.typing import Name
+    from ...base.classes.auto import Auto
     from ...base.classes.enum import DynamicEnum
-    from ...base.constants.chars import DEFAULT_LINE_LEN
-    from ...base.classes.typing import Auto, Name
+    from ...base.classes.simple_sheet import SimpleSheet, SheetMixin, SheetItems
     from ...base.functions.arguments import get_name, get_cropped_text
     from ...base.abstract.simple_data import SimpleDataWrapper, MAX_BRIEF_REPR_LEN
     from ...base.mixin.iter_data_mixin import IterDataMixin
@@ -315,7 +315,7 @@ class Sheet(DocumentItem, IterDataMixin, SheetMixin, SheetInterface):
                     if representation and hasattr(representation, 'format'):  # isinstance(representation, RepresentationInterface):
                         formatted_cell = representation.format(cell)
                     else:
-                        formatted_cell = self._crop_cell(cell, max_len)
+                        formatted_cell = get_cropped_text(cell, max_len=max_len)
                     formatted_row.append(formatted_cell)
                 yield Row(formatted_row)
         else:
@@ -459,7 +459,8 @@ class Text(DocumentItem, IterDataMixin):
     def get_brief_repr(self) -> str:
         cls_name = self.__class__.__name__
         obj_name = self.get_name()
-        str_args = repr(get_cropped_text(self.get_text(), max_len=MAX_BRIEF_REPR_LEN))
+        text = self.get_text()
+        str_args = repr(get_cropped_text(text, max_len=MAX_BRIEF_REPR_LEN))
         if obj_name:
             str_args += f', name={repr(obj_name)}'
         return f'{cls_name}({str_args})'

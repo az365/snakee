@@ -7,11 +7,12 @@ TMP_FILES_ENCODING = 'utf8'
 
 try:  # Assume we're a submodule in a package.
     from utils.decorators import deprecated_with_alternative
+    from base.classes.auto import Auto
     from interfaces import (
         StreamInterface, IterableStreamInterface, LocalStreamInterface, RegularStreamInterface, PairStreamInterface,
         StreamBuilderInterface, ContextInterface, ConnectorInterface,
         TemporaryLocationInterface, TemporaryFilesMaskInterface,
-        StreamType, ItemType, JoinType, How, Auto, AUTO,
+        StreamType, ItemType, JoinType, How,
     )
     from streams.abstract.abstract_stream import AbstractStream
     from streams.abstract.iterable_stream import IterableStream, MAX_ITEMS_IN_MEMORY
@@ -33,11 +34,12 @@ try:  # Assume we're a submodule in a package.
     from content.struct import struct_row as sr
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils.decorators import deprecated_with_alternative
+    from ..base.classes.auto import Auto
     from ..interfaces import (
         StreamInterface, IterableStreamInterface, LocalStreamInterface, RegularStreamInterface, PairStreamInterface,
         StreamBuilderInterface, ContextInterface, ConnectorInterface,
         TemporaryLocationInterface, TemporaryFilesMaskInterface,
-        StreamType, ItemType, JoinType, How, Auto, AUTO,
+        StreamType, ItemType, JoinType, How,
     )
     from .abstract.abstract_stream import AbstractStream
     from .abstract.iterable_stream import IterableStream, MAX_ITEMS_IN_MEMORY
@@ -78,7 +80,8 @@ DICT_STREAM_CLASSES = dict(
     SqlStream=SqlStream,
 )
 
-_context = None  # global
+# global
+_context = None  # deprecated, use StreamBuilder.context instead
 
 
 StreamType.set_default(AnyStream.__name__)
@@ -116,7 +119,7 @@ def set_context(cx: ContextInterface) -> None:
 
 
 @deprecated_with_alternative('StreamBuilder.stream()')
-def stream(stream_type: Union[StreamType, Auto], *args, **kwargs) -> StreamInterface:
+def stream(stream_type: Optional[StreamType], *args, **kwargs) -> StreamInterface:
     if is_stream_class(stream_type):
         stream_class = stream_type
     elif Auto.is_defined(stream_type):
@@ -168,13 +171,17 @@ def get_tmp_mask(name: str) -> TemporaryFilesMaskInterface:
     return tmp_mask
 
 
-def concat(*iter_streams, context=AUTO) -> StreamInterface:
+@deprecated_with_alternative('StreamBuilder.concat()')
+def concat(*iter_streams, context=None) -> StreamInterface:
     global _context
-    context = Auto.acquire(context, _context)
+    if not Auto.is_defined(context):
+        context = _context
     return StreamBuilder.concat(*iter_streams, context=context)
 
 
-def join(*iter_streams, key, how: How = JoinType.Left, step=AUTO, name=AUTO, context=None) -> StreamInterface:
+@deprecated_with_alternative('StreamBuilder.join()')
+def join(*iter_streams, key, how: How = JoinType.Left, step=None, name=None, context=None) -> StreamInterface:
     global _context
-    context = Auto.acquire(context, _context)
+    if not Auto.is_defined(context):
+        context = _context
     return StreamBuilder.join(*iter_streams, key=key, how=how, step=step, name=name, context=context)

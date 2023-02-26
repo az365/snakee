@@ -2,14 +2,14 @@ from typing import Optional, Iterable, Union
 
 try:  # Assume we're a submodule in a package.
     from base.functions.arguments import get_name
-    from interfaces import StreamInterface, ColumnarInterface, Field, Columns, Auto
+    from interfaces import StreamInterface, ColumnarInterface, Field, Columns
     from utils.external import pd, DataFrame
     from streams.abstract.wrapper_stream import WrapperStream
     from streams.mixin.columnar_mixin import ColumnarMixin
     from streams.mixin.convert_mixin import ConvertMixin
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.functions.arguments import get_name
-    from ...interfaces import StreamInterface, ColumnarInterface, Field, Columns, Auto
+    from ...interfaces import StreamInterface, ColumnarInterface, Field, Columns
     from ...utils.external import pd, DataFrame
     from ..abstract.wrapper_stream import WrapperStream
     from ..mixin.columnar_mixin import ColumnarMixin
@@ -57,7 +57,7 @@ class PandasStream(WrapperStream, ColumnarMixin, ConvertMixin):
     def get_dataframe(self, columns: Columns = None) -> DataFrame:
         data = self.get_data()
         assert isinstance(data, DataFrame)
-        if Auto.is_defined(columns):
+        if columns:
             data = data[columns]
         return data
 
@@ -70,7 +70,7 @@ class PandasStream(WrapperStream, ColumnarMixin, ConvertMixin):
         yield from self.get_dataframe().iterrows()
 
     def _select_columns(self, columns: Columns) -> Native:
-        if Auto.is_defined(columns):
+        if columns:
             return self.select(*columns)
         else:
             return self

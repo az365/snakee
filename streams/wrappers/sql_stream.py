@@ -5,12 +5,13 @@ try:  # Assume we're a submodule in a package.
     from interfaces import (
         LeafConnectorInterface, StructInterface, Stream, RegularStream,
         ConnType, LoggingLevel, ItemType, StreamType, JoinType,
-        Context, Item, Name, FieldName, FieldNo, Links, Columns, OptionalFields, Auto, Array, ARRAY_TYPES,
+        Context, Item, Name, FieldName, FieldNo, Links, Columns, OptionalFields, Array, ARRAY_TYPES,
     )
     from base.functions.arguments import (
         get_names, get_name, get_generated_name,
         get_str_from_args_kwargs, get_cropped_text,
     )
+    from base.classes.auto import Auto
     from base.constants.chars import EMPTY, ALL, CROP_SUFFIX, ITEMS_DELIMITER, SQL_INDENT
     from utils.decorators import deprecated
     from functions.primary.text import remove_extra_spaces
@@ -29,12 +30,13 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...interfaces import (
         LeafConnectorInterface, StructInterface, Stream, RegularStream,
         ConnType, LoggingLevel, ItemType, StreamType, JoinType,
-        Context, Item, Name, FieldName, FieldNo, Links, Columns, OptionalFields, Auto, Array, ARRAY_TYPES,
+        Context, Item, Name, FieldName, FieldNo, Links, Columns, OptionalFields, Array, ARRAY_TYPES,
     )
     from ...base.functions.arguments import (
         get_names, get_name, get_generated_name,
         get_str_from_args_kwargs, get_cropped_text,
     )
+    from ...base.classes.auto import Auto
     from ...base.constants.chars import EMPTY, ALL, CROP_SUFFIX, ITEMS_DELIMITER, SQL_INDENT
     from ...utils.decorators import deprecated
     from ...functions.primary.text import remove_extra_spaces
@@ -166,44 +168,44 @@ class SqlStream(WrapperStream):
                 expression = desc[1:]
                 if len(expression) == 1:
                     source_field = expression[0]
-                    yield '{} AS {}'.format(source_field, target_field)
+                    yield f'{source_field} AS {target_field}'
                 elif len(expression) == 2:
                     if isinstance(expression[0], Callable):
                         function, source_field = expression
                     elif isinstance(expression[-1], Callable):
                         source_field, function = expression
                     else:
-                        msg = 'Expected tuple (function, *fields) or (*fields, function), got {}'
-                        raise ValueError(msg.format(expression))
+                        msg = f'Expected tuple (function, *fields) or (*fields, function), got {expression}'
+                        raise ValueError(msg)
                     if hasattr(function, 'get_sql_expr'):
                         sql_function_expr = function.get_sql_expr(source_field)
                     else:
                         function_name = function.__name__
                         sql_type_name = SQL_TYPE_NAMES_DICT.get(function_name)
                         if sql_type_name:
-                            sql_function_expr = '{}::{}'.format(source_field, sql_type_name)
+                            sql_function_expr = f'{source_field}::{sql_type_name}'
                         else:
                             sql_function_name = SQL_FUNC_NAMES_DICT.get(function_name)
                             if not sql_function_name:
-                                self.get_logger().warning('Unsupported function call: {}'.format(function_name))
+                                self.get_logger().warning(f'Unsupported function call: {function_name}')
                                 sql_function_name = function_name
-                            sql_function_expr = '{}({})'.format(sql_function_name, source_field)
-                    yield '{} AS {}'.format(sql_function_expr, target_field)
+                            sql_function_expr = f'{sql_function_name}({source_field})'
+                    yield f'{sql_function_expr} AS {target_field}'
                 else:
                     if isinstance(expression[0], Callable):
                         function, *fields = expression
                     elif isinstance(expression[-1], Callable):
                         *fields, function = expression
                     else:
-                        msg = 'Expected tuple (function, *fields) or (*fields, function), got {}'
-                        raise ValueError(msg.format(expression))
+                        msg = f'Expected tuple (function, *fields) or (*fields, function), got {expression}'
+                        raise ValueError(msg)
                     if hasattr(function, 'get_sql_expr'):
                         sql_function_expr = function.get_sql_expr(*fields)
                     else:
                         raise ValueError(f'Expected @sql_compatible function, got {function}')
-                    yield '{} AS {}'.format(sql_function_expr, target_field)
+                    yield f'{sql_function_expr} AS {target_field}'
             else:
-                raise ValueError('expected field name or tuple, got {}'.format(desc))
+                raise ValueError(f'expected field name or tuple, got {desc}')
 
     def get_where_lines(self) -> Iterator[str]:
         for description in self.get_expressions_for(SqlSection.Where):

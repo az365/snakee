@@ -2,10 +2,12 @@ from abc import ABC, abstractmethod
 from typing import Optional, Iterable, Callable
 
 try:  # Assume we're a submodule in a package.
-    from interfaces import Name, Stream, ConnectorInterface, Context, Options, StreamItemType, StreamType, Auto
+    from interfaces import Name, Stream, ConnectorInterface, Context, Options, ItemType, StreamType
+    from base.functions.arguments import get_value
     from connectors.operations.operation import Operation
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...interfaces import Name, Stream, ConnectorInterface, Context, Options, StreamItemType, StreamType, Auto
+    from ...interfaces import Name, Stream, ConnectorInterface, Context, Options, ItemType, StreamType
+    from ...base.functions.arguments import get_value
     from ...connectors.operations.operation import Operation
 
 SRC_ID = 'src'
@@ -20,7 +22,7 @@ class AbstractSync(Operation, ABC):
             procedure: Optional[Callable],
             options: Optional[dict] = None,
             apply_to_stream: bool = True,
-            stream_type: StreamItemType = None,
+            stream_type: ItemType = ItemType.Auto,
             context: Context = None,
     ):
         super().__init__(
@@ -29,9 +31,10 @@ class AbstractSync(Operation, ABC):
             procedure=procedure,
             context=context,
         )
-        if not Auto.is_defined(stream_type):
+        if stream_type in (ItemType.Auto, None):
             stream_type = StreamType.RecordStream
-        assert isinstance(stream_type, StreamType), stream_type
+        if not isinstance(stream_type, StreamType):
+            stream_type = StreamType(get_value(stream_type))
         self._stream_type = stream_type
         self._apply_to_stream = apply_to_stream
         self._options = options
@@ -82,15 +85,15 @@ class AbstractSync(Operation, ABC):
     def is_existing(self) -> bool:
         return self.has_inputs() or self.has_outputs()
 
-    def get_stream(self, run_if_not_yet: bool = False, stream_type: StreamItemType = None) -> Stream:
-        if not Auto.is_defined(stream_type):
+    def get_stream(self, run_if_not_yet: bool = False, stream_type: ItemType = ItemType.Auto) -> Stream:
+        if stream_type in (ItemType.Auto, None):
             stream_type = self.get_stream_type()
         if run_if_not_yet and not self.is_done():
             self.run_now()
         return self.get_dst().to_stream(stream_type=stream_type)
 
-    def to_stream(self, stream_type: StreamItemType = None):
-        if not Auto.is_defined(stream_type):
+    def to_stream(self, stream_type: ItemType = ItemType.Auto) -> Stream:
+        if stream_type in (ItemType.Auto, None):
             stream_type = self.get_stream_type()
         return self.run_if_not_yet(raise_error_if_exists=False, return_stream=True, stream_type=stream_type)
 
@@ -98,7 +101,7 @@ class AbstractSync(Operation, ABC):
     def run_now(
             self,
             return_stream: bool = True,
-            stream_type: StreamItemType = None,
+            stream_type: ItemType = ItemType.Auto,
             options: Options = None,
             verbose: bool = True,
     ) -> Optional[Stream]:
@@ -108,19 +111,20 @@ class AbstractSync(Operation, ABC):
             self,
             raise_error_if_exists: bool = False,
             return_stream: bool = True,
-            stream_type: StreamItemType = None,
+            stream_type: ItemType = ItemType.Auto,
             options: Options = None,
             verbose: bool = True,
     ) -> Optional[Stream]:
-        if not Auto.is_defined(stream_type):
+        if stream_type in (ItemType.Auto, None):
             stream_type = self.get_stream_type()
         if not self.is_done():
             return self.run_now(return_stream=return_stream, stream_type=stream_type, options=options, verbose=verbose)
         elif raise_error_if_exists:
-            raise ValueError('object(s) {} already exists'.format(', '.join(self.get_existing_outputs())))
+            objects_str = ', '.join(self.get_existing_outputs())
+            raise ValueError(f'object(s) {objects_str} already exists')
         elif return_stream:
             if verbose:
-                self.log('Operation is already done: {}'.format(self.get_name()))
+                self.log(f'Operation is already done: {self.get_name()}')
             return self.get_stream(stream_type=stream_type)
 
     @staticmethod

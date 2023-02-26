@@ -114,7 +114,6 @@ try:  # Assume we're a submodule in a package.
     from base.classes.typing import (
         PRIMITIVE_TYPES, ARRAY_TYPES, Array, Count, Columns, OptionalFields, Options, Message,
         FieldName, FieldNo, FieldID, Name, Value, Class, Links,
-        AUTO, Auto, AutoName, AutoCount, AutoBool, AutoColumns, AutoLinks,
     )
     from content.content_interfaces import (
         StructRow, RegularItem, Item, How,
@@ -130,7 +129,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .base.classes.typing import (
         PRIMITIVE_TYPES, ARRAY_TYPES, Array, Count, Columns, OptionalFields, Options, Message,
         FieldName, FieldNo, FieldID, Name, Value, Class, Links,
-        AUTO, Auto, AutoName, AutoCount, AutoBool, AutoColumns, AutoLinks,
     )
     from .content.content_interfaces import (
         StructRow, RegularItem, Item, How,
@@ -154,14 +152,10 @@ RecordStream = ColumnarStream
 KeyValueStream = ColumnarStream
 StructStream = ColumnarStream
 
-Source = Union[ConnectorInterface, Auto, None]
+Source = Optional[ConnectorInterface]
 Connector = Optional[ConnectorInterface]
 LeafConnector = LeafConnectorInterface
 ExtLogger = ExtendedLoggerInterface
 SelectionLogger = SelectionLoggerInterface
 Context = Optional[ContextInterface]
 TmpFiles = TemporaryFilesMaskInterface
-
-AutoContext = Union[Auto, Context]
-AutoConnector = Union[Auto, Connector]
-AutoDisplay = Union[Auto, DisplayInterface]

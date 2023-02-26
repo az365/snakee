@@ -2,11 +2,11 @@ from abc import ABC, abstractmethod
 from typing import Optional, Iterable, Generator, Union
 
 try:  # Assume we're a submodule in a package.
-    from interfaces import ContentFormatInterface, ContentType, StreamType, ItemType, Item, Auto
+    from interfaces import ContentFormatInterface, ContentType, StreamType, ItemType, Item
     from base.abstract.abstract_base import AbstractBaseObject
     from streams.stream_builder import StreamBuilder
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...interfaces import ContentFormatInterface, ContentType, StreamType, ItemType, Item, Auto
+    from ...interfaces import ContentFormatInterface, ContentType, StreamType, ItemType, Item
     from ...base.abstract.abstract_base import AbstractBaseObject
     from ...streams.stream_builder import StreamBuilder
 
@@ -84,7 +84,7 @@ class ParsedFormat(CompressibleFormat, ABC):
         pass
 
     def get_lines(self, items: Iterable, item_type: ItemType, add_title_row: Optional[bool] = None) -> Generator:
-        if Auto.is_defined(add_title_row):
+        if add_title_row is not None:
             assert not add_title_row, 'title_row available in FlatStructFormat only'
         for i in items:
             yield self.get_formatted_item(i, item_type=item_type)

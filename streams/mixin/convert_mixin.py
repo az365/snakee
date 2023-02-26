@@ -6,7 +6,7 @@ try:  # Assume we're a submodule in a package.
         Stream, LineStream, RowStream, RecordStream, KeyValueStream, StructStream,
         StreamType, ItemType, Item, LoggingLevel,
         StructInterface, FieldInterface, FieldName, OptionalFields, UniKey,
-        Auto, Columns, Class, Array, ARRAY_TYPES,
+        Columns, Class, Array, ARRAY_TYPES,
     )
     from base.functions.arguments import get_names
     from base.constants.chars import TAB_CHAR
@@ -25,7 +25,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         Stream, LineStream, RowStream, RecordStream, KeyValueStream, StructStream,
         StreamType, ItemType, Item, LoggingLevel,
         StructInterface, FieldInterface, FieldName, OptionalFields, UniKey,
-        Auto, Columns, Class, Array, ARRAY_TYPES,
+        Columns, Class, Array, ARRAY_TYPES,
     )
     from ...base.functions.arguments import get_names
     from ...base.constants.chars import TAB_CHAR
@@ -54,7 +54,7 @@ UNSTRUCTURED_ITEM_TYPES = ItemType.Line, ItemType.Any, ItemType.Auto
 
 class ConvertMixin(IterableStream, ValidateMixin, ABC):
     def get_items(self, item_type: ItemType = ItemType.Auto) -> Iterable:
-        if Auto.is_defined(item_type):
+        if item_type not in (ItemType.Auto, None):
             return self.get_items_of_type(item_type)
         else:
             return self.get_stream_data()
@@ -81,7 +81,7 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
                 elif item_type == ItemType.Record:
                     yield {k: v for k, v in zip(columns, i)}
                 elif item_type == ItemType.Line:
-                    if Auto.is_defined(struct) and isinstance(struct, FlatStruct):
+                    if isinstance(struct, FlatStruct):
                         yield struct.format(i)
                     else:
                         yield DEFAULT_COL_DELIMITER.join(i)
@@ -96,7 +96,7 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
                 elif item_type == ItemType.Record:
                     yield i
                 elif item_type == ItemType.Line:
-                    if Auto.is_defined(struct) and isinstance(struct, FlatStruct):
+                    if isinstance(struct, FlatStruct):
                         yield struct.format(i)
                     else:
                         row = [i.get(c) for c in columns]
@@ -115,7 +115,10 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
             item_type = self.get_item_type()
         else:
             item_type = ItemType.Auto
-        if not Auto.is_defined(columns):
+        if columns:
+            key_function = fs.composite_key(columns)
+            return self._get_mapped_items(key_function)
+        else:
             if item_type in (ItemType.Any, ItemType.Auto, None):
                 example_item = self.get_one_item()
                 item_type = ItemType.detect(example_item)
@@ -139,20 +142,18 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
                     yield i.split(delimiter)
             else:
                 raise ValueError(f'ConvertMixin.get_rows(): item type {item_type} not supported.')
-        else:
-            return self._get_mapped_items(fs.composite_key(columns))
 
     def get_records(self, columns: StructOrColumns = None) -> Iterable:
         item_type = self.get_item_type()
         assert isinstance(item_type, ItemType) or hasattr(item_type, 'get_field_getter')
         columns = self._get_columns(columns)
         if item_type == ItemType.Record:
-            if Auto.is_defined(columns):
+            if columns:
                 return self.select(*columns).get_items()
             else:
                 return self.get_items()
         if item_type == ItemType.Row:
-            if Auto.is_defined(columns):
+            if columns:
                 func = (lambda r: {k: v for k, v in zip(columns, r)})
             else:
                 func = (lambda r: {DEFAULT_COL_MASK.format(n + 1): v for n, v in enumerate(r)})
@@ -175,7 +176,7 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
             inplace: bool = False,
     ) -> Iterator[SimpleRow]:
         rows = self.get_rows(columns=struct)
-        if not Auto.is_defined(struct):
+        if struct is None:
             struct = self.get_struct()
         if isinstance(struct, StructInterface) or hasattr(struct, 'get_converters'):
             converters = struct.get_converters(src='str', dst='py')
@@ -223,7 +224,7 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
             inplace: bool = True,
     ) -> Iterator[MutableRecord]:
         records = self.get_records(columns=struct)
-        if not Auto.is_defined(struct):
+        if struct is None:
             struct = self.get_struct()
         columns = self._get_columns(struct)
         if isinstance(struct, StructInterface) or hasattr(struct, 'get_converters'):
@@ -264,7 +265,7 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
             verbose: bool = True,
             inplace: Optional[bool] = None,
     ) -> Native:
-        if not Auto.is_defined(struct):
+        if struct is None:
             struct = self.get_struct()
         item_type = self.get_item_type()
         if item_type == ItemType.Record:
@@ -298,7 +299,7 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
             columns = list(struct)
         else:
             raise TypeError(f'Expected struct as Struct, got {struct}')
-        if Auto.is_defined(columns):
+        if columns:
             if self.get_item_type() in UNSTRUCTURED_ITEM_TYPES:
                 assert len(columns) == 1
             return columns
@@ -308,7 +309,7 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
         if is_one_field:
             struct = [struct]
         default_struct = self.get_struct()
-        if Auto.is_defined(struct):
+        if struct is not None:
             if isinstance(struct, StructInterface) or hasattr(struct, 'get_fields'):
                 return struct
             elif isinstance(struct, Iterable):  # isinstance(struct, Columns)
@@ -329,7 +330,7 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
                     return FlatStruct(struct)
             else:
                 raise TypeError(f'expected struct as FlatStruct or Columns, got {struct}')
-        elif Auto.is_defined(default_struct):
+        elif default_struct is not None:
             return default_struct
         else:
             item_type = self.get_item_type()
@@ -360,8 +361,8 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
                 raise TypeError(f'Expected one of {supported_item_types}, got {item_type}')
             return FlatStruct(columns)
 
-    def _get_stream_type(self, item_type: StreamItemType = None) -> StreamType:
-        if Auto.is_defined(item_type):
+    def _get_stream_type(self, item_type: ItemType = ItemType.Auto) -> StreamType:
+        if item_type not in (ItemType.Auto, None):
             if isinstance(item_type, str):
                 try:
                     item_type = ItemType(item_type, default=None)
@@ -380,8 +381,10 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
         else:
             return self.get_stream_type()
 
-    def _get_item_type(self, item_type: StreamItemType = ItemType.Auto) -> ItemType:
-        if Auto.is_defined(item_type):
+    def _get_item_type(self, item_type: ItemType = ItemType.Auto) -> ItemType:
+        if item_type in (ItemType.Auto, None):
+            return self.get_item_type()
+        else:
             if isinstance(item_type, str):
                 try:
                     item_type = ItemType(item_type)
@@ -391,14 +394,10 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
                 return item_type
             elif isinstance(item_type, StreamType):  # deprecated
                 return item_type.get_item_type()
-            elif isinstance(item_type, RegularStreamInterface) or hasattr(item_type, 'get_stream_type'):
-                stream_type = item_type.get_stream_type()
-                assert isinstance(stream_type, StreamType)
-                return stream_type.get_item_type()
+            elif isinstance(item_type, RegularStreamInterface) or hasattr(item_type, 'get_item_type'):
+                return item_type.get_item_type()
             else:
                 raise TypeError(f'ConvertMixin._get_stream_type(): Expected ItemType or StreamType, got {item_type}')
-        else:
-            return self.get_item_type()
 
     def _get_mapped_items(self, function: Callable, flat: bool = False, skip_errors: bool = False) -> Iterator[Item]:
         if skip_errors:
@@ -417,18 +416,18 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
     def stream(
             self,
             data: Iterable,
-            stream_type: StreamItemType = ItemType.Auto,  # deprecated argument, will be renamed to item_type
+            stream_type: ItemType = ItemType.Auto,  # deprecated argument, will be renamed to item_type
             ex: OptionalArguments = None,
             save_name: bool = True,
             save_count: bool = True,
             **kwargs
     ) -> Stream:
-        if Auto.is_defined(stream_type):
+        if stream_type not in (ItemType.Any, None):
             self.log('stream(): stream_type argument is deprecated, use item_type instead', level=LoggingLevel.Warning)
             expected_item_type = self._get_item_type(stream_type)
             if 'item_type' in kwargs:
                 given_item_type = kwargs['item_type']
-                assert expected_item_type == given_item_type
+                assert expected_item_type == given_item_type, f'{expected_item_type} vs {given_item_type}'
             else:
                 kwargs['item_type'] = expected_item_type
         meta = self.get_meta()
@@ -444,8 +443,8 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
         stream = StreamBuilder.stream(data, **meta)
         return stream
 
-    def map_to_type(self, function: Callable, stream_type: StreamItemType = ItemType.Auto) -> Stream:
-        if not Auto.is_defined(stream_type):
+    def map_to_type(self, function: Callable, stream_type: ItemType = ItemType.Auto) -> Stream:
+        if stream_type in (ItemType.Auto, None):
             stream_type = self.get_stream_type()
         items = map(function, self.get_items())
         result = self.stream(items, stream_type=stream_type)
@@ -483,18 +482,18 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
             add_title_row: Optional[bool] = None,
     ) -> LineStream:
         item_type = self.get_item_type()
-        if not Auto.is_defined(delimiter):
+        if delimiter is None:
             delimiter = DEFAULT_COL_DELIMITER if item_type == ItemType.Row else None
         stream = self
         if item_type == ItemType.Record:
             assert isinstance(stream, RegularStreamInterface) or hasattr(stream, 'get_columns'), 'got {}'.format(stream)
-            if not Auto.is_defined(columns):
+            if not columns:
                 columns = stream.get_columns()
-            if not Auto.is_defined(add_title_row):
+            if add_title_row is None:
                 add_title_row = True
             stream = stream.to_row_stream(columns=columns, add_title_row=add_title_row)
         elif item_type == ItemType.Row:
-            if Auto.is_defined(columns):
+            if columns:
                 stream = self.select(columns)
         if delimiter is not None:
             func = fs.csv_dumps(delimiter)
@@ -549,7 +548,7 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
         item_type = self.get_item_type()
         func = None
         if arg:
-            assert not Auto.is_defined(delimiter), msg
+            assert not delimiter, msg
             if isinstance(arg, Callable):
                 func = arg
             elif isinstance(arg, str):
@@ -562,18 +561,18 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
             else:
                 raise TypeError(f'ConvertMixin.to_row_stream(): Expected function, column(s) or delimiter, got {arg}')
         if item_type == ItemType.Record:
-            if not Auto.is_defined(columns):
+            if not columns:
                 columns = self.get_columns()
         elif item_type == ItemType.Line:
-            if not Auto.is_defined(delimiter):
+            if delimiter is None:
                 delimiter = DEFAULT_COL_DELIMITER  # '\t'
-        if Auto.is_defined(delimiter):
+        if delimiter:
             assert item_type == ItemType.Line
             assert isinstance(delimiter, str), f'to_row_stream(): Expected delimiter as str, got {delimiter}'
-            assert not Auto.is_defined(columns), f'got {columns}'
+            assert not columns, f'got {columns}'
             assert not func, msg
             func = fs.csv_loads(delimiter=delimiter)
-        if Auto.is_defined(columns):
+        if columns:
             if not func:
                 func = fs.composite_key(*columns, item_type=item_type)
             struct = self._get_struct(columns)
@@ -593,7 +592,7 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
             skip_errors: bool = False,
     ) -> KeyValueStream:
         key_func = self._get_key_function(key, take_hash=False)
-        if Auto.is_defined(value):
+        if value:
             value_func = self._get_key_function(value, take_hash=False)
         else:
             value_func = fs.same()
@@ -611,7 +610,7 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
             return self.to_key_value_stream(*args, **kwargs)
 
     # @deprecated
-    def to_stream(self, stream_type: StreamItemType = ItemType.Auto, *args, **kwargs) -> Stream:
+    def to_stream(self, stream_type: ItemType = ItemType.Auto, *args, **kwargs) -> Stream:
         assert not args, 'ConvertMixin.to_stream(): unnamed ordered args not supported'
         return self.stream(self.get_data(), stream_type=stream_type, **kwargs)
 
