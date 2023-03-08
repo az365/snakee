@@ -1,14 +1,12 @@
 from typing import Optional
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.auto import Auto
     from base.constants.chars import (
         FILL_CHAR, SHORT_CROP_SUFFIX, DEFAULT_STR, EMPTY,
         DEFAULT_TRUE_STR, DEFAULT_FALSE_STR, FALSE_VALUES
     )
     from content.representations.abstract_repr import AbstractRepresentation, ReprType, Value, Count
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...base.classes.auto import Auto
     from ...base.constants.chars import (
         FILL_CHAR, SHORT_CROP_SUFFIX, DEFAULT_STR, EMPTY,
         DEFAULT_TRUE_STR, DEFAULT_FALSE_STR, FALSE_VALUES,
@@ -31,9 +29,9 @@ class BooleanRepresentation(AbstractRepresentation):
             suffix: str = EMPTY,
             default: str = DEFAULT_STR,
     ):
-        if not Auto.is_defined(max_len):
+        if max_len is None:
             max_len = max(len(true), len(false), len(default), len(crop), min_len or 0)
-        if not Auto.is_defined(min_len):
+        if min_len is None:
             min_len = max_len
         self._true = true
         self._false = false

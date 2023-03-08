@@ -4,12 +4,10 @@ from functools import wraps
 import inspect
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.auto import Auto
     from base.functions.arguments import get_name, get_str_from_args_kwargs
     from loggers.logger_interface import LoggerInterface
     from loggers.fallback_logger import FallbackLogger
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..base.classes.auto import Auto
     from ..base.functions.arguments import get_name, get_str_from_args_kwargs
     from ..loggers.logger_interface import LoggerInterface
     from ..loggers.fallback_logger import FallbackLogger
@@ -84,7 +82,7 @@ def singleton(cls):
 class WrappedFunction(Callable, ABC):
     def __init__(self, py_func: Callable, name: Optional[str] = None, *args, **kwargs):
         self._py_func = py_func
-        if not Auto.is_defined(name):
+        if name is None:
             name = get_name(py_func, or_callable=False)
         self._name = name
         self._args = args

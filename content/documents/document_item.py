@@ -4,7 +4,6 @@ try:  # Assume we're a submodule in a package.
     from base.constants.chars import EMPTY, SPACE, HTML_INDENT, PARAGRAPH_CHAR, REPR_DELIMITER, DEFAULT_LINE_LEN
     from base.interfaces.sheet_interface import SheetInterface, Record, Row, FormattedRow, Columns, Count
     from base.classes.typing import Name
-    from base.classes.auto import Auto
     from base.classes.enum import DynamicEnum
     from base.classes.simple_sheet import SimpleSheet, SheetMixin, SheetItems
     from base.functions.arguments import get_name, get_cropped_text
@@ -16,7 +15,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.constants.chars import EMPTY, SPACE, HTML_INDENT, PARAGRAPH_CHAR, REPR_DELIMITER, DEFAULT_LINE_LEN
     from ...base.interfaces.sheet_interface import SheetInterface, Record, Row, FormattedRow, Columns, Count
     from ...base.classes.typing import Name
-    from ...base.classes.auto import Auto
     from ...base.classes.enum import DynamicEnum
     from ...base.classes.simple_sheet import SimpleSheet, SheetMixin, SheetItems
     from ...base.functions.arguments import get_name, get_cropped_text
@@ -89,11 +87,11 @@ class DocumentItem(SimpleDataWrapper):
 
     def get_html_attributes(self) -> Iterator[Tuple[str, Any]]:
         style = self.get_html_style()
-        if Auto.is_defined(style):
+        if style is not None:
             if style:
                 yield 'style', str(style)
         name = self.get_name()
-        if Auto.is_defined(name):
+        if name is not None:
             if name:
                 yield 'name', name
 
@@ -173,7 +171,7 @@ class DocumentItem(SimpleDataWrapper):
 
     @staticmethod
     def _get_display_method(method: Optional[Callable] = None) -> Callable:
-        if Auto.is_defined(method):
+        if method is not None:
             return method
         else:
             return display
@@ -225,7 +223,7 @@ class Sheet(DocumentItem, IterDataMixin, SheetMixin, SheetInterface):
             style: OptStyle = None,
             name: Name = EMPTY,
     ) -> Native:
-        if Auto.is_defined(columns):
+        if columns is not None:
             column_names = cls._get_column_names_from_columns(columns)
         else:
             records = list(records)
@@ -367,12 +365,12 @@ class Sheet(DocumentItem, IterDataMixin, SheetMixin, SheetInterface):
         for n, row in enumerate(formatted_rows):
             yield '<tr>'
             for cell in row:
-                if Auto.is_defined(style):
+                if style is not None:
                     yield HTML_INDENT + f'<td style="{style}">{cell}</td>'
                 else:
                     yield HTML_INDENT + f'<td>{cell}</td>'
             yield '</tr>'
-            if Auto.is_defined(count):
+            if count is not None:
                 if n + 1 >= count:
                     break
 
@@ -489,7 +487,7 @@ class Link(Text):
     def get_html_open_tag(self) -> str:
         url = self.get_url()
         style = self.get_style()
-        if Auto.is_defined(style):
+        if style is not None:
             return f'<a href="{url}" style="{style}">'
         else:
             return f'<a href="{url}">'
@@ -578,7 +576,7 @@ class Paragraph(Text, Container):
 
     def get_html_style(self) -> HtmlStyle:
         style = super().get_html_style()
-        if Auto.is_defined(style):
+        if style is not None:
             return style
         else:
             return H_STYLE if self.is_title() else P_STYLE
@@ -605,11 +603,11 @@ class Paragraph(Text, Container):
         text = f'<br>{PARAGRAPH_CHAR}'.join(lines)
         if level:
             tag = f'h{level}'
-            if not Auto.is_defined(style):
+            if style is None:
                 style = H_STYLE
         else:
             tag = 'p'
-            if not Auto.is_defined(style):
+            if style is None:
                 style = P_STYLE
         open_tag = f'<{tag} style="{style}">' if style else f'<{tag}>'
         close_tag = f'</{tag}>'

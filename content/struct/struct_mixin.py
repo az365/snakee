@@ -7,7 +7,6 @@ try:  # Assume we're a submodule in a package.
         ItemType, DialectType, ValueType, Field, FieldName, FieldNo,
         Links, Array, ARRAY_TYPES,
     )
-    from base.classes.auto import Auto
     from base.functions.arguments import get_name
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
@@ -15,7 +14,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         ItemType, DialectType, ValueType, Field, FieldName, FieldNo,
         Links, Array, ARRAY_TYPES,
     )
-    from ...base.classes.auto import Auto
     from ...base.functions.arguments import get_name
 
 Struct = Optional[StructInterface]
@@ -76,7 +74,7 @@ class StructMixin(StructMixinInterface, ABC):
             types: Links = None,
     ) -> StructInterface:
         struct_class = cls._get_struct_class()
-        if not Auto.is_defined(types):
+        if types is None:
             types = dict()
         detected_struct = struct_class([])
         for name in title_row:
@@ -94,7 +92,7 @@ class StructMixin(StructMixinInterface, ABC):
         return flat_struct_class
 
     def _get_native_struct(self, raw_struct: Struct, save_if_not_yet: bool = False, verbose: Optional[bool] = None) -> Struct:
-        if hasattr(self, 'is_verbose') and not Auto.is_defined(verbose):
+        if hasattr(self, 'is_verbose') and verbose is None:
             verbose = self.is_verbose()
         if isinstance(raw_struct, StructInterface):
             native_struct = raw_struct
@@ -118,7 +116,7 @@ class StructMixin(StructMixinInterface, ABC):
                 native_struct = struct_class(raw_struct)
             else:
                 native_struct = self._get_struct_detected_by_title_row(column_names)
-        elif not Auto.is_defined(raw_struct):
+        elif raw_struct is None:
             native_struct = None
             if hasattr(self, 'get_struct_from_source'):
                 native_struct = self.get_struct_from_source(

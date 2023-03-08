@@ -9,7 +9,6 @@ try:  # Assume we're a submodule in a package.
         Name, Count, Array, ARRAY_TYPES, ROW_SUBCLASSES, RECORD_SUBCLASSES,
     )
     from base.constants.chars import EMPTY, REPR_DELIMITER, TITLE_PREFIX, ITEM, DEL, ABOUT, JUPYTER_LINE_LEN
-    from base.classes.auto import Auto
     from base.functions.arguments import update, get_generated_name, get_name, get_names
     from base.abstract.simple_data import SimpleDataWrapper, DEFAULT_EXAMPLE_COUNT
     from base.mixin.iter_data_mixin import IterDataMixin
@@ -30,7 +29,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         Name, Count, Array, ARRAY_TYPES, ROW_SUBCLASSES, RECORD_SUBCLASSES,
     )
     from ...base.constants.chars import EMPTY, REPR_DELIMITER, TITLE_PREFIX, ITEM, DEL, ABOUT, JUPYTER_LINE_LEN
-    from ...base.classes.auto import Auto
     from ...base.functions.arguments import update, get_generated_name, get_name, get_names
     from ...base.abstract.simple_data import SimpleDataWrapper, DEFAULT_EXAMPLE_COUNT
     from ...base.mixin.iter_data_mixin import IterDataMixin
@@ -168,7 +166,7 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
             return self
         else:
             if isinstance(field_desc, (FieldInterface, AnyField)):
-                if reassign_struct_name or not Auto.is_defined(field_desc.get_group_name()):
+                if reassign_struct_name or field_desc.get_group_name() is None:
                     field_desc.set_group_name(self.get_name(), inplace=True)
                     field_desc.set_group_caption(self.get_caption(), inplace=True)
             if before:
@@ -298,7 +296,7 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
             type_names.append(get_name(t, or_callable=False))
         other_count = total_count - sum(types_count)
         str_fields_count = ' + '.join(['{} {}'.format(c, t) for c, t in zip(types_count, type_names)])
-        return '{} total = {} + {} other'.format(total_count, str_fields_count, other_count)
+        return f'{total_count} total = {str_fields_count} + {other_count} other'
 
     def get_struct_str(self, dialect: DialectType = DialectType.Python) -> str:
         if not isinstance(dialect, DialectType):
@@ -311,7 +309,7 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
         return [c.get_name() for c in self.get_fields()]
 
     def get_types_list(self, dialect: Optional[DialectType] = DialectType.String) -> list:
-        if Auto.is_defined(dialect):
+        if dialect is not None:
             return [f.get_type_in(dialect) for f in self.get_fields()]
         else:
             return [f.get_value_type() for f in self.get_fields()]
@@ -440,8 +438,8 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
         return fs.compare_lists(**alias)(other, self)
 
     def get_struct_comparison_iter(self, other: StructInterface, message: Optional[str] = None) -> Iterable:
-        if Auto.is_defined(message):
-            title = '{} {}'.format(self.__repr__(), message)
+        if message is not None:
+            title = f'{repr(self)} {message}'
         else:
             title = self.__repr__()
         comparison = self.get_struct_comparison_dict(other)
@@ -452,11 +450,15 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
             message = '{}: {saved} fields will be saved, {added} added, {removed} removed'.format(title, **counts)
             yield message
             if added_names:
-                yield 'Added {} fields: {}'.format(len(added_names), ', '.join(added_names))
+                added_cnt = len(added_names)
+                added_str = ', '.join(added_names)
+                yield f'Added {added_cnt} fields: {added_str}'
             if removed_names:
-                yield 'Removed {} fields: {}'.format(len(removed_names), ', '.join(removed_names))
+                removed_cnt = len(removed_names)
+                removed_str = ', '.join(removed_names)
+                yield f'Removed {removed_cnt} fields: {removed_str}'
         else:
-            yield '{}: Struct is actual, will not be changed'.format(title)
+            yield f'{title}: Struct is actual, will not be changed'
 
     def compare_with(
             self,
@@ -465,12 +467,12 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
             tags: Optional[dict] = None,
             set_valid: bool = False,
     ) -> Native:
-        if not Auto.is_defined(tags):
+        if tags is None:
             tags = COMPARISON_TAGS
         expected_struct = self.convert_to_native(other)
         remaining_struct = expected_struct.copy()
-        assert isinstance(expected_struct, StructInterface) or hasattr(expected_struct, 'get_field_names'), 'got {}'.format(expected_struct)
-        assert isinstance(remaining_struct, StructInterface) or hasattr(remaining_struct, 'get_field_names'), 'got {}'.format(remaining_struct)
+        assert isinstance(expected_struct, StructInterface) or hasattr(expected_struct, 'get_field_names'), f'got {expected_struct}'
+        assert isinstance(remaining_struct, StructInterface) or hasattr(remaining_struct, 'get_field_names'), f'got {remaining_struct}'
         updated_struct = FlatStruct([])
         for pos_received, f_received in enumerate(self.get_fields()):
             assert isinstance(f_received, (FieldInterface, AnyField))
@@ -507,7 +509,7 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
             else:
                 tag = tags['other_only']  # MISSING_IN_FILE
             if tag not in caption:
-                caption = '[{}] {}'.format(tag, caption or EMPTY)
+                caption = f'[{tag}] {caption or EMPTY}'
             f_updated = f_expected.set_valid(is_valid, inplace=False) if set_valid else f_expected
             f_updated = f_updated.set_caption(caption, inplace=False)
             updated_struct.append_field(f_updated, exclude_duplicates=ignore_moved)
@@ -519,7 +521,7 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
         return self.compare_with(standard, ignore_moved=ignore_moved, tags=tags, set_valid=True)
 
     def get_validation_message(self, standard: Optional[StructInterface] = None) -> str:
-        if Auto.is_defined(standard):
+        if standard is not None:
             self.validate_about(standard)
         count = self.get_column_count()
         if self.is_valid_struct():
@@ -612,17 +614,17 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
 
     def get_group_header(self, name: Comment = None, caption: Comment = None, comment: Comment = None) -> Iterator[str]:
         is_title_row = name is None
-        if not Auto.is_defined(name):
+        if name is None:
             name = self.get_name()
-        if not Auto.is_defined(caption):
+        if caption is None:
             caption = self.get_caption()
-        if Auto.is_defined(name):
+        if name is not None:
             yield name
-        if Auto.is_defined(caption):
+        if caption is not None:
             yield caption
         if is_title_row:
             yield self.get_str_fields_count()
-        if Auto.is_defined(comment):
+        if comment is not None:
             yield comment
 
     @staticmethod
@@ -673,7 +675,7 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
                     row = (is_valid, n, type_name, name, caption)
                 row = map(str, row)
                 yield '\t'.join(row) if separate_by_tabs else template.format(*row)
-            if Auto.is_defined(count):
+            if count is not None:
                 if n >= count - 1:
                     break
 
@@ -691,7 +693,7 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
                 value = str(example.get(name))
             record = dict(n=n, name=name, type_name=type_name, example=value, valid=is_valid, caption=caption)
             yield record
-            if Auto.is_defined(count):
+            if count is not None:
                 if n >= count - 1:
                     break
 
@@ -723,7 +725,7 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
         if self.has_data():
             shape_repr = self.get_shape_repr()
             if shape_repr:
-                if Auto.is_defined(count) and shape_repr:
+                if shape_repr and count is not None:
                     caption.append(f'First {count} fields from {shape_repr}:')
                 else:
                     caption.append(f'{shape_repr}:')

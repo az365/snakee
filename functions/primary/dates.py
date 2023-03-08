@@ -3,12 +3,10 @@ from datetime import date, timedelta, datetime
 
 try:  # Assume we're a submodule in a package.
     from base.classes.enum import DynamicEnum
-    from base.classes.auto import Auto
     from base.constants.chars import DOT, MINUS, SPACE
     from base.functions.arguments import get_str_from_args_kwargs
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.classes.enum import DynamicEnum
-    from ...base.classes.auto import Auto
     from ...base.constants.chars import DOT, MINUS, SPACE
     from ...base.functions.arguments import get_str_from_args_kwargs
 
@@ -42,9 +40,9 @@ class DateScale(DynamicEnum):
 
     @classmethod
     def get_err_msg(cls, scale: Union[str, DynamicEnum] = '{}', available_scales: Optional[list] = None):
-        if not Auto.is_defined(available_scales):
+        if available_scales is None:
             available_scales = cls.get_enum_items()
-        if Auto.is_defined(available_scales):
+        if available_scales is not None:
             str_available_scales = ' or '.join(map(str, available_scales))
         else:
             str_available_scales = '{}'
@@ -174,7 +172,7 @@ def get_month_from_date(d: Date) -> int:
 
 
 def get_month_first_date(d: Date, as_iso_date: Optional[bool] = None) -> Date:
-    if not Auto.is_defined(as_iso_date):
+    if as_iso_date is None:
         as_iso_date = is_iso_date(d)
     if as_iso_date:
         if not is_iso_date(d):
@@ -188,14 +186,14 @@ def get_month_first_date(d: Date, as_iso_date: Optional[bool] = None) -> Date:
 
 def get_monday_date(d: Date, as_iso_date: Optional[bool] = None) -> Date:
     cur_date = get_date(d)
-    if not Auto.is_defined(as_iso_date):
+    if as_iso_date is None:
         as_iso_date = is_iso_date(d)
     monday_date = cur_date + timedelta(days=-cur_date.weekday())
     return get_date(monday_date, as_iso_date)
 
 
 def get_year_first_date(d: [Date, int], as_iso_date: Optional[bool] = True) -> Date:
-    if not Auto.is_defined(as_iso_date):
+    if as_iso_date is None:
         as_iso_date = is_iso_date(d)
     if isinstance(d, int):
         if d > 1900:
@@ -212,7 +210,7 @@ def get_year_first_date(d: [Date, int], as_iso_date: Optional[bool] = True) -> D
 
 
 def get_year_start_monday(year: Union[int, Date], as_iso_date: Optional[bool] = True) -> Date:
-    if not Auto.is_defined(as_iso_date):
+    if as_iso_date is None:
         as_iso_date = is_iso_date(year)
     if isinstance(year, int):
         year_start_date = PyDate(year=year, month=1, day=1)
@@ -223,7 +221,7 @@ def get_year_start_monday(year: Union[int, Date], as_iso_date: Optional[bool] = 
 
 
 def get_rounded_date(d: Date, scale: DateScale, as_iso_date: Optional[bool] = None) -> Date:
-    if not Auto.is_defined(as_iso_date):
+    if as_iso_date is None:
         as_iso_date = is_iso_date(d)
     scale = DateScale.convert(scale)
     if scale == DateScale.Day:
@@ -474,7 +472,7 @@ def get_year_and_week_from_date(d: Date) -> Tuple[int, int]:
 
 
 def get_day_abs_from_date(d: Date, min_date: Optional[Date] = None) -> int:
-    if not Auto.is_defined(min_date):
+    if min_date is None:
         min_date = get_year_start_monday(get_min_year())
     return get_days_between(min_date, d)
 
@@ -492,7 +490,7 @@ def get_year_abs_from_date(d: Date) -> int:
 
 
 def get_week_abs_from_year_and_week(year: int, week: int, min_year: Optional[int] = None) -> int:
-    if not Auto.is_defined(min_year):
+    if min_year is None:
         min_year = get_min_year()
     week_abs = (year - min_year) * WEEKS_IN_YEAR + week
     return week_abs
@@ -512,7 +510,7 @@ def get_week_no_from_date(d: Date) -> int:
 
 
 def get_year_and_week_from_week_abs(week_abs: int, min_year: Optional[int] = None) -> tuple:
-    if not Auto.is_defined(min_year):
+    if min_year is None:
         min_year = get_min_year()
     delta_year = int(week_abs / WEEKS_IN_YEAR)
     year = min_year + delta_year
@@ -521,7 +519,7 @@ def get_year_and_week_from_week_abs(week_abs: int, min_year: Optional[int] = Non
 
 
 def get_year_from_week_abs(week_abs: int, min_year: Optional[int] = None) -> int:
-    if not Auto.is_defined(min_year):
+    if min_year is None:
         min_year = get_min_year()
     delta_year = int(week_abs / WEEKS_IN_YEAR)
     return min_year + delta_year
@@ -561,7 +559,7 @@ def get_date_from_int(d: int, scale: Union[DateScale, str], as_iso_date: bool = 
 
 
 def get_date_from_day_abs(day_abs: int, min_date: Optional[Date] = None, as_iso_date: bool = True) -> Date:
-    if not Auto.is_defined(min_date):
+    if min_date is None:
         min_date = get_year_start_monday(get_min_year(), as_iso_date=as_iso_date)
     cur_date = get_shifted_date(min_date, days=day_abs)
     return cur_date
@@ -574,7 +572,7 @@ def get_date_from_week_abs(week_abs: int, min_year: Optional[int] = None, as_iso
 
 
 def get_date_from_month_abs(month_abs: int, min_date: Optional[Date] = None, as_iso_date: bool = True) -> Date:
-    if Auto.is_defined(min_date):
+    if min_date is not None:
         min_year = get_year_from_date(min_date)
     else:
         min_year = get_min_year()

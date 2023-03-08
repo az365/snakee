@@ -1,13 +1,11 @@
 from typing import Optional, Iterable, Union
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.auto import Auto
     from base.interfaces.context_interface import ContextInterface
     from connectors.abstract.hierarchic_connector import HierarchicConnector
     from connectors.operations.operation import Operation
     from connectors import connector_classes as ct
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...base.classes.auto import Auto
     from ...base.interfaces.context_interface import ContextInterface
     from ..abstract.hierarchic_connector import HierarchicConnector
     from .operation import Operation
@@ -26,7 +24,7 @@ class Job(HierarchicConnector):
             options: Optional[dict] = None,
             context: Optional[ContextInterface] = None,
     ):
-        if not Auto.is_defined(context):
+        if context is None:
             context = ct.get_context()
         super().__init__(
             name=name,
@@ -74,7 +72,7 @@ class Job(HierarchicConnector):
 
     def get_options(self, including: Union[Operation, Iterable, None] = None, upd: Optional[dict] = None) -> dict:
         defined_options = self._options.copy()
-        if Auto.is_defined(upd):
+        if upd is not None:
             defined_options.update(upd)
         if including:
             if hasattr(including, 'get_options'):
@@ -136,7 +134,7 @@ class Job(HierarchicConnector):
             if_not_yet: bool = True,
             options: Optional[dict] = None,
     ):
-        if not Auto.is_defined(operations):
+        if operations is None:
             operations = self.get_queue()
         operations = [self.get_operation(op) for op in operations]
         names = [op.get_name() for op in operations]

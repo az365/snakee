@@ -6,7 +6,6 @@ try:  # Assume we're a submodule in a package.
         TermInterface, FieldInterface,
         TermType, TermDataAttribute, TermRelation, FieldRoleType, ValueType,
     )
-    from base.classes.auto import Auto
     from base.constants.chars import EMPTY, UNDER, SMALL_INDENT, REPR_DELIMITER, JUPYTER_LINE_LEN
     from base.functions.arguments import get_name, get_names, get_value
     from base.abstract.simple_data import SimpleDataWrapper
@@ -19,7 +18,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         TermInterface, FieldInterface,
         TermType, TermDataAttribute, TermRelation, FieldRoleType, ValueType,
     )
-    from ...base.classes.auto import Auto
     from ...base.constants.chars import EMPTY, UNDER, SMALL_INDENT, REPR_DELIMITER, JUPYTER_LINE_LEN
     from ...base.functions.arguments import get_name, get_names, get_value
     from ...base.abstract.simple_data import SimpleDataWrapper
@@ -110,7 +108,7 @@ class AbstractTerm(SimpleDataWrapper, MultiMapDataMixin, TermInterface, ABC):
             caption: Optional[str] = None,
             **kwargs
     ) -> FieldInterface:
-        if not Auto.is_defined(role):
+        if role is None:
             suffix = name.split(UNDER)[-1]
             role = FieldRoleType.detect(suffix, default=FieldRoleType.Undefined)
         return self.get_field_by_role(role, value_type=value_type, name=name, caption=caption, **kwargs)
@@ -135,11 +133,11 @@ class AbstractTerm(SimpleDataWrapper, MultiMapDataMixin, TermInterface, ABC):
                 field = field.set_outplace(**kwargs)
         else:
             field_class = self._get_default_field_class_by_role(role)
-            if not Auto.is_defined(name):
+            if name is None:
                 name = self._get_default_field_name_by_role(role)
-            if not Auto.is_defined(value_type):
+            if value_type is None:
                 value_type = self._get_default_value_type_by_role(role)
-            if not Auto.is_defined(caption):
+            if caption is None:
                 caption = self._get_default_field_caption_by_role(role)
             field = field_class(name, value_type, caption=caption, **kwargs)
             fields_by_roles[role_value] = field
@@ -161,7 +159,7 @@ class AbstractTerm(SimpleDataWrapper, MultiMapDataMixin, TermInterface, ABC):
 
     def _get_default_field_name_by_role(self, role: FieldRoleType) -> str:
         term_name = self.get_name()
-        if role in FIELD_ROLES_WITHOUT_SUFFIXES or not Auto.is_defined(role):
+        if role in FIELD_ROLES_WITHOUT_SUFFIXES or role is None:
             field_name = term_name
         else:
             field_name = FIELD_NAME_TEMPLATE.format(term=term_name, role=get_value(role))
@@ -169,7 +167,7 @@ class AbstractTerm(SimpleDataWrapper, MultiMapDataMixin, TermInterface, ABC):
 
     def _get_default_field_caption_by_role(self, role: FieldRoleType) -> str:
         term_caption = self.get_caption()
-        if role in FIELD_ROLES_WITHOUT_SUFFIXES or not Auto.is_defined(role):
+        if role in FIELD_ROLES_WITHOUT_SUFFIXES or role is None:
             field_caption = term_caption
         else:
             term_name = self.get_name()
@@ -209,7 +207,7 @@ class AbstractTerm(SimpleDataWrapper, MultiMapDataMixin, TermInterface, ABC):
         columns = 'role', 'name', 'type', 'caption', 'repr'
         records = list()
         for n, (key, value) in enumerate(fields_and_roles.items()):
-            if Auto.is_defined(count):
+            if count is not None:
                 if n >= count:
                     break
             r = dict(

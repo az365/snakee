@@ -1,10 +1,14 @@
 from abc import ABC
 from typing import Union
 
-from base.classes.auto import Auto
-from base.functions.arguments import get_name
-from base.abstract.simple_data import SimpleDataWrapper
-from base.mixin.map_data_mixin import MapDataMixin
+try:  # Assume we're a submodule in a package.
+    from base.functions.arguments import get_name
+    from base.abstract.simple_data import SimpleDataWrapper
+    from base.mixin.map_data_mixin import MapDataMixin
+except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
+    from ...base.functions.arguments import get_name
+    from ...base.abstract.simple_data import SimpleDataWrapper
+    from ...base.mixin.map_data_mixin import MapDataMixin
 
 Native = Union[SimpleDataWrapper, MapDataMixin]
 Edge = SimpleDataWrapper
@@ -28,7 +32,7 @@ class EdgesMixin(ABC):
         return self
 
     def _update_edge_by_name(self, edge: Edge, name: str = None) -> Native:
-        if not Auto.is_defined(name):
+        if name is None:
             name = get_name(edge, or_callable=False)
         self._remove_edge_by_name(name)
         return self._force_append_edge(edge)

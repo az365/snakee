@@ -2,13 +2,11 @@ from typing import Optional, Iterable, Generator, Union
 import io
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.auto import Auto
     from utils.decorators import deprecated_with_alternative
     from utils.external import boto3, boto_core_client
     from interfaces import ConnType, ConnectorInterface, Class, Name
     from connectors.abstract.abstract_folder import HierarchicFolder
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...base.classes.auto import Auto
     from ...utils.decorators import deprecated_with_alternative
     from ...utils.external import boto3, boto_core_client
     from ...interfaces import ConnType, ConnectorInterface, Class, Name
@@ -37,11 +35,11 @@ class S3Bucket(HierarchicFolder):
         self._secret_key = None
         storage = self._assume_native(storage)
         super().__init__(name=name, parent=storage, verbose=verbose)
-        if Auto.is_defined(access_key):
+        if access_key is not None:
             self.set_access_key(access_key)
         elif hasattr(storage, 'get_access_key'):
             self.set_access_key(storage.get_access_key())
-        if Auto.is_defined(secret_key):
+        if secret_key is not None:
             self.set_secret_key(secret_key)
         elif hasattr(storage, 'get_secret_key'):
             self.set_secret_key(storage.get_secret_key)

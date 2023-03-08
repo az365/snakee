@@ -9,7 +9,6 @@ try:  # Assume we're a submodule in a package.
         StreamType, ItemType, JoinType,
         Stream, How, Class, OptionalFields,
     )
-    from base.classes.auto import Auto
     from base.functions.arguments import update
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..interfaces import (
@@ -18,7 +17,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         StreamType, ItemType, JoinType,
         Stream, How, Class, OptionalFields,
     )
-    from ..base.classes.auto import Auto
     from ..base.functions.arguments import update
 
 Native = StreamBuilderInterface
@@ -39,14 +37,14 @@ class StreamBuilder(StreamBuilderInterface):
             **kwargs
     ) -> Stream:
         default_class = cls.get_default_stream_class()
-        if Auto.is_defined(stream_type) and isinstance(stream_type, StreamType):
+        if isinstance(stream_type, StreamType):
             stream_class = stream_type.get_class(default=default_class)
         else:
             stream_class = default_class
             if 'item_type' not in kwargs:
                 if isinstance(stream_type, ItemType):
                     item_type = stream_type
-                elif Auto.is_defined(stream_type):
+                elif stream_type not in (ItemType.Auto, None):
                     try:
                         item_type = ItemType(stream_type)
                     except (TypeError, ValueError):
@@ -82,9 +80,9 @@ class StreamBuilder(StreamBuilderInterface):
                     result = cur_stream.copy()
                 else:
                     result = cur_stream
-                if Auto.is_defined(name):
+                if name is not None:
                     result.set_name(name)
-                if Auto.is_defined(context):
+                if context is not None:
                     result.set_context(context)
             elif how == 'vertical':
                 result = result.add_stream(cur_stream)
@@ -150,7 +148,7 @@ class StreamBuilder(StreamBuilderInterface):
         cls._context = cx
         if set_storage:
             storage = cx.get_local_storage()
-            if Auto.is_defined(storage):
+            if storage is not None:
                 assert isinstance(storage, TemporaryLocationInterface)
                 cls.set_temporary_location(storage)
         return cls()
@@ -163,8 +161,9 @@ class StreamBuilder(StreamBuilderInterface):
     @classmethod
     def set_temporary_location(cls, storage: TemporaryLocationInterface) -> Native:
         default_stream_class = cls.get_default_stream_class()
-        if Auto.is_defined(default_stream_class) and hasattr(default_stream_class, 'get_tmp_files'):
-            temporary_location = default_stream_class.get_tmp_files()
-            assert isinstance(storage, ConnectorInterface)
-            temporary_location.set_default_storage(storage)
+        if default_stream_class is not None:
+            if hasattr(default_stream_class, 'get_tmp_files'):  # isinstance(default_stream_class, LocalStream):
+                temporary_location = default_stream_class.get_tmp_files()
+                assert isinstance(storage, ConnectorInterface)
+                temporary_location.set_default_storage(storage)
         return cls()

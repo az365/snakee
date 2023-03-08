@@ -8,7 +8,6 @@ try:  # Assume we're a submodule in a package.
         StreamType, ItemType, JoinType, How,
         Count, UniKey, Item, Array, Columns, OptionalFields,
     )
-    from base.classes.auto import Auto
     from base.functions.arguments import get_name, get_names, update
     from base.mixin.iter_data_mixin import IterDataMixin
     from functions.secondary.item_functions import composite_key, merge_two_items, items_to_dict
@@ -26,7 +25,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         StreamType, ItemType, JoinType, How,
         Count, UniKey, Item, Array, Columns, OptionalFields,
     )
-    from ...base.classes.auto import Auto
     from ...base.functions.arguments import get_name, get_names, update
     from ...base.mixin.iter_data_mixin import IterDataMixin
     from ...functions.secondary.item_functions import composite_key, merge_two_items, items_to_dict
@@ -108,7 +106,7 @@ class ColumnarMixin(IterDataMixin, ABC):
         return len(list(self.get_columns()))
 
     def _get_items_of_type(self, item_type: ItemType) -> Iterable:
-        if item_type == ItemType.Auto:
+        if item_type in (ItemType.Auto, None):
             is_native_type = True
         elif hasattr(self, 'get_item_type'):
             is_native_type = item_type == self.get_item_type()
@@ -141,9 +139,9 @@ class ColumnarMixin(IterDataMixin, ABC):
             logger: Optional[LoggerInterface] = None,
             **kwargs
     ) -> Iterable:
-        if not Auto.is_defined(logger):
+        if logger is None:
             logger = self.get_logger()
-        if not Auto.is_defined(item_type):
+        if item_type in (ItemType.Auto, None):
             item_type = self.get_item_type()
         filter_function = get_filter_function(
             *args, **kwargs, item_type=item_type,
@@ -152,7 +150,7 @@ class ColumnarMixin(IterDataMixin, ABC):
         return filter(filter_function, self._get_items_of_type(item_type))
 
     def filter(self, *args, item_type: ItemType = ItemType.Auto, skip_errors: bool = False, **kwargs) -> Native:
-        if not Auto.is_defined(item_type):
+        if item_type in (ItemType.Auto, None):
             item_type = self.get_item_type()
         filtered_items = self._get_filtered_items(*args, item_type=item_type, skip_errors=skip_errors, **kwargs)
         stream = self.to_stream(data=filtered_items, stream_type=item_type)
@@ -189,7 +187,7 @@ class ColumnarMixin(IterDataMixin, ABC):
         keys = get_names(keys, or_callable=True)
         item_type = self.get_item_type()
         key_function = composite_key(*keys, item_type=item_type)
-        if not Auto.is_defined(merge_function):
+        if merge_function is None:
             merge_function = merge_two_items(item_type=item_type)
         if not isinstance(how, JoinType):
             how = JoinType(how)
@@ -330,7 +328,7 @@ class ColumnarMixin(IterDataMixin, ABC):
 
     def _get_field_getter(self, field: UniKey, item_type: ItemType = ItemType.Auto, default=None):
         if isinstance(self, RegularStreamInterface) or hasattr(self, 'get_item_type') and hasattr(self, 'get_struct'):
-            if not Auto.is_defined(item_type):
+            if item_type in (ItemType.Auto, None):
                 item_type = self.get_item_type()
             struct = self.get_struct()
         else:
@@ -408,7 +406,7 @@ class ColumnarMixin(IterDataMixin, ABC):
         demo_example = self.get_demo_example(count=count, filters=filters, columns=columns)
         demo_example = list(demo_example)
         if demo_example:
-            if not Auto.is_defined(columns):
+            if columns is None:
                 if isinstance(demo_example[0], dict):
                     columns = demo_example[0].keys()
                 else:

@@ -1,7 +1,6 @@
 from typing import Type, Optional, Iterable, Union
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.auto import Auto
     from base.functions.arguments import get_name, get_names, get_value
     from base.classes.enum import DynamicEnum, Class
     from base.constants.chars import EMPTY, TAB_INDENT, IDS_DELIMITER, REPR_DELIMITER
@@ -9,7 +8,6 @@ try:  # Assume we're a submodule in a package.
     from content.terms.discrete_term import DiscreteTerm, TermType, Field, FieldRoleType
     from content.terms.object_term import ObjectTerm
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...base.classes.auto import Auto
     from ...base.functions.arguments import get_name, get_names, get_value
     from ...base.classes.enum import DynamicEnum, Class
     from ...base.constants.chars import EMPTY, TAB_INDENT, IDS_DELIMITER, REPR_DELIMITER
@@ -78,7 +76,7 @@ class HierarchicTerm(DiscreteTerm):
         return self._default_level
 
     def set_default_level(self, level: Optional[Level]) -> Native:
-        if not Auto.is_defined(level):
+        if level is None:
             return self.set_default_level_depth(self.get_depth(level=None))
         elif isinstance(level, ObjectTerm):
             return self.set_default_level_term(level)
@@ -104,7 +102,7 @@ class HierarchicTerm(DiscreteTerm):
         return len(self.get_level_terms())
 
     def get_depth(self, level: Level = None) -> int:
-        if not Auto.is_defined(level):
+        if level is None:
             return self.get_count() - 1
         elif isinstance(level, int):
             depth = level
@@ -134,7 +132,7 @@ class HierarchicTerm(DiscreteTerm):
         return self.get_level_term(level).get_id_field()
 
     def get_id_field(self, level: Level = None, **kwargs) -> Field:
-        if not Auto.is_defined(level):
+        if level is None:
             level = self.get_default_level_term()
         assert isinstance(level, ObjectTerm), f'Expected level as ObjectTerm, got {level}'
         if self._ids_is_independent or get_name(level) == self.get_level_name(0):
@@ -146,7 +144,7 @@ class HierarchicTerm(DiscreteTerm):
             return self.get_key_field(level, **kwargs)
 
     def get_id_value(self, *ids, level: Level = None, delimiter: str = IDS_DELIMITER) -> IdValue:
-        if not Auto.is_defined(level):
+        if level is None:
             level = self.get_default_level_term()
         assert isinstance(level, ObjectTerm), f'Expected level as ObjectTerm, got {level}'
         if self._ids_is_independent or get_name(level) == self.get_level_name(0):
@@ -157,13 +155,13 @@ class HierarchicTerm(DiscreteTerm):
             return self.get_key_value(*ids, level=level, delimiter=delimiter)
 
     def get_name_field(self, level: Level = None, **kwargs) -> Field:
-        if not Auto.is_defined(level):
+        if level is None:
             level = self.get_default_level_term()
         assert isinstance(level, ObjectTerm), f'Expected level as ObjectTerm, got {level}'
         return level.get_name_field(**kwargs)
 
     def get_repr_field(self, level: Level = None, **kwargs) -> Field:
-        if not Auto.is_defined(level):
+        if level is None:
             level = self.get_default_level_term()
         assert isinstance(level, ObjectTerm), f'Expected level as ObjectTerm, got {level}'
         return level.get_repr_field(**kwargs)
@@ -175,7 +173,7 @@ class HierarchicTerm(DiscreteTerm):
         return delimiter.join(map(str, ids[:expected_depth + 1]))
 
     def get_key_field(self, level: Level = None, value_type: ValueType = ValueType.Str, **kwargs) -> Field:
-        if not Auto.is_defined(level):
+        if level is None:
             key_field = self.get_field_by_role(FieldRoleType.Key, value_type=value_type, **kwargs)
         else:
             level_term = self.get_level_term(level)
@@ -183,7 +181,7 @@ class HierarchicTerm(DiscreteTerm):
         return key_field
 
     def get_ids_field(self, level: Level = None, default_type: ValueType = ValueType.Sequence, **kwargs) -> Field:
-        if not Auto.is_defined(level):
+        if level is None:
             key_field = self.get_field_by_role(FieldRoleType.Ids, value_type=default_type, **kwargs)
         else:
             level_term = self.get_level_term(level)

@@ -3,7 +3,6 @@ from typing import Optional, Tuple, Union
 
 try:  # Assume we're a submodule in a package.
     from interfaces import LeafConnectorInterface, StructInterface, Item, Columns, Array, Count
-    from base.classes.auto import Auto
     from base.interfaces.display_interface import DEFAULT_EXAMPLE_COUNT
     from base.functions.arguments import get_str_from_args_kwargs, get_cropped_text
     from base.constants.chars import EMPTY, CROP_SUFFIX
@@ -12,7 +11,6 @@ try:  # Assume we're a submodule in a package.
     from streams.interfaces.abstract_stream_interface import StreamInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import LeafConnectorInterface, StructInterface, Item, Columns, Array, Count
-    from ...base.classes.auto import Auto
     from ...base.interfaces.display_interface import DEFAULT_EXAMPLE_COUNT
     from ...base.functions.arguments import get_str_from_args_kwargs, get_cropped_text
     from ...base.constants.chars import EMPTY, CROP_SUFFIX
@@ -29,7 +27,7 @@ class ValidateMixin(ABC):
     def validate_fields(self, initial: bool = True, skip_disconnected: bool = False) -> Native:
         if initial:
             expected_struct = self.get_initial_struct()
-            if Auto.is_defined(expected_struct):
+            if expected_struct is not None:
                 expected_struct = expected_struct.copy()
             else:
                 expected_struct = self.get_struct_from_source(set_struct=True, verbose=True)
@@ -102,7 +100,7 @@ class ValidateMixin(ABC):
             is_in_memory = self.is_in_memory()
         else:
             is_in_memory = True  # ?
-        if Auto.is_defined(example):
+        if example is not None:
             stream = example
         elif is_in_memory:
             stream = self
@@ -110,11 +108,11 @@ class ValidateMixin(ABC):
             stream = self.copy()
         else:
             stream = self
-        if Auto.is_defined(filters):
+        if filters:
             stream = stream.filter(*filters)
-        if Auto.is_defined(count):
+        if count is not None:
             stream = stream.take(count)
-        if Auto.is_defined(columns) and hasattr(stream, 'select'):
+        if columns and hasattr(stream, 'select'):
             stream = stream.select(columns)
         return stream.collect()
 
@@ -131,7 +129,7 @@ class ValidateMixin(ABC):
         example_item, example_stream, example_comment = dict(), None, EMPTY
         is_existing, is_empty = None, None
         is_actual = self.is_actual()
-        if not Auto.is_defined(actualize):
+        if actualize is None:
             actualize = not is_actual
         if actualize or is_actual:
             is_existing = self.is_existing()
@@ -196,7 +194,7 @@ class ValidateMixin(ABC):
                 item_example = self.get_one_item()
             else:
                 item_example = dict()
-        if item_example and Auto.is_defined(example_str_len):
+        if item_example and example_str_len is not None:
             for k, v in item_example.items():
                 item_example[k] = get_cropped_text(v, max_len=example_str_len, crop_suffix=crop_suffix)
         else:
@@ -229,7 +227,7 @@ class ValidateMixin(ABC):
         if comment:
             chapter.append(Paragraph(comment, name=f'{name} comment'), inplace=True)
         struct = self.get_struct()
-        if not Auto.is_defined(struct):
+        if struct is None:
             struct = self.get_struct_from_source()
         if isinstance(struct, StructInterface) or hasattr(struct, 'get_data_sheet'):
             struct_sheet = struct.get_data_sheet(example=example_item)

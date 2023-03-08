@@ -1,13 +1,21 @@
 from typing import Optional, Iterable, Union, NoReturn
 
-from base.classes.auto import Auto
-from base.constants.chars import EMPTY
-from base.functions.arguments import get_name
-from base.functions.errors import raise_value_error
-from base.abstract.simple_data import SimpleDataWrapper
-from base.mixin.map_data_mixin import MapDataMixin
-from base.mixin.sourced_mixin import SourcedMixin
-from entities.graphs.edges_mixin import EdgesMixin
+try:  # Assume we're a submodule in a package.
+    from base.constants.chars import EMPTY
+    from base.functions.arguments import get_name
+    from base.functions.errors import raise_value_error
+    from base.abstract.simple_data import SimpleDataWrapper
+    from base.mixin.map_data_mixin import MapDataMixin
+    from base.mixin.sourced_mixin import SourcedMixin
+    from entities.graphs.edges_mixin import EdgesMixin
+except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
+    from ...base.constants.chars import EMPTY
+    from ...base.functions.arguments import get_name
+    from ...base.functions.errors import raise_value_error
+    from ...base.abstract.simple_data import SimpleDataWrapper
+    from ...base.mixin.map_data_mixin import MapDataMixin
+    from ...base.mixin.sourced_mixin import SourcedMixin
+    from .edges_mixin import EdgesMixin
 
 Native = Union[SimpleDataWrapper, MapDataMixin]
 Graph = Union[SimpleDataWrapper, MapDataMixin]  # tmp
@@ -75,7 +83,7 @@ class Node(SimpleDataWrapper, SourcedMixin, EdgesMixin):
         return self._edges_cache
 
     def get_edges_from_graph(self, graph: Optional[Graph] = None) -> Iterable[Edge]:
-        if not Auto.is_defined(graph):
+        if graph is None:
             graph = self.get_graph()
         self._assert_graph(caller=self.get_edges_from_graph)
         return graph.get_edges_for_node(self)

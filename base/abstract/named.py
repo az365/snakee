@@ -2,14 +2,12 @@ from abc import ABC
 from typing import Optional, Iterator, Generator, Union
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.auto import Auto
     from base.constants.chars import EMPTY, TAB_INDENT, REPR_DELIMITER, DEFAULT_LINE_LEN
     from base.functions.arguments import get_str_from_args_kwargs
     from base.interfaces.display_interface import DisplayInterface
     from base.mixin.display_mixin import DisplayMixin
     from base.abstract.abstract_base import AbstractBaseObject
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..classes.auto import Auto
     from ..constants.chars import EMPTY, TAB_INDENT, REPR_DELIMITER, DEFAULT_LINE_LEN
     from ..functions.arguments import get_str_from_args_kwargs
     from ..interfaces.display_interface import DisplayInterface
@@ -50,7 +48,7 @@ class AbstractNamed(AbstractBaseObject, DisplayMixin, ABC):
         return self._assume_native(named)
 
     def is_defined(self) -> bool:
-        return Auto.is_defined(self.get_name())
+        return self.get_name() is not None
 
     @classmethod
     def _get_key_member_names(cls) -> list:

@@ -9,8 +9,7 @@ try:  # Assume we're a submodule in a package.
         ContentType, ConnType, ItemType, StreamType, StreamItemType,
         Count, OptionalFields, UniKey, ARRAY_TYPES,
     )
-    from base.classes.auto import Auto
-    from base.constants.chars import EMPTY, OS_PLACEHOLDER, PY_PLACEHOLDER
+    from base.constants.chars import EMPTY, PARAGRAPH_CHAR, RETURN_CHAR, OS_PLACEHOLDER, PY_PLACEHOLDER
     from functions.primary.text import is_formatter
     from content.format.format_classes import (
         AbstractFormat, ParsedFormat, LeanFormat,
@@ -26,8 +25,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         ContentType, ConnType, ItemType, StreamType, StreamItemType,
         Count, OptionalFields, UniKey, ARRAY_TYPES,
     )
-    from ...base.classes.auto import Auto
-    from ...base.constants.chars import EMPTY, OS_PLACEHOLDER, PY_PLACEHOLDER
+    from ...base.constants.chars import EMPTY, PARAGRAPH_CHAR, RETURN_CHAR, OS_PLACEHOLDER, PY_PLACEHOLDER
     from ...functions.primary.text import is_formatter
     from ...content.format.format_classes import (
         AbstractFormat, ParsedFormat, LeanFormat,
@@ -66,16 +64,16 @@ class LocalFile(LeafConnector, ActualizeMixin):
         if folder:
             message = f'only LocalFolder supported for *File instances (got {folder})'
             assert isinstance(folder, ConnectorInterface) or folder.is_folder(), message
-            assert folder == parent or not Auto.is_defined(parent)
-        elif Auto.is_defined(parent):
+            assert parent is None or folder == parent, f'folder must be a parent, got {folder}, {parent}'
+        elif parent is not None:
             folder = parent
-        elif Auto.is_defined(context):
+        elif context is not None:
             folder = context.get_job_folder()
         else:
             folder = self.get_default_folder()
         self._fileholder = None
-        if not Auto.is_defined(first_line_is_title):
-            if Auto.is_defined(content_format):
+        if first_line_is_title is None:
+            if content_format is not None:
                 is_title = isinstance(content_format, ColumnarFormat) or hasattr(content_format, 'is_first_line_title')
             elif isinstance(struct, StructInterface) or hasattr(struct, 'get_columns'):
                 is_title = True
@@ -107,14 +105,14 @@ class LocalFile(LeafConnector, ActualizeMixin):
     def get_fast_lines_count(self, ending: Optional[str] = None, verbose: Optional[bool] = None) -> int:
         if self.is_gzip():
             raise ValueError('get_fast_lines_count() method is not available for gzip-files')
-        if not Auto.is_defined(ending):
+        if ending is None:
             if hasattr(self, 'get_content_format'):
                 ending = self.get_content_format().get_ending()
             else:
-                ending = '\n'
-        if not Auto.is_defined(verbose):
+                ending = PARAGRAPH_CHAR
+        if verbose is None:
             verbose = self.is_verbose()
-        self.log(f'Counting lines in {self.get_name()}...', end='\r', verbose=verbose)
+        self.log(f'Counting lines in {self.get_name()}...', end=RETURN_CHAR, verbose=verbose)
         count_n_symbol = sum(chunk.count(ending) for chunk in self.get_chunks())
         count_lines = count_n_symbol + 1
         self.set_count(count_lines)
@@ -125,7 +123,7 @@ class LocalFile(LeafConnector, ActualizeMixin):
             if allow_reopen:
                 self.close()
             else:
-                raise ValueError('File is already opened: {}'.format(self))
+                raise ValueError(f'File is already opened: {self}')
         self.open(allow_reopen=allow_reopen)
         if self.is_gzip():
             if allow_slow_mode:
@@ -136,7 +134,7 @@ class LocalFile(LeafConnector, ActualizeMixin):
             count = self.get_fast_lines_count()
         self.close()
         if count is not None:
-            self.log('Detected {} lines in {}.'.format(count, self.get_name()), end='\r')
+            self.log(f'Detected {count} lines in {self.get_name()}.', end=RETURN_CHAR)
         return count
 
     def get_fileholder(self):
@@ -148,8 +146,8 @@ class LocalFile(LeafConnector, ActualizeMixin):
             return self
 
     def add_to_folder(self, folder: Connector) -> Native:
-        assert isinstance(folder, ConnectorInterface), 'folder must be a LocalFolder (got {})'.format(type(folder))
-        assert folder.is_folder(), 'folder must be a LocalFolder (got {})'.format(type(folder))
+        assert isinstance(folder, ConnectorInterface), f'folder must be a LocalFolder (got {folder})'
+        assert folder.is_folder(), f'folder must be a LocalFolder (got {folder})'
         folder.add_child(self)
         return self
 
@@ -209,12 +207,12 @@ class LocalFile(LeafConnector, ActualizeMixin):
         return self.get_path_delimiter().join(self.get_list_path()[:-1])
 
     def is_inside_folder(self, folder: Union[str, Connector, None] = None) -> bool:
-        if not Auto.is_defined(folder, check_name=False):
-            folder_obj = self.get_folder()
-        if isinstance(folder_obj, str):
-            folder_path = folder_obj
+        if folder is None:
+            folder = self.get_folder()
+        if isinstance(folder, str):
+            folder_path = folder
         else:  # elif isinstance(folder_obj, LocalFolder)
-            folder_path = folder_obj.get_path()
+            folder_path = folder.get_path()
         return self.get_folder_path() in folder_path
 
     def is_opened(self) -> bool:
@@ -244,7 +242,7 @@ class LocalFile(LeafConnector, ActualizeMixin):
             if allow_reopen:
                 self.close()
             else:
-                raise AttributeError('File {} is already opened'.format(self.get_name()))
+                raise ValueError(f'LocalFile.open(): File {self.get_name()} is already opened')
         path = self.get_path()
         if self.is_gzip():
             fileholder = gz.open(path, mode)
@@ -261,10 +259,10 @@ class LocalFile(LeafConnector, ActualizeMixin):
         file_path = self.get_path()
         level = LOGGING_LEVEL_WARN if verbose else LOGGING_LEVEL_INFO
         if log:
-            self.get_logger().log('Trying remove {}...'.format(file_path), level=level)
+            self.get_logger().log(f'Trying remove {file_path}...', level=level)
         os.remove(file_path)
         if log or verbose:
-            self.get_logger().log('Successfully removed {}.'.format(file_path), level=level)
+            self.get_logger().log(f'Successfully removed {file_path}.', level=level)
         return 1
 
     def is_existing(self, verbose: Optional[bool] = None) -> bool:
@@ -304,7 +302,7 @@ class LocalFile(LeafConnector, ActualizeMixin):
     def get_next_lines(self, count: Optional[int] = None, skip_first: bool = False, close: bool = False) -> Iterable:
         is_opened = self.is_opened()
         if is_opened is not None:
-            assert is_opened, 'For LocalFile.get_next_lines() file must be opened: {}'.format(self)
+            assert is_opened, f'For LocalFile.get_next_lines() file must be opened: {self}'
         encoding = self.get_encoding()
         ending = self.get_ending()
         iter_lines = self.get_fileholder()
@@ -316,7 +314,7 @@ class LocalFile(LeafConnector, ActualizeMixin):
             if ending:
                 line = line.rstrip(ending)
             yield line
-            if Auto.is_defined(count):
+            if count is not None:
                 if count > 0 and (n + 1 == count):
                     break
         if close:
@@ -336,10 +334,10 @@ class LocalFile(LeafConnector, ActualizeMixin):
             assert not self.is_empty(), f'for get_lines() file must be non-empty: {self}'
         self.open(allow_reopen=allow_reopen)
         lines = self.get_next_lines(count=count, skip_first=skip_first, close=True)
-        if not Auto.is_defined(verbose):
+        if verbose is None:
             verbose = self.is_verbose()
-        if verbose or Auto.is_defined(message):
-            if not Auto.is_defined(message):
+        if verbose or message:
+            if message is None:
                 message = 'Reading {}'
             if PY_PLACEHOLDER in message:
                 message = message.format(self.get_name())
@@ -354,7 +352,7 @@ class LocalFile(LeafConnector, ActualizeMixin):
         return iter(lambda: self.get_fileholder().read(chunk_size), EMPTY)
 
     def write_lines(self, lines: Iterable, verbose: Optional[bool] = None) -> Native:
-        if not Auto.is_defined(verbose):
+        if verbose is None:
             verbose = self.is_verbose()
         ending = self.get_ending().encode(self.get_encoding()) if self.is_gzip() else self.get_ending()
         self.open('w', allow_reopen=True)
@@ -367,7 +365,7 @@ class LocalFile(LeafConnector, ActualizeMixin):
         self.close()
         count = n + 1
         self.set_count(count)
-        self.log('Done. {} rows has written into {}'.format(count, self.get_name()), verbose=verbose)
+        self.log(f'Done. {count} rows has written into {self.get_name()}', verbose=verbose)
         return self
 
     def write_items(
@@ -377,7 +375,7 @@ class LocalFile(LeafConnector, ActualizeMixin):
             add_title_row: Optional[bool] = None,
             verbose: Optional[bool] = None,
     ) -> Native:
-        if item_type == ItemType.Auto or item_type is None:
+        if item_type in (ItemType.Auto, None):
             item_type = self.get_default_item_type()
         content_format = self.get_content_format()
         assert isinstance(content_format, ParsedFormat)
@@ -400,14 +398,14 @@ class LocalFile(LeafConnector, ActualizeMixin):
             self,
             data: Optional[Iterable] = None,
             name: Optional[str] = None,
-            stream_type: StreamItemType = None,
+            stream_type: ItemType = ItemType.Auto,
             ex: OptionalFields = None,
             step: Count = None,
             **kwargs
     ) -> Stream:
-        if Auto.is_defined(data):
+        if data is not None:
             kwargs['data'] = data
-        if not Auto.is_defined(stream_type):
+        if stream_type in (ItemType.Auto, None):
             stream_type = self.get_stream_type()
         assert not ex, f'ex-argument for LocalFile.to_stream() not supported (got {ex})'
         return self.to_stream_type(stream_type=stream_type, step=step, **kwargs)

@@ -5,7 +5,6 @@ try:  # Assume we're a submodule in a package.
         LoggerInterface, RegularStreamInterface, StreamType, ItemType, MutableRecord, LoggingLevel,
         Message, Count, Array,
     )
-    from base.classes.auto import Auto
     from functions.primary import numeric as nm
     from functions.secondary import all_secondary_functions as fs
     from streams.stream_builder import StreamBuilder
@@ -14,7 +13,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         LoggerInterface, RegularStreamInterface, StreamType, ItemType, MutableRecord, LoggingLevel,
         Message, Count, Array,
     )
-    from ..base.classes.auto import Auto
     from ..functions.primary import numeric as nm
     from ..functions.secondary import all_secondary_functions as fs
     from ..streams.stream_builder import StreamBuilder
@@ -31,7 +29,7 @@ def get_hist_records(
         logger: Optional[LoggerInterface] = None,
         msg: Optional[Message] = None,
 ) -> Iterable:
-    if Auto.is_defined(logger):
+    if logger is not None:
         logger.log(msg=msg if msg else 'calc hist in memory...', level=LoggingLevel.Info)
     dict_hist = {f: dict() for f in fields}
     for i in stream.get_items():
@@ -57,9 +55,9 @@ def hist(
     output_columns = 'field', 'value', 'count', 'share', 'total_count'
     stream = _build_stream(data)
     total_count = stream.get_count()
-    if not Auto.is_defined(in_memory):
+    if in_memory is None:
         in_memory = stream.is_in_memory()
-    if not Auto.is_defined(logger):
+    if logger is None:
         logger = stream.get_logger(delayed=True)
     if in_memory or len(fields) > 1:
         stream = stream.stream(

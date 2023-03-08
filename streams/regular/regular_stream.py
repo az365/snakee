@@ -9,7 +9,6 @@ try:  # Assume we're a submodule in a package.
         Count, Item, Struct, Columns, Field, FieldNo, OptionalFields, UniKey, Class,
         Name, Array, ARRAY_TYPES,
     )
-    from base.classes.auto import Auto
     from base.functions.arguments import get_name, get_names, get_str_from_args_kwargs
     from base.constants.chars import EMPTY, SHARP
     from utils.decorators import deprecated_with_alternative
@@ -31,7 +30,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         Count, Item, Struct, Columns, Field, FieldNo, OptionalFields, UniKey, Class,
         Name, Array, ARRAY_TYPES,
     )
-    from ...base.classes.auto import Auto
     from ...base.functions.arguments import get_name, get_names, get_str_from_args_kwargs
     from ...base.constants.chars import EMPTY, SHARP
     from ...utils.decorators import deprecated_with_alternative
@@ -214,14 +212,14 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
 
     def is_valid_item_type(self, item: Item) -> bool:
         item_type = self.get_item_type()
-        if Auto.is_defined(item_type):
+        if item_type not in (ItemType.Auto, None):
             return item_type.isinstance(item, default=True)
         else:
             return True
 
     def _is_valid_item(self, item: Item, struct: Struct = None) -> bool:
         if self.is_valid_item_type(item):
-            if not Auto.is_defined(struct):
+            if struct is None:
                 struct = self.get_struct()
             if isinstance(struct, StructInterface) or hasattr(struct, 'get_validation_errors'):
                 errors = struct.get_validation_errors(item)
@@ -231,11 +229,11 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
         else:
             return False
 
-    def _get_validation_errors(self, item: Union[Item, None] = None, struct: Struct = None) -> list:
-        if not Auto.is_defined(item):
+    def _get_validation_errors(self, item: Optional[Item] = None, struct: Struct = None) -> list:
+        if item is None:
             item = self.get_one_item()
         if self.is_valid_item_type(item):
-            if not Auto.is_defined(struct):
+            if struct is None:
                 struct = self.get_struct()
             if isinstance(struct, StructInterface) or hasattr(struct, 'get_validation_errors'):
                 return struct.get_validation_errors(item)
@@ -288,7 +286,7 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
 
     def _get_target_item_type(self, *columns, **expressions) -> ItemType:
         input_item_type = self.get_item_type()
-        if input_item_type in (ItemType.Any, ItemType.Auto):
+        if input_item_type in (ItemType.Any, ItemType.Auto, None):
             if columns and not expressions:
                 target_item_type = ItemType.Row
             elif expressions and not columns:
@@ -307,7 +305,7 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
             inplace: bool = False,
     ) -> Iterator[Item]:
         field_name = get_name(field)
-        if not Auto.is_defined(item_type):
+        if item_type in (ItemType.Auto, None):
             item_type = self.get_item_type()
         for n, i in super()._get_enumerated_items(item_type=item_type):
             yield set_to_item(field_name, n + first, i, item_type=item_type, inplace=inplace)
@@ -332,7 +330,7 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
     def skip(self, count: int = 1, inplace: bool = False) -> Native:
         stream = super().skip(count, inplace=inplace)
         struct = self.get_struct()
-        if Auto.is_defined(struct) and (isinstance(stream, RegularStreamInterface) or hasattr(stream, 'set_struct')):
+        if struct is not None and (isinstance(stream, RegularStreamInterface) or hasattr(stream, 'set_struct')):
             stream.set_struct(struct, check=False, inplace=True)
         return stream
 
@@ -341,12 +339,12 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
         filter_function = get_filter_function(*fields, **expressions, item_type=item_type, skip_errors=skip_errors)
         stream = super().filter(filter_function, inplace=inplace)
         struct = self.get_struct()
-        if Auto.is_defined(struct) and (isinstance(stream, RegularStreamInterface) or hasattr(stream, 'set_struct')):
+        if struct is not None and (isinstance(stream, RegularStreamInterface) or hasattr(stream, 'set_struct')):
             stream.set_struct(struct, check=False, inplace=True)
         return self._assume_native(stream)
 
     def select(self, *columns, use_extended_method: Optional[bool] = None, **expressions) -> Native:
-        if not Auto.is_defined(use_extended_method):
+        if use_extended_method is None:
             use_extended_method = self.get_item_type() in (ItemType.Row, ItemType.StructRow)
         input_item_type = self.get_item_type()
         target_item_type = self._get_target_item_type(*columns, **expressions)
@@ -365,7 +363,7 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
         return self.stream(items, stream_type=to, save_count=False)
 
     def _get_stream_class_by_type(self, item_type: ItemType) -> Class:
-        if Auto.is_defined(item_type):
+        if item_type not in (ItemType.Auto, None):
             stream_type = ItemType.Auto
             if isinstance(item_type, str):
                 try:
@@ -373,7 +371,7 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
                     item_type = stream_type.get_item_type()
                 except ValueError:  # stream_type is not a valid StreamType
                     item_type = ItemType(stream_type)
-            if not Auto.is_defined(stream_type):
+            if stream_type in (ItemType.Auto, None):
                 item_type_name = item_type.get_name()
                 stream_type_name = f'{item_type_name}Stream'
                 stream_type = StreamType(stream_type_name)
@@ -414,7 +412,8 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
     def _get_key_function(self, functions: Array, take_hash: bool = False) -> Callable:
         if not isinstance(functions, ARRAY_TYPES):
             functions = [functions]
-        return self.get_item_type().get_key_function(*functions, struct=self.get_struct(), take_hash=take_hash)
+        item_type = self.get_item_type()
+        return item_type.get_key_function(*functions, struct=self.get_struct(), take_hash=take_hash)
 
     def get_one_column_values(self, column: Field, as_list: bool = False) -> Iterable:
         column_getter = self.get_item_type().get_key_function(column, struct=self.get_struct(), take_hash=False)
@@ -425,7 +424,7 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
             return values
 
     def sort(self, *keys, reverse: bool = False, step: Count = None, verbose: bool = True) -> Native:
-        if not Auto.is_defined(step):
+        if step is None:
             step = self.get_limit_items_in_memory()
         if keys:
             key_function = self._get_key_function(keys, take_hash=False)
@@ -452,7 +451,7 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
             verbose: Optional[bool] = None,
     ) -> Native:
         item_type = self.get_item_type()
-        if not Auto.is_defined(merge_function):
+        if merge_function is None:
             merge_function = fs.merge_two_items(item_type=item_type)
         stream = super(RegularStream, self).join(
             right, key=key, how=how,
@@ -469,7 +468,7 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
         output_struct = FlatStruct([])
         if values is None:
             values = list()
-        elif Auto.is_defined(input_struct) or not Auto.is_defined(values):
+        elif values is None and input_struct is not None:
             values = list()
             for f in input_struct.get_field_names():
                 if f not in get_names(keys):
@@ -478,7 +477,7 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
             if isinstance(f, ARRAY_TYPES):
                 field_name = get_name(f[0], or_callable=False)
             elif isinstance(f, FieldNo):
-                if Auto.is_defined(input_struct):
+                if input_struct is not None:
                     field_name = input_struct.get_field_description(f)
                 else:
                     field_name = f'column{f:02}'
@@ -525,7 +524,7 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
         count = self.get_count() or self.get_estimated_count()
         if count == 0 and not skip_missing:
             raise AssertionError('Got empty stream.')
-        if Auto.is_defined(output_struct):
+        if output_struct is not None:
             expected_struct = output_struct
         elif as_pairs:
             expected_struct = FlatStruct(['key', 'value']).set_types(key=ValueType.Any, value=ValueType.Any)
@@ -556,7 +555,7 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
                 item_type=item_type,
             )
             stream_groups = stream_groups.map_to_type(fold_mapper, stream_type=item_type)
-            if Auto.is_defined(expected_struct):
+            if expected_struct is not None:
                 stream_groups.set_struct(expected_struct, check=False, inplace=True)
         if self.is_in_memory():
             return stream_groups.to_memory()
@@ -676,10 +675,10 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
             ex: OptionalFields = None,
             **kwargs
     ) -> Stream:
-        if not Auto.is_defined(stream_type):
+        if stream_type in (ItemType.Auto, None):
             stream_type = self.get_stream_type()
         stream_class = self._get_stream_class_by_type(stream_type)
-        if not Auto.is_defined(data):
+        if data is None:
             if hasattr(self, 'get_items_of_type'):
                 item_type = stream_class.get_item_type()
                 data = self.get_items_of_type(item_type)

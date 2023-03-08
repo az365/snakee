@@ -3,7 +3,6 @@ from inspect import getframeinfo, stack
 import logging
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.auto import Auto
     from base.classes.typing import Count, Name
     from base.constants.chars import (
         EMPTY, CROP_SUFFIX, ELLIPSIS, SPACE, RETURN_CHAR, PARAGRAPH_CHAR, SLASH, BACKSLASH,
@@ -20,7 +19,6 @@ try:  # Assume we're a submodule in a package.
     from loggers.progress_interface import ProgressInterface
     from loggers.progress import Progress
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..base.classes.auto import Auto
     from ..base.classes.typing import Count, Name
     from ..base.constants.chars import (
         EMPTY, CROP_SUFFIX, ELLIPSIS, SPACE, RETURN_CHAR, PARAGRAPH_CHAR, SLASH, BACKSLASH,
@@ -61,17 +59,17 @@ class BaseLoggerWrapper(TreeItem, LoggerInterface):
             context: Context = None,
             file: Union[File, Name, None] = None,
     ):
-        if not Auto.is_defined(name):
+        if name is None:
             name = DEFAULT_LOGGER_NAME
-        if not Auto.is_defined(level):
+        if level is None:
             level = DEFAULT_LOGGING_LEVEL
-        if not Auto.is_defined(formatter):
+        if formatter is None:
             formatter = DEFAULT_FORMATTER
         if not isinstance(level, LoggingLevel):
             level = LoggingLevel(level)
         if isinstance(loggers, list):
             loggers = {i: i.get_name() for i in loggers}
-        elif not Auto.is_defined(loggers):
+        elif loggers is None:
             loggers = dict()
         if name not in loggers:
             level_value = get_value(level)
@@ -172,7 +170,7 @@ class ExtendedLogger(BaseLoggerWrapper, ExtendedLoggerInterface):
             context: Context = None,
             file: Union[File, Name, None] = None,
     ):
-        if not Auto.is_defined(max_line_len):
+        if max_line_len is None:
             max_line_len = DEFAULT_LINE_LEN
         self.max_line_len = max_line_len
         progress_trackers = dict()
@@ -199,7 +197,7 @@ class ExtendedLogger(BaseLoggerWrapper, ExtendedLoggerInterface):
             context.set_logger(self)
 
     def get_new_progress(self, name: Name, count: Count = None, context: Context = None) -> ProgressInterface:
-        if not Auto.is_defined(context):
+        if context is None:
             context = self.get_context()
         progress = Progress(name=name, count=count, logger=self, context=context)
         self.add_child(progress, check=False)
@@ -216,7 +214,7 @@ class ExtendedLogger(BaseLoggerWrapper, ExtendedLoggerInterface):
         return self.get_new_progress(name, count=count, context=context).iterate(items, step=step)
 
     def get_selection_logger(self, name: Optional[Name] = None, **kwargs) -> Optional[SelectionLoggerInterface]:
-        if not Auto.is_defined(name):
+        if name is None:
             name = SELECTION_LOGGER_NAME
         selection_logger = self.get_child(name)
         if selection_logger:
@@ -235,7 +233,7 @@ class ExtendedLogger(BaseLoggerWrapper, ExtendedLoggerInterface):
                 raise ValueError(f'{self}: {e}')
 
     def reset_selection_logger(self, name: Optional[Name] = Name, **kwargs) -> Optional[SelectionLoggerInterface]:
-        if not Auto.is_defined(name):
+        if name is None:
             name = SELECTION_LOGGER_NAME
         context = self.get_context()
         if context:
@@ -260,9 +258,9 @@ class ExtendedLogger(BaseLoggerWrapper, ExtendedLoggerInterface):
             category: Optional[Type] = None,
             stacklevel: Optional[int] = None,
     ) -> None:
-        if not Auto.is_defined(level):
+        if level is None:
             level = LoggingLevel.Info if verbose else LoggingLevel.Debug
-        if not Auto.is_defined(logger):
+        if logger is None:
             logger = self.get_base_logger()
         if not isinstance(msg, (str, Iterable)):
             msg = str(msg)
@@ -275,7 +273,7 @@ class ExtendedLogger(BaseLoggerWrapper, ExtendedLoggerInterface):
         if category:
             category_name = get_name(category)
             msg = [category_name] + msg
-        if Auto.is_defined(stacklevel):
+        if stacklevel is not None:
             caller = getframeinfo(stack()[stacklevel + 1][0])
             file_name_without_path = caller.filename.split(BACKSLASH)[-1].split(SLASH)[-1]
             msg = [f'{file_name_without_path}:{caller.lineno}:'] + msg
@@ -297,7 +295,7 @@ class ExtendedLogger(BaseLoggerWrapper, ExtendedLoggerInterface):
             truncate: bool = True,
     ) -> str:
         messages = update(messages)
-        if not Auto.is_defined(max_len):
+        if max_len is None:
             max_len = self.max_line_len
         message = SPACE.join([str(m) for m in messages])
         if truncate:
@@ -317,7 +315,7 @@ class ExtendedLogger(BaseLoggerWrapper, ExtendedLoggerInterface):
     ) -> None:
         max_len = LONG_LINE_LEN if end == PARAGRAPH_CHAR else self.max_line_len
         message = self.format_message(*messages, max_len=max_len, truncate=truncate)
-        if not Auto.is_defined(end):
+        if end is None:
             end = RETURN_CHAR if message.endswith(REWRITE_SUFFIX) else PARAGRAPH_CHAR
         if clear_before:
             remainder = self.max_line_len - len(message)

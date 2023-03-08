@@ -2,7 +2,6 @@ from abc import ABC
 from typing import Optional, Iterable, Generator, Union, Any, NoReturn
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.auto import Auto
     from base.classes.typing import Count
     from base.constants.chars import EMPTY, REPR_DELIMITER, SMALL_INDENT, PARAGRAPH_CHAR, DEFAULT_LINE_LEN
     from base.functions.arguments import get_str_from_annotation, get_str_from_args_kwargs
@@ -11,7 +10,6 @@ try:  # Assume we're a submodule in a package.
     from base.mixin.data_mixin import DataMixin, UNK_COUNT_STUB, DEFAULT_CHAPTER_TITLE_LEVEL
     from base.abstract.named import AbstractNamed, DisplayInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..classes.auto import Auto
     from ..classes.typing import Count
     from ..constants.chars import EMPTY, REPR_DELIMITER, SMALL_INDENT, PARAGRAPH_CHAR, DEFAULT_LINE_LEN
     from ..functions.arguments import get_str_from_annotation, get_str_from_args_kwargs
@@ -104,14 +102,14 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
             count = self.get_count()
         else:
             count = None
-        if Auto.is_defined(count):
+        if count is not None:
             return str(count)
         else:
             return default
 
     def get_count_repr(self, default: str = UNK_COUNT_STUB) -> str:
         count = self.get_str_count(default=default)
-        if not Auto.is_defined(count):
+        if count is None:
             count = default
         return f'{count} items'
 
@@ -195,7 +193,7 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
             yield self.get_data_caption()
         if self.has_data():
             shape_repr = self.get_shape_repr()
-            if Auto.is_defined(count) and shape_repr:
+            if shape_repr and count is not None:
                 yield f'First {count} data items from {shape_repr}:'
             yield self.get_data_sheet(count=count, name=f'{title} sheet')
         else:

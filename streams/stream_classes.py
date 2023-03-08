@@ -1,4 +1,4 @@
-from typing import Optional, Union
+from typing import Optional
 from datetime import datetime
 from random import randint
 
@@ -7,7 +7,6 @@ TMP_FILES_ENCODING = 'utf8'
 
 try:  # Assume we're a submodule in a package.
     from utils.decorators import deprecated_with_alternative
-    from base.classes.auto import Auto
     from interfaces import (
         StreamInterface, IterableStreamInterface, LocalStreamInterface, RegularStreamInterface, PairStreamInterface,
         StreamBuilderInterface, ContextInterface, ConnectorInterface,
@@ -34,7 +33,6 @@ try:  # Assume we're a submodule in a package.
     from content.struct import struct_row as sr
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils.decorators import deprecated_with_alternative
-    from ..base.classes.auto import Auto
     from ..interfaces import (
         StreamInterface, IterableStreamInterface, LocalStreamInterface, RegularStreamInterface, PairStreamInterface,
         StreamBuilderInterface, ContextInterface, ConnectorInterface,
@@ -122,7 +120,7 @@ def set_context(cx: ContextInterface) -> None:
 def stream(stream_type: Optional[StreamType], *args, **kwargs) -> StreamInterface:
     if is_stream_class(stream_type):
         stream_class = stream_type
-    elif Auto.is_defined(stream_type):
+    elif stream_type not in (ItemType.Auto, None):
         stream_class = StreamType(stream_type).get_class()
     else:
         stream_class = DEFAULT_STREAM_CLASS
@@ -165,7 +163,7 @@ def get_tmp_mask(name: str) -> TemporaryFilesMaskInterface:
         location = context.get_tmp_folder()
     else:
         location = TemporaryLocation()
-    assert isinstance(location, TemporaryLocation), 'got {}'.format(type(location))
+    assert isinstance(location, TemporaryLocation), f'Expected TemporaryLocation, got {location}'
     tmp_mask = location.mask(name)
     assert isinstance(tmp_mask, TemporaryFilesMaskInterface)
     return tmp_mask
@@ -174,7 +172,7 @@ def get_tmp_mask(name: str) -> TemporaryFilesMaskInterface:
 @deprecated_with_alternative('StreamBuilder.concat()')
 def concat(*iter_streams, context=None) -> StreamInterface:
     global _context
-    if not Auto.is_defined(context):
+    if context is None:
         context = _context
     return StreamBuilder.concat(*iter_streams, context=context)
 
@@ -182,6 +180,6 @@ def concat(*iter_streams, context=None) -> StreamInterface:
 @deprecated_with_alternative('StreamBuilder.join()')
 def join(*iter_streams, key, how: How = JoinType.Left, step=None, name=None, context=None) -> StreamInterface:
     global _context
-    if not Auto.is_defined(context):
+    if context is None:
         context = _context
     return StreamBuilder.join(*iter_streams, key=key, how=how, step=step, name=name, context=context)

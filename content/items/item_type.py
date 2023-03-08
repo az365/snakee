@@ -2,7 +2,7 @@ from typing import Optional, Callable, Union, Any
 
 try:  # Assume we're a submodule in a package.
     from base.classes.enum import SubclassesType
-    from base.classes.auto import AUTO, Auto
+    from base.classes.auto import AUTO
     from base.constants.chars import STAR, EMPTY, MINUS
     from base.functions.arguments import get_names
     from utils.decorators import deprecated_with_alternative
@@ -16,7 +16,7 @@ try:  # Assume we're a submodule in a package.
     )
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.classes.enum import SubclassesType
-    from ...base.classes.auto import AUTO, Auto
+    from ...base.classes.auto import AUTO
     from ...base.constants.chars import STAR, EMPTY, MINUS
     from ...base.functions.arguments import get_names
     from ...utils.decorators import deprecated_with_alternative
@@ -63,7 +63,7 @@ class ItemType(SubclassesType):
             default: Value = None,
             skip_unsupported_types: bool = False,
     ) -> Value:
-        if Auto.is_defined(struct):
+        if struct is not None:
             if self in (ItemType.Row, ItemType.StructRow):
                 if isinstance(field, str):
                     field = struct.get_field_position(field)
@@ -89,7 +89,7 @@ class ItemType(SubclassesType):
         Used in ItemType.get_single_mapper(), ColumnarMixin._get_field_getter().
         ColumnarMixin._get_field_getter() used in ColumnarMixin.get_dict(), RowStream.sorted_group_by()
         """
-        if Auto.is_defined(struct):
+        if struct is not None:
             if self in (ItemType.Row, ItemType.StructRow):
                 if isinstance(field, str):
                     field = struct.get_field_position(field)

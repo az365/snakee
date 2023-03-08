@@ -3,12 +3,10 @@ from typing import Optional, Callable, Iterable, Generator, Union, Any
 from inspect import getfullargspec
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.auto import Auto
     from base.functions.arguments import get_name, get_list, get_str_from_args_kwargs, get_cropped_text
     from base.constants.chars import EMPTY, PLUS, MINUS, CROSS, COVERT, PROTECTED, DEFAULT_STR
     from base.interfaces.base_interface import BaseInterface, CROP_SUFFIX, DEFAULT_LINE_LEN
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..classes.auto import Auto
     from ..functions.arguments import get_name, get_list, get_str_from_args_kwargs, get_cropped_text
     from ..constants.chars import EMPTY, PLUS, MINUS, CROSS, COVERT, PROTECTED, DEFAULT_STR
     from ..interfaces.base_interface import BaseInterface, CROP_SUFFIX, DEFAULT_LINE_LEN
@@ -108,7 +106,7 @@ class AbstractBaseObject(BaseInterface, ABC):
             else:
                 props[k] = v
         if check:
-            assert not ex_list, 'get_props() got unexpected fields: {}'.format(ex_list)
+            assert not ex_list, f'get_props() got unexpected fields: {ex_list}'
         return props
 
     def get_meta(self, ex: OptionalFields = None) -> dict:
@@ -146,7 +144,7 @@ class AbstractBaseObject(BaseInterface, ABC):
             class_name = self.__class__.__name__
             assert not unsupported, f'class {class_name} does not support these properties: {unsupported}'
         for key, value in new_meta.items():
-            if not Auto.is_defined(value):
+            if value is None:
                 new_meta[key] = old_meta.get(key)
         return self.__class__(*self._get_data_member_items(), **new_meta)
 
@@ -159,13 +157,13 @@ class AbstractBaseObject(BaseInterface, ABC):
         return compatible_meta
 
     def get_meta_items(self, meta: Optional[dict] = None, ex: OptionalFields = None) -> Generator:
-        if not Auto.is_defined(meta):
+        if meta is None:
             meta = self.get_meta()
         for k in self.get_ordered_meta_names(meta, ex=ex):
             yield k, meta[k]
 
     def get_ordered_meta_names(self, meta: Optional[dict] = None, ex: OptionalFields = None) -> Generator:
-        if not Auto.is_defined(meta):
+        if meta is None:
             meta = self.get_meta()
         ex_list = get_list(ex)
         args = self._get_init_args()
@@ -235,7 +233,7 @@ class AbstractBaseObject(BaseInterface, ABC):
                 caption = value.get_caption()
             else:
                 caption = EMPTY
-            if Auto.is_defined(value):
+            if value is not None:
                 if value == default:
                     sign_defined = MINUS
                 else:
@@ -271,14 +269,14 @@ class AbstractBaseObject(BaseInterface, ABC):
     ) -> str:
         template = '{cls}({meta})'
         class_name = self.__class__.__name__
-        if not Auto.is_defined(str_meta):
+        if str_meta is None:
             str_meta = self.get_str_meta()
         one_line_repr = template.format(cls=class_name, meta=str_meta)
         full_line_len = len(one_line_repr)
         if full_line_len > max_len:
             max_meta_len = max_len - len(template.format(cls=class_name, meta=EMPTY))
             str_meta = get_cropped_text(str_meta, max_len=max_meta_len, crop_suffix=crop)
-            one_line_repr = template.format(cls=class_name, meta=str_meta + crop)
+            one_line_repr = template.format(cls=class_name, meta=str_meta)
         return one_line_repr
 
     def make_new(self, *args, ex: OptionalFields = None, safe: bool = True, **kwargs) -> Native:
@@ -299,7 +297,7 @@ class AbstractBaseObject(BaseInterface, ABC):
 
     @staticmethod
     def _get_display_method(display=None) -> Callable:
-        if Auto.is_defined(display):
+        if display is not None:
             if isinstance(display, Callable):
                 return display
             elif hasattr(display, 'display_paragraph'):  # isinstance(display, DisplayInterface):

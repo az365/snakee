@@ -4,12 +4,10 @@ from typing import Optional
 try:  # Assume we're a submodule in a package.
     from loggers.logger_interface import LoggerInterface
     from base.functions.arguments import get_name
-    from base.classes.auto import Auto
     from base.abstract.named import AbstractNamed
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...loggers.logger_interface import LoggerInterface
     from ..functions.arguments import get_name
-    from ..classes.auto import Auto
     from ..abstract.named import AbstractNamed
 
 Native = AbstractNamed
@@ -46,7 +44,7 @@ class SourcedMixin(ABC):
         source = self.get_source()
         while hasattr(source, 'get_source') and not hasattr(source, 'get_child'):
             source = source.get_source()
-        assert Auto.is_defined(source, check_name=False), 'source for register must be defined'
+        assert source is not None, 'source for register must be defined'
         assert hasattr(source, 'get_child'), f'expected source as Source, got {source}'
         name = get_name(self)
         known_child = source.get_child(name)

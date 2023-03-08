@@ -6,7 +6,6 @@ try:  # Assume we're a submodule in a package.
         ContentType, ConnType, StreamType, StreamItemType,
         Context, Count, Name,
     )
-    from base.classes.auto import Auto
     from connectors.abstract.leaf_connector import LeafConnector
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
@@ -14,7 +13,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         ContentType, ConnType, StreamType, StreamItemType,
         Context, Count, Name,
     )
-    from ...base.classes.auto import Auto
     from ..abstract.leaf_connector import LeafConnector
 
 Response = dict
@@ -91,7 +89,7 @@ class S3Object(LeafConnector):
                     prev_line = line
                 else:
                     yield line
-            if Auto.is_defined(count):
+            if count is not None:
                 if b >= count:
                     break
         if prev_line:
@@ -111,10 +109,10 @@ class S3Object(LeafConnector):
             if not self.is_existing():
                 return None
         lines = self.get_next_lines()
-        if not Auto.is_defined(verbose):
+        if verbose is None:
             verbose = self.is_verbose()
-        if verbose or Auto.is_defined(message):
-            if not Auto.is_defined(message):
+        if verbose or message is not None:
+            if message is None:
                 message = 'Reading {}'
             if '{}' in message:
                 message = message.format(self.get_name())
@@ -124,7 +122,7 @@ class S3Object(LeafConnector):
                 count = self.get_count(allow_slow_mode=False)
             lines = self.get_logger().progress(lines, name=message, count=count, step=step)
         for n, i in enumerate(lines):
-            if Auto.is_defined(count):
+            if count is not None:
                 if n >= count:
                     break
             if skip_first and n == 0:
@@ -198,7 +196,7 @@ class S3Object(LeafConnector):
         return None  # not available property
 
     def is_empty(self, verbose: Optional[bool] = None) -> Optional[bool]:
-        if not Auto.is_defined(verbose):
+        if verbose is None:
             verbose = self.is_verbose()
         if self.is_accessible():
             return not self.get_first_line(close=True, skip_missing=True, verbose=verbose)

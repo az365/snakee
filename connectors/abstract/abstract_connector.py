@@ -6,7 +6,6 @@ try:  # Assume we're a submodule in a package.
         Context, Connector, ConnectorInterface, ConnType,
         LoggerInterface, ExtendedLoggerInterface, LoggingLevel, Message,
     )
-    from base.classes.auto import Auto
     from base.abstract.tree_item import TreeItem
     from loggers.logging_context_stub import LoggingContextStub
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -14,7 +13,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         Context, Connector, ConnectorInterface, ConnType,
         LoggerInterface, ExtendedLoggerInterface, LoggingLevel, Message,
     )
-    from ...base.classes.auto import Auto
     from ...base.abstract.tree_item import TreeItem
     from ...loggers.logging_context_stub import LoggingContextStub
 
@@ -61,8 +59,8 @@ class AbstractConnector(TreeItem, ConnectorInterface, ABC):
         return self._verbose
 
     def set_verbose(self, verbose: Optional[bool] = None, parent: Connector = None) -> Native:
-        if not Auto.is_defined(verbose):
-            if not Auto.is_defined(parent):
+        if verbose is None:
+            if parent is None:
                 parent = self.get_parent()
             if hasattr(parent, 'is_verbose'):
                 verbose = parent.is_verbose()
@@ -76,9 +74,9 @@ class AbstractConnector(TreeItem, ConnectorInterface, ABC):
     def set_context(self, context: Context, reset: bool = False, inplace: bool = True) -> Optional[Native]:
         if context:
             parent = self.get_parent()
-            if Auto.is_defined(parent):
+            if parent is not None:
                 parent.set_context(context, reset=False, inplace=True)
-            elif Auto.is_defined(context):
+            elif context is not None:
                 self.set_parent(context, reset=False, inplace=True)
         if not inplace:
             return self
@@ -125,7 +123,7 @@ class AbstractConnector(TreeItem, ConnectorInterface, ABC):
 
     def get_new_progress(self, name: str, count: Optional[int] = None, context: Context = None):
         logger = self.get_logger()
-        if Auto.is_defined(context) and not Auto.is_defined(logger):
+        if logger is None and context is not None:
             logger = context.get_logger()
         if isinstance(logger, ExtendedLoggerInterface) or hasattr(logger, 'get_new_progress'):
             return logger.get_new_progress(name, count=count, context=context)

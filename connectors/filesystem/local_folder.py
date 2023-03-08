@@ -6,7 +6,6 @@ try:  # Assume we're a submodule in a package.
         ContextInterface, ConnectorInterface, Connector, Context, ContentFormatInterface,
         ConnType, ContentType, Class, LoggingLevel,
     )
-    from base.classes.auto import Auto
     from base.constants.chars import EMPTY, OS_EXT_DELIMITER, OS_PARENT_PATH, BACKSLASH, OS_PLACEHOLDER
     from functions.primary.text import is_absolute_path
     from connectors.abstract.hierarchic_connector import HierarchicConnector
@@ -17,7 +16,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         ContextInterface, ConnectorInterface, Connector, Context, ContentFormatInterface,
         ConnType, ContentType, Class, LoggingLevel,
     )
-    from ...base.classes.auto import Auto
     from ...base.constants.chars import EMPTY, OS_EXT_DELIMITER, OS_PARENT_PATH, BACKSLASH, OS_PLACEHOLDER
     from ...functions.primary.text import is_absolute_path
     from ..abstract.hierarchic_connector import HierarchicConnector
@@ -41,13 +39,13 @@ class LocalFolder(HierarchicFolder):
             context: Context = None,
             verbose: Optional[bool] = None,
     ):
-        if not Auto.is_defined(parent):
-            if Auto.is_defined(context):
+        if parent is None:
+            if context is not None:
                 parent = context.get_local_storage()
             else:
                 parent = self.get_default_storage()
         parent = self._assume_native(parent)
-        if not Auto.is_defined(path_is_relative):
+        if path_is_relative is None:
             path_is_relative = not is_absolute_path(path)
         self._path_is_relative = path_is_relative
         super().__init__(name=path, parent=parent, verbose=verbose)
@@ -92,7 +90,7 @@ class LocalFolder(HierarchicFolder):
         return self.get_child_class_by_type(supposed_type)
 
     def get_child_class_by_name_and_type(self, name: str, filetype: Union[ConnType, ContentType, None] = None) -> Class:
-        if Auto.is_defined(filetype):
+        if filetype is not None:
             return ConnType(filetype).get_class()
         else:
             supposed_type = self.get_type_by_name(name)
@@ -124,7 +122,7 @@ class LocalFolder(HierarchicFolder):
         return file
 
     def folder(self, name: str, folder_type: Optional[ConnType] = None, **kwargs) -> ConnectorInterface:
-        if not Auto.is_defined(folder_type):
+        if folder_type is None:
             folder_type = self.get_type_by_name(name)  # LocalFolder or LocalMask
             if folder_type == ConnType.LocalFile:
                 folder_type = ConnType.LocalFolder

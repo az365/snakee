@@ -11,7 +11,6 @@ try:  # Assume we're a submodule in a package.
         get_names, get_name, get_generated_name,
         get_str_from_args_kwargs, get_cropped_text,
     )
-    from base.classes.auto import Auto
     from base.constants.chars import EMPTY, ALL, CROP_SUFFIX, ITEMS_DELIMITER, SQL_INDENT
     from utils.decorators import deprecated
     from functions.primary.text import remove_extra_spaces
@@ -36,7 +35,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         get_names, get_name, get_generated_name,
         get_str_from_args_kwargs, get_cropped_text,
     )
-    from ...base.classes.auto import Auto
     from ...base.constants.chars import EMPTY, ALL, CROP_SUFFIX, ITEMS_DELIMITER, SQL_INDENT
     from ...utils.decorators import deprecated
     from ...functions.primary.text import remove_extra_spaces
@@ -92,9 +90,9 @@ class SqlStream(WrapperStream):
             source: TableOrQuery = None,
             context: Context = None,
     ):
-        if not Auto.is_defined(data):
+        if data is None:
             data = dict()
-        if not Auto.is_defined(name):
+        if name is None:
             name = self._get_generated_name()
         self._count = None
         super().__init__(
@@ -242,10 +240,10 @@ class SqlStream(WrapperStream):
         from_section = list(self.get_expressions_for(SqlSection.From))
         if len(from_section) == 1:
             from_obj = from_section[0]
-            if not Auto.is_defined(subquery_name):
+            if subquery_name is None:
                 if isinstance(from_obj, SqlStream) or hasattr(from_obj, 'get_query_name'):
                     subquery_name = from_obj.get_query_name()
-            if not (subquery_name or Auto.is_defined(subquery_name)):
+            if not subquery_name:
                 subquery_name = self._get_generated_name()
             if isinstance(from_obj, FieldName):
                 yield from_obj
@@ -272,14 +270,15 @@ class SqlStream(WrapperStream):
             table_or_query, key, how = join_section[0]
             field_name = get_name(key)
             subquery_name = self._get_generated_name()
-            if not Auto.is_defined(left_subquery_name):
+            if left_subquery_name is None:
                 left_subquery_name = self.get_source().get_query_name()
-            if not Auto.is_defined(right_subquery_name):
+            if right_subquery_name is None:
                 if isinstance(table_or_query, SqlStream) or hasattr(table_or_query, 'get_query_name'):
                     right_subquery_name = table_or_query.get_query_name()
-            if not Auto.is_defined(right_subquery_name):
+            if right_subquery_name is None:
                 right_subquery_name = f'{subquery_name}_right'
-            section_title = '{} JOIN'.format(get_name(how).upper())
+            join_type_name = get_name(how).upper()
+            section_title = f'{join_type_name} JOIN'
             if isinstance(table_or_query, FieldName):
                 yield section_title
                 yield indent + table_or_query
@@ -560,7 +559,7 @@ class SqlStream(WrapperStream):
             ex: OptionalFields = None,
             **kwargs
     ) -> Union[RegularStream, Native]:
-        if not Auto.is_defined(stream_type):
+        if stream_type in (ItemType.Auto, None):
             stream_type = self.get_stream_type()
         if data:
             stream_class = StreamBuilder.get_default_stream_class()

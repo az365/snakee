@@ -6,7 +6,6 @@ try:  # Assume we're a submodule in a package.
         ConnectorInterface, LeafConnectorInterface, StructInterface, ContentFormatInterface, RegularStreamInterface,
         ItemType, StreamType, ContentType, Context, Stream, Name, Count, Columns, Array,
     )
-    from base.classes.auto import Auto
     from base.functions.arguments import get_name, get_str_from_args_kwargs, get_cropped_text
     from base.constants.chars import EMPTY, CROP_SUFFIX, ITEMS_DELIMITER, DEFAULT_LINE_LEN
     from content.format.format_classes import ParsedFormat
@@ -19,7 +18,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         ConnectorInterface, LeafConnectorInterface, StructInterface, ContentFormatInterface, RegularStreamInterface,
         ItemType, StreamType, ContentType, Context, Stream, Name, Count, Columns, Array,
     )
-    from ...base.classes.auto import Auto
     from ...base.functions.arguments import get_name, get_str_from_args_kwargs, get_cropped_text
     from ...base.constants.chars import EMPTY, CROP_SUFFIX, ITEMS_DELIMITER, DEFAULT_LINE_LEN
     from ...content.format.format_classes import ParsedFormat
@@ -62,7 +60,7 @@ class LeafConnector(
         self._count = expected_count
         self._caption = caption
         super().__init__(name=name, parent=parent, context=context, children=streams, verbose=verbose)
-        if not Auto.is_defined(content_format):
+        if content_format is None:
             content_format = self._get_detected_format_by_name(name, **kwargs)
         suit_classes = ContentType, ContentFormatInterface, str
         is_deprecated_class = hasattr(content_format, 'get_value') and not isinstance(content_format, suit_classes)
@@ -87,8 +85,7 @@ class LeafConnector(
         if detect_struct and struct is None:
             struct = self._get_detected_struct(use_declared_types=False, skip_missing=True)
         if struct is not None:
-            if Auto.is_defined(struct, check_name=False):
-                self.set_struct(struct, inplace=True)
+            self.set_struct(struct, inplace=True)
 
     @classmethod
     def _get_meta_member_mapping(cls) -> dict:
@@ -132,7 +129,7 @@ class LeafConnector(
 
     def get_content_format(self, verbose: Optional[bool] = None) -> ContentFormatInterface:
         detected_format = self.get_detected_format(detect=False, verbose=verbose)
-        if Auto.is_defined(detected_format):
+        if detected_format is not None:
             return detected_format
         else:
             return self.get_declared_format()
@@ -147,7 +144,7 @@ class LeafConnector(
             skip_missing: bool = True,
             verbose: Optional[bool] = None,
     ) -> ContentFormatInterface:
-        if force or (detect and not Auto.is_defined(self._detected_format)):
+        if force or (detect and self._detected_format is None):
             self.reset_detected_format(use_declared_types=True, skip_missing=skip_missing, verbose=verbose)
         return self._detected_format
 
@@ -297,16 +294,17 @@ class LeafConnector(
             columns: Columns = None,
             example: Optional[Stream] = None,
     ) -> Optional[Stream]:
-        if Auto.is_defined(example):
+        if example is not None:
             stream = example
         elif self.is_existing() and self.is_accessible():
             stream = self
-        if Auto.is_defined(filters):
+        if filters is not None:
             stream = stream.filter(*filters)
-        if Auto.is_defined(count):
+        if count is not None:
             stream = stream.take(count)
-        if Auto.is_defined(columns) and hasattr(stream, 'select'):
-            stream = stream.select(columns)
+        if columns is not None:
+            if hasattr(stream, 'select'):
+                stream = stream.select(columns)
         stream = stream.collect()
         self.close()
         return stream
@@ -321,15 +319,15 @@ class LeafConnector(
             message: Optional[str] = None,
             step: Count = None,
     ) -> Iterable:
-        if item_type == ItemType.Auto or item_type is None:
+        if item_type in (ItemType.Auto, None):
             item_type = self.get_default_item_type()
-        if not Auto.is_defined(verbose):
+        if verbose is None:
             verbose = self.is_verbose()
         content_format = self.get_content_format()
         assert isinstance(content_format, ParsedFormat) or hasattr(content_format, 'get_items_from_lines')
         count = self.get_count(allow_slow_mode=False)
         if isinstance(verbose, str):
-            if Auto.is_defined(message):
+            if message is not None:
                 self.log(verbose, verbose=bool(verbose))
             else:
                 message = verbose
@@ -348,7 +346,7 @@ class LeafConnector(
             return self.set_items(items, count=self.get_count(), inplace=inplace)
 
     def filter(self, *args, item_type: ItemType = ItemType.Auto, skip_errors: bool = False, **kwargs) -> Stream:
-        if item_type == ItemType.Auto or item_type is None:
+        if item_type in (ItemType.Auto, None):
             item_type = self.get_item_type()
         filtered_items = self._get_filtered_items(*args, item_type=item_type, skip_errors=skip_errors, **kwargs)
         stream = self.to_stream(data=filtered_items, stream_type=item_type)
@@ -357,8 +355,9 @@ class LeafConnector(
     def skip(self, count: int = 1, inplace: bool = False) -> Stream:
         stream = super().skip(count, inplace=inplace)
         struct = self.get_struct()
-        if Auto.is_defined(struct) and (isinstance(stream, RegularStreamInterface) or hasattr(stream, 'set_struct')):
-            stream.set_struct(struct, check=False, inplace=True)
+        if struct is not None:
+            if isinstance(stream, RegularStreamInterface) or hasattr(stream, 'set_struct'):
+                stream.set_struct(struct, check=False, inplace=True)
         return self._assume_stream(stream)
 
     def get_one_item(self):

@@ -8,7 +8,6 @@ try:  # Assume we're a submodule in a package.
         StreamInterface, LoggerInterface, LeafConnectorInterface, LeafConnector, Connector, Context, ExtLogger,
         StreamType, LoggingLevel, Message, Name, OptionalFields, Array, Class,
     )
-    from base.classes.auto import Auto
     from base.functions.arguments import get_generated_name, get_cropped_text
     from base.constants.chars import CROP_SUFFIX, DEFAULT_LINE_LEN, EMPTY
     from base.abstract.contextual_data import ContextualDataWrapper
@@ -21,7 +20,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         StreamInterface, LoggerInterface, LeafConnectorInterface, LeafConnector, Connector, Context, ExtLogger,
         StreamType, LoggingLevel, Message, Name, OptionalFields, Array, Class,
     )
-    from ...base.classes.auto import Auto
     from ...base.functions.arguments import get_generated_name, get_cropped_text
     from ...base.constants.chars import CROP_SUFFIX, DEFAULT_LINE_LEN, EMPTY
     from ...base.abstract.contextual_data import ContextualDataWrapper
@@ -45,7 +43,7 @@ class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
             context: Context = None,
             check: bool = False,
     ):
-        if not Auto.is_defined(name):
+        if name is None:
             if source:
                 name = source.get_name()
             else:
@@ -135,7 +133,7 @@ class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
 
     @classmethod
     def get_class(cls, other: Optional[StreamInterface] = None) -> Class:
-        if not Auto.is_defined(other):
+        if other is None:
             return StreamBuilder.get_default_stream_class()
         elif isinstance(other, (StreamType, str)):
             return StreamType(other).get_class()
@@ -208,7 +206,7 @@ class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
             max_len: int = DEFAULT_LINE_LEN,
             crop: str = CROP_SUFFIX,
     ) -> str:
-        if not Auto.is_defined(str_meta):
+        if str_meta is None:
             str_meta = self.get_str_meta()
         cls_name = self.__class__.__name__
         obj_name = self.get_name()
@@ -237,17 +235,17 @@ class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
             is_in_memory = self.is_in_memory()
         else:
             is_in_memory = True  # ?
-        if Auto.is_defined(example):
+        if example is not None:
             stream = example
         elif is_in_memory:
             stream = self
         else:  # data is iterator
             stream = self.copy()
-        if Auto.is_defined(filters):
+        if filters:
             stream = stream.filter(*filters)
-        if Auto.is_defined(count):
+        if count is not None:
             stream = stream.take(count)
-        if Auto.is_defined(columns) and hasattr(stream, 'select'):
+        if columns and hasattr(stream, 'select'):
             stream = stream.select(columns)
         return stream.collect()
 

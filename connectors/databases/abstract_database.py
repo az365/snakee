@@ -7,8 +7,10 @@ try:  # Assume we're a submodule in a package.
         LeafConnectorInterface, ConnType, StreamType, DialectType, LoggingLevel,
         Context, Count, Name, FieldName, OptionalFields, Connector,
     )
-    from base.classes.auto import Auto
-    from base.constants.chars import EMPTY, PARAGRAPH_CHAR, ITEMS_DELIMITER, DOT, ALL, SEMICOLON, PY_PLACEHOLDER
+    from base.constants.chars import (
+        EMPTY, PARAGRAPH_CHAR, TAB_CHAR,
+        ITEMS_DELIMITER, DOT, ALL, SEMICOLON, PY_PLACEHOLDER,
+    )
     from loggers.fallback_logger import FallbackLogger
     from functions.primary import text as tx
     from content.struct.flat_struct import FlatStruct
@@ -20,8 +22,10 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         LeafConnectorInterface, ConnType, StreamType, DialectType, LoggingLevel,
         Context, Count, Name, FieldName, OptionalFields, Connector,
     )
-    from ...base.classes.auto import Auto
-    from ...base.constants.chars import EMPTY, PARAGRAPH_CHAR, ITEMS_DELIMITER, DOT, ALL, SEMICOLON, PY_PLACEHOLDER
+    from ...base.constants.chars import (
+        EMPTY, PARAGRAPH_CHAR, TAB_CHAR,
+        ITEMS_DELIMITER, DOT, ALL, SEMICOLON, PY_PLACEHOLDER,
+    )
     from ...loggers.fallback_logger import FallbackLogger
     from ...functions.primary import text as tx
     from ...content.struct.flat_struct import FlatStruct
@@ -38,7 +42,7 @@ TEST_QUERY = 'SELECT now()'
 DEFAULT_GROUP = 'PUBLIC'
 DEFAULT_STEP = 1000
 DEFAULT_ERRORS_THRESHOLD = 0.05
-COVERT_PROPS = ('password',)
+COVERT_PROPS = ('password', )
 
 
 class AbstractDatabase(AbstractStorage, ABC):
@@ -162,8 +166,8 @@ class AbstractDatabase(AbstractStorage, ABC):
             stop_if_no: bool = False,
             verbose: Optional[bool] = None,
     ) -> Optional[Iterable]:
-        if not Auto.is_defined(verbose):
-            verbose = message_if_yes or message_if_no
+        if verbose is not None:
+            verbose = bool(message_if_yes or message_if_no)
         table_name = self._get_table_name(table)
         table_exists = self.exists_table(table_name, verbose=verbose)
         if table_exists:
@@ -191,7 +195,7 @@ class AbstractDatabase(AbstractStorage, ABC):
             drop_if_exists: bool = False,
             verbose: Optional[bool] = None,
     ) -> Table:
-        if not Auto.is_defined(verbose):
+        if verbose is None:
             verbose = self.verbose
         table_name, struct_str = self._get_table_name_and_struct_str(table, struct, check_struct=True)
         if drop_if_exists:
@@ -369,7 +373,7 @@ class AbstractDatabase(AbstractStorage, ABC):
             step: Count = DEFAULT_STEP,
             verbose: Optional[bool] = None,
     ) -> tuple:
-        if not Auto.is_defined(skip_lines):
+        if skip_lines is None:
             skip_lines = 0
         is_struct_description = isinstance(struct, StructInterface) or hasattr(struct, 'get_struct_str')
         if not is_struct_description:
@@ -382,7 +386,7 @@ class AbstractDatabase(AbstractStorage, ABC):
         )
         if skip_lines:
             input_stream = input_stream.skip(skip_lines)
-        if not Auto.is_defined(input_stream.get_struct()):
+        if input_stream.get_struct() is None:
             input_stream = input_stream.structure(
                 struct,
                 skip_bad_rows=True,
@@ -409,7 +413,7 @@ class AbstractDatabase(AbstractStorage, ABC):
             max_error_rate: float = 0.0,
             verbose: Optional[bool] = None,
     ) -> Table:
-        if not Auto.is_defined(verbose):
+        if verbose is None:
             verbose = self.verbose
         table_name, struct = self._get_table_name_and_struct(table, struct)
         if not skip_lines:
@@ -421,7 +425,8 @@ class AbstractDatabase(AbstractStorage, ABC):
             step=step, skip_lines=skip_lines, skip_errors=skip_errors,
             verbose=verbose,
         )
-        write_count += (skip_lines if isinstance(skip_lines, int) else 0)  # can be None or Auto
+        if skip_lines is not None:
+            write_count += skip_lines
         result_count = self.select_count(table)
         if write_count:
             error_rate = (write_count - result_count) / write_count
@@ -470,9 +475,9 @@ class AbstractDatabase(AbstractStorage, ABC):
         return self
 
     def take_credentials_from_file(self, file: Union[File, Name], by_name: bool = False, delimiter=None) -> Native:
-        if not Auto.is_defined(delimiter):
+        if delimiter is None:
             if by_name:
-                delimiter = '\t'
+                delimiter = TAB_CHAR
             else:
                 delimiter = PARAGRAPH_CHAR
         if isinstance(file, str):

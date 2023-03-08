@@ -1,7 +1,6 @@
 from typing import Optional, Callable, Iterable, Generator, Iterator, Sequence, Union
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.auto import Auto
     from base.classes.typing import Count, Class
     from base.functions.arguments import get_name, get_value, get_str_from_args_kwargs
     from base.constants.chars import (
@@ -12,7 +11,6 @@ try:  # Assume we're a submodule in a package.
     from base.interfaces.display_interface import DisplayInterface, Item, Style, DEFAULT_EXAMPLE_COUNT
     from utils.decorators import deprecated_with_alternative
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..classes.auto import Auto
     from ..classes.typing import Count, Class
     from ..functions.arguments import get_name, get_value, get_str_from_args_kwargs
     from ..constants.chars import (
@@ -35,13 +33,13 @@ class DefaultDisplay(DisplayInterface):
     def get_display(self, display: Optional[DisplayInterface] = None) -> DisplayInterface:
         if isinstance(display, DisplayInterface):
             return display
-        elif not Auto.is_defined(display, check_name=False):
+        elif display is None:
             if hasattr(self, '_display'):
                 display = self._display
-            if Auto.is_defined(display):
-                return display
-            else:
+            if display is None:
                 return self
+            else:
+                return display
         else:
             raise TypeError(f'expected Display, got {display}')
 
@@ -239,7 +237,7 @@ class DefaultDisplay(DisplayInterface):
             delimiter: str = REPR_DELIMITER,
             max_len: int = DEFAULT_LINE_LEN,
     ) -> Generator:
-        if not Auto.is_defined(count):
+        if count is None:
             count = DEFAULT_EXAMPLE_COUNT
         formatter = cls._get_formatter(columns=columns, delimiter=delimiter)
         if with_title:
@@ -290,7 +288,7 @@ class DefaultDisplay(DisplayInterface):
 
     @deprecated_with_alternative('display_item()')
     def display(self, item: Item = None):
-        if not Auto.is_defined(item):
+        if item is None:
             item = self
         data = self._get_display_object(item)
         method = self._get_display_method()
