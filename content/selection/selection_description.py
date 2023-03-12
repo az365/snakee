@@ -3,8 +3,8 @@ from typing import Optional, Callable, Iterable, Union
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         StructInterface, LoggerInterface,
-        ItemType, Item, Row, Record, Field, Name, FieldName, FieldNo, Array, ARRAY_TYPES,
-        AUTO, Auto,
+        ItemType, Item, Row, Record, Field, Name, FieldName, FieldNo,
+        ARRAY_TYPES, Array,
     )
     from base.abstract.simple_data import SimpleDataWrapper
     from base.mixin.iter_data_mixin import IterDataMixin
@@ -18,8 +18,8 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         StructInterface, LoggerInterface,
-        ItemType, Item, Row, Record, Field, Name, FieldName, FieldNo, Array, ARRAY_TYPES,
-        AUTO, Auto,
+        ItemType, Item, Row, Record, Field, Name, FieldName, FieldNo,
+        ARRAY_TYPES, Array,
     )
     from ...base.abstract.simple_data import SimpleDataWrapper
     from ...base.mixin.iter_data_mixin import IterDataMixin
@@ -39,6 +39,7 @@ DESC_TYPES = FieldName, FieldNo, Description
 FIELD_TYPES = FieldName, FieldNo, AnyField
 
 META_MEMBER_MAPPING = dict(_data='descriptions')
+NULL_LOGGER = None
 
 
 def is_selection_tuple(t) -> bool:
@@ -130,25 +131,32 @@ class SelectionDescription(SimpleDataWrapper, IterDataMixin):
             input_item_type: ItemType = ItemType.Auto,
             input_struct: Struct = None,
             logger: Logger = None,
-            selection_logger: Union[Logger, Auto] = AUTO,
+            selection_logger: Logger = None,
             name: str = 'select',
             caption: str = '',
     ):
+        if not selection_logger:
+            selection_logger = getattr(logger, 'get_selection_logger', NULL_LOGGER)
         self._target_item_type = target_item_type
         self._input_item_type = input_item_type
         self._input_struct = input_struct
         self._logger = logger
-        self._selection_logger = Auto.acquire(selection_logger, getattr(logger, 'get_selection_logger', None))
-        self._has_trivial_multiple_selectors = AUTO
-        self._output_field_names = AUTO
+        self._selection_logger = selection_logger
+        self._has_trivial_multiple_selectors = None
+        self._output_field_names = None
         super().__init__(data=descriptions, name=name, caption=caption)
 
     @classmethod
     def with_expressions(
-            cls, fields: Array, expressions: dict,
-            target_item_type: ItemType = ItemType.Auto, input_item_type: ItemType = ItemType.Auto,
-            input_struct=None, skip_errors=True,
-            logger=None, selection_logger=AUTO,
+            cls,
+            fields: Array,
+            expressions: dict,
+            target_item_type: ItemType = ItemType.Auto,
+            input_item_type: ItemType = ItemType.Auto,
+            input_struct: Struct = None,
+            skip_errors: bool = True,
+            logger: Logger = None,
+            selection_logger: Logger = None,
     ):
         descriptions = compose_descriptions(
             fields, expressions,
@@ -179,11 +187,13 @@ class SelectionDescription(SimpleDataWrapper, IterDataMixin):
 
     def set_logger(
             self,
-            logger: Union[Logger, Auto] = AUTO,
-            selection_logger: Union[Logger, Auto] = AUTO,
+            logger: Logger = None,
+            selection_logger: Logger = None,
     ) -> None:
-        self._logger = Auto.acquire(logger, getattr(logger, 'get_logger', None))
-        self._selection_logger = Auto.acquire(selection_logger, getattr(logger, 'get_selection_logger', None))
+        if not selection_logger:
+            selection_logger = getattr(logger, 'get_selection_logger', NULL_LOGGER)
+        self._logger = logger
+        self._selection_logger = selection_logger
 
     def set_selection_logger(self, logger: Logger) -> None:
         self._selection_logger = logger
@@ -210,14 +220,14 @@ class SelectionDescription(SimpleDataWrapper, IterDataMixin):
         output_struct = struct_class(output_fields)
         return output_struct
 
-    def has_trivial_multiple_selectors(self) -> Union[bool, Auto]:
+    def has_trivial_multiple_selectors(self) -> Optional[bool]:
         return self._has_trivial_multiple_selectors
 
     def mark_trivial_multiple_selectors(self, value: bool = True) -> None:
         self._has_trivial_multiple_selectors = value
 
     def check_has_trivial_multiple_selectors(self) -> bool:
-        if self.has_trivial_multiple_selectors() == AUTO:
+        if self.has_trivial_multiple_selectors() is None:
             self.mark_trivial_multiple_selectors(False)
             for d in self.get_descriptions():
                 if hasattr(d, 'is_trivial_multiple'):
@@ -247,19 +257,20 @@ class SelectionDescription(SimpleDataWrapper, IterDataMixin):
             return self
 
     def get_output_field_names(self, item: Optional[Item] = None) -> list:
-        if Auto.is_defined(item, check_name=False):
-            if self.check_changing_output_fields() or self.get_known_output_field_names() == AUTO:
+        if item is not None:
+            if self.check_changing_output_fields() or self.get_known_output_field_names() is None:
                 self.reset_output_field_names(item, inplace=True)
         return self.get_known_output_field_names()
 
-    def get_dict_output_field_types(self, struct: Union[Struct, Auto] = AUTO) -> dict:
-        struct = Auto.delayed_acquire(struct, self.get_input_struct)
+    def get_dict_output_field_types(self, struct: Struct = None) -> dict:
+        if struct is None:
+            struct = self.get_input_struct()
         output_types = dict()
         for d in self.get_descriptions():
             output_types.update(d.get_dict_output_field_types(struct))
         return output_types
 
-    def get_output_field_descriptions(self, struct: Union[Struct, Auto] = AUTO) -> Iterable:
+    def get_output_field_descriptions(self, struct: Struct = None) -> Iterable:
         dict_output_field_types = self.get_dict_output_field_types(struct)
         for name in self.get_output_field_names(struct):
             value_type = dict_output_field_types.get(name)
@@ -291,9 +302,9 @@ class SelectionDescription(SimpleDataWrapper, IterDataMixin):
     def process_item(self, item: Item) -> Item:
         input_item_type = self.get_input_item_type()
         target_item_type = self.get_target_item_type()
-        if input_item_type == AUTO:
+        if input_item_type in (ItemType.Auto, None):
             input_item_type = ItemType.detect(item, default=ItemType.Any)
-        if target_item_type == AUTO:
+        if target_item_type in (ItemType.Auto, None):
             target_item_type = input_item_type
         if target_item_type == input_item_type and target_item_type != ItemType.Row:
             new_item = it.get_copy(item)
@@ -303,8 +314,8 @@ class SelectionDescription(SimpleDataWrapper, IterDataMixin):
             new_item = self.apply_outplace(item, target_item_type)
         return it.get_frozen(new_item)
 
-    def get_mapper(self, logger: Union[Logger, Auto] = AUTO) -> Callable:
-        if Auto.is_defined(logger):
+    def get_mapper(self, logger: Logger = None) -> Callable:
+        if logger:
             self.set_selection_logger(logger)
         return self.process_item
 
@@ -312,4 +323,6 @@ class SelectionDescription(SimpleDataWrapper, IterDataMixin):
         return str(self)
 
     def __str__(self):
-        return '{}({})'.format(self.__class__.__name__, self.get_descriptions())
+        class_name = self.__class__.__name__
+        descriptions = self.get_descriptions()
+        return f'{class_name}({descriptions})'

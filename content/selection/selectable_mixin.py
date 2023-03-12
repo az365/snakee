@@ -2,28 +2,18 @@ from abc import ABC, abstractmethod
 from typing import Callable, Sequence, Union
 
 try:  # Assume we're a submodule in a package.
-    from interfaces import ItemType, StructInterface, Item, Name, Field, Value, LoggerInterface, Array, Auto, AUTO
-    from base.functions.arguments import get_name
-    from base.classes.typing import FieldID
+    from interfaces import ItemType, StructInterface, Item, FieldID, Field, Value
     from base.constants.chars import ALL, NOT_SET
-    from functions.primary import items as it
     from functions.secondary import all_secondary_functions as fs
-    from content.items.simple_items import SelectableItem
-    from content.fields.field_interface import FieldInterface, ValueType
-    from content.struct.struct_interface import StructInterface
-    from content.selection.abstract_expression import AbstractDescription, MultipleFieldDescription
+    from content.fields.field_interface import FieldInterface
+    from content.selection.abstract_expression import AbstractDescription
     from content.selection.concrete_expression import AliasDescription, RegularDescription
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...interfaces import ItemType, StructInterface, Item, Name, Field, Value, LoggerInterface, Array, Auto, AUTO
-    from ...base.functions.arguments import get_name
-    from ...base.classes.typing import FieldID
+    from ...interfaces import ItemType, StructInterface, Item, FieldID, Field, Value
     from ...base.constants.chars import ALL, NOT_SET
-    from ...functions.primary import items as it
     from ...functions.secondary import all_secondary_functions as fs
-    from ..items.simple_items import SelectableItem
-    from ..fields.field_interface import FieldInterface, ValueType
-    from ..struct.struct_interface import StructInterface
-    from .abstract_expression import AbstractDescription, MultipleFieldDescription
+    from ..fields.field_interface import FieldInterface
+    from .abstract_expression import AbstractDescription
     from .concrete_expression import AliasDescription, RegularDescription
 
 TYPE_ERROR_MSG = 'Expected Field, Struct or Item, got {}'

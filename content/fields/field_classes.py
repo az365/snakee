@@ -1,10 +1,7 @@
 from typing import Optional, Union, Any
 
 try:  # Assume we're a submodule in a package.
-    from interfaces import (
-        StructInterface, FieldInterface, RepresentationInterface, SelectionLoggerInterface,
-        Auto, AUTO,
-    )
+    from interfaces import StructInterface, FieldInterface, RepresentationInterface, SelectionLoggerInterface
     from base.functions.arguments import update
     from utils.decorators import deprecated_with_alternative
     from content.value_type import ValueType
@@ -27,10 +24,7 @@ try:  # Assume we're a submodule in a package.
     from content.selection.abstract_expression import AbstractDescription
     from content.selection import concrete_expression as ce
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...interfaces import (
-        StructInterface, FieldInterface, RepresentationInterface, SelectionLoggerInterface,
-        Auto, AUTO,
-    )
+    from ...interfaces import StructInterface, FieldInterface, RepresentationInterface, SelectionLoggerInterface
     from ...base.functions.arguments import update
     from ...utils.decorators import deprecated_with_alternative
     from ..value_type import ValueType
@@ -53,7 +47,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..selection.abstract_expression import AbstractDescription
     from ..selection import concrete_expression as ce
 
-Type = Union[ValueType, FieldRoleType, type, Auto]
+Type = Union[ValueType, FieldRoleType, type, None]
 
 _logger = None
 
@@ -77,7 +71,7 @@ def set_logger(logger: SelectionLoggerInterface):
 
 def field(
         name: str,
-        field_type: Type = AUTO,
+        field_type: Type = None,
         role: FieldRoleType = FieldRoleType.Undefined,
         representation: RepresentationInterface = None,
         default: Optional[Any] = None,
@@ -90,7 +84,7 @@ def field(
     if default:
         assert 'default_value' not in kwargs
         kwargs['default_value'] = default
-    if role in (FieldRoleType.Undefined, AUTO, None):
+    if role == FieldRoleType.Undefined or role is None:
         field_class = AnyField
     else:
         field_class = role.get_class()
@@ -104,8 +98,10 @@ def field(
 
 
 def struct(
-        *fields, default_type: Type = AUTO,
-        name: Optional[str] = None, caption: Optional[str] = None,
+        *fields,
+        default_type: Type = None,
+        name: Optional[str] = None,
+        caption: Optional[str] = None,
         **kwargs
 ) -> FlatStruct:
     fields = update(fields)

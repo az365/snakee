@@ -1,7 +1,6 @@
 from typing import Optional, Callable, Iterable, Generator, Sized, Union, Any
 
 try:  # Assume we're a submodule in a package.
-    from utils import arguments as arg
     from functions.primary import numeric as nm
     from series.interfaces.any_series_interface import AnySeriesInterface
     from series.interfaces.sorted_series_interface import SortedSeriesInterface
@@ -11,7 +10,6 @@ try:  # Assume we're a submodule in a package.
     from series.abstract_series import AbstractSeries
     from series.series_type import SeriesType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
     from ...functions.primary import numeric as nm
     from ..interfaces.any_series_interface import AnySeriesInterface
     from ..interfaces.sorted_series_interface import SortedSeriesInterface
@@ -57,8 +55,8 @@ class AnySeries(AbstractSeries, AnySeriesInterface):
         return self.get_values()
 
     def set_items(self, items: Iterable, inplace: bool, validate: bool = False, count: Optional[int] = None) -> Native:
-        if arg.is_defined(count) and isinstance(items, Sized):
-            assert count == len(items), '{} != len({})'.format(count, items)
+        if isinstance(count, int) and isinstance(items, Sized):  # Auto.is_defined(count)
+            assert count == len(items), f'{count} != len({items})'
         return self.set_values(items, inplace=inplace, validate=validate) or self
 
     def has_items(self) -> bool:

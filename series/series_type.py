@@ -2,10 +2,8 @@ from typing import Optional
 import inspect
 
 try:  # Assume we're a submodule in a package.
-    from utils import arguments as arg
     from base.classes.enum import ClassType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..utils import arguments as arg
     from ..base.classes.enum import ClassType
 
 
@@ -21,15 +19,17 @@ class SeriesType(ClassType):
     DateNumericSeries = 'DateNumericSeries'
 
     @classmethod
-    def detect(cls, obj, default=arg.AUTO) -> ClassType:
+    def detect(cls, obj, default=None) -> ClassType:
         if isinstance(obj, SeriesType):
             return obj
         elif isinstance(obj, str):
             name = obj
         elif inspect.isclass(obj):
             name = obj.__name__
+        elif default:
+            return default
         else:
-            raise ValueError('SeriesType for {} not detected'.format(obj))
+            raise ValueError(f'SeriesType for {obj} not detected')
         return SeriesType(name)
 
     @classmethod

@@ -6,11 +6,7 @@ try:  # Assume we're a submodule in a package.
     from functions.secondary.date_functions import date_to_int, round_date, date_range
     from series.series_type import SeriesType
     from series.interfaces.sorted_numeric_series_interface import SortedNumericSeriesInterface
-    from series.interfaces.date_series_interface import (
-        DateSeriesInterface,
-        DateScale, Date, MAX_DAYS_IN_MONTH,
-        AutoBool, AUTO,
-    )
+    from series.interfaces.date_series_interface import DateSeriesInterface, DateScale, Date, MAX_DAYS_IN_MONTH
     from series.interfaces.date_numeric_series_interface import DateNumericSeriesInterface, Name
     from series.simple.sorted_series import SortedSeries
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -19,11 +15,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...functions.secondary.date_functions import date_to_int, round_date, date_range
     from ..series_type import SeriesType
     from ..interfaces.sorted_numeric_series_interface import SortedNumericSeriesInterface
-    from ..interfaces.date_series_interface import (
-        DateSeriesInterface,
-        DateScale, Date, MAX_DAYS_IN_MONTH,
-        AutoBool, AUTO,
-    )
+    from ..interfaces.date_series_interface import DateSeriesInterface, DateScale, Date, MAX_DAYS_IN_MONTH
     from ..interfaces.date_numeric_series_interface import DateNumericSeriesInterface, Name
     from .sorted_series import SortedSeries
 
@@ -58,7 +50,8 @@ class DateSeries(SortedSeries, DateSeriesInterface):
     def get_errors(self) -> Iterable:
         yield from super().get_errors()
         for i in self._get_invalid_examples():
-            yield 'Values of {} must be python-dates or iso-dates, got {}, ...'.format(self.__class__.__name__, i)
+            class_name = self.__class__.__name__
+            yield f'Values of {class_name} must be python-dates or iso-dates, got {i}, ...'
 
     def _has_valid_dates(self) -> bool:
         for d in self.get_dates():
@@ -207,7 +200,7 @@ class DateSeries(SortedSeries, DateSeriesInterface):
     def yearly_shift(self, inplace: bool = False) -> Native:
         return self.map_dates(dt.get_next_year_date, inplace=inplace)
 
-    def round_to(self, scale: DateScale, as_iso_date: AutoBool = AUTO, inplace: bool = False) -> Native:
+    def round_to(self, scale: DateScale, as_iso_date: Optional[bool] = None, inplace: bool = False) -> Native:
         func = round_date(scale, as_iso_date=as_iso_date)
         series = self.map_dates(func, inplace=inplace).uniq(inplace=inplace) or self
         return self._assume_native(series)
@@ -234,7 +227,7 @@ class DateSeries(SortedSeries, DateSeriesInterface):
                 series_class = SeriesType.DateNumericSeries.get_class()
                 distance_series = series_class(self.get_dates(), distances, sort_items=False, validate=False)
         else:
-            raise TypeError('d-argument for distance-method must be date or DateSeries (got {}: {})'.format(type(d), d))
+            raise TypeError(f'd-argument for distance-method must be date or DateSeries (got {d}: {d})')
         return distance_series
 
     def distance_for_date(

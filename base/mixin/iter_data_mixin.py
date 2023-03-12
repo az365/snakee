@@ -6,26 +6,27 @@ from datetime import datetime
 try:  # Assume we're a submodule in a package.
     from functions.secondary import item_functions as fs
     from utils.algo import map_side_join
-    from base.classes.typing import ARRAY_TYPES, AUTO, Auto, Class
+    from base.classes.typing import ARRAY_TYPES, Class
     from base.classes.enum import DynamicEnum
     from base.constants.chars import PARAGRAPH_CHAR
     from base.functions.arguments import get_names, update, is_in_memory, get_str_from_args_kwargs
+    from base.interfaces.display_interface import DEFAULT_EXAMPLE_COUNT
     from base.interfaces.iterable_interface import IterableInterface, OptionalFields, Item, JoinType
     from base.mixin.data_mixin import DataMixin, UNK_COUNT_STUB
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...functions.secondary import item_functions as fs
     from ...utils.algo import map_side_join
-    from ..classes.typing import ARRAY_TYPES, AUTO, Auto, Class
+    from ..classes.typing import ARRAY_TYPES, Class
     from ..classes.enum import DynamicEnum
     from ..constants.chars import PARAGRAPH_CHAR
     from ..functions.arguments import get_names, update, is_in_memory, get_str_from_args_kwargs
+    from ..interfaces.display_interface import DEFAULT_EXAMPLE_COUNT
     from ..interfaces.iterable_interface import IterableInterface, OptionalFields, Item, JoinType
     from .data_mixin import DataMixin, UNK_COUNT_STUB
 
 Native = Union[IterableInterface, DataMixin]
 How = Union[JoinType, str]
 
-DEFAULT_COUNT = 10
 LOGGING_LEVEL_INFO = 20
 
 
@@ -131,7 +132,7 @@ class IterDataMixin(DataMixin, ABC):
 
     def get_str_count(self, default: str = UNK_COUNT_STUB) -> str:
         count = self.get_count()
-        if Auto.is_defined(count):
+        if isinstance(count, int):
             return str(count)
         else:
             return default
@@ -153,12 +154,12 @@ class IterDataMixin(DataMixin, ABC):
     def set_items(self, items: Iterable, inplace: bool, count: Optional[int] = None) -> Native:
         if inplace:
             self.set_data(items, inplace=True)
-            if Auto.is_defined(count):
+            if isinstance(count, int):
                 self._set_count(count, inplace=True)
             return self
         else:
             obj = self.set_data(items, inplace=False)
-            if Auto.is_defined(count):
+            if isinstance(count, int):
                 assert isinstance(obj, IterDataMixin) or hasattr(obj, '_set_count')
                 obj = obj._set_count(count, inplace=False)
             return obj
@@ -183,8 +184,8 @@ class IterDataMixin(DataMixin, ABC):
         for i in self.get_iter():
             return i
 
-    def _get_enumerated_items(self, first: int = 0, item_type=AUTO) -> Generator:
-        if item_type == 'Any' or not Auto.is_defined(item_type):
+    def _get_enumerated_items(self, first: int = 0, item_type=None) -> Generator:
+        if item_type in ('Any', 'Auto', None):
             items = self.get_items()
         elif hasattr(self, 'get_items_of_type'):
             items = self.get_items_of_type(item_type)
@@ -196,18 +197,18 @@ class IterDataMixin(DataMixin, ABC):
         for n, i in enumerate(items):
             yield n + first, i
 
-    def _get_first_items(self, count: int = 1, item_type=AUTO) -> Generator:
-        for n, i in self._get_enumerated_items(first=1, item_type=item_type):
-            yield i
+    def _get_first_items(self, count: int = 1, item_type=None) -> Generator:
+        for n, i in enumerate(self.get_items()):
             if n >= count:
                 break
+            yield i
 
-    def _get_second_items(self, skip: int = 1, item_type=AUTO) -> Generator:
-        for n, i in self._get_enumerated_items(first=0, item_type=item_type):
+    def _get_second_items(self, skip: int = 1, item_type=None) -> Generator:
+        for n, i in enumerate(self.get_items()):
             if n >= skip:
                 yield i
 
-    def _get_last_items(self, count: int = DEFAULT_COUNT) -> list:
+    def _get_last_items(self, count: int = DEFAULT_EXAMPLE_COUNT) -> list:
         count = abs(count)
         items = list()
         for i in self.get_items():
@@ -217,7 +218,7 @@ class IterDataMixin(DataMixin, ABC):
         return items
 
     def take(self, count: Union[int, bool] = 1, inplace: bool = False) -> Optional[Native]:
-        if (count and isinstance(count, bool)) or not Auto.is_defined(count):  # True, None, AUTO
+        if (count and isinstance(count, bool)) or count is None:  # True, None
             return self
         elif isinstance(count, int):
             if count > 0:
@@ -238,7 +239,7 @@ class IterDataMixin(DataMixin, ABC):
 
     def skip(self, count: int = 1, inplace: bool = False) -> Native:
         old_count = self.get_count()
-        if Auto.is_defined(old_count) and count >= old_count:
+        if old_count is not None and count >= old_count:
             items = list()
         else:
             items = self.get_items()[count:] if self.is_in_memory() else self._get_second_items(count)
@@ -250,10 +251,10 @@ class IterDataMixin(DataMixin, ABC):
                     result_count = 0
         return self.set_items(items, count=result_count, inplace=inplace)
 
-    def head(self, count: int = DEFAULT_COUNT, inplace: bool = False) -> Optional[Native]:
+    def head(self, count: int = DEFAULT_EXAMPLE_COUNT, inplace: bool = False) -> Optional[Native]:
         return self.take(count, inplace=inplace)
 
-    def tail(self, count: int = DEFAULT_COUNT, inplace: bool = False) -> Optional[Native]:
+    def tail(self, count: int = DEFAULT_EXAMPLE_COUNT, inplace: bool = False) -> Optional[Native]:
         return self.take(-count, inplace=inplace)
 
     def pass_items(self) -> Native:

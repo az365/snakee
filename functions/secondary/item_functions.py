@@ -4,7 +4,6 @@ import json
 import csv
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.auto import AUTO, Auto
     from base.functions.arguments import update
     from base.constants.chars import TAB_CHAR
     from content.items.item_type import ItemType
@@ -12,7 +11,6 @@ try:  # Assume we're a submodule in a package.
     from content.selection import selection_functions as sf
     from functions.primary import items as it
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...base.classes.auto import AUTO, Auto
     from ...base.functions.arguments import update
     from ...base.constants.chars import TAB_CHAR
     from ...content.items.item_type import ItemType
@@ -122,7 +120,7 @@ def csv_dumps(delimiter: str = TAB_CHAR, reversible: bool = True) -> Callable:
     return _csv_dumps
 
 
-def csv_loads(delimiter: Union[str, Auto, None] = AUTO) -> Callable:
+def csv_loads(delimiter: Optional[str] = None) -> Callable:
     reader = csv_reader(delimiter=delimiter)
 
     def _csv_loads(line: str) -> Union[list, tuple]:
@@ -131,8 +129,8 @@ def csv_loads(delimiter: Union[str, Auto, None] = AUTO) -> Callable:
     return _csv_loads
 
 
-def csv_reader(delimiter: Union[str, Auto, None] = AUTO, *args, **kwargs) -> Callable:
-    if Auto.is_defined(delimiter):
+def csv_reader(delimiter: Optional[str] = None, *args, **kwargs) -> Callable:
+    if isinstance(delimiter, str):
         return lambda a: csv.reader(a, delimiter=delimiter, *args, **kwargs)
     else:
         return csv.reader

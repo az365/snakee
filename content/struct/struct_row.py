@@ -1,25 +1,25 @@
 from typing import Optional, Iterable, Callable, Union
 
 try:  # Assume we're a submodule in a package.
-    from base.functions.arguments import get_name
     from interfaces import (
         FieldInterface, StructInterface,
         ValueType, DialectType, ItemType,
-        RECORD_SUBCLASSES, ROW_SUBCLASSES, Row, Line, Name, Field, FieldNo, Value, Auto, AUTO,
+        RECORD_SUBCLASSES, ROW_SUBCLASSES, Row, Line, Name, Field, FieldNo, Value,
     )
+    from base.functions.arguments import get_name
     from base.abstract.simple_data import SimpleDataWrapper
-    from content.struct.struct_row_interface import StructRowInterface, DEFAULT_DELIMITER
+    from content.struct.struct_row_interface import StructRowInterface, TAB_CHAR
     from content.struct.flat_struct import FlatStruct
     from content.struct.struct_mixin import StructMixin
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...base.functions.arguments import get_name
     from ...interfaces import (
         FieldInterface, StructInterface,
         ValueType, DialectType, ItemType,
-        RECORD_SUBCLASSES, ROW_SUBCLASSES, Row, Line, Name, Field, FieldNo, Value, Auto, AUTO,
+        RECORD_SUBCLASSES, ROW_SUBCLASSES, Row, Line, Name, Field, FieldNo, Value,
     )
+    from ...base.functions.arguments import get_name
     from ...base.abstract.simple_data import SimpleDataWrapper
-    from .struct_row_interface import StructRowInterface, DEFAULT_DELIMITER
+    from .struct_row_interface import StructRowInterface, TAB_CHAR
     from .flat_struct import FlatStruct
     from .struct_mixin import StructMixin
 
@@ -84,25 +84,25 @@ class StructRow(SimpleDataWrapper, StructMixin, StructRowInterface):
             self,
             field: Field,
             value: Value,
-            field_type: Union[ValueType, Auto] = AUTO,
+            field_type: Optional[ValueType] = None,
             update_struct: bool = False,
             inplace: bool = True,
-    ) -> Optional[StructRowInterface]:
+    ) -> StructRowInterface:
         if isinstance(field, FieldNo):
             field_position = field
         else:
             field_position = self.get_field_position(field)
         if field_position is None:
+            struct = self.get_struct()
             if update_struct:
-                self.get_struct().append_field(field, field_type, inplace=True)
+                struct.append_field(field, field_type, inplace=True)
                 self.get_data().append(value)
                 field_position = self.get_field_position(field)
             else:
-                msg = 'field {} not found in {} and struct is locked (update_struct={})'
-                raise ValueError(msg.format(field, self.get_struct(), update_struct))
+                msg = f'field {field} not found in {struct} and struct is locked (update_struct={update_struct})'
+                raise ValueError(msg)
         self.get_data()[field_position] = value
-        if not inplace:
-            return self
+        return self
 
     def get(self, field: Field, default=None) -> Value:
         return self.get_value(field, skip_missing=True, default=default)
@@ -121,7 +121,7 @@ class StructRow(SimpleDataWrapper, StructMixin, StructRowInterface):
     def get_line(
             self,
             dialect: DialectType = DialectType.String,
-            delimiter: str = DEFAULT_DELIMITER,
+            delimiter: str = TAB_CHAR,
             need_quotes: bool = False,
     ) -> str:
         list_str = list()

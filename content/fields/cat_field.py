@@ -1,19 +1,11 @@
 from typing import Optional, Sequence, Union, Any
 
 try:  # Assume we're a submodule in a package.
-    from interfaces import (
-        RepresentationInterface, SelectionLogger,
-        ValueType, FieldRoleType, ItemType,
-        AutoBool, Auto, AUTO,
-    )
+    from interfaces import RepresentationInterface, SelectionLogger, ValueType, FieldRoleType, ItemType
     from base.classes.enum import DynamicEnum
     from content.fields.any_field import AnyField, FieldEdgeType, EMPTY
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...interfaces import (
-        RepresentationInterface, SelectionLogger,
-        ValueType, FieldRoleType, ItemType,
-        AutoBool, Auto, AUTO,
-    )
+    from ...interfaces import RepresentationInterface, SelectionLogger, ValueType, FieldRoleType, ItemType
     from ...base.classes.enum import DynamicEnum
     from .any_field import AnyField, FieldEdgeType, EMPTY
 
@@ -32,7 +24,7 @@ class CatField(AnyField):
             skip_errors: bool = False,
             logger: Optional[SelectionLogger] = None,
             default_item_type: ItemType = ItemType.Any,
-            is_valid: AutoBool = AUTO,
+            is_valid: Optional[bool] = None,
             group_name: Optional[str] = None,
             group_caption: Optional[str] = None,
             enum: OptEnum = None,

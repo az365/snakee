@@ -1,3 +1,5 @@
+from typing import Callable, Iterable, Union
+
 try:  # Assume we're a submodule in a package.
     from base.functions.arguments import get_name
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -51,7 +53,14 @@ class DetailedMessage:
 
 
 class SelectionError(DetailedMessage):
-    def __init__(self, func, in_fields, in_values, in_record, message):
+    def __init__(
+            self,
+            func: Union[Callable, str],
+            in_fields: Iterable,
+            in_values: Iterable,
+            in_record: dict,
+            message: str,
+    ):
         func_name = get_name(func, or_callable=False)
         if 'lambda' in func_name:
             func_name = 'lambda'

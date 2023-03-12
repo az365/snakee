@@ -5,7 +5,6 @@ try:  # Assume we're a submodule in a package.
     from interfaces import (
         LeafConnectorInterface, StructInterface, IterableStreamInterface,
         ItemType, StreamType, ContentType, DialectType,
-        AUTO, Auto, AutoBool,
     )
     from content.struct.struct_mixin import StructMixin
     from content.format.text_format import AbstractFormat, ParsedFormat, TextFormat
@@ -15,7 +14,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...interfaces import (
         LeafConnectorInterface, StructInterface, IterableStreamInterface,
         ItemType, StreamType, ContentType, DialectType,
-        AUTO, Auto, AutoBool,
     )
     from ...content.struct.struct_mixin import StructMixin
     from ...content.format.text_format import AbstractFormat, ParsedFormat, TextFormat
@@ -33,14 +31,14 @@ class ConnectorFormatMixin(StructMixin, LeafConnectorInterface, ABC):
             return initial_format.get_struct()
 
     def set_initial_struct(self, struct: Struct, inplace: bool) -> Optional[Native]:
-        if Auto.is_defined(struct):
+        if struct is not None:
             struct = self._get_native_struct(struct).copy()
         initial_format = self.get_declared_format()
         if inplace:
             if isinstance(initial_format, (LeanFormat, ColumnarFormat)) or hasattr(initial_format, 'set_struct'):
                 initial_format.set_struct(struct, inplace=True)
-            elif Auto.is_defined(struct):
-                raise TypeError('Cannot set struct for {}: method not supported (by design)'.format(initial_format))
+            elif struct:
+                raise TypeError(f'Cannot set struct for {initial_format}: method not supported (by design)')
         else:
             copy = self.make_new()
             assert isinstance(copy, ConnectorFormatMixin)
@@ -52,15 +50,12 @@ class ConnectorFormatMixin(StructMixin, LeafConnectorInterface, ABC):
         self.set_initial_struct(struct, inplace=True)
         return self._assume_native(self)
 
-    def get_struct(self, verbose: AutoBool = AUTO) -> Struct:
+    def get_struct(self, verbose: Optional[bool] = None) -> Struct:
         content_format = self.get_content_format()
         if isinstance(content_format, FlatStructFormat) or hasattr(content_format, 'get_struct'):
             struct = content_format.get_struct()
         else:
             struct = None
-        if struct is None:
-            if self.is_accessible(verbose=verbose):
-                struct = AUTO  # detect struct from source
         return self._get_native_struct(struct, save_if_not_yet=True, verbose=verbose)
 
     def set_struct(self, struct: Struct, inplace: bool) -> Optional[Native]:
@@ -69,8 +64,8 @@ class ConnectorFormatMixin(StructMixin, LeafConnectorInterface, ABC):
         if inplace:
             if isinstance(content_format, (LeanFormat, ColumnarFormat)) or hasattr(content_format, 'set_struct'):
                 content_format.set_struct(struct, inplace=True)
-            elif Auto.is_defined(struct):
-                raise TypeError('Cannot set struct for {}: method not supported (by design)'.format(content_format))
+            elif struct:
+                raise TypeError(f'Cannot set struct for {content_format}: method not supported (by design)')
             if not self.get_initial_struct():
                 self.set_initial_struct(struct, inplace=True)
         else:
@@ -85,7 +80,7 @@ class ConnectorFormatMixin(StructMixin, LeafConnectorInterface, ABC):
         return self._assume_native(self)
 
     def reset_struct_to_initial(self, verbose: bool = True, message: Optional[str] = None) -> Native:
-        if not Auto.is_defined(message):
+        if not message:
             message = f'in {repr(self)}'
         initial_struct = self.get_initial_struct()
         if verbose:
@@ -139,9 +134,9 @@ class ConnectorFormatMixin(StructMixin, LeafConnectorInterface, ABC):
     def get_detected_struct_by_title_row(
             self,
             set_struct: bool = False,  # deprecated argument
-            types: Union[dict, Auto, None] = AUTO,
+            types: Optional[dict] = None,
             skip_missing: bool = False,
-            verbose: AutoBool = AUTO,  # deprecated argument
+            verbose: Optional[bool] = None,  # deprecated argument
     ) -> Struct:
         path = self.get_full_path()
         if not self.is_existing():
@@ -154,7 +149,8 @@ class ConnectorFormatMixin(StructMixin, LeafConnectorInterface, ABC):
                 return None
             else:
                 raise AssertionError(f'Can detect struct by title row only if first line is a title row ({path})')
-        verbose = Auto.delayed_acquire(verbose, self.is_verbose)
+        if verbose is None:
+            verbose = self.is_verbose()
         title_row = self.get_title_row(close=True)
         struct = self._get_struct_detected_by_title_row(title_row, types=types)
         message = 'Struct for {} detected by title row: {}'.format(self.get_name(), struct.get_struct_str(None))
@@ -165,7 +161,7 @@ class ConnectorFormatMixin(StructMixin, LeafConnectorInterface, ABC):
 
     def _get_struct_from_source(
             self,
-            types: Union[dict, Auto, None] = AUTO,
+            types: Optional[dict] = None,
             skip_missing: bool = False,
             verbose: bool = False,
     ) -> Struct:
@@ -183,14 +179,15 @@ class ConnectorFormatMixin(StructMixin, LeafConnectorInterface, ABC):
             use_declared_types: bool = True,
             skip_disconnected: bool = True,
             skip_missing: bool = False,
-            verbose: AutoBool = AUTO,
+            verbose: Optional[bool] = None,
     ) -> Optional[Struct]:
-        verbose = Auto.acquire(verbose, self.is_verbose())
+        if verbose is None:
+            verbose = self.is_verbose()
         if skip_disconnected:
             if not self.is_accessible(verbose=verbose):
                 return None
         else:
-            assert self.is_accessible(), 'For detect struct storage must be connected: {}'.format(self.get_storage())
+            assert self.is_accessible(), f'For detect struct storage must be connected: {self.get_storage()}'
         if not self.is_existing():
             path = self.get_full_path() if hasattr(self, 'get_full_path') else self.get_path()
             raise FileNotFoundError(f'For detect struct file/object must be existing: {path}')

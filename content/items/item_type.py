@@ -2,6 +2,7 @@ from typing import Optional, Callable, Union, Any
 
 try:  # Assume we're a submodule in a package.
     from base.classes.enum import SubclassesType
+    from base.classes.auto import AUTO
     from base.constants.chars import STAR, EMPTY, MINUS
     from base.functions.arguments import get_names
     from utils.decorators import deprecated_with_alternative
@@ -9,12 +10,13 @@ try:  # Assume we're a submodule in a package.
     from content.struct.struct_interface import StructInterface
     from content.struct.struct_row_interface import StructRowInterface
     from content.items.simple_items import (
-        ROW_SUBCLASSES, RECORD_SUBCLASSES, FULL_ITEM_FIELD, AUTO, Auto,
+        ROW_SUBCLASSES, RECORD_SUBCLASSES, FULL_ITEM_FIELD,
         SimpleItem, FieldNo, FieldName, FieldID, Value,
         get_field_value_from_record, get_field_value_from_row, get_field_value_from_struct_row,
     )
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.classes.enum import SubclassesType
+    from ...base.classes.auto import AUTO
     from ...base.constants.chars import STAR, EMPTY, MINUS
     from ...base.functions.arguments import get_names
     from ...utils.decorators import deprecated_with_alternative
@@ -22,7 +24,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..struct.struct_interface import StructInterface
     from ..struct.struct_row_interface import StructRowInterface
     from .simple_items import (
-        ROW_SUBCLASSES, RECORD_SUBCLASSES, FULL_ITEM_FIELD, AUTO, Auto,
+        ROW_SUBCLASSES, RECORD_SUBCLASSES, FULL_ITEM_FIELD,
         SimpleItem, FieldNo, FieldName, FieldID, Value,
         get_field_value_from_record, get_field_value_from_row, get_field_value_from_struct_row,
     )
@@ -52,7 +54,7 @@ class ItemType(SubclassesType):
     def is_selectable(self) -> bool:
         return self in self._get_selectable_types()
 
-    # @deprecated_with_alternative('ItemType.get_field_getter()')
+    @deprecated_with_alternative('ItemType.get_field_getter()')
     def get_value_from_item(
             self,
             item: RegularItem,
@@ -61,7 +63,7 @@ class ItemType(SubclassesType):
             default: Value = None,
             skip_unsupported_types: bool = False,
     ) -> Value:
-        if Auto.is_defined(struct):
+        if struct is not None:
             if self in (ItemType.Row, ItemType.StructRow):
                 if isinstance(field, str):
                     field = struct.get_field_position(field)
@@ -78,7 +80,7 @@ class ItemType(SubclassesType):
         elif skip_unsupported_types:
             return default
         else:
-            raise TypeError('type {} not supported'.format(self.get_name()))
+            raise TypeError(f'type {self.get_name()} not supported')
 
     def get_field_getter(self, field: Union[Field, Callable], struct: Struct = None, default: Value = None) -> Callable:
         """
@@ -87,7 +89,7 @@ class ItemType(SubclassesType):
         Used in ItemType.get_single_mapper(), ColumnarMixin._get_field_getter().
         ColumnarMixin._get_field_getter() used in ColumnarMixin.get_dict(), RowStream.sorted_group_by()
         """
-        if Auto.is_defined(struct):
+        if struct is not None:
             if self in (ItemType.Row, ItemType.StructRow):
                 if isinstance(field, str):
                     field = struct.get_field_position(field)
@@ -109,7 +111,7 @@ class ItemType(SubclassesType):
         elif field is None or field in (MINUS, EMPTY):
             return lambda i: None
         else:
-            raise TypeError('type {} not supported'.format(self.get_name()))
+            raise TypeError(f'type {self.get_name()} not supported')
 
     def get_single_mapper(self, *fields, function: Callable = tuple, struct: Struct = None) -> Callable:
         """

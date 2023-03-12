@@ -5,8 +5,7 @@ try:  # Assume we're a submodule in a package.
     from interfaces import (
         IterableStreamInterface, StructInterface, Context, LeafConnectorInterface, StructMixinInterface,
         RegularStreamInterface, RowStream, StructStream, RecordStream, LineStream,
-        ItemType, StreamType,
-        AUTO, Auto, StreamItemType, AutoBool, AutoCount, AutoName, Array, OptionalFields,
+        ItemType, StreamType, OptionalFields, Array, Count,
     )
     from base.functions.arguments import get_generated_name
     from utils.decorators import deprecated_with_alternative
@@ -16,8 +15,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...interfaces import (
         IterableStreamInterface, StructInterface, Context, LeafConnectorInterface, StructMixinInterface,
         RegularStreamInterface, RowStream, StructStream, RecordStream, LineStream,
-        ItemType, StreamType,
-        AUTO, Auto, StreamItemType, AutoBool, AutoCount, AutoName, Array, OptionalFields,
+        ItemType, StreamType, OptionalFields, Array, Count,
     )
     from ...base.functions.arguments import get_generated_name
     from ...utils.decorators import deprecated_with_alternative
@@ -25,7 +23,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...streams.stream_builder import StreamBuilder
 
 Stream = Union[IterableStreamInterface, RegularStreamInterface]
-Message = Union[AutoName, Array]
+Message = Union[str, Array, None]
 Native = Union[Stream, LeafConnectorInterface]
 
 
@@ -39,8 +37,8 @@ class StreamableMixin(ColumnarMixin, ABC):
     def get_stream_type(cls) -> StreamType:
         return StreamType.AnyStream
 
-    def _get_stream_type(self, stream_type: StreamItemType = AUTO) -> StreamType:
-        if not Auto.is_defined(stream_type):
+    def _get_stream_type(self, stream_type: ItemType = ItemType.Auto) -> StreamType:
+        if stream_type in (ItemType.Auto, None):
             if hasattr(self, 'get_stream_type'):
                 stream_type = self.get_stream_type()
             elif hasattr(self, 'get_default_stream_type'):
@@ -50,13 +48,18 @@ class StreamableMixin(ColumnarMixin, ABC):
                 stream_type = StreamType.detect(item_type)
         return stream_type
 
-    def _get_item_type(self, stream_or_type: Union[StreamItemType, RegularStreamInterface] = AUTO) -> ItemType:
+    def _get_item_type(self, stream_or_type: Union[ItemType, RegularStreamInterface] = ItemType.Auto) -> ItemType:
         if isinstance(stream_or_type, ItemType) or hasattr(stream_or_type, 'get_value_from_item'):
-            return stream_or_type
+            if stream_or_type == ItemType.Auto:
+                return self.get_default_item_type()
+            else:
+                return stream_or_type
         elif isinstance(stream_or_type, StreamType) or hasattr(stream_or_type, 'get_item_type'):
             return stream_or_type.get_item_type()
         elif hasattr(stream_or_type, 'get_default_item_type'):
             return stream_or_type.get_default_item_type()
+        elif stream_or_type is None:
+            return self.get_default_item_type()
         else:
             return ItemType.Any
 
@@ -84,10 +87,10 @@ class StreamableMixin(ColumnarMixin, ABC):
 
     def _get_items_of_type(
             self,
-            item_type: Union[ItemType, Auto],
-            verbose: AutoBool = AUTO,
-            step: AutoCount = AUTO,
-            message: AutoName = AUTO,
+            item_type: Optional[ItemType],
+            verbose: Optional[bool] = None,
+            step: Count = None,
+            message: Optional[str] = None,
     ) -> Iterable:
         if hasattr(self, 'get_items_of_type'):
             return self.get_items_of_type(item_type, verbose=verbose, step=step, message=message)
@@ -96,19 +99,20 @@ class StreamableMixin(ColumnarMixin, ABC):
 
     def get_stream_kwargs(
             self,
-            data: Union[Iterable, Auto] = AUTO,
-            name: AutoName = AUTO,
-            verbose: AutoBool = AUTO,
-            step: AutoCount = AUTO,
-            message: AutoName = AUTO,
+            data: Optional[Iterable] = None,
+            name: Optional[str] = None,
+            verbose: Optional[bool] = None,
+            step: Count = None,
+            message: Optional[str] = None,
             **kwargs
     ) -> dict:
         """Returns kwargs for stream builder call.
 
         :returns: dict with kwargs for provide in stream builder arguments, i.e. *Stream(**self.get_stream_kwargs(data))
         """
-        name = Auto.delayed_acquire(name, self._get_generated_stream_name)
-        if not Auto.is_defined(data):
+        if not name:
+            name = self._get_generated_stream_name()
+        if data is None:
             item_type = self._get_item_type()
             data = self._get_items_of_type(item_type, verbose=verbose, step=step, message=message)
         result = dict(
@@ -119,8 +123,8 @@ class StreamableMixin(ColumnarMixin, ABC):
         return result
 
     def stream(
-            self, data: Union[Iterable, Auto] = AUTO,
-            stream_type: StreamItemType = AUTO,
+            self, data: Optional[Iterable] = None,
+            stream_type: ItemType = ItemType.Auto,
             ex: OptionalFields = None,
             **kwargs
     ) -> Stream:
@@ -128,22 +132,23 @@ class StreamableMixin(ColumnarMixin, ABC):
 
     def to_stream(
             self,
-            data: Union[Iterable, Auto] = AUTO,
-            name: AutoName = AUTO,
-            stream_type: StreamItemType = ItemType.Auto,
+            data: Optional[Iterable] = None,
+            name: Optional[str] = None,
+            stream_type: ItemType = ItemType.Auto,
             ex: OptionalFields = None,
-            step: AutoCount = AUTO,
+            step: Count = None,
             **kwargs
     ) -> Stream:
-        name = Auto.delayed_acquire(name, self._get_generated_stream_name)
+        if not name:
+            name = self._get_generated_stream_name()
         if isinstance(stream_type, StreamType) or hasattr(stream_type, 'get_item_type'):
             item_type = stream_type.get_item_type()
         else:
             item_type = stream_type
-        if Auto.is_defined(data):
+        if data:
             struct_source = data
         else:
-            data = self._get_items_of_type(item_type, verbose=kwargs.get('verbose', AUTO), step=step)
+            data = self._get_items_of_type(item_type, verbose=kwargs.get('verbose', None), step=step)
             struct_source = self
         meta = self.get_compatible_meta(StreamBuilder.empty(), name=name, ex=ex, **kwargs)
         if 'count' not in meta and 'count' not in kwargs:
@@ -158,13 +163,14 @@ class StreamableMixin(ColumnarMixin, ABC):
 
     def to_stream_type(
             self,
-            stream_type: StreamItemType,
-            step: AutoCount = AUTO,
-            verbose: AutoBool = AUTO,
-            message: Union[str, Auto, None] = AUTO,
+            stream_type: ItemType,
+            step: Count = None,
+            verbose: Optional[bool] = None,
+            message: Optional[str] = None,
             **kwargs,
     ) -> Stream:
-        stream_type = Auto.delayed_acquire(stream_type, self._get_stream_type)
+        if stream_type in (ItemType.Auto, None):
+            stream_type = self._get_stream_type()
         item_type = self._get_item_type(stream_type)
         if 'item_type' not in kwargs:
             kwargs['item_type'] = item_type
@@ -174,33 +180,33 @@ class StreamableMixin(ColumnarMixin, ABC):
                 if struct:
                     kwargs['struct'] = struct
         data = kwargs.pop('data', None)
-        if not Auto.is_defined(data):
+        if not data:
             data = self._get_items_of_type(item_type, step=step, verbose=verbose, message=message)
         stream_kwargs = self.get_stream_kwargs(data=data, step=step, verbose=verbose, **kwargs)
         stream = StreamBuilder.stream(**stream_kwargs)
         return self._assume_stream(stream)
 
-    def to_any_stream(self, step: AutoCount = AUTO, verbose: AutoBool = AUTO, **kwargs) -> Stream:
+    def to_any_stream(self, step: Count = None, verbose: Optional[bool] = None, **kwargs) -> Stream:
         return self.to_stream_type(StreamType.AnyStream, step=step, verbose=verbose, **kwargs)
 
-    def to_line_stream(self, step: AutoCount = AUTO, verbose: AutoBool = AUTO, **kwargs) -> LineStream:
+    def to_line_stream(self, step: Count = None, verbose: Optional[bool] = None, **kwargs) -> LineStream:
         return self.to_stream_type(StreamType.LineStream, step=step, verbose=verbose, **kwargs)
 
-    def to_record_stream(self, step: AutoCount = AUTO, verbose: AutoBool = AUTO, **kwargs) -> RecordStream:
+    def to_record_stream(self, step: Count = None, verbose: Optional[bool] = None, **kwargs) -> RecordStream:
         return self.to_stream_type(StreamType.RecordStream, step=step, verbose=verbose, **kwargs)
 
-    def to_row_stream(self, step: AutoCount = AUTO, verbose: AutoBool = AUTO, **kwargs) -> RowStream:
+    def to_row_stream(self, step: Count = None, verbose: Optional[bool] = None, **kwargs) -> RowStream:
         return self.to_stream_type(StreamType.RowStream, step=step, verbose=verbose, **kwargs)
 
     def to_struct_stream(
             self,
-            struct: Union[StructInterface, Auto] = AUTO,
-            step: AutoCount = AUTO,
-            verbose: AutoBool = AUTO,
+            struct: Optional[StructInterface] = None,
+            step: Count = None,
+            verbose: Optional[bool] = None,
             **kwargs,
     ) -> StructStream:
         assert self._is_existing(), 'for get stream file must exists'
-        if not Auto.is_defined(struct):
+        if struct is None:
             if isinstance(self, StructMixinInterface) or hasattr(self, 'get_struct'):
                 struct = self.get_struct()
             else:
@@ -208,7 +214,7 @@ class StreamableMixin(ColumnarMixin, ABC):
         kwargs['struct'] = struct
         return self.to_stream_type(StreamType.StructStream, step=step, verbose=verbose, **kwargs)
 
-    def from_stream(self, stream: Stream, verbose: AutoBool = AUTO) -> Native:
+    def from_stream(self, stream: Stream, verbose: Optional[bool] = None) -> Native:
         if hasattr(self, 'write_stream'):
             return self.write_stream(stream, verbose=verbose)
         else:

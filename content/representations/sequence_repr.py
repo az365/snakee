@@ -1,13 +1,11 @@
 from typing import Union, Iterable
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.typing import AUTO, Auto, Value, AutoCount
-    from base.constants.chars import FILL_CHAR, DEFAULT_ITEMS_DELIMITER, DEFAULT_STR, CROP_SUFFIX
-    from content.representations.abstract_repr import AbstractRepresentation, ReprType, OptKey
+    from base.constants.chars import EMPTY, FILL_CHAR, DEFAULT_ITEMS_DELIMITER, DEFAULT_STR, CROP_SUFFIX
+    from content.representations.abstract_repr import AbstractRepresentation, ReprType, OptKey, Count
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...base.classes.typing import AUTO, Auto, Value, AutoCount
-    from ...base.constants.chars import FILL_CHAR, DEFAULT_ITEMS_DELIMITER, DEFAULT_STR, CROP_SUFFIX
-    from .abstract_repr import AbstractRepresentation, ReprType, OptKey
+    from ...base.constants.chars import EMPTY, FILL_CHAR, DEFAULT_ITEMS_DELIMITER, DEFAULT_STR, CROP_SUFFIX
+    from .abstract_repr import AbstractRepresentation, ReprType, OptKey, Count
 
 DEFAULT_ITEM_LEN = 23
 
@@ -15,17 +13,17 @@ DEFAULT_ITEM_LEN = 23
 class SequenceRepresentation(AbstractRepresentation):
     def __init__(
             self,
-            delimiter: str = DEFAULT_ITEMS_DELIMITER,
+            delimiter: str = DEFAULT_ITEMS_DELIMITER,  # ', '
             item_representation: Union[AbstractRepresentation, str, None] = None,
             align_right: bool = False,
             min_len: int = DEFAULT_ITEM_LEN,
-            max_len: int = AUTO,
+            max_len: Count = None,
             including_framing: bool = False,
-            crop: str = CROP_SUFFIX,
-            fill: str = FILL_CHAR,
-            prefix: str = '',
-            suffix: str = '',
-            default: str = DEFAULT_STR,
+            crop: str = CROP_SUFFIX,  # '..'
+            fill: str = FILL_CHAR,  # ' '
+            prefix: str = EMPTY,  # ''
+            suffix: str = EMPTY,  # ''
+            default: str = DEFAULT_STR,  # '-'
     ):
         self._delimiter = delimiter
         self._item_representation = item_representation

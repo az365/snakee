@@ -1,19 +1,17 @@
-from typing import Optional, Union
+from typing import Optional
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.auto import Auto, AUTO
     from base.constants.chars import (
-        FILL_CHAR, SHORT_CROP_SUFFIX, DEFAULT_STR,
+        FILL_CHAR, SHORT_CROP_SUFFIX, DEFAULT_STR, EMPTY,
         DEFAULT_TRUE_STR, DEFAULT_FALSE_STR, FALSE_VALUES
     )
-    from content.representations.abstract_repr import AbstractRepresentation, ReprType, Value
+    from content.representations.abstract_repr import AbstractRepresentation, ReprType, Value, Count
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...base.classes.auto import Auto, AUTO
     from ...base.constants.chars import (
-        FILL_CHAR, SHORT_CROP_SUFFIX, DEFAULT_STR,
+        FILL_CHAR, SHORT_CROP_SUFFIX, DEFAULT_STR, EMPTY,
         DEFAULT_TRUE_STR, DEFAULT_FALSE_STR, FALSE_VALUES,
     )
-    from .abstract_repr import AbstractRepresentation, ReprType, Value
+    from .abstract_repr import AbstractRepresentation, ReprType, Value, Count
 
 
 class BooleanRepresentation(AbstractRepresentation):
@@ -22,17 +20,19 @@ class BooleanRepresentation(AbstractRepresentation):
             true: str = DEFAULT_TRUE_STR,
             false: str = DEFAULT_FALSE_STR,
             align_right: bool = False,
-            min_len: Union[int, Auto] = AUTO,
-            max_len: Union[int, Auto] = AUTO,
+            min_len: Count = None,
+            max_len: Count = None,
             including_framing: bool = False,
             crop: str = SHORT_CROP_SUFFIX,
             fill: str = FILL_CHAR,
-            prefix: str = '',
-            suffix: str = '',
+            prefix: str = EMPTY,
+            suffix: str = EMPTY,
             default: str = DEFAULT_STR,
     ):
-        max_len = Auto.acquire(max_len, max(len(true), len(false), len(default), len(crop), Auto.acquire(min_len, 0)))
-        min_len = Auto.acquire(min_len, max_len)
+        if max_len is None:
+            max_len = max(len(true), len(false), len(default), len(crop), min_len or 0)
+        if min_len is None:
+            min_len = max_len
         self._true = true
         self._false = false
         super().__init__(

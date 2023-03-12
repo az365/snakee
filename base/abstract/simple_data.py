@@ -2,31 +2,25 @@ from abc import ABC
 from typing import Optional, Iterable, Generator, Union, Any, NoReturn
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.typing import AUTO, Auto, AutoCount, AutoBool
-    from base.constants.chars import EMPTY, REPR_DELIMITER, SMALL_INDENT, DEFAULT_LINE_LEN
+    from base.classes.typing import Count
+    from base.constants.chars import EMPTY, REPR_DELIMITER, SMALL_INDENT, PARAGRAPH_CHAR, DEFAULT_LINE_LEN
     from base.functions.arguments import get_str_from_annotation, get_str_from_args_kwargs
-    from base.interfaces.sourced_interface import SourcedInterface, COLS_FOR_DICT
-    from base.interfaces.context_interface import ContextInterface
     from base.interfaces.data_interface import SimpleDataInterface
     from base.mixin.display_mixin import DEFAULT_EXAMPLE_COUNT
     from base.mixin.data_mixin import DataMixin, UNK_COUNT_STUB, DEFAULT_CHAPTER_TITLE_LEVEL
-    from base.abstract.named import AbstractNamed, AutoDisplay
+    from base.abstract.named import AbstractNamed, DisplayInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..classes.typing import AUTO, Auto, AutoCount, AutoBool
-    from ..constants.chars import EMPTY, REPR_DELIMITER, SMALL_INDENT, DEFAULT_LINE_LEN
+    from ..classes.typing import Count
+    from ..constants.chars import EMPTY, REPR_DELIMITER, SMALL_INDENT, PARAGRAPH_CHAR, DEFAULT_LINE_LEN
     from ..functions.arguments import get_str_from_annotation, get_str_from_args_kwargs
-    from ..interfaces.sourced_interface import SourcedInterface, COLS_FOR_DICT
-    from ..interfaces.context_interface import ContextInterface
     from ..interfaces.data_interface import SimpleDataInterface
     from ..mixin.display_mixin import DEFAULT_EXAMPLE_COUNT
     from ..mixin.data_mixin import DataMixin, UNK_COUNT_STUB, DEFAULT_CHAPTER_TITLE_LEVEL
-    from .named import AbstractNamed, AutoDisplay
+    from .named import AbstractNamed, DisplayInterface
 
 Native = SimpleDataInterface
 Data = Any
 OptionalFields = Optional[Union[str, Iterable]]
-Source = Optional[SourcedInterface]
-Context = Optional[ContextInterface]
 
 DATA_MEMBER_NAMES = '_data',
 DYNAMIC_META_FIELDS = tuple()
@@ -79,9 +73,9 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
     def _raise_init_error(self, msg: str, *args, **kwargs) -> NoReturn:
         class_name = self.__class__.__name__
         annotations = get_str_from_annotation(self.__class__)
-        ann_str = '\n(available args are: {})'.format(annotations) if annotations else ''
+        ann_str = f'{PARAGRAPH_CHAR}(available args are: {annotations})' if annotations else EMPTY
         arg_str = get_str_from_args_kwargs(*args, **kwargs)
-        raise TypeError('{}: {}({}) {}'.format(msg, class_name, arg_str, ann_str))
+        raise TypeError(f'{msg}: {class_name}({arg_str}) {ann_str}')
 
     def apply_to_data(self, function, *args, dynamic=False, inplace: bool = False, **kwargs) -> Native:
         data = function(self.get_data(), *args, **kwargs)
@@ -97,7 +91,7 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
             meta.pop(f, None)
         return meta
 
-    def get_compatible_static_meta(self, other=AUTO, ex=None, **kwargs) -> dict:
+    def get_compatible_static_meta(self, other: Optional[Native] = None, ex=None, **kwargs) -> dict:
         meta = self.get_compatible_meta(other=other, ex=ex, **kwargs)
         for f in self._get_dynamic_meta_fields():
             meta.pop(f, None)
@@ -108,16 +102,16 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
             count = self.get_count()
         else:
             count = None
-        if Auto.is_defined(count):
+        if count is not None:
             return str(count)
         else:
             return default
 
     def get_count_repr(self, default: str = UNK_COUNT_STUB) -> str:
         count = self.get_str_count(default=default)
-        if not Auto.is_defined(count):
+        if count is None:
             count = default
-        return '{} items'.format(count)
+        return f'{count} items'
 
     def get_shape_repr(self) -> str:
         len_repr = self.get_count_repr()
@@ -171,49 +165,6 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
     def has_data(self) -> bool:
         return bool(self.get_data())
 
-    def get_data_description(
-            self,
-            count: int = DEFAULT_EXAMPLE_COUNT,
-            title: Optional[str] = 'Data:',
-            max_len: AutoCount = AUTO,
-    ) -> Generator:
-        max_len = Auto.acquire(max_len, DEFAULT_LINE_LEN)
-        if title:
-            yield title
-        if hasattr(self, 'get_data_caption'):
-            yield self.get_data_caption()
-        if hasattr(self, 'get_data'):
-            data = self.get_data()
-            if data:
-                shape_repr = self.get_shape_repr()
-                if Auto.is_defined(count) and shape_repr:
-                    yield 'First {count} data items from {shape}:'.format(count=count, shape=shape_repr)
-                if isinstance(data, dict):
-                    records = map(
-                        lambda i: dict(key=i[0], value=i[1], defined='+' if Auto.is_defined(i[1]) else '-'),
-                        data.items(),
-                    )
-                    yield from self._get_columnar_lines(
-                        records, columns=COLS_FOR_DICT, count=count, max_len=max_len,
-                    )
-                elif isinstance(data, Iterable):
-                    for n, item in enumerate(data):
-                        if Auto.is_defined(count):
-                            if n >= count:
-                                break
-                        line = '    - ' + str(item)
-                        yield line[:max_len]
-                elif isinstance(data, SimpleDataInterface) or hasattr(data, 'get_meta_description'):
-                    for line in data.get_meta_description():
-                        yield line
-                else:
-                    line = str(data)
-                    yield line[:max_len]
-            else:
-                yield '(data attribute is empty)'
-        else:
-            yield '(data attribute not found)'
-
     def get_data_sheet(self, count: int = DEFAULT_EXAMPLE_COUNT, name: Optional[str] = 'Data sheet'):
         display = self.get_display()
         sheet_class = display.get_sheet_class()
@@ -242,7 +193,7 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
             yield self.get_data_caption()
         if self.has_data():
             shape_repr = self.get_shape_repr()
-            if Auto.is_defined(count) and shape_repr:
+            if shape_repr and count is not None:
                 yield f'First {count} data items from {shape_repr}:'
             yield self.get_data_sheet(count=count, name=f'{title} sheet')
         else:
@@ -254,15 +205,21 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
             count: int = DEFAULT_EXAMPLE_COUNT,
             title: Optional[str] = 'Data',
             comment: Optional[str] = None,
+            depth: int = 1,
             # max_len: AutoCount = AUTO,
-            display: AutoDisplay = AUTO,
+            display: Optional[DisplayInterface] = None,
     ) -> Native:
         display = self.get_display(display)
         data_chapter = self.get_data_chapter(count=count, title=title, comment=comment)
         display.display_item(data_chapter)
         return self
 
-    def get_description_items(self, comment: Optional[str] = None, depth: int = 1, count: AutoCount = AUTO) -> Generator:
+    def get_description_items(
+            self,
+            comment: Optional[str] = None,
+            depth: int = 1,
+            count: Count = None,
+    ) -> Generator:
         display = self.get_display()
         yield display.get_header_chapter_for(self, comment=comment)
         if depth > 0:

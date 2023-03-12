@@ -2,27 +2,19 @@ from typing import Optional, Union
 
 try:  # Assume we're a submodule in a package.
     from utils.decorators import singleton
-    from interfaces import (
-        ContextInterface, SourcedInterface,
-        LoggerInterface, ExtendedLoggerInterface,
-        AUTO, Auto, Name,
-    )
+    from interfaces import ContextInterface, LoggerInterface, ExtendedLoggerInterface, Name
     from base.abstract.tree_item import TreeItem
     from loggers.extended_logger import SingletonLogger
     from loggers.message_collector import SelectionMessageCollector
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils.decorators import singleton
-    from ..interfaces import (
-        ContextInterface, SourcedInterface,
-        LoggerInterface, ExtendedLoggerInterface,
-        AUTO, Auto, Name,
-    )
+    from ..interfaces import ContextInterface, LoggerInterface, ExtendedLoggerInterface, Name
     from ..base.abstract.tree_item import TreeItem
     from .extended_logger import SingletonLogger
     from .message_collector import SelectionMessageCollector
 
 Native = ContextInterface
-Child = SourcedInterface
+Child = Native
 
 NAME = 'logging_context_stub'
 
@@ -31,15 +23,17 @@ NAME = 'logging_context_stub'
 class LoggingContextStub(TreeItem, ContextInterface):
     def __init__(
             self,
-            name: Union[Name, Auto] = AUTO,
-            logger: Union[LoggerInterface, Auto] = AUTO,
+            name: Optional[Name] = None,
+            logger: Optional[LoggerInterface] = None,
             skip_not_implemented: bool = True
     ):
+        if name is None:
+            name = NAME
         self._logger = logger
         self._local_storage = None
         self._skip_not_implemented = skip_not_implemented
         self._tmp_folder = None
-        super().__init__(name=Auto.acquire(name, NAME))
+        super().__init__(name=name)
 
     def set_logger(self, logger: LoggerInterface, inplace: bool = False) -> Optional[Native]:
         self._logger = logger
@@ -50,14 +44,14 @@ class LoggingContextStub(TreeItem, ContextInterface):
         if not inplace:
             return self
 
-    def get_logger(self, create_if_not_yet=True) -> LoggerInterface:
+    def get_logger(self, create_if_not_yet: bool = True) -> LoggerInterface:
         logger = self._logger
-        if Auto.is_defined(logger, check_name=False):
+        if isinstance(logger, LoggerInterface) or hasattr(logger, 'log'):
             if isinstance(logger, ExtendedLoggerInterface) or hasattr(logger, 'get_context'):
                 if not logger.get_context():
                     if hasattr(logger, 'set_context'):
                         logger.set_context(self)
-            return self._logger
+            return logger
         elif create_if_not_yet:
             return self.get_new_logger()
 
@@ -65,10 +59,10 @@ class LoggingContextStub(TreeItem, ContextInterface):
         return SingletonLogger(name=NAME, context=self)
 
     @staticmethod
-    def get_new_selection_logger(name, **kwargs) -> LoggerInterface:
+    def get_new_selection_logger(name: Optional[Name], **kwargs) -> LoggerInterface:
         return SelectionMessageCollector(name, **kwargs)
 
-    def get_selection_logger(self, name=AUTO, **kwargs) -> LoggerInterface:
+    def get_selection_logger(self, name: Optional[Name] = None, **kwargs) -> LoggerInterface:
         logger = self.get_logger()
         if hasattr(logger, 'get_selection_logger'):
             selection_logger = logger.get_selection_logger(name, **kwargs)
@@ -80,7 +74,7 @@ class LoggingContextStub(TreeItem, ContextInterface):
                 logger.set_selection_logger(selection_logger)
         return selection_logger
 
-    def log(self, msg, level=AUTO, end=AUTO, truncate: bool = True, verbose=True) -> None:
+    def log(self, msg: str, level=None, end: Optional[str] = None, truncate: bool = True, verbose: bool = True) -> None:
         logger = self.get_logger()
         if isinstance(logger, ExtendedLoggerInterface):
             logger.log(msg=msg, level=level, end=end, truncate=truncate, verbose=verbose)
@@ -135,10 +129,10 @@ class LoggingContextStub(TreeItem, ContextInterface):
     def get_connection(self, name, skip_missing=True):
         self._method_stub('get_connection')
 
-    def conn(self, conn, name=AUTO, check=True, redefine=True, **kwargs):
+    def conn(self, conn, name=None, check=True, redefine=True, **kwargs):
         self._method_stub('conn')
 
-    def stream(self, stream_type, name=AUTO, check=True, **kwargs):
+    def stream(self, stream_type, name=None, check=True, **kwargs):
         self._method_stub('stream')
 
     def rename_stream(self, old_name, new_name):

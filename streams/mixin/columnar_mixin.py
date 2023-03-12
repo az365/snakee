@@ -7,7 +7,6 @@ try:  # Assume we're a submodule in a package.
         Stream, RegularStream, RegularStreamInterface, StructStream, StructInterface, ColumnarInterface,
         StreamType, ItemType, JoinType, How,
         Count, UniKey, Item, Array, Columns, OptionalFields,
-        AUTO, Auto, AutoBool,
     )
     from base.functions.arguments import get_name, get_names, update
     from base.mixin.iter_data_mixin import IterDataMixin
@@ -18,13 +17,13 @@ try:  # Assume we're a submodule in a package.
     from utils import algo
     from utils.decorators import deprecated, deprecated_with_alternative
     from utils.external import pd, DataFrame, get_use_objects_for_output
+    from streams.interfaces.abstract_stream_interface import DEFAULT_EXAMPLE_COUNT
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         Context, LoggerInterface, SelectionLogger, ExtLogger, LoggingLevel,
         Stream, RegularStream, RegularStreamInterface, StructStream, StructInterface, ColumnarInterface,
         StreamType, ItemType, JoinType, How,
         Count, UniKey, Item, Array, Columns, OptionalFields,
-        AUTO, Auto, AutoBool,
     )
     from ...base.functions.arguments import get_name, get_names, update
     from ...base.mixin.iter_data_mixin import IterDataMixin
@@ -35,15 +34,14 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils import algo
     from ...utils.decorators import deprecated, deprecated_with_alternative
     from ...utils.external import pd, DataFrame, get_use_objects_for_output
+    from ..interfaces.abstract_stream_interface import DEFAULT_EXAMPLE_COUNT
 
 Native = Union[RegularStreamInterface, ColumnarInterface]
 Struct = Optional[StructInterface]
 
 SAFE_COUNT_ITEMS_IN_MEMORY = 10000
 EXAMPLE_STR_LEN = 12
-DEFAULT_SHOW_COUNT = 10
 DEFAULT_DETECT_COUNT = 100
-LOGGING_LEVEL_INFO = 20
 
 
 class ColumnarMixin(IterDataMixin, ABC):
@@ -57,7 +55,8 @@ class ColumnarMixin(IterDataMixin, ABC):
             if cls.is_valid_item(i):
                 yield i
             else:
-                message = 'get_validated(): item {} is not a {}'.format(i, cls.get_item_type())
+                item_type = cls.get_item_type()
+                message = f'get_validated(): item {i} is not a {item_type}'
                 if skip_errors:
                     if context:
                         context.get_logger().log(message, level=LoggingLevel.Info)
@@ -98,17 +97,16 @@ class ColumnarMixin(IterDataMixin, ABC):
 
     @deprecated
     def get_description(self) -> str:
-        return '{} rows, {} columns: {}'.format(
-            self.get_str_count(),
-            self.get_column_count(),
-            ', '.join(self.get_columns()),
-        )
+        rows = self.get_str_count()
+        cols = self.get_column_count()
+        column_names = ', '.join(self.get_columns())
+        return f'{rows} rows, {cols} columns: {column_names}'
 
     def get_column_count(self) -> int:
         return len(list(self.get_columns()))
 
     def _get_items_of_type(self, item_type: ItemType) -> Iterable:
-        if item_type == ItemType.Auto:
+        if item_type in (ItemType.Auto, None):
             is_native_type = True
         elif hasattr(self, 'get_item_type'):
             is_native_type = item_type == self.get_item_type()
@@ -138,11 +136,13 @@ class ColumnarMixin(IterDataMixin, ABC):
             *args,
             item_type: ItemType = ItemType.Auto,
             skip_errors: bool = False,
-            logger: Union[LoggerInterface, Auto] = AUTO,
+            logger: Optional[LoggerInterface] = None,
             **kwargs
     ) -> Iterable:
-        logger = Auto.delayed_acquire(logger, self.get_logger)
-        item_type = Auto.delayed_acquire(item_type, self.get_item_type)
+        if logger is None:
+            logger = self.get_logger()
+        if item_type in (ItemType.Auto, None):
+            item_type = self.get_item_type()
         filter_function = get_filter_function(
             *args, **kwargs, item_type=item_type,
             skip_errors=skip_errors, logger=logger,
@@ -150,7 +150,8 @@ class ColumnarMixin(IterDataMixin, ABC):
         return filter(filter_function, self._get_items_of_type(item_type))
 
     def filter(self, *args, item_type: ItemType = ItemType.Auto, skip_errors: bool = False, **kwargs) -> Native:
-        item_type = Auto.delayed_acquire(item_type, self.get_item_type)
+        if item_type in (ItemType.Auto, None):
+            item_type = self.get_item_type()
         filtered_items = self._get_filtered_items(*args, item_type=item_type, skip_errors=skip_errors, **kwargs)
         stream = self.to_stream(data=filtered_items, stream_type=item_type)
         return self._assume_native(stream)
@@ -179,14 +180,15 @@ class ColumnarMixin(IterDataMixin, ABC):
             key: UniKey,
             how: How = JoinType.Left,
             right_is_uniq: bool = True,
-            merge_function: Union[Callable, Auto] = AUTO,
+            merge_function: Optional[Callable] = None,
             inplace: bool = False,
     ) -> Optional[Native]:
         keys = update([key])
         keys = get_names(keys, or_callable=True)
         item_type = self.get_item_type()
         key_function = composite_key(*keys, item_type=item_type)
-        merge_function = Auto.acquire(merge_function, merge_two_items(item_type=item_type))
+        if merge_function is None:
+            merge_function = merge_two_items(item_type=item_type)
         if not isinstance(how, JoinType):
             how = JoinType(how)
         right_items = list(right.get_items())
@@ -324,9 +326,10 @@ class ColumnarMixin(IterDataMixin, ABC):
                 dataframe = DataFrame(self.get_items())
             return dataframe
 
-    def _get_field_getter(self, field: UniKey, item_type: Union[ItemType, Auto] = AUTO, default=None):
+    def _get_field_getter(self, field: UniKey, item_type: ItemType = ItemType.Auto, default=None):
         if isinstance(self, RegularStreamInterface) or hasattr(self, 'get_item_type') and hasattr(self, 'get_struct'):
-            item_type = Auto.delayed_acquire(item_type, self.get_item_type)
+            if item_type in (ItemType.Auto, None):
+                item_type = self.get_item_type()
             struct = self.get_struct()
         else:
             struct = None
@@ -338,14 +341,16 @@ class ColumnarMixin(IterDataMixin, ABC):
         return {key_getter(i): value_getter(i) for i in self.get_items()}
 
     def get_str_description(self) -> str:
-        return '{} rows, {} columns: {}'.format(
-            self.get_str_count(),
-            self.get_column_count(),
-            ', '.join(self.get_columns()),
-        )
+        rows = self.get_str_count()
+        cols = self.get_column_count()
+        column_names = ', '.join(self.get_columns())
+        return f'{rows} rows, {cols} columns: {column_names}'
 
-    def get_str_headers(self) -> Iterable:
-        yield "{}('{}') {}".format(self.__class__.__name__, self.get_name(), self.get_str_description())
+    def get_str_headers(self) -> Iterable[str]:
+        cls_name = self.__class__.__name__
+        obj_name = self.get_name()
+        state = self.get_str_description()
+        yield f'{cls_name}({repr(obj_name)}) {state}'
 
     def get_one_item(self) -> Optional[Item]:
         one_item_stream = self.take(1)
@@ -359,7 +364,7 @@ class ColumnarMixin(IterDataMixin, ABC):
     def example(
             self,
             *filters,
-            count: int = DEFAULT_SHOW_COUNT,
+            count: int = DEFAULT_EXAMPLE_COUNT,
             allow_tee_iterator: bool = True,
             allow_spend_iterator: bool = True,
             **filter_kwargs
@@ -377,10 +382,10 @@ class ColumnarMixin(IterDataMixin, ABC):
 
     def get_demo_example(
             self,
-            count: int = DEFAULT_SHOW_COUNT,
+            count: int = DEFAULT_EXAMPLE_COUNT,
             filters: Optional[Array] = None,
             columns: Optional[Array] = None,
-            verbose: AutoBool = AUTO,
+            verbose: Optional[bool] = None,
     ) -> Union[DataFrame, Iterable]:
         sm_sample = self.filter(*filters or []) if filters else self
         sm_sample = sm_sample.take(count)
@@ -392,7 +397,7 @@ class ColumnarMixin(IterDataMixin, ABC):
 
     def show(
             self,
-            count: int = DEFAULT_SHOW_COUNT,
+            count: int = DEFAULT_EXAMPLE_COUNT,
             filters: Columns = None,
             columns: Columns = None,
     ):
@@ -401,7 +406,7 @@ class ColumnarMixin(IterDataMixin, ABC):
         demo_example = self.get_demo_example(count=count, filters=filters, columns=columns)
         demo_example = list(demo_example)
         if demo_example:
-            if not Auto.is_defined(columns):
+            if columns is None:
                 if isinstance(demo_example[0], dict):
                     columns = demo_example[0].keys()
                 else:
@@ -461,7 +466,7 @@ class ColumnarMixin(IterDataMixin, ABC):
 
     def get_description_items(
             self,
-            count: Count = DEFAULT_SHOW_COUNT,
+            count: Count = DEFAULT_EXAMPLE_COUNT,
             comment: Optional[str] = None,
             depth: int = 1,
             take_struct_from_source: bool = False,
@@ -482,12 +487,12 @@ class ColumnarMixin(IterDataMixin, ABC):
             self,
             *filters,
             take_struct_from_source: bool = False,
-            count: Count = DEFAULT_SHOW_COUNT,
+            count: Count = DEFAULT_EXAMPLE_COUNT,
             columns: Columns = None,
             comment: Optional[str] = None,
             allow_collect: bool = True,
             depth: int = 1,
-            display=AUTO,
+            display=None,
             **filter_kwargs
     ) -> Native:
         display = self.get_display(display)

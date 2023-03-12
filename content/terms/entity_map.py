@@ -1,14 +1,12 @@
 from typing import Optional, Generator
 
 try:  # Assume we're a submodule in a package.
-    from interfaces import AUTO, Auto, AutoCount
     from base.constants.chars import EMPTY, SMALL_INDENT, TAB_INDENT, REPR_DELIMITER, DEFAULT_LINE_LEN
-    from base.abstract.simple_data import SimpleDataWrapper, AutoDisplay
+    from base.abstract.simple_data import SimpleDataWrapper, DisplayInterface, Count
     from utils.external import DataFrame
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...interfaces import AUTO, Auto, AutoCount
     from ...base.constants.chars import EMPTY, SMALL_INDENT, TAB_INDENT, REPR_DELIMITER, DEFAULT_LINE_LEN
-    from ...base.abstract.simple_data import SimpleDataWrapper, AutoDisplay
+    from ...base.abstract.simple_data import SimpleDataWrapper, DisplayInterface, Count
     from ...utils.external import DataFrame
 
 Native = SimpleDataWrapper
@@ -32,15 +30,15 @@ class EntityMap(SimpleDataWrapper):
 
     def get_count_repr(self, default: str = 'N/A') -> str:
         count = self.get_count() or default
-        return '{count} entities'.format(count=count)
+        return f'{count} entities'
 
     def display_data_sheet(
             self,
-            count: AutoCount = AUTO,
+            count: Count = None,
             title: Optional[str] = 'Data',
             comment: Optional[str] = None,
-            max_len: AutoCount = AUTO,
-            display: AutoDisplay = AUTO,
+            max_len: Count = None,
+            display: Optional[DisplayInterface] = None,
     ):
         display = self.get_display(display)
         if comment:

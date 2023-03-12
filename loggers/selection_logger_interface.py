@@ -2,11 +2,9 @@ from abc import ABC, abstractmethod
 from typing import Optional, Iterable
 
 try:  # Assume we're a submodule in a package.
-    from utils import arguments as arg
     from loggers.extended_logger_interface import ExtendedLoggerInterface
     from loggers.detailed_message import DetailedMessage, SelectionError
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..utils import arguments as arg
     from .extended_logger_interface import ExtendedLoggerInterface
     from .detailed_message import DetailedMessage, SelectionError
 

@@ -2,14 +2,14 @@ from abc import ABC
 from typing import Optional, Iterable, Iterator, Sequence, Tuple, Union
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.typing import Name, Count, Auto, ARRAY_TYPES
+    from base.classes.typing import Name, Count, ARRAY_TYPES
     from base.constants.chars import EMPTY, REPR_DELIMITER, CROP_SUFFIX, SHORT_CROP_SUFFIX, DEFAULT_LINE_LEN
     from base.functions.arguments import get_name, get_cropped_text
     from base.abstract.simple_data import SimpleDataWrapper
     from base.interfaces.sheet_interface import SheetInterface, Record, Row, FormattedRow, Columns
     from base.mixin.iter_data_mixin import IterDataMixin
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..classes.typing import Name, Count, Auto, ARRAY_TYPES
+    from ..classes.typing import Name, Count, ARRAY_TYPES
     from ..constants.chars import EMPTY, REPR_DELIMITER, CROP_SUFFIX, SHORT_CROP_SUFFIX, DEFAULT_LINE_LEN
     from ..functions.arguments import get_name, get_cropped_text
     from ..abstract.simple_data import SimpleDataWrapper
@@ -33,7 +33,7 @@ class SheetMixin(ABC):
 
     @classmethod
     def from_records(cls, records: Iterable[Record], columns: Columns = None, name: Name = EMPTY) -> Native:
-        if Auto.is_defined(columns):
+        if not isinstance(columns, Iterable):  # columns is None:
             column_names = cls._get_column_names_from_columns(columns)
         else:
             records = list(records)
@@ -47,7 +47,7 @@ class SheetMixin(ABC):
 
     @classmethod
     def from_rows(cls, rows: Iterable[Row], columns: Columns, name: Name = EMPTY) -> Native:
-        if not Auto.is_defined(columns):
+        if not isinstance(columns, Iterable):  # columns is None:
             rows = list(rows)
             if rows:
                 count = len(rows[0])
@@ -64,11 +64,11 @@ class SheetMixin(ABC):
             if isinstance(first_item, Record):
                 return cls.from_records(items, columns=columns, name=name)
             elif isinstance(first_item, Row):
-                if not Auto.is_defined(columns):
+                if not isinstance(columns, Iterable):  # columns is None:
                     columns = list(range(first_item))
                 return cls.from_rows(items, columns=columns, name=name)
             else:
-                if not Auto.is_defined(columns):
+                if not isinstance(columns, Iterable):  # columns is None:
                     columns = 'item',
                 return cls.from_rows([(i, ) for i in items], columns=columns, name=name)
         else:

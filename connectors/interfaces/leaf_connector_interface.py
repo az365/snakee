@@ -2,14 +2,14 @@ from abc import ABC, abstractmethod
 from typing import Optional, Iterable, Iterator, Union
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.typing import AUTO, Auto, AutoBool, AutoCount, Array
+    from base.classes.typing import Count
     from streams.interfaces.abstract_stream_interface import StreamInterface, DEFAULT_EXAMPLE_COUNT
     from content.items.item_type import ItemType
     from content.format.content_type import ContentType
     from content.format.format_interface import ContentFormatInterface
     from connectors.interfaces.connector_interface import ConnectorInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...base.classes.typing import AUTO, Auto, AutoBool, AutoCount, Array
+    from ...base.classes.typing import Count
     from ...streams.interfaces.abstract_stream_interface import StreamInterface, DEFAULT_EXAMPLE_COUNT
     from ...content.items.item_type import ItemType
     from ...content.format.content_type import ContentType
@@ -89,12 +89,12 @@ class LeafConnectorInterface(ConnectorInterface, StreamInterface, ABC):
             set_struct: bool = False,
             use_declared_types: bool = True,
             skip_missing: bool = False,
-            verbose: AutoBool = AUTO,
+            verbose: Optional[bool] = None,
     ):
         pass
 
     @abstractmethod
-    def set_first_line_title(self, first_line_is_title: AutoBool) -> Native:
+    def set_first_line_title(self, first_line_is_title: Optional[bool]) -> Native:
         pass
 
     @abstractmethod
@@ -112,7 +112,7 @@ class LeafConnectorInterface(ConnectorInterface, StreamInterface, ABC):
         pass
 
     @abstractmethod
-    def get_expected_count(self) -> AutoCount:
+    def get_expected_count(self) -> Count:
         pass
 
     @abstractmethod
@@ -123,7 +123,12 @@ class LeafConnectorInterface(ConnectorInterface, StreamInterface, ABC):
         pass
 
     @abstractmethod
-    def get_first_line(self, close: bool = True, skip_missing: bool = False, verbose: AutoBool = AUTO) -> Optional[str]:
+    def get_first_line(
+            self,
+            close: bool = True,
+            skip_missing: bool = False,
+            verbose: Optional[bool] = None,
+    ) -> Optional[str]:
         """Returns raw, unparsed first line of stored data object.
         """
         pass
@@ -135,18 +140,18 @@ class LeafConnectorInterface(ConnectorInterface, StreamInterface, ABC):
             skip_first: bool = False,
             skip_missing: bool = False,
             allow_reopen: bool = True,
-            verbose: AutoBool = AUTO,
+            verbose: Optional[bool] = None,
             message: Optional[str] = None,
-            step: AutoCount = AUTO,
+            step: Count = None,
     ) -> Iterator[str]:
         pass
 
     def get_items_of_type(
             self,
-            item_type: Union[ItemType, Auto],
-            verbose: AutoBool = AUTO,
-            message: Union[Auto, str] = AUTO,
-            step: AutoCount = AUTO,
+            item_type: Optional[ItemType],
+            verbose: Optional[bool] = None,
+            message: Optional[str] = None,
+            step: Count = None,
     ) -> Iterable:
         pass
 
@@ -183,12 +188,11 @@ class LeafConnectorInterface(ConnectorInterface, StreamInterface, ABC):
             self,
             *filter_args,
             count: Optional[int] = DEFAULT_EXAMPLE_COUNT,
-            columns: Optional[Array] = None,
+            columns: Optional[Iterable] = None,
             show_header: bool = True,
             struct_as_dataframe: bool = False,  # deprecated
             safe_filter: bool = True,
-            actualize: AutoBool = AUTO,
-            output=AUTO,  # deprecated
+            actualize: Optional[bool] = None,
             **filter_kwargs
     ):
         pass

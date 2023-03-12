@@ -2,22 +2,20 @@ from abc import ABC, abstractmethod
 from typing import Optional, Callable, Union
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.auto import AUTO, Auto
     from base.interfaces.data_interface import SimpleDataInterface
+    from base.constants.chars import TAB_CHAR
     from content.fields.field_interface import FieldInterface
     from content.items.simple_items import SimpleRowInterface, SimpleRow, FieldNo, FieldID, Value
     from content.struct.struct_interface import StructInterface, StructMixinInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...base.classes.auto import AUTO, Auto
     from ...base.interfaces.data_interface import SimpleDataInterface
+    from ...base.constants.chars import TAB_CHAR
     from ..fields.field_interface import FieldInterface
     from ..items.simple_items import SimpleRowInterface, SimpleRow, FieldNo, FieldID, Value
     from .struct_interface import StructInterface, StructMixinInterface
 
 StructRow = SimpleDataInterface
 GenericRow = Union[SimpleRow, StructRow]
-
-DEFAULT_DELIMITER = '\t'
 
 
 # @deprecated
@@ -53,7 +51,7 @@ class StructRowInterface(SimpleDataInterface, SimpleRowInterface, StructMixinInt
             self,
             field: FieldID,
             value: Value,
-            field_type=AUTO,
+            field_type=None,
             update_struct: bool = False,
             inplace: bool = True,
     ) -> Optional[StructRow]:
@@ -64,7 +62,7 @@ class StructRowInterface(SimpleDataInterface, SimpleRowInterface, StructMixinInt
         pass
 
     @abstractmethod
-    def get_line(self, dialect='str', delimiter: str = DEFAULT_DELIMITER, need_quotes: bool = False) -> str:
+    def get_line(self, dialect='str', delimiter: str = TAB_CHAR, need_quotes: bool = False) -> str:
         pass
 
     @abstractmethod

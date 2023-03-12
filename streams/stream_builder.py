@@ -6,16 +6,16 @@ try:  # Assume we're a submodule in a package.
     from interfaces import (
         StreamBuilderInterface,
         StreamInterface, LocalStreamInterface, ContextInterface, ConnectorInterface, TemporaryLocationInterface,
-        StreamType, ItemType, StreamItemType, JoinType,
-        Stream, How, Class, OptionalFields, Auto, AUTO,
+        StreamType, ItemType, JoinType,
+        Stream, How, Class, OptionalFields,
     )
     from base.functions.arguments import update
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..interfaces import (
         StreamBuilderInterface,
         StreamInterface, LocalStreamInterface, ContextInterface, ConnectorInterface, TemporaryLocationInterface,
-        StreamType, ItemType, StreamItemType, JoinType,
-        Stream, How, Class, OptionalFields, Auto, AUTO,
+        StreamType, ItemType, JoinType,
+        Stream, How, Class, OptionalFields,
     )
     from ..base.functions.arguments import update
 
@@ -32,19 +32,19 @@ class StreamBuilder(StreamBuilderInterface):
     def stream(
             cls,
             data: Iterable,
-            stream_type: StreamItemType = AUTO,
+            stream_type: ItemType = ItemType.Auto,
             register: bool = True,
             **kwargs
     ) -> Stream:
         default_class = cls.get_default_stream_class()
-        if Auto.is_defined(stream_type) and isinstance(stream_type, StreamType):
+        if isinstance(stream_type, StreamType):
             stream_class = stream_type.get_class(default=default_class)
         else:
             stream_class = default_class
             if 'item_type' not in kwargs:
                 if isinstance(stream_type, ItemType):
                     item_type = stream_type
-                elif Auto.is_defined(stream_type):
+                elif stream_type not in (ItemType.Auto, None):
                     try:
                         item_type = ItemType(stream_type)
                     except (TypeError, ValueError):
@@ -69,7 +69,7 @@ class StreamBuilder(StreamBuilderInterface):
         return len(set(stream_types)) == 1
 
     @classmethod
-    def stack(cls, *iter_streams, how: How = 'vertical', name=AUTO, context=None, **kwargs):
+    def stack(cls, *iter_streams, how: How = 'vertical', name: Optional[str] = None, context=None, **kwargs):
         iter_streams = update(iter_streams)
         assert cls.is_same_stream_type(iter_streams), 'concat(): streams must have same type: {}'.format(iter_streams)
         result = None
@@ -80,9 +80,9 @@ class StreamBuilder(StreamBuilderInterface):
                     result = cur_stream.copy()
                 else:
                     result = cur_stream
-                if Auto.is_defined(name):
+                if name is not None:
                     result.set_name(name)
-                if Auto.is_defined(context):
+                if context is not None:
                     result.set_context(context)
             elif how == 'vertical':
                 result = result.add_stream(cur_stream)
@@ -92,11 +92,11 @@ class StreamBuilder(StreamBuilderInterface):
         return result
 
     @classmethod
-    def concat(cls, *iter_streams, name=AUTO, context=None):
+    def concat(cls, *iter_streams, name: Optional[str] = None, context=None):
         return cls.stack(*iter_streams, name=name, context=context)
 
     @classmethod
-    def join(cls, *iter_streams, key, how: How = JoinType.Left, step=AUTO, name=AUTO, context=None):
+    def join(cls, *iter_streams, key, how: How = JoinType.Left, step: Optional[int] = None, name=None, context=None):
         return cls.stack(*iter_streams, key=key, how=how, step=step, name=name, context=context)
 
     @classmethod
@@ -148,7 +148,7 @@ class StreamBuilder(StreamBuilderInterface):
         cls._context = cx
         if set_storage:
             storage = cx.get_local_storage()
-            if Auto.is_defined(storage):
+            if storage is not None:
                 assert isinstance(storage, TemporaryLocationInterface)
                 cls.set_temporary_location(storage)
         return cls()
@@ -161,8 +161,9 @@ class StreamBuilder(StreamBuilderInterface):
     @classmethod
     def set_temporary_location(cls, storage: TemporaryLocationInterface) -> Native:
         default_stream_class = cls.get_default_stream_class()
-        if Auto.is_defined(default_stream_class) and hasattr(default_stream_class, 'get_tmp_files'):
-            temporary_location = default_stream_class.get_tmp_files()
-            assert isinstance(storage, ConnectorInterface)
-            temporary_location.set_default_storage(storage)
+        if default_stream_class is not None:
+            if hasattr(default_stream_class, 'get_tmp_files'):  # isinstance(default_stream_class, LocalStream):
+                temporary_location = default_stream_class.get_tmp_files()
+                assert isinstance(storage, ConnectorInterface)
+                temporary_location.set_default_storage(storage)
         return cls()

@@ -5,14 +5,14 @@ try:  # Assume we're a submodule in a package.
     from interfaces import (
         StructInterface, StructMixinInterface,
         ItemType, DialectType, ValueType, Field, FieldName, FieldNo,
-        AUTO, Auto, AutoBool, AutoLinks, Row, Array, ARRAY_TYPES,
+        Links, Array, ARRAY_TYPES,
     )
     from base.functions.arguments import get_name
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         StructInterface, StructMixinInterface,
         ItemType, DialectType, ValueType, Field, FieldName, FieldNo,
-        AUTO, Auto, AutoBool, AutoLinks, Row, Array, ARRAY_TYPES,
+        Links, Array, ARRAY_TYPES,
     )
     from ...base.functions.arguments import get_name
 
@@ -37,7 +37,7 @@ class StructMixin(StructMixinInterface, ABC):
         if not inplace:
             return self
 
-    def get_columns(self) -> Row:
+    def get_columns(self) -> Array:
         return self.get_struct().get_columns()
 
     def get_column_count(self) -> int:
@@ -46,7 +46,7 @@ class StructMixin(StructMixinInterface, ABC):
     def get_types_list(self, dialect: DialectType = DialectType.String) -> list:
         return self.get_struct().get_types_list(dialect)
 
-    def get_types_dict(self, dialect: Union[DialectType, Auto, None] = AUTO) -> dict:
+    def get_types_dict(self, dialect: Optional[DialectType] = None) -> dict:
         return self.get_struct().get_types_dict(dialect)
 
     def get_types(self, dialect: DialectType = DialectType.String, as_list: bool = True) -> Iterable:
@@ -64,17 +64,17 @@ class StructMixin(StructMixinInterface, ABC):
             field_name = get_name(field)
             return self.get_struct().get_field_position(field_name)
 
-    def get_fields_positions(self, fields: Row) -> Row:
+    def get_fields_positions(self, fields: Array) -> Array:
         return [self.get_field_position(f) for f in fields]
 
     @classmethod
     def _get_struct_detected_by_title_row(
             cls,
             title_row: Iterable,
-            types: AutoLinks = None,
+            types: Links = None,
     ) -> StructInterface:
         struct_class = cls._get_struct_class()
-        if not Auto.is_defined(types):
+        if types is None:
             types = dict()
         detected_struct = struct_class([])
         for name in title_row:
@@ -91,12 +91,10 @@ class StructMixin(StructMixinInterface, ABC):
         flat_struct_class = struct_row_class([], []).get_struct().__class__
         return flat_struct_class
 
-    def _get_native_struct(self, raw_struct: Struct, save_if_not_yet: bool = False, verbose: AutoBool = AUTO) -> Struct:
-        if hasattr(self, 'is_verbose') and not Auto.is_defined(verbose):
+    def _get_native_struct(self, raw_struct: Struct, save_if_not_yet: bool = False, verbose: Optional[bool] = None) -> Struct:
+        if hasattr(self, 'is_verbose') and verbose is None:
             verbose = self.is_verbose()
-        if raw_struct is None:
-            native_struct = None
-        elif isinstance(raw_struct, StructInterface):
+        if isinstance(raw_struct, StructInterface):
             native_struct = raw_struct
         elif hasattr(raw_struct, 'get_fields'):
             struct_class = self._get_struct_class()
@@ -118,7 +116,7 @@ class StructMixin(StructMixinInterface, ABC):
                 native_struct = struct_class(raw_struct)
             else:
                 native_struct = self._get_struct_detected_by_title_row(column_names)
-        elif raw_struct == AUTO:
+        elif raw_struct is None:
             native_struct = None
             if hasattr(self, 'get_struct_from_source'):
                 native_struct = self.get_struct_from_source(

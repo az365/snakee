@@ -5,10 +5,9 @@ try:  # Assume we're a submodule in a package.
     from interfaces import (
         TermInterface, FieldInterface,
         TermType, TermDataAttribute, TermRelation, FieldRoleType, ValueType,
-        AUTO, Auto, AutoCount,
     )
-    from base.functions.arguments import get_name, get_names, get_value
     from base.constants.chars import EMPTY, UNDER, SMALL_INDENT, REPR_DELIMITER, JUPYTER_LINE_LEN
+    from base.functions.arguments import get_name, get_names, get_value
     from base.abstract.simple_data import SimpleDataWrapper
     from base.mixin.map_data_mixin import MultiMapDataMixin
     from base.classes.enum import ClassType
@@ -18,10 +17,9 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...interfaces import (
         TermInterface, FieldInterface,
         TermType, TermDataAttribute, TermRelation, FieldRoleType, ValueType,
-        AUTO, Auto, AutoCount,
     )
-    from ...base.functions.arguments import get_name, get_names, get_value
     from ...base.constants.chars import EMPTY, UNDER, SMALL_INDENT, REPR_DELIMITER, JUPYTER_LINE_LEN
+    from ...base.functions.arguments import get_name, get_names, get_value
     from ...base.abstract.simple_data import SimpleDataWrapper
     from ...base.mixin.map_data_mixin import MultiMapDataMixin
     from ...base.classes.enum import ClassType
@@ -105,12 +103,12 @@ class AbstractTerm(SimpleDataWrapper, MultiMapDataMixin, TermInterface, ABC):
     def field(
             self,
             name: str,
-            value_type: Union[ValueType, Auto] = AUTO,
-            role: Union[FieldRoleType, str, Auto] = AUTO,
-            caption: Union[str, Auto] = AUTO,
+            value_type: Optional[ValueType] = None,
+            role: Union[FieldRoleType, str, None] = None,
+            caption: Optional[str] = None,
             **kwargs
     ) -> FieldInterface:
-        if Auto.is_auto(role):
+        if role is None:
             suffix = name.split(UNDER)[-1]
             role = FieldRoleType.detect(suffix, default=FieldRoleType.Undefined)
         return self.get_field_by_role(role, value_type=value_type, name=name, caption=caption, **kwargs)
@@ -121,9 +119,9 @@ class AbstractTerm(SimpleDataWrapper, MultiMapDataMixin, TermInterface, ABC):
     def get_field_by_role(
             self,
             role: FieldRoleType,
-            value_type: Union[ValueType, Auto] = AUTO,
-            name: Union[str, Auto] = AUTO,
-            caption: Union[str, Auto] = AUTO,
+            value_type: Optional[ValueType] = None,
+            name: Optional[str] = None,
+            caption: Optional[str] = None,
             **kwargs
     ) -> Field:
         fields_by_roles = self.get_fields_by_roles()
@@ -135,10 +133,13 @@ class AbstractTerm(SimpleDataWrapper, MultiMapDataMixin, TermInterface, ABC):
                 field = field.set_outplace(**kwargs)
         else:
             field_class = self._get_default_field_class_by_role(role)
-            field_name = Auto.delayed_acquire(name, self._get_default_field_name_by_role, role)
-            value_type = Auto.delayed_acquire(value_type, self._get_default_value_type_by_role, role)
-            field_caption = Auto.delayed_acquire(caption, self._get_default_field_caption_by_role, role)
-            field = field_class(field_name, value_type, caption=field_caption, **kwargs)
+            if name is None:
+                name = self._get_default_field_name_by_role(role)
+            if value_type is None:
+                value_type = self._get_default_value_type_by_role(role)
+            if caption is None:
+                caption = self._get_default_field_caption_by_role(role)
+            field = field_class(name, value_type, caption=caption, **kwargs)
             fields_by_roles[role_value] = field
         return field
 
@@ -158,7 +159,7 @@ class AbstractTerm(SimpleDataWrapper, MultiMapDataMixin, TermInterface, ABC):
 
     def _get_default_field_name_by_role(self, role: FieldRoleType) -> str:
         term_name = self.get_name()
-        if role in FIELD_ROLES_WITHOUT_SUFFIXES or role in (None, AUTO):
+        if role in FIELD_ROLES_WITHOUT_SUFFIXES or role is None:
             field_name = term_name
         else:
             field_name = FIELD_NAME_TEMPLATE.format(term=term_name, role=get_value(role))
@@ -166,7 +167,7 @@ class AbstractTerm(SimpleDataWrapper, MultiMapDataMixin, TermInterface, ABC):
 
     def _get_default_field_caption_by_role(self, role: FieldRoleType) -> str:
         term_caption = self.get_caption()
-        if role in FIELD_ROLES_WITHOUT_SUFFIXES or role in (None, AUTO):
+        if role in FIELD_ROLES_WITHOUT_SUFFIXES or role is None:
             field_caption = term_caption
         else:
             term_name = self.get_name()
@@ -206,7 +207,7 @@ class AbstractTerm(SimpleDataWrapper, MultiMapDataMixin, TermInterface, ABC):
         columns = 'role', 'name', 'type', 'caption', 'repr'
         records = list()
         for n, (key, value) in enumerate(fields_and_roles.items()):
-            if Auto.is_defined(count):
+            if count is not None:
                 if n >= count:
                     break
             r = dict(
@@ -222,7 +223,7 @@ class AbstractTerm(SimpleDataWrapper, MultiMapDataMixin, TermInterface, ABC):
             count: Optional[int] = None,
             title: Optional[str] = 'Data',
             comment: Optional[str] = None,
-    ) -> Generator:
+    ) -> Chapter:
         chapter = Chapter()
         for key in TermDataAttribute.get_enum_items():  # fields, dictionaries, mappers, datasets, relations
             data = self.get_data().get(key)
@@ -252,7 +253,7 @@ class AbstractTerm(SimpleDataWrapper, MultiMapDataMixin, TermInterface, ABC):
             count: Optional[int] = None,
             title: Optional[str] = 'Data',
             comment: Optional[str] = None,
-            display=AUTO,
+            display=None,
     ) -> Native:
         display = self.get_display(display)
         item = self.get_data_chapter()

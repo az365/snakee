@@ -1,22 +1,26 @@
 from typing import Optional, Iterable, Callable, Union
 
-try:  # Assume we're a sub-module in a package.
-    from utils import arguments as arg, algo
+try:  # Assume we're a submodule in a package.
     from interfaces import (
         ContextInterface, StreamInterface, ConnectorInterface, LeafConnectorInterface,
         TemporaryLocationInterface, TemporaryFilesMaskInterface,
         Context, Stream, Connector, TmpFiles,
-        AUTO, Auto, AutoBool, Name, Source,
+        Name, Source,
     )
+    from base.constants.chars import OS_PLACEHOLDER, PY_PLACEHOLDER
+    from utils.algo import merge_iter
+    from functions.primary.text import is_formatter
     from connectors.filesystem.local_mask import LocalFolder, LocalMask
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg, algo
     from ...interfaces import (
         ContextInterface, StreamInterface, ConnectorInterface, LeafConnectorInterface,
         TemporaryLocationInterface, TemporaryFilesMaskInterface,
         Context, Stream, Connector, TmpFiles,
-        AUTO, Auto, AutoBool, Name, Source,
+        Name, Source,
     )
+    from ...base.constants.chars import OS_PLACEHOLDER, PY_PLACEHOLDER
+    from ...utils.algo import merge_iter
+    from ...functions.primary.text import is_formatter
     from .local_mask import LocalFolder, LocalMask
 
 DEFAULT_FOLDER = 'tmp'
@@ -31,12 +35,12 @@ class TemporaryLocation(LocalFolder, TemporaryLocationInterface):
             path: Name = DEFAULT_FOLDER,
             mask: Name = DEFAULT_MASK,
             path_is_relative: bool = True,
-            parent: Source = AUTO,
-            context: Context = AUTO,
-            verbose: AutoBool = AUTO,
+            parent: Source = None,
+            context: Context = None,
+            verbose: Optional[bool] = None,
     ):
-        mask = mask.replace('*', '{}')
-        assert arg.is_formatter(mask, 2)
+        mask = mask.replace(OS_PLACEHOLDER, PY_PLACEHOLDER)  # '*', '{}'
+        assert is_formatter(mask, 2)
         self._mask = mask
         super().__init__(
             path=path, path_is_relative=path_is_relative,
@@ -66,14 +70,16 @@ class TemporaryLocation(LocalFolder, TemporaryLocationInterface):
         return mask
 
     def clear_all(self, forget: bool = True, verbose: bool = True) -> int:
+        path = self.get_path()
         files = list(self.all_existing_files())
-        self.log('Removing {} files from {}...'.format(len(files), self.get_path()), verbose=verbose)
+        found = len(files)
+        self.log(f'Removing {found} files from {path}...', verbose=verbose)
         count = 0
         for f in files:
             count += f.remove(verbose=False)
             if forget:
                 self.forget_child(f, also_from_context=True, skip_errors=True)
-        self.log('Removed {} files from {}.'.format(count, self.get_path()), verbose=verbose)
+        self.log(f'Removed {count} files from {path}.', verbose=verbose)
         return count
 
 
@@ -83,15 +89,22 @@ class TemporaryFilesMask(LocalMask, TemporaryFilesMaskInterface):
             name: Name,
             encoding: str = DEFAULT_ENCODING,
             stream: Optional[Stream] = None,
-            parent: Source = AUTO,
-            context: Context = AUTO,
-            verbose: AutoBool = AUTO,
+            parent: Source = None,
+            context: Context = None,
+            verbose: Optional[bool] = None,
     ):
-        parent = arg.acquire(parent, TemporaryLocation(context=context))
-        assert hasattr(parent, 'get_str_mask_template'), 'got {}'.format(parent)
-        location_mask = parent.get_str_mask_template()
-        assert arg.is_formatter(location_mask, 2)
-        stream_mask = location_mask.format(name, PART_PLACEHOLDER)
+        if parent is None:
+            parent = TemporaryLocation(context=context)
+        if isinstance(parent, TemporaryLocation) or hasattr(parent, 'get_str_mask_template'):
+            location_mask = parent.get_str_mask_template()
+        else:
+            msg = f'Expected parent as TemporaryLocation, got {parent}'
+            raise TypeError(msg)
+        if is_formatter(location_mask, 2):
+            stream_mask = location_mask.format(name, PART_PLACEHOLDER)
+        else:
+            msg = f'Expected location_mask with 2 placeholders (name, part), got {location_mask}'
+            raise ValueError(msg)
         super().__init__(
             mask=stream_mask,
             parent=parent,
@@ -108,11 +121,14 @@ class TemporaryFilesMask(LocalMask, TemporaryFilesMaskInterface):
         count = 0
         files = list(self.get_files())
         for file in files:
-            assert isinstance(file, LeafConnectorInterface), 'LocalFile expected, got {}'.format(file)
-            if file.is_existing():
-                count += file.remove(log=log, verbose=verbose)
-            if forget:
-                self.forget_child(file, also_from_context=True)
+            if isinstance(file, LeafConnectorInterface) or hasattr(file, 'remove'):
+                if file.is_existing():
+                    count += file.remove(log=log, verbose=verbose)
+                if forget:
+                    self.forget_child(file, also_from_context=True)
+            else:
+                msg = f'TemporaryFiles.remove_all(): LocalFile expected, got {file}'
+                raise TypeError(msg)
         return count
 
     def get_files(self) -> Iterable:
@@ -144,11 +160,12 @@ class TemporaryFilesMask(LocalMask, TemporaryFilesMaskInterface):
         parts = self.get_children().values()
         assert parts, 'streams must be non-empty'
         iterables = [f.get_items() for f in parts]
-        counts = [f.get_count() or 0 for f in parts]
-        self.log('Merging {} parts...'.format(len(iterables)), verbose=verbose)
-        merged_items = algo.merge_iter(iterables, key_function=key_function, reverse=reverse)
+        parts_count = len(iterables)
+        item_counts = [f.get_count() or 0 for f in parts]
+        self.log(f'Merging {parts_count} parts...', verbose=verbose)
+        merged_items = merge_iter(iterables, key_function=key_function, reverse=reverse)
         if return_count:
-            yield sum(counts)
+            yield sum(item_counts)
             yield merged_items
         else:
             yield from merged_items

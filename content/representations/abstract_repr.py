@@ -1,13 +1,11 @@
 from abc import ABC
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.auto import Auto, AUTO
     from base.classes.typing import Value, Count
     from base.constants.chars import EMPTY, FILL_CHAR, DEFAULT_STR, CROP_SUFFIX
     from base.abstract.abstract_base import AbstractBaseObject
     from content.representations.repr_interface import RepresentationInterface, ReprType, OptKey
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...base.classes.auto import Auto, AUTO
     from ...base.classes.typing import Value, Count
     from ...base.constants.chars import EMPTY, FILL_CHAR, DEFAULT_STR, CROP_SUFFIX
     from ...base.abstract.abstract_base import AbstractBaseObject
@@ -20,8 +18,8 @@ class AbstractRepresentation(AbstractBaseObject, RepresentationInterface, ABC):
     def __init__(
             self,
             align_right: bool = False,
-            min_len: Count = AUTO,
-            max_len: Count = AUTO,
+            min_len: Count = None,
+            max_len: Count = None,
             including_framing: bool = False,
             crop: str = CROP_SUFFIX,
             fill: str = FILL_CHAR,
@@ -29,8 +27,8 @@ class AbstractRepresentation(AbstractBaseObject, RepresentationInterface, ABC):
             suffix: str = EMPTY,
             default: str = DEFAULT_STR,
     ):
-        if Auto.is_defined(max_len):
-            assert len(crop) <= max_len, 'Expected len(crop) <= max_len, got len({}) > {}'.format(crop, max_len)
+        if max_len is not None:
+            assert len(crop) <= max_len, f'Expected len(crop) <= max_len, got len({crop}) > {max_len}'
         self._min_len = min_len
         self._max_len = max_len
         self._crop = crop
@@ -41,10 +39,10 @@ class AbstractRepresentation(AbstractBaseObject, RepresentationInterface, ABC):
         self._default = default
         if including_framing:
             framing_len = self.get_framing_len()
-            if Auto.is_defined(max_len):
-                assert max_len >= framing_len, 'Expected max_len >= framing_len, got {}<{}'.format(max_len, framing_len)
+            if max_len is not None:
+                assert max_len >= framing_len, f'Expected max_len >= framing_len, got {max_len} < {framing_len}'
                 self._max_len -= framing_len
-            if Auto.is_defined(min_len):
+            if min_len is not None:
                 if min_len > framing_len:
                     self._min_len -= framing_len
                 else:
@@ -59,14 +57,14 @@ class AbstractRepresentation(AbstractBaseObject, RepresentationInterface, ABC):
 
     def get_min_value_len(self, or_max: bool = True) -> Count:
         min_value_len = self._min_len
-        if Auto.is_auto(min_value_len):
+        if min_value_len is None:
             return self.get_max_value_len(or_min=False) if or_max else None
         else:
             return min_value_len
 
     def get_max_value_len(self, or_min: bool = True) -> Count:
         max_value_len = self._max_len
-        if Auto.is_auto(max_value_len):
+        if max_value_len is None:
             return self.get_min_value_len(or_max=False) if or_min else None
         else:
             return max_value_len
@@ -116,7 +114,7 @@ class AbstractRepresentation(AbstractBaseObject, RepresentationInterface, ABC):
 
     def get_cropped(self, line: str) -> str:
         max_len = self.get_max_total_len()
-        if Auto.is_defined(max_len):
+        if max_len is not None:
             if max_len < len(line):
                 crop_str = self.get_crop_str()
                 crop_len = max_len - len(crop_str)

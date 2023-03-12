@@ -4,14 +4,14 @@ try:  # Assume we're a submodule in a package.
     from interfaces import (
         ConnectorInterface, ContentFormatInterface, Stream, StructInterface,
         ContentType, ConnType, StreamType, StreamItemType,
-        AUTO, Auto, AutoContext, AutoBool, AutoCount, AutoName, Name,
+        Context, Count, Name,
     )
     from connectors.abstract.leaf_connector import LeafConnector
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         ConnectorInterface, ContentFormatInterface, Stream, StructInterface,
         ContentType, ConnType, StreamType, StreamItemType,
-        AUTO, Auto, AutoContext, AutoBool, AutoCount, AutoName, Name,
+        Context, Count, Name,
     )
     from ..abstract.leaf_connector import LeafConnector
 
@@ -25,12 +25,12 @@ class S3Object(LeafConnector):
     def __init__(
             self,
             name: Name,
-            content_format: Union[ContentFormatInterface, Auto] = AUTO,
-            struct: Union[StructInterface, Auto, None] = AUTO,
+            content_format: Optional[ContentFormatInterface] = None,
+            struct: Optional[StructInterface] = None,
             folder: ConnectorInterface = None,
-            context: AutoContext = AUTO,
-            expected_count: AutoCount = AUTO,
-            verbose: AutoBool = AUTO,
+            context: Context = None,
+            expected_count: Count = None,
+            verbose: Optional[bool] = None,
     ):
         super().__init__(
             name=name,
@@ -76,7 +76,7 @@ class S3Object(LeafConnector):
     def get_body(self):
         return self.get_object_response()['Body']
 
-    def get_next_lines(self, count: AutoCount = None) -> Iterator[str]:
+    def get_next_lines(self, count: Count = None) -> Iterator[str]:
         prev_line = ''
         for b, buffer in enumerate(self.get_body()):
             lines = buffer.decode('utf8', errors='ignore').split('\n')
@@ -89,7 +89,7 @@ class S3Object(LeafConnector):
                     prev_line = line
                 else:
                     yield line
-            if Auto.is_defined(count):
+            if count is not None:
                 if b >= count:
                     break
         if prev_line:
@@ -101,27 +101,28 @@ class S3Object(LeafConnector):
             skip_first: bool = False,
             skip_missing: bool = False,
             allow_reopen: bool = True,
-            verbose: AutoBool = AUTO,
-            message: AutoName = AUTO,
-            step: AutoCount = AUTO,
+            verbose: Optional[bool] = None,
+            message: Optional[str] = None,
+            step: Count = None,
     ) -> Iterator[str]:
         if skip_missing:
             if not self.is_existing():
                 return None
         lines = self.get_next_lines()
-        verbose = Auto.acquire(verbose, self.is_verbose())
-        if verbose or Auto.is_defined(message):
-            if not Auto.is_defined(message):
+        if verbose is None:
+            verbose = self.is_verbose()
+        if verbose or message is not None:
+            if message is None:
                 message = 'Reading {}'
             if '{}' in message:
                 message = message.format(self.get_name())
             logger = self.get_logger()
-            assert hasattr(logger, 'progress'), '{} has no progress in {}'.format(self, logger)
+            assert hasattr(logger, 'progress'), f'{self} has no progress in {logger}'
             if not count:
                 count = self.get_count(allow_slow_mode=False)
             lines = self.get_logger().progress(lines, name=message, count=count, step=step)
         for n, i in enumerate(lines):
-            if Auto.is_defined(count):
+            if count is not None:
                 if n >= count:
                     break
             if skip_first and n == 0:
@@ -155,13 +156,13 @@ class S3Object(LeafConnector):
             ExtraArgs=extra_args,
         )
 
-    def is_existing(self, verbose: AutoBool = AUTO) -> bool:
+    def is_existing(self, verbose: Optional[bool] = None) -> bool:
         bucket = self.get_bucket()
         if bucket.is_existing(verbose=verbose):
             if hasattr(bucket, 'list_object_names'):  # isinstance(bucket, S3Bucket)
                 return self.get_object_path_in_bucket() in bucket.list_object_names(verbose=verbose)
             else:
-                raise TypeError('Expected bucket as S3Bucket, got {}'.format(bucket))
+                raise TypeError(f'Expected bucket as S3Bucket, got {bucket}')
         else:
             return False
 
@@ -184,7 +185,7 @@ class S3Object(LeafConnector):
         else:
             raise ValueError(response)
 
-    def to_stream(self, stream_type: StreamItemType = AUTO, **kwargs) -> Stream:
+    def to_stream(self, stream_type: StreamItemType = None, **kwargs) -> Stream:
         stream_class = StreamType(stream_type).get_class()
         return stream_class(self.get_data(), **kwargs)
 
@@ -194,8 +195,9 @@ class S3Object(LeafConnector):
     def get_count(self, *args, **kwargs) -> Optional[int]:
         return None  # not available property
 
-    def is_empty(self, verbose: bool = AUTO) -> Optional[bool]:
-        verbose = Auto.delayed_acquire(verbose, self.is_verbose)
+    def is_empty(self, verbose: Optional[bool] = None) -> Optional[bool]:
+        if verbose is None:
+            verbose = self.is_verbose()
         if self.is_accessible():
             return not self.get_first_line(close=True, skip_missing=True, verbose=verbose)
 

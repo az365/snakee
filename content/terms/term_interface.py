@@ -3,14 +3,12 @@ from typing import Optional, Callable, Union
 
 try:  # Assume we're a submodule in a package.
     from base.interfaces.data_interface import SimpleDataInterface
-    from base.classes.auto import AUTO, Auto
     from content.value_type import ValueType
     from content.fields.field_role_type import FieldRoleType
     from content.fields.field_interface import FieldInterface
     from content.terms.term_type import TermType, TermDataAttribute
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.interfaces.data_interface import SimpleDataInterface
-    from ...base.classes.auto import AUTO, Auto
     from ..value_type import ValueType
     from ..fields.field_role_type import FieldRoleType
     from ..fields.field_interface import FieldInterface
@@ -62,7 +60,7 @@ class TermInterface(SimpleDataInterface, ABC):
         pass
 
     @abstractmethod
-    def get_item(self, key: TermDataAttribute, subkey, skip_missing: Union[bool, Auto] = AUTO, default=None):
+    def get_item(self, key: TermDataAttribute, subkey, skip_missing: Optional[bool] = None, default=None):
         pass
 
     @abstractmethod
@@ -73,9 +71,9 @@ class TermInterface(SimpleDataInterface, ABC):
     def field(
             self,
             name: str,
-            value_type: Union[ValueType, Auto] = AUTO,
-            role: Union[FieldRoleType, str, Auto] = AUTO,
-            caption: Union[str, Auto] = AUTO,
+            value_type: Optional[ValueType] = None,
+            role: Union[FieldRoleType, str, None] = None,
+            caption: Optional[str] = None,
             **kwargs
     ) -> FieldInterface:
         pass
@@ -84,9 +82,9 @@ class TermInterface(SimpleDataInterface, ABC):
     def get_field_by_role(
             self,
             role: FieldRoleType,
-            value_type: Union[ValueType, Auto] = AUTO,
-            name: Union[str, Auto] = AUTO,
-            caption: Union[str, Auto] = AUTO,
+            value_type: Optional[ValueType] = None,
+            name: Optional[str] = None,
+            caption: Optional[str] = None,
             **kwargs
     ) -> Field:
         pass

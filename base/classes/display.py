@@ -1,24 +1,24 @@
 from typing import Optional, Callable, Iterable, Generator, Iterator, Sequence, Union
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.typing import AUTO, Auto, AutoCount, Count, Class
+    from base.classes.typing import Count, Class
     from base.functions.arguments import get_name, get_value, get_str_from_args_kwargs
     from base.constants.chars import (
         REPR_DELIMITER, SMALL_INDENT, MD_HEADER, PARAGRAPH_CHAR, ITEM, EMPTY,
         DEFAULT_LINE_LEN,
     )
     from base.interfaces.base_interface import BaseInterface
-    from base.interfaces.display_interface import DisplayInterface, Item, AutoStyle, AutoDisplay, DEFAULT_EXAMPLE_COUNT
+    from base.interfaces.display_interface import DisplayInterface, Item, Style, DEFAULT_EXAMPLE_COUNT
     from utils.decorators import deprecated_with_alternative
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..classes.typing import AUTO, Auto, AutoCount, Count, Class
+    from ..classes.typing import Count, Class
     from ..functions.arguments import get_name, get_value, get_str_from_args_kwargs
     from ..constants.chars import (
         REPR_DELIMITER, SMALL_INDENT, MD_HEADER, PARAGRAPH_CHAR, ITEM, EMPTY,
         DEFAULT_LINE_LEN,
     )
     from ..interfaces.base_interface import BaseInterface
-    from ..interfaces.display_interface import DisplayInterface, Item, AutoStyle, AutoDisplay, DEFAULT_EXAMPLE_COUNT
+    from ..interfaces.display_interface import DisplayInterface, Item, Style, DEFAULT_EXAMPLE_COUNT
     from ...utils.decorators import deprecated_with_alternative
 
 DEFAULT_INT_WIDTH, DEFAULT_FLOAT_WIDTH = 7, 12
@@ -30,16 +30,16 @@ class DefaultDisplay(DisplayInterface):
     _display: DisplayInterface
     _sheet_class: Class = None
 
-    def get_display(self, display: AutoDisplay = AUTO) -> DisplayInterface:
+    def get_display(self, display: Optional[DisplayInterface] = None) -> DisplayInterface:
         if isinstance(display, DisplayInterface):
             return display
-        elif not Auto.is_defined(display):
+        elif display is None:
             if hasattr(self, '_display'):
                 display = self._display
-            if Auto.is_defined(display):
-                return display
-            else:
+            if display is None:
                 return self
+            else:
+                return display
         else:
             raise TypeError(f'expected Display, got {display}')
 
@@ -53,7 +53,7 @@ class DefaultDisplay(DisplayInterface):
     display = property(get_display, _set_display_inplace)
 
     @deprecated_with_alternative('get_display()')
-    def get_output(self, output: AutoDisplay = AUTO) -> DisplayInterface:
+    def get_output(self, output: Optional[DisplayInterface] = None) -> DisplayInterface:
         return self.get_display(output)
 
     # @deprecated_with_alternative('display_item()')
@@ -86,7 +86,7 @@ class DefaultDisplay(DisplayInterface):
             self,
             paragraph: Optional[Iterable] = None,
             level: Optional[int] = None,
-            style: AutoStyle = AUTO,
+            style: Style = None,
     ) -> None:
         if paragraph:
             if isinstance(paragraph, str):
@@ -232,12 +232,13 @@ class DefaultDisplay(DisplayInterface):
             cls,
             records: Iterable,
             columns: Sequence,
-            count: AutoCount = None,
+            count: Count = None,
             with_title: bool = True,
             delimiter: str = REPR_DELIMITER,
             max_len: int = DEFAULT_LINE_LEN,
     ) -> Generator:
-        count = Auto.acquire(count, DEFAULT_EXAMPLE_COUNT)
+        if count is None:
+            count = DEFAULT_EXAMPLE_COUNT
         formatter = cls._get_formatter(columns=columns, delimiter=delimiter)
         if with_title:
             column_names = cls._get_column_names(columns)
@@ -286,8 +287,9 @@ class DefaultDisplay(DisplayInterface):
         return print
 
     @deprecated_with_alternative('display_item()')
-    def display(self, item: Item = AUTO):
-        item = Auto.acquire(item, self)
+    def display(self, item: Item = None):
+        if item is None:
+            item = self
         data = self._get_display_object(item)
         method = self._get_display_method()
         method(data)

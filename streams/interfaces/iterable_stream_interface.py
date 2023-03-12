@@ -2,9 +2,9 @@ from abc import ABC, abstractmethod
 from typing import Optional, Union
 
 try:  # Assume we're a submodule in a package.
-    from streams.interfaces.abstract_stream_interface import StreamInterface, DEFAULT_EXAMPLE_COUNT
+    from streams.interfaces.abstract_stream_interface import StreamInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..interfaces.abstract_stream_interface import StreamInterface, DEFAULT_EXAMPLE_COUNT
+    from ..interfaces.abstract_stream_interface import StreamInterface
 
 
 class IterableStreamInterface(StreamInterface, ABC):

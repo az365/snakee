@@ -3,7 +3,7 @@ from typing import Optional, Iterable, Union
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         LoggerInterface, RegularStreamInterface, StreamType, ItemType, MutableRecord, LoggingLevel,
-        AUTO, Auto, AutoBool, Count, Message, Array,
+        Message, Count, Array,
     )
     from functions.primary import numeric as nm
     from functions.secondary import all_secondary_functions as fs
@@ -11,7 +11,7 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..interfaces import (
         LoggerInterface, RegularStreamInterface, StreamType, ItemType, MutableRecord, LoggingLevel,
-        AUTO, Auto, AutoBool, Count, Message, Array,
+        Message, Count, Array,
     )
     from ..functions.primary import numeric as nm
     from ..functions.secondary import all_secondary_functions as fs
@@ -26,10 +26,10 @@ TOP_COUNT = 3
 def get_hist_records(
         stream: RegularStreamInterface,
         fields: Iterable,
-        logger: Union[LoggerInterface, Auto] = AUTO,
+        logger: Optional[LoggerInterface] = None,
         msg: Optional[Message] = None,
 ) -> Iterable:
-    if Auto.is_defined(logger):
+    if logger is not None:
         logger.log(msg=msg if msg else 'calc hist in memory...', level=LoggingLevel.Info)
     dict_hist = {f: dict() for f in fields}
     for i in stream.get_items():
@@ -47,17 +47,18 @@ def get_hist_records(
 def hist(
         data: Data,
         *fields,
-        in_memory: AutoBool = AUTO,
+        in_memory: Optional[bool] = None,
         step: Count = DEFAULT_STEP,
-        logger: Union[LoggerInterface, Auto] = AUTO,
+        logger: Optional[LoggerInterface] = None,
         msg: Optional[Message] = None,
 ) -> RegularStreamInterface:
     output_columns = 'field', 'value', 'count', 'share', 'total_count'
     stream = _build_stream(data)
     total_count = stream.get_count()
-    in_memory = Auto.acquire(in_memory, stream.is_in_memory())
-    logger = Auto.acquire(logger, stream.get_logger, delayed=True)
-    # if in_memory:
+    if in_memory is None:
+        in_memory = stream.is_in_memory()
+    if logger is None:
+        logger = stream.get_logger(delayed=True)
     if in_memory or len(fields) > 1:
         stream = stream.stream(
             get_hist_records(stream, fields, logger=logger, msg=msg),
@@ -67,7 +68,7 @@ def hist(
         stream = stream if len(fields) <= 1 else stream.tee_stream()
         f = fields[0]
         if logger:
-            logger.log('Calc hist for field {}...'.format(f))
+            logger.log(f'Calc hist for field {f}...')
         stream = stream.to_stream(
             stream_type=ItemType.Record,
             columns=fields,
@@ -157,12 +158,8 @@ def stat_by_cat(data: Data, cat_fields, hist_fields):
         verbose=False,
     ).map(
         lambda i: (
-            dict(zip(cat_fields, (i[0] if isinstance(i[0], Iterable) else [i[0]]))),  ###
-            stat(
-                i[1],
-                *hist_fields,
-                msg='Processing key {}...'.format(i[0]),
-            ).get_items()
+            dict(zip(cat_fields, (i[0] if isinstance(i[0], Iterable) else [i[0]]))),
+            stat(i[1], *hist_fields, msg=f'Processing key {i[0]}...').get_items()
         ),
     ).ungroup_values(
     ).map_to_type(

@@ -4,24 +4,19 @@ from typing import Optional, Iterable, Generator, Union, Any
 import logging
 
 try:  # Assume we're a submodule in a package.
-    from utils import arguments as arg
     from base.interfaces.base_interface import BaseInterface
-    from base.interfaces.sourced_interface import SourcedInterface
+    from base.interfaces.tree_interface import TreeInterface
     from loggers.logger_interface import LoggerInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..utils import arguments as arg
     from ..base.interfaces.base_interface import BaseInterface
-    from ..base.interfaces.sourced_interface import SourcedInterface
+    from ..base.interfaces.tree_interface import TreeInterface
     from .logger_interface import LoggerInterface
 
 BaseLogger = Union[LoggerInterface, Any]
 Context = Optional[BaseInterface]
 Name = str
 Count = Optional[int]
-Step = Union[Count, arg.Auto]
 Formatter = Union[str, logging.Formatter]
-OptContext = Union[Context, arg.Auto]
-OptName = Union[Name, arg.Auto]
 File = BaseInterface
 
 DEFAULT_LOGGER_NAME = 'default'
@@ -59,12 +54,12 @@ class LoggingLevel(Enum):
         return cls.Warning
 
 
-Level = Union[LoggingLevel, int, arg.Auto]
+Level = Union[LoggingLevel, int, None]
 
 DEFAULT_LOGGING_LEVEL = LoggingLevel.get_default()
 
 
-class ExtendedLoggerInterface(SourcedInterface, LoggerInterface, ABC):
+class ExtendedLoggerInterface(TreeInterface, LoggerInterface, ABC):
     @staticmethod
     @abstractmethod
     def is_common_logger() -> bool:
@@ -100,18 +95,21 @@ class ExtendedLoggerInterface(SourcedInterface, LoggerInterface, ABC):
 
     @abstractmethod
     def progress(
-            self, items: Iterable, name: Name = 'Progress',
-            count: Count = None, step: Step = arg.AUTO,
-            context: OptContext = arg.AUTO,
+            self,
+            items: Iterable,
+            name: Name = 'Progress',
+            count: Count = None,
+            step: Count = None,
+            context: Context = None,
     ) -> Generator:
         pass
 
     @abstractmethod
-    def get_new_progress(self, name: Name, count: Count = None, context: OptContext = arg.AUTO):
+    def get_new_progress(self, name: Name, count: Count = None, context: Context = None):
         pass
 
     @abstractmethod
-    def get_selection_logger(self, name: OptName = arg.AUTO, **kwargs):
+    def get_selection_logger(self, name: Optional[Name] = None, **kwargs):
         pass
 
     @abstractmethod
@@ -122,9 +120,9 @@ class ExtendedLoggerInterface(SourcedInterface, LoggerInterface, ABC):
     def log(
             self,
             msg: Union[str, list, tuple],
-            level: Level = arg.AUTO,
-            logger: Union[BaseLogger, arg.Auto] = arg.AUTO,
-            end: Union[str, arg.Auto] = arg.AUTO,
+            level: Level = None,
+            logger: Optional[BaseLogger] = None,
+            end: Optional[str] = None,
             verbose: bool = True,
             truncate: bool = True,
             **kwargs

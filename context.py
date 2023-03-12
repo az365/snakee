@@ -4,9 +4,9 @@ import gc
 try:  # Assume we're a submodule in a package.
     from utils.decorators import singleton
     from interfaces import (
-        Context, ContextInterface, Connector, ConnType, Stream, StreamItemType,
+        Context, ContextInterface, Connector, ConnType, Stream, ItemType,
         TemporaryLocationInterface, LoggerInterface, ExtendedLoggerInterface, SelectionLoggerInterface, LoggingLevel,
-        AUTO, Auto, Name, ARRAY_TYPES,
+        Name, ARRAY_TYPES,
     )
     from base.functions.arguments import get_names, get_generated_name
     from base import base_classes as bs
@@ -18,9 +18,9 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from .utils.decorators import singleton
     from .interfaces import (
-        Context, ContextInterface, Connector, ConnType, Stream, StreamItemType,
+        Context, ContextInterface, Connector, ConnType, Stream, ItemType,
         TemporaryLocationInterface, LoggerInterface, ExtendedLoggerInterface, SelectionLoggerInterface, LoggingLevel,
-        AUTO, Auto, Name, ARRAY_TYPES,
+        Name, ARRAY_TYPES,
     )
     from .base.functions.arguments import get_names, get_generated_name
     from .base import base_classes as bs
@@ -32,7 +32,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 
 Logger = Union[LoggerInterface, ExtendedLoggerInterface]
 Child = Union[Logger, Connector, Stream]
-ChildType = Union[ConnType, Child, Name, Auto]
+ChildType = Union[ConnType, Child, Name]
 
 NAME = 'cx'
 DEFAULT_STREAM_CONFIG = dict(
@@ -40,25 +40,31 @@ DEFAULT_STREAM_CONFIG = dict(
     tmp_files_template=sm.TMP_FILES_TEMPLATE,
     tmp_files_encoding=sm.TMP_FILES_ENCODING,
 )
+DEFAULT_CONN_CONFIG = dict()
 
 
 @singleton
 class SnakeeContext(bs.AbstractNamed, ContextInterface):
     def __init__(
             self,
-            name: Union[Name, Auto] = AUTO,
-            stream_config: Union[dict, Auto] = AUTO,
-            conn_config: Union[dict, Auto] = AUTO,
-            logger: Union[Logger, Auto, None] = AUTO,
+            name: Optional[Name] = None,
+            stream_config: Optional[dict] = None,
+            conn_config: Optional[dict] = None,
+            logger: Optional[Logger] = None,
             clear_tmp: bool = False,
     ):
+        if name is None:
+            name = NAME
+        if stream_config is None:
+            stream_config = DEFAULT_STREAM_CONFIG
+        if conn_config is None:
+            conn_config = DEFAULT_CONN_CONFIG
         self.logger = logger
-        self.stream_config = Auto.acquire(stream_config, DEFAULT_STREAM_CONFIG)
-        self.conn_config = Auto.acquire(conn_config, dict())
+        self.stream_config = stream_config
+        self.conn_config = conn_config
         self.stream_instances = dict()
         self.conn_instances = dict()
 
-        name = Auto.acquire(name, NAME)
         super().__init__(name)
 
         self.sm = sm
@@ -81,7 +87,7 @@ class SnakeeContext(bs.AbstractNamed, ContextInterface):
 
     def get_logger(self, create_if_not_yet: bool = True) -> Optional[Logger]:
         logger = self.logger
-        if Auto.is_defined(logger):
+        if logger is not None:
             if hasattr(logger, 'get_context') and hasattr(logger, 'set_context'):
                 if not logger.get_context():
                     logger.set_context(self)
@@ -95,7 +101,7 @@ class SnakeeContext(bs.AbstractNamed, ContextInterface):
     def get_new_selection_logger(name: Name, **kwargs) -> lg.SelectionLoggerInterface:
         return lg.SelectionMessageCollector(name, **kwargs)
 
-    def get_selection_logger(self, name: Union[Name, Auto] = AUTO, **kwargs) -> SelectionLoggerInterface:
+    def get_selection_logger(self, name: Optional[Name] = None, **kwargs) -> SelectionLoggerInterface:
         logger = self.get_logger()
         if hasattr(logger, 'get_selection_logger'):
             selection_logger = logger.get_selection_logger(name=name, **kwargs)
@@ -109,9 +115,11 @@ class SnakeeContext(bs.AbstractNamed, ContextInterface):
 
     def log(
             self,
-            msg: str, level: Union[LoggingLevel, int, Auto] = AUTO,
+            msg: str,
+            level: Optional[LoggingLevel] = None,
             stacklevel: Optional[int] = None,
-            end: Union[str, Auto] = AUTO, verbose: bool = True,
+            end: Optional[str] = None,
+            verbose: bool = True,
     ) -> None:
         logger = self.get_logger()
         if logger is not None:
@@ -164,11 +172,13 @@ class SnakeeContext(bs.AbstractNamed, ContextInterface):
     def conn(
             self,
             conn: Union[Connector, ChildType],
-            name: Union[Name, Auto] = AUTO,
-            check: bool = True, redefine: bool = True,
+            name: Optional[Name] = None,
+            check: bool = True,
+            redefine: bool = True,
             **kwargs
     ) -> Connector:
-        name = Auto.acquire(name, get_generated_name('Connection'))
+        if name is None:
+            name = get_generated_name('Connection')
         conn_object = self.conn_instances.get(name)
         if conn_object:
             if redefine or ct.is_conn(conn):
@@ -181,7 +191,7 @@ class SnakeeContext(bs.AbstractNamed, ContextInterface):
             conn_class = ct.get_class(conn)
             try:
                 if conn_class == ct.LocalFolder or hasattr(conn_class, 'get_default_storage'):  # TMP workaround fix
-                    if Auto.is_defined(name) and 'path' not in kwargs:
+                    if name is not None and 'path' not in kwargs:
                         kwargs['path'] = name
                     conn_object = conn_class(context=self, **kwargs)  # TMP workaround fix
                 else:
@@ -195,12 +205,13 @@ class SnakeeContext(bs.AbstractNamed, ContextInterface):
 
     def stream(
             self,
-            stream_type: Union[StreamItemType, Stream],
-            name: Union[Name, Auto] = AUTO,
+            stream_type: Union[ItemType, Stream],
+            name: Optional[Name] = None,
             check: bool = True,
             **kwargs
     ) -> Stream:
-        name = Auto.acquire(name, get_generated_name('Stream'))
+        if name is not None:
+            name = get_generated_name('Stream')
         if isinstance(stream_type, Stream) or sm.is_stream(stream_type):
             stream_object = stream_type
         else:
@@ -228,14 +239,14 @@ class SnakeeContext(bs.AbstractNamed, ContextInterface):
         else:
             return self.conn_instances[name]
 
-    def get_child(self, name: Name, class_or_type: ChildType = AUTO, deep: bool = True) -> Child:
+    def get_child(self, name: Name, class_or_type: ChildType = None, deep: bool = True) -> Child:
         if 'Stream' in str(class_or_type):
             return self.get_stream(name)
         elif 'Conn' in str(class_or_type):
             return self.get_connection(name)
         elif 'Logger' in str(class_or_type):
             return self.get_logger()
-        elif not Auto.is_defined(class_or_type):
+        elif class_or_type is None:
             if name in self.stream_instances:
                 return self.stream_instances[name]
             elif name in self.conn_instances:

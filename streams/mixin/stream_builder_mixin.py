@@ -2,29 +2,21 @@ from abc import ABC
 from typing import Iterable, Callable, Any
 
 try:  # Assume we're a submodule in a package.
-    from interfaces import (
-        Stream, StreamBuilderInterface,
-        StreamType, ItemType, StreamItemType,
-        OptionalFields, Auto, AUTO,
-    )
+    from interfaces import Stream, StreamBuilderInterface, StreamType, ItemType, StreamItemType, OptionalFields
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...interfaces import (
-        Stream, StreamBuilderInterface,
-        StreamType, ItemType, StreamItemType,
-        OptionalFields, Auto, AUTO,
-    )
+    from ...interfaces import Stream, StreamBuilderInterface, StreamType, ItemType, StreamItemType, OptionalFields
 
 
 class StreamBuilderMixin(StreamBuilderInterface, ABC):
     def stream(
             self,
             data: Iterable,
-            stream_type: StreamItemType = AUTO,
+            stream_type: StreamItemType = ItemType.Auto,
             ex: OptionalFields = None,
             **kwargs
     ) -> Stream:
         default_class = self.__class__
-        if Auto.is_defined(stream_type) and isinstance(stream_type, StreamType):
+        if isinstance(stream_type, StreamType):
             stream_class = stream_type.get_class(default=default_class)
         else:
             stream_class = default_class
@@ -32,7 +24,7 @@ class StreamBuilderMixin(StreamBuilderInterface, ABC):
                 if isinstance(stream_type, ItemType):
                     item_type = stream_type
                     kwargs['item_type'] = item_type
-                elif Auto.is_defined(stream_type):
+                elif stream_type:
                     msg = f'StreamBuilder.stream(): expected stream_type as StreamType or ItemType, got {stream_type}'
                     raise TypeError(msg)
         return stream_class(data, **kwargs)

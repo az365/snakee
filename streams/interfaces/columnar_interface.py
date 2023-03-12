@@ -10,7 +10,6 @@ try:  # Assume we're a submodule in a package.
     from content.struct.struct_interface import StructInterface
     from content.items.item_type import ItemType, Item, FieldID
     from base.interfaces.context_interface import ContextInterface
-    from base.classes.auto import AUTO, Auto
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils.external import DataFrame
     from ...utils.algo import JoinType
@@ -20,14 +19,12 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...content.struct.struct_interface import StructInterface
     from ...content.items.item_type import ItemType, Item, FieldID
     from ...base.interfaces.context_interface import ContextInterface
-    from ...base.classes.auto import AUTO, Auto
 
 Native = RegularStreamInterface
 Stream = StreamInterface
 Struct = Optional[StructInterface]
 Context = Optional[ContextInterface]
 Columns = Union[list, tuple]
-AutoBool = Union[Auto, bool]
 UniKey = Union[StructInterface, Columns, FieldID, Callable]
 
 
@@ -118,7 +115,7 @@ class ColumnarInterface(RegularStreamInterface, ABC):
             self,
             right: Native,
             key: UniKey,
-            how: Union[JoinType, str] = JoinType.Left,
+            how: JoinType = JoinType.Left,
             right_is_uniq: bool = True,
     ) -> Native:
         pass
@@ -183,11 +180,12 @@ class ColumnarInterface(RegularStreamInterface, ABC):
     ) -> Native:
         pass
 
+    # @deprecated
     @abstractmethod
     def get_demo_example(
             self,
             count: int = DEFAULT_EXAMPLE_COUNT,
-            as_dataframe: AutoBool = AUTO,
+            as_dataframe: Optional[bool] = None,
             filters: Optional[Columns] = None, columns: Optional[Columns] = None,
     ) -> Union[DataFrame, Iterable]:
         pass
@@ -198,7 +196,7 @@ class ColumnarInterface(RegularStreamInterface, ABC):
             count: int = DEFAULT_EXAMPLE_COUNT,
             filters: Columns = None,
             columns: Columns = None,
-            as_dataframe: AutoBool = AUTO,
+            as_dataframe: Optional[bool] = None,
     ):
         pass
 

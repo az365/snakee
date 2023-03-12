@@ -2,9 +2,9 @@ from typing import Iterable, Union, Optional
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
-        Connector, Stream,
-        ConnType, StreamItemType, ContentType, ContentFormatInterface,
-        AUTO, Auto, AutoName, AutoBool, AutoContext, OptionalFields,
+        Connector, Stream, Context,
+        ConnType, ItemType, ContentType, ContentFormatInterface,
+        OptionalFields,
     )
     from connectors.abstract.hierarchic_connector import HierarchicConnector
     from connectors.abstract.leaf_connector import LeafConnector
@@ -14,9 +14,9 @@ try:  # Assume we're a submodule in a package.
     from connectors.filesystem.local_mask import LocalMask
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
-        Connector, Stream,
-        ConnType, StreamItemType, ContentType, ContentFormatInterface,
-        AUTO, Auto, AutoName, AutoBool, AutoContext, OptionalFields,
+        Connector, Stream, Context,
+        ConnType, ItemType, ContentType, ContentFormatInterface,
+        OptionalFields,
     )
     from ..abstract.hierarchic_connector import HierarchicConnector
     from ..abstract.leaf_connector import LeafConnector
@@ -27,6 +27,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 
 Native = Union[LocalMask, LocalFile]
 Suffix = Union[str, int, None]
+ContentFormat = Union[ContentType, ContentFormatInterface, None]
 
 
 class PartitionedLocalFile(LocalMask, LocalFile):
@@ -35,8 +36,8 @@ class PartitionedLocalFile(LocalMask, LocalFile):
             mask: str,
             suffix: Suffix,
             parent: HierarchicConnector,
-            context: AutoContext = None,
-            verbose: AutoBool = AUTO,
+            context: Context = None,
+            verbose: Optional[bool] = None,
     ):
         self._suffix = None
         self._partition = None
@@ -79,11 +80,14 @@ class PartitionedLocalFile(LocalMask, LocalFile):
 
     def file(
             self,
-            suffix: Union[Suffix, Auto],
-            content_format: Union[ContentType, ContentFormatInterface, Auto] = AUTO,
+            suffix: Optional[Suffix],
+            content_format: ContentFormat = None,
             **kwargs
     ) -> Connector:
-        acquired_suffix = Auto.acquire(suffix, self.get_suffix())
+        if suffix is None:
+            acquired_suffix = self.get_suffix()
+        else:
+            acquired_suffix = suffix
         assert acquired_suffix, f'suffix must be defined, got argument {suffix}, default {self.get_suffix()}'
         filename = self.get_mask().format(acquired_suffix)
         return super().file(filename, content_format=content_format, **kwargs)
@@ -126,9 +130,9 @@ class PartitionedLocalFile(LocalMask, LocalFile):
 
     def to_stream(
             self,
-            data: Union[Iterable, Auto] = AUTO,
-            name: AutoName = AUTO,
-            stream_type: StreamItemType = AUTO,
+            data: Optional[Iterable] = None,
+            name: Optional[str] = None,
+            stream_type: ItemType = ItemType.Auto,
             ex: OptionalFields = None,
             **kwargs
     ) -> Stream:

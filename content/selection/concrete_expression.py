@@ -1,19 +1,17 @@
 from typing import Optional, Callable, Union
 
 try:  # Assume we're a submodule in a package.
-    from interfaces import ItemType, StructInterface, Item, Name, Field, Value, LoggerInterface, Array, Auto, AUTO
+    from interfaces import ItemType, StructInterface, Item, Name, Field, Value, LoggerInterface, Array
     from base.functions.arguments import get_name
     from functions.primary.items import ItemType, get_field_value_from_item, get_fields_names_from_item, ALL
     from content.selection.selection_functions import process_description, safe_apply_function
     from content.selection.abstract_expression import SingleFieldDescription, TrivialMultipleDescription, Struct
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...interfaces import ItemType, StructInterface, Item, Name, Field, Value, LoggerInterface, Array, Auto, AUTO
+    from ...interfaces import ItemType, StructInterface, Item, Name, Field, Value, LoggerInterface, Array
     from ...base.functions.arguments import get_name
     from ...functions.primary.items import ItemType, get_field_value_from_item, get_fields_names_from_item, ALL
     from .selection_functions import process_description, safe_apply_function
     from .abstract_expression import SingleFieldDescription, TrivialMultipleDescription, Struct
-
-AutoItemType = Union[Auto, ItemType]
 
 GIVE_SAME_FIELD_FOR_FUNCTION_DESCRIPTION = False
 
@@ -44,10 +42,11 @@ class TrivialDescription(SingleFieldDescription):
             skip_errors=self.must_skip_errors(), logger=self.get_logger(), default=self.get_default_value(),
         )
 
-    def get_mapper(self, struct: Struct = None, item_type: AutoItemType = AUTO, default: Value = None) -> Callable:
+    def get_mapper(self, struct: Struct = None, item_type: ItemType = ItemType.Auto, default: Value = None) -> Callable:
         field = self.get_target_field_name()
-        item_type = Auto.delayed_acquire(item_type, self.get_input_item_type)
-        if Auto.is_defined(item_type):
+        if item_type in (ItemType.Auto, None):
+            item_type = self.get_input_item_type()
+        if item_type not in (ItemType.Auto, None):
             return item_type.get_field_getter(field, struct=struct, default=default)
         else:
             return lambda i: item_type.get_value_from_item(item=i, field=field, struct=struct, default=default)
@@ -87,10 +86,11 @@ class AliasDescription(SingleFieldDescription):
     def get_function(self) -> Callable:
         return lambda i: i
 
-    def get_mapper(self, struct: Struct = None, item_type: AutoItemType = AUTO, default: Value = None) -> Callable:
+    def get_mapper(self, struct: Struct = None, item_type: ItemType = ItemType.Auto, default: Value = None) -> Callable:
         field = self.get_source_name()
-        item_type = Auto.delayed_acquire(item_type, self.get_source_name)
-        if Auto.is_defined(item_type):
+        if item_type in (ItemType.Auto, None):
+            item_type = self.get_input_item_type()
+        if item_type not in (ItemType.Auto, None):
             return item_type.get_field_getter(field, struct=struct, default=default)
         else:
             return lambda i: item_type.get_value_from_item(item=i, field=field, struct=struct, default=default)
@@ -241,7 +241,11 @@ class StarDescription(TrivialMultipleDescription):
             skip_errors=skip_errors, logger=logger,
         )
 
-    def get_output_fields(self, item_or_struct: Union[Item, StructInterface], item_type: ItemType = AUTO) -> Array:
+    def get_output_fields(
+            self,
+            item_or_struct: Union[Item, StructInterface],
+            item_type: ItemType = ItemType.Auto,
+    ) -> Array:
         if isinstance(item_or_struct, StructInterface) or hasattr(item_or_struct, 'get_columns'):
             return item_or_struct.get_columns()
         else:  # isinstance(item_or_struct, Item)
@@ -257,7 +261,7 @@ class DropDescription(TrivialMultipleDescription):
             self,
             drop_fields: Array,
             target_item_type: ItemType,
-            input_item_type=ItemType.Auto,
+            input_item_type: ItemType = ItemType.Auto,
             skip_errors: bool = False,
             logger: Optional[LoggerInterface] = None,
     ):

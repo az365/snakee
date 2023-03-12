@@ -2,14 +2,12 @@ from abc import ABC, abstractmethod
 from typing import Callable, Iterable, Optional, Union
 
 try:  # Assume we're a submodule in a package.
-    from utils.arguments import Auto, AUTO
     from functions.primary.dates import Date, DateScale, MAX_DAYS_IN_MONTH
     from series.interfaces.any_series_interface import AnySeriesInterface
     from series.interfaces.numeric_series_interface import NumericSeriesInterface
     from series.interfaces.sorted_series_interface import SortedSeriesInterface
     from series.interfaces.key_value_series_interface import KeyValueSeriesInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils.arguments import Auto, AUTO
     from ...functions.primary.dates import Date, DateScale, MAX_DAYS_IN_MONTH
     from .any_series_interface import AnySeriesInterface
     from .numeric_series_interface import NumericSeriesInterface
@@ -20,7 +18,6 @@ Native = SortedSeriesInterface
 SeriesInterface = AnySeriesInterface
 SortedNumeric = Union[SortedSeriesInterface, NumericSeriesInterface]
 DateNumeric = Union[Native, KeyValueSeriesInterface, NumericSeriesInterface]
-AutoBool = Union[Auto, bool]
 
 
 class DateSeriesInterface(SortedSeriesInterface, ABC):
@@ -110,7 +107,7 @@ class DateSeriesInterface(SortedSeriesInterface, ABC):
         pass
 
     @abstractmethod
-    def round_to(self, scale: DateScale, as_iso_date: AutoBool = AUTO, inplace: bool = False) -> Native:
+    def round_to(self, scale: DateScale, as_iso_date: Optional[bool] = None, inplace: bool = False) -> Native:
         pass
 
     @abstractmethod

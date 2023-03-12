@@ -3,9 +3,8 @@ import os
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
-        ContextInterface, ConnectorInterface, Connector, ContentFormatInterface,
+        ContextInterface, ConnectorInterface, Connector, Context, ContentFormatInterface,
         ConnType, ContentType, Class, LoggingLevel,
-        AUTO, Auto, AutoBool, AutoContext, AutoConnector,
     )
     from base.constants.chars import EMPTY, OS_EXT_DELIMITER, OS_PARENT_PATH, BACKSLASH, OS_PLACEHOLDER
     from functions.primary.text import is_absolute_path
@@ -14,9 +13,8 @@ try:  # Assume we're a submodule in a package.
     from connectors.abstract.abstract_folder import HierarchicFolder
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
-        ContextInterface, ConnectorInterface, Connector, ContentFormatInterface,
+        ContextInterface, ConnectorInterface, Connector, Context, ContentFormatInterface,
         ConnType, ContentType, Class, LoggingLevel,
-        AUTO, Auto, AutoBool, AutoContext, AutoConnector,
     )
     from ...base.constants.chars import EMPTY, OS_EXT_DELIMITER, OS_PARENT_PATH, BACKSLASH, OS_PLACEHOLDER
     from ...functions.primary.text import is_absolute_path
@@ -36,18 +34,20 @@ class LocalFolder(HierarchicFolder):
     def __init__(
             self,
             path: str,
-            path_is_relative: AutoBool = AUTO,
-            parent: AutoConnector = AUTO,
-            context: AutoContext = None,
-            verbose: AutoBool = AUTO,
+            path_is_relative: Optional[bool] = None,
+            parent: Connector = None,
+            context: Context = None,
+            verbose: Optional[bool] = None,
     ):
-        if not Auto.is_defined(parent):
-            if Auto.is_defined(context):
+        if parent is None:
+            if context is not None:
                 parent = context.get_local_storage()
             else:
                 parent = self.get_default_storage()
         parent = self._assume_native(parent)
-        self._path_is_relative = Auto.acquire(path_is_relative, not is_absolute_path(path))
+        if path_is_relative is None:
+            path_is_relative = not is_absolute_path(path)
+        self._path_is_relative = path_is_relative
         super().__init__(name=path, parent=parent, verbose=verbose)
 
     def is_defined(self) -> bool:
@@ -89,8 +89,8 @@ class LocalFolder(HierarchicFolder):
         supposed_type = self.get_type_by_name(name)
         return self.get_child_class_by_type(supposed_type)
 
-    def get_child_class_by_name_and_type(self, name: str, filetype: Union[ConnType, ContentType, Auto] = AUTO) -> Class:
-        if Auto.is_defined(filetype):
+    def get_child_class_by_name_and_type(self, name: str, filetype: Union[ConnType, ContentType, None] = None) -> Class:
+        if filetype is not None:
             return ConnType(filetype).get_class()
         else:
             supposed_type = self.get_type_by_name(name)
@@ -106,27 +106,27 @@ class LocalFolder(HierarchicFolder):
     def file(
             self,
             name: str,
-            content_format: Union[ContentFormatInterface, ContentType, Auto] = AUTO,
+            content_format: Union[ContentFormatInterface, ContentType, None] = None,
             **kwargs
     ) -> File:
         file = self.get_children().get(name)
         if kwargs or not file:
             filename = kwargs.pop('filename', name)
             file_class = self.get_default_child_obj_class()  # LocalFile
-            assert file_class, "connector class or type name aren't detected"
+            assert file_class, 'connector class or type name are not detected'
             try:
                 file = file_class(filename, content_format=content_format, folder=self, **kwargs)
             except TypeError as e:
-                raise TypeError(f'{file_class.__name__}.{e}')
+                raise TypeError(f'{file_class.__name__}: {e}')
             self.add_child(file)
         return file
 
-    def folder(self, name: str, folder_type: Union[ConnType, Auto] = AUTO, **kwargs) -> ConnectorInterface:
-        if not Auto.is_defined(folder_type):
+    def folder(self, name: str, folder_type: Optional[ConnType] = None, **kwargs) -> ConnectorInterface:
+        if folder_type is None:
             folder_type = self.get_type_by_name(name)  # LocalFolder or LocalMask
             if folder_type == ConnType.LocalFile:
                 folder_type = ConnType.LocalFolder
-        if name == OS_PARENT_PATH:
+        if name == OS_PARENT_PATH:  # '..'
             return self.get_parent_folder(**kwargs)
         else:
             folder_class = ConnType(folder_type).get_class()
@@ -190,7 +190,7 @@ class LocalFolder(HierarchicFolder):
         else:
             current_folder_path = self.get_full_path()
             default_path_delimiter = self.get_path_delimiter()  # '/'
-            alternative_path_delimiters = self._get_alternative_path_delimiters()  # '\\'
+            alternative_path_delimiters = self._get_alternative_path_delimiters()  # ['\\', ]
             for cur_path_delimiter in alternative_path_delimiters:
                 current_folder_path = current_folder_path.replace(cur_path_delimiter, default_path_delimiter)
             path_parts = current_folder_path.split(default_path_delimiter)
@@ -244,7 +244,7 @@ class LocalFolder(HierarchicFolder):
     def _get_alternative_path_delimiters() -> tuple:
         return ALT_PATH_DELIMITERS
 
-    def is_existing(self, verbose: AutoBool = AUTO) -> bool:
+    def is_existing(self, verbose: Optional[bool] = None) -> bool:
         return os.path.exists(self.get_path())
 
     def list_existing_names(self) -> List[str]:

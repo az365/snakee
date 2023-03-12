@@ -1,13 +1,9 @@
 from inspect import isclass
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.enum import ClassType, Auto, AUTO
+    from base.classes.enum import ClassType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..base.classes.enum import ClassType, Auto, AUTO
-
-MAX_ITEMS_IN_MEMORY = 5000000
-TMP_FILES_TEMPLATE = 'stream_{}.tmp'
-TMP_FILES_ENCODING = 'utf8'
+    from ..base.classes.enum import ClassType
 
 DICT_METHOD_SUFFIX = dict(
     AnyStream='any_stream',
@@ -35,16 +31,12 @@ class StreamType(ClassType):
         global DICT_METHOD_SUFFIX
         return DICT_METHOD_SUFFIX.get(self.get_name())
 
-    def stream(self, data, source=AUTO, context=AUTO, *args, **kwargs):
-        if Auto.is_defined(source):
-            kwargs['source'] = source
-        if Auto.is_defined(context):
-            kwargs['context'] = context
+    def stream(self, data, *args, **kwargs):
         stream_class = self.get_class()
         return stream_class(data, *args, **kwargs)
 
     @classmethod
-    def detect(cls, obj, default=AUTO) -> ClassType:
+    def detect(cls, obj, default=None) -> ClassType:
         if isinstance(obj, StreamType):
             return obj
         elif isinstance(obj, str):
@@ -58,10 +50,13 @@ class StreamType(ClassType):
                 if item_type_name == 'StructRow':
                     stream_type_obj = StreamType.StructStream
                 else:
-                    stream_type_name = '{}Stream'.format(item_type_name)
+                    stream_type_name = f'{item_type_name}Stream'
                     stream_type_obj = cls.find_instance(stream_type_name)
                 if stream_type_obj is None:
-                    stream_type_obj = Auto.delayed_acquire(default, cls.get_default)
+                    if default is not None:
+                        stream_type_obj = default
+                    else:
+                        stream_type_obj = cls.get_default()
                 return stream_type_obj
         return StreamType(name)
 

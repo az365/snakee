@@ -1,14 +1,12 @@
 from typing import Optional, Callable, Iterable, Sized, Union, Any
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.auto import AUTO, Auto
     from base.functions.arguments import get_names, update, get_list
     from utils.decorators import sql_compatible
     from content.items.item_type import ItemType
     from functions.primary import numeric as nm
     from functions.primary import grouping as gr
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...base.classes.auto import AUTO, Auto
     from ...base.functions.arguments import get_names, update, get_list
     from ...utils.decorators import sql_compatible
     from ...content.items.item_type import ItemType
@@ -143,7 +141,7 @@ def fold_lists(
 ) -> Callable:
     def _fold_lists(item) -> Union[dict, tuple]:
         detected_type = item_type
-        if not Auto.is_defined(detected_type):
+        if detected_type == ItemType.Auto or detected_type is None:
             detected_type = ItemType.detect(item)
         return gr.fold_lists(item, keys, values, as_pairs=as_pairs, skip_missing=skip_missing, item_type=detected_type)
     return _fold_lists
@@ -161,7 +159,7 @@ def unfold_lists(
 
     def _unfold_lists(item) -> Iterable:
         nonlocal item_type
-        if item_type == ItemType.Auto or not Auto.is_defined(item_type):
+        if item_type == ItemType.Auto or item_type is None:
             item_type = ItemType.detect(item)
             assert isinstance(item_type, ItemType), f'got {item_type}'
         yield from gr.unfold_lists(

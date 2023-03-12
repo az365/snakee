@@ -1,22 +1,20 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Iterable, Callable, Union, Any, NoReturn
+from typing import Optional, Iterable, Callable, Union, Any
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.auto import AUTO, Auto
-    from base.interfaces.sourced_interface import SourcedInterface
-    from base.interfaces.iterable_interface import DEFAULT_EXAMPLE_COUNT, OptionalFields
+    from base.interfaces.iterable_interface import DEFAULT_EXAMPLE_COUNT, IterableInterface, OptionalFields
+    from base.interfaces.tree_interface import TreeInterface
     from loggers.logger_interface import LoggerInterface, LoggingLevel
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...base.classes.auto import AUTO, Auto
-    from ...base.interfaces.sourced_interface import SourcedInterface
-    from ...base.interfaces.iterable_interface import DEFAULT_EXAMPLE_COUNT, OptionalFields
+    from ...base.interfaces.iterable_interface import DEFAULT_EXAMPLE_COUNT, IterableInterface, OptionalFields
+    from ...base.interfaces.tree_interface import TreeInterface
     from ...loggers.logger_interface import LoggerInterface, LoggingLevel
 
-Stream = SourcedInterface
+Stream = IterableInterface
 Data = Union[Stream, Any]
 
 
-class StreamInterface(SourcedInterface, ABC):
+class StreamInterface(ABC):
     @classmethod
     @abstractmethod
     def get_stream_type(cls):
@@ -84,7 +82,7 @@ class StreamInterface(SourcedInterface, ABC):
         :param count: count of items to return
         :type count: int
 
-        :return: Native Stream (stream of same class)
+        :returns: Native Stream (stream of same class)
         """
         pass
 
@@ -99,11 +97,11 @@ class StreamInterface(SourcedInterface, ABC):
         pass
 
     @abstractmethod
-    def get_source(self) -> SourcedInterface:
+    def get_source(self) -> TreeInterface:
         """Returns connector to data source of this stream (if defined).
 
         :returns: Connector to data source of this stream (if defined) or Context object.
-        :return type: SourcedInterface (Connector or Context)
+        :return type: TreeItem (Connector or Context)
         """
         pass
 
@@ -119,12 +117,12 @@ class StreamInterface(SourcedInterface, ABC):
     def log(
             self,
             msg: str,
-            level: Union[LoggingLevel, int] = AUTO,
-            end: Union[str, Auto] = AUTO,
+            level: Optional[LoggingLevel] = None,
+            end: Optional[str] = None,
             verbose: bool = True,
             truncate: bool = True,
             force: bool = False,
-    ) -> NoReturn:
+    ) -> None:
         """Log message using current logger from SnakeeContext object.
         Do not log if logger in SnakeeContext not set (instead of enabled option force=True).
 
@@ -204,8 +202,16 @@ class StreamInterface(SourcedInterface, ABC):
         pass
 
     @abstractmethod
-    def forget(self) -> NoReturn:
+    def forget(self) -> None:
         """Closes related connection and lets SnakeeContext forget the link to this stream."""
+        pass
+
+    @abstractmethod
+    def get_context(self):
+        """Returns common SnakeeContext object.
+
+        :returns: SnakeeContext singleton instance
+        """
         pass
 
     @abstractmethod

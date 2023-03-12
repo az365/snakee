@@ -4,7 +4,7 @@ try:  # Assume we're a submodule in a package.
     from interfaces import (
         FieldInterface, RepresentationInterface, StructInterface, ExtLogger, SelectionLogger,
         ValueType, FieldRoleType, ReprType, ItemType, DialectType,
-        PRIMITIVE_TYPES, ARRAY_TYPES, AUTO, Auto, AutoBool, AutoName, Class,
+        PRIMITIVE_TYPES, ARRAY_TYPES, Class,
     )
     from base.functions.arguments import get_name, get_value, get_plural
     from base.abstract.simple_data import SimpleDataWrapper, EMPTY
@@ -16,7 +16,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...interfaces import (
         FieldInterface, RepresentationInterface, StructInterface, ExtLogger, SelectionLogger,
         ValueType, FieldRoleType, ReprType, ItemType, DialectType,
-        PRIMITIVE_TYPES, ARRAY_TYPES, AUTO, Auto, AutoBool, AutoName, Class,
+        PRIMITIVE_TYPES, ARRAY_TYPES, Class,
     )
     from ...base.functions.arguments import get_name, get_value, get_plural
     from ...base.abstract.simple_data import SimpleDataWrapper, EMPTY
@@ -26,7 +26,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .field_edge_type import FieldEdgeType
 
 Native = Union[SimpleDataWrapper, MultiMapDataMixin, FieldInterface]
-AutoRepr = Union[RepresentationInterface, str, Auto]
+OptRepr = Union[RepresentationInterface, str, None]
 
 
 class AnyField(SimpleDataWrapper, SelectableMixin, MultiMapDataMixin, FieldInterface):
@@ -41,17 +41,19 @@ class AnyField(SimpleDataWrapper, SelectableMixin, MultiMapDataMixin, FieldInter
             default_item_type: ItemType = ItemType.Any,
             default_value: Any = None,
             example_value: Any = None,
-            is_valid: AutoBool = AUTO,
+            is_valid: Optional[bool] = None,
             skip_errors: bool = False,
             logger: Optional[SelectionLogger] = None,
             group_name: Optional[str] = None,  # deprecated
             group_caption: Optional[str] = None,  # deprecated
             data: Optional[dict] = None
     ):
-        data = Auto.delayed_acquire(data, dict)
-        value_type = Auto.delayed_acquire(value_type, ValueType.detect_by_name, field_name=name)
+        if data is None:
+            data = dict()
+        if value_type is None:
+            value_type = ValueType.detect_by_name(name)
         value_type = ValueType.get_canonic_type(value_type, ignore_missing=True)
-        assert isinstance(value_type, ValueType), 'Expected ValueType, got {}'.format(value_type)
+        assert isinstance(value_type, ValueType), f'Expected ValueType, got {value_type}'
         self._value_type = value_type
         self._representation = representation
         self._default_value = default_value
@@ -88,13 +90,13 @@ class AnyField(SimpleDataWrapper, SelectableMixin, MultiMapDataMixin, FieldInter
             field = self.make_new(representation=representation)
             return self._assume_native(field)
 
-    def set_repr(self, representation: AutoRepr = AUTO, inplace: bool = False, **kwargs) -> Native:
-        assert inplace is not None and not Auto.is_auto(inplace)
-        if Auto.is_auto(representation):
+    def set_repr(self, representation: OptRepr = None, inplace: bool = False, **kwargs) -> Native:
+        assert inplace is not None
+        if representation is None:
             representation = self.get_representation()
         if kwargs:
-            if Auto.is_defined(representation):
-                assert isinstance(representation, RepresentationInterface), 'got {}'.format(representation)
+            if representation is not None:
+                assert isinstance(representation, RepresentationInterface), f'got {representation}'
                 representation = representation.update_meta(**kwargs, inplace=False)
             else:
                 repr_class = self.get_repr_class()
@@ -203,7 +205,7 @@ class AnyField(SimpleDataWrapper, SelectableMixin, MultiMapDataMixin, FieldInter
 
     def format(self, value, skip_errors: bool = False) -> str:
         representation = self.get_representation()
-        if Auto.is_defined(representation):
+        if representation is not None:
             try:
                 return representation.format(value, skip_errors=skip_errors)
             except AttributeError:
@@ -211,7 +213,7 @@ class AnyField(SimpleDataWrapper, SelectableMixin, MultiMapDataMixin, FieldInter
         else:
             return str(value)
 
-    def is_valid(self) -> AutoBool:
+    def is_valid(self) -> Optional[bool]:
         return self._is_valid
 
     def set_valid(self, is_valid: bool, inplace: bool) -> Native:
@@ -251,11 +253,11 @@ class AnyField(SimpleDataWrapper, SelectableMixin, MultiMapDataMixin, FieldInter
             field = self.make_new(group_caption=group_caption)
             return self._assume_native(field)
 
-    def get_value_from_item(self, item, item_type: ItemType, struct: Union[Auto, StructInterface] = AUTO) -> Any:
+    def get_value_from_item(self, item, item_type: ItemType, struct: Optional[StructInterface] = None) -> Any:
         if item_type == ItemType.Record:
             return item.get(self.get_name())
         else:
-            raise ValueError(item_type)
+            raise NotImplementedError(item_type)
 
     def to(self, target: Union[str, FieldInterface]) -> ae.AbstractDescription:
         if hasattr(self, '_transform'):
@@ -310,9 +312,12 @@ class AnyField(SimpleDataWrapper, SelectableMixin, MultiMapDataMixin, FieldInter
     def drop(self):
         return ce.DropDescription([self], target_item_type=ItemType.Auto)
 
-    def get_plural(self, suffix: AutoName = AUTO, caption_prefix: str = 'list of ', **kwargs) -> Native:
+    def get_plural(self, suffix: Optional[str] = None, caption_prefix: str = 'list of ', **kwargs) -> Native:
         name = self.get_name()
-        plural_name = get_plural(name, suffix) if Auto.is_defined(suffix) else get_plural(name)
+        if suffix is not None:
+            plural_name = get_plural(name, suffix)
+        else:
+            plural_name = get_plural(name)
         meta = self.get_meta()
         meta['name'] = plural_name
         meta['caption'] = caption_prefix + self.get_caption()

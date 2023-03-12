@@ -2,18 +2,20 @@ from abc import ABC, abstractmethod
 from typing import Optional, Callable, Iterable, Union
 
 try:  # Assume we're a submodule in a package.
+    from base.classes.typing import Name
     from functions.primary import dates as dt
     from series.interpolation_type import InterpolationType
-    from series.interfaces.any_series_interface import AnySeriesInterface, Name, NumericTypes
+    from series.interfaces.any_series_interface import AnySeriesInterface, NumericTypes
     from series.interfaces.date_series_interface import DateSeriesInterface
     from series.interfaces.numeric_series_interface import NumericSeriesInterface, OptNumeric
     from series.interfaces.key_value_series_interface import KeyValueSeriesInterface
     from series.interfaces.sorted_key_value_series_interface import SortedKeyValueSeriesInterface
     from series.interfaces.sorted_numeric_series_interface import SortedNumericSeriesInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
+    from ...base.classes.typing import Name
     from ...functions.primary import dates as dt
     from ..interpolation_type import InterpolationType
-    from .any_series_interface import AnySeriesInterface, Name, NumericTypes
+    from .any_series_interface import AnySeriesInterface, NumericTypes
     from .date_series_interface import DateSeriesInterface
     from .numeric_series_interface import NumericSeriesInterface, OptNumeric
     from .key_value_series_interface import KeyValueSeriesInterface

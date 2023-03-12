@@ -2,19 +2,16 @@ from abc import ABC, abstractmethod
 from typing import Optional, Callable, Iterable, Generator, Union, Any
 
 try:  # Assume we're a submodule in a package.
-    from utils import arguments as arg
     from base.interfaces.iterable_interface import IterableInterface
     from functions.primary.numeric import NUMERIC_TYPES, NumericTypes, DataFrame
     from series.series_type import SeriesType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
     from ...base.interfaces.iterable_interface import IterableInterface
     from ...functions.primary.numeric import NUMERIC_TYPES, NumericTypes, DataFrame
     from ..series_type import SeriesType
 
 Native = IterableInterface
 Series = IterableInterface
-Name = Optional[str]
 
 
 class AnySeriesInterface(IterableInterface, ABC):

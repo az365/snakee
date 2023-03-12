@@ -4,13 +4,11 @@ from functools import total_ordering
 
 try:  # Assume we're a submodule in a package.
     from base.functions.arguments import get_name, get_str_from_args_kwargs
-    from base.classes.auto import Auto, AUTO
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..functions.arguments import get_name, get_str_from_args_kwargs
-    from .auto import Auto, AUTO
 
 Name = str
-Value = Union[str, int, Auto]
+Value = Union[str, int, None]
 Class = Union[Type, Callable]
 
 AUX_NAMES = ('name', 'value', 'is_prepared')
@@ -20,11 +18,12 @@ AUX_NAMES = ('name', 'value', 'is_prepared')
 class EnumItem:
     _auto_value = True
 
-    def __init__(self, name: Name, value: Union[Value, Auto] = AUTO, update: bool = False):
+    def __init__(self, name: Name, value: Value = None, update: bool = False):
         if update or not self._is_initialized():
             name = get_name(name)
             if self._auto_value:
-                value = Auto.acquire(value, name)
+                if value is None:
+                    value = name
             self.name = name
             self.value = value
 
@@ -113,7 +112,7 @@ class DynamicEnum(EnumItem):
     def convert(
             cls,
             obj: Union[EnumItem, Name],
-            default: Union[EnumItem, Auto, None] = AUTO,
+            default: Optional[EnumItem] = None,
             skip_missing: bool = False,
     ):
         assert cls.is_prepared(), 'DynamicEnum must be prepared before usage'
@@ -123,7 +122,8 @@ class DynamicEnum(EnumItem):
             instance = cls.find_instance(string)
             if instance:
                 return instance
-        default = Auto.delayed_acquire(default, cls.get_default)
+        if default is None:
+            default = cls.get_default()
         if default:
             return cls.convert(default)
         elif not skip_missing:
@@ -167,12 +167,13 @@ class DynamicEnum(EnumItem):
     def prepare(cls) -> Type:
         dict_copy = cls.__dict__.copy()
         for name, value in dict_copy.items():
-            if isinstance(value, (str, int, Auto)) and not cls._is_aux_name(name):
-                item = cls(name, value)
-                cls.add_enum_item(item)
-                setattr(cls, name, item)
-                if value == AUTO:
-                    cls.set_default(item)
+            if isinstance(value, (str, int)) or value is None:
+                if not cls._is_aux_name(name):
+                    item = cls(name, value)
+                    cls.add_enum_item(item)
+                    setattr(cls, name, item)
+                    if value is None:
+                        cls.set_default(item)
         cls.set_prepared(True)
         return cls
 

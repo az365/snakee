@@ -5,9 +5,12 @@ try:  # Assume we're a submodule in a package.
     from interfaces import (
         StreamInterface, ColumnarInterface, ColumnarStream, StructStream, StructInterface, SimpleDataInterface,
         LeafConnectorInterface, ConnType, StreamType, DialectType, LoggingLevel,
-        AUTO, Auto, AutoContext, AutoBool, AutoCount, Count, Name, FieldName, OptionalFields, Connector,
+        Context, Count, Name, FieldName, OptionalFields, Connector,
     )
-    from base.constants.chars import EMPTY, PARAGRAPH_CHAR, ITEMS_DELIMITER, DOT, ALL, SEMICOLON, PY_PLACEHOLDER
+    from base.constants.chars import (
+        EMPTY, PARAGRAPH_CHAR, TAB_CHAR,
+        ITEMS_DELIMITER, DOT, ALL, SEMICOLON, PY_PLACEHOLDER,
+    )
     from loggers.fallback_logger import FallbackLogger
     from functions.primary import text as tx
     from content.struct.flat_struct import FlatStruct
@@ -17,9 +20,12 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...interfaces import (
         StreamInterface, ColumnarInterface, ColumnarStream, StructStream, StructInterface, SimpleDataInterface,
         LeafConnectorInterface, ConnType, StreamType, DialectType, LoggingLevel,
-        AUTO, Auto, AutoContext, AutoBool, AutoCount, Count, Name, FieldName, OptionalFields, Connector,
+        Context, Count, Name, FieldName, OptionalFields, Connector,
     )
-    from ...base.constants.chars import EMPTY, PARAGRAPH_CHAR, ITEMS_DELIMITER, DOT, ALL, SEMICOLON, PY_PLACEHOLDER
+    from ...base.constants.chars import (
+        EMPTY, PARAGRAPH_CHAR, TAB_CHAR,
+        ITEMS_DELIMITER, DOT, ALL, SEMICOLON, PY_PLACEHOLDER,
+    )
     from ...loggers.fallback_logger import FallbackLogger
     from ...functions.primary import text as tx
     from ...content.struct.flat_struct import FlatStruct
@@ -36,7 +42,7 @@ TEST_QUERY = 'SELECT now()'
 DEFAULT_GROUP = 'PUBLIC'
 DEFAULT_STEP = 1000
 DEFAULT_ERRORS_THRESHOLD = 0.05
-COVERT_PROPS = ('password',)
+COVERT_PROPS = ('password', )
 
 
 class AbstractDatabase(AbstractStorage, ABC):
@@ -48,8 +54,8 @@ class AbstractDatabase(AbstractStorage, ABC):
             db: str,
             user: Optional[str] = None,
             password: Optional[str] = None,
-            context: AutoContext = AUTO,
-            verbose: AutoBool = AUTO,
+            context: Context = None,
+            verbose: Optional[bool] = None,
             **kwargs
     ):
         self.host = host
@@ -68,7 +74,7 @@ class AbstractDatabase(AbstractStorage, ABC):
     def get_tables(self) -> dict:
         return self.get_children()
 
-    def table(self, table: Union[Table, Name], struct: Union[Struct, Auto] = None, **kwargs) -> Table:
+    def table(self, table: Union[Table, Name], struct: Struct = None, **kwargs) -> Table:
         table_name, struct = self._get_table_name_and_struct(table, struct, check_struct=False)
         table = self.get_tables().get(table_name)
         if table:
@@ -109,11 +115,11 @@ class AbstractDatabase(AbstractStorage, ABC):
         return cls.get_dialect_type().get_value()
 
     @abstractmethod
-    def exists_table(self, name: Name, verbose: AutoBool = AUTO) -> bool:
+    def exists_table(self, name: Name, verbose: Optional[bool] = None) -> bool:
         pass
 
     @abstractmethod
-    def describe_table(self, name: Name, verbose: AutoBool = AUTO) -> Iterable:
+    def describe_table(self, name: Name, verbose: Optional[bool] = None) -> Iterable:
         pass
 
     def _get_execution_message(self, query: str, verbose: Union[str, bool]) -> str:
@@ -134,20 +140,20 @@ class AbstractDatabase(AbstractStorage, ABC):
     def execute(
             self,
             query: str,
-            get_data: AutoBool = AUTO,
-            commit: AutoBool = AUTO,
-            verbose: AutoBool = AUTO,
+            get_data: Optional[bool] = None,
+            commit: Optional[bool] = None,
+            verbose: Optional[bool] = None,
     ) -> Optional[Iterable]:
         pass
 
     def execute_query_from_file(
             self,
             file: File,
-            get_data: AutoBool = AUTO,
-            commit: AutoBool = AUTO,
-            verbose: AutoBool = AUTO,
+            get_data: Optional[bool] = None,
+            commit: Optional[bool] = None,
+            verbose: Optional[bool] = None,
     ) -> Optional[Iterable]:
-        assert isinstance(file, File) or hasattr(file, 'get_items'), 'file must be LocalFile, got {}'.format(file)
+        assert isinstance(file, File) or hasattr(file, 'get_items'), f'file must be LocalFile, got {file}'
         query = PARAGRAPH_CHAR.join(file.get_items())
         return self.execute(query, get_data=get_data, commit=commit, verbose=verbose)
 
@@ -158,9 +164,10 @@ class AbstractDatabase(AbstractStorage, ABC):
             message_if_yes: Optional[str] = None,
             message_if_no: Optional[str] = None,
             stop_if_no: bool = False,
-            verbose: AutoBool = AUTO,
+            verbose: Optional[bool] = None,
     ) -> Optional[Iterable]:
-        verbose = Auto.acquire(verbose, message_if_yes or message_if_no)
+        if verbose is not None:
+            verbose = bool(message_if_yes or message_if_no)
         table_name = self._get_table_name(table)
         table_exists = self.exists_table(table_name, verbose=verbose)
         if table_exists:
@@ -186,9 +193,10 @@ class AbstractDatabase(AbstractStorage, ABC):
             table: Union[Table, Name],
             struct: Struct,
             drop_if_exists: bool = False,
-            verbose: AutoBool = AUTO,
+            verbose: Optional[bool] = None,
     ) -> Table:
-        verbose = Auto.acquire(verbose, self.verbose)
+        if verbose is None:
+            verbose = self.verbose
         table_name, struct_str = self._get_table_name_and_struct_str(table, struct, check_struct=True)
         if drop_if_exists:
             self.drop_table(table_name, verbose=verbose)
@@ -208,7 +216,7 @@ class AbstractDatabase(AbstractStorage, ABC):
     def post_create_action(self, name: Name, **kwargs) -> None:
         pass
 
-    def drop_table(self, table: Union[Table, Name], if_exists: bool = True, verbose: AutoBool = AUTO) -> Native:
+    def drop_table(self, table: Union[Table, Name], if_exists: bool = True, verbose: Optional[bool] = None) -> Native:
         self.execute_if_exists(
             query='DROP TABLE IF EXISTS {};',
             table=table,
@@ -224,7 +232,7 @@ class AbstractDatabase(AbstractStorage, ABC):
             old: Union[Table, Name],
             new: Union[Table, Name],
             if_exists: bool = False,
-            verbose: AutoBool = AUTO,
+            verbose: Optional[bool] = None,
     ) -> Table:
         name_old = self._get_table_name(old)
         name_new = self._get_table_name(new)
@@ -247,7 +255,7 @@ class AbstractDatabase(AbstractStorage, ABC):
             old: Union[Table, Name],
             new: Union[Table, Name],
             if_exists: bool = False,
-            verbose: AutoBool = AUTO,
+            verbose: Optional[bool] = None,
     ) -> Table:
         name_old = self._get_table_name(old)
         name_new = self._get_table_name(new)
@@ -255,7 +263,10 @@ class AbstractDatabase(AbstractStorage, ABC):
         cat_new, table_new = name_new.split(DOT) if DOT in name_new else (cat_old, name_new)
         assert cat_new == cat_old, f'Can copy within same scheme (folder) only (got {cat_new} and {cat_old})'
         table_connector_old = self.get_child(name_old)
-        struct = table_connector_old.get_struct() if hasattr(table_connector_old, 'get_struct') else AUTO
+        if isinstance(table_connector_old, LeafConnectorInterface) or hasattr(table_connector_old, 'get_struct'):
+            struct = table_connector_old.get_struct()
+        else:
+            struct = None
         self.execute_if_exists(
             query='ALTER TABLE {old} RENAME TO {new};'.format(old=name_old, new=table_new),
             table=old,
@@ -273,7 +284,7 @@ class AbstractDatabase(AbstractStorage, ABC):
             filters: OptionalFields = None,
             sort: OptionalFields = None,
             count: Count = None,
-            verbose: AutoBool = AUTO,
+            verbose: Optional[bool] = None,
     ) -> Iterable:
         if isinstance(fields, str):
             fields_str = fields
@@ -298,14 +309,14 @@ class AbstractDatabase(AbstractStorage, ABC):
         query += SEMICOLON
         return self.execute(query, get_data=True, commit=False, verbose=verbose)
 
-    def select_count(self, table: Union[Table, Name], verbose: AutoBool = AUTO) -> int:
+    def select_count(self, table: Union[Table, Name], verbose: Optional[bool] = None) -> int:
         counted_field = ALL
         selected_fields = f'COUNT({counted_field})'
         response = self.execute_select(table, fields=selected_fields, verbose=verbose)
         count = list(response)[0][0]
         return count
 
-    def select_all(self, table: Union[Table, Name], verbose=AUTO) -> Iterable:
+    def select_all(self, table: Union[Table, Name], verbose: Optional[bool] = None) -> Iterable:
         return self.execute_select(table, fields=ALL, verbose=verbose)
 
     @abstractmethod
@@ -316,9 +327,9 @@ class AbstractDatabase(AbstractStorage, ABC):
             columns: Iterable,
             step: int = DEFAULT_STEP,
             skip_errors: bool = False,
-            expected_count: AutoCount = AUTO,
+            expected_count: Count = None,
             return_count: bool = True,
-            verbose: AutoBool = AUTO,
+            verbose: Optional[bool] = None,
     ) -> Count:
         pass
 
@@ -328,7 +339,7 @@ class AbstractDatabase(AbstractStorage, ABC):
             stream: StructStream,
             skip_errors: bool = False,
             step: int = DEFAULT_STEP,
-            verbose: AutoBool = AUTO,
+            verbose: Optional[bool] = None,
     ) -> Count:
         if hasattr(stream, 'get_columns'):
             columns = stream.get_columns()
@@ -359,10 +370,10 @@ class AbstractDatabase(AbstractStorage, ABC):
             skip_errors: bool = False,
             skip_lines: Count = 0,
             skip_first_line: bool = False,
-            step: AutoCount = DEFAULT_STEP,
-            verbose: AutoBool = AUTO,
+            step: Count = DEFAULT_STEP,
+            verbose: Optional[bool] = None,
     ) -> tuple:
-        if not Auto.is_defined(skip_lines):
+        if skip_lines is None:
             skip_lines = 0
         is_struct_description = isinstance(struct, StructInterface) or hasattr(struct, 'get_struct_str')
         if not is_struct_description:
@@ -375,7 +386,7 @@ class AbstractDatabase(AbstractStorage, ABC):
         )
         if skip_lines:
             input_stream = input_stream.skip(skip_lines)
-        if not Auto.is_defined(input_stream.get_struct()):
+        if input_stream.get_struct() is None:
             input_stream = input_stream.structure(
                 struct,
                 skip_bad_rows=True,
@@ -396,13 +407,14 @@ class AbstractDatabase(AbstractStorage, ABC):
             table: Union[Table, Name],
             struct: Struct, data: Data,
             encoding: Optional[str] = None,
-            step: AutoCount = DEFAULT_STEP,
+            step: Count = DEFAULT_STEP,
             skip_lines: Count = 0,
             skip_first_line: bool = False,
             max_error_rate: float = 0.0,
-            verbose: AutoBool = AUTO,
+            verbose: Optional[bool] = None,
     ) -> Table:
-        verbose = Auto.acquire(verbose, self.verbose)
+        if verbose is None:
+            verbose = self.verbose
         table_name, struct = self._get_table_name_and_struct(table, struct)
         if not skip_lines:
             self.create_table(table_name, struct=struct, drop_if_exists=True, verbose=verbose)
@@ -413,17 +425,19 @@ class AbstractDatabase(AbstractStorage, ABC):
             step=step, skip_lines=skip_lines, skip_errors=skip_errors,
             verbose=verbose,
         )
-        write_count += (skip_lines if isinstance(skip_lines, int) else 0)  # can be None or Auto
+        if skip_lines is not None:
+            write_count += skip_lines
         result_count = self.select_count(table)
         if write_count:
             error_rate = (write_count - result_count) / write_count
-            message = 'Check counts: {} initial, {} uploaded, {} written, {} error_rate'
+            template = 'Check counts: {} initial, {} uploaded, {} written, {} error_rate'
+            message = template.format(initial_count, write_count, result_count, error_rate)
         else:
             error_rate = 1.0
-            message = 'ERR: Data {} and/or Table {} is empty.'.format(data, table)
-        self.log(message.format(initial_count, write_count, result_count, error_rate), verbose=verbose)
+            message = f'ERR: Data {data} and/or Table {table} is empty.'
+        self.log(message, verbose=verbose)
         if max_error_rate is not None:
-            message = 'Too many errors or skipped lines ({} > {})'.format(error_rate, max_error_rate)
+            message = f'Too many errors or skipped lines ({error_rate} > {max_error_rate})'
             assert error_rate < max_error_rate, message
         return self.table(table, struct=struct)
 
@@ -436,11 +450,11 @@ class AbstractDatabase(AbstractStorage, ABC):
             skip_lines: int = 0,
             skip_first_line: bool = False,
             max_error_rate: float = 0.0,
-            verbose: AutoBool = AUTO,
+            verbose: Optional[bool] = None,
     ) -> Table:
         target_name, struct = self._get_table_name_and_struct(table, struct)
-        tmp_name = '{}_tmp_upload'.format(target_name)
-        bak_name = '{}_bak'.format(target_name)
+        tmp_name = f'{target_name}_tmp_upload'
+        bak_name = f'{target_name}_bak'
         self.force_upload_table(
             table=tmp_name, struct=struct, data=data, encoding=encoding, skip_first_line=skip_first_line,
             step=step, skip_lines=skip_lines, max_error_rate=max_error_rate,
@@ -460,8 +474,12 @@ class AbstractDatabase(AbstractStorage, ABC):
         self.log(f'Credentials for {repr(self)} has been updated', verbose=verbose)
         return self
 
-    def take_credentials_from_file(self, file: Union[File, Name], by_name: bool = False, delimiter=AUTO) -> Native:
-        delimiter = Auto.acquire(delimiter, '\t' if by_name else PARAGRAPH_CHAR)
+    def take_credentials_from_file(self, file: Union[File, Name], by_name: bool = False, delimiter=None) -> Native:
+        if delimiter is None:
+            if by_name:
+                delimiter = TAB_CHAR
+            else:
+                delimiter = PARAGRAPH_CHAR
         if isinstance(file, str):
             context = self.get_context()
             if context:
@@ -588,7 +606,7 @@ class AbstractDatabase(AbstractStorage, ABC):
             message = 'String Struct is deprecated. Use items.FlatStruct instead.'
             self.log(msg=message, level=LoggingLevel.Warning)
         elif isinstance(struct, (list, tuple)):
-            struct_str = ITEMS_DELIMITER.join(['{} {}'.format(c[0], c[1]) for c in struct])
+            struct_str = ITEMS_DELIMITER.join([f'{c[0]} {c[1]}' for c in struct])
             message = 'Tuple-description of Struct is deprecated. Use items.FlatStruct instead.'
             self.log(msg=message, level=LoggingLevel.Warning)
         elif hasattr(struct, 'get_struct_str'):

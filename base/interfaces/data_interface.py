@@ -2,13 +2,11 @@ from abc import ABC, abstractmethod
 from typing import Optional, Callable, Iterable, Union, Any
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.typing import AUTO, Auto, AutoCount, OptionalFields
-    from base.constants.chars import CROP_SUFFIX, DEFAULT_LINE_LEN
-    from base.interfaces.base_interface import BaseInterface, AutoOutput
+    from base.classes.typing import Count, OptionalFields
+    from base.interfaces.base_interface import BaseInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..classes.typing import AUTO, Auto, AutoCount, OptionalFields
-    from ..constants.chars import CROP_SUFFIX, DEFAULT_LINE_LEN
-    from .base_interface import BaseInterface, AutoOutput
+    from ..classes.typing import Count, OptionalFields
+    from .base_interface import BaseInterface
 
 Data = Union[Iterable, Any]
 
@@ -46,10 +44,10 @@ class SimpleDataInterface(BaseInterface, ABC):
     def describe(
             self,
             show_header: bool = True,
-            count: AutoCount = AUTO,
+            count: Count = None,
             comment: Optional[str] = None,
             depth: int = 1,
-            display=AUTO,
+            display=None,
             **kwargs
     ):
         pass

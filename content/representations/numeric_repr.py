@@ -1,13 +1,13 @@
 from typing import Union
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.typing import AUTO, Auto, Value, AutoCount
-    from base.constants.chars import FILL_CHAR, DEFAULT_STR, CROP_SUFFIX
+    from base.classes.typing import Value, Count
+    from base.constants.chars import EMPTY, FILL_CHAR, DEFAULT_STR, CROP_SUFFIX
     from functions.secondary.cast_functions import number
     from content.representations.abstract_repr import AbstractRepresentation, ReprType, OptKey
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...base.classes.typing import AUTO, Auto, Value, AutoCount
-    from ...base.constants.chars import FILL_CHAR, DEFAULT_STR, CROP_SUFFIX
+    from ...base.classes.typing import Value, Count
+    from ...base.constants.chars import EMPTY, FILL_CHAR, DEFAULT_STR, CROP_SUFFIX
     from ...functions.secondary.cast_functions import number
     from .abstract_repr import AbstractRepresentation, ReprType, OptKey
 
@@ -23,13 +23,13 @@ class NumericRepresentation(AbstractRepresentation):
             use_letter: bool = False,
             allow_exp: bool = False,
             align_right: bool = True,
-            min_len: AutoCount = AUTO,
-            max_len: AutoCount = AUTO,
+            min_len: Count = None,
+            max_len: Count = None,
             including_framing: bool = False,
-            crop: str = CROP_SUFFIX,
-            fill: str = FILL_CHAR,
-            prefix: str = '',
-            suffix: str = '',
+            crop: str = CROP_SUFFIX,  # '..'
+            fill: str = FILL_CHAR,  # ' '
+            prefix: str = EMPTY,  # ''
+            suffix: str = EMPTY,  # ''
             default: str = DEFAULT_STR,
     ):
         self._precision = precision
@@ -104,7 +104,7 @@ class NumericRepresentation(AbstractRepresentation):
         return template.format(
             prefix=self._prefix,
             start='{',
-            key=str(key or ''),
+            key=str(key or EMPTY),
             spec=self.get_spec_str(),
             end='}',
             suffix=self._suffix,
@@ -125,7 +125,7 @@ class NumericRepresentation(AbstractRepresentation):
                 width=width, precision=precision, type=type_str,
             )
         else:
-            return ''
+            return EMPTY
 
     def get_sign_str(self) -> str:
         if isinstance(self._use_plus, str):
@@ -139,7 +139,7 @@ class NumericRepresentation(AbstractRepresentation):
         if self.get_precision() >= 0:
             return '.{}'.format(self.get_precision())
         else:
-            return ''
+            return EMPTY
 
     def get_type_str(self) -> str:
         if self.using_percent():

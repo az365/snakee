@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
-from typing import Type, Callable, Generator, Union, Any
+from typing import Type, Optional, Callable, Generator, Union, Any
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.typing import AUTO, Auto, AutoName, AutoBool, Class
+    from base.classes.typing import Class
     from base.interfaces.data_interface import SimpleDataInterface
     from connectors.databases.dialect_type import DialectType
     from content.representations.repr_interface import RepresentationInterface
@@ -10,7 +10,7 @@ try:  # Assume we're a submodule in a package.
     from content.fields.field_role_type import FieldRoleType
     from content.fields.field_edge_type import FieldEdgeType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...base.classes.typing import AUTO, Auto, AutoName, AutoBool, Class
+    from ...base.classes.typing import Class
     from ...base.interfaces.data_interface import SimpleDataInterface
     from ...connectors.databases.dialect_type import DialectType
     from ..representations.repr_interface import RepresentationInterface
@@ -20,7 +20,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 
 Native = SimpleDataInterface
 Transform = Any
-AutoRepr = Union[RepresentationInterface, str, Auto]
+OptRepr = Union[RepresentationInterface, str, None]
 
 
 class FieldInterface(SimpleDataInterface, ABC):
@@ -62,7 +62,7 @@ class FieldInterface(SimpleDataInterface, ABC):
         pass
 
     @abstractmethod
-    def set_repr(self, representation: AutoRepr = AUTO, inplace: bool = False, **kwargs) -> Native:
+    def set_repr(self, representation: OptRepr = None, inplace: bool = False, **kwargs) -> Native:
         pass
 
     @abstractmethod
@@ -108,7 +108,7 @@ class FieldInterface(SimpleDataInterface, ABC):
         pass
 
     @abstractmethod
-    def is_valid(self) -> AutoBool:
+    def is_valid(self) -> Optional[bool]:
         pass
 
     @abstractmethod
@@ -140,7 +140,7 @@ class FieldInterface(SimpleDataInterface, ABC):
         pass
 
     @abstractmethod
-    def get_plural(self, suffix: AutoName = AUTO, caption_prefix: str = 'list of ', **kwargs) -> Native:
+    def get_plural(self, suffix: Optional[str] = None, caption_prefix: str = 'list of ', **kwargs) -> Native:
         pass
 
     @abstractmethod

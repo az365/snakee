@@ -1,21 +1,15 @@
 from abc import ABC
-from typing import Optional, Union
+from typing import Optional
 
 try:  # Assume we're a submodule in a package.
-    from interfaces import (
-        LeafConnectorInterface, Stream,
-        AUTO, Auto, AutoCount, AutoBool, AutoDisplay, Columns, Array, Count,
-    )
+    from interfaces import LeafConnectorInterface, DisplayInterface, Stream, Columns, Count
     from base.functions.arguments import get_name, get_str_from_args_kwargs
     from base.constants.chars import EMPTY, CROP_SUFFIX, ITEMS_DELIMITER, DEFAULT_LINE_LEN
     from utils.decorators import deprecated_with_alternative
     from functions.primary import dates as dt
     from streams.mixin.validate_mixin import ValidateMixin, DEFAULT_EXAMPLE_COUNT
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...interfaces import (
-        LeafConnectorInterface, Stream,
-        AUTO, Auto, AutoCount, AutoBool, AutoDisplay, Columns, Array, Count,
-    )
+    from ...interfaces import LeafConnectorInterface, DisplayInterface, Stream, Columns, Count
     from ...base.functions.arguments import get_name, get_str_from_args_kwargs
     from ...base.constants.chars import EMPTY, CROP_SUFFIX, ITEMS_DELIMITER, DEFAULT_LINE_LEN
     from ...utils.decorators import deprecated_with_alternative
@@ -43,8 +37,9 @@ class ActualizeMixin(ValidateMixin, ABC):
         timestamp = dt.datetime.fromtimestamp(self.get_modification_timestamp())
         return dt.get_formatted_datetime(timestamp)
 
-    def reset_modification_timestamp(self, timestamp: Union[float, Auto, None] = AUTO) -> Native:
-        timestamp = Auto.acquire(timestamp, self.get_modification_timestamp(reset=False))
+    def reset_modification_timestamp(self, timestamp: Optional[float] = None) -> Native:
+        if timestamp is None:
+            timestamp = self.get_modification_timestamp(reset=False)
         return self.set_prev_modification_timestamp(timestamp) or self
 
     def get_file_age_str(self):
@@ -62,26 +57,28 @@ class ActualizeMixin(ValidateMixin, ABC):
     def get_datetime_str(self, actualize: bool = True) -> str:
         if actualize:
             if self.is_existing():
-                times = self.get_modification_time_str(), self.get_file_age_str(), dt.get_current_time_str()
-                return '{} + {} = {}'.format(*times)
+                modification_time = self.get_modification_time_str()
+                data_age = self.get_file_age_str()
+                current_time = dt.get_current_time_str()
+                return f'{modification_time} + {data_age} = {current_time}'
         return dt.get_current_time_str()
 
     @staticmethod
     def _get_current_timestamp() -> float:
         return dt.get_current_timestamp()
 
-    def get_prev_lines_count(self) -> Optional[AutoCount]:
+    def get_prev_lines_count(self) -> Count:
         return self.get_expected_count()
 
     def get_count(self, allow_reopen: bool = True, allow_slow_mode: bool = True, force: bool = False) -> Count:
-        must_recount = force or self.is_outdated() or not Auto.is_defined(self.get_prev_lines_count())
+        prev_lines_count = self.get_prev_lines_count()
+        must_recount = force or self.is_outdated() or prev_lines_count is None
         if self.is_existing() and must_recount:
             count = self.get_actual_lines_count(allow_reopen=allow_reopen, allow_slow_mode=allow_slow_mode)
             self.set_count(count)
         else:
-            count = self.get_prev_lines_count()
-        if Auto.is_defined(count):
-            return count
+            count = prev_lines_count
+        return count
 
     def has_title(self) -> bool:
         if self.is_first_line_title():
@@ -129,11 +126,11 @@ class ActualizeMixin(ValidateMixin, ABC):
 
     def get_one_line_repr(
             self,
-            str_meta: Union[str, Auto, None] = AUTO,
+            str_meta: Optional[str] = None,
             max_len: int = DEFAULT_LINE_LEN,
             crop: str = CROP_SUFFIX,
     ) -> str:
-        if not Auto.is_defined(str_meta):
+        if str_meta is None:
             description_args = list()
             name = get_name(self)
             if name:
@@ -148,9 +145,9 @@ class ActualizeMixin(ValidateMixin, ABC):
             self,
             count: int = DEFAULT_EXAMPLE_COUNT,
             example: Optional[Stream] = None,
-            columns: Optional[Array] = None,
+            columns: Columns = None,
             comment: str = EMPTY,
-            display: AutoDisplay = AUTO,
+            display: Optional[DisplayInterface] = None,
     ):
         records, columns = self._get_demo_records_and_columns(count=count, example=example, columns=columns)
         if records or comment:
@@ -170,12 +167,12 @@ class ActualizeMixin(ValidateMixin, ABC):
             message: Optional[str] = None,
             filters: Columns = None,
             columns: Columns = None,
-            actualize: AutoBool = AUTO,
+            actualize: Optional[bool] = None,
             **kwargs
     ):
-        if actualize == AUTO:
+        if actualize is None:
             self.actualize(if_outdated=True)
-        elif actualize:
+        elif actualize:  # True
             self.actualize(if_outdated=False)
         return self.to_record_stream(message=message).show(
             count=count,

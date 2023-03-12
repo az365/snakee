@@ -1,24 +1,22 @@
 from typing import Optional, Callable, Iterable, Iterator, Sequence, Tuple, Union, Any
 
 try:  # Assume we're a submodule in a package.
-    from base.constants.chars import EMPTY, SPACE, HTML_INDENT, PARAGRAPH_CHAR, REPR_DELIMITER
+    from base.constants.chars import EMPTY, SPACE, HTML_INDENT, PARAGRAPH_CHAR, REPR_DELIMITER, DEFAULT_LINE_LEN
     from base.interfaces.sheet_interface import SheetInterface, Record, Row, FormattedRow, Columns, Count
-    from base.classes.simple_sheet import SimpleSheet, SheetMixin, SheetItems
+    from base.classes.typing import Name
     from base.classes.enum import DynamicEnum
-    from base.constants.chars import DEFAULT_LINE_LEN
-    from base.classes.typing import AUTO, Auto, Name
+    from base.classes.simple_sheet import SimpleSheet, SheetMixin, SheetItems
     from base.functions.arguments import get_name, get_cropped_text
     from base.abstract.simple_data import SimpleDataWrapper, MAX_BRIEF_REPR_LEN
     from base.mixin.iter_data_mixin import IterDataMixin
     from utils.external import Markdown, HTML, display
     from content.documents.display_mode import DisplayMode
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...base.constants.chars import EMPTY, SPACE, HTML_INDENT, PARAGRAPH_CHAR, REPR_DELIMITER
+    from ...base.constants.chars import EMPTY, SPACE, HTML_INDENT, PARAGRAPH_CHAR, REPR_DELIMITER, DEFAULT_LINE_LEN
     from ...base.interfaces.sheet_interface import SheetInterface, Record, Row, FormattedRow, Columns, Count
-    from ...base.classes.simple_sheet import SimpleSheet, SheetMixin, SheetItems
+    from ...base.classes.typing import Name
     from ...base.classes.enum import DynamicEnum
-    from ...base.constants.chars import DEFAULT_LINE_LEN
-    from ...base.classes.typing import AUTO, Auto, Name
+    from ...base.classes.simple_sheet import SimpleSheet, SheetMixin, SheetItems
     from ...base.functions.arguments import get_name, get_cropped_text
     from ...base.abstract.simple_data import SimpleDataWrapper, MAX_BRIEF_REPR_LEN
     from ...base.mixin.iter_data_mixin import IterDataMixin
@@ -89,11 +87,11 @@ class DocumentItem(SimpleDataWrapper):
 
     def get_html_attributes(self) -> Iterator[Tuple[str, Any]]:
         style = self.get_html_style()
-        if Auto.is_defined(style):
+        if style is not None:
             if style:
                 yield 'style', str(style)
         name = self.get_name()
-        if Auto.is_defined(name):
+        if name is not None:
             if name:
                 yield 'name', name
 
@@ -172,8 +170,8 @@ class DocumentItem(SimpleDataWrapper):
             return self.get_text()
 
     @staticmethod
-    def _get_display_method(method: Union[Callable, Auto, None] = AUTO) -> Callable:
-        if Auto.is_defined(method):
+    def _get_display_method(method: Optional[Callable] = None) -> Callable:
+        if method is not None:
             return method
         else:
             return display
@@ -205,7 +203,6 @@ class Sheet(DocumentItem, IterDataMixin, SheetMixin, SheetInterface):
     def _set_items_inplace(self, items: SheetItems) -> None:
         expected_columns = self.get_columns()
         if hasattr(items, 'get_list'):  # isinstance(items, RegularStreamInterface)
-            self._set_data_inplace(items)
             if hasattr(items, 'get_struct') and not expected_columns:  # isinstance(items, Stream):
                 detected_struct = items.get_struct()
                 if not detected_struct:
@@ -226,7 +223,7 @@ class Sheet(DocumentItem, IterDataMixin, SheetMixin, SheetInterface):
             style: OptStyle = None,
             name: Name = EMPTY,
     ) -> Native:
-        if Auto.is_defined(columns):
+        if columns is not None:
             column_names = cls._get_column_names_from_columns(columns)
         else:
             records = list(records)
@@ -316,7 +313,7 @@ class Sheet(DocumentItem, IterDataMixin, SheetMixin, SheetInterface):
                     if representation and hasattr(representation, 'format'):  # isinstance(representation, RepresentationInterface):
                         formatted_cell = representation.format(cell)
                     else:
-                        formatted_cell = self._crop_cell(cell, max_len)
+                        formatted_cell = get_cropped_text(cell, max_len=max_len)
                     formatted_row.append(formatted_cell)
                 yield Row(formatted_row)
         else:
@@ -368,12 +365,12 @@ class Sheet(DocumentItem, IterDataMixin, SheetMixin, SheetInterface):
         for n, row in enumerate(formatted_rows):
             yield '<tr>'
             for cell in row:
-                if Auto.is_defined(style):
+                if style is not None:
                     yield HTML_INDENT + f'<td style="{style}">{cell}</td>'
                 else:
                     yield HTML_INDENT + f'<td>{cell}</td>'
             yield '</tr>'
-            if Auto.is_defined(count):
+            if count is not None:
                 if n + 1 >= count:
                     break
 
@@ -457,14 +454,11 @@ class Text(DocumentItem, IterDataMixin):
     def get_html_code(self) -> str:
         return EMPTY.join(self.get_html_lines())
 
-    # @deprecated
-    def get_cropped_text(self, max_len: int = MAX_BRIEF_REPR_LEN) -> str:
-        return get_cropped_text(self.get_text(), max_len=max_len)
-
     def get_brief_repr(self) -> str:
         cls_name = self.__class__.__name__
         obj_name = self.get_name()
-        str_args = repr(self.get_cropped_text())
+        text = self.get_text()
+        str_args = repr(get_cropped_text(text, max_len=MAX_BRIEF_REPR_LEN))
         if obj_name:
             str_args += f', name={repr(obj_name)}'
         return f'{cls_name}({str_args})'
@@ -493,7 +487,7 @@ class Link(Text):
     def get_html_open_tag(self) -> str:
         url = self.get_url()
         style = self.get_style()
-        if Auto.is_defined(style):
+        if style is not None:
             return f'<a href="{url}" style="{style}">'
         else:
             return f'<a href="{url}">'
@@ -582,7 +576,7 @@ class Paragraph(Text, Container):
 
     def get_html_style(self) -> HtmlStyle:
         style = super().get_html_style()
-        if Auto.is_defined(style):
+        if style is not None:
             return style
         else:
             return H_STYLE if self.is_title() else P_STYLE
@@ -601,7 +595,7 @@ class Paragraph(Text, Container):
     def get_html_text_code(
             lines: Iterable[str],
             level: Optional[int] = None,
-            style: Union[str, Auto] = AUTO,
+            style: OptStyle = None,
     ) -> Iterator[str]:
         if isinstance(lines, str):
             lines = lines.split(PARAGRAPH_CHAR)
@@ -609,10 +603,12 @@ class Paragraph(Text, Container):
         text = f'<br>{PARAGRAPH_CHAR}'.join(lines)
         if level:
             tag = f'h{level}'
-            style = Auto.acquire(style, H_STYLE)
+            if style is None:
+                style = H_STYLE
         else:
             tag = 'p'
-            style = Auto.acquire(style, P_STYLE)
+            if style is None:
+                style = P_STYLE
         open_tag = f'<{tag} style="{style}">' if style else f'<{tag}>'
         close_tag = f'</{tag}>'
         if text:
@@ -621,7 +617,7 @@ class Paragraph(Text, Container):
     def get_brief_repr(self) -> str:
         cls_name = self.__class__.__name__
         obj_name = self.get_name()
-        str_args = repr(self.get_cropped_text())
+        str_args = repr(get_cropped_text(self.get_text(), max_len=MAX_BRIEF_REPR_LEN))
         level = self.get_level()
         if level:
             str_args += f', level={repr(level)}'

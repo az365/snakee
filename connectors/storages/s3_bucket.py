@@ -2,13 +2,11 @@ from typing import Optional, Iterable, Generator, Union
 import io
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.typing import AUTO, Auto, AutoBool
     from utils.decorators import deprecated_with_alternative
     from utils.external import boto3, boto_core_client
     from interfaces import ConnType, ConnectorInterface, Class, Name
     from connectors.abstract.abstract_folder import HierarchicFolder
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...base.classes.typing import AUTO, Auto, AutoBool
     from ...utils.decorators import deprecated_with_alternative
     from ...utils.external import boto3, boto_core_client
     from ...interfaces import ConnType, ConnectorInterface, Class, Name
@@ -26,8 +24,8 @@ class S3Bucket(HierarchicFolder):
             name: Name,
             storage: ConnectorInterface,
             verbose: bool = True,
-            access_key: str = AUTO,
-            secret_key: str = AUTO,
+            access_key: Optional[str] = None,
+            secret_key: Optional[str] = None,
     ):
         assert '_' not in name, 'Symbol "_" is not allowed for bucket name, use "-" instead'
         self._session = None
@@ -37,13 +35,13 @@ class S3Bucket(HierarchicFolder):
         self._secret_key = None
         storage = self._assume_native(storage)
         super().__init__(name=name, parent=storage, verbose=verbose)
-        if Auto.is_defined(access_key):
+        if access_key is not None:
             self.set_access_key(access_key)
-        elif access_key == AUTO and hasattr(storage, 'get_access_key'):
+        elif hasattr(storage, 'get_access_key'):
             self.set_access_key(storage.get_access_key())
-        if Auto.is_defined(secret_key):
+        if secret_key is not None:
             self.set_secret_key(secret_key)
-        elif secret_key == AUTO and hasattr(storage, 'get_secret_key'):
+        elif hasattr(storage, 'get_secret_key'):
             self.set_secret_key(storage.get_secret_key)
 
     def get_conn_type(self) -> ConnType:
@@ -135,7 +133,7 @@ class S3Bucket(HierarchicFolder):
             params: Optional[dict] = None,
             v2: bool = False,
             field: Optional[str] = 'Contents',
-            verbose: AutoBool = AUTO,
+            verbose: Optional[bool] = None,
     ) -> Union[dict, list]:
         if not params:
             params = dict()
@@ -155,7 +153,7 @@ class S3Bucket(HierarchicFolder):
         else:
             return objects
 
-    def yield_objects(self, params: Optional[dict] = None, verbose: AutoBool = AUTO) -> Generator:
+    def yield_objects(self, params: Optional[dict] = None, verbose: Optional[bool] = None) -> Generator:
         continuation_token = None
         if not params:
             params = dict()
@@ -170,14 +168,14 @@ class S3Bucket(HierarchicFolder):
                 break
             continuation_token = response.get('NextContinuationToken')
 
-    def yield_object_names(self, verbose: AutoBool = AUTO) -> Generator:
+    def yield_object_names(self, verbose: Optional[bool] = None) -> Generator:
         for obj in self.yield_objects(verbose=verbose):
             yield obj['Key']
 
-    def list_object_names(self, verbose: AutoBool = AUTO) -> list:
+    def list_object_names(self, verbose: Optional[bool] = None) -> list:
         return list(self.yield_object_names(verbose=verbose))
 
-    def list_prefixes(self, verbose: AutoBool = AUTO) -> Iterable:
+    def list_prefixes(self, verbose: Optional[bool] = None) -> Iterable:
         return self.list_objects(field='CommonPrefixes', verbose=verbose)
 
     def get_object(self, object_path_in_bucket: str):

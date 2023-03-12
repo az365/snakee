@@ -1,7 +1,6 @@
 from typing import Optional, Callable, Iterable, Generator, Union
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.auto import AUTO, Auto
     from content.items.simple_items import (
         Record, MutableRecord, Row, MutableRow, ImmutableRow,
         Array, FieldNo, FieldName, Value,
@@ -9,7 +8,6 @@ try:  # Assume we're a submodule in a package.
     from content.items.item_type import ItemType
     from functions.primary.items import get_fields_values_from_item, get_copy, merge_two_items, set_to_item_inplace
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...base.classes.auto import AUTO, Auto
     from ...content.items.simple_items import (
         Record, MutableRecord, Row, MutableRow, ImmutableRow,
         Array, FieldNo, FieldName, Value,
@@ -150,10 +148,10 @@ def fold_lists(
         list_fields: Array,
         as_pairs: bool = False,
         skip_missing: bool = False,
-        item_type: Union[ItemType, Auto, None] = AUTO,
+        item_type: Optional[ItemType] = ItemType.Auto,
 ) -> Union[Row, Record]:
     if list_items:
-        if not Auto.is_defined(item_type):
+        if item_type == ItemType.Auto or item_type is None:
             first_item = list_items[0]
             item_type = ItemType.detect(first_item)
         if item_type == ItemType.Record:
@@ -175,13 +173,12 @@ def unfold_lists(
         number_field: Optional[FieldName] = 'n',
         default_value: Value = 0,
         skip_errors: bool = False,
-        item_type: Union[ItemType, Auto, None] = AUTO,
+        item_type: Optional[ItemType] = ItemType.Auto,
 ) -> Generator:
-    if Auto.is_defined(key_func):
-        assert isinstance(key_func, Callable)
+    if isinstance(key_func, Callable):
         item_key = key_func(item)
     else:
-        if item_type == ItemType.Auto:
+        if item_type == ItemType.Auto or item_type is None:
             item_type = ItemType.detect(item)
         if item_type == ItemType.Record:
             item_key = {k: v for k, v in item.items() if k not in fields}

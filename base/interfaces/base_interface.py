@@ -1,15 +1,12 @@
 from abc import ABC, abstractmethod
-from typing import Type, Optional, Callable, Iterable, Generator, Union
+from typing import Optional, Iterable, Generator, Union
 
 try:  # Assume we're a submodule in a package.
-    from base.classes.auto import AUTO, Auto
     from base.constants.chars import CROP_SUFFIX, DEFAULT_LINE_LEN
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..classes.auto import AUTO, Auto
     from ..constants.chars import CROP_SUFFIX, DEFAULT_LINE_LEN
 
 OptionalFields = Union[str, Iterable, None]
-AutoOutput = Union[Type, Callable, int, Auto]
 
 
 class BaseInterface(ABC):
@@ -55,15 +52,15 @@ class BaseInterface(ABC):
         pass
 
     @abstractmethod
-    def get_compatible_meta(self, other=AUTO, ex: Optional[Iterable] = None, **kwargs) -> dict:
+    def get_compatible_meta(self, other=None, ex: Optional[Iterable] = None, **kwargs) -> dict:
         pass
 
     @abstractmethod
-    def get_meta_items(self, meta: Union[dict, Auto] = AUTO) -> Generator:
+    def get_meta_items(self, meta: Optional[dict] = None) -> Generator:
         pass
 
     @abstractmethod
-    def get_ordered_meta_names(self, meta: Union[dict, Auto] = AUTO) -> Generator:
+    def get_ordered_meta_names(self, meta: Optional[dict] = None) -> Generator:
         pass
 
     @abstractmethod
@@ -85,7 +82,7 @@ class BaseInterface(ABC):
     @abstractmethod
     def get_one_line_repr(
             self,
-            str_meta: Union[str, Auto, None] = AUTO,
+            str_meta: Optional[str] = None,
             max_len: int = DEFAULT_LINE_LEN,
             crop: str = CROP_SUFFIX,
     ) -> str:
@@ -100,6 +97,6 @@ class BaseInterface(ABC):
             self,
             comment: Optional[str] = None,
             depth: int = 1,
-            display=AUTO,
+            display=None,
     ):
         pass

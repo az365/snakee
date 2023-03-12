@@ -2,14 +2,14 @@ from typing import Optional, Iterable, Union
 
 try:  # Assume we're a submodule in a package.
     from base.functions.arguments import get_name
-    from interfaces import AUTO, Auto, StreamInterface, ColumnarInterface, Field, Columns, AutoColumns
+    from interfaces import StreamInterface, ColumnarInterface, Field, Columns
     from utils.external import pd, DataFrame
     from streams.abstract.wrapper_stream import WrapperStream
     from streams.mixin.columnar_mixin import ColumnarMixin
     from streams.mixin.convert_mixin import ConvertMixin
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.functions.arguments import get_name
-    from ...interfaces import AUTO, Auto, StreamInterface, ColumnarInterface, Field, Columns, AutoColumns
+    from ...interfaces import StreamInterface, ColumnarInterface, Field, Columns
     from ...utils.external import pd, DataFrame
     from ..abstract.wrapper_stream import WrapperStream
     from ..mixin.columnar_mixin import ColumnarMixin
@@ -22,7 +22,7 @@ class PandasStream(WrapperStream, ColumnarMixin, ConvertMixin):
     def __init__(
             self,
             data: Union[DataFrame, StreamInterface, Iterable],
-            name: Union[Auto, str] = AUTO,
+            name: Optional[str] = None,
             source=None,
             context=None,
     ):
@@ -54,10 +54,10 @@ class PandasStream(WrapperStream, ColumnarMixin, ConvertMixin):
     def is_in_memory(self) -> bool:
         return True
 
-    def get_dataframe(self, columns: AutoColumns = None) -> DataFrame:
+    def get_dataframe(self, columns: Columns = None) -> DataFrame:
         data = self.get_data()
         assert isinstance(data, DataFrame)
-        if Auto.is_defined(columns):
+        if columns:
             data = data[columns]
         return data
 
@@ -69,18 +69,18 @@ class PandasStream(WrapperStream, ColumnarMixin, ConvertMixin):
     def get_items(self) -> Iterable:
         yield from self.get_dataframe().iterrows()
 
-    def _select_columns(self, columns: Union[Iterable, Auto]) -> Native:
-        if Auto.is_defined(columns):
+    def _select_columns(self, columns: Columns) -> Native:
+        if columns:
             return self.select(*columns)
         else:
             return self
 
-    def get_records(self, columns: AutoColumns = AUTO) -> Iterable:
+    def get_records(self, columns: Columns = None) -> Iterable:
         stream = self._select_columns(columns)
         assert isinstance(stream, PandasStream)
         return stream._get_mapped_items(lambda i: i[1].to_dict())
 
-    def get_rows(self, columns: AutoColumns = AUTO):
+    def get_rows(self, columns: Columns = None):
         stream = self._select_columns(columns)
         assert isinstance(stream, PandasStream)
         return stream._get_mapped_items(lambda i: i[1].to_list())

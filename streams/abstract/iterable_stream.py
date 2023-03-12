@@ -4,25 +4,19 @@ import gc
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         StreamType, LoggingLevel, JoinType, How,
-        Stream, Struct, Source, ExtLogger, SelectionLogger, Context, Connector, LeafConnector,
-        AUTO, Auto, AutoName, AutoCount, Count, OptionalFields, Message, Array, UniKey,
+        Stream, Source, ExtLogger, SelectionLogger, Context,
+        Name, Count, UniKey,
     )
     from base.mixin.iter_data_mixin import IterDataMixin, IterableInterface
-    from utils import algo
-    from utils.external import pd, DataFrame, get_use_objects_for_output
-    from utils.decorators import deprecated, deprecated_with_alternative
     from functions.secondary import item_functions as fs
     from streams.abstract.abstract_stream import AbstractStream
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         StreamType, LoggingLevel, JoinType, How,
-        Stream, Struct, Source, ExtLogger, SelectionLogger, Context, Connector, LeafConnector,
-        AUTO, Auto, AutoName, AutoCount, Count, OptionalFields, Message, Array, UniKey,
+        Stream, Source, ExtLogger, SelectionLogger, Context,
+        Name, Count, UniKey,
     )
     from ...base.mixin.iter_data_mixin import IterDataMixin, IterableInterface
-    from ...utils import algo
-    from ...utils.external import pd, DataFrame, get_use_objects_for_output
-    from ...utils.decorators import deprecated, deprecated_with_alternative
     from ...functions.secondary import item_functions as fs
     from .abstract_stream import AbstractStream
 
@@ -36,17 +30,21 @@ class IterableStream(AbstractStream, IterDataMixin):
     def __init__(
             self,
             data: Iterable,
-            name: AutoName = AUTO,
+            name: Optional[Name] = None,
             caption: str = '',
-            source: Source = None, context: Context = None,
-            count: Count = None, less_than: Count = None,
+            source: Source = None,
+            context: Context = None,
+            count: Count = None,
+            less_than: Count = None,
             check: bool = False,
-            max_items_in_memory: AutoCount = AUTO,
+            max_items_in_memory: Count = None,
     ):
+        if not isinstance(max_items_in_memory, int):  # not Auto.is_defined(max_items_in_memory):
+            max_items_in_memory = MAX_ITEMS_IN_MEMORY
         self._count = count
         self._less_than = less_than or count
         self.check = check
-        self.max_items_in_memory = Auto.acquire(max_items_in_memory, MAX_ITEMS_IN_MEMORY)
+        self.max_items_in_memory = max_items_in_memory
         super().__init__(
             data=data, check=False,
             name=name, caption=caption,
@@ -55,7 +53,8 @@ class IterableStream(AbstractStream, IterDataMixin):
 
     def get_stream_data(self) -> Iterable:
         data = super().get_data()
-        assert isinstance(data, Iterable), 'Expected Iterable, got {} as {}'.format(data, data.__class__.__name__)
+        class_name = data.__class__.__name__
+        assert isinstance(data, Iterable), f'Expected Iterable, got {data} as {class_name}'
         return data
 
     def get_data(self) -> Iterable:
@@ -63,15 +62,6 @@ class IterableStream(AbstractStream, IterDataMixin):
 
     def get_items(self) -> Iterable:  # list or generator (need for inherited subclasses)
         return self.get_stream_data()
-
-    @deprecated_with_alternative('IterDataMixin.copy()')
-    def tee_stream(self) -> Native:
-        stream = self.copy()
-        return self._assume_native(stream)
-
-    @deprecated_with_alternative('IterDataMixin.get_tee_clones()')
-    def tee_streams(self, n: int = 2) -> list:
-        return self.get_tee_clones(n)
 
     def set_meta(self, inplace: bool = False, **meta) -> Optional[Native]:
         stream = super().set_meta(**meta, inplace=inplace)
@@ -81,23 +71,6 @@ class IterableStream(AbstractStream, IterDataMixin):
     @staticmethod
     def _get_dynamic_meta_fields() -> tuple:
         return DYNAMIC_META_FIELDS
-
-    @deprecated_with_alternative('ItemType.isinstance(item)')
-    def is_valid_item_type(self, item) -> bool:
-        return True
-
-    @deprecated_with_alternative('ItemType.isinstance(item)')
-    def _is_valid_item(self, item) -> bool:
-        return self.is_valid_item_type(item)
-
-    @deprecated_with_alternative('ItemType.isinstance(item)')
-    def _get_typing_validated_items(
-            self,
-            items: Iterable,
-            skip_errors: bool = False,
-            context: Context = None,
-    ) -> Iterable:
-        return items
 
     def close(self, recursively: bool = False, return_closed_links: bool = False) -> Union[int, tuple]:
         self.set_data([], inplace=True)
@@ -139,7 +112,8 @@ class IterableStream(AbstractStream, IterDataMixin):
         return target_class(self._get_enumerated_items(first=first), **props)
 
     def take(self, count: Union[int, bool] = 1, inplace: bool = False) -> Native:
-        return self._assume_native(super().take(count, inplace=inplace))
+        stream = super().take(count, inplace=inplace)
+        return self._assume_native(stream)
 
     def skip(self, count: int = 1, inplace: bool = False) -> Native:
         stream = super().skip(count, inplace=inplace)
@@ -282,11 +256,16 @@ class IterableStream(AbstractStream, IterDataMixin):
 
     def progress(
             self,
-            expected_count: AutoCount = AUTO,
-            step: AutoCount = AUTO,
+            expected_count: Count = None,
+            step: Count = None,
             message: str = 'Progress',
     ) -> Native:
-        count = Auto.acquire(expected_count, self.get_count()) or self.get_estimated_count()
+        if isinstance(expected_count, int):  # Auto.is_defined(expected_count):
+            count = expected_count
+        else:
+            count = self.get_count()
+        if not count:
+            count = self.get_estimated_count()
         logger = self.get_logger()
         if isinstance(logger, ExtLogger):
             items_with_logger = logger.progress(self.get_items(), name=message, count=count, step=step)

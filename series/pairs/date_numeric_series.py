@@ -1,7 +1,7 @@
 from typing import Optional, Callable, Iterable, Generator, Union, NoReturn
 
 try:  # Assume we're a submodule in a package.
-    from utils import arguments as arg
+    from base.functions.arguments import get_value
     from utils.decorators import deprecated_with_alternative
     from functions.primary import dates as dt
     from functions.primary.numeric import plot
@@ -11,7 +11,7 @@ try:  # Assume we're a submodule in a package.
     from series.interfaces.key_value_series_interface import KeyValueSeriesInterface
     from series.interfaces.date_numeric_series_interface import (
         DateNumericSeriesInterface, Series,
-        Name, NumericValue, AutoBool, AUTO,
+        Name, NumericValue,
         DateScale, MAX_DAYS_IN_MONTH,
         InterpolationType, Window, WINDOW_WEEKLY_DEFAULT,
         DEFAULT_INTERPOLATION_KWARGS, DEFAULT_YOY_KWARGS,
@@ -19,7 +19,7 @@ try:  # Assume we're a submodule in a package.
     from series.simple.date_series import DateSeries, Date
     from series.pairs.sorted_numeric_key_value_series import SortedNumericKeyValueSeries
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils import arguments as arg
+    from ...base.functions.arguments import get_value
     from ...utils.decorators import deprecated_with_alternative
     from ...functions.primary import dates as dt
     from ...functions.primary.numeric import plot
@@ -29,7 +29,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..interfaces.key_value_series_interface import KeyValueSeriesInterface
     from ..interfaces.date_numeric_series_interface import (
         DateNumericSeriesInterface, Series,
-        Name, NumericValue, AutoBool, AUTO,
+        Name, NumericValue,
         DateScale, MAX_DAYS_IN_MONTH,
         InterpolationType, Window, WINDOW_WEEKLY_DEFAULT,
         DEFAULT_INTERPOLATION_KWARGS, DEFAULT_YOY_KWARGS,
@@ -73,10 +73,11 @@ class DateNumericSeries(SortedNumericKeyValueSeries, DateSeries, DateNumericSeri
 
     def get_errors(self) -> Generator:
         yield from self.assume_not_numeric().get_errors()
+        class_name = self.get_class_name()
         if not self.date_series().is_valid():
-            yield 'Keys of {} must be sorted dates'.format(self.get_class_name())
+            yield f'Keys of {class_name} must be sorted dates'
         if not self.value_series().is_valid():
-            yield 'Values of {} must be numeric'.format(self.get_class_name())
+            yield f'Values of {class_name} must be numeric'
 
     @staticmethod
     def get_distance_func() -> Callable:
@@ -125,7 +126,7 @@ class DateNumericSeries(SortedNumericKeyValueSeries, DateSeries, DateNumericSeri
         series = super().value_series(set_closure=set_closure, name=name).assume_numeric(validate=False)
         return self._assume_native(series)
 
-    def round_to(self, scale: DateScale, as_iso_date: AutoBool = AUTO, inplace: bool = False) -> Native:
+    def round_to(self, scale: DateScale, as_iso_date: Optional[bool] = None, inplace: bool = False) -> Native:
         func = round_date(scale, as_iso_date=as_iso_date)
         series = self.map_dates(func, inplace=inplace) or self
         return self._assume_native(series.mean_by_keys())
@@ -152,7 +153,8 @@ class DateNumericSeries(SortedNumericKeyValueSeries, DateSeries, DateNumericSeri
             how: InterpolationType = InterpolationType.Linear,
             *args, **kwargs
     ) -> NumericValue:
-        method_name = 'get_{}_interpolated_value'.format(arg.get_value(how))
+        type_str = get_value(how)
+        method_name = f'get_{type_str}_interpolated_value'
         requires_numeric_keys = how in (InterpolationType.Linear, InterpolationType.Spline)
         if requires_numeric_keys:
             numeric_series = self.to_int(scale=DateScale.Day, inplace=False)
@@ -164,7 +166,8 @@ class DateNumericSeries(SortedNumericKeyValueSeries, DateSeries, DateNumericSeri
             return interpolation_method(date, *args, **kwargs)
 
     def interpolate(self, dates: Iterable, how: InterpolationType = InterpolationType.Linear, *args, **kwargs) -> Series:
-        method_name = '{}_interpolation'.format(arg.get_value(how))
+        type_str = get_value(how)
+        method_name = f'{type_str}_interpolation'
         requires_numeric_keys = how in (InterpolationType.Linear, InterpolationType.Spline)
         if requires_numeric_keys:
             interpolation_method = self.to_days().__getattribute__(method_name)
@@ -181,11 +184,11 @@ class DateNumericSeries(SortedNumericKeyValueSeries, DateSeries, DateNumericSeri
             weight_benchmark: Series,
             internal: InterpolationType = InterpolationType.Linear,
     ) -> Series:
-        assert isinstance(weight_benchmark, DateNumericSeriesInterface), 'got {}'.format(weight_benchmark)
+        assert isinstance(weight_benchmark, DateNumericSeriesInterface), f'got {weight_benchmark}'
         list_dates = dates.get_dates() if isinstance(dates, DateNumericSeriesInterface) else dates
         border_dates = self.get_mutual_border_dates(weight_benchmark)
         result = self.make_new(save_meta=True)
-        assert isinstance(result, DateNumericSeriesInterface), 'got {}'.format(result)
+        assert isinstance(result, DateNumericSeriesInterface), f'got {result}'
         for d in list_dates:
             yearly_dates = dt.get_yearly_dates(d, *border_dates)
             if yearly_dates:
@@ -287,7 +290,7 @@ class DateNumericSeries(SortedNumericKeyValueSeries, DateSeries, DateNumericSeri
             function: Callable,
             interpolation_kwargs: Union[dict, tuple] = DEFAULT_INTERPOLATION_KWARGS,
     ) -> Native:
-        assert isinstance(series, (DateNumericSeries, DateNumericSeriesInterface)), 'got {}'.format(series)
+        assert isinstance(series, (DateNumericSeries, DateNumericSeriesInterface)), f'got {series}'
         if isinstance(interpolation_kwargs, (list, tuple)):
             interpolation_kwargs = dict(interpolation_kwargs)
         result = self.make_new(save_meta=True)
@@ -360,7 +363,8 @@ class DateNumericSeries(SortedNumericKeyValueSeries, DateSeries, DateNumericSeri
         raise NotImplementedError
 
     def extrapolate(self, how: InterpolationType = InterpolationType.ByYoy, *args, **kwargs) -> Series:
-        method_name = 'extrapolate_{}'.format(arg.get_value(how))
+        type_str = get_value(how)
+        method_name = f'extrapolate_{type_str}'
         extrapolation_method = self.__getattribute__(method_name)
         return extrapolation_method(*args, **kwargs)
 

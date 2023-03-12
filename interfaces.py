@@ -3,7 +3,6 @@ from typing import Optional, Union
 try:  # Assume we're a submodule in a package.
     from base.interfaces.base_interface import BaseInterface  # ROOT
     from base.interfaces.display_interface import DisplayInterface  # ROOT
-    from base.interfaces.sourced_interface import SourcedInterface  # inherits Base[Interface]
     from base.interfaces.data_interface import SimpleDataInterface  # inherits Base[Interface]
     from base.interfaces.iterable_interface import IterableInterface  # inherits SimpleDataInterface
     from series.interfaces.any_series_interface import AnySeriesInterface  # inherits IterableInterface
@@ -41,7 +40,6 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from .base.interfaces.base_interface import BaseInterface  # ROOT
     from .base.interfaces.display_interface import DisplayInterface  # ROOT
-    from .base.interfaces.sourced_interface import SourcedInterface  # inherits Base[Interface]
     from .base.interfaces.data_interface import SimpleDataInterface  # inherits Base[Interface]
     from .base.interfaces.iterable_interface import IterableInterface  # inherits SimpleDataInterface
     from .series.interfaces.any_series_interface import AnySeriesInterface  # inherits IterableInterface
@@ -116,7 +114,6 @@ try:  # Assume we're a submodule in a package.
     from base.classes.typing import (
         PRIMITIVE_TYPES, ARRAY_TYPES, Array, Count, Columns, OptionalFields, Options, Message,
         FieldName, FieldNo, FieldID, Name, Value, Class, Links,
-        AUTO, Auto, AutoName, AutoCount, AutoBool, AutoColumns, AutoLinks,
     )
     from content.content_interfaces import (
         StructRow, RegularItem, Item, How,
@@ -132,7 +129,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .base.classes.typing import (
         PRIMITIVE_TYPES, ARRAY_TYPES, Array, Count, Columns, OptionalFields, Options, Message,
         FieldName, FieldNo, FieldID, Name, Value, Class, Links,
-        AUTO, Auto, AutoName, AutoCount, AutoBool, AutoColumns, AutoLinks,
     )
     from .content.content_interfaces import (
         StructRow, RegularItem, Item, How,
@@ -156,14 +152,10 @@ RecordStream = ColumnarStream
 KeyValueStream = ColumnarStream
 StructStream = ColumnarStream
 
-Source = Union[ConnectorInterface, Auto, None]
+Source = Optional[ConnectorInterface]
 Connector = Optional[ConnectorInterface]
 LeafConnector = LeafConnectorInterface
 ExtLogger = ExtendedLoggerInterface
 SelectionLogger = SelectionLoggerInterface
 Context = Optional[ContextInterface]
 TmpFiles = TemporaryFilesMaskInterface
-
-AutoContext = Union[Auto, Context]
-AutoConnector = Union[Auto, Connector]
-AutoDisplay = Union[Auto, DisplayInterface]
