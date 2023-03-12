@@ -2,17 +2,15 @@ from abc import ABC
 from typing import Optional
 
 try:  # Assume we're a submodule in a package.
-    from interfaces import LeafConnectorInterface, DisplayInterface, Stream, Columns, Count
+    from interfaces import LeafConnectorInterface, Stream, Columns, Count
     from base.functions.arguments import get_name, get_str_from_args_kwargs
-    from base.constants.chars import EMPTY, CROP_SUFFIX, ITEMS_DELIMITER, DEFAULT_LINE_LEN
-    from utils.decorators import deprecated_with_alternative
+    from base.constants.chars import CROP_SUFFIX, ITEMS_DELIMITER, DEFAULT_LINE_LEN
     from functions.primary import dates as dt
     from streams.mixin.validate_mixin import ValidateMixin, DEFAULT_EXAMPLE_COUNT
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...interfaces import LeafConnectorInterface, DisplayInterface, Stream, Columns, Count
+    from ...interfaces import LeafConnectorInterface, Stream, Columns, Count
     from ...base.functions.arguments import get_name, get_str_from_args_kwargs
-    from ...base.constants.chars import EMPTY, CROP_SUFFIX, ITEMS_DELIMITER, DEFAULT_LINE_LEN
-    from ...utils.decorators import deprecated_with_alternative
+    from ...base.constants.chars import CROP_SUFFIX, ITEMS_DELIMITER, DEFAULT_LINE_LEN
     from ...functions.primary import dates as dt
     from ...streams.mixin.validate_mixin import ValidateMixin, DEFAULT_EXAMPLE_COUNT
 
@@ -46,7 +44,7 @@ class ActualizeMixin(ValidateMixin, ABC):
         timestamp = self.get_modification_timestamp()
         if timestamp:
             timedelta_age = dt.datetime.now() - dt.datetime.fromtimestamp(timestamp)
-            assert isinstance(timedelta_age, dt.timedelta)
+            assert isinstance(timedelta_age, dt.timedelta), f'Expected timedelta, got {timedelta_age}'
             if timedelta_age.seconds == 0:
                 return 'now'
             elif timedelta_age.seconds > 0:
@@ -139,27 +137,6 @@ class ActualizeMixin(ValidateMixin, ABC):
                 description_args.append(self.get_shape_repr())
             str_meta = get_str_from_args_kwargs(*description_args)
         return super().get_one_line_repr(str_meta=str_meta, max_len=max_len, crop=crop)
-
-    @deprecated_with_alternative('show()')
-    def show_example(
-            self,
-            count: int = DEFAULT_EXAMPLE_COUNT,
-            example: Optional[Stream] = None,
-            columns: Columns = None,
-            comment: str = EMPTY,
-            display: Optional[DisplayInterface] = None,
-    ):
-        records, columns = self._get_demo_records_and_columns(count=count, example=example, columns=columns)
-        if records or comment:
-            display = self.get_display(display)
-            title_paragraph = display.build_paragraph('Example', level=3, name='Example title')
-            display.display_item(title_paragraph)
-            if comment:
-                comment_paragraph = display.build_paragraph(comment, name='comment')
-                display.display_item(comment_paragraph)
-            if records:
-                sheet = display.build_sheet(records, columns=columns)
-                return display.display_item(sheet)
 
     def show(
             self,
