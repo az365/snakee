@@ -42,7 +42,7 @@ class SheetInterface(IterableInterface, ABC):
         pass
 
     @abstractmethod
-    def get_columns(self, including_lens: bool = False) -> list:
+    def get_columns(self) -> list:
         pass
 
     @abstractmethod

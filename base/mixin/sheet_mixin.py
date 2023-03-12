@@ -110,11 +110,8 @@ class SheetMixin(ABC):
         for row in self.get_formatted_rows(with_title=True):
             yield formatter.format(row)
 
-    def get_columns(self, including_lens: bool = False) -> list:
-        if including_lens:
-            return self.get_column_names_and_lens()
-        else:
-            return self.get_column_names()
+    def get_columns(self) -> list:
+        return self.get_column_names()
 
     def get_column_names(self) -> list:
         return self._column_names
