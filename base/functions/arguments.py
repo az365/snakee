@@ -7,15 +7,18 @@ try:  # Assume we're a submodule in a package.
     from base.constants.chars import (
         KV_DELIMITER, ARG_DELIMITER, ANN_DELIMITER,
         DEFAULT_LINE_LEN, CROP_SUFFIX, SHORT_CROP_SUFFIX,
+        FALSE_VALUES,
     )
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..constants.chars import (
         KV_DELIMITER, ARG_DELIMITER, ANN_DELIMITER,
         DEFAULT_LINE_LEN, CROP_SUFFIX, SHORT_CROP_SUFFIX,
+        FALSE_VALUES,
     )
 
 DEFAULT_RANDOM_LEN = 6
 TYPING_PREFIX = 'typing.'
+STR_FALSE_SYNONYMS = ['False', 'None', 'none'] + list(FALSE_VALUES)  # 'false', 'no', '0', '0.0', DEFAULT_STR, EMPTY
 
 
 def update(args, addition=None):
@@ -162,7 +165,7 @@ def get_str_from_annotation(class_or_func: Union[Callable, Type], _delimiter: st
         ann_str = get_str_from_args_kwargs(**ann_dict, _kv_delimiter=_delimiter, _remove_prefixes=[TYPING_PREFIX])
     else:
         ann_str = '*args, **kwargs'
-    return '{}({})'.format(name, ann_str)
+    return f'{name}({ann_str})'
 
 
 def get_cropped_text(
@@ -173,7 +176,7 @@ def get_cropped_text(
 ) -> str:
     text = str(text)
     crop_len = len(crop_suffix)
-    if isinstance(max_len, int):
+    if isinstance(max_len, int):  # max_len is not None:
         text_len = len(text)
         if text_len > max_len:
             value_len = max_len - crop_len
@@ -184,3 +187,14 @@ def get_cropped_text(
             else:
                 text = text[:max_len]
     return text
+
+
+def str_to_bool(line: str) -> bool:
+    return line not in STR_FALSE_SYNONYMS
+
+
+def any_to_bool(value) -> bool:
+    if isinstance(value, str):
+        return str_to_bool(value)
+    else:
+        return bool(value)

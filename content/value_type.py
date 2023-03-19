@@ -3,16 +3,16 @@ import json
 
 try:  # Assume we're a submodule in a package.
     from base.classes.enum import DynamicEnum
-    from base.functions.arguments import get_value
-    from utils.arguments import any_to_bool, safe_converter
-    from utils.decorators import deprecated_with_alternative
+    from base.functions.arguments import get_value, any_to_bool
+    from base.functions.errors import get_loc_message
+    from utils.arguments import safe_converter
     from connectors.databases.dialect_type import DialectType
     from functions.primary import numeric as nm
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..base.classes.enum import DynamicEnum
-    from ..base.functions.arguments import get_value
-    from ..utils.arguments import any_to_bool, safe_converter
-    from ..utils.decorators import deprecated_with_alternative
+    from ..base.functions.arguments import get_value, any_to_bool
+    from ..base.functions.errors import get_loc_message
+    from ..utils.arguments import safe_converter
     from ..connectors.databases.dialect_type import DialectType
     from ..functions.primary import numeric as nm
 
@@ -113,12 +113,13 @@ class ValueType(DynamicEnum):
             if ignore_missing:
                 return ValueType(default)
             else:
-                raise ValueError('Unsupported field type: {} ({})'.format(field_type, e))
+                msg = f'Unsupported field type: {field_type} ({e})'
+                raise ValueError(get_loc_message(msg, caller=ValueType.get_canonic_type, args=field_type))
 
     def get_converter(self, source, target):
         source_dialect_name = get_value(source)
         target_dialect_name = get_value(target)
-        converter_name = '{}_to_{}'.format(source_dialect_name, target_dialect_name)
+        converter_name = f'{source_dialect_name}_to_{target_dialect_name}'
         field_types_by_dialect = self.get_dialect_types()
         types_by_dialects = field_types_by_dialect.get(self, {})
         default_converter = (lambda i: i) if target_dialect_name == 'py' else str

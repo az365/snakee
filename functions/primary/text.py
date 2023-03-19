@@ -23,7 +23,6 @@ except ImportError:
 RE_LETTERS = re.compile('[^a-zа-я ]')
 NORM_LETTER_PAIRS = [('ё', 'е'), ]
 DOUBLE_SPACE = SPACE * 2
-STR_FALSE_SYNONYMS = ['False', 'None', 'none'] + list(FALSE_VALUES)  # 'false', 'no', '0', '0.0', DEFAULT_STR, EMPTY
 
 max_int = sys.maxsize
 while True:  # To prevent _csv.Error: field larger than field limit (131072)
@@ -84,7 +83,3 @@ def is_formatter(string: str, count: Optional[int] = None) -> bool:
             return min([is_mask(string, count, placeholder=s) for s in PY_PLACEHOLDER])
         else:
             return min([is_mask(string, placeholder=s) for s in PY_PLACEHOLDER])
-
-
-def str_to_bool(line: str) -> bool:
-    return line not in STR_FALSE_SYNONYMS

@@ -3,12 +3,10 @@ from typing import Callable, Any
 try:  # Assume we're a submodule in a package.
     from base.classes.auto import Auto
     from base.functions.arguments import get_names, get_name, get_value, update
-    from functions.primary.text import str_to_bool
     from utils.decorators import deprecated, deprecated_with_alternative
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..base.classes.auto import Auto
     from ..base.functions.arguments import get_names, get_name, get_value, update
-    from ..functions.primary.text import str_to_bool
     from .decorators import deprecated, deprecated_with_alternative
 
 
@@ -35,29 +33,6 @@ def delayed_acquire(current, func: Callable, *args, **kwargs):
 @deprecated_with_alternative('Auto.acquire()')
 def acquire(current, default, delayed=False, *args, **kwargs):
     return Auto.acquire(current, default, delayed=delayed, *args, **kwargs)
-
-
-@deprecated_with_alternative('arg.simple_acquire(*args, **kwargs)')
-def simple_undefault(*args, **kwargs):
-    return simple_acquire(*args, **kwargs)
-
-
-@deprecated_with_alternative('arg.delayed_acquire(*args, **kwargs)')
-def delayed_undefault(*args, **kwargs):
-    return delayed_acquire(*args, **kwargs)
-
-
-@deprecated_with_alternative('arg.acquire(*args, **kwargs)')
-def undefault(*args, **kwargs):
-    return acquire(*args, **kwargs)
-
-
-# @deprecated
-def any_to_bool(value) -> bool:
-    if isinstance(value, str):
-        return str_to_bool(value)
-    else:
-        return bool(value)
 
 
 # @deprecated
