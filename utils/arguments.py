@@ -1,4 +1,4 @@
-from typing import Callable, Any
+from typing import Callable
 
 try:  # Assume we're a submodule in a package.
     from base.classes.auto import Auto
@@ -33,27 +33,3 @@ def delayed_acquire(current, func: Callable, *args, **kwargs):
 @deprecated_with_alternative('Auto.acquire()')
 def acquire(current, default, delayed=False, *args, **kwargs):
     return Auto.acquire(current, default, delayed=delayed, *args, **kwargs)
-
-
-# @deprecated
-def safe_converter(converter: Callable, default_value: Any = 0, eval_allowed: bool = False) -> Callable:
-    def func(value):
-        if value is None or value == '':
-            return default_value
-        else:
-            try:
-                return converter(value)
-            except ValueError:
-                return default_value
-            except NameError:
-                return default_value
-            except TypeError as e:
-                converter_name = converter.__name__
-                if converter_name == 'eval':
-                    if eval_allowed:
-                        return eval(str(value))
-                    else:
-                        return value
-                else:
-                    raise TypeError(f'{e}: {converter_name}({value})')
-    return func
