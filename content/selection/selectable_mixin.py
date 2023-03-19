@@ -4,6 +4,7 @@ from typing import Callable, Sequence, Union
 try:  # Assume we're a submodule in a package.
     from interfaces import ItemType, StructInterface, Item, FieldID, Field, Value
     from base.constants.chars import ALL, NOT_SET
+    from base.functions.errors import get_type_err_msg
     from functions.secondary import all_secondary_functions as fs
     from content.fields.field_interface import FieldInterface
     from content.selection.abstract_expression import AbstractDescription
@@ -11,12 +12,11 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import ItemType, StructInterface, Item, FieldID, Field, Value
     from ...base.constants.chars import ALL, NOT_SET
+    from ...base.functions.errors import get_type_err_msg
     from ...functions.secondary import all_secondary_functions as fs
     from ..fields.field_interface import FieldInterface
     from .abstract_expression import AbstractDescription
     from .concrete_expression import AliasDescription, RegularDescription
-
-TYPE_ERROR_MSG = 'Expected Field, Struct or Item, got {}'
 
 
 class SelectableInterface(ABC):
@@ -64,7 +64,9 @@ class SelectableMixin(SelectableInterface, ABC):
             else:
                 return ALL
         else:
-            raise TypeError(TYPE_ERROR_MSG.format(self))
+            expected = FieldInterface, StructInterface, Item
+            msg = get_type_err_msg(expected=expected, got=self, arg='self', caller=self._get_input_fields)
+            raise TypeError(msg)
 
     def to(self, field: Field) -> AliasDescription:
         return AliasDescription(
@@ -83,12 +85,15 @@ class SelectableMixin(SelectableInterface, ABC):
         )
 
     def get_from(self, *fields) -> RegularDescription:
-        assert isinstance(self, FieldInterface) and isinstance(self, SelectableMixin), 'got {}'.format(self)
-        return RegularDescription(
-            function=fs.same(),
-            target=self, target_item_type=self._get_target_item_type(),
-            inputs=fields, input_item_type=self._get_input_item_type(),
-        )
+        if isinstance(self, FieldInterface) and isinstance(self, SelectableMixin):
+            return RegularDescription(
+                function=fs.same(),
+                target=self, target_item_type=self._get_target_item_type(),
+                inputs=fields, input_item_type=self._get_input_item_type(),
+            )
+        else:
+            msg = get_type_err_msg(self, expected=(FieldInterface, SelectableMixin), arg='self', caller=self.get_from)
+            raise TypeError(msg)
 
     def _get_comparison(self, func, arg) -> RegularDescription:
         function = func()

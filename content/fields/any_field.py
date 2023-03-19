@@ -7,6 +7,7 @@ try:  # Assume we're a submodule in a package.
         PRIMITIVE_TYPES, ARRAY_TYPES, Class,
     )
     from base.functions.arguments import get_name, get_value, get_plural
+    from base.functions.errors import get_type_err_msg
     from base.abstract.simple_data import SimpleDataWrapper, EMPTY
     from base.mixin.map_data_mixin import MultiMapDataMixin
     from content.selection.selectable_mixin import SelectableMixin
@@ -19,6 +20,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         PRIMITIVE_TYPES, ARRAY_TYPES, Class,
     )
     from ...base.functions.arguments import get_name, get_value, get_plural
+    from ...base.functions.errors import get_type_err_msg
     from ...base.abstract.simple_data import SimpleDataWrapper, EMPTY
     from ...base.mixin.map_data_mixin import MultiMapDataMixin
     from ..selection.selectable_mixin import SelectableMixin
@@ -53,12 +55,11 @@ class AnyField(SimpleDataWrapper, SelectableMixin, MultiMapDataMixin, FieldInter
         if value_type is None:
             value_type = ValueType.detect_by_name(name)
         value_type = ValueType.get_canonic_type(value_type, ignore_missing=True)
-        assert isinstance(value_type, ValueType), f'Expected ValueType, got {value_type}'
-        self._value_type = value_type
+        self._value_type: ValueType = value_type
         self._representation = representation
         self._default_value = default_value
         self._example_value = example_value
-        self._default_item_type = default_item_type
+        self._default_item_type: ItemType = default_item_type
         self._skip_errors = skip_errors
         self._logger = logger
         self._is_valid = is_valid
@@ -95,12 +96,14 @@ class AnyField(SimpleDataWrapper, SelectableMixin, MultiMapDataMixin, FieldInter
         if representation is None:
             representation = self.get_representation()
         if kwargs:
-            if representation is not None:
-                assert isinstance(representation, RepresentationInterface), f'got {representation}'
-                representation = representation.update_meta(**kwargs, inplace=False)
-            else:
+            if representation is None:
                 repr_class = self.get_repr_class()
                 representation = repr_class(**kwargs)
+            elif isinstance(representation, RepresentationInterface) or hasattr(representation, 'get_repr_type'):
+                representation = representation.update_meta(**kwargs, inplace=False)
+            else:
+                msg = get_type_err_msg(expected=RepresentationInterface, got=representation, arg='representation')
+                raise TypeError(msg)
         return self.set_representation(representation, inplace=inplace) or self
 
     def get_repr_class(self) -> Class:
@@ -298,7 +301,9 @@ class AnyField(SimpleDataWrapper, SelectableMixin, MultiMapDataMixin, FieldInter
             function = (lambda a, b: a == b)
             input_fields = [self, value_or_func]
         else:
-            raise TypeError(f'expected value, func or Field, got {value_or_func}')
+            expected = FieldInterface, Callable, PRIMITIVE_TYPES
+            msg = get_type_err_msg(expected=expected, got=value_or_func, arg='value_or_func', caller=self.filter)
+            raise TypeError(msg)
         return ce.RegularDescription(
             target=tmp_field, target_item_type=self.get_default_item_type(),
             inputs=input_fields, input_item_type=ItemType.Auto,
@@ -352,10 +357,11 @@ class AnyField(SimpleDataWrapper, SelectableMixin, MultiMapDataMixin, FieldInter
             return struct_builder([self] + list(other))
         elif isinstance(other, StructInterface):
             struct = other.append_field(self, before=True, inplace=False)
-            assert isinstance(struct, StructInterface), struct
+            assert isinstance(struct, StructInterface), get_type_err_msg(struct, expected=StructInterface, arg='struct')
             return struct
         else:
-            raise TypeError('Expected other as field or struct, got {} as {}'.format(other, type(other)))
+            msg = get_type_err_msg(other, expected=(FieldInterface, StructInterface), arg='other', caller=self.__add__)
+            raise TypeError(msg)
 
     @staticmethod
     def _assume_native(field) -> Native:

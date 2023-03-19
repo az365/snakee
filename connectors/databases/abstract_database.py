@@ -11,6 +11,7 @@ try:  # Assume we're a submodule in a package.
         EMPTY, PARAGRAPH_CHAR, TAB_CHAR,
         ITEMS_DELIMITER, DOT, ALL, SEMICOLON, PY_PLACEHOLDER,
     )
+    from base.functions.errors import get_type_err_msg
     from loggers.fallback_logger import FallbackLogger
     from functions.primary import text as tx
     from content.struct.flat_struct import FlatStruct
@@ -26,6 +27,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         EMPTY, PARAGRAPH_CHAR, TAB_CHAR,
         ITEMS_DELIMITER, DOT, ALL, SEMICOLON, PY_PLACEHOLDER,
     )
+    from ...base.functions.errors import get_type_err_msg
     from ...loggers.fallback_logger import FallbackLogger
     from ...functions.primary import text as tx
     from ...content.struct.flat_struct import FlatStruct
@@ -153,8 +155,11 @@ class AbstractDatabase(AbstractStorage, ABC):
             commit: Optional[bool] = None,
             verbose: Optional[bool] = None,
     ) -> Optional[Iterable]:
-        assert isinstance(file, File) or hasattr(file, 'get_items'), f'file must be LocalFile, got {file}'
-        query = PARAGRAPH_CHAR.join(file.get_items())
+        if isinstance(file, File) or hasattr(file, 'get_items'):
+            query = PARAGRAPH_CHAR.join(file.get_items())
+        else:
+            msg = get_type_err_msg(expected=File, got=file, arg='file', caller=self.execute_query_from_file)
+            raise TypeError(msg)
         return self.execute(query, get_data=get_data, commit=commit, verbose=verbose)
 
     def execute_if_exists(
@@ -293,8 +298,7 @@ class AbstractDatabase(AbstractStorage, ABC):
         elif not fields:
             fields_str = ALL
         else:
-            expected = 'str, Iterable or None'
-            msg = f'Expected {expected}, got {fields}'
+            msg = get_type_err_msg(expected=(str, Iterable, None), got=fields, arg='fields', caller=self.execute_select)
             raise TypeError(msg)
         filters_str = filters if isinstance(filters, str) else ' AND '.join(filters) if filters is not None else EMPTY
         sort_str = sort if isinstance(sort, str) else ' AND '.join(sort) if sort is not None else EMPTY
@@ -345,10 +349,11 @@ class AbstractDatabase(AbstractStorage, ABC):
             columns = stream.get_columns()
             assert columns, f'Columns in StructStream must be defined (got {stream})'
         else:
-            expected = 'StructStream'
-            msg = f'{self}.insert_struct_stream(): Expected {expected}, got {stream} as {type(stream)}'
+            msg = get_type_err_msg(expected=StructStream, got=stream, arg='stream', caller=self.insert_struct_stream)
             raise TypeError(msg)
-        assert hasattr(stream, 'get_struct')  # isinstance(stream, StructStream)
+        if not hasattr(stream, 'get_struct'):  # isinstance(stream, StructStream)
+            msg = get_type_err_msg(expected=StructStream, got=stream, arg='stream', caller=self.insert_struct_stream)
+            raise TypeError(msg)
         if hasattr(table, 'get_columns'):
             table_cols = table.get_columns()
             assert columns == table_cols, f'{columns} != {table_cols}'
@@ -511,11 +516,14 @@ class AbstractDatabase(AbstractStorage, ABC):
                     yield item.split(delimiter)
             else:
                 two_lines = file.to_line_stream().take(2)
-                assert isinstance(two_lines, StreamInterface) or hasattr(two_lines, 'get_list')
-                login, password = two_lines.get_list()[:2]
+                if isinstance(two_lines, StreamInterface) or hasattr(two_lines, 'get_list'):
+                    login, password = two_lines.get_list()[:2]
+                else:
+                    msg = get_type_err_msg(expected=StreamInterface, got=two_lines, arg='two_lines')
+                    raise TypeError(msg)
                 yield login, password
         else:
-            msg = f'{cls.__name__}._parse_credentials_file(): LocalFile expected, got {file}'
+            msg = get_type_err_msg(expected=File, got=file, arg='file', caller=cls._parse_credentials_file)
             raise TypeError(msg)
 
     @staticmethod
@@ -529,8 +537,9 @@ class AbstractDatabase(AbstractStorage, ABC):
         else:
             return str(table)
 
-    @staticmethod
+    @classmethod
     def _get_schema_and_table_name(
+            cls,
             table: Union[Table, Name],
             default_schema: Optional[str] = None,
     ) -> Tuple[Optional[str], str]:
@@ -539,8 +548,7 @@ class AbstractDatabase(AbstractStorage, ABC):
         elif isinstance(table, str):
             name = table
         else:
-            expected_types = 'Table or Name'
-            msg = f'Expected {expected_types}, got {table}'
+            msg = get_type_err_msg(table, arg='table', expected=(Table, Name), caller=cls._get_schema_and_table_name)
             raise TypeError(msg)
         if DOT in name:
             schema_name, table_name = name.split(DOT)
@@ -567,8 +575,7 @@ class AbstractDatabase(AbstractStorage, ABC):
             else:
                 table_struct = expected_struct
         else:
-            expected_types = 'Table or Name'
-            msg = f'Expected {expected_types}, got {table}'
+            msg = get_type_err_msg(Table, arg='table', expected=(Table, Name), caller=cls._get_table_name_and_struct)
             raise TypeError(msg)
         if check_struct:
             assert table_struct, 'struct must be defined'
@@ -612,8 +619,7 @@ class AbstractDatabase(AbstractStorage, ABC):
         elif hasattr(struct, 'get_struct_str'):
             struct_str = struct.get_struct_str(dialect=self.get_dialect_type())
         else:
-            expected_types = 'StructInterface or list[tuple]'
-            msg = f'struct must be an instance of {expected_types}, got {struct}'
+            msg = get_type_err_msg(arg='expected_struct', got=struct, expected=(StructInterface, list[tuple]))
             raise TypeError(msg)
         return table_name, struct_str
 

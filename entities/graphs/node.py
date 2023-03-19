@@ -53,7 +53,7 @@ class Node(SimpleDataWrapper, SourcedMixin, EdgesMixin):
         if graph is None:
             if not caller:
                 caller = self
-            raise_value_error('Graph is not defined', obj=caller)
+            raise_value_error('Graph is not defined', caller=caller)
         return self
 
     def get_graph(self, skip_missing: bool = False) -> Optional[Graph]:

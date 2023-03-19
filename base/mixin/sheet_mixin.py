@@ -5,6 +5,7 @@ try:  # Assume we're a submodule in a package.
     from base.classes.typing import Name, Count, ARRAY_TYPES
     from base.constants.chars import EMPTY, REPR_DELIMITER, CROP_SUFFIX, SHORT_CROP_SUFFIX, DEFAULT_LINE_LEN
     from base.functions.arguments import get_name, get_cropped_text
+    from base.functions.errors import get_type_err_msg
     from base.abstract.simple_data import SimpleDataWrapper
     from base.interfaces.sheet_interface import SheetInterface, Record, Row, FormattedRow, Columns
     from base.mixin.iter_data_mixin import IterDataMixin
@@ -12,6 +13,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..classes.typing import Name, Count, ARRAY_TYPES
     from ..constants.chars import EMPTY, REPR_DELIMITER, CROP_SUFFIX, SHORT_CROP_SUFFIX, DEFAULT_LINE_LEN
     from ..functions.arguments import get_name, get_cropped_text
+    from ..functions.errors import get_type_err_msg
     from ..abstract.simple_data import SimpleDataWrapper
     from ..interfaces.sheet_interface import SheetInterface, Record, Row, FormattedRow, Columns
     from .iter_data_mixin import IterDataMixin
@@ -152,7 +154,8 @@ class SheetMixin(ABC):
                 columns = self.get_column_names() or self._get_column_names_from_records(items)
                 rows = [tuple([i.get(c) for c in columns]) for i in items]
             else:
-                raise TypeError(f'Expected items as Rows or Records, got {first_item} as {type(first_item)}')
+                msg = get_type_err_msg(expected=(Row, Record), got=first_item, arg='items[0]')
+                raise TypeError(msg)
             if columns:
                 self._set_columns_inplace(columns)
         else:
@@ -209,7 +212,8 @@ class SheetMixin(ABC):
             elif isinstance(first_item, Record):
                 return cls._get_column_names_from_records(items)
             else:
-                raise TypeError(f'Expected items as Rows or Records, got {first_item} as {type(first_item)}')
+                msg = get_type_err_msg(expected=(Row, Record), got=first_item, arg='items[0]')
+                raise TypeError(msg)
         return []
 
     def _add_one_column_inplace(self, column) -> Native:

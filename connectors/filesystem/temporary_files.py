@@ -8,6 +8,7 @@ try:  # Assume we're a submodule in a package.
         Name, Source,
     )
     from base.constants.chars import OS_PLACEHOLDER, PY_PLACEHOLDER
+    from base.functions.errors import get_type_err_msg
     from utils.algo import merge_iter
     from functions.primary.text import is_formatter
     from connectors.filesystem.local_mask import LocalFolder, LocalMask
@@ -19,6 +20,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         Name, Source,
     )
     from ...base.constants.chars import OS_PLACEHOLDER, PY_PLACEHOLDER
+    from ...base.functions.errors import get_type_err_msg
     from ...utils.algo import merge_iter
     from ...functions.primary.text import is_formatter
     from .local_mask import LocalFolder, LocalMask
@@ -98,9 +100,9 @@ class TemporaryFilesMask(LocalMask, TemporaryFilesMaskInterface):
         if isinstance(parent, TemporaryLocation) or hasattr(parent, 'get_str_mask_template'):
             location_mask = parent.get_str_mask_template()
         else:
-            msg = f'Expected parent as TemporaryLocation, got {parent}'
+            msg = get_type_err_msg(expected=TemporaryLocation, got=parent, arg='parent', caller=TemporaryFilesMask)
             raise TypeError(msg)
-        if is_formatter(location_mask, 2):
+        if is_formatter(location_mask, count=2):
             stream_mask = location_mask.format(name, PART_PLACEHOLDER)
         else:
             msg = f'Expected location_mask with 2 placeholders (name, part), got {location_mask}'
@@ -127,7 +129,7 @@ class TemporaryFilesMask(LocalMask, TemporaryFilesMaskInterface):
                 if forget:
                     self.forget_child(file, also_from_context=True)
             else:
-                msg = f'TemporaryFiles.remove_all(): LocalFile expected, got {file}'
+                msg = get_type_err_msg(expected=LeafConnectorInterface, got=file, arg='file', caller=self.remove_all)
                 raise TypeError(msg)
         return count
 

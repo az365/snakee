@@ -1,14 +1,16 @@
-from typing import Optional, Iterable, Sequence, Union
+from typing import Optional, Callable, Iterable, Sequence, Union
 from inspect import isclass
 
 try:  # Assume we're a submodule in a package.
     from content.items.simple_items import Class
+    from base.functions.errors import get_type_err_msg, get_loc_message
     from base.interfaces.tree_interface import TreeInterface
     from base.interfaces.context_interface import ContextInterface
     from base.abstract.abstract_base import AbstractBaseObject
     from base.abstract.contextual_data import ContextualDataWrapper
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...content.items.simple_items import Class
+    from ..functions.errors import get_type_err_msg, get_loc_message
     from ..interfaces.tree_interface import TreeInterface
     from ..interfaces.context_interface import ContextInterface
     from .abstract_base import AbstractBaseObject
@@ -75,8 +77,11 @@ class TreeItem(ContextualDataWrapper, TreeInterface):
             child = self.get_context().get_child(name)
         else:
             child = name_or_child
-            assert hasattr(child, 'get_name'), f'DataWrapper expected (got {child})'
-            name = child.get_name()
+            if isinstance(child, ContextualDataWrapper) or hasattr(child, 'get_name'):
+                name = child.get_name()
+            else:
+                msg = get_type_err_msg(expected=('DataWrapper', str), got=child, arg='name_or_child')
+                raise TypeError(msg)
         return name, child
 
     def add_child(self, name_or_child: NameOrChild, check: bool = True, inplace: bool = True) -> Optional[Child]:
@@ -84,7 +89,8 @@ class TreeItem(ContextualDataWrapper, TreeInterface):
         name, child = self._get_name_and_child(name_or_child)
         if name in children:
             if check and self.get_child(name) != child:
-                raise ValueError(f'child with name {name} already registered in {repr(self)}')
+                msg = f'child with name {name} already registered in {repr(self)}'
+                raise ValueError(get_loc_message(msg=msg, caller=self.add_child))
         children[name] = child
         if hasattr(child, 'set_parent'):
             child.set_parent(self)
@@ -129,7 +135,8 @@ class TreeItem(ContextualDataWrapper, TreeInterface):
                 count = 0
             return count
         else:
-            raise TypeError(f'child {child} with name {name} not registered')
+            msg = f'child {child} with name {name} not registered'
+            raise ValueError(get_loc_message(msg=msg, caller=self.forget_child))
 
     def forget_all_children(self) -> int:
         count = 0
@@ -216,7 +223,7 @@ class TreeItem(ContextualDataWrapper, TreeInterface):
         if classes:
             return classes[0]
         elif not skip_missing:
-            raise ValueError(f'{cls}.get_default_parent_obj_class(): parent classes for not set')
+            raise ValueError(get_loc_message(msg='parent classes for not set', caller=cls.get_default_parent_obj_class))
 
     @classmethod
     def get_default_child_obj_class(cls, skip_missing: bool = False) -> Optional[Class]:
@@ -224,7 +231,7 @@ class TreeItem(ContextualDataWrapper, TreeInterface):
         if classes:
             return classes[0]
         elif not skip_missing:
-            raise ValueError(f'{cls}.get_default_child_obj_class(): child classes for not set')
+            raise ValueError(get_loc_message(msg='child classes for not set', caller=cls.get_default_child_obj_class))
 
     @staticmethod
     def _is_appropriate_class(
@@ -261,29 +268,22 @@ class TreeItem(ContextualDataWrapper, TreeInterface):
         return cls._is_appropriate_class(obj, classes, skip_missing=skip_missing, by_name=by_name)
 
     @classmethod
-    def _assert_is_appropriate_parent(
-            cls,
-            obj,
-            msg: Optional[str] = None,
-            skip_missing: bool = False,
-    ) -> None:
+    def _assert_is_appropriate_parent(cls, obj, skip_missing: bool = False, caller: Callable = None) -> None:
         if not cls._is_appropriate_parent(obj, skip_missing=skip_missing):
-            if msg is None:
-                template = '{}._assert_is_appropriate_parent({}): Expected parent as {} instance, got {}'
-                expected_class_names = [c.__name__ for c in cls.get_parent_obj_classes()]
-                msg = template.format(cls.__name__, obj, ', '.join(expected_class_names), type(obj))
+            if caller is None:
+                caller = cls._assert_is_appropriate_child
+            msg = get_type_err_msg(expected=cls.get_parent_obj_classes(), got=obj, arg='parent', caller=caller)
             raise TypeError(msg)
 
     @classmethod
     def _assert_is_appropriate_child(
             cls,
             obj,
-            msg: Optional[str] = None,
             skip_missing: bool = False,
+            caller: Optional[Callable] = None,
     ) -> None:
         if not cls._is_appropriate_child(obj, skip_missing=skip_missing):
-            if msg is None:
-                template = '{}._assert_is_appropriate_child({}): Expected child as {} instance, got {}'
-                expected_class_names = [c.__name__ for c in cls.get_child_obj_classes()]
-                msg = template.format(cls.__name__, obj, ', '.join(expected_class_names), type(obj))
+            if caller is None:
+                caller = cls._assert_is_appropriate_child
+            msg = get_type_err_msg(expected=cls.get_child_obj_classes(), got=obj, arg='child', caller=caller)
             raise TypeError(msg)

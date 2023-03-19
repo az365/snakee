@@ -3,6 +3,7 @@ from typing import Optional, Callable, Iterable, Generator, Iterator, Sequence, 
 try:  # Assume we're a submodule in a package.
     from base.classes.typing import Count, Class
     from base.functions.arguments import get_name, get_value, get_str_from_args_kwargs
+    from base.functions.errors import get_type_err_msg
     from base.constants.chars import (
         REPR_DELIMITER, SMALL_INDENT, MD_HEADER, PARAGRAPH_CHAR, ITEM, EMPTY,
         DEFAULT_LINE_LEN,
@@ -13,6 +14,7 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.typing import Count, Class
     from ..functions.arguments import get_name, get_value, get_str_from_args_kwargs
+    from ..functions.errors import get_type_err_msg
     from ..constants.chars import (
         REPR_DELIMITER, SMALL_INDENT, MD_HEADER, PARAGRAPH_CHAR, ITEM, EMPTY,
         DEFAULT_LINE_LEN,
@@ -31,7 +33,7 @@ class DefaultDisplay(DisplayInterface):
     _sheet_class: Class = None
 
     def get_display(self, display: Optional[DisplayInterface] = None) -> DisplayInterface:
-        if isinstance(display, DisplayInterface):
+        if isinstance(display, DisplayInterface) or hasattr(display, 'display_item'):
             return display
         elif display is None:
             if hasattr(self, '_display'):
@@ -41,7 +43,8 @@ class DefaultDisplay(DisplayInterface):
             else:
                 return display
         else:
-            raise TypeError(f'expected Display, got {display}')
+            msg = get_type_err_msg(expected=DisplayInterface, got=display, arg='display', caller=self.get_display)
+            raise TypeError(msg)
 
     def set_display(self, display: DisplayInterface) -> DisplayInterface:
         self._set_display_inplace(display)
@@ -95,7 +98,8 @@ class DefaultDisplay(DisplayInterface):
                 for line in paragraph:
                     return self.display_item(line)
             else:
-                raise TypeError(f'Expected paragraph as Paragraph, str or Iterable, got {paragraph}')
+                msg = get_type_err_msg(expected=(str, Iterable), got=paragraph, arg='paragraph')
+                raise TypeError(msg)
 
     @deprecated_with_alternative('display_item(Sheet.from_records())')
     def display_sheet(self, records: Iterable, columns: Sequence, name: str = EMPTY) -> None:
@@ -270,7 +274,8 @@ class DefaultDisplay(DisplayInterface):
         elif isinstance(paragraph, Iterable):
             yield from paragraph
         elif paragraph:
-            raise TypeError(paragraph)
+            msg = get_type_err_msg(expected=(str, Iterable), got=paragraph, arg='paragraph')
+            raise TypeError(msg)
 
     @classmethod
     def _get_display_object(cls, data: Union[str, Iterable]) -> Optional[str]:

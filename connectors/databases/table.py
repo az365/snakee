@@ -8,6 +8,7 @@ try:  # Assume we're a submodule in a package.
     )
     from base.constants.chars import CROP_SUFFIX
     from base.functions.arguments import update, get_str_from_args_kwargs, get_cropped_text
+    from base.functions.errors import get_type_err_msg
     from streams.stream_builder import StreamBuilder
     from content.struct.flat_struct import FlatStruct
     from connectors.abstract.leaf_connector import LeafConnector, DEFAULT_EXAMPLE_COUNT
@@ -19,6 +20,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     )
     from ...base.constants.chars import CROP_SUFFIX
     from ...base.functions.arguments import update, get_str_from_args_kwargs, get_cropped_text
+    from ...base.functions.errors import get_type_err_msg
     from ...streams.stream_builder import StreamBuilder
     from ...content.struct.flat_struct import FlatStruct
     from ..abstract.leaf_connector import LeafConnector, DEFAULT_EXAMPLE_COUNT
@@ -96,7 +98,7 @@ class Table(LeafConnector):
             if verbose is None:
                 verbose = self.is_verbose()
             if not isinstance(struct, StructInterface) and verbose:
-                message = f'Struct as {type(struct)} is deprecated. Use items.FlatStruct instead.'
+                message = get_type_err_msg(struct, arg='struct', expected=FlatStruct, caller=self._get_detected_struct)
                 self.log(msg=message, level=LoggingLevel.Warning)
         elif not skip_missing:
             raise ValueError(f'Received empty struct from {self}')
@@ -179,8 +181,8 @@ class Table(LeafConnector):
         elif struct is None:
             struct = self._get_struct_from_source()
         else:
-            message = 'struct must be StructInterface or tuple with fields_description (got {})'.format(type(struct))
-            raise TypeError(message)
+            msg = get_type_err_msg(expected=(StructInterface, tuple), got=struct, arg='struct', caller=self.set_struct)
+            raise TypeError(msg)
         return super().set_struct(struct, inplace=inplace)
 
     def get_struct_from_database(
@@ -282,9 +284,13 @@ class Table(LeafConnector):
                 items = logger.progress(items, name=message, count=count, step=step, context=self.get_context())
         return items
 
-    def from_stream(self, stream, **kwargs):
-        assert isinstance(stream, RegularStream)
-        self.upload(data=stream, **kwargs)
+    def from_stream(self, stream: RegularStream, **kwargs) -> Native:
+        if isinstance(stream, RegularStream) or hasattr(stream, 'get_items'):
+            self.upload(data=stream, **kwargs)
+        else:
+            msg = get_type_err_msg(expected=RegularStream, got=stream, arg='stream', caller=self.from_stream)
+            raise TypeError(msg)
+        return self
 
     def is_existing(self, verbose: Optional[bool] = None) -> bool:
         database = self.get_database()

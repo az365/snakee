@@ -11,6 +11,7 @@ try:  # Assume we're a submodule in a package.
         get_names, get_name, get_generated_name,
         get_str_from_args_kwargs, get_cropped_text,
     )
+    from base.functions.errors import get_type_err_msg
     from base.constants.chars import EMPTY, ALL, CROP_SUFFIX, ITEMS_DELIMITER, SQL_INDENT
     from utils.decorators import deprecated
     from functions.primary.text import remove_extra_spaces
@@ -35,6 +36,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         get_names, get_name, get_generated_name,
         get_str_from_args_kwargs, get_cropped_text,
     )
+    from ...base.functions.errors import get_type_err_msg
     from ...base.constants.chars import EMPTY, ALL, CROP_SUFFIX, ITEMS_DELIMITER, SQL_INDENT
     from ...utils.decorators import deprecated
     from ...functions.primary.text import remove_extra_spaces
@@ -112,14 +114,20 @@ class SqlStream(WrapperStream):
         elif isinstance(source, SqlStream) or hasattr(source, 'get_source_table'):
             return source.get_source_table()
         else:
-            raise TypeError(f'Expected source as Table or SqlStream, got {source}')
+            arg = 'self.get_source()'
+            expected = 'Table', SqlStream
+            msg = get_type_err_msg(expected=expected, got=source, arg=arg, caller=self.get_source_table)
+            raise TypeError(msg)
 
     def get_database(self):
         table = self.get_source_table()
         if hasattr(table, 'get_database'):
             return table.get_database()
         else:
-            raise TypeError(f'Expected source as Table or SqlStream, got {table}')
+            arg = 'self.get_source()'
+            expected = 'Table', SqlStream
+            msg = get_type_err_msg(expected=expected, got=table, arg=arg, caller=self.get_source_table)
+            raise TypeError(msg)
 
     def close(self) -> int:
         return self.get_database().close()
@@ -147,8 +155,12 @@ class SqlStream(WrapperStream):
         else:
             stream = self.copy()
         if section == SqlSection.From:
-            assert isinstance(section, (LeafConnectorInterface, SqlStream))
-            stream.set_source(expression, inplace=True)
+            expected = LeafConnectorInterface, SqlStream
+            if isinstance(stream, expected):
+                stream.set_source(expression, inplace=True)
+            else:
+                msg = get_type_err_msg(expected=expected, got=stream, arg='self', caller=self.add_expression_for)
+                raise TypeError(msg)
         stream.get_expressions_for(section).append(expression)
         return stream
 
@@ -173,8 +185,9 @@ class SqlStream(WrapperStream):
                     elif isinstance(expression[-1], Callable):
                         source_field, function = expression
                     else:
-                        msg = f'Expected tuple (function, *fields) or (*fields, function), got {expression}'
-                        raise ValueError(msg)
+                        expected = 'tuple (function, *fields) or (*fields, function)'
+                        msg = get_type_err_msg(expression, expected=expected, arg='expr', caller=self.get_select_lines)
+                        raise TypeError(msg)
                     if hasattr(function, 'get_sql_expr'):
                         sql_function_expr = function.get_sql_expr(source_field)
                     else:
@@ -195,8 +208,9 @@ class SqlStream(WrapperStream):
                     elif isinstance(expression[-1], Callable):
                         *fields, function = expression
                     else:
-                        msg = f'Expected tuple (function, *fields) or (*fields, function), got {expression}'
-                        raise ValueError(msg)
+                        expected = 'tuple (function, *fields) or (*fields, function)'
+                        msg = get_type_err_msg(expression, expected=expected, arg='expr', caller=self.get_select_lines)
+                        raise TypeError(msg)
                     if hasattr(function, 'get_sql_expr'):
                         sql_function_expr = function.get_sql_expr(*fields)
                     else:
@@ -476,8 +490,8 @@ class SqlStream(WrapperStream):
         elif isinstance(source, LeafConnectorInterface) or hasattr(source, 'get_struct'):
             return source.get_struct()
         elif not skip_missing:
-            method = 'SqlStream.get_input_struct(skip_missing=False)'
-            msg = f'{method}: expected source as SqlStream or LeafConnector, got {source} from {self}'
+            expected = SqlSection, LeafConnectorInterface
+            msg = get_type_err_msg(expected=expected, got=source, arg='source', caller=self.get_input_struct)
             raise TypeError(msg)
 
     def get_output_struct(self, skip_missing: bool = False) -> StructInterface:
@@ -488,14 +502,19 @@ class SqlStream(WrapperStream):
             if input_struct:
                 types = {f: t for f, t in input_struct.get_types_dict().items() if f in output_columns}
                 output_struct = output_struct.set_types(types)
-                assert isinstance(output_struct, FlatStruct)
+                assert isinstance(output_struct, FlatStruct), get_type_err_msg(output_struct, FlatStruct, 'output')
                 output_struct.compare_with(input_struct, tags=OUTPUT_STRUCT_COMPARISON_TAGS, set_valid=True)
             return output_struct
 
     def get_input_columns(self, skip_missing: bool = False) -> Columns:
         source = self.get_source()
-        assert isinstance(source, (SqlStream, LeafConnectorInterface)) or hasattr(source, 'get_columns')
-        return source.get_columns(skip_missing=skip_missing)
+        expected = SqlStream, LeafConnectorInterface
+        if isinstance(source, expected) or hasattr(source, 'get_columns'):
+            return source.get_columns(skip_missing=skip_missing)
+        else:
+            arg = 'self.get_source()'
+            msg = get_type_err_msg(expected=expected, got=source, arg=arg, caller=self.get_input_columns)
+            raise TypeError(msg)
 
     def get_output_columns(self, skip_missing: bool = False) -> Columns:
         columns = self.get_selected_columns()
@@ -584,8 +603,11 @@ class SqlStream(WrapperStream):
 
     def one(self) -> Stream:
         stream = self.copy().take(1)
-        assert isinstance(stream, SqlStream) or hasattr(stream, 'collect'), f'got {stream}'
-        return stream.collect()
+        if isinstance(stream, SqlStream) or hasattr(stream, 'collect'):
+            return stream.collect()
+        else:
+            msg = get_type_err_msg(expected=SqlStream, got=stream, arg='self.copy().take(1)', caller=self.one)
+            raise TypeError(msg)
 
     def get_one_item(self) -> Item:
         items = self.one().get_items()

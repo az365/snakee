@@ -1,16 +1,18 @@
 from typing import Type, Optional, Iterable, Union
 
 try:  # Assume we're a submodule in a package.
-    from base.functions.arguments import get_name, get_names, get_value
-    from base.classes.enum import DynamicEnum, Class
     from base.constants.chars import EMPTY, TAB_INDENT, IDS_DELIMITER, REPR_DELIMITER
+    from base.functions.arguments import get_name, get_names, get_value
+    from base.functions.errors import get_type_err_msg
+    from base.classes.enum import DynamicEnum, Class
     from content.value_type import ValueType
     from content.terms.discrete_term import DiscreteTerm, TermType, Field, FieldRoleType
     from content.terms.object_term import ObjectTerm
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...base.functions.arguments import get_name, get_names, get_value
-    from ...base.classes.enum import DynamicEnum, Class
     from ...base.constants.chars import EMPTY, TAB_INDENT, IDS_DELIMITER, REPR_DELIMITER
+    from ...base.functions.arguments import get_name, get_names, get_value
+    from ...base.functions.errors import get_type_err_msg
+    from ...base.classes.enum import DynamicEnum, Class
     from ..value_type import ValueType
     from .discrete_term import DiscreteTerm, TermType, Field, FieldRoleType
     from .object_term import ObjectTerm
@@ -54,7 +56,7 @@ class HierarchicTerm(DiscreteTerm):
             template = '{name} level {no} ({caption})'
             caption = template.format(name=self.get_name(), no=self.get_count(), caption=self.get_caption())
             level = ObjectTerm(level, caption=caption)
-        assert isinstance(level, ObjectTerm), f'add_level(level): Expected level as ObjectTerm, got {level}'
+        assert isinstance(level, ObjectTerm), get_type_err_msg(expected=ObjectTerm, got=level, arg='level')
         self.get_level_terms().append(level)
         return self
 
@@ -122,7 +124,7 @@ class HierarchicTerm(DiscreteTerm):
     def get_level_term(self, level: Level = None) -> ObjectTerm:
         level_depth = self.get_depth(level)
         level_term = self.get_level_terms()[level_depth]
-        assert isinstance(level_term, ObjectTerm), f'get_level_term(): Expected ObjectTerm, got {level_term}'
+        assert isinstance(level_term, ObjectTerm), get_type_err_msg(level_term, expected=ObjectTerm, arg='level_term')
         return level_term
 
     def get_level_name(self, level: Level = None) -> str:
@@ -134,7 +136,7 @@ class HierarchicTerm(DiscreteTerm):
     def get_id_field(self, level: Level = None, **kwargs) -> Field:
         if level is None:
             level = self.get_default_level_term()
-        assert isinstance(level, ObjectTerm), f'Expected level as ObjectTerm, got {level}'
+        assert isinstance(level, ObjectTerm), get_type_err_msg(expected=ObjectTerm, got=level, arg='level')
         if self._ids_is_independent or get_name(level) == self.get_level_name(0):
             if 'caption' not in kwargs:
                 if not level.get_caption():
@@ -146,7 +148,7 @@ class HierarchicTerm(DiscreteTerm):
     def get_id_value(self, *ids, level: Level = None, delimiter: str = IDS_DELIMITER) -> IdValue:
         if level is None:
             level = self.get_default_level_term()
-        assert isinstance(level, ObjectTerm), f'Expected level as ObjectTerm, got {level}'
+        assert isinstance(level, ObjectTerm), get_type_err_msg(expected=ObjectTerm, got=level, arg='level')
         if self._ids_is_independent or get_name(level) == self.get_level_name(0):
             depth = self.get_depth(level)
             assert depth < len(ids), f'Expected depth < ids count, got {depth}, {ids}'
@@ -157,13 +159,13 @@ class HierarchicTerm(DiscreteTerm):
     def get_name_field(self, level: Level = None, **kwargs) -> Field:
         if level is None:
             level = self.get_default_level_term()
-        assert isinstance(level, ObjectTerm), f'Expected level as ObjectTerm, got {level}'
+        assert isinstance(level, ObjectTerm), get_type_err_msg(expected=ObjectTerm, got=level, arg='level')
         return level.get_name_field(**kwargs)
 
     def get_repr_field(self, level: Level = None, **kwargs) -> Field:
         if level is None:
             level = self.get_default_level_term()
-        assert isinstance(level, ObjectTerm), f'Expected level as ObjectTerm, got {level}'
+        assert isinstance(level, ObjectTerm), get_type_err_msg(expected=ObjectTerm, got=level, arg='level')
         return level.get_repr_field(**kwargs)
 
     def get_key_value(self, *ids, level: Level = None, delimiter: str = IDS_DELIMITER) -> IdValue:

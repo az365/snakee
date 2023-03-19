@@ -3,6 +3,7 @@ from typing import Optional, Iterable, Generator, Sequence, Tuple, Union, Any
 try:  # Assume we're a submodule in a package.
     from base.classes.typing import Count, Array
     from base.functions.arguments import get_str_from_args_kwargs, get_generated_name
+    from base.functions.errors import get_type_err_msg
     from base.interfaces.display_interface import DisplayInterface, DEFAULT_EXAMPLE_COUNT
     from base.interfaces.context_interface import ContextInterface
     from base.mixin.data_mixin import DataMixin, EMPTY, UNK_COUNT_STUB, DEFAULT_CHAPTER_TITLE_LEVEL
@@ -13,6 +14,7 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.typing import Count, Array
     from ..functions.arguments import get_str_from_args_kwargs, get_generated_name
+    from ..functions.errors import get_type_err_msg
     from ..interfaces.display_interface import DisplayInterface, DEFAULT_EXAMPLE_COUNT
     from ..interfaces.context_interface import ContextInterface
     from ..mixin.data_mixin import DataMixin, EMPTY, UNK_COUNT_STUB, DEFAULT_CHAPTER_TITLE_LEVEL
@@ -119,10 +121,11 @@ class ContextualDataWrapper(AbstractNamed, SourcedMixin, ContextualMixin, DataMi
             filters: Optional[Array] = None,
             example: Optional[DataMixin] = None,
     ) -> Tuple[Sequence, Sequence]:
-        if example is not None:
-            assert isinstance(example, DataMixin), f'got {example}'
-        else:
+        if example is None:
             example = self._get_demo_example(count=count, columns=columns, filters=filters, example=example)
+        elif not isinstance(example, DataMixin):
+            msg = get_type_err_msg(expected=DataMixin, got=example, arg='example')
+            raise TypeError(msg)
         if hasattr(example, 'get_columns') and hasattr(example, 'get_records'):  # RegularStream, SqlStream
             records = example.get_records()  # ConvertMixin.get_records(), SqlStream.get_records()
             columns = example.get_columns()  # StructMixin.get_columns(), RegularStream.get_columns()

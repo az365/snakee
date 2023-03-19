@@ -9,8 +9,9 @@ try:  # Assume we're a submodule in a package.
         Count, Item, Struct, Columns, Field, FieldNo, OptionalFields, UniKey, Class,
         Name, Array, ARRAY_TYPES,
     )
-    from base.functions.arguments import get_name, get_names, get_str_from_args_kwargs
     from base.constants.chars import EMPTY, SHARP
+    from base.functions.arguments import get_name, get_names, get_str_from_args_kwargs
+    from base.functions.errors import get_type_err_msg
     from utils.decorators import deprecated_with_alternative
     from functions.primary.items import set_to_item, merge_two_items, unfold_structs_to_fields
     from functions.secondary import all_secondary_functions as fs
@@ -30,8 +31,9 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         Count, Item, Struct, Columns, Field, FieldNo, OptionalFields, UniKey, Class,
         Name, Array, ARRAY_TYPES,
     )
-    from ...base.functions.arguments import get_name, get_names, get_str_from_args_kwargs
     from ...base.constants.chars import EMPTY, SHARP
+    from ...base.functions.arguments import get_name, get_names, get_str_from_args_kwargs
+    from ...base.functions.errors import get_type_err_msg
     from ...utils.decorators import deprecated_with_alternative
     from ...functions.primary.items import set_to_item, merge_two_items, unfold_structs_to_fields
     from ...functions.secondary import all_secondary_functions as fs
@@ -382,7 +384,7 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
             elif isclass(stream_type):
                 return stream_type
             else:
-                msg = f'RegularStream.to_stream(data, stream_type): expected ItemType or StreamType, got {stream_type}'
+                msg = get_type_err_msg(expected=(ItemType, StreamType), got=stream_type, arg='stream_type', caller=2)
                 raise TypeError(msg)
         else:
             return self.__class__
@@ -703,7 +705,8 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
         if isinstance(file, FileName):
             file = self.get_context().get_job_folder().file(file, **kwargs)
         if not (isinstance(file, FileObj) or hasattr(file, 'write_stream')):
-            raise TypeError(f'Expected TsvFile, got {file} as {file}')
+            msg = get_type_err_msg(expected=(FileObj, FileName), got=file, arg='file', caller=RegularStream.to_file)
+            raise TypeError(msg)
         meta = self.get_meta()
         file.write_stream(self, verbose=verbose)
         if return_stream:

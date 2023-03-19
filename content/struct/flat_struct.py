@@ -10,6 +10,7 @@ try:  # Assume we're a submodule in a package.
     )
     from base.constants.chars import EMPTY, REPR_DELIMITER, TITLE_PREFIX, ITEM, DEL, ABOUT, JUPYTER_LINE_LEN
     from base.functions.arguments import update, get_generated_name, get_name, get_names
+    from base.functions.errors import get_type_err_msg, get_loc_message
     from base.abstract.simple_data import SimpleDataWrapper, DEFAULT_EXAMPLE_COUNT
     from base.mixin.iter_data_mixin import IterDataMixin
     from functions.secondary import array_functions as fs
@@ -30,6 +31,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     )
     from ...base.constants.chars import EMPTY, REPR_DELIMITER, TITLE_PREFIX, ITEM, DEL, ABOUT, JUPYTER_LINE_LEN
     from ...base.functions.arguments import update, get_generated_name, get_name, get_names
+    from ...base.functions.errors import get_type_err_msg, get_loc_message
     from ...base.abstract.simple_data import SimpleDataWrapper, DEFAULT_EXAMPLE_COUNT
     from ...base.mixin.iter_data_mixin import IterDataMixin
     from ...functions.secondary import array_functions as fs
@@ -129,8 +131,11 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
             return self
         else:
             struct = self.copy()
-            assert isinstance(struct, FlatStruct)
-            struct.set_field_no(no=no, field=field, inplace=True)
+            if isinstance(struct, FlatStruct) or hasattr(struct, 'set_field_no'):
+                struct.set_field_no(no=no, field=field, inplace=True)
+            else:
+                msg = get_type_err_msg(expected=FlatStruct, got=struct, arg='self', caller=self.set_field_no)
+                raise TypeError(msg)
             return struct
 
     @staticmethod
@@ -161,7 +166,8 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
         elif skip_missing and field is None:
             return None
         else:
-            raise TypeError('Expected field, str or dict, got {} as {}'.format(field, type(field)))
+            msg = get_type_err_msg(expected=Field, got=field, arg='field', caller=self.append_field)
+            raise TypeError(msg)
         if exclude_duplicates and field_desc.get_name() in self.get_field_names():
             return self
         else:
@@ -335,20 +341,22 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
             return self.types(dict_field_types=dict_field_types, **kwargs) or self
         else:
             struct = self.copy()
-            assert isinstance(struct, FlatStruct)
+            assert isinstance(struct, FlatStruct) or hasattr(struct, 'types'), get_type_err_msg(struct, FlatStruct, '~')
             return struct.types(dict_field_types=dict_field_types, **kwargs)
 
     def types(self, dict_field_types: Optional[dict] = None, **kwargs) -> Native:
         for field_name, field_type in list((dict_field_types or {}).items()) + list(kwargs.items()):
             field = self.get_field_description(field_name)
-            assert hasattr(field, 'set_value_type'), 'Expected SimpleField or FieldDescription, got {}'.format(field)
             field.set_value_type(ValueType.detect_by_type(field_type), inplace=True)
         return self
 
     def common_type(self, field_type: Union[ValueType, type]) -> Native:
         for f in self.get_fields_descriptions():
-            assert isinstance(f, FieldInterface)
-            f.set_type(field_type, inplace=True)
+            if isinstance(f, FieldInterface) or hasattr(f, 'set_type'):
+                f.set_type(field_type, inplace=True)
+            else:
+                msg = get_type_err_msg(expected=FieldInterface, got=f, arg='f', caller=self.common_type)
+                raise TypeError(msg)
         return self
 
     def get_field_position(self, field: Name) -> Optional[int]:
@@ -363,7 +371,8 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
         elif isinstance(field, FieldInterface):
             return self.get_field_position(field.get_name())
         else:
-            raise TypeError(f'Expected field as Field(FieldInterface), FieldNo(int) or FieldName(str), got {field}')
+            msg = get_type_err_msg(expected=Field, got=field, arg='field', caller=self.get_field_position)
+            raise TypeError(msg)
 
     def get_fields_positions(self, names: Iterable) -> list:
         columns = self.get_columns()
@@ -406,11 +415,14 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
         row = self._convert_item_to_row(item)
         validation_errors = list()
         for value, field_description in zip(row, self.get_fields_descriptions()):
-            assert isinstance(field_description, FieldInterface)
-            field_type = field_description.get_value_type()
+            if isinstance(field_description, FieldInterface) or hasattr(field_description, 'get_value_type'):
+                field_type = field_description.get_value_type()
+            else:
+                msg = get_type_err_msg(expected=FieldInterface, got=field_description, arg='field_description')
+                raise TypeError(msg)
             if not field_type.isinstance(value):
-                template = '(FlatStruct) Field {}: type {} expected, got {} (value={})'
-                msg = template.format(field_description.get_name(), field_type, type(value), value)
+                name = field_description.get_name()
+                msg = f'(FlatStruct) Field {name}: type {field_type} expected, got {type(value)} (value={value})'
                 validation_errors.append(msg)
         return validation_errors
 
@@ -471,12 +483,20 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
             tags = COMPARISON_TAGS
         expected_struct = self.convert_to_native(other)
         remaining_struct = expected_struct.copy()
-        assert isinstance(expected_struct, StructInterface) or hasattr(expected_struct, 'get_field_names'), f'got {expected_struct}'
-        assert isinstance(remaining_struct, StructInterface) or hasattr(remaining_struct, 'get_field_names'), f'got {remaining_struct}'
+        if not (isinstance(expected_struct, StructInterface) or hasattr(expected_struct, 'get_field_names')):
+            msg = get_type_err_msg(expected=StructInterface, got=expected_struct, arg='self', caller=self.compare_with)
+            raise TypeError(msg)
+        if not (isinstance(remaining_struct, StructInterface) or hasattr(remaining_struct, 'get_field_names')):
+            msg = get_type_err_msg(expected=StructInterface, got=remaining_struct, arg='copy', caller=self.compare_with)
+            raise TypeError(msg)
         updated_struct = FlatStruct([])
         for pos_received, f_received in enumerate(self.get_fields()):
-            assert isinstance(f_received, (FieldInterface, AnyField))
-            f_name = f_received.get_name()
+            expected_field_type = FieldInterface, AnyField
+            if isinstance(f_received, expected_field_type):
+                f_name = f_received.get_name()
+            else:
+                msg = get_type_err_msg(expected=expected_field_type, got=f_received, arg='f', caller=self.compare_with)
+                raise TypeError(msg)
             if f_name in updated_struct.get_field_names():
                 is_valid = False
                 tag = tags['this_duplicated'] if f_name in remaining_struct.get_field_names() else tags['both_duplicated']
@@ -555,7 +575,8 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
             elif is_record(item):
                 value = item.get(get_name(f))
             else:
-                raise TypeError('Expected item as Row or Record, got {}'.format(item))
+                msg = get_type_err_msg(expected='Row or Record', got=item, arg='item', caller=self.format)
+                raise TypeError(msg)
             if isinstance(f, (FieldInterface, AnyField)) or hasattr(f, 'format'):
                 str_value = f.format(value, skip_errors=skip_errors)
             else:
@@ -594,8 +615,9 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
         if field_position is not None:
             return self.get_fields()[field_position]
         elif not skip_missing:
-            message = 'Field {} not found (existing fields: {})'
-            raise IndexError(message.format(field_name, ', '.join(self.get_field_names())))
+            fields = ', '.join(self.get_field_names())
+            msg = f'Field {field_name} not found (existing fields: {fields})'
+            raise IndexError(get_loc_message(msg))
 
     def get_struct_description_rows(self, include_header: bool = False) -> Iterator[tuple]:
         group_name = self.get_name()
@@ -773,7 +795,8 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
         elif isinstance(other, (StructInterface, Iterable)):
             return self.append(other, inplace=False).set_name(None, inplace=False)
         else:
-            raise TypeError('Expected other as field or struct, got {} as {}'.format(other, type(other)))
+            msg = get_type_err_msg(expected=(Field, StructInterface), got=other, arg='other', caller=self.__add__)
+            raise TypeError(msg)
 
     def __len__(self):
         return self.get_count()
