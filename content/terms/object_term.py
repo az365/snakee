@@ -1,10 +1,10 @@
 from typing import Optional
 
 try:  # Assume we're a submodule in a package.
-    from utils.arguments import update
+    from base.functions.arguments import update
     from content.terms.discrete_term import DiscreteTerm, TermType, Field, FieldRoleType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils.arguments import update
+    from ...base.functions.arguments import update
     from .discrete_term import DiscreteTerm, TermType, Field, FieldRoleType
 
 Native = DiscreteTerm

@@ -1,13 +1,11 @@
 from typing import Union, Optional
 from inspect import isclass
 
-try:  # Assume we're a sub-module in a package.
-    from utils.arguments import get_name
-    from utils.decorators import deprecated, deprecated_with_alternative
+try:  # Assume we're a submodule in a package.
+    from base.functions.arguments import get_name
     from base.classes.enum import DynamicEnum, EnumItem
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...utils.arguments import get_name
-    from ...utils.decorators import deprecated, deprecated_with_alternative
+    from ...base.functions.arguments import get_name
     from ...base.classes.enum import DynamicEnum, EnumItem
 
 
@@ -41,31 +39,3 @@ class DialectType(DynamicEnum):
 
 
 DialectType.prepare()
-
-
-@deprecated
-def get_dialect_type_from_conn_type_name(
-        conn_type: Union[DynamicEnum, str],
-        default: DialectType = DialectType.Python,
-        other: DialectType = DialectType.String,
-) -> DialectType:
-    if conn_type is None:
-        dialect_type = default
-    else:
-        conn_name = get_name(conn_type)
-        if 'Postgres' in conn_name:
-            dialect_type = DialectType.Postgres
-        elif 'Click' in conn_name:
-            dialect_type = DialectType.Clickhouse
-        else:
-            dialect_type = other
-    if not isinstance(dialect_type, DialectType):
-        dialect_type = DialectType.find_instance(dialect_type)
-    return dialect_type
-
-
-@deprecated_with_alternative('DialectType.detect()')
-def get_dialect_for_connector(connector) -> DialectType:
-    dialect_type = DialectType.detect(connector)
-    assert isinstance(dialect_type, DialectType)
-    return dialect_type
