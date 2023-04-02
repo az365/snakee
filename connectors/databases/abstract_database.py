@@ -4,7 +4,7 @@ from typing import Optional, Iterable, Tuple, Union
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         StreamInterface, ColumnarInterface, ColumnarStream, StructStream, StructInterface, SimpleDataInterface,
-        LeafConnectorInterface, ConnType, StreamType, DialectType, LoggingLevel,
+        LeafConnectorInterface, ConnType, DialectType, LoggingLevel,
         Context, Count, Name, FieldName, OptionalFields, Connector,
     )
     from base.constants.chars import (
@@ -20,7 +20,7 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         StreamInterface, ColumnarInterface, ColumnarStream, StructStream, StructInterface, SimpleDataInterface,
-        LeafConnectorInterface, ConnType, StreamType, DialectType, LoggingLevel,
+        LeafConnectorInterface, ConnType, DialectType, LoggingLevel,
         Context, Count, Name, FieldName, OptionalFields, Connector,
     )
     from ...base.constants.chars import (
@@ -351,7 +351,7 @@ class AbstractDatabase(AbstractStorage, ABC):
         else:
             msg = get_type_err_msg(expected=StructStream, got=stream, arg='stream', caller=self.insert_struct_stream)
             raise TypeError(msg)
-        if not hasattr(stream, 'get_struct'):  # isinstance(stream, StructStream)
+        if not (isinstance(stream, StructStream) or hasattr(stream, 'get_struct')):
             msg = get_type_err_msg(expected=StructStream, got=stream, arg='stream', caller=self.insert_struct_stream)
             raise TypeError(msg)
         if hasattr(table, 'get_columns'):
@@ -371,10 +371,8 @@ class AbstractDatabase(AbstractStorage, ABC):
             self,
             table: Union[Table, Name],
             data: Data, struct: Struct = None,
-            encoding: Optional[str] = None,
             skip_errors: bool = False,
             skip_lines: Count = 0,
-            skip_first_line: bool = False,
             step: Count = DEFAULT_STEP,
             verbose: Optional[bool] = None,
     ) -> tuple:
@@ -385,10 +383,7 @@ class AbstractDatabase(AbstractStorage, ABC):
             message = f'Struct as {type(struct)} is deprecated, use FlatStruct instead'
             self.log(msg=message, level=LoggingLevel.Warning)
             struct = FlatStruct(struct or [])
-        input_stream = self._get_struct_stream_from_data(
-            data, struct=struct,
-            encoding=encoding, skip_first_line=skip_first_line, verbose=verbose,
-        )
+        input_stream = self._get_stream_from_data(data, struct=struct)
         if skip_lines:
             input_stream = input_stream.skip(skip_lines)
         if input_stream.get_struct() is None:
@@ -411,10 +406,8 @@ class AbstractDatabase(AbstractStorage, ABC):
             self,
             table: Union[Table, Name],
             struct: Struct, data: Data,
-            encoding: Optional[str] = None,
             step: Count = DEFAULT_STEP,
             skip_lines: Count = 0,
-            skip_first_line: bool = False,
             max_error_rate: float = 0.0,
             verbose: Optional[bool] = None,
     ) -> Table:
@@ -426,7 +419,6 @@ class AbstractDatabase(AbstractStorage, ABC):
         skip_errors = (max_error_rate is None) or (max_error_rate > DEFAULT_ERRORS_THRESHOLD)
         initial_count, write_count = self.insert_data(
             table, struct=struct, data=data,
-            encoding=encoding, skip_first_line=skip_first_line,
             step=step, skip_lines=skip_lines, skip_errors=skip_errors,
             verbose=verbose,
         )
@@ -450,10 +442,8 @@ class AbstractDatabase(AbstractStorage, ABC):
             self,
             table: Union[Table, Name],
             struct: Struct, data: Data,
-            encoding: Optional[str] = None,
             step: int = DEFAULT_STEP,
             skip_lines: int = 0,
-            skip_first_line: bool = False,
             max_error_rate: float = 0.0,
             verbose: Optional[bool] = None,
     ) -> Table:
@@ -461,7 +451,7 @@ class AbstractDatabase(AbstractStorage, ABC):
         tmp_name = f'{target_name}_tmp_upload'
         bak_name = f'{target_name}_bak'
         self.force_upload_table(
-            table=tmp_name, struct=struct, data=data, encoding=encoding, skip_first_line=skip_first_line,
+            table=tmp_name, struct=struct, data=data,
             step=step, skip_lines=skip_lines, max_error_rate=max_error_rate,
             verbose=verbose,
         )
@@ -582,7 +572,7 @@ class AbstractDatabase(AbstractStorage, ABC):
         return table_name, table_struct
 
     @staticmethod
-    def _get_struct_stream_from_data(data: Data, struct: Struct = None, **file_kwargs) -> StructStream:
+    def _get_stream_from_data(data: Data, struct: Struct = None) -> StructStream:
         if isinstance(data, StreamInterface):
             stream = data
         elif isinstance(data, File) or hasattr(data, 'to_struct_stream'):
@@ -591,14 +581,8 @@ class AbstractDatabase(AbstractStorage, ABC):
                 stream_cols = stream.get_columns()
                 struct_cols = struct.get_columns()
                 assert stream_cols == struct_cols, f'{stream_cols} != {struct_cols}'
-        elif isinstance(data, str):  # deprecated
-            logger = FallbackLogger()
-            logger.warning('usage of filename as data-argument is deprecated, use file object instead')
-            build_stream = StreamType.RowStream.get_class()
-            stream = build_stream.from_column_file(filename=data, **file_kwargs)  # deprecated
         else:
-            build_stream = StreamBuilder.get_default_stream_class()
-            stream = build_stream(data)
+            stream = StreamBuilder.stream(data)
         return stream
 
     def _get_table_name_and_struct_str(
