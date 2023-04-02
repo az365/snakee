@@ -5,7 +5,7 @@ try:  # Assume we're a submodule in a package.
         StructInterface, StructRowInterface, FieldInterface, RepresentationInterface,
         SelectionLoggerInterface, ExtLogger,
         ValueType, DialectType,
-        FieldNo, FieldName, SimpleRow, Item,
+        FieldNo, FieldName, SimpleRow, Item, Record,
         Name, Count, Array, ARRAY_TYPES, ROW_SUBCLASSES, RECORD_SUBCLASSES,
     )
     from base.constants.chars import EMPTY, REPR_DELIMITER, TITLE_PREFIX, ITEM, DEL, ABOUT
@@ -27,7 +27,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         StructInterface, StructRowInterface, FieldInterface, RepresentationInterface,
         SelectionLoggerInterface, ExtLogger,
         ValueType, DialectType,
-        FieldNo, FieldName, SimpleRow, Item,
+        FieldNo, FieldName, SimpleRow, Item, Record,
         Name, Count, Array, ARRAY_TYPES, ROW_SUBCLASSES, RECORD_SUBCLASSES,
     )
     from ...base.constants.chars import EMPTY, REPR_DELIMITER, TITLE_PREFIX, ITEM, DEL, ABOUT
@@ -433,9 +433,9 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
     def _convert_item_to_row(self, item: Item) -> SimpleRow:
         if isinstance(item, StructRowInterface) or hasattr(item, 'get_data'):
             return item.get_data()
-        elif isinstance(item, ROW_SUBCLASSES):
+        elif isinstance(item, ROW_SUBCLASSES):  # is_row(item)
             return item
-        elif isinstance(item, RECORD_SUBCLASSES):
+        elif isinstance(item, RECORD_SUBCLASSES):  # is_record(item)
             return [item.get(c) for c in self.get_columns()]
         else:  # Line, Any
             return [item]
@@ -558,15 +558,26 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
         return message
 
     @staticmethod
-    def get_struct_detected_by_title_row(title_row: Iterable) -> Native:
+    def get_struct_detected_by_title_row(row: Iterable) -> Native:
         struct = FlatStruct([])
-        for name in title_row:
+        for name in row:
             field_type = ValueType.detect_by_name(name)
-            struct.append_field(AnyField(name, value_type=field_type))
+            field_obj = AnyField(name, value_type=field_type)
+            struct.append_field(field_obj)
+        return struct
+
+    @staticmethod
+    def get_struct_detected_by_record(record: Record) -> Native:
+        struct = FlatStruct([])
+        for name, value in record.items():
+            field_type = ValueType.detect_by_value(value)
+            field_obj = AnyField(name, value_type=field_type)
+            struct.append_field(field_obj)
         return struct
 
     def copy(self) -> Native:
-        return FlatStruct(fields=list(self.get_fields()), name=self.get_name())
+        copy_of_fields = list(self.get_fields())
+        return FlatStruct(fields=copy_of_fields, name=self.get_name())
 
     def format(self, *args, delimiter: str = REPR_DELIMITER, skip_errors: bool = False) -> str:
         if len(args) == 1 and isinstance(args[0], (*ROW_SUBCLASSES, *RECORD_SUBCLASSES)):
@@ -575,9 +586,9 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
             item = args
         formatted_values = list()
         for n, f in enumerate(self.get_fields()):
-            if is_row(item):
+            if is_row(item):  # isinstance(item, ROW_SUBCLASSES):
                 value = item[n] if n < len(item) or not skip_errors else None
-            elif is_record(item):
+            elif is_record(item):  # isinstance(item, RECORD_SUBCLASSES):
                 value = item.get(get_name(f))
             else:
                 msg = get_type_err_msg(expected='Row or Record', got=item, arg='item', caller=self.format)

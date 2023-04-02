@@ -116,8 +116,8 @@ class RegularStream(LocalStream, ConvertMixin, StructMixin, RegularStreamInterfa
             verbose: bool = False,
             skip_missing: bool = False,
     ) -> Struct:
-        columns = self.get_detected_columns(skip_errors=skip_missing)
-        struct = FlatStruct(columns)
+        record = self.to_record_stream().get_one_item()
+        struct = FlatStruct.get_struct_detected_by_record(record)
         if set_struct:
             self.set_struct(struct, check=False, inplace=True)
         return struct
@@ -180,16 +180,16 @@ class RegularStream(LocalStream, ConvertMixin, StructMixin, RegularStreamInterfa
                 columns = sorted(columns)
             return columns
         elif item_type == ItemType.Row:
-            max_row_len = 0
+            detected_row_len = 0
             for row in example.get_items():
                 cur_row_len = len(row)
                 if get_max:
-                    if cur_row_len > max_row_len:
-                        max_row_len = cur_row_len
+                    if cur_row_len > detected_row_len:
+                        detected_row_len = cur_row_len
                 else:  # elif get_min:
-                    if cur_row_len < max_row_len:
-                        max_row_len = cur_row_len
-            return range(max_row_len)
+                    if cur_row_len < detected_row_len:
+                        detected_row_len = cur_row_len
+            return range(detected_row_len)
         elif item_type == ItemType.StructRow:  # deprecated
             return self.get_struct().get_columns()
         elif not skip_errors:
