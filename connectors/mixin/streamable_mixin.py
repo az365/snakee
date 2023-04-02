@@ -187,17 +187,18 @@ class StreamableMixin(ColumnarMixin, ABC):
         return self._assume_stream(stream)
 
     def to_any_stream(self, step: Count = None, verbose: Optional[bool] = None, **kwargs) -> Stream:
-        return self.to_stream_type(StreamType.AnyStream, step=step, verbose=verbose, **kwargs)
+        return self.to_stream_type(ItemType.Any, step=step, verbose=verbose, **kwargs)
 
     def to_line_stream(self, step: Count = None, verbose: Optional[bool] = None, **kwargs) -> LineStream:
-        return self.to_stream_type(StreamType.LineStream, step=step, verbose=verbose, **kwargs)
+        return self.to_stream_type(ItemType.Line, step=step, verbose=verbose, **kwargs)
 
     def to_record_stream(self, step: Count = None, verbose: Optional[bool] = None, **kwargs) -> RecordStream:
-        return self.to_stream_type(StreamType.RecordStream, step=step, verbose=verbose, **kwargs)
+        return self.to_stream_type(ItemType.Record, step=step, verbose=verbose, **kwargs)
 
     def to_row_stream(self, step: Count = None, verbose: Optional[bool] = None, **kwargs) -> RowStream:
-        return self.to_stream_type(StreamType.RowStream, step=step, verbose=verbose, **kwargs)
+        return self.to_stream_type(ItemType.Row, step=step, verbose=verbose, **kwargs)
 
+    @deprecated_with_alternative('to_stream()')
     def to_struct_stream(
             self,
             struct: Optional[StructInterface] = None,
