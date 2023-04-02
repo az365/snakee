@@ -17,6 +17,7 @@ try:  # Assume we're a submodule in a package.
     from functions.secondary import all_secondary_functions as fs
     from content.items.item_getters import get_filter_function
     from content.selection import selection_classes as sn
+    from content.struct.struct_mixin import StructMixin
     from content.struct.flat_struct import FlatStruct
     from streams.abstract.local_stream import LocalStream
     from streams.interfaces.abstract_stream_interface import DEFAULT_EXAMPLE_COUNT
@@ -39,6 +40,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...functions.secondary import all_secondary_functions as fs
     from ...content.items.item_getters import get_filter_function
     from ...content.selection import selection_classes as sn
+    from ...content.struct.struct_mixin import StructMixin
     from ...content.struct.flat_struct import FlatStruct
     from ..abstract.local_stream import LocalStream
     from ..interfaces.abstract_stream_interface import DEFAULT_EXAMPLE_COUNT
@@ -53,7 +55,7 @@ FileName = str
 DYNAMIC_META_FIELDS = 'struct', 'count', 'less_than'
 
 
-class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
+class RegularStream(LocalStream, ConvertMixin, StructMixin, RegularStreamInterface):
     def __init__(
             self,
             data: Iterable[Item],
@@ -108,12 +110,23 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
 
     item_type = property(get_item_type, _set_item_type_inplace)
 
-    def get_struct_from_source(self, skip_missing: bool = False) -> Struct:
+    def get_struct_from_source(
+            self,
+            set_struct: bool = False,
+            verbose: bool = False,
+            skip_missing: bool = False,
+    ) -> Struct:
         columns = self.get_detected_columns(skip_errors=skip_missing)
-        return FlatStruct(columns)
+        struct = FlatStruct(columns)
+        if set_struct:
+            self.set_struct(struct, check=False, inplace=True)
+        return struct
+
+    def get_initial_struct(self) -> Struct:
+        return self._struct
 
     def get_struct(self) -> Struct:
-        return self._struct
+        return self.get_initial_struct()
 
     def set_struct(self, struct: Struct, check: bool = False, inplace: bool = False) -> Native:
         if inplace:
