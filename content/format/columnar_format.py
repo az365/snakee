@@ -3,17 +3,19 @@ from typing import Optional, Union, Iterable, Generator, Callable
 try:  # Assume we're a submodule in a package.
     from interfaces import Item, Row, StructInterface, ItemType, StreamType, ContentType, ARRAY_TYPES
     from base.constants.chars import PARAGRAPH_CHAR, TAB_CHAR
+    from base.constants.text import DEFAULT_ENCODING
     from base.functions.arguments import get_name
     from functions.secondary import item_functions as fs
     from utils.decorators import deprecated_with_alternative
-    from content.format.text_format import TextFormat, Compress, DEFAULT_ENCODING
+    from content.format.text_format import TextFormat, Compress
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import Item, Row, StructInterface, ItemType, StreamType, ContentType, ARRAY_TYPES
     from ...base.constants.chars import PARAGRAPH_CHAR, TAB_CHAR
+    from ...base.constants.text import DEFAULT_ENCODING
     from ...base.functions.arguments import get_name
     from ...functions.secondary import item_functions as fs
     from ...utils.decorators import deprecated_with_alternative
-    from .text_format import TextFormat, Compress, DEFAULT_ENCODING
+    from .text_format import TextFormat, Compress
 
 DEFAULT_IS_FIRST_LINE_TITLE = True
 POPULAR_DELIMITERS = '\t', '; ', ', ', ';', ',', ' '

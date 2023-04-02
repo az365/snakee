@@ -6,14 +6,14 @@ try:  # Assume we're a submodule in a package.
     from base.classes.typing import Count, Class
     from base.classes.display import DefaultDisplay, DEFAULT_EXAMPLE_COUNT
     from base.functions.arguments import get_name, get_value
-    from base.constants.chars import DEFAULT_LINE_LEN, REPR_DELIMITER, SMALL_INDENT, EMPTY
+    from base.constants.chars import REPR_DELIMITER, SMALL_INDENT, EMPTY
     from base.interfaces.display_interface import DisplayInterface, Style
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils.decorators import deprecated_with_alternative
     from ..classes.typing import Count, Class
     from ..classes.display import DefaultDisplay, DEFAULT_EXAMPLE_COUNT
     from ..functions.arguments import get_name, get_value
-    from ..constants.chars import DEFAULT_LINE_LEN, REPR_DELIMITER, SMALL_INDENT, EMPTY
+    from ..constants.chars import REPR_DELIMITER, SMALL_INDENT, EMPTY
     from ..interfaces.display_interface import DisplayInterface, Style
 
 

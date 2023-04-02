@@ -3,7 +3,8 @@ from typing import Optional, Iterable, Iterator, Sequence, Tuple, Union
 
 try:  # Assume we're a submodule in a package.
     from base.classes.typing import Name, Count, ARRAY_TYPES
-    from base.constants.chars import EMPTY, REPR_DELIMITER, CROP_SUFFIX, SHORT_CROP_SUFFIX, DEFAULT_LINE_LEN
+    from base.constants.chars import EMPTY, REPR_DELIMITER, CROP_SUFFIX, SHORT_CROP_SUFFIX
+    from base.constants.text import DEFAULT_LINE_LEN
     from base.functions.arguments import get_name, get_cropped_text
     from base.functions.errors import get_type_err_msg
     from base.abstract.simple_data import SimpleDataWrapper
@@ -11,7 +12,8 @@ try:  # Assume we're a submodule in a package.
     from base.mixin.iter_data_mixin import IterDataMixin
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.typing import Name, Count, ARRAY_TYPES
-    from ..constants.chars import EMPTY, REPR_DELIMITER, CROP_SUFFIX, SHORT_CROP_SUFFIX, DEFAULT_LINE_LEN
+    from ..constants.chars import EMPTY, REPR_DELIMITER, CROP_SUFFIX, SHORT_CROP_SUFFIX
+    from ..constants.text import DEFAULT_LINE_LEN
     from ..functions.arguments import get_name, get_cropped_text
     from ..functions.errors import get_type_err_msg
     from ..abstract.simple_data import SimpleDataWrapper

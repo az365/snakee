@@ -4,21 +4,14 @@ from datetime import datetime
 from random import randint
 
 try:  # Assume we're a submodule in a package.
-    from base.constants.chars import (
-        KV_DELIMITER, ARG_DELIMITER, ANN_DELIMITER,
-        DEFAULT_LINE_LEN, CROP_SUFFIX, SHORT_CROP_SUFFIX,
-        FALSE_VALUES,
-    )
+    from base.constants.chars import KV_DELIMITER, ARG_DELIMITER, ANN_DELIMITER, CROP_SUFFIX, SHORT_CROP_SUFFIX
+    from base.constants.text import DEFAULT_LINE_LEN, STR_FALSE_SYNONYMS
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..constants.chars import (
-        KV_DELIMITER, ARG_DELIMITER, ANN_DELIMITER,
-        DEFAULT_LINE_LEN, CROP_SUFFIX, SHORT_CROP_SUFFIX,
-        FALSE_VALUES,
-    )
+    from ..constants.chars import KV_DELIMITER, ARG_DELIMITER, ANN_DELIMITER, CROP_SUFFIX, SHORT_CROP_SUFFIX
+    from ..constants.text import DEFAULT_LINE_LEN, STR_FALSE_SYNONYMS
 
 DEFAULT_RANDOM_LEN = 6
 TYPING_PREFIX = 'typing.'
-STR_FALSE_SYNONYMS = ['False', 'None', 'none'] + list(FALSE_VALUES)  # 'false', 'no', '0', '0.0', DEFAULT_STR, EMPTY
 
 
 def update(args, addition=None):

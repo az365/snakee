@@ -8,7 +8,8 @@ try:  # Assume we're a submodule in a package.
         FieldNo, FieldName, SimpleRow, Item,
         Name, Count, Array, ARRAY_TYPES, ROW_SUBCLASSES, RECORD_SUBCLASSES,
     )
-    from base.constants.chars import EMPTY, REPR_DELIMITER, TITLE_PREFIX, ITEM, DEL, ABOUT, JUPYTER_LINE_LEN
+    from base.constants.chars import EMPTY, REPR_DELIMITER, TITLE_PREFIX, ITEM, DEL, ABOUT
+    from base.constants.text import JUPYTER_LINE_LEN
     from base.functions.arguments import update, get_generated_name, get_name, get_names
     from base.functions.errors import get_type_err_msg, get_loc_message
     from base.abstract.simple_data import SimpleDataWrapper, DEFAULT_EXAMPLE_COUNT
@@ -29,7 +30,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         FieldNo, FieldName, SimpleRow, Item,
         Name, Count, Array, ARRAY_TYPES, ROW_SUBCLASSES, RECORD_SUBCLASSES,
     )
-    from ...base.constants.chars import EMPTY, REPR_DELIMITER, TITLE_PREFIX, ITEM, DEL, ABOUT, JUPYTER_LINE_LEN
+    from ...base.constants.chars import EMPTY, REPR_DELIMITER, TITLE_PREFIX, ITEM, DEL, ABOUT
+    from ...base.constants.text import JUPYTER_LINE_LEN
     from ...base.functions.arguments import update, get_generated_name, get_name, get_names
     from ...base.functions.errors import get_type_err_msg, get_loc_message
     from ...base.abstract.simple_data import SimpleDataWrapper, DEFAULT_EXAMPLE_COUNT
@@ -422,7 +424,9 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
                 raise TypeError(msg)
             if not field_type.isinstance(value):
                 name = field_description.get_name()
-                msg = f'(FlatStruct) Field {name}: type {field_type} expected, got {type(value)} (value={value})'
+                expected = get_name(field_type)
+                received = get_name(type(value))
+                msg = f'(FlatStruct) Field {name}: type {expected} expected, got {value} (value={received})'
                 validation_errors.append(msg)
         return validation_errors
 
@@ -459,7 +463,8 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
         added_names = get_names(comparison.get('added'))
         removed_names = get_names(comparison.get('removed'))
         if added_names or removed_names:
-            message = '{}: {saved} fields will be saved, {added} added, {removed} removed'.format(title, **counts)
+            saved, added, removed = [counts.get(i) for i in ('saved', 'added', 'removed')]
+            message = f'{title}: {saved} fields will be saved, {added} added, {removed} removed'
             yield message
             if added_names:
                 added_cnt = len(added_names)

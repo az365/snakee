@@ -1,16 +1,12 @@
 from typing import Optional
 
 try:  # Assume we're a submodule in a package.
-    from base.constants.chars import (
-        FILL_CHAR, SHORT_CROP_SUFFIX, DEFAULT_STR, EMPTY,
-        DEFAULT_TRUE_STR, DEFAULT_FALSE_STR, FALSE_VALUES
-    )
+    from base.constants.chars import FILL_CHAR, SHORT_CROP_SUFFIX, DEFAULT_STR, EMPTY
+    from base.constants.text import DEFAULT_TRUE_STR, DEFAULT_FALSE_STR, FALSE_VALUES
     from content.representations.abstract_repr import AbstractRepresentation, ReprType, Value, Count
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...base.constants.chars import (
-        FILL_CHAR, SHORT_CROP_SUFFIX, DEFAULT_STR, EMPTY,
-        DEFAULT_TRUE_STR, DEFAULT_FALSE_STR, FALSE_VALUES,
-    )
+    from ...base.constants.chars import FILL_CHAR, SHORT_CROP_SUFFIX, DEFAULT_STR, EMPTY
+    from ...base.constants.text import DEFAULT_TRUE_STR, DEFAULT_FALSE_STR, FALSE_VALUES
     from .abstract_repr import AbstractRepresentation, ReprType, Value, Count
 
 

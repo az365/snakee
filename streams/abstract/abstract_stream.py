@@ -8,8 +8,9 @@ try:  # Assume we're a submodule in a package.
         StreamInterface, LoggerInterface, LeafConnectorInterface, LeafConnector, Connector, Context, ExtLogger,
         StreamType, LoggingLevel, Message, Name, OptionalFields, Array, Class,
     )
+    from base.constants.chars import EMPTY, CROP_SUFFIX
+    from base.constants.text import DEFAULT_LINE_LEN
     from base.functions.arguments import get_generated_name, get_cropped_text
-    from base.constants.chars import CROP_SUFFIX, DEFAULT_LINE_LEN, EMPTY
     from base.abstract.contextual_data import ContextualDataWrapper
     from utils.decorators import deprecated_with_alternative
     from loggers.fallback_logger import FallbackLogger
@@ -20,8 +21,9 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         StreamInterface, LoggerInterface, LeafConnectorInterface, LeafConnector, Connector, Context, ExtLogger,
         StreamType, LoggingLevel, Message, Name, OptionalFields, Array, Class,
     )
+    from ...base.constants.chars import EMPTY, CROP_SUFFIX
+    from ...base.constants.text import DEFAULT_LINE_LEN
     from ...base.functions.arguments import get_generated_name, get_cropped_text
-    from ...base.constants.chars import CROP_SUFFIX, DEFAULT_LINE_LEN, EMPTY
     from ...base.abstract.contextual_data import ContextualDataWrapper
     from ...utils.decorators import deprecated_with_alternative
     from ...loggers.fallback_logger import FallbackLogger
@@ -198,7 +200,8 @@ class AbstractStream(ContextualDataWrapper, StreamInterface, ABC):
         gc.collect()
 
     def get_description(self) -> str:
-        return 'with meta {}'.format(self.get_meta())
+        meta = self.get_meta()
+        return f'with meta {meta}'
 
     def get_one_line_repr(
             self,

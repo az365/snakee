@@ -3,11 +3,13 @@ import json
 
 try:  # Assume we're a submodule in a package.
     from interfaces import Item, ItemType, StreamType, ContentType, ARRAY_TYPES
-    from base.constants.chars import PARAGRAPH_CHAR, DEFAULT_ENCODING
+    from base.constants.chars import PARAGRAPH_CHAR
+    from base.constants.text import DEFAULT_ENCODING
     from content.format.abstract_format import AbstractFormat, ParsedFormat, Compress
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import Item, ItemType, StreamType, ContentType, ARRAY_TYPES
-    from ...base.constants.chars import PARAGRAPH_CHAR, DEFAULT_ENCODING
+    from ...base.constants.chars import PARAGRAPH_CHAR
+    from ...base.constants.text import DEFAULT_ENCODING
     from .abstract_format import AbstractFormat, ParsedFormat, Compress
 
 

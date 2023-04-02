@@ -2,9 +2,6 @@ from typing import Optional
 from datetime import datetime
 from random import randint
 
-TMP_FILES_TEMPLATE = 'stream_{}.tmp'
-TMP_FILES_ENCODING = 'utf8'
-
 try:  # Assume we're a submodule in a package.
     from utils.decorators import deprecated_with_alternative
     from interfaces import (
@@ -13,6 +10,8 @@ try:  # Assume we're a submodule in a package.
         TemporaryLocationInterface, TemporaryFilesMaskInterface,
         StreamType, ItemType, JoinType, How,
     )
+    from base.constants.text import DEFAULT_ENCODING
+    from base.functions.errors import get_type_err_msg
     from streams.abstract.abstract_stream import AbstractStream
     from streams.abstract.iterable_stream import IterableStream, MAX_ITEMS_IN_MEMORY
     from streams.abstract.local_stream import LocalStream
@@ -39,6 +38,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         TemporaryLocationInterface, TemporaryFilesMaskInterface,
         StreamType, ItemType, JoinType, How,
     )
+    from ..base.constants.text import DEFAULT_ENCODING
+    from ..base.functions.errors import get_type_err_msg
     from .abstract.abstract_stream import AbstractStream
     from .abstract.iterable_stream import IterableStream, MAX_ITEMS_IN_MEMORY
     from .abstract.local_stream import LocalStream
@@ -57,6 +58,9 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .stream_builder import StreamBuilder
     from ..connectors.filesystem.temporary_files import TemporaryLocation
     from ..content.struct import struct_row as sr
+
+TMP_FILES_TEMPLATE = 'stream_{}.tmp'
+TMP_FILES_ENCODING = DEFAULT_ENCODING  # 'utf8'
 
 DEFAULT_STREAM_CLASS = RegularStream
 STREAM_CLASSES = (
@@ -163,7 +167,7 @@ def get_tmp_mask(name: str) -> TemporaryFilesMaskInterface:
         location = context.get_tmp_folder()
     else:
         location = TemporaryLocation()
-    assert isinstance(location, TemporaryLocation), f'Expected TemporaryLocation, got {location}'
+    assert isinstance(location, TemporaryLocation), get_type_err_msg(location, TemporaryLocation, 'get_tmp_folder()')
     tmp_mask = location.mask(name)
     assert isinstance(tmp_mask, TemporaryFilesMaskInterface)
     return tmp_mask

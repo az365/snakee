@@ -2,23 +2,19 @@ from typing import Optional, Callable, Iterable, Generator, Iterator, Sequence, 
 
 try:  # Assume we're a submodule in a package.
     from base.classes.typing import Count, Class
-    from base.functions.arguments import get_name, get_value, get_str_from_args_kwargs
+    from base.constants.chars import REPR_DELIMITER, SMALL_INDENT, MD_HEADER, PARAGRAPH_CHAR, ITEM, EMPTY
+    from base.constants.text import DEFAULT_LINE_LEN
+    from base.functions.arguments import get_name, get_value, get_str_from_args_kwargs, get_cropped_text
     from base.functions.errors import get_type_err_msg
-    from base.constants.chars import (
-        REPR_DELIMITER, SMALL_INDENT, MD_HEADER, PARAGRAPH_CHAR, ITEM, EMPTY,
-        DEFAULT_LINE_LEN,
-    )
     from base.interfaces.base_interface import BaseInterface
     from base.interfaces.display_interface import DisplayInterface, Item, Style, DEFAULT_EXAMPLE_COUNT
     from utils.decorators import deprecated_with_alternative
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.typing import Count, Class
-    from ..functions.arguments import get_name, get_value, get_str_from_args_kwargs
+    from ..constants.chars import REPR_DELIMITER, SMALL_INDENT, MD_HEADER, PARAGRAPH_CHAR, ITEM, EMPTY
+    from ..constants.text import DEFAULT_LINE_LEN
+    from ..functions.arguments import get_name, get_value, get_str_from_args_kwargs, get_cropped_text
     from ..functions.errors import get_type_err_msg
-    from ..constants.chars import (
-        REPR_DELIMITER, SMALL_INDENT, MD_HEADER, PARAGRAPH_CHAR, ITEM, EMPTY,
-        DEFAULT_LINE_LEN,
-    )
     from ..interfaces.base_interface import BaseInterface
     from ..interfaces.display_interface import DisplayInterface, Item, Style, DEFAULT_EXAMPLE_COUNT
     from ...utils.decorators import deprecated_with_alternative
@@ -73,7 +69,7 @@ class DefaultDisplay(DisplayInterface):
     def build_paragraph(data: Iterable, level: Count = 0, name: str = EMPTY):
         if isinstance(data, str):
             data = [data]
-        text = ''
+        text = EMPTY
         for line in data:
             if level:
                 if level > 0:
@@ -225,10 +221,10 @@ class DefaultDisplay(DisplayInterface):
         names = list(cls._get_column_names(columns, ex=ex))
         lens = cls._get_column_lens(columns, max_len=max_len)
         if isinstance(item, dict):
-            values = [str(get_value(item.get(k))) if k not in ex else '' for k in names]
+            values = [str(get_value(item.get(k))) if k not in ex else EMPTY for k in names]
         else:
-            values = [str(v) if k not in ex else '' for k, v in zip(names, item)]
-        return {c: str(v)[:s] for c, v, s in zip(names, values, lens)}
+            values = [str(v) if k not in ex else EMPTY for k, v in zip(names, item)]
+        return {c: get_cropped_text(v, s) for c, v, s in zip(names, values, lens)}
 
     @classmethod
     @deprecated_with_alternative('SimpleSheet.get_lines()')

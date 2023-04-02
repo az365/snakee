@@ -1,17 +1,19 @@
 from typing import Optional, Iterable, Iterator, Generator, Sequence, Union
 
 try:  # Assume we're a submodule in a package.
-    from interfaces import Class, Count
     from base.constants.chars import PARAGRAPH_CHAR, SPACE, HTML_SPACE, SHARP
+    from base.constants.text import DEFAULT_ENCODING
+    from base.classes.typing import Class, Count
     from base.classes.display import DefaultDisplay
     from utils.external import Markdown, HTML
-    from content.format.text_format import TextFormat, Compress, DEFAULT_ENCODING
+    from content.format.text_format import TextFormat, Compress
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...interfaces import Class, Count
     from ...base.constants.chars import PARAGRAPH_CHAR, SPACE, HTML_SPACE, SHARP
+    from ...base.constants.text import DEFAULT_ENCODING
+    from ...base.classes.typing import Class, Count
     from ...base.classes.display import DefaultDisplay
     from ...utils.external import Markdown, HTML
-    from .text_format import TextFormat, Compress, DEFAULT_ENCODING
+    from .text_format import TextFormat, Compress
 
 Native = Union[DefaultDisplay, TextFormat]
 Style = Optional[str]

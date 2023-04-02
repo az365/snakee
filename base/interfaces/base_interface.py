@@ -2,9 +2,11 @@ from abc import ABC, abstractmethod
 from typing import Optional, Iterable, Generator, Union
 
 try:  # Assume we're a submodule in a package.
-    from base.constants.chars import CROP_SUFFIX, DEFAULT_LINE_LEN
+    from base.constants.chars import CROP_SUFFIX
+    from base.constants.text import DEFAULT_LINE_LEN
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..constants.chars import CROP_SUFFIX, DEFAULT_LINE_LEN
+    from ..constants.chars import CROP_SUFFIX
+    from ..constants.text import DEFAULT_LINE_LEN
 
 OptionalFields = Union[str, Iterable, None]
 

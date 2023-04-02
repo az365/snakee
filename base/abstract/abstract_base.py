@@ -5,13 +5,15 @@ from inspect import getfullargspec
 try:  # Assume we're a submodule in a package.
     from base.functions.arguments import get_name, get_list, get_str_from_args_kwargs, get_cropped_text
     from base.functions.errors import get_type_err_msg
-    from base.constants.chars import EMPTY, PLUS, MINUS, CROSS, COVERT, PROTECTED, DEFAULT_STR
-    from base.interfaces.base_interface import BaseInterface, CROP_SUFFIX, DEFAULT_LINE_LEN
+    from base.constants.chars import EMPTY, PLUS, MINUS, CROSS, CROP_SUFFIX, COVERT, PROTECTED, DEFAULT_STR
+    from base.constants.text import DEFAULT_LINE_LEN
+    from base.interfaces.base_interface import BaseInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..functions.arguments import get_name, get_list, get_str_from_args_kwargs, get_cropped_text
     from ..functions.errors import get_type_err_msg
-    from ..constants.chars import EMPTY, PLUS, MINUS, CROSS, COVERT, PROTECTED, DEFAULT_STR
-    from ..interfaces.base_interface import BaseInterface, CROP_SUFFIX, DEFAULT_LINE_LEN
+    from ..constants.chars import EMPTY, PLUS, MINUS, CROSS, CROP_SUFFIX, COVERT, PROTECTED, DEFAULT_STR
+    from ..constants.text import DEFAULT_LINE_LEN
+    from ..interfaces.base_interface import BaseInterface
 
 Native = BaseInterface
 OptionalFields = Union[str, Iterable, None]

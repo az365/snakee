@@ -3,10 +3,10 @@ from typing import Optional, Iterable, Iterator, Union
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         ConnectorInterface, StructInterface, ColumnarInterface, RegularStream, ExtendedLoggerInterface,
-        ContentFormatInterface, ContentType, ConnType, ItemType, StreamType, StreamItemType, LoggingLevel,
-        ARRAY_TYPES, Array, Name, Count, OptionalFields, Links, Context,
+        ContentFormatInterface, ContentType, ConnType, ItemType, StreamType, LoggingLevel,
+        ARRAY_TYPES, Name, Count, OptionalFields, Links, Context,
     )
-    from base.constants.chars import CROP_SUFFIX
+    from base.constants.text import EXAMPLE_STR_LEN
     from base.functions.arguments import update, get_str_from_args_kwargs, get_cropped_text
     from base.functions.errors import get_type_err_msg
     from streams.stream_builder import StreamBuilder
@@ -15,10 +15,10 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         ConnectorInterface, StructInterface, ColumnarInterface, RegularStream, ExtendedLoggerInterface,
-        ContentFormatInterface, ContentType, ConnType, ItemType, StreamType, StreamItemType, LoggingLevel,
-        ARRAY_TYPES, Array, Name, Count, OptionalFields, Links, Context,
+        ContentFormatInterface, ContentType, ConnType, ItemType, StreamType, LoggingLevel,
+        ARRAY_TYPES, Name, Count, OptionalFields, Links, Context,
     )
-    from ...base.constants.chars import CROP_SUFFIX
+    from ...base.constants.text import EXAMPLE_STR_LEN
     from ...base.functions.arguments import update, get_str_from_args_kwargs, get_cropped_text
     from ...base.functions.errors import get_type_err_msg
     from ...streams.stream_builder import StreamBuilder
@@ -31,7 +31,6 @@ GeneralizedStruct = Union[StructInterface, list, tuple, None]
 
 META_MEMBER_MAPPING = dict(_source='database')
 MAX_ITEMS_IN_MEMORY = 10000
-EXAMPLE_STR_LEN = 12
 
 
 class Table(LeafConnector):

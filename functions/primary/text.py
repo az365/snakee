@@ -1,27 +1,18 @@
 from typing import Optional
 import sys
 import csv
-import re
 
 try:
+    from base.constants.chars import EMPTY, SPACE, COLON, SLASH, BACKSLASH, TAB_CHAR, PARAGRAPH_CHAR
+    from base.constants.chars import OS_PLACEHOLDER, PY_PLACEHOLDER
+    from base.constants.text import RE_LETTERS, NORM_LETTER_PAIRS, FALSE_VALUES
     from base.functions.arguments import get_str_from_args_kwargs, get_str_from_annotation
-    from base.constants.chars import (
-        EMPTY, SPACE, OS_PLACEHOLDER, PY_PLACEHOLDER,
-        COLON, SLASH, BACKSLASH,
-        TAB_CHAR, PARAGRAPH_CHAR,
-        FALSE_VALUES,
-    )
 except ImportError:
+    from ...base.constants.chars import EMPTY, SPACE, COLON, SLASH, BACKSLASH, TAB_CHAR, PARAGRAPH_CHAR
+    from ...base.constants.chars import OS_PLACEHOLDER, PY_PLACEHOLDER
+    from ...base.constants.text import RE_LETTERS, NORM_LETTER_PAIRS, FALSE_VALUES
     from ...base.functions.arguments import get_str_from_args_kwargs, get_str_from_annotation
-    from ...base.constants.chars import (
-        EMPTY, SPACE, OS_PLACEHOLDER, PY_PLACEHOLDER,
-        COLON, SLASH, BACKSLASH,
-        TAB_CHAR, PARAGRAPH_CHAR,
-        FALSE_VALUES,
-    )
 
-RE_LETTERS = re.compile('[^a-zа-я ]')
-NORM_LETTER_PAIRS = [('ё', 'е'), ]
 DOUBLE_SPACE = SPACE * 2
 
 max_int = sys.maxsize

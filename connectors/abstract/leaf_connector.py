@@ -6,7 +6,7 @@ try:  # Assume we're a submodule in a package.
         ConnectorInterface, LeafConnectorInterface, StructInterface, ContentFormatInterface, RegularStreamInterface,
         ItemType, StreamType, ContentType, Context, Stream, Name, Count, Columns, Array,
     )
-    from base.constants.chars import EMPTY, CROP_SUFFIX, ITEMS_DELIMITER, DEFAULT_LINE_LEN
+    from base.constants.chars import EMPTY, CROP_SUFFIX, ITEMS_DELIMITER
     from base.functions.arguments import get_name, get_str_from_args_kwargs, get_cropped_text
     from base.functions.errors import get_loc_message, get_type_err_msg
     from content.format.format_classes import ParsedFormat
@@ -19,7 +19,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         ConnectorInterface, LeafConnectorInterface, StructInterface, ContentFormatInterface, RegularStreamInterface,
         ItemType, StreamType, ContentType, Context, Stream, Name, Count, Columns, Array,
     )
-    from ...base.constants.chars import EMPTY, CROP_SUFFIX, ITEMS_DELIMITER, DEFAULT_LINE_LEN
+    from ...base.constants.chars import EMPTY, CROP_SUFFIX, ITEMS_DELIMITER
     from ...base.functions.arguments import get_name, get_str_from_args_kwargs, get_cropped_text
     from ...base.functions.errors import get_loc_message, get_type_err_msg
     from ...content.format.format_classes import ParsedFormat
@@ -85,7 +85,7 @@ class LeafConnector(
             if kwargs:
                 msg = f'kwargs allowed for ContentType only, not for {content_format}, got kwargs={kwargs}'
                 raise ValueError(get_loc_message(msg, caller=LeafConnector))
-        if not isinstance(content_format, ContentFormatInterface):
+        if not (isinstance(content_format, ContentFormatInterface) or hasattr(content_format, 'get_content_type')):
             msg = get_type_err_msg(expected=ContentFormatInterface, got=content_format, arg='content_format')
             raise TypeError(msg)
         self.set_content_format(content_format, inplace=True)

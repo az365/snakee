@@ -3,24 +3,24 @@ from typing import Optional, Tuple, Union
 
 try:  # Assume we're a submodule in a package.
     from interfaces import LeafConnectorInterface, StructInterface, Item, Columns, Array, Count
-    from base.interfaces.display_interface import DEFAULT_EXAMPLE_COUNT
-    from base.functions.arguments import get_str_from_args_kwargs, get_cropped_text
     from base.constants.chars import EMPTY, CROP_SUFFIX
+    from base.constants.text import EXAMPLE_STR_LEN
+    from base.functions.arguments import get_str_from_args_kwargs, get_cropped_text
+    from base.interfaces.display_interface import DEFAULT_EXAMPLE_COUNT
     from base.mixin.data_mixin import DEFAULT_CHAPTER_TITLE_LEVEL
     from content.documents.document_item import Chapter, Paragraph, Sheet
     from streams.interfaces.abstract_stream_interface import StreamInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import LeafConnectorInterface, StructInterface, Item, Columns, Array, Count
-    from ...base.interfaces.display_interface import DEFAULT_EXAMPLE_COUNT
-    from ...base.functions.arguments import get_str_from_args_kwargs, get_cropped_text
     from ...base.constants.chars import EMPTY, CROP_SUFFIX
+    from ...base.constants.text import EXAMPLE_STR_LEN
+    from ...base.functions.arguments import get_str_from_args_kwargs, get_cropped_text
+    from ...base.interfaces.display_interface import DEFAULT_EXAMPLE_COUNT
     from ...base.mixin.data_mixin import DEFAULT_CHAPTER_TITLE_LEVEL
     from ...content.documents.document_item import Chapter, Paragraph, Sheet
     from ..interfaces.abstract_stream_interface import StreamInterface
 
 Native = Union[StreamInterface, LeafConnectorInterface]
-
-EXAMPLE_STR_LEN = 12
 
 
 class ValidateMixin(ABC):

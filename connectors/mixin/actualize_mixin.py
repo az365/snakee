@@ -3,14 +3,16 @@ from typing import Optional
 
 try:  # Assume we're a submodule in a package.
     from interfaces import LeafConnectorInterface, Stream, Columns, Count
+    from base.constants.chars import CROP_SUFFIX, ITEMS_DELIMITER
+    from base.constants.text import DEFAULT_LINE_LEN
     from base.functions.arguments import get_name, get_str_from_args_kwargs
-    from base.constants.chars import CROP_SUFFIX, ITEMS_DELIMITER, DEFAULT_LINE_LEN
     from functions.primary import dates as dt
     from streams.mixin.validate_mixin import ValidateMixin, DEFAULT_EXAMPLE_COUNT
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import LeafConnectorInterface, Stream, Columns, Count
+    from ...base.constants.chars import CROP_SUFFIX, ITEMS_DELIMITER
+    from ...base.constants.text import DEFAULT_LINE_LEN
     from ...base.functions.arguments import get_name, get_str_from_args_kwargs
-    from ...base.constants.chars import CROP_SUFFIX, ITEMS_DELIMITER, DEFAULT_LINE_LEN
     from ...functions.primary import dates as dt
     from ...streams.mixin.validate_mixin import ValidateMixin, DEFAULT_EXAMPLE_COUNT
 

@@ -3,7 +3,7 @@ from typing import Optional, Iterable, Generator, Union, Any, NoReturn
 
 try:  # Assume we're a submodule in a package.
     from base.classes.typing import Count
-    from base.constants.chars import EMPTY, REPR_DELIMITER, SMALL_INDENT, PARAGRAPH_CHAR, DEFAULT_LINE_LEN
+    from base.constants.chars import EMPTY, REPR_DELIMITER, SMALL_INDENT, PARAGRAPH_CHAR
     from base.functions.arguments import get_str_from_annotation, get_str_from_args_kwargs
     from base.interfaces.data_interface import SimpleDataInterface
     from base.mixin.display_mixin import DEFAULT_EXAMPLE_COUNT
@@ -11,7 +11,7 @@ try:  # Assume we're a submodule in a package.
     from base.abstract.named import AbstractNamed, DisplayInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.typing import Count
-    from ..constants.chars import EMPTY, REPR_DELIMITER, SMALL_INDENT, PARAGRAPH_CHAR, DEFAULT_LINE_LEN
+    from ..constants.chars import EMPTY, REPR_DELIMITER, SMALL_INDENT, PARAGRAPH_CHAR
     from ..functions.arguments import get_str_from_annotation, get_str_from_args_kwargs
     from ..interfaces.data_interface import SimpleDataInterface
     from ..mixin.display_mixin import DEFAULT_EXAMPLE_COUNT

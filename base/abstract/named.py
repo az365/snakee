@@ -2,14 +2,14 @@ from abc import ABC
 from typing import Optional, Iterator, Generator, Union
 
 try:  # Assume we're a submodule in a package.
-    from base.constants.chars import EMPTY, TAB_INDENT, REPR_DELIMITER, DEFAULT_LINE_LEN
-    from base.functions.arguments import get_str_from_args_kwargs
+    from base.constants.chars import EMPTY, TAB_INDENT, REPR_DELIMITER
+    from base.functions.arguments import get_str_from_args_kwargs, get_cropped_text
     from base.interfaces.display_interface import DisplayInterface
     from base.mixin.display_mixin import DisplayMixin
     from base.abstract.abstract_base import AbstractBaseObject
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..constants.chars import EMPTY, TAB_INDENT, REPR_DELIMITER, DEFAULT_LINE_LEN
-    from ..functions.arguments import get_str_from_args_kwargs
+    from ..constants.chars import EMPTY, TAB_INDENT, REPR_DELIMITER
+    from ..functions.arguments import get_str_from_args_kwargs, get_cropped_text
     from ..interfaces.display_interface import DisplayInterface
     from ..mixin.display_mixin import DisplayMixin
     from .abstract_base import AbstractBaseObject
@@ -64,7 +64,7 @@ class AbstractNamed(AbstractBaseObject, DisplayMixin, ABC):
         meta = self.get_meta(ex=['name', 'caption'])
         if meta:
             line = BRIEF_META_ROW_FORMATTER.format(prefix=prefix, key='meta:', value=get_str_from_args_kwargs(**meta))
-            yield line[:DEFAULT_LINE_LEN]
+            yield get_cropped_text(line)
 
     def get_brief_repr(self) -> str:
         cls_name = self.__class__.__name__
