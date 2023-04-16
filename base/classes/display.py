@@ -80,38 +80,12 @@ class DefaultDisplay(DisplayInterface):
             text = text + line + PARAGRAPH_CHAR
         return text
 
-    @deprecated_with_alternative('display_item(build_paragraph())')
-    def display_paragraph(
-            self,
-            paragraph: Optional[Iterable] = None,
-            level: Optional[int] = None,
-            style: Style = None,
-    ) -> None:
-        if paragraph:
-            if isinstance(paragraph, str):
-                return self.display_item(paragraph)
-            elif isinstance(paragraph, Iterable):
-                for line in paragraph:
-                    return self.display_item(line)
-            else:
-                msg = get_type_err_msg(expected=(str, Iterable), got=paragraph, arg='paragraph')
-                raise TypeError(msg)
-
-    @deprecated_with_alternative('display_item(Sheet.from_records())')
-    def display_sheet(self, records: Iterable, columns: Sequence, name: str = EMPTY) -> None:
-        sheet_class = self.get_sheet_class()
-        if sheet_class:
-            assert hasattr(sheet_class, 'from_records'), sheet_class  # isinstance(sheet_class, SheetInterface)
-            sheet = sheet_class.from_records(records, columns=columns, name=name)
-        else:
-            raise AssertionError('_sheet_class property must be defined for build sheet, use Display.set_sheet_class()')
-        self.display_item(sheet)
-
     def display_item(self, item: Item, item_type='paragraph', **kwargs) -> None:
-        item_type_value = get_value(item_type)
-        method_name = f'display_{item_type_value}'
-        method = getattr(self, method_name, self.display_paragraph)
-        return method(item, **kwargs)
+        if item is None:
+            item = self
+        data = self._get_display_object(item)
+        method = self._get_display_method()
+        return method(data)
 
     @classmethod
     def get_header_chapter_for(cls, obj, level: int = 1, comment: str = EMPTY) -> Iterable:
@@ -286,15 +260,6 @@ class DefaultDisplay(DisplayInterface):
     @staticmethod
     def _get_display_method() -> Callable:
         return print
-
-    @deprecated_with_alternative('display_item()')
-    def display(self, item: Item = None):
-        if item is None:
-            item = self
-        data = self._get_display_object(item)
-        method = self._get_display_method()
-        method(data)
-        return self
 
     def __call__(self, obj) -> None:
         return self.display_item(obj)

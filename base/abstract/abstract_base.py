@@ -304,8 +304,8 @@ class AbstractBaseObject(BaseInterface, ABC):
         if display is not None:
             if isinstance(display, Callable):
                 return display
-            elif hasattr(display, 'display_paragraph'):  # isinstance(display, DisplayInterface):
-                return display.display_paragraph
+            elif hasattr(display, 'display_item'):  # isinstance(display, DisplayInterface):
+                return display.display_item
             else:
                 msg = get_type_err_msg(expected='DisplayInterface', got=display, arg='display')
                 raise TypeError(msg)
