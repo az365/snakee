@@ -3,11 +3,13 @@ from abc import ABC
 try:  # Assume we're a submodule in a package.
     from base.classes.typing import Value, Count
     from base.constants.chars import EMPTY, FILL_CHAR, DEFAULT_STR, CROP_SUFFIX
+    from base.functions.arguments import get_cropped_text
     from base.abstract.abstract_base import AbstractBaseObject
     from content.representations.repr_interface import RepresentationInterface, ReprType, OptKey
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.classes.typing import Value, Count
     from ...base.constants.chars import EMPTY, FILL_CHAR, DEFAULT_STR, CROP_SUFFIX
+    from ...base.functions.arguments import get_cropped_text
     from ...base.abstract.abstract_base import AbstractBaseObject
     from .repr_interface import RepresentationInterface, ReprType, OptKey
 
@@ -21,11 +23,11 @@ class AbstractRepresentation(AbstractBaseObject, RepresentationInterface, ABC):
             min_len: Count = None,
             max_len: Count = None,
             including_framing: bool = False,
-            crop: str = CROP_SUFFIX,
-            fill: str = FILL_CHAR,
-            prefix: str = EMPTY,
-            suffix: str = EMPTY,
-            default: str = DEFAULT_STR,
+            crop: str = CROP_SUFFIX,  # '..'
+            fill: str = FILL_CHAR,  # ' '
+            prefix: str = EMPTY,  # ''
+            suffix: str = EMPTY,  # ''
+            default: str = DEFAULT_STR,  # '-'
     ):
         if max_len is not None:
             assert len(crop) <= max_len, f'Expected len(crop) <= max_len, got len({crop}) > {max_len}'
@@ -112,18 +114,6 @@ class AbstractRepresentation(AbstractBaseObject, RepresentationInterface, ABC):
     def get_crop_str(self) -> str:
         return self._crop
 
-    def get_cropped(self, line: str) -> str:
-        max_len = self.get_max_total_len()
-        if max_len is not None:
-            if max_len < len(line):
-                crop_str = self.get_crop_str()
-                crop_len = max_len - len(crop_str)
-                if crop_len > 0:
-                    line = line[:crop_len] + crop_str
-                else:
-                    line = crop_str[:-crop_len]
-        return line
-
     def format(self, value: Value, skip_errors: bool = False) -> str:
         value = self.convert_value(value)
         try:
@@ -138,7 +128,9 @@ class AbstractRepresentation(AbstractBaseObject, RepresentationInterface, ABC):
                 template = '{obj}.format({value}): {e}'
                 msg = template.format(obj=repr(self), value=repr(value), e=e)
                 raise ValueError(msg)
-        line = self.get_cropped(line)
+        max_len = self.get_max_total_len()
+        if max_len is not None:
+            line = get_cropped_text(line, max_len=max_len)
         return line
 
     def parse(self, line: str) -> Value:
