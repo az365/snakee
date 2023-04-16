@@ -2,18 +2,18 @@ from inspect import isclass
 import json
 
 try:  # Assume we're a submodule in a package.
-    from base.constants.chars import EMPTY, UNDER
+    from base.constants.chars import EMPTY, DOT, UNDER
     from base.classes.typing import Value, Callable
     from base.classes.enum import DynamicEnum
-    from base.functions.arguments import get_value, any_to_bool
+    from base.functions.arguments import get_name, get_value, any_to_bool
     from base.functions.errors import get_loc_message
     from connectors.databases.dialect_type import DialectType
     from functions.primary import numeric as nm
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ..base.constants.chars import EMPTY, UNDER
+    from ..base.constants.chars import EMPTY, DOT, UNDER
     from ..base.classes.typing import Value, Callable
     from ..base.classes.enum import DynamicEnum
-    from ..base.functions.arguments import get_value, any_to_bool
+    from ..base.functions.arguments import get_name, get_value, any_to_bool
     from ..base.functions.errors import get_loc_message
     from ..connectors.databases.dialect_type import DialectType
     from ..functions.primary import numeric as nm
@@ -87,7 +87,7 @@ class ValueType(DynamicEnum):
     @staticmethod
     def detect_by_value(value):
         field_type = type(value)
-        field_type_name = str(field_type)
+        field_type_name = get_name(field_type, or_callable=False)
         return ValueType(field_type_name)
 
     @classmethod
@@ -108,7 +108,7 @@ class ValueType(DynamicEnum):
                 for dialect, type_name in dict_names.items():
                     if field_type == type_name:
                         return ValueType(canonic_type)
-        str_field_type = str(field_type).split('.')[-1].lower()
+        str_field_type = str(field_type).split(DOT)[-1].lower()
         try:
             return ValueType(str_field_type)
         except ValueError as e:
@@ -116,7 +116,7 @@ class ValueType(DynamicEnum):
                 return ValueType(default)
             else:
                 msg = f'Unsupported field type: {field_type} ({e})'
-                raise ValueError(get_loc_message(msg, caller=ValueType.get_canonic_type, args=field_type))
+                raise ValueError(get_loc_message(msg, caller=ValueType.get_canonic_type, args=[field_type]))
 
     def get_converter(self, source, target):
         source_dialect_name = get_value(source)

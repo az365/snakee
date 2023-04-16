@@ -9,6 +9,7 @@ try:  # Assume we're a submodule in a package.
     from base.interfaces.display_interface import DEFAULT_EXAMPLE_COUNT
     from base.mixin.data_mixin import DEFAULT_CHAPTER_TITLE_LEVEL
     from content.documents.document_item import Chapter, Paragraph, Sheet
+    from functions.primary.items import get_copy
     from streams.interfaces.abstract_stream_interface import StreamInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import LeafConnectorInterface, StructInterface, Item, Columns, Array, Count
@@ -18,6 +19,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.interfaces.display_interface import DEFAULT_EXAMPLE_COUNT
     from ...base.mixin.data_mixin import DEFAULT_CHAPTER_TITLE_LEVEL
     from ...content.documents.document_item import Chapter, Paragraph, Sheet
+    from ...functions.primary.items import get_copy
     from ..interfaces.abstract_stream_interface import StreamInterface
 
 Native = Union[StreamInterface, LeafConnectorInterface]
@@ -195,6 +197,7 @@ class ValidateMixin(ABC):
             else:
                 item_example = dict()
         if item_example and example_str_len is not None:
+            item_example = get_copy(item_example)
             for k, v in item_example.items():
                 item_example[k] = get_cropped_text(v, max_len=example_str_len, crop_suffix=crop_suffix)
         else:
@@ -225,7 +228,7 @@ class ValidateMixin(ABC):
             title = Paragraph([name], level=level, name=f'{name} title')
             chapter.append(title, inplace=True)
         if comment:
-            chapter.append(Paragraph(comment, name=f'{name} comment'), inplace=True)
+            chapter.append(Paragraph([comment], name=f'{name} comment'), inplace=True)
         struct = self.get_struct()
         if struct is None:
             struct = self.get_struct_from_source()
