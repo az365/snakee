@@ -104,7 +104,7 @@ class SheetMixin(ABC):
             for cell, max_cell_len in zip(row, column_lens):
                 if max_cell_len is None:
                     max_cell_len = max_len
-                cell_str = self._crop_cell(cell, max_cell_len)
+                cell_str = get_cropped_text(cell, max_len=max_cell_len)
                 formatted_row.append(cell_str)
             yield tuple(formatted_row)
 
@@ -235,7 +235,3 @@ class SheetMixin(ABC):
         self._column_lens = list()
 
     columns = property(get_column_names, _set_columns_inplace, _reset_columns)
-
-    @staticmethod
-    def _crop_cell(value, max_len: Optional[int], crop_suffix: str = CROP_SUFFIX) -> str:
-        return get_cropped_text(value, max_len=max_len, crop_suffix=crop_suffix)
