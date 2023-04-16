@@ -260,31 +260,3 @@ class MultiMapDataMixin(MapDataMixin, ABC):
             return self.get_second_level_item_classes()
         else:
             return super()._get_item_classes(level)
-
-    # @deprecated('get_data_chapter()')
-    def get_data_description(
-            self,
-            count: Count = None,
-            title: Optional[str] = None,
-            max_len: Count = None,
-    ) -> Generator:
-        if title:
-            yield title
-        for key in self.get_sorted_first_level_keys():
-            if hasattr(key, 'get_dict_names'):
-                k_name, v_name = key.get_dict_names()
-                columns = map(lambda f, s: (k_name if f == KEY else v_name if f == VALUE else f, s), DESCRIPTION_COLS)
-            else:
-                columns = DESCRIPTION_COLS
-            items = self.get_second_level_items(key, as_pairs=True)
-            if items:
-                yield '{key}:'.format(key=get_name(key))
-                records = map(
-                    lambda k, v: {
-                        k_name: get_name(k), v_name: get_name(v),
-                        'caption': k.get_caption() if hasattr(k, 'get_caption') else
-                        v.get_caption() if hasattr(v, 'get_caption') else EMPTY,
-                    },
-                    items,
-                )
-                yield from self._get_columnar_lines(records, columns=columns, count=count, max_len=max_len)
