@@ -426,7 +426,7 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
                 name = field_description.get_name()
                 expected = get_name(field_type)
                 received = get_name(type(value))
-                msg = f'(FlatStruct) Field {name}: type {expected} expected, got {value} (value={received})'
+                msg = f'(FlatStruct) Field {name}: type {expected} expected, got {value} as {received}'
                 validation_errors.append(msg)
         return validation_errors
 
@@ -789,7 +789,9 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
         return self.get_struct_str(None)
 
     def __str__(self):
-        return '<{}({})>'.format(self.__class__.__name__, self.get_struct_str('str'))
+        cls_name = self.__class__.__name__
+        obj_args = self.get_struct_str('str')
+        return f'<{cls_name}({obj_args})>'
 
     def __iter__(self):
         yield from self.get_fields_descriptions()
@@ -803,7 +805,7 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
             for f in self.get_fields_descriptions():
                 if f.get_name() == item:
                     return f
-            raise ValueError('Field with name {} not found (in group {})'.format(item, self))
+            raise ValueError(f'Field with name {item} not found (in group {self})')
 
     def __add__(self, other: Union[FieldInterface, StructInterface, Name]) -> Native:
         if isinstance(other, (str, int, FieldInterface)):
