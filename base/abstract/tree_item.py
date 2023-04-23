@@ -67,8 +67,7 @@ class TreeItem(ContextualDataWrapper, TreeInterface):
 
     def get_child(self, name: str) -> Child:
         children = self.get_children()
-        msg = '{}.get_child(): dict expected, got {}'
-        assert isinstance(children, dict) or hasattr(children, 'get'), msg.format(self, children)
+        assert isinstance(children, dict) or hasattr(children, 'get'), get_type_err_msg(children, dict, arg='children')
         return children.get(name)
 
     def _get_name_and_child(self, name_or_child: NameOrChild) -> tuple:

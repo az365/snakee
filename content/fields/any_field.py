@@ -92,7 +92,7 @@ class AnyField(SimpleDataWrapper, SelectableMixin, MultiMapDataMixin, FieldInter
             return self._assume_native(field)
 
     def set_repr(self, representation: OptRepr = None, inplace: bool = False, **kwargs) -> Native:
-        assert inplace is not None
+        assert inplace is not None, get_type_err_msg(expected=bool, got=inplace, arg='inplace')
         if representation is None:
             representation = self.get_representation()
         if kwargs:

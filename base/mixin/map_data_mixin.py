@@ -5,6 +5,7 @@ from itertools import chain
 try:  # Assume we're a submodule in a package.
     from base.classes.typing import Count, Class
     from base.functions.arguments import get_name
+    from base.functions.errors import get_type_err_msg
     from base.constants.chars import EMPTY, REPR_DELIMITER
     from base.classes.enum import DynamicEnum, ClassType
     from base.interfaces.data_interface import SimpleDataInterface
@@ -13,6 +14,7 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.typing import Count, Class
     from ..functions.arguments import get_name
+    from ..functions.errors import get_type_err_msg
     from ..constants.chars import EMPTY, REPR_DELIMITER
     from ..classes.enum import DynamicEnum, ClassType
     from ..interfaces.data_interface import SimpleDataInterface
@@ -149,9 +151,8 @@ class MultiMapDataMixin(MapDataMixin, ABC):
                 else:
                     iter_values.append(second_level_data.values())
             else:
-                template = 'expected second_level_data as Map (MapDataMixin or dict), got {value}'
-                msg = template.format(value=second_level_data)
-                raise TypeError(self._get_call_prefix(self.get_second_level_items, arg=key) + msg)
+                msg = get_type_err_msg(second_level_data, (MapDataMixin, dict), args=f'data[{key}]')
+                raise TypeError(msg)
         return chain(*iter_values)
 
     def get_second_level_iter(self, key: Optional[Key] = None, as_pairs: bool = False) -> Generator:
@@ -190,7 +191,7 @@ class MultiMapDataMixin(MapDataMixin, ABC):
             return data[key].get(subkey)
 
     def get_item(self, key: Key, subkey: Key, skip_missing: Optional[bool] = None, default=None):
-        if not isinstance(skip_missing, bool):
+        if skip_missing is None:  # not isinstance(skip_missing, bool)
             skip_missing = default is not None
         data_dict = self.get_from_data(key)
         if subkey in data_dict:
@@ -222,7 +223,7 @@ class MultiMapDataMixin(MapDataMixin, ABC):
         if key not in data:
             data[key] = dict()
         data_dict = data[key]
-        assert isinstance(data_dict, dict), 'AbstractTerm.add_to_data(): Expected data as dict, got {}'.format(data)
+        assert isinstance(data_dict, dict), get_type_err_msg(expected=dict, got=data_dict, arg='data')
         added_items = list()
         if value:
             added_items += list(value.items())
@@ -233,7 +234,10 @@ class MultiMapDataMixin(MapDataMixin, ABC):
             subkey_class = str
         for k, v in added_items:
             if isinstance(k, str) and subkey_class != str:
-                k = subkey_class(k)
+                try:
+                    k = subkey_class(k)
+                except TypeError as e:
+                    raise TypeError(f'{key}->{k}: {e}')
             data_dict[k] = v
         return self
 
