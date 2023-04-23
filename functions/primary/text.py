@@ -4,16 +4,14 @@ import csv
 
 try:
     from base.constants.chars import EMPTY, SPACE, COLON, SLASH, BACKSLASH, TAB_CHAR, PARAGRAPH_CHAR
-    from base.constants.chars import OS_PLACEHOLDER, PY_PLACEHOLDER
+    from base.constants.chars import OS_PLACEHOLDER, PY_PLACEHOLDER, DOUBLE_SPACE
     from base.constants.text import RE_LETTERS, NORM_LETTER_PAIRS, FALSE_VALUES
     from base.functions.arguments import get_str_from_args_kwargs, get_str_from_annotation
 except ImportError:
     from ...base.constants.chars import EMPTY, SPACE, COLON, SLASH, BACKSLASH, TAB_CHAR, PARAGRAPH_CHAR
-    from ...base.constants.chars import OS_PLACEHOLDER, PY_PLACEHOLDER
+    from ...base.constants.chars import OS_PLACEHOLDER, PY_PLACEHOLDER, DOUBLE_SPACE
     from ...base.constants.text import RE_LETTERS, NORM_LETTER_PAIRS, FALSE_VALUES
     from ...base.functions.arguments import get_str_from_args_kwargs, get_str_from_annotation
-
-DOUBLE_SPACE = SPACE * 2
 
 max_int = sys.maxsize
 while True:  # To prevent _csv.Error: field larger than field limit (131072)
