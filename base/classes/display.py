@@ -3,7 +3,7 @@ from typing import Optional, Callable, Iterable, Generator, Iterator, Sequence, 
 try:  # Assume we're a submodule in a package.
     from base.classes.typing import Count, Class
     from base.constants.chars import REPR_DELIMITER, SMALL_INDENT, MD_HEADER, PARAGRAPH_CHAR, ITEM, EMPTY
-    from base.constants.text import DEFAULT_LINE_LEN
+    from base.constants.text import DEFAULT_LINE_LEN, DEFAULT_FLOAT_LEN, DEFAULT_INT_LEN
     from base.functions.arguments import get_name, get_value, get_str_from_args_kwargs, get_cropped_text
     from base.functions.errors import get_type_err_msg
     from base.interfaces.base_interface import BaseInterface
@@ -12,14 +12,13 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.typing import Count, Class
     from ..constants.chars import REPR_DELIMITER, SMALL_INDENT, MD_HEADER, PARAGRAPH_CHAR, ITEM, EMPTY
-    from ..constants.text import DEFAULT_LINE_LEN
+    from ..constants.text import DEFAULT_LINE_LEN, DEFAULT_FLOAT_LEN, DEFAULT_INT_LEN
     from ..functions.arguments import get_name, get_value, get_str_from_args_kwargs, get_cropped_text
     from ..functions.errors import get_type_err_msg
     from ..interfaces.base_interface import BaseInterface
     from ..interfaces.display_interface import DisplayInterface, Item, Style, DEFAULT_EXAMPLE_COUNT
     from ...utils.decorators import deprecated_with_alternative
 
-DEFAULT_INT_WIDTH, DEFAULT_FLOAT_WIDTH = 7, 12
 COLS_FOR_META = ('defined', 3), ('key', 20), ('value', 30), ('actual_type', 14), ('expected_type', 20), ('default', 20)
 DEFAULT_CHAPTER_TITLE_LEVEL = 3
 
@@ -166,9 +165,9 @@ class DefaultDisplay(DisplayInterface):
                     if isinstance(c[1], int):
                         yield c[1]
                     elif c[1] == int:
-                        yield DEFAULT_INT_WIDTH
+                        yield DEFAULT_INT_LEN
                     elif c[1] == float:
-                        yield DEFAULT_FLOAT_WIDTH
+                        yield DEFAULT_FLOAT_LEN
                     else:  # c == str
                         yield max_len
                 else:
