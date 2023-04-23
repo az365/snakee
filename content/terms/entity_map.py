@@ -32,24 +32,6 @@ class EntityMap(SimpleDataWrapper):
         count = self.get_count() or default
         return f'{count} entities'
 
-    # @deprecated
-    def display_data_sheet(
-            self,
-            count: Count = None,
-            title: Optional[str] = 'Data',
-            comment: Optional[str] = None,
-            max_len: Count = None,
-            display: Optional[DisplayInterface] = None,
-    ):
-        display = self.get_display(display)
-        if comment:
-            display.display_paragraph(comment)
-        return display.display_sheet(
-            records=self.get_entity_records(),
-            columns=COLS_FOR_ENTITY,
-            with_title=True,
-        )
-
     def get_str_headers(self) -> Generator:
         yield from self.get_brief_meta_description()
 

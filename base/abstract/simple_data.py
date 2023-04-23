@@ -3,7 +3,7 @@ from typing import Optional, Iterable, Generator, Union, Any, NoReturn
 
 try:  # Assume we're a submodule in a package.
     from base.classes.typing import Count
-    from base.constants.chars import EMPTY, REPR_DELIMITER, SMALL_INDENT, PARAGRAPH_CHAR
+    from base.constants.chars import EMPTY, ITEMS_DELIMITER, REPR_DELIMITER, SMALL_INDENT, PARAGRAPH_CHAR
     from base.functions.arguments import get_str_from_annotation, get_str_from_args_kwargs
     from base.interfaces.data_interface import SimpleDataInterface
     from base.mixin.display_mixin import DEFAULT_EXAMPLE_COUNT
@@ -11,7 +11,7 @@ try:  # Assume we're a submodule in a package.
     from base.abstract.named import AbstractNamed, DisplayInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.typing import Count
-    from ..constants.chars import EMPTY, REPR_DELIMITER, SMALL_INDENT, PARAGRAPH_CHAR
+    from ..constants.chars import EMPTY, ITEMS_DELIMITER, REPR_DELIMITER, SMALL_INDENT, PARAGRAPH_CHAR
     from ..functions.arguments import get_str_from_annotation, get_str_from_args_kwargs
     from ..interfaces.data_interface import SimpleDataInterface
     from ..mixin.display_mixin import DEFAULT_EXAMPLE_COUNT
@@ -124,7 +124,7 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
             dimensions_repr.append(len_repr)
         if column_repr:
             dimensions_repr.append(column_repr)
-        return ', '.join(dimensions_repr)
+        return ITEMS_DELIMITER.join(dimensions_repr)
 
     def get_str_headers(self) -> Generator:
         yield self.get_one_line_repr()
@@ -198,21 +198,6 @@ class SimpleDataWrapper(AbstractNamed, DataMixin, SimpleDataInterface, ABC):
             yield self.get_data_sheet(count=count, name=f'{title} sheet')
         else:
             yield '(data attribute is empty)'
-
-    # @deprecated_with_alternative('build_data_sheet()')
-    def display_data_sheet(
-            self,
-            count: int = DEFAULT_EXAMPLE_COUNT,
-            title: Optional[str] = 'Data',
-            comment: Optional[str] = None,
-            depth: int = 1,
-            # max_len: AutoCount = AUTO,
-            display: Optional[DisplayInterface] = None,
-    ) -> Native:
-        display = self.get_display(display)
-        data_chapter = self.get_data_chapter(count=count, title=title, comment=comment)
-        display.display_item(data_chapter)
-        return self
 
     def get_description_items(
             self,
