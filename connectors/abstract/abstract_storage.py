@@ -3,14 +3,14 @@ from typing import Optional
 
 try:  # Assume we're a submodule in a package.
     from interfaces import ContextInterface, Context, Name
+    from base.constants.chars import EMPTY, SLASH
     from connectors.abstract.hierarchic_connector import HierarchicConnector
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import ContextInterface, Context, Name
+    from ...base.constants.chars import EMPTY, SLASH
     from .hierarchic_connector import HierarchicConnector
 
 Native = HierarchicConnector
-
-DEFAULT_PATH_DELIMITER = '/'
 
 
 class AbstractStorage(HierarchicConnector, ABC):
@@ -19,8 +19,7 @@ class AbstractStorage(HierarchicConnector, ABC):
     def __init__(self, name: Name, context: Context, verbose: bool = True):
         if context is None:
             context = self.get_default_context()
-        super().__init__(name=name, parent=context, context=context)
-        self.verbose = verbose
+        super().__init__(name=name, parent=context, context=context, verbose=verbose)
 
     def is_root(self):
         return True
@@ -37,10 +36,10 @@ class AbstractStorage(HierarchicConnector, ABC):
         return self
 
     def get_path_prefix(self):
-        return ''
+        return EMPTY  # ''
 
     def get_path_delimiter(self):
-        return DEFAULT_PATH_DELIMITER
+        return SLASH  # '/'
 
     def get_path(self):
         return self.get_path_prefix()

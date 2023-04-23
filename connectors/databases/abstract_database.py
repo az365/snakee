@@ -201,7 +201,7 @@ class AbstractDatabase(AbstractStorage, ABC):
             verbose: Optional[bool] = None,
     ) -> Table:
         if verbose is None:
-            verbose = self.verbose
+            verbose = self.is_verbose()
         table_name, struct_str = self._get_table_name_and_struct_str(table, struct, check_struct=True)
         if drop_if_exists:
             self.drop_table(table_name, verbose=verbose)
@@ -212,7 +212,7 @@ class AbstractDatabase(AbstractStorage, ABC):
             verbose=message if verbose is True else verbose,
         )
         self.post_create_action(table_name, verbose=verbose)
-        self.log('Table {name} is created.'.format(name=table_name), verbose=verbose)
+        self.log(f'Table {table_name} is created.', verbose=verbose)
         if struct:
             return self.table(table, struct=struct)
         else:
@@ -412,7 +412,7 @@ class AbstractDatabase(AbstractStorage, ABC):
             verbose: Optional[bool] = None,
     ) -> Table:
         if verbose is None:
-            verbose = self.verbose
+            verbose = self.is_verbose()
         table_name, struct = self._get_table_name_and_struct(table, struct)
         if not skip_lines:
             self.create_table(table_name, struct=struct, drop_if_exists=True, verbose=verbose)

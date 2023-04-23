@@ -6,6 +6,8 @@ try:  # Assume we're a submodule in a package.
         Context, Connector, ConnectorInterface, ConnType,
         LoggerInterface, ExtendedLoggerInterface, LoggingLevel, Message,
     )
+    from base.constants.chars import SLASH
+    from base.functions.errors import get_type_err_msg
     from base.abstract.tree_item import TreeItem
     from loggers.logging_context_stub import LoggingContextStub
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -13,13 +15,15 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         Context, Connector, ConnectorInterface, ConnType,
         LoggerInterface, ExtendedLoggerInterface, LoggingLevel, Message,
     )
+    from ...base.constants.chars import SLASH
+    from ...base.functions.errors import get_type_err_msg
     from ...base.abstract.tree_item import TreeItem
     from ...loggers.logging_context_stub import LoggingContextStub
 
 Native = ConnectorInterface
 Logger = Union[LoggerInterface, ExtendedLoggerInterface]
 
-DEFAULT_PATH_DELIMITER = '/'
+DEFAULT_PATH_DELIMITER = SLASH  # '/'
 DEFAULT_VERBOSE = True
 
 
@@ -58,6 +62,10 @@ class AbstractConnector(TreeItem, ConnectorInterface, ABC):
     def is_verbose(self) -> bool:
         return self._verbose
 
+    def _set_verbose_inplace(self, verbose: bool) -> None:
+        assert verbose is not None, get_type_err_msg(expected=bool, got=verbose, arg='verbose')
+        self._verbose = verbose
+
     def set_verbose(self, verbose: Optional[bool] = None, parent: Connector = None) -> Native:
         if verbose is None:
             if parent is None:
@@ -68,8 +76,10 @@ class AbstractConnector(TreeItem, ConnectorInterface, ABC):
                 verbose = parent.verbose
             else:
                 verbose = DEFAULT_VERBOSE
-        self._verbose = verbose
+        self._set_verbose_inplace(verbose)
         return self
+
+    verbose = property(is_verbose, _set_verbose_inplace)
 
     def set_context(self, context: Context, reset: bool = False, inplace: bool = True) -> Optional[Native]:
         if context:
