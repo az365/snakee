@@ -3,16 +3,18 @@ from typing import Optional, Generator, Iterator, Union
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         ConnectorInterface, ContentFormatInterface, Stream, StructInterface,
-        ContentType, ConnType, StreamType, StreamItemType,
+        ContentType, ConnType, ItemType,
         Context, Count, Name,
     )
+    from streams.stream_builder import StreamBuilder
     from connectors.abstract.leaf_connector import LeafConnector
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         ConnectorInterface, ContentFormatInterface, Stream, StructInterface,
-        ContentType, ConnType, StreamType, StreamItemType,
+        ContentType, ConnType, ItemType,
         Context, Count, Name,
     )
+    from ...streams.stream_builder import StreamBuilder
     from ..abstract.leaf_connector import LeafConnector
 
 Response = dict
@@ -185,9 +187,8 @@ class S3Object(LeafConnector):
         else:
             raise ValueError(response)
 
-    def to_stream(self, stream_type: StreamItemType = None, **kwargs) -> Stream:
-        stream_class = StreamType(stream_type).get_class()
-        return stream_class(self.get_data(), **kwargs)
+    def to_stream(self, stream_type: ItemType = None, **kwargs) -> Stream:
+        return StreamBuilder.stream(self.get_data(), stream_type=stream_type, **kwargs)
 
     def get_expected_count(self) -> Optional[int]:
         return self._count

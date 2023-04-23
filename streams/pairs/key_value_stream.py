@@ -3,7 +3,7 @@ from typing import Optional, Callable, Iterable, Union
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         RegularStreamInterface, PairStreamInterface, Struct, Connector, Context, TmpFiles,
-        StreamType, ItemType, StreamItemType,
+        StreamType, ItemType,
         Name, Count,
     )
     from utils.decorators import deprecated, deprecated_with_alternative
@@ -13,7 +13,7 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         RegularStreamInterface, PairStreamInterface, Struct, Connector, Context, TmpFiles,
-        StreamType, ItemType, StreamItemType,
+        StreamType, ItemType,
         Name, Count,
     )
     from ...functions.secondary import array_functions as fs

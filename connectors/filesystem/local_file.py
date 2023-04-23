@@ -6,7 +6,7 @@ try:  # Assume we're a submodule in a package.
     from interfaces import (
         Context, Connector, ConnectorInterface, ContentFormatInterface, StructInterface,
         IterableStreamInterface, RegularStreamInterface,
-        ContentType, ConnType, ItemType, StreamType, StreamItemType,
+        ContentType, ConnType, ItemType,
         Count, OptionalFields, UniKey, ARRAY_TYPES,
     )
     from base.constants.chars import EMPTY, PARAGRAPH_CHAR, RETURN_CHAR, OS_PLACEHOLDER, PY_PLACEHOLDER
@@ -23,7 +23,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...interfaces import (
         Context, Connector, ConnectorInterface, ContentFormatInterface, StructInterface,
         IterableStreamInterface, RegularStreamInterface,
-        ContentType, ConnType, ItemType, StreamType, StreamItemType,
+        ContentType, ConnType, ItemType,
         Count, OptionalFields, UniKey, ARRAY_TYPES,
     )
     from ...base.constants.chars import EMPTY, PARAGRAPH_CHAR, RETURN_CHAR, OS_PLACEHOLDER, PY_PLACEHOLDER

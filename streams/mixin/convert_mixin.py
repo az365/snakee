@@ -17,7 +17,7 @@ try:  # Assume we're a submodule in a package.
     from utils.external import pd, DataFrame
     from utils.decorators import deprecated_with_alternative
     from streams.stream_builder import StreamBuilder
-    from streams.interfaces.regular_stream_interface import RegularStreamInterface, StreamItemType
+    from streams.interfaces.regular_stream_interface import RegularStreamInterface
     from streams.abstract.iterable_stream import IterableStream
     from streams.mixin.validate_mixin import ValidateMixin
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -36,7 +36,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils.external import pd, DataFrame
     from ...utils.decorators import deprecated_with_alternative
     from ..stream_builder import StreamBuilder
-    from ..interfaces.regular_stream_interface import RegularStreamInterface, StreamItemType
+    from ..interfaces.regular_stream_interface import RegularStreamInterface
     from ..abstract.iterable_stream import IterableStream
     from .validate_mixin import ValidateMixin
 

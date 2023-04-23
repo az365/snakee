@@ -1,11 +1,11 @@
 from typing import Optional, Iterable, Callable
 
 try:  # Assume we're a submodule in a package.
-    from interfaces import Context, StreamInterface, Stream, Connector, ItemType, StreamType, Name
+    from interfaces import Context, StreamInterface, Stream, Connector, ItemType, Name
     from connectors import connector_classes as ct
     from connectors.operations.abstract_sync import AbstractSync, SRC_ID, DST_ID
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...interfaces import Context, StreamInterface, Stream, Connector, ItemType, StreamType, Name
+    from ...interfaces import Context, StreamInterface, Stream, Connector, ItemType, Name
     from .. import connector_classes as ct
     from .abstract_sync import AbstractSync, SRC_ID, DST_ID
 
