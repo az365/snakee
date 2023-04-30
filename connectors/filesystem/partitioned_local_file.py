@@ -132,13 +132,13 @@ class PartitionedLocalFile(LocalMask, LocalFile):
             self,
             data: Optional[Iterable] = None,
             name: Optional[str] = None,
-            stream_type: ItemType = ItemType.Auto,
+            item_type: ItemType = ItemType.Auto,
             ex: OptionalFields = None,
             **kwargs
     ) -> Stream:
         partition = self.get_partition()
         assert partition, 'suffix and partition must be defined'
-        return partition.to_stream(data=data, name=name, stream_type=stream_type, ex=ex, **kwargs)
+        return partition.to_stream(data=data, name=name, item_type=item_type, ex=ex, **kwargs)
 
     @staticmethod
     def _assume_native(obj) -> Native:

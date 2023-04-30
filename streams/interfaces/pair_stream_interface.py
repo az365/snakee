@@ -20,7 +20,7 @@ class PairStreamInterface(StreamInterface, ABC):
         pass
 
     @abstractmethod
-    def keys(self, uniq: bool, stream_type: ItemType = ItemType.Auto) -> Stream:
+    def keys(self, uniq: bool, item_type: ItemType = ItemType.Auto) -> Stream:
         pass
 
     @abstractmethod
@@ -36,7 +36,7 @@ class PairStreamInterface(StreamInterface, ABC):
         pass
 
     @abstractmethod
-    def stream(self, data: Iterable, stream_type: ItemType = ItemType.Auto, **kwargs) -> Stream:
+    def stream(self, data: Iterable, item_type: ItemType = ItemType.Auto, **kwargs) -> Stream:
         pass
 
     @abstractmethod

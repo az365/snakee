@@ -117,6 +117,8 @@ class RegularStream(LocalStream, ConvertMixin, StructMixin, RegularStreamInterfa
             skip_missing: bool = False,
     ) -> Struct:
         record = self.to_record_stream().get_one_item()
+        if record is None and not skip_missing:
+            raise ValueError('Can not detect struct from empty stream')
         struct = FlatStruct.get_struct_detected_by_record(record)
         if set_struct:
             self.set_struct(struct, check=False, inplace=True)
@@ -333,8 +335,8 @@ class RegularStream(LocalStream, ConvertMixin, StructMixin, RegularStreamInterfa
         else:
             return self.stream(
                 self._get_enumerated_items(item_type=ItemType.Row, first=first),
-                stream_type=ItemType.Row,  # KeyValueStream
-                secondary=self.get_stream_type(),
+                item_type=ItemType.Row,  # KeyValueStream
+                secondary=self.get_item_type(),
             )
 
     def take(self, count: Union[int, bool] = 1, inplace: bool = False) -> Native:
@@ -370,12 +372,12 @@ class RegularStream(LocalStream, ConvertMixin, StructMixin, RegularStreamInterfa
             logger=self.get_logger(), selection_logger=self.get_selection_logger(),
             use_extended_method=use_extended_method,
         )
-        stream = self.map_to_type(function=select_function, stream_type=target_item_type, struct=target_struct)
+        stream = self.map_to_type(function=select_function, item_type=target_item_type, struct=target_struct)
         return self._assume_native(stream)
 
     def flat_map(self, function: Callable, to: ItemType = ItemType.Auto) -> Stream:
         items = self._get_mapped_items(function=function, flat=True)
-        return self.stream(items, stream_type=to, save_count=False)
+        return self.stream(items, item_type=to, save_count=False)
 
     def _get_stream_class_by_type(self, item_type: ItemType) -> Class:
         if item_type not in (ItemType.Auto, None):
@@ -414,12 +416,12 @@ class RegularStream(LocalStream, ConvertMixin, StructMixin, RegularStreamInterfa
             function: Callable,
             *args,
             dynamic: bool = True,
-            stream_type: ItemType = ItemType.Auto,
+            item_type: ItemType = ItemType.Auto,
             **kwargs
     ) -> Stream:
         return self.stream(
             self._get_calc(function, *args, **kwargs),
-            stream_type=stream_type,
+            item_type=item_type,
             ex=self._get_dynamic_meta_fields() if dynamic else None,
         )
 
@@ -547,11 +549,10 @@ class RegularStream(LocalStream, ConvertMixin, StructMixin, RegularStreamInterfa
             expected_struct = self._get_grouped_struct(*keys, values=values)
         if as_pairs:
             stream_class = StreamType.KeyValueStream.get_class()
-            stream_groups = stream_class(iter_groups, value_stream_type=self.get_stream_type())
+            stream_groups = stream_class(iter_groups, value_item_type=self.get_item_type())
         else:
             stream_groups = self.stream(
                 iter_groups,
-                stream_type=ItemType.Row,
                 item_type=ItemType.Row,
                 struct=expected_struct,
                 check=False,
@@ -569,7 +570,7 @@ class RegularStream(LocalStream, ConvertMixin, StructMixin, RegularStreamInterfa
                 as_pairs=as_pairs, skip_missing=skip_missing,
                 item_type=item_type,
             )
-            stream_groups = stream_groups.map_to_type(fold_mapper, stream_type=item_type)
+            stream_groups = stream_groups.map_to_type(fold_mapper, item_type=item_type)
             if expected_struct is not None:
                 stream_groups.set_struct(expected_struct, check=False, inplace=True)
         if self.is_in_memory():
@@ -686,26 +687,26 @@ class RegularStream(LocalStream, ConvertMixin, StructMixin, RegularStreamInterfa
     def to_stream(
             self,
             data: Optional[Iterable] = None,
-            stream_type: ItemType = ItemType.Auto,
+            item_type: ItemType = ItemType.Auto,
             ex: OptionalFields = None,
             **kwargs
     ) -> Stream:
-        if stream_type in (ItemType.Auto, None):
-            stream_type = self.get_stream_type()
-        stream_class = self._get_stream_class_by_type(stream_type)
+        if item_type in (ItemType.Auto, None):
+            item_type = self.get_item_type()
+        elif isinstance(item_type, StreamType):
+            item_type = item_type.get_item_type()
         if data is None:
             if hasattr(self, 'get_items_of_type'):
-                item_type = stream_class.get_item_type()
                 data = self.get_items_of_type(item_type)
             else:
                 data = self.get_data()
-        meta = self.get_compatible_meta(stream_class, ex=ex)
+        meta = self.get_meta(ex=ex)
         meta.update(kwargs)
         if 'count' not in meta:
             meta['count'] = self.get_count()
         if 'source' not in meta:
             meta['source'] = self.get_source()
-        stream = stream_class(data, **meta)
+        stream = StreamBuilder.stream(data, item_type=item_type, **meta)
         return self._assume_stream(stream)
 
     def to_file(
@@ -723,14 +724,14 @@ class RegularStream(LocalStream, ConvertMixin, StructMixin, RegularStreamInterfa
         meta = self.get_meta()
         file.write_stream(self, verbose=verbose)
         if return_stream:
-            return file.to_stream_type(stream_type=self.get_stream_type(), verbose=verbose).update_meta(**meta)
+            return file.to_stream_type(item_type=self.get_item_type(), verbose=verbose).update_meta(**meta)
 
     @classmethod
     @deprecated_with_alternative('connectors.filesystem.local_file.JsonFile.to_stream()')
     def from_json_file(
             cls,
             filename: str,
-            stream_type: ItemType = ItemType.Record,
+            item_type: ItemType = ItemType.Record,
             skip_first_line: bool = False,
             max_count: Count = None,
             check: Optional[bool] = None,
@@ -741,7 +742,7 @@ class RegularStream(LocalStream, ConvertMixin, StructMixin, RegularStreamInterfa
             filename,
             skip_first_line=skip_first_line, max_count=max_count,
             check=check, verbose=verbose,
-        ).to_stream(stream_type=stream_type)
+        ).to_stream(item_type=item_type)
 
     def __getitem__(self, item):
         assert self.is_in_memory()

@@ -37,7 +37,7 @@ class KeyValueStream(RowStream, PairStreamInterface):
             name: Optional[Name] = None,
             caption: str = '',
             item_type: ItemType = EXPECTED_ITEM_TYPE,
-            value_stream_type: Union[StreamType, str] = None,
+            value_item_type: Union[StreamType, str] = None,
             struct: Struct = None,
             source: Connector = None,
             context: Context = None,
@@ -56,22 +56,22 @@ class KeyValueStream(RowStream, PairStreamInterface):
             max_items_in_memory=max_items_in_memory,
             tmp_files=tmp_files,
         )
-        self.value_stream_type = None
-        self.set_value_stream_type(value_stream_type)
+        self.value_item_type = None
+        self.set_value_item_type(value_item_type)
 
     @deprecated_with_alternative('Struct')
-    def get_value_stream_type(self) -> StreamType:
-        return self.value_stream_type
+    def get_value_item_type(self) -> ItemType:
+        return self.value_item_type
 
-    def set_value_stream_type(self, value_stream_type: ItemType) -> Native:
-        if value_stream_type in (ItemType.Auto, None):
-            self.value_stream_type = StreamType.AnyStream
+    def set_value_item_type(self, value_item_type: ItemType) -> Native:
+        if value_item_type in (ItemType.Auto, None):
+            self.value_item_type = ItemType.Any
         else:
             try:
-                value_stream_type = StreamType(value_stream_type)
+                value_item_type = ItemType(value_item_type)
             except ValueError:
-                value_stream_type = StreamType(value_stream_type.value)
-            self.value_stream_type = value_stream_type or StreamType.AnyStream
+                value_item_type = ItemType(value_item_type.value)
+            self.value_item_type = value_item_type or ItemType.Any
         return self
 
     def get_struct(self) -> FlatStruct:
@@ -91,16 +91,16 @@ class KeyValueStream(RowStream, PairStreamInterface):
 
     @deprecated_with_alternative('get_one_column_values()')
     def values(self) -> RegularStreamInterface:
-        stream_type = self.get_value_stream_type()
-        stream = self.map_to_type(VALUE, stream_type=stream_type)
+        item_type = self.get_value_item_type()
+        stream = self.map_to_type(VALUE, item_type=item_type)
         return self._assume_regular(stream)
 
     @deprecated_with_alternative('get_one_column_values()')
-    def keys(self, uniq: bool, stream_type: ItemType = ItemType.Auto) -> RegularStreamInterface:
+    def keys(self, uniq: bool, item_type: ItemType = ItemType.Auto) -> RegularStreamInterface:
         items = self.get_uniq_keys() if uniq else self._get_mapped_items(KEY)
-        if stream_type in (ItemType.Auto, None):
-            stream_type = ItemType.Any
-        stream = self.stream(items, stream_type=stream_type)
+        if item_type in (ItemType.Auto, None):
+            item_type = ItemType.Any
+        stream = self.stream(items, item_type=item_type)
         return self._assume_regular(stream)
 
     def get_uniq_values(self, column=VALUE) -> Iterable:

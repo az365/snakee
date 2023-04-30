@@ -410,17 +410,17 @@ class LocalFile(LeafConnector, ActualizeMixin):
             self,
             data: Optional[Iterable] = None,
             name: Optional[str] = None,
-            stream_type: ItemType = ItemType.Auto,
+            item_type: ItemType = ItemType.Auto,
             ex: OptionalFields = None,
             step: Count = None,
             **kwargs
     ) -> Stream:
         if data is not None:
             kwargs['data'] = data
-        if stream_type in (ItemType.Auto, None):
-            stream_type = self.get_stream_type()
+        if item_type in (ItemType.Auto, None):
+            item_type = self.get_item_type()
         assert not ex, f'ex-argument for LocalFile.to_stream() not supported (got {ex})'
-        return self.to_stream_type(stream_type=stream_type, step=step, **kwargs)
+        return self.to_stream_type(item_type=item_type, step=step, **kwargs)
 
     @classmethod
     def get_default_folder(cls) -> Connector:

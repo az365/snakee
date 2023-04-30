@@ -60,7 +60,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..content.struct import struct_row as sr
 
 TMP_FILES_TEMPLATE = 'stream_{}.tmp'
-TMP_FILES_ENCODING = DEFAULT_ENCODING  # 'utf8'
 
 DEFAULT_STREAM_CLASS = RegularStream
 STREAM_CLASSES = (
@@ -121,13 +120,15 @@ def set_context(cx: ContextInterface) -> None:
 
 
 @deprecated_with_alternative('StreamBuilder.stream()')
-def stream(stream_type: Optional[StreamType], *args, **kwargs) -> StreamInterface:
-    if is_stream_class(stream_type):
-        stream_class = stream_type
-    elif stream_type not in (ItemType.Auto, None):
-        stream_class = StreamType(stream_type).get_class()
+def stream(item_type: Optional[StreamType], *args, **kwargs) -> StreamInterface:
+    if is_stream_class(item_type):
+        stream_class = item_type
+    elif item_type not in (ItemType.Auto, None):
+        stream_class = StreamType(item_type).get_class()
     else:
         stream_class = DEFAULT_STREAM_CLASS
+    if isinstance(item_type, ItemType):
+        kwargs['item_type'] = item_type
     if 'context' not in kwargs:
         kwargs['context'] = get_context()
     return stream_class(*args, **kwargs)

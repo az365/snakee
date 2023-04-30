@@ -152,7 +152,7 @@ class ColumnarMixin(IterDataMixin, ABC):
         if item_type in (ItemType.Auto, None):
             item_type = self.get_item_type()
         filtered_items = self._get_filtered_items(*args, item_type=item_type, skip_errors=skip_errors, **kwargs)
-        stream = self.to_stream(data=filtered_items, stream_type=item_type)
+        stream = self.to_stream(data=filtered_items, item_type=item_type)
         return self._assume_native(stream)
 
     def _get_flat_mapped_items(self, function: Callable) -> Generator:
@@ -166,7 +166,7 @@ class ColumnarMixin(IterDataMixin, ABC):
     @deprecated_with_alternative('map_to_type()')
     def map_to(self, function: Callable, item_type: ItemType) -> Stream:
         items = map(function, self.get_items())
-        stream = self.stream(items, stream_type=item_type)
+        stream = self.stream(items, item_type=item_type)
         return self._assume_native(stream)
 
     def map(self, function: Callable, inplace: bool = False) -> Optional[Native]:
@@ -275,14 +275,9 @@ class ColumnarMixin(IterDataMixin, ABC):
             verbose: bool = True,
     ) -> StructStream:
         if hasattr(self, 'to_row_stream'):
-            row_stream = self.to_row_stream(
-                columns=struct.get_columns(),
-            )
+            row_stream = self.to_row_stream(columns=struct.get_columns())
         else:
-            row_stream = self.to_stream(
-                stream_type=ItemType.Row,
-                columns=struct.get_columns(),
-            )
+            row_stream = self.to_stream(item_type=ItemType.Row, columns=struct.get_columns())
         return row_stream.structure(
             struct=struct,
             skip_bad_rows=skip_bad_rows,

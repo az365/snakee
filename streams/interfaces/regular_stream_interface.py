@@ -5,14 +5,12 @@ try:  # Assume we're a submodule in a package.
     from utils.external import DataFrame
     from content.struct.struct_interface import StructInterface, Field
     from content.items.item_type import ItemType
-    from streams.stream_type import StreamType
     from streams.interfaces.abstract_stream_interface import DEFAULT_EXAMPLE_COUNT
     from streams.interfaces.iterable_stream_interface import IterableStreamInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils.external import DataFrame
     from ...content.struct.struct_interface import StructInterface, Field
     from ...content.items.item_type import ItemType
-    from ..stream_type import StreamType
     from ..interfaces.abstract_stream_interface import DEFAULT_EXAMPLE_COUNT
     from ..interfaces.iterable_stream_interface import IterableStreamInterface
 
@@ -80,11 +78,11 @@ class RegularStreamInterface(IterableStreamInterface, ABC):
         pass
 
     @abstractmethod
-    def map_to_type(self, function: Callable, stream_type: ItemType, **kwargs) -> Native:
+    def map_to_type(self, function: Callable, item_type: ItemType, **kwargs) -> Native:
         """Apply function to each item in stream.
 
         :param function: py-function that should be applied to any item (it must return an item of same type)
-        :param stream_type: type of output items (deprecated, will be renamed to item_type)
+        :param item_type: type of output items
         :returns: stream of requested type
         """
         pass
@@ -124,7 +122,7 @@ class RegularStreamInterface(IterableStreamInterface, ABC):
     def to_stream(
             self,
             data: Optional[Iterable] = None,
-            stream_type: ItemType = ItemType.Auto,
+            item_type: ItemType = ItemType.Auto,
             ex: OptionalFields = None,
             **kwargs
     ) -> Native:

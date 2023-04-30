@@ -11,22 +11,16 @@ class StreamBuilderMixin(StreamBuilderInterface, ABC):
     def stream(
             self,
             data: Iterable,
-            stream_type: ItemType = ItemType.Auto,
+            item_type: ItemType = ItemType.Auto,
             ex: OptionalFields = None,
             **kwargs
     ) -> Stream:
         default_class = self.__class__
-        if isinstance(stream_type, StreamType):
-            stream_class = stream_type.get_class(default=default_class)
+        if isinstance(item_type, StreamType):
+            stream_class = item_type.get_class(default=default_class)
         else:
             stream_class = default_class
-            if 'item_type' not in kwargs:
-                if isinstance(stream_type, ItemType):
-                    item_type = stream_type
-                    kwargs['item_type'] = item_type
-                elif stream_type:
-                    msg = f'StreamBuilder.stream(): expected stream_type as StreamType or ItemType, got {stream_type}'
-                    raise TypeError(msg)
+            kwargs['item_type'] = item_type
         return stream_class(data, **kwargs)
 
     @classmethod

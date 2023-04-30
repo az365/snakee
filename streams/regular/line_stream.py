@@ -71,7 +71,7 @@ class LineStream(AnyStream):
         )
         is_inherited = sm_lines.get_stream_type() != cls.__name__
         if is_inherited:
-            sm_lines = sm_lines.map_to_type(function=fs.same(), stream_type=cls.__name__)
+            sm_lines = sm_lines.map_to_type(function=fs.same(), item_type=cls.__name__)
         if skip_first_line:
             sm_lines = sm_lines.skip(1)
         if max_count:

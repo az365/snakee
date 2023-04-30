@@ -42,8 +42,8 @@ class SeriesType(ClassType):
             return cls.detect(obj)
 
     def isinstance(self, series, by_type: bool = True) -> Optional[bool]:
-        if hasattr(series, 'get_stream_type'):
-            return series.get_stream_type() == self
+        if hasattr(series, 'get_series_type'):
+            return series.get_series_type() == self
         else:
             return super().isinstance(series, by_type=by_type)
 

@@ -193,11 +193,11 @@ class LocalStream(IterableStream, LocalStreamInterface):
     def get_tee_items(self, mem_copy: bool = False) -> Iterable:
         return self._get_tee_items(mem_copy=mem_copy)
 
-    def map_to_type(self, function: Callable, stream_type: ItemType = ItemType.Auto, **kwargs) -> Native:
-        if stream_type in (ItemType.Auto, None):
-            stream_type = self.get_stream_type()
+    def map_to_type(self, function: Callable, item_type: ItemType = ItemType.Auto, **kwargs) -> Native:
+        if item_type in (ItemType.Auto, None):
+            item_type = self.get_item_type()
         data = map(function, self.get_iter())
-        stream = self.stream(data, stream_type=stream_type, **kwargs)
+        stream = self.stream(data, item_type=item_type, **kwargs)
         stream = self._assume_native(stream)
         if self.is_in_memory():
             stream = stream.to_memory()
@@ -370,7 +370,7 @@ class LocalStream(IterableStream, LocalStreamInterface):
                     file_part,
                 ).map_to_type(
                     fs.json_loads(),
-                    stream_type=item_type,
+                    item_type=item_type,
                 )
             result_parts.append(sm_part)
         return result_parts

@@ -18,7 +18,7 @@ class MultiSync(AbstractSync):
             procedure: Optional[Callable],
             options: Optional[dict] = None,
             apply_to_stream: bool = True,
-            stream_type: ItemType = ItemType.Auto,
+            item_type: ItemType = ItemType.Auto,
             context: Context = None,
     ):
         connectors = dict()
@@ -33,7 +33,7 @@ class MultiSync(AbstractSync):
             procedure=procedure,
             options=options,
             apply_to_stream=apply_to_stream,
-            stream_type=stream_type,
+            item_type=item_type,
             context=context,
         )
 
@@ -49,13 +49,13 @@ class MultiSync(AbstractSync):
     def run_now(
             self,
             return_stream: bool = True,
-            stream_type: ItemType = ItemType.Auto,
+            item_type: ItemType = ItemType.Auto,
             options: Options = None,
             verbose: bool = True,
     ) -> Stream:
-        if stream_type in (ItemType.Auto, None):
-            stream_type = self.get_stream_type()
-        stream = self.get_src().to_stream(stream_type=stream_type)
+        if item_type in (ItemType.Auto, None):
+            item_type = self.get_item_type()
+        stream = self.get_src().to_stream(item_type=item_type)
         if verbose:
             self.log(f'Running operation: {self.get_name()}')
         if self.has_procedure():
@@ -69,25 +69,25 @@ class MultiSync(AbstractSync):
             self,
             raise_error_if_exists: bool = False,
             return_stream: bool = True,
-            stream_type: ItemType = ItemType.Auto,
+            item_type: ItemType = ItemType.Auto,
             options: Options = None,
             verbose: bool = True,
     ) -> Optional[Stream]:
-        if stream_type in (ItemType.Auto, None):
-            stream_type = self.get_stream_type()
+        if item_type in (ItemType.Auto, None):
+            item_type = self.get_item_type()
         if not self.is_done():
-            return self.run_now(return_stream=return_stream, stream_type=stream_type, verbose=verbose)
+            return self.run_now(return_stream=return_stream, item_type=item_type, verbose=verbose)
         elif raise_error_if_exists:
             raise ValueError(f'object {self.get_dst()} already exists')
         elif return_stream:
             if verbose:
                 self.log(f'Operation is already done: {self.get_name()}')
-            return self.get_dst().to_stream(stream_type=stream_type)
+            return self.get_dst().to_stream(item_type=item_type)
 
-    def to_stream(self, stream_type: ItemType = ItemType.Auto, **kwargs):
-        if stream_type in (ItemType.Auto, None):
-            stream_type = self.get_stream_type()
-        return self.run_if_not_yet(raise_error_if_exists=False, return_stream=True, stream_type=stream_type)
+    def to_stream(self, item_type: ItemType = ItemType.Auto, **kwargs):
+        if item_type in (ItemType.Auto, None):
+            item_type = self.get_item_type()
+        return self.run_if_not_yet(raise_error_if_exists=False, return_stream=True, item_type=item_type)
 
     def from_stream(self, stream: Stream, rewrite: bool = False) -> Optional[ConnectorInterface]:
         if rewrite or not self.has_inputs():

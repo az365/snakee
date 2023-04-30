@@ -8,8 +8,9 @@ try:  # Assume we're a submodule in a package.
         StructInterface, FieldInterface, FieldName, OptionalFields, UniKey,
         Columns, Class, Array, ARRAY_TYPES,
     )
-    from base.functions.arguments import get_names
     from base.constants.chars import TAB_CHAR
+    from base.functions.arguments import get_names
+    from base.functions.errors import get_loc_message
     from content.items.simple_items import FULL_ITEM_FIELD, MutableRecord, MutableRow, ImmutableRow, SimpleRow
     from content.struct.flat_struct import FlatStruct
     from content.struct.struct_row import StructRow, StructRowInterface, ROW_SUBCLASSES, RECORD_SUBCLASSES
@@ -27,8 +28,9 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         StructInterface, FieldInterface, FieldName, OptionalFields, UniKey,
         Columns, Class, Array, ARRAY_TYPES,
     )
-    from ...base.functions.arguments import get_names
     from ...base.constants.chars import TAB_CHAR
+    from ...base.functions.arguments import get_names
+    from ...base.functions.errors import get_loc_message
     from ...content.items.simple_items import FULL_ITEM_FIELD, MutableRecord, MutableRow, ImmutableRow, SimpleRow
     from ...content.struct.flat_struct import FlatStruct
     from ...content.struct.struct_row import StructRow, StructRowInterface, ROW_SUBCLASSES, RECORD_SUBCLASSES
@@ -416,20 +418,22 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
     def stream(
             self,
             data: Iterable,
-            stream_type: ItemType = ItemType.Auto,  # deprecated argument, will be renamed to item_type
+            item_type: ItemType = ItemType.Auto,
             ex: OptionalArguments = None,
             save_name: bool = True,
             save_count: bool = True,
             **kwargs
     ) -> Stream:
-        if stream_type not in (ItemType.Any, None):
-            self.log('stream(): stream_type argument is deprecated, use item_type instead', level=LoggingLevel.Warning)
-            expected_item_type = self._get_item_type(stream_type)
-            if 'item_type' in kwargs:
-                given_item_type = kwargs['item_type']
-                assert expected_item_type == given_item_type, f'{expected_item_type} vs {given_item_type}'
+        if item_type not in (ItemType.Any, None):
+            given_item_type = self._get_item_type(item_type)
+            if 'stream_type' in kwargs:
+                given_stream_type = kwargs['stream_type']
+                msg = 'stream_type argument is deprecated, use item_type instead'
+                self.log(get_loc_message(msg, self.stream, args=[item_type], kwargs=kwargs), level=LoggingLevel.Warning)
+                expected_item_type = self._get_item_type(given_stream_type)
+                assert given_item_type == expected_item_type, f'{given_item_type} vs {expected_item_type}'
             else:
-                kwargs['item_type'] = expected_item_type
+                kwargs['item_type'] = given_item_type
         meta = self.get_meta()
         if not save_name:
             meta.pop('name')
@@ -438,16 +442,16 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
         meta.update(kwargs)
         if 'context' not in meta and hasattr(self, 'get_context'):
             meta['context'] = self.get_context()
-        if 'value_stream_type' in meta:
-            meta.pop('value_stream_type')  # unify KeyValueStream to RegularStream
+        if 'value_item_type' in meta:
+            meta.pop('value_item_type')  # unify KeyValueStream to RegularStream
         stream = StreamBuilder.stream(data, **meta)
         return stream
 
-    def map_to_type(self, function: Callable, stream_type: ItemType = ItemType.Auto) -> Stream:
-        if stream_type in (ItemType.Auto, None):
-            stream_type = self.get_stream_type()
+    def map_to_type(self, function: Callable, item_type: ItemType = ItemType.Auto) -> Stream:
+        if item_type in (ItemType.Auto, None):
+            item_type = self.get_item_type()
         items = map(function, self.get_items())
-        result = self.stream(items, stream_type=stream_type)
+        result = self.stream(items, item_type=item_type)
         if hasattr(self, 'is_in_memory'):
             if self.is_in_memory():
                 return result.to_memory()
@@ -455,25 +459,16 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
 
     @deprecated_with_alternative('map_to_type(item_type=ItemType.Records)')
     def map_to_records(self, function: Callable) -> RecordStream:
-        stream = self.map_to_type(
-            function,
-            stream_type=ItemType.Record,
-        )
+        stream = self.map_to_type(function, item_type=ItemType.Record)
         return self._assume_native(stream)
 
     @deprecated_with_alternative('map_to_type(item_type=ItemType.Any)')
     def map_to_any(self, function: Callable) -> AnyStream:
-        return self.map_to_type(
-            function,
-            stream_type=ItemType.Any,
-        )
+        return self.map_to_type(function, item_type=ItemType.Any)
 
     @deprecated_with_alternative('map_to_type(item_type=ItemType.Any)')
     def to_any_stream(self) -> AnyStream:
-        return self.stream(
-            self.get_items(),
-            stream_type=ItemType.Any,
-        )
+        return self.stream(self.get_items(), item_type=ItemType.Any)
 
     def to_line_stream(
             self,
@@ -500,12 +495,12 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
         else:
             func = str
         lines = stream._get_mapped_items(func)
-        stream = self.stream(lines, stream_type=ItemType.Line)
+        stream = self.stream(lines, item_type=ItemType.Line)
         return self._assume_native(stream)
 
     def to_json(self, *args, **kwargs) -> LineStream:
         items = self._get_mapped_items(fs.json_dumps(*args, **kwargs))
-        stream = self.stream(items, stream_type=ItemType.Line)
+        stream = self.stream(items, item_type=ItemType.Line)
         return self._assume_native(stream)
 
     def to_record_stream(self, *args, **kwargs) -> RecordStream:
@@ -534,7 +529,7 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
                 items = self.get_records()
             else:
                 items = self._get_mapped_items(lambda i: {FULL_ITEM_FIELD: i})
-        stream = self.stream(items, stream_type=ItemType.Record)
+        stream = self.stream(items, item_type=ItemType.Record)
         return self._assume_native(stream)
 
     def to_row_stream(
@@ -582,7 +577,7 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
             items = self._get_mapped_items(func)
         else:
             items = self.get_items()
-        stream = self.stream(items, stream_type=ItemType.Row, struct=struct)
+        stream = self.stream(items, item_type=ItemType.Row, struct=struct)
         return self._assume_native(stream)
 
     def to_key_value_stream(
@@ -599,7 +594,7 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
         items = self._get_mapped_items(lambda i: (key_func(i), value_func(i)), skip_errors=skip_errors)
         if self.is_in_memory():
             items = list(items)
-        stream = self.stream(items, stream_type=ItemType.Row, check=False)
+        stream = self.stream(items, item_type=ItemType.Row, check=False)
         return self._assume_native(stream)
 
     # @deprecated_with_alternative('ConvertMixin.to_key_value_stream()')
@@ -610,9 +605,9 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
             return self.to_key_value_stream(*args, **kwargs)
 
     # @deprecated
-    def to_stream(self, stream_type: ItemType = ItemType.Auto, *args, **kwargs) -> Stream:
+    def to_stream(self, item_type: ItemType = ItemType.Auto, *args, **kwargs) -> Stream:
         assert not args, 'ConvertMixin.to_stream(): unnamed ordered args not supported'
-        return self.stream(self.get_data(), stream_type=stream_type, **kwargs)
+        return self.stream(self.get_data(), item_type=item_type, **kwargs)
 
     @staticmethod
     def _assume_native(stream) -> Native:

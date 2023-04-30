@@ -34,35 +34,35 @@ def test_map():
         EXAMPLE_INT_SEQUENCE,
     ).map_to_type(
         lambda i: str(-i),
-        stream_type=sm.ItemType.Line,
+        item_type=sm.ItemType.Line,
     ).submit(
         received_types,
         lambda f: f.get_item_type().get_name(),
     ).get_list()
-    assert received_1 == expected_1, f'test case 1: {received_1} != {expected_1}'
+    assert received_1 == expected_1, f'test case 1: {received_1} vs {expected_1}'
     expected_2 = [str(-i) for i in EXAMPLE_INT_SEQUENCE]
     received_2 = sm.AnyStream(
         EXAMPLE_INT_SEQUENCE,
     ).map_to_type(
         lambda i: str(-i),
-        stream_type=sm.ItemType.Line,
+        item_type=sm.ItemType.Line,
     ).submit(
         received_types,
         lambda f: f.get_item_type().get_name(),
     ).get_list()
-    assert received_2 == expected_2, f'test case 2: {received_2} != {expected_2}'
+    assert received_2 == expected_2, f'test case 2: {received_2} vs {expected_2}'
     expected_3 = [str(-i) for i in EXAMPLE_INT_SEQUENCE]
     received_3 = sm.AnyStream(
         EXAMPLE_INT_SEQUENCE,
     ).map_to_type(
         lambda i: str(-i),
-        stream_type='Line',
+        item_type='Line',
     ).submit(
         received_types,
         lambda f: f.get_item_type().get_name(),
     ).get_list()
-    assert received_3 == expected_3, f'test case 3: {received_3} != {expected_3}'
-    assert received_types == expected_types, f'test for types: {received_types} != {expected_types}'
+    assert received_3 == expected_3, f'test case 3: {received_3} vs {expected_3}'
+    assert received_types == expected_types, f'test for types: {received_types} vs {expected_types}'
 
 
 def test_flat_map():
@@ -72,7 +72,7 @@ def test_flat_map():
     ).flat_map(
         lambda i: [i, i],
     ).get_list()
-    assert received == expected
+    assert received == expected, f'{received} vs {expected}'
 
 
 def test_filter():
@@ -83,7 +83,7 @@ def test_filter():
         lambda i: i > 5,
         lambda i: i <= 8,
     ).get_list()
-    assert received == expected
+    assert received == expected, f'{received} vs {expected}'
 
 
 def test_records_filter():
@@ -100,7 +100,7 @@ def test_records_filter():
         a=21,
         b=lambda x: x >= 30,
     ).get_list()
-    assert received == expected
+    assert received == expected, f'{received} vs {expected}'
 
 
 def test_take():
@@ -110,7 +110,7 @@ def test_take():
     ).take(
         5,
     ).get_list()
-    assert received == expected
+    assert received == expected, f'{received} vs {expected}'
 
 
 def test_skip():
@@ -120,7 +120,7 @@ def test_skip():
     ).skip(
         5,
     ).get_list()
-    assert received == expected
+    assert received == expected, f'{received} vs {expected}'
 
 
 def test_map_filter_take():
@@ -134,7 +134,7 @@ def test_map_filter_take():
     ).take(
         3,
     ).get_list()
-    assert received == expected
+    assert received == expected, f'{received} vs {expected}'
 
 
 def test_any_select():
@@ -151,7 +151,7 @@ def test_any_select():
         float,
         str,
     ).get_list()
-    assert received_1 == expected_1, 'test case 1: AnyStream to RowStream'
+    assert received_1 == expected_1, f'test case 1: AnyStream to RowStream, {received_1} vs {expected_1}'
     expected_2 = [
         {'a': 2, 'b': 2.0, 'c': '12'},
         {'a': 3, 'b': 3.0, 'c': '123'},
@@ -164,7 +164,7 @@ def test_any_select():
         b=lambda i: float(len(i)),
         c=(str, ),
     ).get_list()
-    assert received_2 == expected_2, 'test case 1: AnyStream to RowStream'
+    assert received_2 == expected_2, f'test case 1: AnyStream to RowStream: {received_2} vs {expected_2}'
 
 
 def test_records_select():
@@ -188,7 +188,7 @@ def test_records_select():
         e=lambda r: r.get('c'),
         f=('a', lambda v: str(v)*2),
     ).get_list()
-    assert received_1 == expected_1, f'test case 1, records: {received_1} != {expected_1}'
+    assert received_1 == expected_1, f'test case 1, records: {received_1} vs {expected_1}'
     expected_2 = [
         (1.00, ('a', '1'), 'a'),
         (2.22, ('b', '2.22'), 'b'),
@@ -207,7 +207,7 @@ def test_records_select():
         '*',
         0,
     ).get_list()
-    assert received_2 == expected_2, f'test case 2: rows {received_2} != {expected_2}'
+    assert received_2 == expected_2, f'test case 2: rows {received_2} vs {expected_2}'
 
 
 def test_enumerated():
@@ -215,7 +215,7 @@ def test_enumerated():
     received = sm.AnyStream(
         EXAMPLE_INT_SEQUENCE,
     ).enumerate().get_list()
-    assert received == expected
+    assert received == expected, f'{received} vs {expected}'
 
 
 def test_add():
@@ -261,7 +261,7 @@ def test_add_records():
     ).add(
         sm.AnyStream(addition).to_record_stream(),
     ).get_list()
-    assert received_1 == expected_1, f'test case 1i: {received_1} != {expected_1}'
+    assert received_1 == expected_1, f'test case 1i: {received_1} vs {expected_1}'
     received_2 = sm.AnyStream(
         EXAMPLE_INT_SEQUENCE,
     ).to_record_stream(
@@ -269,7 +269,7 @@ def test_add_records():
         sm.AnyStream(addition).to_record_stream(),
         before=True,
     ).get_list()
-    assert received_2 == expected_2, f'test case 2i: {received_2} != {expected_2}'
+    assert received_2 == expected_2, f'test case 2i: {received_2} vs {expected_2}'
 
 
 def test_separate_first():
@@ -292,7 +292,7 @@ def test_split_by_pos():
         pos_1,
     )
     received_1 = a.get_list(), b.get_list()
-    assert received_1 == expected_1, f'test case 1, {received_1} != {expected_1}'
+    assert received_1 == expected_1, f'test case 1, {received_1} vs {expected_1}'
     expected_2 = (
         [pos_1] + EXAMPLE_INT_SEQUENCE[:pos_1],
         [pos_2 - pos_1] + EXAMPLE_INT_SEQUENCE[pos_1:pos_2],
@@ -414,7 +414,7 @@ def test_sorted_group_by_key():
         values=[1],
         as_pairs=True,
     ).get_list()
-    assert received == expected, f'{received} != {expected}'
+    assert received == expected, f'{received} vs {expected}'
 
 
 def test_group_by():
@@ -435,9 +435,9 @@ def test_group_by():
         as_pairs=True,
     ).map_to_type(
         lambda a: [i.get('y') for i in a[1]],
-        stream_type=sm.ItemType.Row,
+        item_type=sm.ItemType.Row,
     ).get_list()
-    assert received_0 == expected, f'test case 0: {received_0} != {expected}'
+    assert received_0 == expected, f'test case 0: {received_0} vs {expected}'
 
     received_1 = sm.AnyStream(example).to_row_stream().to_record_stream(
         columns=('x', 'y'),
@@ -446,9 +446,9 @@ def test_group_by():
         as_pairs=False,
     ).map_to_type(
         lambda a: [i.get('y') for i in a],
-        stream_type=sm.ItemType.Row,
+        item_type=sm.ItemType.Row,
     ).get_list()
-    assert received_1 == expected, f'test case 1: {received_1} != {expected}'
+    assert received_1 == expected, f'test case 1: {received_1} vs {expected}'
 
 
 def test_any_join():
@@ -523,7 +523,7 @@ def test_records_join():
         key='y',
         right_is_uniq=True,
     ).get_list()
-    assert received_0 == expected_0, f'test case 0: right is uniq {received_0} != {expected_0}'
+    assert received_0 == expected_0, f'test case 0: right is uniq {received_0} vs {expected_0}'
     expected_1 = [{'x': 6, 'y': 0, 'z': 0}, {'x': 1, 'y': 2, 'z': 3}, {'x': 4, 'y': 2, 'z': 7}, {'x': 8, 'y': 9}]
     received_1 = sm.AnyStream(
         example_a,
@@ -532,7 +532,7 @@ def test_records_join():
         key='y',
         right_is_uniq=False,
     ).get_list()
-    assert received_1 == expected_1, f'test case 1: right is not uniq {received_1} != {expected_1}'
+    assert received_1 == expected_1, f'test case 1: right is not uniq {received_1} vs {expected_1}'
     expected_2 = [{'x': 6, 'y': 0, 'z': 0}, {'x': 1, 'y': 2, 'z': 3}, {'x': 4, 'y': 2, 'z': 7}, {'x': 8, 'y': 9}]
     received_2 = sm.AnyStream(
         example_a,
@@ -542,7 +542,7 @@ def test_records_join():
         how='left',
         right_is_uniq=False,
     ).get_list()
-    assert received_2 == expected_2, f'test case 2: left join, {received_2} != {expected_2}'
+    assert received_2 == expected_2, f'test case 2: left join, {received_2} vs {expected_2}'
     expected_3 = [{'x': 6, 'y': 0, 'z': 0}, {'x': 1, 'y': 2, 'z': 3}, {'x': 4, 'y': 2, 'z': 7}, {'x': 8, 'y': 9}]
     received_3 = sm.AnyStream(
         example_a,
@@ -552,7 +552,7 @@ def test_records_join():
         how='full',
         right_is_uniq=False,
     ).get_list()
-    assert received_3 == expected_3, f'test case 3: full join {received_3} != {expected_3}'
+    assert received_3 == expected_3, f'test case 3: full join {received_3} vs {expected_3}'
     expected_4 = [{'x': 6, 'y': 0, 'z': 0}, {'x': 1, 'y': 2, 'z': 3}, {'x': 4, 'y': 2, 'z': 7}]
     received_4 = sm.RecordStream(
         example_a,
@@ -561,7 +561,7 @@ def test_records_join():
         key='y',
         how='inner',
     ).get_list()
-    assert received_4 == expected_4, f'test case 4: sorted left join {received_4} != {expected_4}'
+    assert received_4 == expected_4, f'test case 4: sorted left join {received_4} vs {expected_4}'
     expected_5 = [{'x': 6, 'y': 0, 'z': 0}, {'x': 1, 'y': 2, 'z': 3}, {'x': 4, 'y': 2, 'z': 7}]
     received_5 = sm.RecordStream(
         example_a,
@@ -570,7 +570,7 @@ def test_records_join():
         key='y',
         how='right',
     ).get_list()
-    assert received_5 == expected_5, f'test case 5: sorted right join {received_5} != {expected_5}'
+    assert received_5 == expected_5, f'test case 5: sorted right join {received_5} vs {expected_5}'
 
 
 def test_to_rows():
@@ -581,7 +581,7 @@ def test_to_rows():
     ).to_row_stream(
         ',',
     ).get_list()
-    assert received == expected, f'{received} != {expected}'
+    assert received == expected, f'{received} vs {expected}'
 
 
 def test_parse_json():
@@ -592,7 +592,7 @@ def test_parse_json():
     ).to_line_stream(
     ).to_record_stream(
     ).get_list()
-    assert received == expected, f'{received} != {expected}'
+    assert received == expected, f'{received} vs {expected}'
 
 
 def test_unfold():
@@ -613,7 +613,7 @@ def test_unfold():
     ).flat_map(
         fs.unfold_lists('value', number_field=None),
     ).get_list()
-    assert received_records == expected_records, f'test case 1: records {received_records} != {expected_records}'
+    assert received_records == expected_records, f'test case 1: records {received_records} vs {expected_records}'
     received_rows = sm.RecordStream(
         example_records,
     ).to_row_stream(
@@ -621,7 +621,7 @@ def test_unfold():
     ).flat_map(
         fs.unfold_lists(1, number_field=None),
     ).get_list()
-    assert received_rows == expected_rows, f'test case 2: rows {received_rows} != {expected_rows}'
+    assert received_rows == expected_rows, f'test case 2: rows {received_rows} vs {expected_rows}'
 
 
 def smoke_test_show():
