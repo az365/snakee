@@ -40,7 +40,6 @@ Native = Union[RegularStreamInterface, ColumnarInterface]
 Struct = Optional[StructInterface]
 
 SAFE_COUNT_ITEMS_IN_MEMORY = 10000
-EXAMPLE_STR_LEN = 12
 DEFAULT_DETECT_COUNT = 100
 
 

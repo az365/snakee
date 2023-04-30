@@ -6,7 +6,7 @@ try:  # Assume we're a submodule in a package.
         TermInterface, FieldInterface,
         TermType, TermDataAttribute, TermRelation, FieldRoleType, ValueType,
     )
-    from base.constants.chars import EMPTY, UNDER, SMALL_INDENT, REPR_DELIMITER, JUPYTER_LINE_LEN
+    from base.constants.chars import EMPTY, UNDER, HASH, SMALL_INDENT, REPR_DELIMITER
     from base.functions.arguments import get_name, get_names, get_value
     from base.abstract.simple_data import SimpleDataWrapper
     from base.mixin.map_data_mixin import MultiMapDataMixin
@@ -18,7 +18,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         TermInterface, FieldInterface,
         TermType, TermDataAttribute, TermRelation, FieldRoleType, ValueType,
     )
-    from ...base.constants.chars import EMPTY, UNDER, SMALL_INDENT, REPR_DELIMITER, JUPYTER_LINE_LEN
+    from ...base.constants.chars import EMPTY, UNDER, HASH, SMALL_INDENT, REPR_DELIMITER
     from ...base.functions.arguments import get_name, get_names, get_value
     from ...base.abstract.simple_data import SimpleDataWrapper
     from ...base.mixin.map_data_mixin import MultiMapDataMixin
@@ -239,26 +239,13 @@ class AbstractTerm(SimpleDataWrapper, MultiMapDataMixin, TermInterface, ABC):
                     sheet = Sheet(records, columns=('key', 'value'), name=f'{name} sheet')
                     chapter.append(sheet, inplace=True)
                 elif isinstance(data, Iterable) and not isinstance(data, str):
-                    records = map(lambda n, i: {'#': n, 'item': repr(i)}, enumerate(data))
-                    sheet = Sheet(records, columns=('#', 'item'), name=f'{name} sheet')
+                    records = map(lambda n, i: {HASH: n, 'item': repr(i)}, enumerate(data))
+                    sheet = Sheet(records, columns=(HASH, 'item'), name=f'{name} sheet')
                     chapter.append(sheet, inplace=True)
                 else:
                     paragraph = Paragraph(data, name=f'{name} paragraph')
                     chapter.append(paragraph, inplace=True)
         return chapter
-
-    # @deprecated_with_alternative('get_data_chapter()')
-    def display_data_sheet(
-            self,
-            count: Optional[int] = None,
-            title: Optional[str] = 'Data',
-            comment: Optional[str] = None,
-            display=None,
-    ) -> Native:
-        display = self.get_display(display)
-        item = self.get_data_chapter()
-        display.display_item(item)
-        return self
 
     # @deprecated
     def get_type_in(self, dialect=None):  # TMP for compatibility with AbstractField/StructInterface

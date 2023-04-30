@@ -3,16 +3,18 @@ from typing import Type, Optional, Callable, Iterable, Union, Any
 
 try:  # Assume we're a submodule in a package.
     from base.classes.typing import Class
-    from base.functions.arguments import get_name
-    from base.constants.chars import EMPTY, REPR_DELIMITER
     from base.classes.enum import DynamicEnum, ClassType
+    from base.constants.chars import EMPTY, REPR_DELIMITER
+    from base.functions.arguments import get_name
+    from base.functions.errors import get_type_err_msg
     from base.interfaces.data_interface import SimpleDataInterface
     from base.mixin.display_mixin import DisplayMixin
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.typing import Class
-    from ..functions.arguments import get_name
-    from ..constants.chars import EMPTY, REPR_DELIMITER
     from ..classes.enum import DynamicEnum, ClassType
+    from ..constants.chars import EMPTY, REPR_DELIMITER
+    from ..functions.arguments import get_name
+    from ..functions.errors import get_type_err_msg
     from ..interfaces.data_interface import SimpleDataInterface
     from .display_mixin import DisplayMixin
 
@@ -60,7 +62,9 @@ class DataMixin(DisplayMixin, ABC):
     def set_data(self, data: Iterable, inplace: bool, **kwargs) -> Native:
         data_root_class = self._get_root_data_class()
         if data_root_class:
-            assert isinstance(data, data_root_class)
+            if not isinstance(data, data_root_class):
+                msg = get_type_err_msg(expected=data_root_class, got=data, arg='data', caller=self.set_data)
+                raise TypeError(msg)
         parent = super()
         if isinstance(parent, SimpleDataInterface) or hasattr(parent, 'set_data'):
             kwargs['inplace'] = inplace

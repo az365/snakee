@@ -2,16 +2,16 @@ from abc import ABC
 from typing import Iterable, Callable, Any
 
 try:  # Assume we're a submodule in a package.
-    from interfaces import Stream, StreamBuilderInterface, StreamType, ItemType, StreamItemType, OptionalFields
+    from interfaces import Stream, StreamBuilderInterface, StreamType, ItemType, OptionalFields
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...interfaces import Stream, StreamBuilderInterface, StreamType, ItemType, StreamItemType, OptionalFields
+    from ...interfaces import Stream, StreamBuilderInterface, StreamType, ItemType, OptionalFields
 
 
 class StreamBuilderMixin(StreamBuilderInterface, ABC):
     def stream(
             self,
             data: Iterable,
-            stream_type: StreamItemType = ItemType.Auto,
+            stream_type: ItemType = ItemType.Auto,
             ex: OptionalFields = None,
             **kwargs
     ) -> Stream:

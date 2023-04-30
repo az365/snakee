@@ -3,13 +3,15 @@ from typing import Optional, Iterable
 try:  # Assume we're a submodule in a package.
     from utils.decorators import deprecated_with_alternative
     from interfaces import ItemType, ConnType, Name, Struct, Count, TmpFiles, Connector, Context
-    from base.constants.chars import EMPTY, PARAGRAPH_CHAR, DEFAULT_ENCODING
+    from base.constants.chars import EMPTY, PARAGRAPH_CHAR
+    from base.constants.text import DEFAULT_ENCODING
     from functions.secondary import item_functions as fs
     from streams.regular.any_stream import AnyStream
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...utils.decorators import deprecated_with_alternative
     from ...interfaces import ItemType, ConnType, Name, Struct, Count, TmpFiles, Connector, Context
-    from ...base.constants.chars import EMPTY, PARAGRAPH_CHAR, DEFAULT_ENCODING
+    from ...base.constants.chars import EMPTY, PARAGRAPH_CHAR
+    from ...base.constants.text import DEFAULT_ENCODING
     from ...functions.secondary import item_functions as fs
     from .any_stream import AnyStream
 

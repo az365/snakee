@@ -3,15 +3,19 @@ from typing import Optional, Iterable, Iterator, Sequence, Tuple, Union
 
 try:  # Assume we're a submodule in a package.
     from base.classes.typing import Name, Count, ARRAY_TYPES
-    from base.constants.chars import EMPTY, REPR_DELIMITER, CROP_SUFFIX, SHORT_CROP_SUFFIX, DEFAULT_LINE_LEN
+    from base.constants.chars import EMPTY, REPR_DELIMITER, CROP_SUFFIX, SHORT_CROP_SUFFIX
+    from base.constants.text import DEFAULT_LINE_LEN
     from base.functions.arguments import get_name, get_cropped_text
+    from base.functions.errors import get_type_err_msg
     from base.abstract.simple_data import SimpleDataWrapper
     from base.interfaces.sheet_interface import SheetInterface, Record, Row, FormattedRow, Columns
     from base.mixin.iter_data_mixin import IterDataMixin
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.typing import Name, Count, ARRAY_TYPES
-    from ..constants.chars import EMPTY, REPR_DELIMITER, CROP_SUFFIX, SHORT_CROP_SUFFIX, DEFAULT_LINE_LEN
+    from ..constants.chars import EMPTY, REPR_DELIMITER, CROP_SUFFIX, SHORT_CROP_SUFFIX
+    from ..constants.text import DEFAULT_LINE_LEN
     from ..functions.arguments import get_name, get_cropped_text
+    from ..functions.errors import get_type_err_msg
     from ..abstract.simple_data import SimpleDataWrapper
     from ..interfaces.sheet_interface import SheetInterface, Record, Row, FormattedRow, Columns
     from .iter_data_mixin import IterDataMixin
@@ -100,7 +104,7 @@ class SheetMixin(ABC):
             for cell, max_cell_len in zip(row, column_lens):
                 if max_cell_len is None:
                     max_cell_len = max_len
-                cell_str = self._crop_cell(cell, max_cell_len)
+                cell_str = get_cropped_text(cell, max_len=max_cell_len)
                 formatted_row.append(cell_str)
             yield tuple(formatted_row)
 
@@ -110,11 +114,8 @@ class SheetMixin(ABC):
         for row in self.get_formatted_rows(with_title=True):
             yield formatter.format(row)
 
-    def get_columns(self, including_lens: bool = False) -> list:
-        if including_lens:
-            return self.get_column_names_and_lens()
-        else:
-            return self.get_column_names()
+    def get_columns(self) -> list:
+        return self.get_column_names()
 
     def get_column_names(self) -> list:
         return self._column_names
@@ -155,7 +156,8 @@ class SheetMixin(ABC):
                 columns = self.get_column_names() or self._get_column_names_from_records(items)
                 rows = [tuple([i.get(c) for c in columns]) for i in items]
             else:
-                raise TypeError(f'Expected items as Rows or Records, got {first_item} as {type(first_item)}')
+                msg = get_type_err_msg(expected=(Row, Record), got=first_item, arg='items[0]')
+                raise TypeError(msg)
             if columns:
                 self._set_columns_inplace(columns)
         else:
@@ -212,7 +214,8 @@ class SheetMixin(ABC):
             elif isinstance(first_item, Record):
                 return cls._get_column_names_from_records(items)
             else:
-                raise TypeError(f'Expected items as Rows or Records, got {first_item} as {type(first_item)}')
+                msg = get_type_err_msg(expected=(Row, Record), got=first_item, arg='items[0]')
+                raise TypeError(msg)
         return []
 
     def _add_one_column_inplace(self, column) -> Native:
@@ -232,7 +235,3 @@ class SheetMixin(ABC):
         self._column_lens = list()
 
     columns = property(get_column_names, _set_columns_inplace, _reset_columns)
-
-    @staticmethod
-    def _crop_cell(value, max_len: Optional[int], crop_suffix: str = CROP_SUFFIX) -> str:
-        return get_cropped_text(value, max_len=max_len, crop_suffix=crop_suffix)

@@ -3,6 +3,7 @@ from typing import Optional, Iterable, Generator, Sequence, Tuple, Union, Any
 try:  # Assume we're a submodule in a package.
     from base.classes.typing import Count, Array
     from base.functions.arguments import get_str_from_args_kwargs, get_generated_name
+    from base.functions.errors import get_type_err_msg
     from base.interfaces.display_interface import DisplayInterface, DEFAULT_EXAMPLE_COUNT
     from base.interfaces.context_interface import ContextInterface
     from base.mixin.data_mixin import DataMixin, EMPTY, UNK_COUNT_STUB, DEFAULT_CHAPTER_TITLE_LEVEL
@@ -13,6 +14,7 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.typing import Count, Array
     from ..functions.arguments import get_str_from_args_kwargs, get_generated_name
+    from ..functions.errors import get_type_err_msg
     from ..interfaces.display_interface import DisplayInterface, DEFAULT_EXAMPLE_COUNT
     from ..interfaces.context_interface import ContextInterface
     from ..mixin.data_mixin import DataMixin, EMPTY, UNK_COUNT_STUB, DEFAULT_CHAPTER_TITLE_LEVEL
@@ -89,7 +91,7 @@ class ContextualDataWrapper(AbstractNamed, SourcedMixin, ContextualMixin, DataMi
             meta.pop(f, None)
         return meta
 
-    def get_compatible_static_meta(self, other=None, ex=None, **kwargs) -> dict:
+    def get_compatible_static_meta(self, other: Optional[Native] = None, ex=None, **kwargs) -> dict:
         meta = self.get_compatible_meta(other=other, ex=ex, **kwargs)
         for f in self._get_dynamic_meta_fields():
             meta.pop(f, None)
@@ -119,10 +121,11 @@ class ContextualDataWrapper(AbstractNamed, SourcedMixin, ContextualMixin, DataMi
             filters: Optional[Array] = None,
             example: Optional[DataMixin] = None,
     ) -> Tuple[Sequence, Sequence]:
-        if example is not None:
-            assert isinstance(example, DataMixin), f'got {example}'
-        else:
+        if example is None:
             example = self._get_demo_example(count=count, columns=columns, filters=filters, example=example)
+        elif not isinstance(example, DataMixin):
+            msg = get_type_err_msg(expected=DataMixin, got=example, arg='example')
+            raise TypeError(msg)
         if hasattr(example, 'get_columns') and hasattr(example, 'get_records'):  # RegularStream, SqlStream
             records = example.get_records()  # ConvertMixin.get_records(), SqlStream.get_records()
             columns = example.get_columns()  # StructMixin.get_columns(), RegularStream.get_columns()
@@ -147,31 +150,25 @@ class ContextualDataWrapper(AbstractNamed, SourcedMixin, ContextualMixin, DataMi
         assert not kwargs, f'{self.__class__.__name__}.describe(): kwargs not supported'
         yield self.get_display().get_header_chapter_for(self, level=1, comment=comment)
         if hasattr(self, '_prepare_examples_with_title'):  # isinstance(self, ValidateMixin)
-            struct_title, example_item, example_stream, example_comment = self._prepare_examples_with_title(
+            struct_comment, example_item, example_stream, example_comment = self._prepare_examples_with_title(
                 *filters or list(), **named_filters or dict(), safe_filter=safe_filter,
                 example_row_count=count, actualize=actualize,
                 verbose=False,
             )
-            yield struct_title
         else:
             example_item = dict()
             example_stream = None
             example_comment = f'{repr(self)} has no example item(s)'
-        if hasattr(self, 'get_invalid_columns'):  # isinstance(self, ValidateMixin):
-            invalid_columns = self.get_invalid_columns()
-        else:
-            invalid_columns = None
-        if invalid_columns:
-            invalid_columns_str = get_str_from_args_kwargs(*invalid_columns)
-            yield f'Invalid columns: {invalid_columns_str}'
+            struct_comment = '(example values were not received)'
         if depth > 0 and hasattr(self, 'get_struct_chapter'):  # isinstance(self, (StructMixin, ColumnarMixin)):
             yield self.get_struct_chapter(
-                example_item=example_item, comment=example_comment,
+                example_item=example_item, comment=struct_comment,
                 level=DEFAULT_CHAPTER_TITLE_LEVEL, name='Columns',
             )
         if example_stream and count and hasattr(self, 'get_example_chapter'):  # isinstance(self, ValidateMixin):
             yield self.get_example_chapter(
-                count, columns=columns, example=example_stream, comment=example_comment,
+                count, columns=columns,
+                example=example_stream, comment=example_comment,
                 level=DEFAULT_CHAPTER_TITLE_LEVEL, name='Example',
             )
         if depth > 1:

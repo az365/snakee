@@ -3,11 +3,13 @@ from typing import Optional, Iterable, Iterator, Tuple, Union, Any
 
 try:  # Assume we're a submodule in a package.
     from base.classes.typing import Name, Count, FormattedRow, Row, Record, Line
-    from base.constants.chars import EMPTY, REPR_DELIMITER, DEFAULT_LINE_LEN
+    from base.constants.chars import EMPTY, REPR_DELIMITER
+    from base.constants.text import DEFAULT_LINE_LEN
     from base.interfaces.iterable_interface import IterableInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.typing import Name, Count, FormattedRow, Row, Record, Line
-    from ..constants.chars import EMPTY, REPR_DELIMITER, DEFAULT_LINE_LEN
+    from ..constants.chars import EMPTY, REPR_DELIMITER
+    from ..constants.text import DEFAULT_LINE_LEN
     from .iterable_interface import IterableInterface
 
 Native = IterableInterface
@@ -42,7 +44,7 @@ class SheetInterface(IterableInterface, ABC):
         pass
 
     @abstractmethod
-    def get_columns(self, including_lens: bool = False) -> list:
+    def get_columns(self) -> list:
         pass
 
     @abstractmethod

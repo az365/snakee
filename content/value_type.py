@@ -2,17 +2,19 @@ from inspect import isclass
 import json
 
 try:  # Assume we're a submodule in a package.
+    from base.constants.chars import EMPTY, DOT, UNDER
+    from base.classes.typing import Value, Callable
     from base.classes.enum import DynamicEnum
-    from base.functions.arguments import get_value
-    from utils.arguments import any_to_bool, safe_converter
-    from utils.decorators import deprecated_with_alternative
+    from base.functions.arguments import get_name, get_value, any_to_bool
+    from base.functions.errors import get_loc_message
     from connectors.databases.dialect_type import DialectType
     from functions.primary import numeric as nm
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
+    from ..base.constants.chars import EMPTY, DOT, UNDER
+    from ..base.classes.typing import Value, Callable
     from ..base.classes.enum import DynamicEnum
-    from ..base.functions.arguments import get_value
-    from ..utils.arguments import any_to_bool, safe_converter
-    from ..utils.decorators import deprecated_with_alternative
+    from ..base.functions.arguments import get_name, get_value, any_to_bool
+    from ..base.functions.errors import get_loc_message
     from ..connectors.databases.dialect_type import DialectType
     from ..functions.primary import numeric as nm
 
@@ -66,7 +68,7 @@ class ValueType(DynamicEnum):
 
     @classmethod
     def detect_by_name(cls, field_name: str):
-        name_parts = field_name.split('_')
+        name_parts = field_name.split(UNDER)
         heuristic_suffix_to_type = cls.get_heuristic_suffix_to_type()
         default_type = heuristic_suffix_to_type[None]
         field_type = default_type
@@ -85,7 +87,7 @@ class ValueType(DynamicEnum):
     @staticmethod
     def detect_by_value(value):
         field_type = type(value)
-        field_type_name = str(field_type)
+        field_type_name = get_name(field_type, or_callable=False)
         return ValueType(field_type_name)
 
     @classmethod
@@ -106,24 +108,48 @@ class ValueType(DynamicEnum):
                 for dialect, type_name in dict_names.items():
                     if field_type == type_name:
                         return ValueType(canonic_type)
-        str_field_type = str(field_type).split('.')[-1].lower()
+        str_field_type = str(field_type).split(DOT)[-1].lower()
         try:
             return ValueType(str_field_type)
         except ValueError as e:
             if ignore_missing:
                 return ValueType(default)
             else:
-                raise ValueError('Unsupported field type: {} ({})'.format(field_type, e))
+                msg = f'Unsupported field type: {field_type} ({e})'
+                raise ValueError(get_loc_message(msg, caller=ValueType.get_canonic_type, args=[field_type]))
 
     def get_converter(self, source, target):
         source_dialect_name = get_value(source)
         target_dialect_name = get_value(target)
-        converter_name = '{}_to_{}'.format(source_dialect_name, target_dialect_name)
+        converter_name = f'{source_dialect_name}_to_{target_dialect_name}'
         field_types_by_dialect = self.get_dialect_types()
         types_by_dialects = field_types_by_dialect.get(self, {})
         default_converter = (lambda i: i) if target_dialect_name == 'py' else str
         converter = types_by_dialects.get(converter_name, default_converter)
         return converter
+
+    @staticmethod
+    def safe_converter(converter: Callable, default_value: Value = 0, eval_allowed: bool = False) -> Callable:
+        def func(value):
+            if value is None or value == EMPTY:
+                return default_value
+            else:
+                try:
+                    return converter(value)
+                except ValueError:
+                    return default_value
+                except NameError:
+                    return default_value
+                except TypeError as e:
+                    converter_name = converter.__name__
+                    if converter_name == 'eval':
+                        if eval_allowed:
+                            return eval(str(value))
+                        else:
+                            return value
+                    else:
+                        raise TypeError(f'{e}: {converter_name}({value})')
+        return func
 
     def is_str(self) -> bool:
         return self.get_value().startswith('str')
@@ -142,12 +168,12 @@ ValueType._dict_dialect_types = {
     ValueType.Str16: dict(py=str, pg='varchar(16)', ch='FixedString(16)', str_to_py=str),
     ValueType.Str64: dict(py=str, pg='varchar(64)', ch='FixedString(64)', str_to_py=str),
     ValueType.Str256: dict(py=str, pg='varchar(256)', ch='FixedString(256)', str_to_py=str),
-    ValueType.Int: dict(py=int, pg='int', ch='Int32', str_to_py=safe_converter(int)),
-    ValueType.Float: dict(py=float, pg='numeric', ch='Float32', str_to_py=safe_converter(float)),
+    ValueType.Int: dict(py=int, pg='int', ch='Int32', str_to_py=ValueType.safe_converter(int)),
+    ValueType.Float: dict(py=float, pg='numeric', ch='Float32', str_to_py=ValueType.safe_converter(float)),
     ValueType.IsoDate: dict(py=str, pg='date', ch='Date', str_to_py=str),
-    ValueType.Bool: dict(py=bool, pg='bool', ch='UInt8', str_to_py=any_to_bool, py_to_ch=safe_converter(int)),
-    ValueType.Sequence: dict(py=tuple, pg='text', str_to_py=safe_converter(eval, tuple())),
-    ValueType.Dict: dict(py=dict, pg='text', str_to_py=safe_converter(eval, dict())),
+    ValueType.Bool: dict(py=bool, pg='bool', ch='UInt8', str_to_py=any_to_bool, py_to_ch=ValueType.safe_converter(int)),
+    ValueType.Sequence: dict(py=tuple, pg='text', str_to_py=ValueType.safe_converter(eval, tuple())),
+    ValueType.Dict: dict(py=dict, pg='text', str_to_py=ValueType.safe_converter(eval, dict())),
 }
 ValueType._dict_heuristic_suffix_to_type = {
     'hist': ValueType.Dict,

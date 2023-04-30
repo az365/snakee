@@ -3,14 +3,14 @@ from typing import Optional, Iterable, Callable, Union
 
 try:  # Assume we're a submodule in a package.
     from base.classes.typing import Count, Array
-    from base.constants.chars import DEFAULT_ENCODING
+    from base.constants.text import DEFAULT_ENCODING
     from utils.algo import JoinType
     from connectors.interfaces.connector_interface import ConnectorInterface
     from connectors.interfaces.temporary_interface import TemporaryFilesMaskInterface
     from streams.interfaces.iterable_stream_interface import IterableStreamInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.classes.typing import Count, Array
-    from ...base.constants.chars import DEFAULT_ENCODING
+    from ...base.constants.text import DEFAULT_ENCODING
     from ...utils.algo import JoinType
     from ...connectors.interfaces.connector_interface import ConnectorInterface
     from ...connectors.interfaces.temporary_interface import TemporaryFilesMaskInterface

@@ -4,10 +4,8 @@ import logging
 
 try:  # Assume we're a submodule in a package.
     from base.classes.typing import Count, Name
-    from base.constants.chars import (
-        EMPTY, CROP_SUFFIX, ELLIPSIS, SPACE, RETURN_CHAR, PARAGRAPH_CHAR, SLASH, BACKSLASH,
-        DEFAULT_ENCODING, DEFAULT_LINE_LEN, LONG_LINE_LEN,
-    )
+    from base.constants.chars import EMPTY, ELLIPSIS, SPACE, RETURN_CHAR, PARAGRAPH_CHAR, SLASH, BACKSLASH
+    from base.constants.text import DEFAULT_ENCODING, DEFAULT_LINE_LEN, LONG_LINE_LEN
     from base.functions.arguments import get_name, get_value, update, get_cropped_text
     from base.interfaces.context_interface import ContextInterface
     from base.abstract.named import AbstractNamed
@@ -20,10 +18,8 @@ try:  # Assume we're a submodule in a package.
     from loggers.progress import Progress
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..base.classes.typing import Count, Name
-    from ..base.constants.chars import (
-        EMPTY, CROP_SUFFIX, ELLIPSIS, SPACE, RETURN_CHAR, PARAGRAPH_CHAR, SLASH, BACKSLASH,
-        DEFAULT_ENCODING, DEFAULT_LINE_LEN, LONG_LINE_LEN,
-    )
+    from ..base.constants.chars import EMPTY, ELLIPSIS, SPACE, RETURN_CHAR, PARAGRAPH_CHAR, SLASH, BACKSLASH
+    from ..base.constants.text import DEFAULT_ENCODING, DEFAULT_LINE_LEN, LONG_LINE_LEN
     from ..base.functions.arguments import get_name, get_value, update, get_cropped_text
     from ..base.interfaces.context_interface import ContextInterface
     from ..base.abstract.named import AbstractNamed

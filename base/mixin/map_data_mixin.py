@@ -5,6 +5,7 @@ from itertools import chain
 try:  # Assume we're a submodule in a package.
     from base.classes.typing import Count, Class
     from base.functions.arguments import get_name
+    from base.functions.errors import get_type_err_msg
     from base.constants.chars import EMPTY, REPR_DELIMITER
     from base.classes.enum import DynamicEnum, ClassType
     from base.interfaces.data_interface import SimpleDataInterface
@@ -13,6 +14,7 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.typing import Count, Class
     from ..functions.arguments import get_name
+    from ..functions.errors import get_type_err_msg
     from ..constants.chars import EMPTY, REPR_DELIMITER
     from ..classes.enum import DynamicEnum, ClassType
     from ..interfaces.data_interface import SimpleDataInterface
@@ -149,9 +151,8 @@ class MultiMapDataMixin(MapDataMixin, ABC):
                 else:
                     iter_values.append(second_level_data.values())
             else:
-                template = 'expected second_level_data as Map (MapDataMixin or dict), got {value}'
-                msg = template.format(value=second_level_data)
-                raise TypeError(self._get_call_prefix(self.get_second_level_items, arg=key) + msg)
+                msg = get_type_err_msg(second_level_data, (MapDataMixin, dict), args=f'data[{key}]')
+                raise TypeError(msg)
         return chain(*iter_values)
 
     def get_second_level_iter(self, key: Optional[Key] = None, as_pairs: bool = False) -> Generator:
@@ -190,7 +191,7 @@ class MultiMapDataMixin(MapDataMixin, ABC):
             return data[key].get(subkey)
 
     def get_item(self, key: Key, subkey: Key, skip_missing: Optional[bool] = None, default=None):
-        if not isinstance(skip_missing, bool):
+        if skip_missing is None:  # not isinstance(skip_missing, bool)
             skip_missing = default is not None
         data_dict = self.get_from_data(key)
         if subkey in data_dict:
@@ -222,7 +223,7 @@ class MultiMapDataMixin(MapDataMixin, ABC):
         if key not in data:
             data[key] = dict()
         data_dict = data[key]
-        assert isinstance(data_dict, dict), 'AbstractTerm.add_to_data(): Expected data as dict, got {}'.format(data)
+        assert isinstance(data_dict, dict), get_type_err_msg(expected=dict, got=data_dict, arg='data')
         added_items = list()
         if value:
             added_items += list(value.items())
@@ -233,7 +234,10 @@ class MultiMapDataMixin(MapDataMixin, ABC):
             subkey_class = str
         for k, v in added_items:
             if isinstance(k, str) and subkey_class != str:
-                k = subkey_class(k)
+                try:
+                    k = subkey_class(k)
+                except TypeError as e:
+                    raise TypeError(f'{key}->{k}: {e}')
             data_dict[k] = v
         return self
 
@@ -260,31 +264,3 @@ class MultiMapDataMixin(MapDataMixin, ABC):
             return self.get_second_level_item_classes()
         else:
             return super()._get_item_classes(level)
-
-    # @deprecated('get_data_chapter()')
-    def get_data_description(
-            self,
-            count: Count = None,
-            title: Optional[str] = None,
-            max_len: Count = None,
-    ) -> Generator:
-        if title:
-            yield title
-        for key in self.get_sorted_first_level_keys():
-            if hasattr(key, 'get_dict_names'):
-                k_name, v_name = key.get_dict_names()
-                columns = map(lambda f, s: (k_name if f == KEY else v_name if f == VALUE else f, s), DESCRIPTION_COLS)
-            else:
-                columns = DESCRIPTION_COLS
-            items = self.get_second_level_items(key, as_pairs=True)
-            if items:
-                yield '{key}:'.format(key=get_name(key))
-                records = map(
-                    lambda k, v: {
-                        k_name: get_name(k), v_name: get_name(v),
-                        'caption': k.get_caption() if hasattr(k, 'get_caption') else
-                        v.get_caption() if hasattr(v, 'get_caption') else EMPTY,
-                    },
-                    items,
-                )
-                yield from self._get_columnar_lines(records, columns=columns, count=count, max_len=max_len)

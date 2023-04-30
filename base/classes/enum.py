@@ -64,10 +64,15 @@ class EnumItem:
         return other_str == self.get_name() or other_str == self.get_value()
 
     def __str__(self):
-        return "<{}.{}: '{}'>".format(self.__class__.__name__, self.get_name(), self.get_value())
+        cls_name = self.__class__.__name__
+        obj_name = self.get_name()
+        value_repr = repr(self.get_value())
+        return f'<{cls_name}.{obj_name}: {value_repr}>'
 
     def __repr__(self):
-        return '{}.{}'.format(self.__class__.__name__, self.get_name())
+        cls_name = self.__class__.__name__
+        obj_name = self.get_name()
+        return f'{cls_name}.{obj_name}'
 
     def __hash__(self):
         return hash(self.get_value())
@@ -127,7 +132,8 @@ class DynamicEnum(EnumItem):
         if default:
             return cls.convert(default)
         elif not skip_missing:
-            raise ValueError('item {} is not an instance of DynamicEnum {}'.format(obj, cls.get_enum_name()))
+            enum_name = cls.get_enum_name()
+            raise ValueError(f'DynamicEnum.convert(): item {obj} is not an instance of DynamicEnum {enum_name}')
 
     @classmethod
     def find_instance(cls, instance) -> Optional[EnumItem]:
@@ -152,7 +158,7 @@ class DynamicEnum(EnumItem):
                 return cls.convert(*args[1:], **kwargs)
             except ValueError as e:
                 str_args = get_str_from_args_kwargs(*args, **kwargs)
-                msg = '{}({}): {}'.format(cls.__name__, str_args, e)
+                msg = f'{cls.__name__}({str_args}): {e}'
                 raise ValueError(msg)
 
     @classmethod

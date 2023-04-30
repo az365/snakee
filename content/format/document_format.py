@@ -1,26 +1,22 @@
 from typing import Optional, Iterable, Iterator, Generator, Sequence, Union
 
 try:  # Assume we're a submodule in a package.
-    from interfaces import Item, ItemType, ContentType, Class, Count
     from base.constants.chars import PARAGRAPH_CHAR, SPACE, HTML_SPACE, SHARP
-    from base.classes.display import DisplayInterface, DefaultDisplay
-    from base.mixin.display_mixin import DisplayMixin, Class
-    from utils.external import display, clear_output, Markdown, HTML
-    from utils.decorators import deprecated_with_alternative
-    from content.format.text_format import TextFormat, Compress, DEFAULT_ENCODING
+    from base.constants.text import DEFAULT_ENCODING
+    from base.classes.typing import Class, Count
+    from base.classes.display import DefaultDisplay
+    from utils.external import Markdown, HTML
+    from content.format.text_format import TextFormat, Compress
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...interfaces import Item, ItemType, ContentType, Class, Count
     from ...base.constants.chars import PARAGRAPH_CHAR, SPACE, HTML_SPACE, SHARP
-    from ...base.classes.display import DisplayInterface, DefaultDisplay
-    from ...base.mixin.display_mixin import DisplayMixin, Class
-    from ...utils.external import display, clear_output, Markdown, HTML
-    from ...utils.decorators import deprecated_with_alternative
-    from .text_format import TextFormat, Compress, DEFAULT_ENCODING
+    from ...base.constants.text import DEFAULT_ENCODING
+    from ...base.classes.typing import Class, Count
+    from ...base.classes.display import DefaultDisplay
+    from ...utils.external import Markdown, HTML
+    from .text_format import TextFormat, Compress
 
 Native = Union[DefaultDisplay, TextFormat]
 Style = Optional[str]
-FormattedDisplayTypes = Union[Markdown, HTML]
-DisplayObject = Union[FormattedDisplayTypes, str]
 Paragraph = Union[str, Iterable, None]
 
 H_STYLE = None
@@ -50,20 +46,6 @@ class DocumentFormat(TextFormat):
     @staticmethod
     def _get_display_class() -> Class:
         return str
-
-    @classmethod
-    def _get_display_object(cls, data: Union[str, Iterable, None]) -> Optional[DisplayObject]:
-        if not data:
-            return None
-        if hasattr(data, 'get_lines'):
-            data = data.get_lines()
-        if isinstance(data, Iterable) and not isinstance(data, str):
-            data = PARAGRAPH_CHAR.join(data)
-        display_class = cls._get_display_class()
-        if display_class:
-            return display_class(data)
-        else:
-            return str(data)
 
 
 class MarkdownFormat(DocumentFormat):
@@ -174,7 +156,3 @@ class HtmlFormat(DocumentFormat):
             yield '</tr>'
         yield '</tbody>'
         yield '</table>'
-
-    def clear_output(self):
-        self.display_paragraph()
-        clear_output()

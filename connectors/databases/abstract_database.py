@@ -4,13 +4,14 @@ from typing import Optional, Iterable, Tuple, Union
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         StreamInterface, ColumnarInterface, ColumnarStream, StructStream, StructInterface, SimpleDataInterface,
-        LeafConnectorInterface, ConnType, StreamType, DialectType, LoggingLevel,
+        LeafConnectorInterface, ConnType, DialectType, LoggingLevel,
         Context, Count, Name, FieldName, OptionalFields, Connector,
     )
     from base.constants.chars import (
         EMPTY, PARAGRAPH_CHAR, TAB_CHAR,
         ITEMS_DELIMITER, DOT, ALL, SEMICOLON, PY_PLACEHOLDER,
     )
+    from base.functions.errors import get_type_err_msg
     from loggers.fallback_logger import FallbackLogger
     from functions.primary import text as tx
     from content.struct.flat_struct import FlatStruct
@@ -19,13 +20,14 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         StreamInterface, ColumnarInterface, ColumnarStream, StructStream, StructInterface, SimpleDataInterface,
-        LeafConnectorInterface, ConnType, StreamType, DialectType, LoggingLevel,
+        LeafConnectorInterface, ConnType, DialectType, LoggingLevel,
         Context, Count, Name, FieldName, OptionalFields, Connector,
     )
     from ...base.constants.chars import (
         EMPTY, PARAGRAPH_CHAR, TAB_CHAR,
         ITEMS_DELIMITER, DOT, ALL, SEMICOLON, PY_PLACEHOLDER,
     )
+    from ...base.functions.errors import get_type_err_msg
     from ...loggers.fallback_logger import FallbackLogger
     from ...functions.primary import text as tx
     from ...content.struct.flat_struct import FlatStruct
@@ -153,8 +155,11 @@ class AbstractDatabase(AbstractStorage, ABC):
             commit: Optional[bool] = None,
             verbose: Optional[bool] = None,
     ) -> Optional[Iterable]:
-        assert isinstance(file, File) or hasattr(file, 'get_items'), f'file must be LocalFile, got {file}'
-        query = PARAGRAPH_CHAR.join(file.get_items())
+        if isinstance(file, File) or hasattr(file, 'get_items'):
+            query = PARAGRAPH_CHAR.join(file.get_items())
+        else:
+            msg = get_type_err_msg(expected=File, got=file, arg='file', caller=self.execute_query_from_file)
+            raise TypeError(msg)
         return self.execute(query, get_data=get_data, commit=commit, verbose=verbose)
 
     def execute_if_exists(
@@ -196,7 +201,7 @@ class AbstractDatabase(AbstractStorage, ABC):
             verbose: Optional[bool] = None,
     ) -> Table:
         if verbose is None:
-            verbose = self.verbose
+            verbose = self.is_verbose()
         table_name, struct_str = self._get_table_name_and_struct_str(table, struct, check_struct=True)
         if drop_if_exists:
             self.drop_table(table_name, verbose=verbose)
@@ -207,7 +212,7 @@ class AbstractDatabase(AbstractStorage, ABC):
             verbose=message if verbose is True else verbose,
         )
         self.post_create_action(table_name, verbose=verbose)
-        self.log('Table {name} is created.'.format(name=table_name), verbose=verbose)
+        self.log(f'Table {table_name} is created.', verbose=verbose)
         if struct:
             return self.table(table, struct=struct)
         else:
@@ -293,8 +298,7 @@ class AbstractDatabase(AbstractStorage, ABC):
         elif not fields:
             fields_str = ALL
         else:
-            expected = 'str, Iterable or None'
-            msg = f'Expected {expected}, got {fields}'
+            msg = get_type_err_msg(expected=(str, Iterable, None), got=fields, arg='fields', caller=self.execute_select)
             raise TypeError(msg)
         filters_str = filters if isinstance(filters, str) else ' AND '.join(filters) if filters is not None else EMPTY
         sort_str = sort if isinstance(sort, str) else ' AND '.join(sort) if sort is not None else EMPTY
@@ -345,10 +349,11 @@ class AbstractDatabase(AbstractStorage, ABC):
             columns = stream.get_columns()
             assert columns, f'Columns in StructStream must be defined (got {stream})'
         else:
-            expected = 'StructStream'
-            msg = f'{self}.insert_struct_stream(): Expected {expected}, got {stream} as {type(stream)}'
+            msg = get_type_err_msg(expected=StructStream, got=stream, arg='stream', caller=self.insert_struct_stream)
             raise TypeError(msg)
-        assert hasattr(stream, 'get_struct')  # isinstance(stream, StructStream)
+        if not (isinstance(stream, StructStream) or hasattr(stream, 'get_struct')):
+            msg = get_type_err_msg(expected=StructStream, got=stream, arg='stream', caller=self.insert_struct_stream)
+            raise TypeError(msg)
         if hasattr(table, 'get_columns'):
             table_cols = table.get_columns()
             assert columns == table_cols, f'{columns} != {table_cols}'
@@ -366,10 +371,8 @@ class AbstractDatabase(AbstractStorage, ABC):
             self,
             table: Union[Table, Name],
             data: Data, struct: Struct = None,
-            encoding: Optional[str] = None,
             skip_errors: bool = False,
             skip_lines: Count = 0,
-            skip_first_line: bool = False,
             step: Count = DEFAULT_STEP,
             verbose: Optional[bool] = None,
     ) -> tuple:
@@ -380,10 +383,7 @@ class AbstractDatabase(AbstractStorage, ABC):
             message = f'Struct as {type(struct)} is deprecated, use FlatStruct instead'
             self.log(msg=message, level=LoggingLevel.Warning)
             struct = FlatStruct(struct or [])
-        input_stream = self._get_struct_stream_from_data(
-            data, struct=struct,
-            encoding=encoding, skip_first_line=skip_first_line, verbose=verbose,
-        )
+        input_stream = self._get_stream_from_data(data, struct=struct)
         if skip_lines:
             input_stream = input_stream.skip(skip_lines)
         if input_stream.get_struct() is None:
@@ -406,22 +406,19 @@ class AbstractDatabase(AbstractStorage, ABC):
             self,
             table: Union[Table, Name],
             struct: Struct, data: Data,
-            encoding: Optional[str] = None,
             step: Count = DEFAULT_STEP,
             skip_lines: Count = 0,
-            skip_first_line: bool = False,
             max_error_rate: float = 0.0,
             verbose: Optional[bool] = None,
     ) -> Table:
         if verbose is None:
-            verbose = self.verbose
+            verbose = self.is_verbose()
         table_name, struct = self._get_table_name_and_struct(table, struct)
         if not skip_lines:
             self.create_table(table_name, struct=struct, drop_if_exists=True, verbose=verbose)
         skip_errors = (max_error_rate is None) or (max_error_rate > DEFAULT_ERRORS_THRESHOLD)
         initial_count, write_count = self.insert_data(
             table, struct=struct, data=data,
-            encoding=encoding, skip_first_line=skip_first_line,
             step=step, skip_lines=skip_lines, skip_errors=skip_errors,
             verbose=verbose,
         )
@@ -445,10 +442,8 @@ class AbstractDatabase(AbstractStorage, ABC):
             self,
             table: Union[Table, Name],
             struct: Struct, data: Data,
-            encoding: Optional[str] = None,
             step: int = DEFAULT_STEP,
             skip_lines: int = 0,
-            skip_first_line: bool = False,
             max_error_rate: float = 0.0,
             verbose: Optional[bool] = None,
     ) -> Table:
@@ -456,7 +451,7 @@ class AbstractDatabase(AbstractStorage, ABC):
         tmp_name = f'{target_name}_tmp_upload'
         bak_name = f'{target_name}_bak'
         self.force_upload_table(
-            table=tmp_name, struct=struct, data=data, encoding=encoding, skip_first_line=skip_first_line,
+            table=tmp_name, struct=struct, data=data,
             step=step, skip_lines=skip_lines, max_error_rate=max_error_rate,
             verbose=verbose,
         )
@@ -511,11 +506,14 @@ class AbstractDatabase(AbstractStorage, ABC):
                     yield item.split(delimiter)
             else:
                 two_lines = file.to_line_stream().take(2)
-                assert isinstance(two_lines, StreamInterface) or hasattr(two_lines, 'get_list')
-                login, password = two_lines.get_list()[:2]
+                if isinstance(two_lines, StreamInterface) or hasattr(two_lines, 'get_list'):
+                    login, password = two_lines.get_list()[:2]
+                else:
+                    msg = get_type_err_msg(expected=StreamInterface, got=two_lines, arg='two_lines')
+                    raise TypeError(msg)
                 yield login, password
         else:
-            msg = f'{cls.__name__}._parse_credentials_file(): LocalFile expected, got {file}'
+            msg = get_type_err_msg(expected=File, got=file, arg='file', caller=cls._parse_credentials_file)
             raise TypeError(msg)
 
     @staticmethod
@@ -529,8 +527,9 @@ class AbstractDatabase(AbstractStorage, ABC):
         else:
             return str(table)
 
-    @staticmethod
+    @classmethod
     def _get_schema_and_table_name(
+            cls,
             table: Union[Table, Name],
             default_schema: Optional[str] = None,
     ) -> Tuple[Optional[str], str]:
@@ -539,8 +538,7 @@ class AbstractDatabase(AbstractStorage, ABC):
         elif isinstance(table, str):
             name = table
         else:
-            expected_types = 'Table or Name'
-            msg = f'Expected {expected_types}, got {table}'
+            msg = get_type_err_msg(table, arg='table', expected=(Table, Name), caller=cls._get_schema_and_table_name)
             raise TypeError(msg)
         if DOT in name:
             schema_name, table_name = name.split(DOT)
@@ -567,15 +565,14 @@ class AbstractDatabase(AbstractStorage, ABC):
             else:
                 table_struct = expected_struct
         else:
-            expected_types = 'Table or Name'
-            msg = f'Expected {expected_types}, got {table}'
+            msg = get_type_err_msg(Table, arg='table', expected=(Table, Name), caller=cls._get_table_name_and_struct)
             raise TypeError(msg)
         if check_struct:
             assert table_struct, 'struct must be defined'
         return table_name, table_struct
 
     @staticmethod
-    def _get_struct_stream_from_data(data: Data, struct: Struct = None, **file_kwargs) -> StructStream:
+    def _get_stream_from_data(data: Data, struct: Struct = None) -> StructStream:
         if isinstance(data, StreamInterface):
             stream = data
         elif isinstance(data, File) or hasattr(data, 'to_struct_stream'):
@@ -584,14 +581,8 @@ class AbstractDatabase(AbstractStorage, ABC):
                 stream_cols = stream.get_columns()
                 struct_cols = struct.get_columns()
                 assert stream_cols == struct_cols, f'{stream_cols} != {struct_cols}'
-        elif isinstance(data, str):  # deprecated
-            logger = FallbackLogger()
-            logger.warning('usage of filename as data-argument is deprecated, use file object instead')
-            build_stream = StreamType.RowStream.get_class()
-            stream = build_stream.from_column_file(filename=data, **file_kwargs)  # deprecated
         else:
-            build_stream = StreamBuilder.get_default_stream_class()
-            stream = build_stream(data)
+            stream = StreamBuilder.stream(data)
         return stream
 
     def _get_table_name_and_struct_str(
@@ -612,8 +603,7 @@ class AbstractDatabase(AbstractStorage, ABC):
         elif hasattr(struct, 'get_struct_str'):
             struct_str = struct.get_struct_str(dialect=self.get_dialect_type())
         else:
-            expected_types = 'StructInterface or list[tuple]'
-            msg = f'struct must be an instance of {expected_types}, got {struct}'
+            msg = get_type_err_msg(arg='expected_struct', got=struct, expected=(StructInterface, list[tuple]))
             raise TypeError(msg)
         return table_name, struct_str
 

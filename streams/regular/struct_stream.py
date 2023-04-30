@@ -2,19 +2,17 @@ from typing import Optional, Iterable
 
 try:  # Assume we're a submodule in a package.
     from interfaces import Struct, ItemType, Name, Count, Source, Context, TmpFiles
-    from content.struct.struct_mixin import StructMixin
     from streams.mixin.convert_mixin import ConvertMixin
     from streams.regular.row_stream import RowStream, deprecated_with_alternative
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import Struct, ItemType, Name, Count, Source, Context, TmpFiles
-    from ...content.struct.struct_mixin import StructMixin
     from ..mixin.convert_mixin import ConvertMixin
     from .row_stream import RowStream, deprecated_with_alternative
 
 EXPECTED_ITEM_TYPE = ItemType.StructRow
 
 
-class StructStream(RowStream, StructMixin, ConvertMixin):
+class StructStream(RowStream, ConvertMixin):
     @deprecated_with_alternative('RegularStream(item_type=ItemType.StructRow)')
     def __init__(
             self,

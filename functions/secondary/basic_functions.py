@@ -1,15 +1,13 @@
 from typing import Callable, Iterable, Union, Any
 
 try:  # Assume we're a submodule in a package.
+    from base.constants.text import ZERO_VALUES
     from utils.decorators import sql_compatible
-    from base.constants.chars import EMPTY, DEFAULT_STR
     from functions.primary import numeric as nm
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
+    from ...base.constants.text import ZERO_VALUES
     from ...utils.decorators import sql_compatible
-    from ...base.constants.chars import EMPTY, DEFAULT_STR
     from ..primary import numeric as nm
-
-ZERO_VALUES = None, 'None', EMPTY, DEFAULT_STR, 0
 
 
 @sql_compatible

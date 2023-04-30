@@ -1,11 +1,13 @@
 try:  # Assume we're a submodule in a package.
     from context import SnakeeContext
     from functions.secondary import all_secondary_functions as fs
+    from utils.algo import JoinType
     from content.fields.field_classes import struct
     from content.terms.term_classes import ProcessTerm, ObjectTerm, HierarchicTerm, TermRelation
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...context import SnakeeContext
     from ...functions.secondary import all_secondary_functions as fs
+    from ...utils.algo import JoinType
     from ..fields.field_classes import struct
     from .term_classes import ProcessTerm, ObjectTerm, HierarchicTerm, TermRelation
 
@@ -37,23 +39,23 @@ SEPULING_SHARE = SEPULING.get_share_field()
 
 # Structs
 struct_sepulka_master = struct(
-    SEPULKA.get_id_field(),
-    SEPULKA.get_name_field(),
-    SEPULKARIUM.get_id_field(),
+    SEPULKA.get_id_field(),  # sepulka_id
+    SEPULKA.get_name_field(),  # sepulka_name
+    SEPULKARIUM.get_id_field(),  # sepulkarium_id
     name='SEPULKA_MASTER',
     caption='sepulka master-data',
 )
 struct_sepulka_state = struct(
-    SEPULKA.get_id_field(),
-    SEPULING.get_share_field(),
+    SEPULKA.get_id_field(),  # sepulka_id
+    SEPULING.get_share_field(),  # sepuling_share
     name='SEPULKARIUM_STATE',
     caption='current state of sepuling process',
 )
 struct_sepulkarium_state = struct(
-    SEPULKARIUM.get_id_field(),
-    SEPULKARIUM.get_name_field(),
-    SEPULING.get_share_field(),
-    SEPULKA.get_count_field(),
+    SEPULKARIUM.get_id_field(),  # sepulkarium_id
+    SEPULKARIUM.get_name_field(),  # sepulkarium_name
+    SEPULING.get_share_field(),  # sepuling_share
+    SEPULKA.get_count_field(),  # sepulka_count
     name='SEPULKARIUM_STATE',
     caption='current state of sepuling process',
 )
@@ -89,14 +91,14 @@ DATA_SEPULKA_STATE = [  # sepulka_id, sepuling_share
 
 
 def test_term():
-    tsv_sepulka_master.write_stream(cx.sm.RowStream(DATA_SEPULKA_MASTER))
-    tsv_sepulka_state.write_stream(cx.sm.RowStream(DATA_SEPULKA_STATE))
+    tsv_sepulka_master.write_stream(cx.sm.RowStream(DATA_SEPULKA_MASTER))  # (1, 'sepulka_01', 10), ..20..10..20..10)
+    tsv_sepulka_state.write_stream(cx.sm.RowStream(DATA_SEPULKA_STATE))  # (1, 0.9), (2, 0.8), ..0.7..0.6), (5, 0.5)
     stream_sepulkarium_state = tsv_sepulka_state.to_record_stream().join(
         tsv_sepulka_master.to_record_stream(),
         key=SEPULKA_ID,
-        how='left',
+        how=JoinType.Left,
     ).group_by(
-        SEPULKARIUM.get_id_field(),
+        SEPULKARIUM.get_id_field(),  # sepulcarium_id
         values=[SEPULKA_ID, SEPULING_SHARE],
         step=None,
     ).select(
@@ -106,7 +108,8 @@ def test_term():
     ).collect()
     dict_sepulkarium_state = stream_sepulkarium_state.get_dict(SEPULKARIUM_ID, SEPULING_SHARE)
     dict_sepulka_count_by_sepulkarium = stream_sepulkarium_state.get_dict(SEPULKARIUM_ID, SEPULKA.get_count_field())
-    assert dict_sepulkarium_state == {10: 0.7, 20: 0.7}, dict_sepulkarium_state
+    expected_state = {10: 0.7, 20: 0.7}
+    assert dict_sepulkarium_state == expected_state, f'{dict_sepulkarium_state} != {expected_state}'
     assert dict_sepulka_count_by_sepulkarium == {10: 3, 20: 2}, dict_sepulka_count_by_sepulkarium
 
 

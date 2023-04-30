@@ -1,29 +1,17 @@
 from typing import Optional
 import sys
 import csv
-import re
 
 try:
+    from base.constants.chars import EMPTY, SPACE, COLON, SLASH, BACKSLASH, TAB_CHAR, PARAGRAPH_CHAR
+    from base.constants.chars import OS_PLACEHOLDER, PY_PLACEHOLDER, DOUBLE_SPACE
+    from base.constants.text import RE_LETTERS, NORM_LETTER_PAIRS, FALSE_VALUES
     from base.functions.arguments import get_str_from_args_kwargs, get_str_from_annotation
-    from base.constants.chars import (
-        EMPTY, SPACE, OS_PLACEHOLDER, PY_PLACEHOLDER,
-        COLON, SLASH, BACKSLASH,
-        TAB_CHAR, PARAGRAPH_CHAR,
-        FALSE_VALUES,
-    )
 except ImportError:
+    from ...base.constants.chars import EMPTY, SPACE, COLON, SLASH, BACKSLASH, TAB_CHAR, PARAGRAPH_CHAR
+    from ...base.constants.chars import OS_PLACEHOLDER, PY_PLACEHOLDER, DOUBLE_SPACE
+    from ...base.constants.text import RE_LETTERS, NORM_LETTER_PAIRS, FALSE_VALUES
     from ...base.functions.arguments import get_str_from_args_kwargs, get_str_from_annotation
-    from ...base.constants.chars import (
-        EMPTY, SPACE, OS_PLACEHOLDER, PY_PLACEHOLDER,
-        COLON, SLASH, BACKSLASH,
-        TAB_CHAR, PARAGRAPH_CHAR,
-        FALSE_VALUES,
-    )
-
-RE_LETTERS = re.compile('[^a-zа-я ]')
-NORM_LETTER_PAIRS = [('ё', 'е'), ]
-DOUBLE_SPACE = SPACE * 2
-STR_FALSE_SYNONYMS = ['False', 'None', 'none'] + list(FALSE_VALUES)  # 'false', 'no', '0', '0.0', DEFAULT_STR, EMPTY
 
 max_int = sys.maxsize
 while True:  # To prevent _csv.Error: field larger than field limit (131072)
@@ -84,7 +72,3 @@ def is_formatter(string: str, count: Optional[int] = None) -> bool:
             return min([is_mask(string, count, placeholder=s) for s in PY_PLACEHOLDER])
         else:
             return min([is_mask(string, placeholder=s) for s in PY_PLACEHOLDER])
-
-
-def str_to_bool(line: str) -> bool:
-    return line not in STR_FALSE_SYNONYMS

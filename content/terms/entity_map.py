@@ -1,11 +1,11 @@
 from typing import Optional, Generator
 
 try:  # Assume we're a submodule in a package.
-    from base.constants.chars import EMPTY, SMALL_INDENT, TAB_INDENT, REPR_DELIMITER, DEFAULT_LINE_LEN
+    from base.constants.chars import EMPTY, SMALL_INDENT, TAB_INDENT, REPR_DELIMITER
     from base.abstract.simple_data import SimpleDataWrapper, DisplayInterface, Count
     from utils.external import DataFrame
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...base.constants.chars import EMPTY, SMALL_INDENT, TAB_INDENT, REPR_DELIMITER, DEFAULT_LINE_LEN
+    from ...base.constants.chars import EMPTY, SMALL_INDENT, TAB_INDENT, REPR_DELIMITER
     from ...base.abstract.simple_data import SimpleDataWrapper, DisplayInterface, Count
     from ...utils.external import DataFrame
 
@@ -31,23 +31,6 @@ class EntityMap(SimpleDataWrapper):
     def get_count_repr(self, default: str = 'N/A') -> str:
         count = self.get_count() or default
         return f'{count} entities'
-
-    def display_data_sheet(
-            self,
-            count: Count = None,
-            title: Optional[str] = 'Data',
-            comment: Optional[str] = None,
-            max_len: Count = None,
-            display: Optional[DisplayInterface] = None,
-    ):
-        display = self.get_display(display)
-        if comment:
-            display.display_paragraph(comment)
-        return display.display_sheet(
-            records=self.get_entity_records(),
-            columns=COLS_FOR_ENTITY,
-            with_title=True,
-        )
 
     def get_str_headers(self) -> Generator:
         yield from self.get_brief_meta_description()

@@ -6,10 +6,11 @@ try:  # Assume we're a submodule in a package.
     from interfaces import (
         Context, Connector, ConnectorInterface, ContentFormatInterface, StructInterface,
         IterableStreamInterface, RegularStreamInterface,
-        ContentType, ConnType, ItemType, StreamType, StreamItemType,
+        ContentType, ConnType, ItemType,
         Count, OptionalFields, UniKey, ARRAY_TYPES,
     )
     from base.constants.chars import EMPTY, PARAGRAPH_CHAR, RETURN_CHAR, OS_PLACEHOLDER, PY_PLACEHOLDER
+    from base.functions.errors import get_type_err_msg
     from functions.primary.text import is_formatter
     from content.format.format_classes import (
         AbstractFormat, ParsedFormat, LeanFormat,
@@ -22,10 +23,11 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...interfaces import (
         Context, Connector, ConnectorInterface, ContentFormatInterface, StructInterface,
         IterableStreamInterface, RegularStreamInterface,
-        ContentType, ConnType, ItemType, StreamType, StreamItemType,
+        ContentType, ConnType, ItemType,
         Count, OptionalFields, UniKey, ARRAY_TYPES,
     )
     from ...base.constants.chars import EMPTY, PARAGRAPH_CHAR, RETURN_CHAR, OS_PLACEHOLDER, PY_PLACEHOLDER
+    from ...base.functions.errors import get_type_err_msg
     from ...functions.primary.text import is_formatter
     from ...content.format.format_classes import (
         AbstractFormat, ParsedFormat, LeanFormat,
@@ -62,9 +64,11 @@ class LocalFile(LeafConnector, ActualizeMixin):
     ):
         parent = kwargs.pop('parent', None)
         if folder:
-            message = f'only LocalFolder supported for *File instances (got {folder})'
-            assert isinstance(folder, ConnectorInterface) or folder.is_folder(), message
-            assert parent is None or folder == parent, f'folder must be a parent, got {folder}, {parent}'
+            if isinstance(folder, ConnectorInterface) or folder.is_folder():
+                assert parent is None or folder == parent, f'folder must be a parent, got {folder}, {parent}'
+            else:
+                msg = get_type_err_msg(expected=ConnectorInterface, got=folder, arg='folder', caller=LocalFile)
+                raise TypeError(msg)
         elif parent is not None:
             folder = parent
         elif context is not None:
@@ -146,9 +150,11 @@ class LocalFile(LeafConnector, ActualizeMixin):
             return self
 
     def add_to_folder(self, folder: Connector) -> Native:
-        assert isinstance(folder, ConnectorInterface), f'folder must be a LocalFolder (got {folder})'
-        assert folder.is_folder(), f'folder must be a LocalFolder (got {folder})'
-        folder.add_child(self)
+        if isinstance(folder, ConnectorInterface) or hasattr(folder, 'add_child'):
+            folder.add_child(self)
+        else:
+            msg = get_type_err_msg(expected=ConnectorInterface, got=folder, arg='folder', caller=self.add_to_folder)
+            raise TypeError(msg)
         return self
 
     def get_default_file_extension(self) -> str:
@@ -294,9 +300,12 @@ class LocalFile(LeafConnector, ActualizeMixin):
     def get_first_line(self, close: bool = True, skip_missing: bool = False, verbose: bool = False) -> str:
         if not skip_missing:
             content_format = self.get_content_format()
-            assert isinstance(content_format, ParsedFormat), f'For get first line content must be parsed: {self}'
-            assert content_format.get_defined().is_text(), f'For parse content format must be text: {self}'
-            assert not self.is_empty(), f'For get line file/object must be non-empty: {self}'
+            if isinstance(content_format, ParsedFormat) or hasattr(content_format, 'get_defined'):
+                assert content_format.get_defined().is_text(), f'For parse content format must be text: {self}'
+                assert not self.is_empty(), f'For get line file/object must be non-empty: {self}'
+            else:
+                msg = get_type_err_msg(expected=ParsedFormat, got=content_format, arg='content_format')
+                raise TypeError(msg)
         return super().get_first_line(close=close, skip_missing=skip_missing, verbose=verbose)
 
     def get_next_lines(self, count: Optional[int] = None, skip_first: bool = False, close: bool = False) -> Iterable:
@@ -378,8 +387,11 @@ class LocalFile(LeafConnector, ActualizeMixin):
         if item_type in (ItemType.Auto, None):
             item_type = self.get_default_item_type()
         content_format = self.get_content_format()
-        assert isinstance(content_format, ParsedFormat)
-        lines = content_format.get_lines(items, item_type=item_type, add_title_row=add_title_row)
+        if isinstance(content_format, ParsedFormat) or hasattr(content_format, 'get_lines'):
+            lines = content_format.get_lines(items, item_type=item_type, add_title_row=add_title_row)
+        else:
+            msg = get_type_err_msg(content_format, arg='content_format', expected=ParsedFormat, caller=self.write_items)
+            raise TypeError(msg)
         return self.write_lines(lines, verbose=verbose)
 
     def write_stream(

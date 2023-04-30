@@ -7,8 +7,9 @@ try:  # Assume we're a submodule in a package.
         StructRowInterface, StructInterface, LoggerInterface, LoggingLevel,
         ItemType, Item, Struct, UniKey, FieldInterface, FieldName, FieldNo, Field, Name, Value, Class, Array,
     )
+    from base.constants.chars import TAB_INDENT, ITEMS_DELIMITER, CROP_SUFFIX, UNDER, NOT_SET
+    from base.constants.text import DEFAULT_LINE_LEN
     from base.functions.arguments import get_name, get_names, get_cropped_text
-    from base.constants.chars import TAB_INDENT, ITEMS_DELIMITER, CROP_SUFFIX, UNDER, NOT_SET, DEFAULT_LINE_LEN
     from base.abstract.abstract_base import AbstractBaseObject, BaseInterface
     from base.abstract.named import AbstractNamed
     from base.mixin.data_mixin import DataMixin
@@ -20,8 +21,9 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         StructRowInterface, StructInterface, LoggerInterface, LoggingLevel,
         ItemType, Item, Struct, UniKey, FieldInterface, FieldName, FieldNo, Field, Name, Value, Class, Array,
     )
+    from ...base.constants.chars import TAB_INDENT, ITEMS_DELIMITER, CROP_SUFFIX, UNDER, NOT_SET
+    from ...base.constants.text import DEFAULT_LINE_LEN
     from ...base.functions.arguments import get_name, get_names, get_cropped_text
-    from ...base.constants.chars import TAB_INDENT, ITEMS_DELIMITER, CROP_SUFFIX, UNDER, NOT_SET, DEFAULT_LINE_LEN
     from ...base.abstract.abstract_base import AbstractBaseObject, BaseInterface
     from ...base.abstract.named import AbstractNamed
     from ...base.mixin.data_mixin import DataMixin

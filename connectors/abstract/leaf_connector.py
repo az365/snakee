@@ -4,10 +4,11 @@ from typing import Optional, Callable, Iterable, Generator, Union
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         ConnectorInterface, LeafConnectorInterface, StructInterface, ContentFormatInterface, RegularStreamInterface,
-        ItemType, StreamType, ContentType, Context, Stream, Name, Count, Columns, Array,
+        ItemType, ContentType, Context, Stream, Name, Count, Columns, Array,
     )
+    from base.constants.chars import EMPTY, CROP_SUFFIX, ITEMS_DELIMITER
     from base.functions.arguments import get_name, get_str_from_args_kwargs, get_cropped_text
-    from base.constants.chars import EMPTY, CROP_SUFFIX, ITEMS_DELIMITER, DEFAULT_LINE_LEN
+    from base.functions.errors import get_loc_message, get_type_err_msg
     from content.format.format_classes import ParsedFormat
     from connectors.abstract.abstract_connector import AbstractConnector
     from connectors.mixin.actualize_mixin import ActualizeMixin, DEFAULT_EXAMPLE_COUNT
@@ -16,10 +17,11 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         ConnectorInterface, LeafConnectorInterface, StructInterface, ContentFormatInterface, RegularStreamInterface,
-        ItemType, StreamType, ContentType, Context, Stream, Name, Count, Columns, Array,
+        ItemType, ContentType, Context, Stream, Name, Count, Columns, Array,
     )
+    from ...base.constants.chars import EMPTY, CROP_SUFFIX, ITEMS_DELIMITER
     from ...base.functions.arguments import get_name, get_str_from_args_kwargs, get_cropped_text
-    from ...base.constants.chars import EMPTY, CROP_SUFFIX, ITEMS_DELIMITER, DEFAULT_LINE_LEN
+    from ...base.functions.errors import get_loc_message, get_type_err_msg
     from ...content.format.format_classes import ParsedFormat
     from .abstract_connector import AbstractConnector
     from ..mixin.actualize_mixin import ActualizeMixin, DEFAULT_EXAMPLE_COUNT
@@ -29,6 +31,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 Native = LeafConnectorInterface
 Parent = Union[Context, ConnectorInterface]
 Links = Optional[dict]
+ContentFormat = Union[ContentFormatInterface, ContentType]
+CONTENT_FORMAT_CLASSES = ContentFormatInterface, ContentType
 
 META_MEMBER_MAPPING = dict(_data='streams', _source='parent', _declared_format='content_format')
 TEMPORARY_PARTITION_FORMAT = ContentType.JsonFile
@@ -42,7 +46,7 @@ class LeafConnector(
     def __init__(
             self,
             name: Name,
-            content_format: Union[ContentFormatInterface, ContentType, None] = None,
+            content_format: Optional[ContentFormat] = None,
             struct: Optional[StructInterface] = None,
             detect_struct: bool = True,
             first_line_is_title: Optional[bool] = None,
@@ -65,8 +69,10 @@ class LeafConnector(
         suit_classes = ContentType, ContentFormatInterface, str
         is_deprecated_class = hasattr(content_format, 'get_value') and not isinstance(content_format, suit_classes)
         if is_deprecated_class:
-            msg = 'LeafConnector({}, {}): content_format as {} is deprecated, use ContentType or ContentFormat instead'
-            self.log(msg.format(name, content_format, content_format.__class__.__name__), level=30)
+            received = content_format.__class__.__name__
+            expected = ' or '.join(map(get_name, CONTENT_FORMAT_CLASSES))
+            msg = f'content_format as {received} is deprecated, use {expected} instead'
+            self.log(get_loc_message(msg, caller=LeafConnector, args=(name, content_format)), level=30)
             content_format = content_format.get_value()
         if isinstance(content_format, str):
             content_format = ContentType(content_format)
@@ -77,9 +83,11 @@ class LeafConnector(
             content_format.set_inplace(**kwargs)
         else:
             if kwargs:
-                msg = 'LeafConnector: kwargs allowed for ContentType only, not for {}, got kwargs={}'
-                raise ValueError(msg.format(content_format, kwargs))
-        assert isinstance(content_format, ContentFormatInterface), 'Expect ContentFormat, got {}'.format(content_format)
+                msg = f'kwargs allowed for ContentType only, not for {content_format}, got kwargs={kwargs}'
+                raise ValueError(get_loc_message(msg, caller=LeafConnector))
+        if not (isinstance(content_format, ContentFormatInterface) or hasattr(content_format, 'get_content_type')):
+            msg = get_type_err_msg(expected=ContentFormatInterface, got=content_format, arg='content_format')
+            raise TypeError(msg)
         self.set_content_format(content_format, inplace=True)
         self.set_first_line_title(first_line_is_title, verbose=self.is_verbose())
         if detect_struct and struct is None:
@@ -100,12 +108,16 @@ class LeafConnector(
             content_class = TEMPORARY_PARTITION_FORMAT.get_class()
         else:
             content_type = ContentType.detect_by_name(name)
-            assert content_type, 'Can not detect content type by name: {}'.format(name)
-            content_class = content_type.get_class()
+            if content_type:
+                content_class = content_type.get_class()
+            else:
+                msg = f'Can not detect content type by name: {name}'
+                raise ValueError(get_loc_message(msg))
         try:
             return content_class(**kwargs)
         except TypeError as e:
-            raise TypeError('{}: {}'.format(content_class.__name__, e))
+            msg = f'{content_class.__name__}: {e}'
+            raise TypeError(get_loc_message(msg))
 
     def _get_detected_struct(
             self,
@@ -173,7 +185,8 @@ class LeafConnector(
             detected_format = content_format.set_struct(detected_struct, inplace=False)
             self.set_detected_format(detected_format, inplace=True)
         elif not skip_missing:
-            raise ValueError('LeafConnector.reset_detected_format(): Data object not found: {}'.format(self))
+            msg = f'Data object not found: {self}'
+            raise ValueError(get_loc_message(msg))
         return self
 
     def get_declared_format(self) -> ContentFormatInterface:
@@ -184,7 +197,7 @@ class LeafConnector(
             self._declared_format = initial_format.copy()
         else:
             new = self.copy()
-            assert isinstance(new, LeafConnector)
+            assert isinstance(new, LeafConnector), get_type_err_msg(expected=LeafConnector, got=new, arg='self.copy()')
             new.set_declared_format(initial_format, inplace=True)
             return new
 
@@ -236,8 +249,9 @@ class LeafConnector(
         return False
 
     def check(self, must_exists: bool = True) -> Native:
-        if must_exists:
-            assert self.is_existing(), 'object {} must exists'.format(self.get_name())
+        if must_exists and not self.is_existing():
+            msg = f'For check object {self.get_name()} must exists'
+            raise FileNotFoundError(get_loc_message(msg))  # ConnectionError
         return self
 
     def has_lines(self, skip_missing: bool = True, verbose: Optional[bool] = None) -> bool:
@@ -245,17 +259,20 @@ class LeafConnector(
             if skip_missing:
                 return False
             else:
-                raise ValueError(f'For receive first line file/object must be existing: {self}')  # ConnectionError
+                msg = f'For receive first line file/object must be existing: {self}'
+                raise ValueError(get_loc_message(msg))  # ConnectionError
         if not self.is_existing():
             if skip_missing:
                 return False
             else:
-                raise FileNotFoundError(f'For receive first line file/object must be existing: {self}')
+                msg = f'For receive first line file/object must be existing: {self}'
+                raise FileNotFoundError(get_loc_message(msg))
         if self.is_empty():
             if skip_missing:
                 return False
             else:
-                raise ValueError(f'For receive first line file/object must be non-empty: {self}')
+                msg = f'For receive first line file/object must be non-empty: {self}'
+                raise ValueError(get_loc_message(msg))
         return True
 
     def get_first_line(
@@ -273,7 +290,8 @@ class LeafConnector(
             if skip_missing:
                 first_line = None
             else:
-                raise ValueError(f'Received empty content: {self}')
+                msg = f'Received empty content: {self}'
+                raise ValueError(get_loc_message(msg))
         if close:
             self.close()
         return first_line
@@ -324,7 +342,9 @@ class LeafConnector(
         if verbose is None:
             verbose = self.is_verbose()
         content_format = self.get_content_format()
-        assert isinstance(content_format, ParsedFormat) or hasattr(content_format, 'get_items_from_lines')
+        if not (isinstance(content_format, ParsedFormat) or hasattr(content_format, 'get_items_from_lines')):
+            msg = get_type_err_msg(expected=ParsedFormat, got=content_format, arg='self.get_content_format()')
+            raise ValueError(msg)
         count = self.get_count(allow_slow_mode=False)
         if isinstance(verbose, str):
             if message is not None:

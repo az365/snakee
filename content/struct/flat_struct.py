@@ -5,11 +5,13 @@ try:  # Assume we're a submodule in a package.
         StructInterface, StructRowInterface, FieldInterface, RepresentationInterface,
         SelectionLoggerInterface, ExtLogger,
         ValueType, DialectType,
-        FieldNo, FieldName, SimpleRow, Item,
+        FieldNo, FieldName, SimpleRow, Item, Record,
         Name, Count, Array, ARRAY_TYPES, ROW_SUBCLASSES, RECORD_SUBCLASSES,
     )
-    from base.constants.chars import EMPTY, REPR_DELIMITER, TITLE_PREFIX, ITEM, DEL, ABOUT, JUPYTER_LINE_LEN
+    from base.constants.chars import EMPTY, REPR_DELIMITER, TITLE_PREFIX, ITEM, DEL, ABOUT
+    from base.constants.text import JUPYTER_LINE_LEN
     from base.functions.arguments import update, get_generated_name, get_name, get_names
+    from base.functions.errors import get_type_err_msg, get_loc_message
     from base.abstract.simple_data import SimpleDataWrapper, DEFAULT_EXAMPLE_COUNT
     from base.mixin.iter_data_mixin import IterDataMixin
     from functions.secondary import array_functions as fs
@@ -25,11 +27,13 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         StructInterface, StructRowInterface, FieldInterface, RepresentationInterface,
         SelectionLoggerInterface, ExtLogger,
         ValueType, DialectType,
-        FieldNo, FieldName, SimpleRow, Item,
+        FieldNo, FieldName, SimpleRow, Item, Record,
         Name, Count, Array, ARRAY_TYPES, ROW_SUBCLASSES, RECORD_SUBCLASSES,
     )
-    from ...base.constants.chars import EMPTY, REPR_DELIMITER, TITLE_PREFIX, ITEM, DEL, ABOUT, JUPYTER_LINE_LEN
+    from ...base.constants.chars import EMPTY, REPR_DELIMITER, TITLE_PREFIX, ITEM, DEL, ABOUT
+    from ...base.constants.text import JUPYTER_LINE_LEN
     from ...base.functions.arguments import update, get_generated_name, get_name, get_names
+    from ...base.functions.errors import get_type_err_msg, get_loc_message
     from ...base.abstract.simple_data import SimpleDataWrapper, DEFAULT_EXAMPLE_COUNT
     from ...base.mixin.iter_data_mixin import IterDataMixin
     from ...functions.secondary import array_functions as fs
@@ -129,8 +133,11 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
             return self
         else:
             struct = self.copy()
-            assert isinstance(struct, FlatStruct)
-            struct.set_field_no(no=no, field=field, inplace=True)
+            if isinstance(struct, FlatStruct) or hasattr(struct, 'set_field_no'):
+                struct.set_field_no(no=no, field=field, inplace=True)
+            else:
+                msg = get_type_err_msg(expected=FlatStruct, got=struct, arg='self', caller=self.set_field_no)
+                raise TypeError(msg)
             return struct
 
     @staticmethod
@@ -161,7 +168,8 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
         elif skip_missing and field is None:
             return None
         else:
-            raise TypeError('Expected field, str or dict, got {} as {}'.format(field, type(field)))
+            msg = get_type_err_msg(expected=Field, got=field, arg='field', caller=self.append_field)
+            raise TypeError(msg)
         if exclude_duplicates and field_desc.get_name() in self.get_field_names():
             return self
         else:
@@ -335,20 +343,22 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
             return self.types(dict_field_types=dict_field_types, **kwargs) or self
         else:
             struct = self.copy()
-            assert isinstance(struct, FlatStruct)
+            assert isinstance(struct, FlatStruct) or hasattr(struct, 'types'), get_type_err_msg(struct, FlatStruct, '~')
             return struct.types(dict_field_types=dict_field_types, **kwargs)
 
     def types(self, dict_field_types: Optional[dict] = None, **kwargs) -> Native:
         for field_name, field_type in list((dict_field_types or {}).items()) + list(kwargs.items()):
             field = self.get_field_description(field_name)
-            assert hasattr(field, 'set_value_type'), 'Expected SimpleField or FieldDescription, got {}'.format(field)
             field.set_value_type(ValueType.detect_by_type(field_type), inplace=True)
         return self
 
     def common_type(self, field_type: Union[ValueType, type]) -> Native:
         for f in self.get_fields_descriptions():
-            assert isinstance(f, FieldInterface)
-            f.set_type(field_type, inplace=True)
+            if isinstance(f, FieldInterface) or hasattr(f, 'set_type'):
+                f.set_type(field_type, inplace=True)
+            else:
+                msg = get_type_err_msg(expected=FieldInterface, got=f, arg='f', caller=self.common_type)
+                raise TypeError(msg)
         return self
 
     def get_field_position(self, field: Name) -> Optional[int]:
@@ -363,7 +373,8 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
         elif isinstance(field, FieldInterface):
             return self.get_field_position(field.get_name())
         else:
-            raise TypeError(f'Expected field as Field(FieldInterface), FieldNo(int) or FieldName(str), got {field}')
+            msg = get_type_err_msg(expected=Field, got=field, arg='field', caller=self.get_field_position)
+            raise TypeError(msg)
 
     def get_fields_positions(self, names: Iterable) -> list:
         columns = self.get_columns()
@@ -406,20 +417,25 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
         row = self._convert_item_to_row(item)
         validation_errors = list()
         for value, field_description in zip(row, self.get_fields_descriptions()):
-            assert isinstance(field_description, FieldInterface)
-            field_type = field_description.get_value_type()
+            if isinstance(field_description, FieldInterface) or hasattr(field_description, 'get_value_type'):
+                field_type = field_description.get_value_type()
+            else:
+                msg = get_type_err_msg(expected=FieldInterface, got=field_description, arg='field_description')
+                raise TypeError(msg)
             if not field_type.isinstance(value):
-                template = '(FlatStruct) Field {}: type {} expected, got {} (value={})'
-                msg = template.format(field_description.get_name(), field_type, type(value), value)
+                name = field_description.get_name()
+                expected = get_name(field_type)
+                received = get_name(type(value))
+                msg = f'(FlatStruct) Field {name}: type {expected} expected, got {value} as {received}'
                 validation_errors.append(msg)
         return validation_errors
 
     def _convert_item_to_row(self, item: Item) -> SimpleRow:
         if isinstance(item, StructRowInterface) or hasattr(item, 'get_data'):
             return item.get_data()
-        elif isinstance(item, ROW_SUBCLASSES):
+        elif isinstance(item, ROW_SUBCLASSES):  # is_row(item)
             return item
-        elif isinstance(item, RECORD_SUBCLASSES):
+        elif isinstance(item, RECORD_SUBCLASSES):  # is_record(item)
             return [item.get(c) for c in self.get_columns()]
         else:  # Line, Any
             return [item]
@@ -447,7 +463,8 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
         added_names = get_names(comparison.get('added'))
         removed_names = get_names(comparison.get('removed'))
         if added_names or removed_names:
-            message = '{}: {saved} fields will be saved, {added} added, {removed} removed'.format(title, **counts)
+            saved, added, removed = [counts.get(i) for i in ('saved', 'added', 'removed')]
+            message = f'{title}: {saved} fields will be saved, {added} added, {removed} removed'
             yield message
             if added_names:
                 added_cnt = len(added_names)
@@ -471,12 +488,20 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
             tags = COMPARISON_TAGS
         expected_struct = self.convert_to_native(other)
         remaining_struct = expected_struct.copy()
-        assert isinstance(expected_struct, StructInterface) or hasattr(expected_struct, 'get_field_names'), f'got {expected_struct}'
-        assert isinstance(remaining_struct, StructInterface) or hasattr(remaining_struct, 'get_field_names'), f'got {remaining_struct}'
+        if not (isinstance(expected_struct, StructInterface) or hasattr(expected_struct, 'get_field_names')):
+            msg = get_type_err_msg(expected=StructInterface, got=expected_struct, arg='self', caller=self.compare_with)
+            raise TypeError(msg)
+        if not (isinstance(remaining_struct, StructInterface) or hasattr(remaining_struct, 'get_field_names')):
+            msg = get_type_err_msg(expected=StructInterface, got=remaining_struct, arg='copy', caller=self.compare_with)
+            raise TypeError(msg)
         updated_struct = FlatStruct([])
         for pos_received, f_received in enumerate(self.get_fields()):
-            assert isinstance(f_received, (FieldInterface, AnyField))
-            f_name = f_received.get_name()
+            expected_field_type = FieldInterface, AnyField
+            if isinstance(f_received, expected_field_type):
+                f_name = f_received.get_name()
+            else:
+                msg = get_type_err_msg(expected=expected_field_type, got=f_received, arg='f', caller=self.compare_with)
+                raise TypeError(msg)
             if f_name in updated_struct.get_field_names():
                 is_valid = False
                 tag = tags['this_duplicated'] if f_name in remaining_struct.get_field_names() else tags['both_duplicated']
@@ -533,15 +558,26 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
         return message
 
     @staticmethod
-    def get_struct_detected_by_title_row(title_row: Iterable) -> Native:
+    def get_struct_detected_by_title_row(row: Iterable) -> Native:
         struct = FlatStruct([])
-        for name in title_row:
+        for name in row:
             field_type = ValueType.detect_by_name(name)
-            struct.append_field(AnyField(name, value_type=field_type))
+            field_obj = AnyField(name, value_type=field_type)
+            struct.append_field(field_obj)
+        return struct
+
+    @staticmethod
+    def get_struct_detected_by_record(record: Record) -> Native:
+        struct = FlatStruct([])
+        for name, value in record.items():
+            field_type = ValueType.detect_by_value(value)
+            field_obj = AnyField(name, value_type=field_type)
+            struct.append_field(field_obj)
         return struct
 
     def copy(self) -> Native:
-        return FlatStruct(fields=list(self.get_fields()), name=self.get_name())
+        copy_of_fields = list(self.get_fields())
+        return FlatStruct(fields=copy_of_fields, name=self.get_name())
 
     def format(self, *args, delimiter: str = REPR_DELIMITER, skip_errors: bool = False) -> str:
         if len(args) == 1 and isinstance(args[0], (*ROW_SUBCLASSES, *RECORD_SUBCLASSES)):
@@ -550,12 +586,13 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
             item = args
         formatted_values = list()
         for n, f in enumerate(self.get_fields()):
-            if is_row(item):
+            if is_row(item):  # isinstance(item, ROW_SUBCLASSES):
                 value = item[n] if n < len(item) or not skip_errors else None
-            elif is_record(item):
+            elif is_record(item):  # isinstance(item, RECORD_SUBCLASSES):
                 value = item.get(get_name(f))
             else:
-                raise TypeError('Expected item as Row or Record, got {}'.format(item))
+                msg = get_type_err_msg(expected='Row or Record', got=item, arg='item', caller=self.format)
+                raise TypeError(msg)
             if isinstance(f, (FieldInterface, AnyField)) or hasattr(f, 'format'):
                 str_value = f.format(value, skip_errors=skip_errors)
             else:
@@ -594,8 +631,9 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
         if field_position is not None:
             return self.get_fields()[field_position]
         elif not skip_missing:
-            message = 'Field {} not found (existing fields: {})'
-            raise IndexError(message.format(field_name, ', '.join(self.get_field_names())))
+            fields = ', '.join(self.get_field_names())
+            msg = f'Field {field_name} not found (existing fields: {fields})'
+            raise IndexError(get_loc_message(msg))
 
     def get_struct_description_rows(self, include_header: bool = False) -> Iterator[tuple]:
         group_name = self.get_name()
@@ -751,7 +789,9 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
         return self.get_struct_str(None)
 
     def __str__(self):
-        return '<{}({})>'.format(self.__class__.__name__, self.get_struct_str('str'))
+        cls_name = self.__class__.__name__
+        obj_args = self.get_struct_str('str')
+        return f'<{cls_name}({obj_args})>'
 
     def __iter__(self):
         yield from self.get_fields_descriptions()
@@ -765,7 +805,7 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
             for f in self.get_fields_descriptions():
                 if f.get_name() == item:
                     return f
-            raise ValueError('Field with name {} not found (in group {})'.format(item, self))
+            raise ValueError(f'Field with name {item} not found (in group {self})')
 
     def __add__(self, other: Union[FieldInterface, StructInterface, Name]) -> Native:
         if isinstance(other, (str, int, FieldInterface)):
@@ -773,7 +813,8 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
         elif isinstance(other, (StructInterface, Iterable)):
             return self.append(other, inplace=False).set_name(None, inplace=False)
         else:
-            raise TypeError('Expected other as field or struct, got {} as {}'.format(other, type(other)))
+            msg = get_type_err_msg(expected=(Field, StructInterface), got=other, arg='other', caller=self.__add__)
+            raise TypeError(msg)
 
     def __len__(self):
         return self.get_count()

@@ -6,6 +6,7 @@ try:  # Assume we're a submodule in a package.
         ItemType, Item, Row, Record, Field, Name, FieldName, FieldNo,
         ARRAY_TYPES, Array,
     )
+    from base.functions.errors import get_type_err_msg
     from base.abstract.simple_data import SimpleDataWrapper
     from base.mixin.iter_data_mixin import IterDataMixin
     from functions.primary import items as it
@@ -21,6 +22,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         ItemType, Item, Row, Record, Field, Name, FieldName, FieldNo,
         ARRAY_TYPES, Array,
     )
+    from ...base.functions.errors import get_type_err_msg
     from ...base.abstract.simple_data import SimpleDataWrapper
     from ...base.mixin.iter_data_mixin import IterDataMixin
     from ...functions.primary import items as it
@@ -70,7 +72,7 @@ def build_expression_description(left: Field, right: Union[Array, Callable, None
     if isinstance(desc, Callable):
         return FunctionDescription(target, function=desc, **kwargs)
     elif desc is not None:
-        assert isinstance(desc, FIELD_TYPES), f'field as {FIELD_TYPES} expected, got {desc}'
+        assert isinstance(desc, FIELD_TYPES), get_type_err_msg(expected=FIELD_TYPES, got=desc, arg='field')
         return AliasDescription(alias=target, source=desc, **kwargs)
     elif target == '*':
         return StarDescription(**kwargs)

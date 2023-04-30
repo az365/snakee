@@ -2,26 +2,23 @@ from typing import Optional, Callable, Iterable, Generator, Iterator, Sequence, 
 
 try:  # Assume we're a submodule in a package.
     from base.classes.typing import Count, Class
-    from base.functions.arguments import get_name, get_value, get_str_from_args_kwargs
-    from base.constants.chars import (
-        REPR_DELIMITER, SMALL_INDENT, MD_HEADER, PARAGRAPH_CHAR, ITEM, EMPTY,
-        DEFAULT_LINE_LEN,
-    )
+    from base.constants.chars import REPR_DELIMITER, SMALL_INDENT, MD_HEADER, PARAGRAPH_CHAR, ITEM, EMPTY
+    from base.constants.text import DEFAULT_LINE_LEN, DEFAULT_FLOAT_LEN, DEFAULT_INT_LEN
+    from base.functions.arguments import get_name, get_value, get_str_from_args_kwargs, get_cropped_text
+    from base.functions.errors import get_type_err_msg
     from base.interfaces.base_interface import BaseInterface
     from base.interfaces.display_interface import DisplayInterface, Item, Style, DEFAULT_EXAMPLE_COUNT
     from utils.decorators import deprecated_with_alternative
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.typing import Count, Class
-    from ..functions.arguments import get_name, get_value, get_str_from_args_kwargs
-    from ..constants.chars import (
-        REPR_DELIMITER, SMALL_INDENT, MD_HEADER, PARAGRAPH_CHAR, ITEM, EMPTY,
-        DEFAULT_LINE_LEN,
-    )
+    from ..constants.chars import REPR_DELIMITER, SMALL_INDENT, MD_HEADER, PARAGRAPH_CHAR, ITEM, EMPTY
+    from ..constants.text import DEFAULT_LINE_LEN, DEFAULT_FLOAT_LEN, DEFAULT_INT_LEN
+    from ..functions.arguments import get_name, get_value, get_str_from_args_kwargs, get_cropped_text
+    from ..functions.errors import get_type_err_msg
     from ..interfaces.base_interface import BaseInterface
     from ..interfaces.display_interface import DisplayInterface, Item, Style, DEFAULT_EXAMPLE_COUNT
     from ...utils.decorators import deprecated_with_alternative
 
-DEFAULT_INT_WIDTH, DEFAULT_FLOAT_WIDTH = 7, 12
 COLS_FOR_META = ('defined', 3), ('key', 20), ('value', 30), ('actual_type', 14), ('expected_type', 20), ('default', 20)
 DEFAULT_CHAPTER_TITLE_LEVEL = 3
 
@@ -31,7 +28,7 @@ class DefaultDisplay(DisplayInterface):
     _sheet_class: Class = None
 
     def get_display(self, display: Optional[DisplayInterface] = None) -> DisplayInterface:
-        if isinstance(display, DisplayInterface):
+        if isinstance(display, DisplayInterface) or hasattr(display, 'display_item'):
             return display
         elif display is None:
             if hasattr(self, '_display'):
@@ -41,7 +38,8 @@ class DefaultDisplay(DisplayInterface):
             else:
                 return display
         else:
-            raise TypeError(f'expected Display, got {display}')
+            msg = get_type_err_msg(expected=DisplayInterface, got=display, arg='display', caller=self.get_display)
+            raise TypeError(msg)
 
     def set_display(self, display: DisplayInterface) -> DisplayInterface:
         self._set_display_inplace(display)
@@ -70,7 +68,7 @@ class DefaultDisplay(DisplayInterface):
     def build_paragraph(data: Iterable, level: Count = 0, name: str = EMPTY):
         if isinstance(data, str):
             data = [data]
-        text = ''
+        text = EMPTY
         for line in data:
             if level:
                 if level > 0:
@@ -81,37 +79,12 @@ class DefaultDisplay(DisplayInterface):
             text = text + line + PARAGRAPH_CHAR
         return text
 
-    @deprecated_with_alternative('display_item(build_paragraph())')
-    def display_paragraph(
-            self,
-            paragraph: Optional[Iterable] = None,
-            level: Optional[int] = None,
-            style: Style = None,
-    ) -> None:
-        if paragraph:
-            if isinstance(paragraph, str):
-                return self.display_item(paragraph)
-            elif isinstance(paragraph, Iterable):
-                for line in paragraph:
-                    return self.display_item(line)
-            else:
-                raise TypeError(f'Expected paragraph as Paragraph, str or Iterable, got {paragraph}')
-
-    @deprecated_with_alternative('display_item(Sheet.from_records())')
-    def display_sheet(self, records: Iterable, columns: Sequence, name: str = EMPTY) -> None:
-        sheet_class = self.get_sheet_class()
-        if sheet_class:
-            assert hasattr(sheet_class, 'from_records'), sheet_class  # isinstance(sheet_class, SheetInterface)
-            sheet = sheet_class.from_records(records, columns=columns, name=name)
-        else:
-            raise AssertionError('_sheet_class property must be defined for build sheet, use Display.set_sheet_class()')
-        self.display_item(sheet)
-
     def display_item(self, item: Item, item_type='paragraph', **kwargs) -> None:
-        item_type_value = get_value(item_type)
-        method_name = f'display_{item_type_value}'
-        method = getattr(self, method_name, self.display_paragraph)
-        return method(item, **kwargs)
+        if item is None:
+            item = self
+        data = self._get_display_object(item)
+        method = self._get_display_method()
+        return method(data)
 
     @classmethod
     def get_header_chapter_for(cls, obj, level: int = 1, comment: str = EMPTY) -> Iterable:
@@ -192,9 +165,9 @@ class DefaultDisplay(DisplayInterface):
                     if isinstance(c[1], int):
                         yield c[1]
                     elif c[1] == int:
-                        yield DEFAULT_INT_WIDTH
+                        yield DEFAULT_INT_LEN
                     elif c[1] == float:
-                        yield DEFAULT_FLOAT_WIDTH
+                        yield DEFAULT_FLOAT_LEN
                     else:  # c == str
                         yield max_len
                 else:
@@ -221,10 +194,10 @@ class DefaultDisplay(DisplayInterface):
         names = list(cls._get_column_names(columns, ex=ex))
         lens = cls._get_column_lens(columns, max_len=max_len)
         if isinstance(item, dict):
-            values = [str(get_value(item.get(k))) if k not in ex else '' for k in names]
+            values = [str(get_value(item.get(k))) if k not in ex else EMPTY for k in names]
         else:
-            values = [str(v) if k not in ex else '' for k, v in zip(names, item)]
-        return {c: str(v)[:s] for c, v, s in zip(names, values, lens)}
+            values = [str(v) if k not in ex else EMPTY for k, v in zip(names, item)]
+        return {c: get_cropped_text(v, s) for c, v, s in zip(names, values, lens)}
 
     @classmethod
     @deprecated_with_alternative('SimpleSheet.get_lines()')
@@ -270,7 +243,8 @@ class DefaultDisplay(DisplayInterface):
         elif isinstance(paragraph, Iterable):
             yield from paragraph
         elif paragraph:
-            raise TypeError(paragraph)
+            msg = get_type_err_msg(expected=(str, Iterable), got=paragraph, arg='paragraph')
+            raise TypeError(msg)
 
     @classmethod
     def _get_display_object(cls, data: Union[str, Iterable]) -> Optional[str]:
@@ -285,15 +259,6 @@ class DefaultDisplay(DisplayInterface):
     @staticmethod
     def _get_display_method() -> Callable:
         return print
-
-    @deprecated_with_alternative('display_item()')
-    def display(self, item: Item = None):
-        if item is None:
-            item = self
-        data = self._get_display_object(item)
-        method = self._get_display_method()
-        method(data)
-        return self
 
     def __call__(self, obj) -> None:
         return self.display_item(obj)

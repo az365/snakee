@@ -9,13 +9,15 @@ try:  # Assume we're a submodule in a package.
         Count, Item, Struct, Columns, Field, FieldNo, OptionalFields, UniKey, Class,
         Name, Array, ARRAY_TYPES,
     )
-    from base.functions.arguments import get_name, get_names, get_str_from_args_kwargs
     from base.constants.chars import EMPTY, SHARP
+    from base.functions.arguments import get_name, get_names, get_str_from_args_kwargs
+    from base.functions.errors import get_type_err_msg
     from utils.decorators import deprecated_with_alternative
     from functions.primary.items import set_to_item, merge_two_items, unfold_structs_to_fields
     from functions.secondary import all_secondary_functions as fs
     from content.items.item_getters import get_filter_function
     from content.selection import selection_classes as sn
+    from content.struct.struct_mixin import StructMixin
     from content.struct.flat_struct import FlatStruct
     from streams.abstract.local_stream import LocalStream
     from streams.interfaces.abstract_stream_interface import DEFAULT_EXAMPLE_COUNT
@@ -30,13 +32,15 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         Count, Item, Struct, Columns, Field, FieldNo, OptionalFields, UniKey, Class,
         Name, Array, ARRAY_TYPES,
     )
-    from ...base.functions.arguments import get_name, get_names, get_str_from_args_kwargs
     from ...base.constants.chars import EMPTY, SHARP
+    from ...base.functions.arguments import get_name, get_names, get_str_from_args_kwargs
+    from ...base.functions.errors import get_type_err_msg
     from ...utils.decorators import deprecated_with_alternative
     from ...functions.primary.items import set_to_item, merge_two_items, unfold_structs_to_fields
     from ...functions.secondary import all_secondary_functions as fs
     from ...content.items.item_getters import get_filter_function
     from ...content.selection import selection_classes as sn
+    from ...content.struct.struct_mixin import StructMixin
     from ...content.struct.flat_struct import FlatStruct
     from ..abstract.local_stream import LocalStream
     from ..interfaces.abstract_stream_interface import DEFAULT_EXAMPLE_COUNT
@@ -51,7 +55,7 @@ FileName = str
 DYNAMIC_META_FIELDS = 'struct', 'count', 'less_than'
 
 
-class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
+class RegularStream(LocalStream, ConvertMixin, StructMixin, RegularStreamInterface):
     def __init__(
             self,
             data: Iterable[Item],
@@ -106,12 +110,23 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
 
     item_type = property(get_item_type, _set_item_type_inplace)
 
-    def get_struct_from_source(self, skip_missing: bool = False) -> Struct:
-        columns = self.get_detected_columns(skip_errors=skip_missing)
-        return FlatStruct(columns)
+    def get_struct_from_source(
+            self,
+            set_struct: bool = False,
+            verbose: bool = False,
+            skip_missing: bool = False,
+    ) -> Struct:
+        record = self.to_record_stream().get_one_item()
+        struct = FlatStruct.get_struct_detected_by_record(record)
+        if set_struct:
+            self.set_struct(struct, check=False, inplace=True)
+        return struct
+
+    def get_initial_struct(self) -> Struct:
+        return self._struct
 
     def get_struct(self) -> Struct:
-        return self._struct
+        return self.get_initial_struct()
 
     def set_struct(self, struct: Struct, check: bool = False, inplace: bool = False) -> Native:
         if inplace:
@@ -165,16 +180,16 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
                 columns = sorted(columns)
             return columns
         elif item_type == ItemType.Row:
-            max_row_len = 0
+            detected_row_len = 0
             for row in example.get_items():
                 cur_row_len = len(row)
                 if get_max:
-                    if cur_row_len > max_row_len:
-                        max_row_len = cur_row_len
+                    if cur_row_len > detected_row_len:
+                        detected_row_len = cur_row_len
                 else:  # elif get_min:
-                    if cur_row_len < max_row_len:
-                        max_row_len = cur_row_len
-            return range(max_row_len)
+                    if cur_row_len < detected_row_len:
+                        detected_row_len = cur_row_len
+            return range(detected_row_len)
         elif item_type == ItemType.StructRow:  # deprecated
             return self.get_struct().get_columns()
         elif not skip_errors:
@@ -382,7 +397,7 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
             elif isclass(stream_type):
                 return stream_type
             else:
-                msg = f'RegularStream.to_stream(data, stream_type): expected ItemType or StreamType, got {stream_type}'
+                msg = get_type_err_msg(expected=(ItemType, StreamType), got=stream_type, arg='stream_type', caller=2)
                 raise TypeError(msg)
         else:
             return self.__class__
@@ -703,7 +718,8 @@ class RegularStream(LocalStream, ConvertMixin, RegularStreamInterface):
         if isinstance(file, FileName):
             file = self.get_context().get_job_folder().file(file, **kwargs)
         if not (isinstance(file, FileObj) or hasattr(file, 'write_stream')):
-            raise TypeError(f'Expected TsvFile, got {file} as {file}')
+            msg = get_type_err_msg(expected=(FileObj, FileName), got=file, arg='file', caller=RegularStream.to_file)
+            raise TypeError(msg)
         meta = self.get_meta()
         file.write_stream(self, verbose=verbose)
         if return_stream:

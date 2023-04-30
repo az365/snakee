@@ -4,6 +4,7 @@ try:  # Assume we're a submodule in a package.
     from base.classes.typing import Array, ARRAY_TYPES
     from base.constants.chars import STAR
     from base.functions.arguments import get_names, update
+    from base.functions.errors import get_type_err_msg
     from base.classes.typing import FieldNo, FieldName
     from loggers.logger_interface import LoggerInterface
     from functions.primary.items import get_fields_values_from_item, get_field_value_from_item
@@ -17,6 +18,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.classes.typing import Array, ARRAY_TYPES
     from ...base.constants.chars import STAR
     from ...base.functions.arguments import get_names, update
+    from ...base.functions.errors import get_type_err_msg
     from ...base.classes.typing import FieldNo, FieldName
     from ...loggers.logger_interface import LoggerInterface
     from ...functions.primary.items import get_fields_values_from_item, get_field_value_from_item
@@ -38,9 +40,8 @@ def value_from_row(row: Row, description: Description, logger=None, skip_errors=
     elif isinstance(description, FieldNo):
         return row[description]
     else:
-        arg = 'description'
-        expected = 'int, callable or tuple'
-        raise TypeError(f'expected {arg} as {expected}, got {description} as {type(description)}')
+        msg = get_type_err_msg(description, expected=(int, Callable, tuple), arg='description', caller=value_from_row)
+        raise TypeError(msg)
 
 
 # @deprecated
@@ -112,10 +113,8 @@ def value_from_item(
         )
         return safe_apply_function(function, fields, values, item=item, logger=logger, skip_errors=skip_errors)
     else:
-        expected = 'int, callable or tuple'
-        got = description
-        arg = 'description'
-        raise TypeError(f'expected {arg} as {expected}, got {got} as {type(got)}')
+        msg = get_type_err_msg(description, expected=(int, Callable, tuple), arg='description', caller=value_from_item)
+        raise TypeError(msg)
 
 
 def get_composite_key(
@@ -174,17 +173,23 @@ def row_from_any(item_in: Item, *descriptions) -> ImmutableRow:
 def record_from_any(item_in: Item, *descriptions, logger=None) -> MutableRecord:
     rec_out = MutableRecord()
     for desc in descriptions:
-        assert isinstance(desc, ARRAY_TYPES) and len(desc) > 1, 'for RegularStream items description {} is not applicable'
-        f_out = desc[0]
-        if len(desc) == 2:
-            f_in = desc[1]
-            if isinstance(f_in, Callable):
-                rec_out[f_out] = f_in(item_in)
+        if isinstance(desc, ARRAY_TYPES):
+            if len(desc) < 2:
+                raise ValueError(f'for RegularStream items description must have 2+ parts, got {desc}')
             else:
-                rec_out[f_out] = rec_out.get(f_in)
+                f_out = desc[0]
+                if len(desc) == 2:
+                    f_in = desc[1]
+                    if isinstance(f_in, Callable):
+                        rec_out[f_out] = f_in(item_in)
+                    else:
+                        rec_out[f_out] = rec_out.get(f_in)
+                else:
+                    fs_in = desc[1:]
+                    rec_out[f_out] = value_from_record(rec_out, fs_in, logger=logger)
         else:
-            fs_in = desc[1:]
-            rec_out[f_out] = value_from_record(rec_out, fs_in, logger=logger)
+            msg = get_type_err_msg(expected=tuple, got=desc, arg='descriptions[n]', caller=record_from_any)
+            raise TypeError(msg)
     return rec_out
 
 
