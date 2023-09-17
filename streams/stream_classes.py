@@ -19,10 +19,6 @@ try:  # Assume we're a submodule in a package.
     from streams.mixin.columnar_mixin import ColumnarMixin
     from streams.mixin.convert_mixin import ConvertMixin
     from streams.regular.regular_stream import RegularStream
-    from streams.regular.line_stream import LineStream
-    from streams.regular.row_stream import RowStream
-    from streams.pairs.key_value_stream import KeyValueStream
-    from streams.regular.record_stream import RecordStream
     from streams.wrappers.pandas_stream import PandasStream
     from streams.wrappers.sql_stream import SqlStream
     from streams.stream_builder import StreamBuilder
@@ -44,10 +40,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .mixin.columnar_mixin import ColumnarMixin
     from .mixin.convert_mixin import ConvertMixin
     from .regular.regular_stream import RegularStream
-    from .regular.line_stream import LineStream
-    from .regular.row_stream import RowStream
-    from .pairs.key_value_stream import KeyValueStream
-    from .regular.record_stream import RecordStream
     from .wrappers.pandas_stream import PandasStream
     from .wrappers.sql_stream import SqlStream
     from .stream_builder import StreamBuilder
@@ -59,16 +51,10 @@ DEFAULT_STREAM_CLASS = RegularStream
 STREAM_CLASSES = (
     AbstractStream, IterableStream,
     RegularStream,
-    LineStream, RowStream, RecordStream,
-    KeyValueStream,
     PandasStream, SqlStream,
 )
 DICT_STREAM_CLASSES = dict(
     RegularStream=RegularStream,
-    LineStream=LineStream,
-    RowStream=RowStream,
-    KeyValueStream=KeyValueStream,
-    RecordStream=RecordStream,
     PandasStream=PandasStream,
     SqlStream=SqlStream,
 )
@@ -88,9 +74,6 @@ def get_class(stream_type):
 
 DICT_ITEM_TO_STREAM_TYPE = {
     ItemType.Any: StreamType.RegularStream,
-    ItemType.Line: StreamType.LineStream,
-    ItemType.Record: StreamType.RecordStream,
-    ItemType.Row: StreamType.RowStream,
 }
 StreamBuilder._dict_classes = DICT_ITEM_TO_STREAM_TYPE
 StreamBuilder.set_default_stream_class(DEFAULT_STREAM_CLASS)
@@ -133,19 +116,11 @@ def is_stream(obj) -> bool:
     return isinstance(obj, STREAM_CLASSES)
 
 
-def is_row(item) -> bool:
-    return RowStream.is_valid_item_type(item)
-
-
-def is_record(item) -> bool:
-    return RecordStream.is_valid_item_type(item)
-
-
 @deprecated_with_alternative('AbstractStream.generate_name()')
 def generate_name() -> str:
     cur_time = datetime.now().strftime('%y%m%d_%H%M%S')
     random = randint(0, 1000)
-    cur_name = '{}_{:03}'.format(cur_time, random)
+    cur_name = f'{cur_time}_{random:03}'
     return cur_name
 
 

@@ -31,7 +31,7 @@ def test_calc_histogram():
         z=('z', int),
     ).apply_to_data(
         lambda a: gr.get_histograms(a, fields=['x', 'y']),
-        item_type=sm.StreamType.KeyValueStream,
+        item_type=sm.ItemType.Row,
     ).get_list()
     assert received == expected, f'{received} vs {expected}'
 

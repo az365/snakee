@@ -7,10 +7,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 
 DICT_METHOD_SUFFIX = dict(
     RegularStream='regular_stream',
-    LineStream='line_stream',
-    RowStream='row_stream',
-    KeyValueStream='key_value_stream',
-    RecordStream='record_stream',
     PandasStream='pandas_stream',
     SqlStream='sql_stream',
 )
@@ -18,10 +14,6 @@ DICT_METHOD_SUFFIX = dict(
 
 class StreamType(ClassType):
     RegularStream = 'RegularStream'
-    LineStream = 'LineStream'
-    RowStream = 'RowStream'
-    KeyValueStream = 'KeyValueStream'
-    RecordStream = 'RecordStream'
     PandasStream = 'PandasStream'
     SqlStream = 'SqlStream'
 

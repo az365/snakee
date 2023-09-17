@@ -547,8 +547,7 @@ class RegularStream(LocalStream, ConvertMixin, StructMixin, RegularStreamInterfa
         else:
             expected_struct = self._get_grouped_struct(*keys, values=values)
         if as_pairs:
-            stream_class = StreamType.KeyValueStream.get_class()
-            stream_groups = stream_class(iter_groups, value_item_type=self.get_item_type())
+            stream_groups = StreamBuilder.stream(iter_groups, item_type=ItemType.Row)
         else:
             stream_groups = self.stream(
                 iter_groups,
