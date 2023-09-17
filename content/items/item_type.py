@@ -2,7 +2,6 @@ from typing import Optional, Callable, Union, Any
 
 try:  # Assume we're a submodule in a package.
     from base.classes.enum import SubclassesType
-    from base.classes.auto import AUTO
     from base.constants.chars import STAR, EMPTY, MINUS
     from base.functions.arguments import get_names
     from utils.decorators import deprecated_with_alternative
@@ -16,7 +15,6 @@ try:  # Assume we're a submodule in a package.
     )
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.classes.enum import SubclassesType
-    from ...base.classes.auto import AUTO
     from ...base.constants.chars import STAR, EMPTY, MINUS
     from ...base.functions.arguments import get_names
     from ...utils.decorators import deprecated_with_alternative
@@ -43,7 +41,7 @@ class ItemType(SubclassesType):
     Paragraph = 'paragraph'
     Sheet = 'sheet'
     Any = 'any'
-    Auto = AUTO
+    Auto = None
 
     _auto_value = False  # option: do not update auto-value for ItemType.Auto
 

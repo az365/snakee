@@ -34,6 +34,7 @@ class Auto:
     def is_not_set(cls, other) -> bool:
         return other is None
 
+    # @deprecated
     @classmethod
     def is_defined(cls, obj, check_name: bool = True) -> bool:
         if cls.is_not_set(obj):
@@ -79,7 +80,7 @@ class Auto:
     @classmethod
     def delayed_acquire(cls, current, func: Callable, *args, **kwargs):
         if cls.is_auto(current):
-            assert isinstance(func, Callable), 'Expected callable, got {} as {}'.format(func, type(func))
+            assert isinstance(func, Callable), f'Expected callable, got {func} as {type(func)}'
             return func(*args, **kwargs)
         else:
             return current
@@ -98,7 +99,3 @@ class Auto:
                 return v
         if values:
             return values[0]
-
-
-# @deprecated
-AUTO = Auto()
