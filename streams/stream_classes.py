@@ -23,7 +23,6 @@ try:  # Assume we're a submodule in a package.
     from streams.regular.line_stream import LineStream
     from streams.regular.row_stream import RowStream
     from streams.pairs.key_value_stream import KeyValueStream
-    from streams.regular.struct_stream import StructStream
     from streams.regular.record_stream import RecordStream
     from streams.wrappers.pandas_stream import PandasStream
     from streams.wrappers.sql_stream import SqlStream
@@ -50,7 +49,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .regular.line_stream import LineStream
     from .regular.row_stream import RowStream
     from .pairs.key_value_stream import KeyValueStream
-    from .regular.struct_stream import StructStream
     from .regular.record_stream import RecordStream
     from .wrappers.pandas_stream import PandasStream
     from .wrappers.sql_stream import SqlStream
@@ -64,7 +62,6 @@ STREAM_CLASSES = (
     AbstractStream, IterableStream,
     RegularStream, AnyStream,
     LineStream, RowStream, RecordStream,
-    StructStream,
     KeyValueStream,
     PandasStream, SqlStream,
 )
@@ -73,7 +70,6 @@ DICT_STREAM_CLASSES = dict(
     LineStream=LineStream,
     RowStream=RowStream,
     KeyValueStream=KeyValueStream,
-    StructStream=StructStream,
     RecordStream=RecordStream,
     PandasStream=PandasStream,
     SqlStream=SqlStream,
