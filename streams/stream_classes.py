@@ -19,7 +19,6 @@ try:  # Assume we're a submodule in a package.
     from streams.mixin.columnar_mixin import ColumnarMixin
     from streams.mixin.convert_mixin import ConvertMixin
     from streams.regular.regular_stream import RegularStream
-    from streams.regular.any_stream import AnyStream
     from streams.regular.line_stream import LineStream
     from streams.regular.row_stream import RowStream
     from streams.pairs.key_value_stream import KeyValueStream
@@ -45,7 +44,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .mixin.columnar_mixin import ColumnarMixin
     from .mixin.convert_mixin import ConvertMixin
     from .regular.regular_stream import RegularStream
-    from .regular.any_stream import AnyStream
     from .regular.line_stream import LineStream
     from .regular.row_stream import RowStream
     from .pairs.key_value_stream import KeyValueStream
@@ -60,13 +58,13 @@ TMP_FILES_TEMPLATE = 'stream_{}.tmp'
 DEFAULT_STREAM_CLASS = RegularStream
 STREAM_CLASSES = (
     AbstractStream, IterableStream,
-    RegularStream, AnyStream,
+    RegularStream,
     LineStream, RowStream, RecordStream,
     KeyValueStream,
     PandasStream, SqlStream,
 )
 DICT_STREAM_CLASSES = dict(
-    AnyStream=AnyStream,
+    RegularStream=RegularStream,
     LineStream=LineStream,
     RowStream=RowStream,
     KeyValueStream=KeyValueStream,
@@ -79,7 +77,7 @@ DICT_STREAM_CLASSES = dict(
 _context = None  # deprecated, use StreamBuilder.context instead
 
 
-StreamType.set_default(AnyStream.__name__)
+StreamType.set_default(RegularStream.__name__)
 StreamType.set_dict_classes(DICT_STREAM_CLASSES)
 
 
@@ -89,7 +87,7 @@ def get_class(stream_type):
 
 
 DICT_ITEM_TO_STREAM_TYPE = {
-    ItemType.Any: StreamType.AnyStream,
+    ItemType.Any: StreamType.RegularStream,
     ItemType.Line: StreamType.LineStream,
     ItemType.Record: StreamType.RecordStream,
     ItemType.Row: StreamType.RowStream,

@@ -17,8 +17,9 @@ def test_calc_histogram():
         ('x', {1: 3, 9: 1}),
         ('y', {2: 1, 4: 2, 6: 1})
     ]
-    received = sm.LineStream(
+    received = sm.RegularStream(
         example,
+        item_type=sm.ItemType.Line,
     ).to_row_stream(
         '\t',
     ).to_record_stream(
@@ -32,7 +33,7 @@ def test_calc_histogram():
         lambda a: gr.get_histograms(a, fields=['x', 'y']),
         item_type=sm.StreamType.KeyValueStream,
     ).get_list()
-    assert received == expected
+    assert received == expected, f'{received} vs {expected}'
 
 
 def test_sum_by_keys():
@@ -42,7 +43,7 @@ def test_sum_by_keys():
         {'a': 1, 'b': 2, 'h': 2},
     ]
     expected = [((2, 1), {'h': 3}), ((4, 3), {'h': 5})]
-    received = sm.AnyStream(
+    received = sm.RegularStream(
         example,
     ).apply_to_data(
         lambda a: gr.sum_by_keys(
@@ -51,7 +52,7 @@ def test_sum_by_keys():
             counters=('h', ),
         ),
     ).get_list()
-    assert received == expected
+    assert received == expected, f'{received} vs {expected}'
 
 
 def test_get_first_values():
@@ -62,7 +63,7 @@ def test_get_first_values():
         example,
         fields,
     )
-    assert received == expected
+    assert received == expected, f'{received} vs {expected}'
 
 
 def main():

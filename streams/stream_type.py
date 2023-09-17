@@ -6,7 +6,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..base.classes.enum import ClassType
 
 DICT_METHOD_SUFFIX = dict(
-    AnyStream='any_stream',  # deprecated. use RegularStream instead
+    RegularStream='regular_stream',
     LineStream='line_stream',
     RowStream='row_stream',
     KeyValueStream='key_value_stream',
@@ -17,7 +17,7 @@ DICT_METHOD_SUFFIX = dict(
 
 
 class StreamType(ClassType):
-    AnyStream = 'AnyStream'  # deprecated. use RegularStream instead
+    RegularStream = 'RegularStream'
     LineStream = 'LineStream'
     RowStream = 'RowStream'
     KeyValueStream = 'KeyValueStream'
