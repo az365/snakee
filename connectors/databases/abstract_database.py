@@ -576,7 +576,7 @@ class AbstractDatabase(AbstractStorage, ABC):
         if isinstance(data, StreamInterface):
             stream = data
         elif isinstance(data, File) or hasattr(data, 'to_struct_stream'):
-            stream = data.to_struct_stream()
+            stream = data.to_stream()
             if struct:
                 stream_cols = stream.get_columns()
                 struct_cols = struct.get_columns()

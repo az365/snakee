@@ -198,23 +198,6 @@ class StreamableMixin(ColumnarMixin, ABC):
     def to_row_stream(self, step: Count = None, verbose: Optional[bool] = None, **kwargs) -> RowStream:
         return self.to_stream_type(ItemType.Row, step=step, verbose=verbose, **kwargs)
 
-    @deprecated_with_alternative('to_stream()')
-    def to_struct_stream(
-            self,
-            struct: Optional[StructInterface] = None,
-            step: Count = None,
-            verbose: Optional[bool] = None,
-            **kwargs,
-    ) -> StructStream:
-        assert self._is_existing(), 'for get stream file must exists'
-        if struct is None:
-            if isinstance(self, StructMixinInterface) or hasattr(self, 'get_struct'):
-                struct = self.get_struct()
-            else:
-                raise TypeError('for getting struct stream connector must have a struct property')
-        kwargs['struct'] = struct
-        return self.to_stream_type(StreamType.StructStream, step=step, verbose=verbose, **kwargs)
-
     def from_stream(self, stream: Stream, verbose: Optional[bool] = None) -> Native:
         if hasattr(self, 'write_stream'):
             return self.write_stream(stream, verbose=verbose)
