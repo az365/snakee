@@ -9,7 +9,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..mixin.convert_mixin import ConvertMixin
     from .row_stream import RowStream, deprecated_with_alternative
 
-EXPECTED_ITEM_TYPE = ItemType.StructRow
+EXPECTED_ITEM_TYPE = ItemType.Row
 
 
 class StructStream(RowStream, ConvertMixin):

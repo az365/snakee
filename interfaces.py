@@ -36,7 +36,6 @@ try:  # Assume we're a submodule in a package.
     from connectors.interfaces.temporary_interface import TemporaryFilesMaskInterface  # inherits Connector
     from content.format.format_interface import ContentFormatInterface  # inherits Base
     from content.struct.struct_interface import StructInterface, StructMixinInterface  # ROOT
-    from content.struct.struct_row_interface import StructRowInterface  # inherits SimpleData; uses StructInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from .base.interfaces.base_interface import BaseInterface  # ROOT
     from .base.interfaces.display_interface import DisplayInterface  # ROOT
@@ -73,7 +72,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .connectors.interfaces.temporary_interface import TemporaryFilesMaskInterface  # inherits Connector
     from .content.format.format_interface import ContentFormatInterface  # inherits Base
     from .content.struct.struct_interface import StructInterface, StructMixinInterface  # ROOT
-    from .content.struct.struct_row_interface import StructRowInterface  # inherits SimpleData; uses StructInterface
 
 try:  # Assume we're a submodule in a package.
     from utils.algo import JoinType  # standard Enum
@@ -116,7 +114,7 @@ try:  # Assume we're a submodule in a package.
         FieldName, FieldNo, FieldID, Name, Value, Class, Links,
     )
     from content.content_interfaces import (
-        StructRow, RegularItem, Item, How,
+        RegularItem, Item, How,
         Field, Struct, Group, FieldOrStruct, FieldOrGroup, UniKey,
     )
     from content.items.simple_items import (
@@ -131,7 +129,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         FieldName, FieldNo, FieldID, Name, Value, Class, Links,
     )
     from .content.content_interfaces import (
-        StructRow, RegularItem, Item, How,
+        RegularItem, Item, How,
         Field, Struct, Group, FieldOrStruct, FieldOrGroup, UniKey,
     )
     from .content.items.simple_items import (

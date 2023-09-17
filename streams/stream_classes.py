@@ -29,7 +29,6 @@ try:  # Assume we're a submodule in a package.
     from streams.wrappers.sql_stream import SqlStream
     from streams.stream_builder import StreamBuilder
     from connectors.filesystem.temporary_files import TemporaryLocation
-    from content.struct import struct_row as sr
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils.decorators import deprecated_with_alternative
     from ..interfaces import (
@@ -57,7 +56,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .wrappers.sql_stream import SqlStream
     from .stream_builder import StreamBuilder
     from ..connectors.filesystem.temporary_files import TemporaryLocation
-    from ..content.struct import struct_row as sr
 
 TMP_FILES_TEMPLATE = 'stream_{}.tmp'
 
@@ -99,7 +97,6 @@ DICT_ITEM_TO_STREAM_TYPE = {
     ItemType.Line: StreamType.LineStream,
     ItemType.Record: StreamType.RecordStream,
     ItemType.Row: StreamType.RowStream,
-    ItemType.StructRow: StreamType.StructStream,
 }
 StreamBuilder._dict_classes = DICT_ITEM_TO_STREAM_TYPE
 StreamBuilder.set_default_stream_class(DEFAULT_STREAM_CLASS)
@@ -148,10 +145,6 @@ def is_row(item) -> bool:
 
 def is_record(item) -> bool:
     return RecordStream.is_valid_item_type(item)
-
-
-def is_struct_row(item) -> bool:
-    return isinstance(item, sr.StructRow)
 
 
 @deprecated_with_alternative('AbstractStream.generate_name()')

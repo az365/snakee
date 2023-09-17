@@ -166,8 +166,6 @@ class SelectionDescription(SimpleDataWrapper, IterDataMixin):
             skip_errors=skip_errors,
             logger=logger, selection_logger=selection_logger,
         )
-        if input_item_type == ItemType.StructRow and input_struct:
-            descriptions = [translate_names_to_columns(i, struct=input_struct) for i in descriptions]
         return cls(
             descriptions=list(descriptions),
             target_item_type=target_item_type, input_item_type=input_item_type,

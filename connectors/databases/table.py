@@ -263,9 +263,6 @@ class Table(LeafConnector):
         rows = self.get_rows(verbose=verbose)
         if item_type == ItemType.Row:
             items = rows
-        elif item_type == ItemType.StructRow:
-            row_class = ItemType.StructRow.get_class()
-            items = map(lambda i: row_class(i, self.get_struct()), rows)
         elif item_type == ItemType.Record:
             items = map(lambda r: {c: v for c, v in zip(self.get_columns(), r)}, rows)
         elif item_type == ItemType.Line:

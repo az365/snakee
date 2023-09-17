@@ -8,7 +8,6 @@ try:  # Assume we're a submodule in a package.
     from content.format.format_interface import ContentFormatInterface, Compress
     from content.items.item_classes import *
     from content.struct.struct_interface import StructInterface, StructMixinInterface
-    from content.struct.struct_row_interface import StructRowInterface
     from content.terms.term_type import TermType, TermDataAttribute, TermRelation
     from content.terms.term_interface import TermInterface
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
@@ -19,7 +18,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .format.format_interface import ContentFormatInterface, Compress
     from .items.item_classes import *
     from .struct.struct_interface import StructInterface, StructMixinInterface
-    from .struct.struct_row_interface import StructRowInterface
     from .terms.term_type import TermType, TermDataAttribute, TermRelation
     from .terms.term_interface import TermInterface
 
@@ -29,7 +27,6 @@ Group = Union[Struct, Array]
 FieldOrStruct = Union[FieldInterface, StructInterface]
 FieldOrGroup = Union[Field, Group]
 UniKey = Union[StructInterface, Array, FieldID, Callable, None]
-StructRow = StructRowInterface
-RegularItem = Union[SimpleItem, StructRow]
+RegularItem = SimpleItem
 Item = Union[Any, RegularItem]
 How = Union[JoinType, str]

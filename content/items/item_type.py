@@ -7,11 +7,10 @@ try:  # Assume we're a submodule in a package.
     from utils.decorators import deprecated_with_alternative
     from content.fields.field_interface import FieldInterface
     from content.struct.struct_interface import StructInterface
-    from content.struct.struct_row_interface import StructRowInterface
     from content.items.simple_items import (
         ROW_SUBCLASSES, RECORD_SUBCLASSES, FULL_ITEM_FIELD,
         SimpleItem, FieldNo, FieldName, FieldID, Value,
-        get_field_value_from_record, get_field_value_from_row, get_field_value_from_struct_row,
+        get_field_value_from_record, get_field_value_from_row,
     )
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.classes.enum import SubclassesType
@@ -20,14 +19,13 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils.decorators import deprecated_with_alternative
     from ..fields.field_interface import FieldInterface
     from ..struct.struct_interface import StructInterface
-    from ..struct.struct_row_interface import StructRowInterface
     from .simple_items import (
         ROW_SUBCLASSES, RECORD_SUBCLASSES, FULL_ITEM_FIELD,
         SimpleItem, FieldNo, FieldName, FieldID, Value,
-        get_field_value_from_record, get_field_value_from_row, get_field_value_from_struct_row,
+        get_field_value_from_record, get_field_value_from_row,
     )
 
-RegularItem = Union[SimpleItem, StructRowInterface]
+RegularItem = SimpleItem
 Item = Union[RegularItem, Any]
 Field = Union[FieldID, FieldInterface]
 Struct = Optional[StructInterface]
@@ -37,7 +35,6 @@ class ItemType(SubclassesType):
     Line = 'line'
     Row = 'row'
     Record = 'record'
-    StructRow = 'struct_row'  # deprecated
     Paragraph = 'paragraph'
     Sheet = 'sheet'
     Any = 'any'
@@ -47,7 +44,7 @@ class ItemType(SubclassesType):
 
     @staticmethod
     def _get_selectable_types() -> tuple:
-        return ItemType.Record, ItemType.Row, ItemType.StructRow
+        return ItemType.Record, ItemType.Row
 
     def is_selectable(self) -> bool:
         return self in self._get_selectable_types()
@@ -62,7 +59,7 @@ class ItemType(SubclassesType):
             skip_unsupported_types: bool = False,
     ) -> Value:
         if struct is not None:
-            if self in (ItemType.Row, ItemType.StructRow):
+            if self == ItemType.Row:
                 if isinstance(field, str):
                     field = struct.get_field_position(field)
         if self == ItemType.Auto:
@@ -73,8 +70,6 @@ class ItemType(SubclassesType):
             return get_field_value_from_row(column=field, row=item, default=default, skip_missing=False)
         elif self == ItemType.Record:
             return get_field_value_from_record(field=field, record=item, default=default, skip_missing=True)
-        elif self == ItemType.StructRow:
-            return get_field_value_from_struct_row(field=field, row=item, default=default, skip_missing=False)
         elif skip_unsupported_types:
             return default
         else:
@@ -88,7 +83,7 @@ class ItemType(SubclassesType):
         ColumnarMixin._get_field_getter() used in ColumnarMixin.get_dict(), RowStream.sorted_group_by()
         """
         if struct is not None:
-            if self in (ItemType.Row, ItemType.StructRow):
+            if self == ItemType.Row:
                 if isinstance(field, str):
                     field = struct.get_field_position(field)
         if hasattr(field, 'get_mapper'):  # isinstance(field, AbstractDescription)
@@ -100,8 +95,6 @@ class ItemType(SubclassesType):
             return lambda i: get_field_value_from_record(field=field, record=i, default=default, skip_missing=True)
         elif self == ItemType.Row:
             return lambda i: get_field_value_from_row(column=field, row=i, default=default, skip_missing=False)
-        elif self == ItemType.StructRow:
-            return lambda i: get_field_value_from_struct_row(field=field, row=i, default=default, skip_missing=False)
         elif isinstance(field, Callable):
             return field
         elif field in (STAR, FULL_ITEM_FIELD):
@@ -146,10 +139,8 @@ class ItemType(SubclassesType):
             if field >= cols_count:
                 item += [None] * (field - cols_count + 1)
             item[field] = value
-        elif self == ItemType.StructRow:
-            item.set_value(field, value)
         else:  # item_type == 'any' or not item_type:
-            raise TypeError('type {} not supported'.format(self))
+            raise TypeError(f'type {self} not supported')
 
 
 ItemType.prepare()

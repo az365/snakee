@@ -124,8 +124,6 @@ class StreamBuilder(StreamBuilderInterface):
             return ItemType.Record
         elif isinstance(item, (list, tuple)):
             return ItemType.Row
-        elif hasattr(item, 'get_struct'):
-            return ItemType.StructRow
         else:
             return ItemType.Any
 

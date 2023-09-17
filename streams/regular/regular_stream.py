@@ -192,8 +192,6 @@ class RegularStream(LocalStream, ConvertMixin, StructMixin, RegularStreamInterfa
                     if cur_row_len < detected_row_len:
                         detected_row_len = cur_row_len
             return range(detected_row_len)
-        elif item_type == ItemType.StructRow:  # deprecated
-            return self.get_struct().get_columns()
         elif not skip_errors:
             raise NotImplementedError(item_type)
 
@@ -362,7 +360,7 @@ class RegularStream(LocalStream, ConvertMixin, StructMixin, RegularStreamInterfa
 
     def select(self, *columns, use_extended_method: Optional[bool] = None, **expressions) -> Native:
         if use_extended_method is None:
-            use_extended_method = self.get_item_type() in (ItemType.Row, ItemType.StructRow)
+            use_extended_method = self.get_item_type() == ItemType.Row
         input_item_type = self.get_item_type()
         target_item_type = self._get_target_item_type(*columns, **expressions)
         target_struct = sn.get_output_struct(*columns, **expressions, skip_missing=True)

@@ -156,12 +156,12 @@ def fold_lists(
             item_type = ItemType.detect(first_item)
         if item_type == ItemType.Record:
             return fold_records(list_items, key_fields, list_fields, skip_missing=skip_missing)
-        elif item_type in (ItemType.Row, ItemType.StructRow):
+        elif item_type == ItemType.Row:
             if as_pairs:
                 list_items = list_items[1]  # list is in value from KeyValue-pair
             return fold_rows(list_items, key_fields, list_fields, skip_missing=skip_missing)
         else:
-            raise ValueError('fold_lists(): expected Record, Row or StructRow, got {}'.format(item_type))
+            raise ValueError(f'fold_lists(): expected Record, Row or StructRow, got {item_type}')
     elif not skip_missing:
         raise ValueError('fold_lists(): list_items must be non-empty')
 

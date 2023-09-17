@@ -2,7 +2,7 @@ from typing import Optional, Iterable, Iterator, Generator, Union
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
-        StructInterface, StructRowInterface, FieldInterface, RepresentationInterface,
+        StructInterface, FieldInterface, RepresentationInterface,
         SelectionLoggerInterface, ExtLogger,
         ValueType, DialectType,
         FieldNo, FieldName, SimpleRow, Item, Record,
@@ -25,7 +25,7 @@ try:  # Assume we're a submodule in a package.
     from content.struct.struct_type import StructType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
-        StructInterface, StructRowInterface, FieldInterface, RepresentationInterface,
+        StructInterface, FieldInterface, RepresentationInterface,
         SelectionLoggerInterface, ExtLogger,
         ValueType, DialectType,
         FieldNo, FieldName, SimpleRow, Item, Record,
@@ -409,7 +409,7 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
         return True
 
     @deprecated_with_alternative('is_valid_item()')
-    def is_valid_row(self, row: Union[Iterable, StructRowInterface]) -> bool:
+    def is_valid_row(self, row: Iterable) -> bool:
         for value, field_type in zip(row, self.get_types_list(DialectType.Python)):
             if not isinstance(value, field_type):
                 return False
@@ -433,9 +433,7 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
         return validation_errors
 
     def _convert_item_to_row(self, item: Item) -> SimpleRow:
-        if isinstance(item, StructRowInterface) or hasattr(item, 'get_data'):
-            return item.get_data()
-        elif isinstance(item, ROW_SUBCLASSES):  # is_row(item)
+        if isinstance(item, ROW_SUBCLASSES):  # is_row(item)
             return item
         elif isinstance(item, RECORD_SUBCLASSES):  # is_record(item)
             return [item.get(c) for c in self.get_columns()]

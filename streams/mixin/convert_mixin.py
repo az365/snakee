@@ -7,13 +7,13 @@ try:  # Assume we're a submodule in a package.
         StreamType, ItemType, Item, LoggingLevel,
         StructInterface, FieldInterface, FieldName, OptionalFields, UniKey,
         Columns, Class, Array, ARRAY_TYPES,
+        ROW_SUBCLASSES, RECORD_SUBCLASSES,
     )
     from base.constants.chars import TAB_CHAR
     from base.functions.arguments import get_names
-    from base.functions.errors import get_loc_message
+    from base.functions.errors import get_type_err_msg, get_loc_message
     from content.items.simple_items import FULL_ITEM_FIELD, MutableRecord, MutableRow, ImmutableRow, SimpleRow
     from content.struct.flat_struct import FlatStruct
-    from content.struct.struct_row import StructRow, StructRowInterface, ROW_SUBCLASSES, RECORD_SUBCLASSES
     from functions.secondary import all_secondary_functions as fs
     from utils.external import pd, DataFrame
     from utils.decorators import deprecated_with_alternative
@@ -27,13 +27,13 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         StreamType, ItemType, Item, LoggingLevel,
         StructInterface, FieldInterface, FieldName, OptionalFields, UniKey,
         Columns, Class, Array, ARRAY_TYPES,
+        ROW_SUBCLASSES, RECORD_SUBCLASSES,
     )
     from ...base.constants.chars import TAB_CHAR
     from ...base.functions.arguments import get_names
-    from ...base.functions.errors import get_loc_message
+    from ...base.functions.errors import get_type_err_msg, get_loc_message
     from ...content.items.simple_items import FULL_ITEM_FIELD, MutableRecord, MutableRow, ImmutableRow, SimpleRow
     from ...content.struct.flat_struct import FlatStruct
-    from ...content.struct.struct_row import StructRow, StructRowInterface, ROW_SUBCLASSES, RECORD_SUBCLASSES
     from ...functions.secondary import all_secondary_functions as fs
     from ...utils.external import pd, DataFrame
     from ...utils.decorators import deprecated_with_alternative
@@ -50,7 +50,7 @@ OptionalArguments = Union[str, Iterable, None]
 DEFAULT_FIELDS_COUNT = 99
 DEFAULT_COL_DELIMITER = TAB_CHAR
 DEFAULT_COL_MASK = 'column{n:02}'
-STRUCTURED_ITEM_TYPES = ItemType.Record, ItemType.Row, ItemType.StructRow
+STRUCTURED_ITEM_TYPES = ItemType.Record, ItemType.Row
 UNSTRUCTURED_ITEM_TYPES = ItemType.Line, ItemType.Any, ItemType.Auto
 
 
@@ -66,20 +66,9 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
         struct = self._get_struct()
         columns = list(self._get_columns())
         for i in self.get_stream_data():
-            if isinstance(i, StructRowInterface) or hasattr(i, 'get_data'):
-                if item_type == ItemType.StructRow:
-                    yield i
-                elif item_type == ItemType.Row:
-                    yield i.get_data()
-                elif item_type == ItemType.Record:
-                    yield {k: v for k, v in zip(columns, i.get_data())}
-                else:
-                    raise ValueError(err_msg.format(item_type))
-            elif isinstance(i, ROW_SUBCLASSES):
+            if isinstance(i, ROW_SUBCLASSES):
                 if item_type == ItemType.Row:
                     yield i
-                elif item_type == ItemType.StructRow:
-                    yield StructRow(i, self._get_struct())
                 elif item_type == ItemType.Record:
                     yield {k: v for k, v in zip(columns, i)}
                 elif item_type == ItemType.Line:
@@ -93,8 +82,6 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
                 struct = self._get_struct()
                 if item_type == ItemType.Row:
                     yield [i.get(c) for c in columns]
-                elif item_type == ItemType.StructRow:
-                    yield StructRow(i, self._get_struct())
                 elif item_type == ItemType.Record:
                     yield i
                 elif item_type == ItemType.Line:
@@ -106,8 +93,8 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
                 else:
                     raise ValueError(err_msg.format(item_type))
             else:
-                msg = 'StructStream.get_items_of_type(item_type={}): Expected items as Row or StructRow, got {} as {}'
-                raise TypeError(msg.format(item_type, i, type(i)))
+                message = get_type_err_msg(i, expected=ROW_SUBCLASSES, arg='item', kwargs=dict(item_type=item_type))
+                raise TypeError(message)
 
     def get_lines(self) -> Iterable[str]:
         return self.get_items_of_type(ItemType.Line)
@@ -134,9 +121,6 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
                 columns = get_names(columns)
                 for r in self.get_items():
                     yield [r.get(c) for c in columns]
-            elif item_type == ItemType.StructRow:
-                for i in self.get_items():
-                    yield i.get_data()
             elif item_type == ItemType.Line:
                 delimiter = columns
                 assert isinstance(delimiter, str), f'LineStream.get_rows(): expected delimiter as str, got {delimiter}'
@@ -272,7 +256,7 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
         item_type = self.get_item_type()
         if item_type == ItemType.Record:
             f = self.get_struct_records
-        elif item_type in (ItemType.Row, ItemType.StructRow):
+        elif item_type == ItemType.Row:
             f = self.get_struct_rows
         elif skip_missing:
             return self._assume_native(self)
@@ -349,11 +333,6 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
                         columns = list()
                 elif item_type == ItemType.Row:
                     columns = [DEFAULT_COL_MASK.format(n + 1) for n in range(fields_count)]
-                elif item_type == ItemType.StructRow:  # deprecated
-                    try:
-                        columns = example_item.get_columns()
-                    except TypeError:
-                        columns = [DEFAULT_COL_MASK.format(n + 1) for n in range(fields_count)]
                 else:
                     raise TypeError(f'Expected {STRUCTURED_ITEM_TYPES}, got {item_type}')
             elif item_type in UNSTRUCTURED_ITEM_TYPES:

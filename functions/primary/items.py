@@ -4,7 +4,6 @@ try:  # Assume we're a submodule in a package.
     from base.constants.chars import SHARP
     from content.items.item_type import ItemType, SubclassesType
     from content.struct.struct_interface import StructInterface
-    from content.struct.struct_row_interface import StructRowInterface
     from content.items.simple_items import (
         Row, Record, Line, SimpleSelectableItem,
         ALL, ROW_SUBCLASSES, RECORD_SUBCLASSES,
@@ -16,7 +15,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.constants.chars import SHARP
     from ...content.items.item_type import ItemType, SubclassesType
     from ...content.struct.struct_interface import StructInterface
-    from ...content.struct.struct_row_interface import StructRowInterface
     from ...content.items.simple_items import (
         Row, Record, Line, SimpleSelectableItem,
         ALL, ROW_SUBCLASSES, RECORD_SUBCLASSES,
@@ -25,7 +23,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         merge_two_rows, merge_two_records,
     )
 
-SelectableItem = Union[SimpleSelectableItem, StructRowInterface]
+SelectableItem = SimpleSelectableItem
 ConcreteItem = Union[Line, SelectableItem]
 
 
@@ -70,20 +68,6 @@ def set_to_item_inplace(
         if field >= cols_count:
             item += [None] * (field - cols_count + 1)
         item[field] = value
-    elif item_type == ItemType.StructRow:
-        if isinstance(item, StructRowInterface):
-            item.set_value(field, value, update_struct=True)
-        elif isinstance(item, ROW_SUBCLASSES):
-            assert isinstance(field, FieldNo), f'Expected column number as int, got {field}'
-            cur_item_len = len(item)
-            need_extend = field >= cur_item_len
-            if need_extend:
-                if isinstance(item, tuple):
-                    item = list(item)
-                item += [None] * (field + 1 - cur_item_len)
-            item[field] = value
-        else:
-            raise TypeError(f'Expected Row or StructRow, got {item}')
     else:  # item_type == 'any' or not item_type:
         raise TypeError(f'type {item_type} not supported')
 
@@ -110,8 +94,6 @@ def get_fields_names_from_item(item: SelectableItem, item_type: ItemType = ItemT
         return list(range(len(item)))
     elif item_type == ItemType.Record:
         return item.keys()
-    elif item_type == ItemType.StructRow:
-        return item.get_columns()
     else:
         raise TypeError(f'type {item_type} not supported')
 
@@ -173,8 +155,6 @@ def simple_select_fields(fields: Array, item: SelectableItem, item_type: ItemTyp
         return {f: item.get(f) for f in fields}
     elif item_type == ItemType.Row:
         return [item[f] for f in fields]
-    elif item_type == ItemType.StructRow:
-        return item.simple_select_fields(fields)
 
 
 def get_values_by_keys_from_item(  # equivalent get_fields_values_from_items()
@@ -217,9 +197,9 @@ def merge_two_items(
     if item_type == ItemType.Auto or not isinstance(item_type, ItemType):
         example_item = first if first is not None else second
         item_type = get_canonic_item_type(item_type, example_item=example_item)
-    if item_type == ItemType.Row:
+    if item_type == ItemType.Row:  # ItemType.Row.isinstance(first):
         result = merge_two_rows(first, second, ordered=ordered, frozen=frozen)
-    elif item_type == ItemType.Record:
+    elif item_type == ItemType.Record:  # ItemType.Record.isinstance(first):
         result = merge_two_records(first, second, default_right_name=default_right_name)
     elif first is None and ItemType.Record.isinstance(second):
         result = second

@@ -4,7 +4,7 @@ import inspect
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
-        StructRowInterface, StructInterface, LoggerInterface, LoggingLevel,
+        StructInterface, LoggerInterface, LoggingLevel,
         ItemType, Item, Struct, UniKey, FieldInterface, FieldName, FieldNo, Field, Name, Value, Class, Array,
     )
     from base.constants.chars import TAB_INDENT, ITEMS_DELIMITER, CROP_SUFFIX, UNDER, NOT_SET
@@ -18,7 +18,7 @@ try:  # Assume we're a submodule in a package.
     from functions.primary import items as it
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
-        StructRowInterface, StructInterface, LoggerInterface, LoggingLevel,
+        StructInterface, LoggerInterface, LoggingLevel,
         ItemType, Item, Struct, UniKey, FieldInterface, FieldName, FieldNo, Field, Name, Value, Class, Array,
     )
     from ...base.constants.chars import TAB_INDENT, ITEMS_DELIMITER, CROP_SUFFIX, UNDER, NOT_SET
@@ -87,7 +87,7 @@ class AbstractDescription(AbstractBaseObject, DataMixin, ABC):
         return get_names(self.get_input_fields())
 
     def get_output_field_names(self, *args) -> list:
-        return get_names(self.get_output_fields(*args))
+        return get_names(self.get_output_fields(*args), or_callable=False)
 
     def get_target_field_name(self) -> Optional[str]:
         if hasattr(self, 'get_target_field'):
