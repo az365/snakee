@@ -88,6 +88,7 @@ try:  # Assume we're a submodule in a package.
     from content.fields.field_edge_type import FieldEdgeType  # inherits ClassType(DynamicEnum)
     from content.items.item_type import ItemType  # inherits SubclassesType(ClassType)
     from content.terms.term_type import TermType, TermDataAttribute, TermRelation  # inherits ClassType(DynamicEnum)
+    from content.struct.struct_type import StructType  # inherits ClassType(DynamicEnum)
     from streams.stream_type import StreamType  # inherits ClassType(DynamicEnum)
     from series.series_type import SeriesType  # inherits ClassType(DynamicEnum)
     from series.interpolation_type import InterpolationType  # inherits DynamicEnum
@@ -104,6 +105,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .content.fields.field_edge_type import FieldEdgeType  # inherits ClassType(DynamicEnum)
     from .content.items.item_type import ItemType  # inherits SubclassesType(ClassType)
     from .content.terms.term_type import TermType, TermDataAttribute, TermRelation  # inherits ClassType(DynamicEnum)
+    from .content.struct.struct_type import StructType  # inherits ClassType(DynamicEnum)
     from .streams.stream_type import StreamType  # inherits ClassType(DynamicEnum)
     from .series.series_type import SeriesType  # inherits ClassType(DynamicEnum)
     from .series.interpolation_type import InterpolationType  # inherits DynamicEnum

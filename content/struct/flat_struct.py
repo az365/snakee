@@ -22,6 +22,7 @@ try:  # Assume we're a submodule in a package.
     from content.selection.abstract_expression import AbstractDescription
     from content.selection.selectable_mixin import SelectableMixin
     from content.documents.document_item import Chapter, Paragraph, Sheet
+    from content.struct.struct_type import StructType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         StructInterface, StructRowInterface, FieldInterface, RepresentationInterface,
@@ -44,6 +45,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..selection.abstract_expression import AbstractDescription
     from ..selection.selectable_mixin import SelectableMixin
     from ..documents.document_item import Chapter, Paragraph, Sheet
+    from .struct_type import StructType
 
 Native = StructInterface
 Group = Union[Native, Iterable]
@@ -820,4 +822,5 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
         return self.get_count()
 
 
+StructType.add_classes(FlatStruct)
 AnyField.set_struct_builder(FlatStruct)

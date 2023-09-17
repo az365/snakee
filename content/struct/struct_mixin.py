@@ -4,17 +4,21 @@ from typing import Optional, Iterable, Union, Type, Callable
 try:  # Assume we're a submodule in a package.
     from interfaces import (
         StructInterface, StructMixinInterface,
-        ItemType, DialectType, ValueType, Field, FieldName, FieldNo,
+        DialectType, ValueType, Field, FieldName, FieldNo,
         Links, Array, ARRAY_TYPES,
     )
     from base.functions.arguments import get_name
+    from base.functions.errors import get_type_err_msg
+    from content.struct.struct_classes import StructType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
         StructInterface, StructMixinInterface,
-        ItemType, DialectType, ValueType, Field, FieldName, FieldNo,
+        DialectType, ValueType, Field, FieldName, FieldNo,
         Links, Array, ARRAY_TYPES,
     )
     from ...base.functions.arguments import get_name
+    from ...base.functions.errors import get_type_err_msg
+    from .struct_classes import StructType
 
 Struct = Optional[StructInterface]
 
@@ -87,9 +91,7 @@ class StructMixin(StructMixinInterface, ABC):
 
     @staticmethod
     def _get_struct_class() -> Union[Type, Callable, StructInterface]:
-        struct_row_class = ItemType.StructRow.get_class()
-        flat_struct_class = struct_row_class([], []).get_struct().__class__
-        return flat_struct_class
+        return StructType.get_default().get_class()
 
     def _get_native_struct(self, raw_struct: Struct, save_if_not_yet: bool = False, verbose: Optional[bool] = None) -> Struct:
         if hasattr(self, 'is_verbose') and verbose is None:
@@ -134,6 +136,5 @@ class StructMixin(StructMixinInterface, ABC):
                         title_row = self.get_title_row(close=True)
                         native_struct = self._get_struct_detected_by_title_row(title_row)
         else:
-            message = 'struct must be FlatStruct(StructInterface), got {}'.format(type(raw_struct))
-            raise TypeError(message)
+            raise TypeError(get_type_err_msg(got=raw_struct, expected='FlatStruct'))
         return native_struct
