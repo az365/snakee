@@ -20,7 +20,7 @@ class EdgesMixin(ABC):
         if edges is None:
             self._clear_edges()
         if check:
-            edge_name = get_name(edge, or_callable=False)
+            edge_name = get_name(edge)
             existing_edge = self._get_edge_by_name(edge_name, default=None)
             if existing_edge and not force:
                 assert existing_edge == edge, f'{existing_edge} != {edge_name}'
@@ -33,7 +33,7 @@ class EdgesMixin(ABC):
 
     def _update_edge_by_name(self, edge: Edge, name: str = None) -> Native:
         if name is None:
-            name = get_name(edge, or_callable=False)
+            name = get_name(edge)
         self._remove_edge_by_name(name)
         return self._force_append_edge(edge)
 

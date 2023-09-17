@@ -41,6 +41,7 @@ Struct = Optional[StructInterface]
 
 SAFE_COUNT_ITEMS_IN_MEMORY = 10000
 DEFAULT_DETECT_COUNT = 100
+SKIP_COLUMNS = '*', '-', ''
 
 
 class ColumnarMixin(IterDataMixin, ABC):
@@ -69,22 +70,24 @@ class ColumnarMixin(IterDataMixin, ABC):
         return self._assume_native(stream)
 
     # @deprecated_with_alternative('having_columns()')
-    def assert_has_columns(self, *columns, skip_columns=('*', '-', ''), skip_missing: bool = False, **kwargs) -> Native:
+    def assert_has_columns(self, *columns, skip_columns=SKIP_COLUMNS, skip_missing: bool = False, **kwargs) -> Native:
         return self.having_columns(*columns, skip_columns=skip_columns, skip_missing=skip_missing, **kwargs)
 
-    def having_columns(self, *columns, skip_columns=('*', '-', ''), skip_missing: bool = False, **kwargs) -> Native:
-        existing_columns = get_names(self.get_columns(**kwargs))
+    def having_columns(self, *columns, skip_columns=SKIP_COLUMNS, skip_missing: bool = False, **kwargs) -> Native:
+        skip_columns_names = get_names(skip_columns, or_callable=False)
+        existing_column_names = get_names(self.get_columns(**kwargs), or_callable=False)
         missing_columns = list()
         for c in columns:
             c_name = get_name(c)
-            if c_name not in get_names(skip_columns):
-                if c_name not in existing_columns:
+            if c_name not in skip_columns_names:
+                if c_name not in existing_column_names:
                     missing_columns.append(c)
         if missing_columns:
+            missing_column_names = get_names(missing_columns, or_callable=False)
+            missing_str = ', '.join(missing_column_names)
+            existing_str = ', '.join(existing_column_names)
             dataset = repr(self)
-            missing = ', '.join(map(str, get_names(missing_columns)))
-            existing = ', '.join(map(str, get_names(existing_columns)))
-            msg = f'{dataset} has no declared columns: [{missing}]; existing columns are [{existing}]'
+            msg = f'{dataset} has no declared columns: [{missing_str}]; existing columns are [{existing_str}]'
             if skip_missing:
                 self.log(msg, level=LoggingLevel.Warning)
             else:
@@ -169,10 +172,6 @@ class ColumnarMixin(IterDataMixin, ABC):
         stream = self.stream(items, item_type=item_type)
         return self._assume_native(stream)
 
-    def map(self, function: Callable, inplace: bool = False) -> Optional[Native]:
-        items = map(function, self.get_items())
-        return self.set_items(items, count=self.get_count(), inplace=inplace)
-
     def map_side_join(
             self,
             right: Native,
@@ -221,9 +220,9 @@ class ColumnarMixin(IterDataMixin, ABC):
         return self._assume_native(stream).sorted_group_by(*keys, **kwargs)
 
     def group_by(self, *keys, values: Optional[Iterable] = None, as_pairs: bool = False) -> Stream:
-        keys = get_names(keys)
+        keys = get_names(keys, or_callable=True)
         keys = update(keys)
-        values = get_names(values)
+        values = get_names(values, or_callable=True)
         return self.sort(*keys).sorted_group_by(*keys, values=values, as_pairs=as_pairs)
 
     def apply_to_stream(self, function: Callable, *args, **kwargs) -> Stream:
@@ -314,7 +313,7 @@ class ColumnarMixin(IterDataMixin, ABC):
         if pd and get_use_objects_for_output():
             if columns:
                 dataframe = DataFrame(self.get_items(), columns=columns)
-                columns = get_names(columns)
+                columns = get_names(columns, or_callable=False)
                 dataframe = dataframe[columns]
             else:
                 dataframe = DataFrame(self.get_items())

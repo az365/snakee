@@ -89,7 +89,7 @@ class ValueType(DynamicEnum):
     @staticmethod
     def detect_by_value(value):
         field_type = type(value)
-        field_type_name = get_name(field_type, or_callable=False)
+        field_type_name = get_name(field_type)
         if field_type_name in SEQUENCE_TYPE_NAMES:
             return ValueType.Sequence
         else:

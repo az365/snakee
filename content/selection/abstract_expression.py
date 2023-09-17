@@ -246,7 +246,7 @@ class AbstractDescription(AbstractBaseObject, DataMixin, ABC):
         inputs = ', '.join(map(get_name, self.get_input_field_names()))
         target = get_name(self.get_target_field_name())
         try:
-            func_name = get_name(self.get_function(), or_callable=False)
+            func_name = get_name(self.get_function())
         except AttributeError as e:
             raise AttributeError('{func}: {e}'.format(func=repr(self.get_function()), e=e))
         if func_name == '<lambda>':
@@ -275,8 +275,8 @@ class SingleFieldDescription(AbstractDescription, ABC):
             skip_errors=skip_errors, logger=logger,
         )
         if isinstance(field, Callable):
-            field = get_name(field, or_callable=False)
-        assert isinstance(field, (FieldName, FieldNo, FieldInterface)), 'got {} as {}'.format(field, type(field))
+            field = get_name(field)
+        assert isinstance(field, (FieldName, FieldNo, FieldInterface)), f'got {field} as {type(field)}'
         self._target = field
         self._default = default
 

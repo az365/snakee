@@ -293,7 +293,7 @@ class AbstractBaseObject(BaseInterface, ABC):
     @staticmethod
     def _get_value_repr(value: Any, default: str = DEFAULT_STR) -> str:
         if isinstance(value, Callable):
-            return get_name(value, or_callable=False)
+            return get_name(value)
         elif value is not None:
             return repr(value)
         else:

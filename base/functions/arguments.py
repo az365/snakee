@@ -48,10 +48,15 @@ def get_value(obj) -> Union[str, int]:
         return obj
 
 
-def get_name(obj, or_callable: bool = True, or_class: bool = True) -> Union[str, int, Callable]:
-    if or_callable and isinstance(obj, Callable):
+def get_name_or_callable(obj, or_class: bool = True):
+    if isinstance(obj, Callable):
         return obj
-    elif hasattr(obj, 'get_name'):
+    else:
+        return get_name(obj, or_class=or_class)
+
+
+def get_name(obj, or_class: bool = True) -> Union[str, int, Callable]:
+    if hasattr(obj, 'get_name'):
         try:
             return obj.get_name()
         except TypeError:  # is class (not instanced)
@@ -71,13 +76,20 @@ def get_name(obj, or_callable: bool = True, or_class: bool = True) -> Union[str,
 
 def get_names(iterable: Union[Iterable, Any, None], or_callable: bool = True) -> Union[list, Any]:
     if isinstance(iterable, Iterable) and not (isinstance(iterable, str) or hasattr(iterable, '_value_type')):  # Field
-        return [get_name(i, or_callable=or_callable) for i in iterable]
+        list_names = list()
+        for i in iterable:
+            if or_callable:
+                list_names.append(get_name_or_callable(i))
+            else:
+                list_names.append(get_name(i))
+        return list_names
     else:
         return iterable
 
 
 def get_plural(name: str, suffix: str = '_list') -> str:
-    return f'{get_name(name)}{suffix}'
+    single_name = get_name(name)
+    return f'{single_name}{suffix}'
 
 
 def get_generated_name(prefix='snakee', include_random: Union[bool, int] = DEFAULT_RANDOM_LEN, include_datetime=True):
@@ -169,7 +181,8 @@ def get_cropped_text(
 ) -> str:
     text = str(text)
     crop_len = len(crop_suffix)
-    if isinstance(max_len, int):  # max_len is not None:
+    if max_len is not None:  # isinstance(max_len, int):
+        assert isinstance(max_len, int), 'max_len bust be int or None'
         text_len = len(text)
         if text_len > max_len:
             value_len = max_len - crop_len

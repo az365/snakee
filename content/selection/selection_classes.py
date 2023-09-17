@@ -3,7 +3,7 @@ from typing import Callable, Iterable, Union
 try:  # Assume we're a submodule in a package.
     from base.classes.typing import FieldNo, FieldName, Value
     from base.constants.chars import ALL, NOT_SET
-    from base.functions.arguments import get_name
+    from base.functions.arguments import get_name, get_name_or_callable
     from utils.decorators import deprecated
     from content.items.item_type import ItemType
     from content.items.item_getters import get_selection_mapper
@@ -20,7 +20,7 @@ try:  # Assume we're a submodule in a package.
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.classes.typing import FieldNo, FieldName, Value
     from ...base.constants.chars import ALL, NOT_SET
-    from ...base.functions.arguments import get_name
+    from ...base.functions.arguments import get_name, get_name_or_callable
     from ...utils.decorators import deprecated
     from ..items.item_type import ItemType
     from ..items.item_getters import get_selection_mapper
@@ -49,7 +49,7 @@ def get_selection_tuple(description: Union[AbstractDescription, Iterable], or_st
     elif isinstance(description, FieldInterface) or hasattr(description, 'get_value_type'):
         return get_name(description)
     elif isinstance(description, Iterable):  # and not isinstance(description, (str, FieldInterface)):
-        return tuple([get_name(f, or_callable=True) for f in description])
+        return tuple([get_name_or_callable(f) for f in description])
     else:
         raise TypeError(f'AbstractDescription or Field expected, got {description}')
 
@@ -63,7 +63,7 @@ def get_compatible_expression_tuples(expressions: dict) -> dict:
         elif isinstance(v, AbstractDescription) or hasattr(v, 'get_selection_tuple'):
             value = v.get_selection_tuple()
         else:
-            value = get_name(v, or_callable=True)
+            value = get_name_or_callable(v)
         prepared_expressions[name] = value
     return prepared_expressions
 
@@ -122,7 +122,7 @@ def get_output_struct(
         for f in fields:
             if f == ALL or isinstance(f, StarDescription):
                 return None
-            field_name = get_name(f, or_callable=False, or_class=False)
+            field_name = get_name(f, or_class=False)
             output_fields.append(field_name)
         return output_fields + list(expressions)
 

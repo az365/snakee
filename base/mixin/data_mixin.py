@@ -93,7 +93,7 @@ class DataMixin(DisplayMixin, ABC):
                 name = repr(self.get_name())
             else:
                 name = EMPTY
-            method = get_name(method, or_callable=False)
+            method = get_name(method)
             prefix = template.format(cls=self.__class__.__name__, name=name, method=method, arg=arg)
         else:
             prefix = repr(self)

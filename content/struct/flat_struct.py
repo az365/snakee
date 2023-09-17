@@ -121,7 +121,7 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
         return self.get_data()
 
     def get_field_names(self) -> list:
-        return get_names(self.get_fields())
+        return get_names(self.get_fields(), or_callable=False)
 
     def fields(self, fields: Iterable) -> Native:
         self._data = list(fields)
@@ -228,7 +228,7 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
 
     def remove_fields(self, *fields, multiple: bool = False, inplace: bool = True):
         removing_fields = update(fields)
-        removing_field_names = get_names(removing_fields)
+        removing_field_names = get_names(removing_fields, or_callable=False)
         existing_fields = self.get_fields()
         if inplace:
             for e in existing_fields:
@@ -254,7 +254,7 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
 
     def get_type_count(self, field_type: Type = None, by_prefix: bool = True) -> int:
         count = 0
-        field_type_name = get_name(field_type, or_callable=False)
+        field_type_name = get_name(field_type)
         for f in self.get_fields():
             if by_prefix:
                 is_selected_type = f.get_value_type_name().startswith(field_type_name)
@@ -301,7 +301,7 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
         types_count = list()
         for t in types:
             types_count.append(self.get_type_count(t))
-            type_names.append(get_name(t, or_callable=False))
+            type_names.append(get_name(t))
         other_count = total_count - sum(types_count)
         str_fields_count = ' + '.join(['{} {}'.format(c, t) for c, t in zip(types_count, type_names)])
         return f'{total_count} total = {str_fields_count} + {other_count} other'
@@ -460,8 +460,8 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
             title = self.__repr__()
         comparison = self.get_struct_comparison_dict(other)
         counts = {k: len(v) for k, v in comparison.items()}
-        added_names = get_names(comparison.get('added'))
-        removed_names = get_names(comparison.get('removed'))
+        added_names = get_names(comparison.get('added'), or_callable=False)
+        removed_names = get_names(comparison.get('removed'), or_callable=False)
         if added_names or removed_names:
             saved, added, removed = [counts.get(i) for i in ('saved', 'added', 'removed')]
             message = f'{title}: {saved} fields will be saved, {added} added, {removed} removed'

@@ -483,23 +483,24 @@ class RegularStream(LocalStream, ConvertMixin, StructMixin, RegularStreamInterfa
     def _get_grouped_struct(self, *keys, values: Optional[Sequence] = None) -> StructInterface:
         input_struct = self.get_struct()
         output_struct = FlatStruct([])
+        key_names = get_names(keys, or_callable=False)
         if values is None:
             values = list()
         elif values is None and input_struct is not None:
             values = list()
             for f in input_struct.get_field_names():
-                if f not in get_names(keys):
+                if f not in key_names:
                     values.append(f)
         for f in list(keys) + list(values):
             if isinstance(f, ARRAY_TYPES):
-                field_name = get_name(f[0], or_callable=False)
+                field_name = get_name(f[0])
             elif isinstance(f, FieldNo):
                 if input_struct is not None:
                     field_name = input_struct.get_field_description(f)
                 else:
                     field_name = f'column{f:02}'
             else:
-                field_name = get_name(f, or_callable=False)
+                field_name = get_name(f)
             if f in values:
                 value_type = ValueType.Sequence
             elif isinstance(f, FieldInterface) or hasattr(f, 'get_value_type'):
@@ -627,7 +628,7 @@ class RegularStream(LocalStream, ConvertMixin, StructMixin, RegularStreamInterfa
 
     def _get_uniq_items(self, *keys) -> Iterable:
         keys = unfold_structs_to_fields(keys)
-        key_fields = get_names(keys)
+        key_fields = get_names(keys, or_callable=True)
         key_function = self._get_key_function(key_fields, take_hash=False)
         prev_value = None
         is_first = True
