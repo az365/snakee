@@ -207,6 +207,7 @@ class SnakeeContext(bs.AbstractNamed, ContextInterface):
 
     def stream(
             self,
+            data: Iterable,
             item_type: Union[ItemType, Stream],
             name: Optional[Name] = None,
             check: bool = True,
@@ -217,7 +218,7 @@ class SnakeeContext(bs.AbstractNamed, ContextInterface):
         if isinstance(item_type, Stream) or sm.is_stream(item_type):
             stream_object = item_type
         else:
-            stream_object = sm.StreamBuilder.stream(item_type, **kwargs)
+            stream_object = sm.StreamBuilder.stream(data, item_type, **kwargs)
         stream_object = stream_object.set_name(
             name,
             register=False,

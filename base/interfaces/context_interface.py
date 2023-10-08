@@ -111,6 +111,7 @@ class ContextInterface(BaseInterface, ABC):
     @abstractmethod
     def stream(
             self,
+            data: Iterable,
             item_type: Union[Stream, ChildType],
             name: Optional[Name] = None,
             check: bool = True,

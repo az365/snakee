@@ -132,7 +132,7 @@ class LoggingContextStub(TreeItem, ContextInterface):
     def conn(self, conn, name=None, check=True, redefine=True, **kwargs):
         self._method_stub('conn')
 
-    def stream(self, item_type, name=None, check=True, **kwargs):
+    def stream(self, data, item_type, name=None, check=True, **kwargs):
         self._method_stub('stream')
 
     def rename_stream(self, old_name, new_name):
