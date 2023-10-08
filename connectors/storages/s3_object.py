@@ -187,8 +187,8 @@ class S3Object(LeafConnector):
         else:
             raise ValueError(response)
 
-    def to_stream(self, stream_type: ItemType = None, **kwargs) -> Stream:
-        return StreamBuilder.stream(self.get_data(), stream_type=stream_type, **kwargs)
+    def to_stream(self, item_type: ItemType = None, **kwargs) -> Stream:
+        return StreamBuilder.stream(self.get_data(), item_type=item_type, **kwargs)
 
     def get_expected_count(self) -> Optional[int]:
         return self._count

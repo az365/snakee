@@ -4,11 +4,11 @@ from inspect import getframeinfo, stack
 try:  # Assume we're a submodule in a package.
     from base.classes.typing import Array, Line, Count
     from base.constants.chars import DEFAULT_ITEMS_DELIMITER
-    from base.functions.arguments import get_name, get_str_from_args_kwargs
+    from base.functions.arguments import get_str_from_args_kwargs
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.typing import Array, Line, Count
     from ..constants.chars import DEFAULT_ITEMS_DELIMITER
-    from .arguments import get_name, get_str_from_args_kwargs
+    from .arguments import get_str_from_args_kwargs
 
 Caller = Union[Callable, Line, Count]
 Args = Optional[Array]

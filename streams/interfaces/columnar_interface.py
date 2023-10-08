@@ -6,7 +6,6 @@ try:  # Assume we're a submodule in a package.
     from utils.algo import JoinType
     from streams.interfaces.abstract_stream_interface import StreamInterface, DEFAULT_EXAMPLE_COUNT
     from streams.interfaces.regular_stream_interface import RegularStreamInterface, DEFAULT_ANALYZE_COUNT
-    from streams.stream_type import StreamType
     from content.struct.struct_interface import StructInterface
     from content.items.item_type import ItemType, Item, FieldID
     from base.interfaces.context_interface import ContextInterface
@@ -15,7 +14,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils.algo import JoinType
     from .abstract_stream_interface import StreamInterface, DEFAULT_EXAMPLE_COUNT
     from .regular_stream_interface import RegularStreamInterface, DEFAULT_ANALYZE_COUNT
-    from ..stream_type import StreamType
     from ...content.struct.struct_interface import StructInterface
     from ...content.items.item_type import ItemType, Item, FieldID
     from ...base.interfaces.context_interface import ContextInterface

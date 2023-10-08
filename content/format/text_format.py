@@ -69,8 +69,6 @@ class TextFormat(ParsedFormat):
             return [line]
         elif item_type == ItemType.Record:
             return dict(line=line)
-        elif item_type == ItemType.StructRow:
-            return ItemType.StructRow.build(data=[line], struct=['line'])
         else:
             class_name = self.__class__.__name__
             raise ValueError(f'item_type {item_type} is not supported for {class_name}.get_parsed_line()')
@@ -127,8 +125,6 @@ class JsonFormat(TextFormat):
                 return parsed
         elif item_type == ItemType.Line:
             return line
-        elif item_type == ItemType.StructRow:
-            return ItemType.StructRow.build(data=[line], struct=['line'])
         else:
             class_name = self.__class__.__name__
             raise ValueError(f'item_type {item_type} is not supported for {class_name}.get_parsed_line()')

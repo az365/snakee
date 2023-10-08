@@ -4,7 +4,6 @@ from itertools import chain
 
 try:  # Assume we're a submodule in a package.
     from base.classes.typing import Count, Class
-    from base.functions.arguments import get_name
     from base.functions.errors import get_type_err_msg
     from base.constants.chars import EMPTY, REPR_DELIMITER
     from base.classes.enum import DynamicEnum, ClassType
@@ -13,7 +12,6 @@ try:  # Assume we're a submodule in a package.
     from base.mixin.iter_data_mixin import IterDataMixin
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..classes.typing import Count, Class
-    from ..functions.arguments import get_name
     from ..functions.errors import get_type_err_msg
     from ..constants.chars import EMPTY, REPR_DELIMITER
     from ..classes.enum import DynamicEnum, ClassType
@@ -151,7 +149,7 @@ class MultiMapDataMixin(MapDataMixin, ABC):
                 else:
                     iter_values.append(second_level_data.values())
             else:
-                msg = get_type_err_msg(second_level_data, (MapDataMixin, dict), args=f'data[{key}]')
+                msg = get_type_err_msg(second_level_data, (MapDataMixin, dict), arg=f'data[{key}]')
                 raise TypeError(msg)
         return chain(*iter_values)
 

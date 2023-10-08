@@ -19,7 +19,7 @@ class TwinSync(AbstractSync):
             procedure: Optional[Callable],
             options: Optional[dict] = None,
             apply_to_stream: bool = True,
-            stream_type: ItemType = ItemType.Auto,
+            item_type: ItemType = ItemType.Auto,
             context: Context = None,
     ):
         if options is None:
@@ -30,7 +30,7 @@ class TwinSync(AbstractSync):
             procedure=procedure,
             options=options,
             apply_to_stream=apply_to_stream,
-            stream_type=stream_type,
+            item_type=item_type,
             context=context,
         )
 
@@ -58,13 +58,13 @@ class TwinSync(AbstractSync):
     def run_now(
             self,
             return_stream: bool = True,
-            stream_type: ItemType = ItemType.Auto,
+            item_type: ItemType = ItemType.Auto,
             options: Optional[dict] = None,
             verbose: bool = True,
     ) -> Stream:
-        if stream_type in (ItemType.Auto, None):
-            stream_type = self.get_stream_type()
-        stream = self.get_src().to_stream(stream_type=stream_type)
+        if item_type in (ItemType.Auto, None):
+            item_type = self.get_item_type()
+        stream = self.get_src().to_stream(item_type=item_type)
         if verbose:
             self.log(f'Running operation: {self.get_name()}')
         if self.has_procedure():
@@ -78,11 +78,13 @@ class TwinSync(AbstractSync):
         if rewrite or not self.has_inputs():
             self.get_src().from_stream(stream)
         else:
-            self.log('src-object ({}) is already exists'.format(self.get_src()))
+            src = self.get_src()
+            self.log(f'src-object ({src}) is already exists')
         if rewrite or not self.has_outputs():
             return self.get_dst().from_stream(stream)
         else:
-            self.log('dst-object ({}) is already exists'.format(self.get_dst()))
+            dst = self.get_dst()
+            self.log(f'dst-object ({dst}) is already exists')
 
     @staticmethod
     def _assume_connector(connector) -> Connector:

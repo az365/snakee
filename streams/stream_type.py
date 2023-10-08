@@ -6,24 +6,14 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..base.classes.enum import ClassType
 
 DICT_METHOD_SUFFIX = dict(
-    AnyStream='any_stream',
-    LineStream='line_stream',
-    RowStream='row_stream',
-    KeyValueStream='key_value_stream',
-    StructStream='struct_stream',
-    RecordStream='record_stream',
+    RegularStream='regular_stream',
     PandasStream='pandas_stream',
     SqlStream='sql_stream',
 )
 
 
 class StreamType(ClassType):
-    AnyStream = 'AnyStream'
-    LineStream = 'LineStream'
-    RowStream = 'RowStream'
-    KeyValueStream = 'KeyValueStream'
-    StructStream = 'StructStream'
-    RecordStream = 'RecordStream'
+    RegularStream = 'RegularStream'
     PandasStream = 'PandasStream'
     SqlStream = 'SqlStream'
 
@@ -47,11 +37,8 @@ class StreamType(ClassType):
             name = obj.__class__.__name__
             if name == 'ItemType':
                 item_type_name = obj.get_name()
-                if item_type_name == 'StructRow':
-                    stream_type_obj = StreamType.StructStream
-                else:
-                    stream_type_name = f'{item_type_name}Stream'
-                    stream_type_obj = cls.find_instance(stream_type_name)
+                stream_type_name = f'{item_type_name}Stream'
+                stream_type_obj = cls.find_instance(stream_type_name)
                 if stream_type_obj is None:
                     if default is not None:
                         stream_type_obj = default

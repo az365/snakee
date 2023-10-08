@@ -8,6 +8,7 @@ try:  # Assume we're a submodule in a package.
         TemporaryLocationInterface, LoggerInterface, ExtendedLoggerInterface, SelectionLoggerInterface, LoggingLevel,
         Name, ARRAY_TYPES,
     )
+    from base.constants.text import DEFAULT_ENCODING
     from base.functions.arguments import get_names, get_generated_name
     from base import base_classes as bs
     from streams import stream_classes as sm
@@ -22,6 +23,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         TemporaryLocationInterface, LoggerInterface, ExtendedLoggerInterface, SelectionLoggerInterface, LoggingLevel,
         Name, ARRAY_TYPES,
     )
+    from .base.constants.text import DEFAULT_ENCODING
     from .base.functions.arguments import get_names, get_generated_name
     from .base import base_classes as bs
     from .streams import stream_classes as sm
@@ -38,7 +40,7 @@ NAME = 'cx'
 DEFAULT_STREAM_CONFIG = dict(
     max_items_in_memory=sm.MAX_ITEMS_IN_MEMORY,
     tmp_files_template=sm.TMP_FILES_TEMPLATE,
-    tmp_files_encoding=sm.TMP_FILES_ENCODING,
+    tmp_files_encoding=DEFAULT_ENCODING,
 )
 DEFAULT_CONN_CONFIG = dict()
 
@@ -205,17 +207,18 @@ class SnakeeContext(bs.AbstractNamed, ContextInterface):
 
     def stream(
             self,
-            stream_type: Union[ItemType, Stream],
+            data: Iterable,
+            item_type: Union[ItemType, Stream],
             name: Optional[Name] = None,
             check: bool = True,
             **kwargs
     ) -> Stream:
         if name is not None:
             name = get_generated_name('Stream')
-        if isinstance(stream_type, Stream) or sm.is_stream(stream_type):
-            stream_object = stream_type
+        if isinstance(item_type, Stream) or sm.is_stream(item_type):
+            stream_object = item_type
         else:
-            stream_object = sm.StreamBuilder.stream(stream_type, **kwargs)
+            stream_object = sm.StreamBuilder.stream(data, item_type, **kwargs)
         stream_object = stream_object.set_name(
             name,
             register=False,

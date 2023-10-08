@@ -25,6 +25,5 @@ ItemType.set_dict_subclasses(
         ItemType.Line.get_value(): [str],
         ItemType.Record.get_value(): RECORD_SUBCLASSES,
         ItemType.Row.get_value(): ROW_SUBCLASSES,
-        ItemType.StructRow.get_value(): ROW_SUBCLASSES,  # deprecated item type
     }
 )

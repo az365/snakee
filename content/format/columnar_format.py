@@ -86,7 +86,7 @@ class ColumnarFormat(TextFormat):
     def get_formatted_item(self, item: Item, item_type: ItemType = ItemType.Auto) -> str:
         if item_type in (ItemType.Auto, None):
             item_type = ItemType.detect(item)
-        if item_type in (ItemType.Row, ItemType.StructRow):
+        if item_type == ItemType.Row:
             row = item
             if hasattr(row, 'get_data'):
                 row = row.get_data()
@@ -126,8 +126,6 @@ class ColumnarFormat(TextFormat):
             struct = list(range(column_count))
         if item_type == ItemType.Record:
             return {get_name(k): v for k, v in zip(struct, row)}
-        elif item_type == ItemType.StructRow:
-            return ItemType.StructRow.build(data=row, struct=struct)
         else:
             class_name = self.__class__.__name__
             raise ValueError(f'item_type {item_type} is not supported for {class_name}.parse_lines()')
@@ -140,7 +138,7 @@ class ColumnarFormat(TextFormat):
     ) -> Generator:
         if item_type in (ItemType.Auto, None):
             item_type = self.get_default_item_type()
-        if item_type in (ItemType.Record, ItemType.Row, ItemType.StructRow, ItemType.Any, ItemType.Auto, None):
+        if item_type in (ItemType.Record, ItemType.Row, ItemType.Any, ItemType.Auto, None):
             iter_parser = fs.csv_reader(delimiter=self.get_delimiter())
             rows = iter_parser(lines)
             if isinstance(struct, StructInterface):
@@ -159,10 +157,6 @@ class ColumnarFormat(TextFormat):
                         yield {k: v for k, v in zip(column_names, r)}
                     else:
                         yield {k: v for k, v in enumerate(r)}
-            elif item_type == ItemType.StructRow:
-                assert struct, f'for {item_type} struct must be defined, got struct={struct}'
-                for r in rows:
-                    yield ItemType.StructRow.build(data=r, struct=struct)
         else:  # item_type == ItemType.Line
             for line in lines:
                 yield self.get_parsed_line(line, item_type=item_type, struct=struct)
@@ -232,10 +226,6 @@ class FlatStructFormat(ColumnarFormat):
         if item_type == ItemType.Record:
             row = [str(item.get(f)) for f in self.get_struct().get_columns()]
             return self.get_delimiter().join(row)
-        if item_type == ItemType.StructRow and validate:
-            item_columns = item.get_struct().get_columns()
-            content_columns = self.get_struct().get_columns()
-            assert item_columns == content_columns, '{} != {}'.format(item_columns, content_columns)
         return super().get_formatted_item(item, item_type=item_type)
 
     def get_parsed_line(

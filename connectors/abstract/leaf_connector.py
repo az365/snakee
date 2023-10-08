@@ -369,7 +369,7 @@ class LeafConnector(
         if item_type in (ItemType.Auto, None):
             item_type = self.get_item_type()
         filtered_items = self._get_filtered_items(*args, item_type=item_type, skip_errors=skip_errors, **kwargs)
-        stream = self.to_stream(data=filtered_items, stream_type=item_type)
+        stream = self.to_stream(data=filtered_items, item_type=item_type)
         return self._assume_stream(stream)
 
     def skip(self, count: int = 1, inplace: bool = False) -> Stream:

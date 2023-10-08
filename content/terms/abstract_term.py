@@ -7,7 +7,7 @@ try:  # Assume we're a submodule in a package.
         TermType, TermDataAttribute, TermRelation, FieldRoleType, ValueType,
     )
     from base.constants.chars import EMPTY, UNDER, HASH, SMALL_INDENT, REPR_DELIMITER
-    from base.functions.arguments import get_name, get_names, get_value
+    from base.functions.arguments import get_names, get_value
     from base.abstract.simple_data import SimpleDataWrapper
     from base.mixin.map_data_mixin import MultiMapDataMixin
     from base.classes.enum import ClassType
@@ -19,7 +19,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         TermType, TermDataAttribute, TermRelation, FieldRoleType, ValueType,
     )
     from ...base.constants.chars import EMPTY, UNDER, HASH, SMALL_INDENT, REPR_DELIMITER
-    from ...base.functions.arguments import get_name, get_names, get_value
+    from ...base.functions.arguments import get_names, get_value
     from ...base.abstract.simple_data import SimpleDataWrapper
     from ...base.mixin.map_data_mixin import MultiMapDataMixin
     from ...base.classes.enum import ClassType
@@ -183,13 +183,13 @@ class AbstractTerm(SimpleDataWrapper, MultiMapDataMixin, TermInterface, ABC):
 
     def add_mapper(self, src: Field, dst: Field, mapper: Callable) -> Native:
         key = TermDataAttribute.Mappers
-        subkey = get_names([src, dst])
+        subkey = get_names([src, dst], or_callable=False)
         assert isinstance(key, TermDataAttribute)
         return self.add_item(key, subkey, mapper)
 
     def get_mapper(self, src: Field, dst: Field, default: Optional[Callable] = None) -> Optional[Callable]:
         key = TermDataAttribute.Mappers
-        subkey = get_names([src, dst])
+        subkey = get_names([src, dst], or_callable=False)
         assert isinstance(key, TermDataAttribute)
         return self.get_item(key, subkey, skip_missing=True, default=default)
 

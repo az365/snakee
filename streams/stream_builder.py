@@ -32,23 +32,23 @@ class StreamBuilder(StreamBuilderInterface):
     def stream(
             cls,
             data: Iterable,
-            stream_type: ItemType = ItemType.Auto,
+            item_type: ItemType = ItemType.Auto,
             register: bool = True,
             **kwargs
     ) -> Stream:
         default_class = cls.get_default_stream_class()
-        if isinstance(stream_type, StreamType):
-            stream_class = stream_type.get_class(default=default_class)
+        if isinstance(item_type, StreamType):
+            stream_class = item_type.get_class(default=default_class)
         else:
             stream_class = default_class
             if 'item_type' not in kwargs:
-                if isinstance(stream_type, ItemType):
-                    item_type = stream_type
-                elif stream_type not in (ItemType.Auto, None):
+                if isinstance(item_type, ItemType):
+                    pass
+                elif item_type not in (ItemType.Auto, None):
                     try:
-                        item_type = ItemType(stream_type)
+                        item_type = ItemType(item_type)
                     except (TypeError, ValueError):
-                        item_type = StreamType(stream_type).get_item_type()
+                        item_type = StreamType(item_type).get_item_type()
                 else:
                     example_item = cls._get_one_item(data)
                     item_type = cls._detect_item_type(example_item)
@@ -63,15 +63,15 @@ class StreamBuilder(StreamBuilderInterface):
         return cls.stream(empty_data, register=register, **kwargs)
 
     @staticmethod
-    def is_same_stream_type(*iter_streams) -> bool:
+    def is_same_item_type(*iter_streams) -> bool:
         iter_streams = update(iter_streams)
-        stream_types = [i.get_stream_type() for i in iter_streams]
-        return len(set(stream_types)) == 1
+        item_types = [i.get_item_type() for i in iter_streams]
+        return len(set(item_types)) == 1
 
     @classmethod
     def stack(cls, *iter_streams, how: How = 'vertical', name: Optional[str] = None, context=None, **kwargs):
         iter_streams = update(iter_streams)
-        assert cls.is_same_stream_type(iter_streams), 'concat(): streams must have same type: {}'.format(iter_streams)
+        assert cls.is_same_item_type(iter_streams), f'concat(): streams must have same type: {iter_streams}'
         result = None
         for cur_stream in iter_streams:
             assert isinstance(cur_stream, StreamInterface)
@@ -124,8 +124,6 @@ class StreamBuilder(StreamBuilderInterface):
             return ItemType.Record
         elif isinstance(item, (list, tuple)):
             return ItemType.Row
-        elif hasattr(item, 'get_struct'):
-            return ItemType.StructRow
         else:
             return ItemType.Any
 

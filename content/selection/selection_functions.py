@@ -91,7 +91,7 @@ def safe_apply_function(function: Callable, fields, values, item=None, logger=No
             else:
                 level = 30 if skip_errors else 40
                 message = 'Error while processing function {} over fields {} with values {}.'
-                func_name = get_name(function, or_callable=False)
+                func_name = get_name(function)
                 logger.log(msg=message.format(func_name, fields, values), level=level)
         if not skip_errors:
             raise e

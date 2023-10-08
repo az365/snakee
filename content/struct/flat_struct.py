@@ -2,7 +2,7 @@ from typing import Optional, Iterable, Iterator, Generator, Union
 
 try:  # Assume we're a submodule in a package.
     from interfaces import (
-        StructInterface, StructRowInterface, FieldInterface, RepresentationInterface,
+        StructInterface, FieldInterface, RepresentationInterface,
         SelectionLoggerInterface, ExtLogger,
         ValueType, DialectType,
         FieldNo, FieldName, SimpleRow, Item, Record,
@@ -22,9 +22,10 @@ try:  # Assume we're a submodule in a package.
     from content.selection.abstract_expression import AbstractDescription
     from content.selection.selectable_mixin import SelectableMixin
     from content.documents.document_item import Chapter, Paragraph, Sheet
+    from content.struct.struct_type import StructType
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...interfaces import (
-        StructInterface, StructRowInterface, FieldInterface, RepresentationInterface,
+        StructInterface, FieldInterface, RepresentationInterface,
         SelectionLoggerInterface, ExtLogger,
         ValueType, DialectType,
         FieldNo, FieldName, SimpleRow, Item, Record,
@@ -44,6 +45,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..selection.abstract_expression import AbstractDescription
     from ..selection.selectable_mixin import SelectableMixin
     from ..documents.document_item import Chapter, Paragraph, Sheet
+    from .struct_type import StructType
 
 Native = StructInterface
 Group = Union[Native, Iterable]
@@ -121,7 +123,7 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
         return self.get_data()
 
     def get_field_names(self) -> list:
-        return get_names(self.get_fields())
+        return get_names(self.get_fields(), or_callable=False)
 
     def fields(self, fields: Iterable) -> Native:
         self._data = list(fields)
@@ -228,7 +230,7 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
 
     def remove_fields(self, *fields, multiple: bool = False, inplace: bool = True):
         removing_fields = update(fields)
-        removing_field_names = get_names(removing_fields)
+        removing_field_names = get_names(removing_fields, or_callable=False)
         existing_fields = self.get_fields()
         if inplace:
             for e in existing_fields:
@@ -254,7 +256,7 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
 
     def get_type_count(self, field_type: Type = None, by_prefix: bool = True) -> int:
         count = 0
-        field_type_name = get_name(field_type, or_callable=False)
+        field_type_name = get_name(field_type)
         for f in self.get_fields():
             if by_prefix:
                 is_selected_type = f.get_value_type_name().startswith(field_type_name)
@@ -301,7 +303,7 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
         types_count = list()
         for t in types:
             types_count.append(self.get_type_count(t))
-            type_names.append(get_name(t, or_callable=False))
+            type_names.append(get_name(t))
         other_count = total_count - sum(types_count)
         str_fields_count = ' + '.join(['{} {}'.format(c, t) for c, t in zip(types_count, type_names)])
         return f'{total_count} total = {str_fields_count} + {other_count} other'
@@ -407,7 +409,7 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
         return True
 
     @deprecated_with_alternative('is_valid_item()')
-    def is_valid_row(self, row: Union[Iterable, StructRowInterface]) -> bool:
+    def is_valid_row(self, row: Iterable) -> bool:
         for value, field_type in zip(row, self.get_types_list(DialectType.Python)):
             if not isinstance(value, field_type):
                 return False
@@ -431,9 +433,7 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
         return validation_errors
 
     def _convert_item_to_row(self, item: Item) -> SimpleRow:
-        if isinstance(item, StructRowInterface) or hasattr(item, 'get_data'):
-            return item.get_data()
-        elif isinstance(item, ROW_SUBCLASSES):  # is_row(item)
+        if isinstance(item, ROW_SUBCLASSES):  # is_row(item)
             return item
         elif isinstance(item, RECORD_SUBCLASSES):  # is_record(item)
             return [item.get(c) for c in self.get_columns()]
@@ -460,8 +460,8 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
             title = self.__repr__()
         comparison = self.get_struct_comparison_dict(other)
         counts = {k: len(v) for k, v in comparison.items()}
-        added_names = get_names(comparison.get('added'))
-        removed_names = get_names(comparison.get('removed'))
+        added_names = get_names(comparison.get('added'), or_callable=False)
+        removed_names = get_names(comparison.get('removed'), or_callable=False)
         if added_names or removed_names:
             saved, added, removed = [counts.get(i) for i in ('saved', 'added', 'removed')]
             message = f'{title}: {saved} fields will be saved, {added} added, {removed} removed'
@@ -820,4 +820,5 @@ class FlatStruct(SimpleDataWrapper, SelectableMixin, IterDataMixin, StructInterf
         return self.get_count()
 
 
+StructType.add_classes(FlatStruct)
 AnyField.set_struct_builder(FlatStruct)

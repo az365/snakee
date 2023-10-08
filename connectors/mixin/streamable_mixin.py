@@ -8,6 +8,7 @@ try:  # Assume we're a submodule in a package.
         ItemType, StreamType, OptionalFields, Array, Count,
     )
     from base.functions.arguments import get_generated_name
+    from base.functions.errors import get_loc_message
     from utils.decorators import deprecated_with_alternative
     from streams.mixin.columnar_mixin import ColumnarMixin
     from streams.stream_builder import StreamBuilder
@@ -18,6 +19,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         ItemType, StreamType, OptionalFields, Array, Count,
     )
     from ...base.functions.arguments import get_generated_name
+    from ...base.functions.errors import get_loc_message
     from ...utils.decorators import deprecated_with_alternative
     from ...streams.mixin.columnar_mixin import ColumnarMixin
     from ...streams.stream_builder import StreamBuilder
@@ -124,27 +126,25 @@ class StreamableMixin(ColumnarMixin, ABC):
 
     def stream(
             self, data: Optional[Iterable] = None,
-            stream_type: ItemType = ItemType.Auto,
+            item_type: ItemType = ItemType.Auto,
             ex: OptionalFields = None,
             **kwargs
     ) -> Stream:
-        return self.to_stream(data, stream_type=stream_type, ex=ex, **kwargs)
+        return self.to_stream(data, item_type=item_type, ex=ex, **kwargs)
 
     def to_stream(
             self,
             data: Optional[Iterable] = None,
             name: Optional[str] = None,
-            stream_type: ItemType = ItemType.Auto,
+            item_type: ItemType = ItemType.Auto,
             ex: OptionalFields = None,
             step: Count = None,
             **kwargs
     ) -> Stream:
         if not name:
             name = self._get_generated_stream_name()
-        if isinstance(stream_type, StreamType) or hasattr(stream_type, 'get_item_type'):
-            item_type = stream_type.get_item_type()
-        else:
-            item_type = stream_type
+        if isinstance(item_type, StreamType) or hasattr(item_type, 'get_item_type'):
+            item_type = item_type.get_item_type()
         if data:
             struct_source = data
         else:
@@ -155,7 +155,7 @@ class StreamableMixin(ColumnarMixin, ABC):
             meta['count'] = self._get_fast_count()
         if 'source' not in meta:
             meta['source'] = self
-        stream = StreamBuilder.stream(data, stream_type=stream_type, **meta)
+        stream = StreamBuilder.stream(data, item_type=item_type, **meta)
         if isinstance(struct_source, StructMixinInterface) or hasattr(struct_source, 'get_struct'):
             if isinstance(stream, StructMixinInterface) or hasattr(stream, 'set_struct'):
                 stream.set_struct(struct_source.get_struct(), inplace=True)
@@ -163,15 +163,15 @@ class StreamableMixin(ColumnarMixin, ABC):
 
     def to_stream_type(
             self,
-            stream_type: ItemType,
+            item_type: ItemType,
             step: Count = None,
             verbose: Optional[bool] = None,
             message: Optional[str] = None,
             **kwargs,
     ) -> Stream:
-        if stream_type in (ItemType.Auto, None):
-            stream_type = self._get_stream_type()
-        item_type = self._get_item_type(stream_type)
+        if item_type in (ItemType.Auto, None):
+            item_type = self._get_item_type()
+        item_type = self._get_item_type(item_type)
         if 'item_type' not in kwargs:
             kwargs['item_type'] = item_type
         if 'struct' not in kwargs:
@@ -198,23 +198,6 @@ class StreamableMixin(ColumnarMixin, ABC):
     def to_row_stream(self, step: Count = None, verbose: Optional[bool] = None, **kwargs) -> RowStream:
         return self.to_stream_type(ItemType.Row, step=step, verbose=verbose, **kwargs)
 
-    @deprecated_with_alternative('to_stream()')
-    def to_struct_stream(
-            self,
-            struct: Optional[StructInterface] = None,
-            step: Count = None,
-            verbose: Optional[bool] = None,
-            **kwargs,
-    ) -> StructStream:
-        assert self._is_existing(), 'for get stream file must exists'
-        if struct is None:
-            if isinstance(self, StructMixinInterface) or hasattr(self, 'get_struct'):
-                struct = self.get_struct()
-            else:
-                raise TypeError('for getting struct stream connector must have a struct property')
-        kwargs['struct'] = struct
-        return self.to_stream_type(StreamType.StructStream, step=step, verbose=verbose, **kwargs)
-
     def from_stream(self, stream: Stream, verbose: Optional[bool] = None) -> Native:
         if hasattr(self, 'write_stream'):
             return self.write_stream(stream, verbose=verbose)
@@ -236,11 +219,15 @@ class StreamableMixin(ColumnarMixin, ABC):
             if hasattr(stream, 'collect'):
                 stream = stream.collect()
             elif not skip_missing:
-                raise TypeError('stream {} of type {} can not be collected'.format(stream, stream.get_stream_type()))
+                stream_type = stream.get_stream_type()
+                msg = f'stream {stream} of type {stream_type} can not be collected'
+                raise TypeError(get_loc_message(msg, caller=self.collect, kwargs=dict(skip_missing=skip_missing)))
         elif skip_missing:
             stream = StreamBuilder.empty()
         else:
-            raise FileNotFoundError('File {} not found'.format(self.get_name()))
+            file_name = self.get_name()
+            msg = f'File {file_name} not found'
+            raise FileNotFoundError(get_loc_message(msg, caller=self.collect))
         return self._assume_stream(stream)
 
     @staticmethod

@@ -18,6 +18,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ..connectors.databases.dialect_type import DialectType
     from ..functions.primary import numeric as nm
 
+SEQUENCE_TYPE_NAMES = 'list', 'tuple', 'range', 'set', 'sequence'
+
 
 class ValueType(DynamicEnum):
     Any = 'any'
@@ -87,8 +89,11 @@ class ValueType(DynamicEnum):
     @staticmethod
     def detect_by_value(value):
         field_type = type(value)
-        field_type_name = get_name(field_type, or_callable=False)
-        return ValueType(field_type_name)
+        field_type_name = get_name(field_type)
+        if field_type_name in SEQUENCE_TYPE_NAMES:
+            return ValueType.Sequence
+        else:
+            return ValueType(field_type_name)
 
     @classmethod
     def get_canonic_type(cls, field_type, ignore_missing: bool = False, default='any'):

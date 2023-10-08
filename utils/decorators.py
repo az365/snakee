@@ -50,7 +50,7 @@ def deprecated(func):
         try:
             return func(*args, **kwargs)
         except TypeError as e:
-            raise TypeError(f'{get_name(func, or_callable=False)}: {e}')
+            raise TypeError(f'{get_name(func)}: {e}')
     return new_func
 
 
@@ -64,7 +64,7 @@ def deprecated_with_alternative(alternative):
             try:
                 return func(*args, **kwargs)
             except TypeError as e:
-                raise TypeError('{}: {}'.format(func, e))
+                raise TypeError(f'{func}: {e}')
         return new_func
     return _deprecated
 
@@ -83,7 +83,7 @@ class WrappedFunction(Callable, ABC):
     def __init__(self, py_func: Callable, name: Optional[str] = None, *args, **kwargs):
         self._py_func = py_func
         if name is None:
-            name = get_name(py_func, or_callable=False)
+            name = get_name(py_func)
         self._name = name
         self._args = args
         self._kwargs = kwargs
@@ -124,7 +124,7 @@ def sql_compatible(func):
                 kwargs.pop('_as_sql')
             super().__init__(
                 func(*args, **kwargs, _as_sql=False),
-                get_name(func, or_callable=False),
+                get_name(func),
                 *args, **kwargs,
             )
             self._sql_func = func(*args, **kwargs, _as_sql=True)

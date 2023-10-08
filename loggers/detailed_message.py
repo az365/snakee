@@ -61,7 +61,7 @@ class SelectionError(DetailedMessage):
             in_record: dict,
             message: str,
     ):
-        func_name = get_name(func, or_callable=False)
+        func_name = get_name(func)
         if 'lambda' in func_name:
             func_name = 'lambda'
         super().__init__(

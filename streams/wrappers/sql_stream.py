@@ -55,9 +55,11 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 Native = WrapperStream
 TableOrQuery = Union[LeafConnectorInterface, StreamInterface, None]
 
+LINE_NO_LEN = 3
+QUERY_LINE_LEN = 120
+QUERY_SHEET_COLUMNS = ('no', LINE_NO_LEN), ('query', QUERY_LINE_LEN)
 IS_DEFINED = '{field} <> 0 and {field} NOT NULL'
 MSG_NOT_IMPL = '{method}() operation is not defined for SqlStream, try to use .to_record_stream().{method}() instead'
-QUERY_SHEET_COLUMNS = ('no', 3), ('query', 120)
 MONOSPACE_HTML_STYLE = 'font-family: monospace'
 
 OUTPUT_STRUCT_COMPARISON_TAGS = dict(
@@ -566,20 +568,20 @@ class SqlStream(WrapperStream):
         return map(lambda r: dict(zip(columns, r)), self.get_rows())
 
     def to_row_stream(self) -> Stream:
-        return self.to_stream(self.get_rows(), stream_type=ItemType.Row)
+        return self.to_stream(self.get_rows(), item_type=ItemType.Row)
 
     def to_record_stream(self) -> Stream:
-        return self.to_stream(self.get_records(), stream_type=ItemType.Record)
+        return self.to_stream(self.get_records(), item_type=ItemType.Record)
 
     def to_stream(
             self,
             data: Optional[Iterable] = None,
-            stream_type: ItemType = ItemType.Auto,
+            item_type: ItemType = ItemType.Auto,
             ex: OptionalFields = None,
             **kwargs
     ) -> Union[RegularStream, Native]:
-        if stream_type in (ItemType.Auto, None):
-            stream_type = self.get_stream_type()
+        if item_type in (ItemType.Auto, None):
+            item_type = self.get_stream_type()
         if data:
             stream_class = StreamBuilder.get_default_stream_class()
             meta = self.get_compatible_meta(stream_class, ex=ex)
@@ -589,16 +591,16 @@ class SqlStream(WrapperStream):
             if 'source' not in meta:
                 meta['source'] = self.get_source()
             return stream_class(data, **meta)
-        elif stream_type == StreamType.SqlStream:
+        elif item_type == StreamType.SqlStream:
             return self
         else:
-            method_suffix = StreamType.of(stream_type).get_method_suffix()
+            method_suffix = StreamType.of(item_type).get_method_suffix()
             method_name = f'to_{method_suffix}'
             stream_method = self.__getattribute__(method_name)
             return stream_method()
 
-    def collect(self, stream_type: ItemType = ItemType.Record) -> Stream:
-        stream = self.to_stream(stream_type=stream_type).collect()
+    def collect(self, item_type: ItemType = ItemType.Record) -> Stream:
+        stream = self.to_stream(item_type=item_type).collect()
         return self._assume_native(stream)
 
     def one(self) -> Stream:

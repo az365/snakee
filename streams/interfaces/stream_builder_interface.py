@@ -16,7 +16,7 @@ class StreamBuilderInterface(ABC):
     def stream(
             self,
             data: Iterable,
-            stream_type: ItemType = ItemType.Auto,
+            item_type: ItemType = ItemType.Auto,
             ex: OptionalFields = None,
             **kwargs
     ) -> StreamInterface:

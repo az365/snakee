@@ -12,7 +12,7 @@ def test_detect_struct_by_title_row():
     title_row = ('page_id', 'hits_count', 'conversion_rate')
     expected = 'page_id int, hits_count int, conversion_rate numeric'
     received = FlatStruct.get_struct_detected_by_title_row(title_row).get_struct_str(DialectType.Postgres)
-    assert received == expected, '{} != {}'.format(received, expected)
+    assert received == expected, f'{received} vs {expected}'
 
 
 def test_local_file():
@@ -22,14 +22,14 @@ def test_local_file():
     job_folder = cx.find_job_folder(required_folders=['test_tmp'])
     test_folder = job_folder.folder('test_tmp')
     test_file = test_folder.file(file_name, struct=['a']).set_types(a=int)
-    stream = cx.sm.RecordStream(data).to_file(test_file)
+    stream = cx.sm.RegularStream(data, item_type=cx.sm.ItemType.Record).to_file(test_file)
     received = stream.get_list()
-    assert received == data, 'test case 0: {} != {}'.format(received, data)
+    assert received == data, f'test case 0: {received} vs {data}'
     cx.forget_all_conns()
     test_file = cx.get_job_folder().file(file_name, struct=['a']).set_types(a=int)
-    stream = cx.sm.RecordStream(data).to_file(test_file)
+    stream = cx.sm.RegularStream(data, item_type=cx.sm.ItemType.Record).to_file(test_file)
     received = stream.get_list()
-    assert received == data, 'test case 1: {} != {}'.format(received, data)
+    assert received == data, f'test case 1: {received} vs {data}'
 
 
 def test_take_credentials_from_file():
@@ -68,7 +68,7 @@ def test_job():
     job.run()
     expected = list(src.get_items())
     received = list(dst.get_items())
-    assert received == expected, 'expected {}, got {}'.format(expected, received)
+    assert received == expected, f'{received} vs {expected}'
     assert job.get_operation(op_name).is_done()
     dst.remove()
     assert not job.is_done()
@@ -91,7 +91,7 @@ def test_table():
     record_stream = table.to_record_stream()
     received_data = list(record_stream.get_items())
     expected_data = test_records
-    assert received_data == expected_data, '{} != {}'.format(received_data, expected_data)
+    assert received_data == expected_data, f'{received_data} vs {expected_data}'
 
 
 def main():

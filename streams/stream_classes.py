@@ -19,17 +19,10 @@ try:  # Assume we're a submodule in a package.
     from streams.mixin.columnar_mixin import ColumnarMixin
     from streams.mixin.convert_mixin import ConvertMixin
     from streams.regular.regular_stream import RegularStream
-    from streams.regular.any_stream import AnyStream
-    from streams.regular.line_stream import LineStream
-    from streams.regular.row_stream import RowStream
-    from streams.pairs.key_value_stream import KeyValueStream
-    from streams.regular.struct_stream import StructStream
-    from streams.regular.record_stream import RecordStream
     from streams.wrappers.pandas_stream import PandasStream
     from streams.wrappers.sql_stream import SqlStream
     from streams.stream_builder import StreamBuilder
     from connectors.filesystem.temporary_files import TemporaryLocation
-    from content.struct import struct_row as sr
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ..utils.decorators import deprecated_with_alternative
     from ..interfaces import (
@@ -47,37 +40,21 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from .mixin.columnar_mixin import ColumnarMixin
     from .mixin.convert_mixin import ConvertMixin
     from .regular.regular_stream import RegularStream
-    from .regular.any_stream import AnyStream
-    from .regular.line_stream import LineStream
-    from .regular.row_stream import RowStream
-    from .pairs.key_value_stream import KeyValueStream
-    from .regular.struct_stream import StructStream
-    from .regular.record_stream import RecordStream
     from .wrappers.pandas_stream import PandasStream
     from .wrappers.sql_stream import SqlStream
     from .stream_builder import StreamBuilder
     from ..connectors.filesystem.temporary_files import TemporaryLocation
-    from ..content.struct import struct_row as sr
 
 TMP_FILES_TEMPLATE = 'stream_{}.tmp'
-TMP_FILES_ENCODING = DEFAULT_ENCODING  # 'utf8'
 
 DEFAULT_STREAM_CLASS = RegularStream
 STREAM_CLASSES = (
     AbstractStream, IterableStream,
-    RegularStream, AnyStream,
-    LineStream, RowStream, RecordStream,
-    StructStream,
-    KeyValueStream,
+    RegularStream,
     PandasStream, SqlStream,
 )
 DICT_STREAM_CLASSES = dict(
-    AnyStream=AnyStream,
-    LineStream=LineStream,
-    RowStream=RowStream,
-    KeyValueStream=KeyValueStream,
-    StructStream=StructStream,
-    RecordStream=RecordStream,
+    RegularStream=RegularStream,
     PandasStream=PandasStream,
     SqlStream=SqlStream,
 )
@@ -86,7 +63,7 @@ DICT_STREAM_CLASSES = dict(
 _context = None  # deprecated, use StreamBuilder.context instead
 
 
-StreamType.set_default(AnyStream.__name__)
+StreamType.set_default(RegularStream.__name__)
 StreamType.set_dict_classes(DICT_STREAM_CLASSES)
 
 
@@ -96,11 +73,7 @@ def get_class(stream_type):
 
 
 DICT_ITEM_TO_STREAM_TYPE = {
-    ItemType.Any: StreamType.AnyStream,
-    ItemType.Line: StreamType.LineStream,
-    ItemType.Record: StreamType.RecordStream,
-    ItemType.Row: StreamType.RowStream,
-    ItemType.StructRow: StreamType.StructStream,
+    ItemType.Any: StreamType.RegularStream,
 }
 StreamBuilder._dict_classes = DICT_ITEM_TO_STREAM_TYPE
 StreamBuilder.set_default_stream_class(DEFAULT_STREAM_CLASS)
@@ -121,13 +94,15 @@ def set_context(cx: ContextInterface) -> None:
 
 
 @deprecated_with_alternative('StreamBuilder.stream()')
-def stream(stream_type: Optional[StreamType], *args, **kwargs) -> StreamInterface:
-    if is_stream_class(stream_type):
-        stream_class = stream_type
-    elif stream_type not in (ItemType.Auto, None):
-        stream_class = StreamType(stream_type).get_class()
+def stream(item_type: Optional[StreamType], *args, **kwargs) -> StreamInterface:
+    if is_stream_class(item_type):
+        stream_class = item_type
+    elif item_type not in (ItemType.Auto, None):
+        stream_class = StreamType(item_type).get_class()
     else:
         stream_class = DEFAULT_STREAM_CLASS
+    if isinstance(item_type, ItemType):
+        kwargs['item_type'] = item_type
     if 'context' not in kwargs:
         kwargs['context'] = get_context()
     return stream_class(*args, **kwargs)
@@ -141,23 +116,11 @@ def is_stream(obj) -> bool:
     return isinstance(obj, STREAM_CLASSES)
 
 
-def is_row(item) -> bool:
-    return RowStream.is_valid_item_type(item)
-
-
-def is_record(item) -> bool:
-    return RecordStream.is_valid_item_type(item)
-
-
-def is_struct_row(item) -> bool:
-    return isinstance(item, sr.StructRow)
-
-
 @deprecated_with_alternative('AbstractStream.generate_name()')
 def generate_name() -> str:
     cur_time = datetime.now().strftime('%y%m%d_%H%M%S')
     random = randint(0, 1000)
-    cur_name = '{}_{:03}'.format(cur_time, random)
+    cur_name = f'{cur_time}_{random:03}'
     return cur_name
 
 

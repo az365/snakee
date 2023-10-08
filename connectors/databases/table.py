@@ -6,6 +6,7 @@ try:  # Assume we're a submodule in a package.
         ContentFormatInterface, ContentType, ConnType, ItemType, StreamType, LoggingLevel,
         ARRAY_TYPES, Name, Count, OptionalFields, Links, Context,
     )
+    from base.constants.chars import TAB_CHAR
     from base.constants.text import EXAMPLE_STR_LEN
     from base.functions.arguments import update, get_str_from_args_kwargs, get_cropped_text
     from base.functions.errors import get_type_err_msg
@@ -18,6 +19,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         ContentFormatInterface, ContentType, ConnType, ItemType, StreamType, LoggingLevel,
         ARRAY_TYPES, Name, Count, OptionalFields, Links, Context,
     )
+    from ...base.constants.chars import TAB_CHAR
     from ...base.constants.text import EXAMPLE_STR_LEN
     from ...base.functions.arguments import update, get_str_from_args_kwargs, get_cropped_text
     from ...base.functions.errors import get_type_err_msg
@@ -261,13 +263,10 @@ class Table(LeafConnector):
         rows = self.get_rows(verbose=verbose)
         if item_type == ItemType.Row:
             items = rows
-        elif item_type == ItemType.StructRow:
-            row_class = ItemType.StructRow.get_class()
-            items = map(lambda i: row_class(i, self.get_struct()), rows)
         elif item_type == ItemType.Record:
             items = map(lambda r: {c: v for c, v in zip(self.get_columns(), r)}, rows)
         elif item_type == ItemType.Line:
-            items = map(lambda r: '\t'.join([str(v) for v in r]), rows)
+            items = map(lambda r: TAB_CHAR.join([str(v) for v in r]), rows)
         else:
             raise ValueError(f'Table.get_items_of_type(): cannot convert Rows to {item_type}')
         if step:
@@ -337,27 +336,23 @@ class Table(LeafConnector):
             self,
             data: Optional[Iterable] = None,
             name: Optional[Name] = None,
-            stream_type: ItemType = ItemType.Auto,
+            item_type: ItemType = ItemType.Auto,
             ex: OptionalFields = None,
             step: Count = None,
             **kwargs
     ) -> Stream:  # SqlStream
-        if stream_type in (ItemType.Auto, None):
-            stream_type = StreamType.SqlStream
-        if stream_type == StreamType.SqlStream:
+        if item_type in (ItemType.Auto, None):
+            item_type = StreamType.SqlStream
+        if item_type == StreamType.SqlStream:
             assert data is None, 'Table.to_stream(): For getting SqlStream data-argument must not be provided'
             if name is None:
                 name = self._get_generated_stream_name()
-            stream_example = StreamBuilder.empty(stream_type=stream_type)
+            stream_example = StreamBuilder.empty(item_type=item_type)
             meta = self.get_compatible_meta(stream_example, name=name, ex=ex, **kwargs)
             meta['source'] = self
             return StreamBuilder.stream(data, **meta)
         else:
-            return super().to_stream(
-                data=data, name=name,
-                stream_type=stream_type,
-                ex=ex, step=step, **kwargs,
-            )
+            return super().to_stream(data=data, name=name, item_type=item_type, ex=ex, step=step, **kwargs)
 
     def execute_select(
             self,
@@ -380,15 +375,15 @@ class Table(LeafConnector):
             filters: OptionalFields = None,
             sort: OptionalFields = None,
             count: Count = None,
-            stream_type: ItemType = ItemType.Auto,
+            item_type: ItemType = ItemType.Auto,
             verbose: Optional[bool] = None,
     ) -> Stream:
-        if stream_type in (ItemType.Auto, None):
-            stream_type = ItemType.Record
+        if item_type in (ItemType.Auto, None):
+            item_type = ItemType.Record
         stream_rows = self.execute_select(fields=fields, filters=filters, sort=sort, count=count, verbose=verbose)
-        if stream_type in (StreamType.RowStream, ItemType.Row):
+        if item_type in (StreamType.RowStream, ItemType.Row):
             stream_data = stream_rows
-        elif stream_type in (StreamType.RecordStream, ItemType.Record):
+        elif item_type in (StreamType.RecordStream, ItemType.Record):
             columns = self.get_columns()
             stream_data = map(lambda r: dict(zip(columns, r)), stream_rows)
         else:
@@ -397,7 +392,8 @@ class Table(LeafConnector):
             if count < MAX_ITEMS_IN_MEMORY:
                 stream_data = list(stream_data)
                 count = len(stream_data)
-        return StreamBuilder.stream(stream_data, count=count, source=self, context=self.get_context())
+        stream = StreamBuilder.stream(stream_data, count=count, source=self, context=self.get_context())
+        return self._assume_stream(stream)
 
     def select(self, *columns, **expressions) -> Stream:
         stream = self.to_stream().select(*columns, **expressions)

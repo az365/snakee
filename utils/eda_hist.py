@@ -62,7 +62,7 @@ def hist(
     if in_memory or len(fields) > 1:
         stream = stream.stream(
             get_hist_records(stream, fields, logger=logger, msg=msg),
-            stream_type=ItemType.Record,
+            item_type=ItemType.Record,
         )
     else:
         stream = stream if len(fields) <= 1 else stream.tee_stream()
@@ -70,9 +70,9 @@ def hist(
         if logger:
             logger.log(f'Calc hist for field {f}...')
         stream = stream.to_stream(
-            stream_type=ItemType.Record,
+            item_type=ItemType.Record,
             columns=fields,
-        ).select(
+        ).select(  # for accelerate calc
             f,
         ).group_by(
             f,
@@ -95,7 +95,7 @@ def hist(
         total_count=fs.const(total_count),
         share=('count', 'total_count', fs.div()),
     ).set_struct(
-        output_columns,
+        output_columns,  # 'field', 'value', 'count', 'share', 'total_count'
     )
     return _assume_native(stream)
 
@@ -164,7 +164,7 @@ def stat_by_cat(data: Data, cat_fields, hist_fields):
     ).ungroup_values(
     ).map_to_type(
         lambda i: _merge_two_records(*i),
-        stream_type=ItemType.Record,
+        item_type=ItemType.Record,
     )
 
 
