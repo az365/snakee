@@ -187,9 +187,6 @@ class StreamableMixin(ColumnarMixin, ABC):
         stream = StreamBuilder.stream(**stream_kwargs)
         return self._assume_stream(stream)
 
-    def to_any_stream(self, step: Count = None, verbose: Optional[bool] = None, **kwargs) -> Stream:
-        return self.to_stream_type(ItemType.Any, step=step, verbose=verbose, **kwargs)
-
     def to_lines(self, step: Count = None, verbose: Optional[bool] = None, **kwargs) -> LineStream:
         return self.to_stream_type(ItemType.Line, step=step, verbose=verbose, **kwargs)
 

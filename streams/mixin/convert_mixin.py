@@ -447,10 +447,6 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
     def map_to_any(self, function: Callable) -> AnyStream:
         return self.map_to_type(function, item_type=ItemType.Any)
 
-    @deprecated_with_alternative('map_to_type(item_type=ItemType.Any)')
-    def to_any_stream(self) -> AnyStream:
-        return self.stream(self.get_items(), item_type=ItemType.Any)
-
     def to_lines(
             self,
             delimiter: Optional[str] = None,
