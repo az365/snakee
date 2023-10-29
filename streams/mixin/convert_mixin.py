@@ -451,7 +451,7 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
     def to_any_stream(self) -> AnyStream:
         return self.stream(self.get_items(), item_type=ItemType.Any)
 
-    def to_line_stream(
+    def to_lines(
             self,
             delimiter: Optional[str] = None,
             columns: Columns = None,

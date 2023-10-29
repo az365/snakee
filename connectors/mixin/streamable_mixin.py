@@ -125,7 +125,8 @@ class StreamableMixin(ColumnarMixin, ABC):
         return result
 
     def stream(
-            self, data: Optional[Iterable] = None,
+            self,
+            data: Optional[Iterable] = None,
             item_type: ItemType = ItemType.Auto,
             ex: OptionalFields = None,
             **kwargs
@@ -189,7 +190,7 @@ class StreamableMixin(ColumnarMixin, ABC):
     def to_any_stream(self, step: Count = None, verbose: Optional[bool] = None, **kwargs) -> Stream:
         return self.to_stream_type(ItemType.Any, step=step, verbose=verbose, **kwargs)
 
-    def to_line_stream(self, step: Count = None, verbose: Optional[bool] = None, **kwargs) -> LineStream:
+    def to_lines(self, step: Count = None, verbose: Optional[bool] = None, **kwargs) -> LineStream:
         return self.to_stream_type(ItemType.Line, step=step, verbose=verbose, **kwargs)
 
     def to_record_stream(self, step: Count = None, verbose: Optional[bool] = None, **kwargs) -> RecordStream:

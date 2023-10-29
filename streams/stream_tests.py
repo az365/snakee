@@ -176,7 +176,7 @@ def test_records_select():
     ]
     received_1 = sm.RegularStream(
         EXAMPLE_CSV_ROWS,
-    ).to_line_stream(
+    ).to_lines(
     ).to_row_stream(
         delimiter=',',
     ).map_to_records(
@@ -197,7 +197,7 @@ def test_records_select():
     ]
     received_2 = sm.RegularStream(
         EXAMPLE_CSV_ROWS,
-    ).to_line_stream(
+    ).to_lines(
     ).to_row_stream(
         delimiter=',',
     ).select(
@@ -586,7 +586,7 @@ def test_to_rows():
     expected = [['a', '1'], ['b', '2,22'], ['c', '3']]
     received = sm.RegularStream(
         EXAMPLE_CSV_ROWS,
-    ).to_line_stream(
+    ).to_lines(
     ).to_row_stream(
         ',',
     ).get_list()
@@ -598,7 +598,7 @@ def test_parse_json():
     expected = [dict(a='b'), dict(_err='JSONDecodeError'), dict(d='e')]
     received = sm.RegularStream(
         example,
-    ).to_line_stream(
+    ).to_lines(
     ).to_record_stream(
     ).get_list()
     assert received == expected, f'{received} vs {expected}'
@@ -638,7 +638,7 @@ def test_unfold():
 def smoke_test_show():
     stream0 = sm.RegularStream(
         EXAMPLE_CSV_ROWS,
-    ).to_line_stream(
+    ).to_lines(
     ).to_row_stream(
         delimiter=',',
     ).map_to_records(
