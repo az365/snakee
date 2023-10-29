@@ -484,7 +484,7 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
         stream = self.stream(items, item_type=ItemType.Line)
         return self._assume_native(stream)
 
-    def to_record_stream(self, *args, **kwargs) -> RecordStream:
+    def to_records(self, *args, **kwargs) -> RecordStream:
         if 'function' in kwargs:
             func = kwargs.pop('function')
             items = self._get_mapped_items(lambda i: func(i, *args, **kwargs))

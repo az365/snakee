@@ -22,7 +22,7 @@ def test_calc_histogram():
         item_type=sm.ItemType.Line,
     ).to_row_stream(
         '\t',
-    ).to_record_stream(
+    ).to_records(
         columns=('x', 'y', 'z'),
     ).select(
         '*',

@@ -116,7 +116,7 @@ class RegularStream(LocalStream, ConvertMixin, StructMixin, RegularStreamInterfa
             verbose: bool = False,
             skip_missing: bool = False,
     ) -> Struct:
-        record = self.to_record_stream().get_one_item()
+        record = self.to_records().get_one_item()
         if record is None and not skip_missing:
             raise ValueError('Can not detect struct from empty stream')
         struct = FlatStruct.get_struct_detected_by_record(record)

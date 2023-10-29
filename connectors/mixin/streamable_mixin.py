@@ -193,7 +193,7 @@ class StreamableMixin(ColumnarMixin, ABC):
     def to_lines(self, step: Count = None, verbose: Optional[bool] = None, **kwargs) -> LineStream:
         return self.to_stream_type(ItemType.Line, step=step, verbose=verbose, **kwargs)
 
-    def to_record_stream(self, step: Count = None, verbose: Optional[bool] = None, **kwargs) -> RecordStream:
+    def to_records(self, step: Count = None, verbose: Optional[bool] = None, **kwargs) -> RecordStream:
         return self.to_stream_type(ItemType.Record, step=step, verbose=verbose, **kwargs)
 
     def to_row_stream(self, step: Count = None, verbose: Optional[bool] = None, **kwargs) -> RowStream:

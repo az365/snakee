@@ -570,7 +570,7 @@ class SqlStream(WrapperStream):
     def to_row_stream(self) -> Stream:
         return self.to_stream(self.get_rows(), item_type=ItemType.Row)
 
-    def to_record_stream(self) -> Stream:
+    def to_records(self) -> Stream:
         return self.to_stream(self.get_records(), item_type=ItemType.Record)
 
     def to_stream(

@@ -88,7 +88,7 @@ def test_table():
     test_db = cx.ct.DatabaseTestStub('test_stub', 'test_host', 5432, 'test_db')
     test_db.test_stub_response = test_rows
     table = test_db.table('test_schema.test_table', struct=struct)
-    record_stream = table.to_record_stream()
+    record_stream = table.to_records()
     received_data = list(record_stream.get_items())
     expected_data = test_records
     assert received_data == expected_data, f'{received_data} vs {expected_data}'
