@@ -62,21 +62,21 @@ class AbstractConnector(TreeItem, ConnectorInterface, ABC):
     def is_verbose(self) -> bool:
         return self._verbose
 
-    def _set_verbose_inplace(self, verbose: bool) -> None:
-        assert verbose is not None, get_type_err_msg(expected=bool, got=verbose, arg='verbose')
-        self._verbose = verbose
+    def _set_verbose_inplace(self, value: bool) -> None:
+        assert value is not None, get_type_err_msg(expected=bool, got=value, arg='verbose')
+        self._verbose = value
 
-    def set_verbose(self, verbose: Optional[bool] = None, parent: Connector = None) -> Native:
-        if verbose is None:
+    def set_verbose(self, value: Optional[bool] = None, parent: Connector = None) -> Native:
+        if value is None:
             if parent is None:
                 parent = self.get_parent()
             if hasattr(parent, 'is_verbose'):
-                verbose = parent.is_verbose()
+                value = parent.is_verbose()
             elif hasattr(parent, 'verbose'):
-                verbose = parent.verbose
+                value = parent.verbose
             else:
-                verbose = DEFAULT_VERBOSE
-        self._set_verbose_inplace(verbose)
+                value = DEFAULT_VERBOSE
+        self._set_verbose_inplace(value)
         return self
 
     verbose = property(is_verbose, _set_verbose_inplace)
