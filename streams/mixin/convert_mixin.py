@@ -467,7 +467,7 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
                 columns = stream.get_columns()
             if add_title_row is None:
                 add_title_row = True
-            stream = stream.to_row_stream(columns=columns, add_title_row=add_title_row)
+            stream = stream.to_rows(columns=columns, add_title_row=add_title_row)
         elif item_type == ItemType.Row:
             if columns:
                 stream = self.select(columns)
@@ -520,7 +520,7 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
             delimiter: Optional[str] = None,
     ) -> RowStream:
         args_str = f'arg={repr(arg)}, columns={repr(columns)}, delimiter={repr(delimiter)}'
-        msg = f'to_row_stream(): only one of this args allowed: {args_str}'
+        msg = f'to_rows(): only one of this args allowed: {args_str}'
         item_type = self.get_item_type()
         func = None
         if arg:
@@ -561,7 +561,13 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
         stream = self.stream(items, item_type=ItemType.Row, struct=struct)
         return self._assume_native(stream)
 
-    def to_key_value_stream(
+    def to_pairs(self, *args, **kwargs) -> KeyValueStream:
+        if self.get_item_type() == ItemType.Line:
+            return self.to_rows(*args, **kwargs).to_key_value_pairs()
+        else:
+            return self.to_key_value_pairs(*args, **kwargs)
+
+    def to_key_value_pairs(
             self,
             key: UniKey = fs.first(),
             value: UniKey = fs.second(),
@@ -577,13 +583,6 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
             items = list(items)
         stream = self.stream(items, item_type=ItemType.Row, check=False)
         return self._assume_native(stream)
-
-    # @deprecated_with_alternative('ConvertMixin.to_key_value_stream()')
-    def to_pairs(self, *args, **kwargs) -> KeyValueStream:
-        if self.get_item_type() == ItemType.Line:
-            return self.to_rows(*args, **kwargs).to_key_value_stream()
-        else:
-            return self.to_key_value_stream(*args, **kwargs)
 
     # @deprecated
     def to_stream(self, item_type: ItemType = ItemType.Auto, *args, **kwargs) -> Stream:
