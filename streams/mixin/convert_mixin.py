@@ -117,15 +117,17 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
                 if isinstance(self, RegularStreamInterface) or hasattr(self, 'get_columns'):
                     columns = self.get_columns()
                 else:
-                    raise TypeError(f'ConvertMixin.get_rows(): Expected RegularStream, got {self}')
+                    raise TypeError(get_type_err_msg(arg='self', expected=RegularStreamInterface, got=self))
                 columns = get_names(columns)
                 for r in self.get_items():
                     yield [r.get(c) for c in columns]
             elif item_type == ItemType.Line:
                 delimiter = columns
-                assert isinstance(delimiter, str), f'LineStream.get_rows(): expected delimiter as str, got {delimiter}'
-                for i in self.get_items():
-                    yield i.split(delimiter)
+                if isinstance(delimiter, str):
+                    for i in self.get_items():
+                        yield i.split(delimiter)
+                else:
+                    raise TypeError(get_type_err_msg(arg='columns', expected=str, got=delimiter))
             else:
                 raise ValueError(f'ConvertMixin.get_rows(): item type {item_type} not supported.')
 
@@ -149,7 +151,7 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
             single_field_name = columns[0]
             func = (lambda i: {single_field_name: i})
         else:
-            raise TypeError(f'ConvertMixin.get_records(): item_type={item_type} not supported')
+            raise ValueError(f'ConvertMixin.get_records(): item_type={item_type} not supported')
         return self._get_mapped_items(func)
 
     def get_struct_rows(
@@ -198,7 +200,7 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
         elif skip_missing:
             yield from rows
         else:
-            raise TypeError(f'get_struct_rows(): Expected struct as StructInterface, got {struct}')
+            raise TypeError(get_type_err_msg(arg='struct', expected=StructInterface, got=struct))
 
     def get_struct_records(
             self,
@@ -240,7 +242,7 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
         elif skip_missing:
             yield from records
         else:
-            raise TypeError(f'get_struct_records(): Expected struct as StructInterface, got {struct}')
+            raise TypeError(get_type_err_msg(arg='struct', expected=StructInterface, got=struct))
 
     def structure(
             self,
@@ -261,7 +263,7 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
         elif skip_missing:
             return self._assume_native(self)
         else:
-            raise TypeError(f'structure() can apply struct only for Rows and Records, got {item_type}')
+            raise ValueError(get_type_err_msg(arg='item_type', expected=(ItemType.Row, ItemType.Record), got=item_type))
         data = f(struct, skip_bad_rows=skip_bad_rows, skip_bad_values=skip_bad_values, verbose=verbose, inplace=inplace)
         count = None if skip_bad_rows else self.get_count()
         stream = self.stream(data, struct=struct, count=count, check=False)
@@ -284,7 +286,7 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
         elif isinstance(struct, Iterable):
             columns = list(struct)
         else:
-            raise TypeError(f'Expected struct as Struct, got {struct}')
+            raise TypeError(get_type_err_msg(arg='columns', expected=(StructInterface, Iterable), got=struct))
         if columns:
             if self.get_item_type() in UNSTRUCTURED_ITEM_TYPES:
                 assert len(columns) == 1
@@ -310,12 +312,12 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
                             if f in default_fields:
                                 refined_struct.add_fields(f, default_type=default_types.get(f))
                         else:
-                            raise TypeError(f'expected field as Field, got {f}')
+                            raise TypeError(get_type_err_msg(arg='field', expected=(FieldInterface, FieldName), got=f))
                     return refined_struct
                 else:
                     return FlatStruct(struct)
             else:
-                raise TypeError(f'expected struct as FlatStruct or Columns, got {struct}')
+                raise TypeError(get_type_err_msg(arg='struct', expected=(FlatStruct, Columns), got=struct))
         elif default_struct is not None:
             return default_struct
         else:
@@ -334,12 +336,12 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
                 elif item_type == ItemType.Row:
                     columns = [DEFAULT_COL_MASK.format(n + 1) for n in range(fields_count)]
                 else:
-                    raise TypeError(f'Expected {STRUCTURED_ITEM_TYPES}, got {item_type}')
+                    raise ValueError(get_type_err_msg(arg='item_type', expected=STRUCTURED_ITEM_TYPES, got=item_type))
             elif item_type in UNSTRUCTURED_ITEM_TYPES:
                 columns = [FULL_ITEM_FIELD]
             else:
                 supported_item_types = ItemType.Row, *UNSTRUCTURED_ITEM_TYPES
-                raise TypeError(f'Expected one of {supported_item_types}, got {item_type}')
+                raise ValueError(get_type_err_msg(arg='item_type', expected=supported_item_types, got=item_type))
             return FlatStruct(columns)
 
     def _get_stream_type(self, item_type: ItemType = ItemType.Auto) -> StreamType:
@@ -358,7 +360,7 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
             elif isinstance(item_type, RegularStreamInterface) or hasattr(item_type, 'get_stream_type'):
                 return item_type.get_stream_type()
             else:
-                raise TypeError(f'ConvertMixin._get_stream_type(): Expected ItemType or StreamType, got {item_type}')
+                raise TypeError(get_type_err_msg(arg='item_type', expected=(ItemType, StreamType), got=item_type))
         else:
             return self.get_stream_type()
 
@@ -378,7 +380,7 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
             elif isinstance(item_type, RegularStreamInterface) or hasattr(item_type, 'get_item_type'):
                 return item_type.get_item_type()
             else:
-                raise TypeError(f'ConvertMixin._get_stream_type(): Expected ItemType or StreamType, got {item_type}')
+                raise TypeError(get_type_err_msg(arg='item_type', expected=(ItemType, StreamType), got=item_type))
 
     def _get_mapped_items(self, function: Callable, flat: bool = False, skip_errors: bool = False) -> Iterator[Item]:
         if skip_errors:
@@ -460,7 +462,7 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
             delimiter = DEFAULT_COL_DELIMITER if item_type == ItemType.Row else None
         stream = self
         if item_type == ItemType.Record:
-            assert isinstance(stream, RegularStreamInterface) or hasattr(stream, 'get_columns'), 'got {}'.format(stream)
+            assert isinstance(stream, RegularStreamInterface) or hasattr(stream, 'get_columns'), f'got {stream}'
             if not columns:
                 columns = stream.get_columns()
             if add_title_row is None:
@@ -533,7 +535,7 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
             elif isinstance(arg, Iterable):
                 columns = arg
             else:
-                raise TypeError(f'ConvertMixin.to_row_stream(): Expected function, column(s) or delimiter, got {arg}')
+                raise TypeError(get_type_err_msg(arg='arg', expected=('function', 'column(s)', 'delimiter'), got=arg))
         if item_type == ItemType.Record:
             if not columns:
                 columns = self.get_columns()
@@ -542,7 +544,7 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
                 delimiter = DEFAULT_COL_DELIMITER  # '\t'
         if delimiter:
             assert item_type == ItemType.Line
-            assert isinstance(delimiter, str), f'to_row_stream(): Expected delimiter as str, got {delimiter}'
+            assert isinstance(delimiter, str), get_type_err_msg(arg='delimiter', expected=str, got=delimiter)
             assert not columns, f'got {columns}'
             assert not func, msg
             func = fs.csv_loads(delimiter=delimiter)
