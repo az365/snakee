@@ -513,7 +513,7 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
         stream = self.stream(items, item_type=ItemType.Record)
         return self._assume_native(stream)
 
-    def to_row_stream(
+    def to_rows(
             self,
             arg: OptionalArguments = None,
             columns: StructOrColumns = None,
@@ -581,7 +581,7 @@ class ConvertMixin(IterableStream, ValidateMixin, ABC):
     # @deprecated_with_alternative('ConvertMixin.to_key_value_stream()')
     def to_pairs(self, *args, **kwargs) -> KeyValueStream:
         if self.get_item_type() == ItemType.Line:
-            return self.to_row_stream(*args, **kwargs).to_key_value_stream()
+            return self.to_rows(*args, **kwargs).to_key_value_stream()
         else:
             return self.to_key_value_stream(*args, **kwargs)
 

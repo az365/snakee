@@ -174,7 +174,7 @@ class ValidateMixin(ABC):
         filters = filters or list()
         if filter_kwargs and safe_filter:
             filter_kwargs = {k: v for k, v in filter_kwargs.items() if k in self.get_columns()}
-        stream_example = self.to_record_stream(verbose=verbose)
+        stream_example = self.to_records(verbose=verbose)
         if filters:
             stream_example = stream_example.filter(*filters or [], **filter_kwargs)
         if example_row_count:

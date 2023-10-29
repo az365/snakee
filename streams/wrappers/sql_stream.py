@@ -567,7 +567,7 @@ class SqlStream(WrapperStream):
         columns = self.get_output_columns()
         return map(lambda r: dict(zip(columns, r)), self.get_rows())
 
-    def to_row_stream(self) -> Stream:
+    def to_rows(self) -> Stream:
         return self.to_stream(self.get_rows(), item_type=ItemType.Row)
 
     def to_records(self) -> Stream:
