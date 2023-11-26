@@ -6,11 +6,13 @@ try:  # Assume we're a submodule in a package.
         EMPTY, DEFAULT_STR, STAR, DOT, SPACE, PARAGRAPH_CHAR, CROP_SUFFIX,
         TYPE_CHARS, TYPE_EMOJI,
     )
+    from base.constants.text import DEFAULT_LINE_LEN, SHORT_LINE_LEN, EXAMPLE_STR_LEN, DEFAULT_INT_LEN
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.constants.chars import (
         TYPE_CHARS, TYPE_EMOJI,
         EMPTY, DEFAULT_STR, STAR, DOT, SPACE, PARAGRAPH_CHAR, CROP_SUFFIX,
     )
+    from ...base.constants.text import DEFAULT_LINE_LEN, SHORT_LINE_LEN, EXAMPLE_STR_LEN, DEFAULT_INT_LEN
 
 Position = int
 Name = str
@@ -22,12 +24,6 @@ TYPING_DELIMITER = ' * '
 KEY_DELIMITER = ' : '
 COLUMN_DELIMITER = ' | '
 PATH_DELIMITER = ' > '
-
-DEFAULT_LINE_LEN = 120
-SHORT_LINE_LEN = 30
-EXAMPLE_STR_LEN = 12
-DEFAULT_FLOAT_LEN = 12
-DEFAULT_INT_LEN = 7
 
 DEFAULT_QUOTA = 0.33
 
