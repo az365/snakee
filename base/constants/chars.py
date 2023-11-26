@@ -56,3 +56,28 @@ PY_INDENT = TAB_INDENT
 SQL_INDENT = TAB_INDENT
 HTML_INDENT = TAB_INDENT
 HTML_SPACE = '&nbsp;'
+
+TYPE_CHARS = dict(
+    bool='&',
+    int='#',
+    float='%',
+    str='$',
+    list='*',
+    tuple='*',
+    set='*',
+    DataFrame='#',
+    obj='@',
+    none='-',
+)
+TYPE_EMOJI = dict(
+    bool='📌',
+    int='#️⃣',
+    float='#️⃣',
+    str='📝',
+    list='📂',
+    tuple='📁',
+    set='💠',
+    DataFrame='📊',
+    obj='🌳',
+    none='♦',
+)

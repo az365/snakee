@@ -1,44 +1,22 @@
 from abc import ABC
 from typing import Optional, Iterator, Union
 
+try:  # Assume we're a submodule in a package.
+    from base.constants.chars import (
+        EMPTY, DEFAULT_STR, STAR, DOT, SPACE, PARAGRAPH_CHAR, CROP_SUFFIX,
+        TYPE_CHARS, TYPE_EMOJI,
+    )
+except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
+    from ...base.constants.chars import (
+        TYPE_CHARS, TYPE_EMOJI,
+        EMPTY, DEFAULT_STR, STAR, DOT, SPACE, PARAGRAPH_CHAR, CROP_SUFFIX,
+    )
+
 Position = int
 Name = str
 Focus = Union[Position, Name, None]
 Collection = Union[list, set, tuple, dict]
 COLLECTIONS = list, set, tuple, dict
-
-EMPTY = ''
-DEFAULT_STR = '-'
-STAR = '*'
-DOT = '.'
-SPACE = ' '
-PARAGRAPH_CHAR = '\n'
-CROP_SUFFIX = '..'
-
-TYPE_EMOJI = dict(
-    bool='📌',
-    int='#️⃣',
-    float='#️⃣',
-    str='📝',
-    list='📂',
-    tuple='📁',
-    set='💠',
-    DataFrame='📊',
-    obj='🌳',
-    none='♦',
-)
-TYPE_CHARS = dict(
-    bool='&',
-    int='#',
-    float='%',
-    str='$',
-    list='*',
-    tuple='*',
-    set='*',
-    DataFrame='#',
-    obj='@',
-    none='-',
-)
 
 TYPING_DELIMITER = ' * '
 KEY_DELIMITER = ' : '
