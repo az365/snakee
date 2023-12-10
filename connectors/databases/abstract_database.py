@@ -575,8 +575,8 @@ class AbstractDatabase(AbstractStorage, ABC):
     def _get_stream_from_data(data: Data, struct: Struct = None) -> StructStream:
         if isinstance(data, StreamInterface):
             stream = data
-        elif isinstance(data, File) or hasattr(data, 'to_struct_stream'):
-            stream = data.to_stream()
+        elif isinstance(data, File) or hasattr(data, 'to_stream'):
+            stream = data.to_stream()  # to_struct_stream()
             if struct:
                 stream_cols = stream.get_columns()
                 struct_cols = struct.get_columns()
