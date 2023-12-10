@@ -2,26 +2,28 @@ from typing import Type, Callable, Iterable, Union
 import os
 
 try:  # Assume we're a submodule in a package.
-    from interfaces import ConnType, ConnectorInterface
+    from interfaces import ConnType, ConnectorInterface, Context
+    from base.constants.chars import SLASH
     from connectors.abstract.abstract_storage import AbstractStorage
     from loggers.extended_logger import SingletonLogger
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...interfaces import ConnType, ConnectorInterface
+    from ...interfaces import ConnType, ConnectorInterface, Context
+    from ...base.constants.chars import SLASH
     from ..abstract.abstract_storage import AbstractStorage
     from ...loggers.extended_logger import SingletonLogger
 
 Class = Union[Type, Callable]
 
-PATH_DELIMITER = '/'
+PATH_DELIMITER = SLASH
 
 
 class LocalStorage(AbstractStorage):
     def __init__(
             self,
-            name='filesystem',
-            context=None,
-            verbose=True,
-            path_delimiter=PATH_DELIMITER,
+            name: str = 'filesystem',
+            context: Context = None,
+            verbose: bool = True,
+            path_delimiter: str = PATH_DELIMITER,
     ):
         if context:
             registered_local_storage = context.get_local_storage(create_if_not_yet=False)
