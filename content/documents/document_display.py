@@ -103,7 +103,7 @@ class DocumentDisplay(DefaultDisplay, IterDataMixin):
             title = obj_name
         if not name:
             name = f'{obj_name} header'
-        chapter = Chapter(name=name)
+        chapter = Chapter(data=[], name=name)
         if level:
             chapter.append(Paragraph(title, level=level), inplace=True)
         str_headers = None
@@ -124,7 +124,7 @@ class DocumentDisplay(DefaultDisplay, IterDataMixin):
             level: Optional[int] = DEFAULT_CHAPTER_TITLE_LEVEL,
             name: str = 'Meta',
     ) -> Chapter:
-        chapter = Chapter(name=name)
+        chapter = Chapter(data=[], name=name)
         if level:
             title = Paragraph([name], level=level, name=f'{name} title')
             chapter.add(title, inplace=True)

@@ -224,7 +224,7 @@ class AbstractTerm(SimpleDataWrapper, MultiMapDataMixin, TermInterface, ABC):
             title: Optional[str] = 'Data',
             comment: Optional[str] = None,
     ) -> Chapter:
-        chapter = Chapter()
+        chapter = Chapter([])
         for key in TermDataAttribute.get_enum_items():  # fields, dictionaries, mappers, datasets, relations
             data = self.get_data().get(key)
             if data:

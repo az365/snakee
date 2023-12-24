@@ -227,7 +227,7 @@ class ValidateMixin(ABC):
             level: Optional[int] = DEFAULT_CHAPTER_TITLE_LEVEL,
             name: str = 'Columns',
     ) -> Chapter:
-        chapter = Chapter(name=name)
+        chapter = Chapter([], name=name)
         if level:
             title = Paragraph([name], level=level, name=f'{name} title')
             chapter.append(title, inplace=True)

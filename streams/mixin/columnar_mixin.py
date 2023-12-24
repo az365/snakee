@@ -409,7 +409,7 @@ class ColumnarMixin(IterDataMixin, ABC):
             return display.display_paragraph('[EMPTY] Demo example is empty.')
 
     def get_data_chapter(self, example, name: str = 'Rows sample') -> Chapter:
-        chapter = Chapter()
+        chapter = Chapter([])
         title = Paragraph(name, level=3, name=f'{name} title')
         chapter.append(title, inplace=True)
         if hasattr(example, 'get_data_sheet'):
@@ -423,7 +423,7 @@ class ColumnarMixin(IterDataMixin, ABC):
         return chapter
 
     def get_struct_chapter(self, example, take_struct_from_source: bool = False, name: str = 'Columns') -> Chapter:
-        chapter = Chapter()
+        chapter = Chapter([])
         title = Paragraph(name, level=3, name=f'{name} title')
         chapter.append(title, inplace=True)
         if hasattr(self, 'get_struct'):

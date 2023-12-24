@@ -658,7 +658,7 @@ class SqlStream(WrapperStream):
             return Paragraph([f'Undefined struct: {struct}'])
 
     def get_struct_chapter(self, name='Columns') -> Chapter:
-        chapter = Chapter(name=name)
+        chapter = Chapter([], name=name)
         title = Paragraph(['Columns'], level=3)
         chapter.append(title, inplace=True)
         output_columns = self.get_output_columns(skip_missing=True)
