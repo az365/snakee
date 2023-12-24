@@ -33,7 +33,8 @@ KEY_DELIMITER = ' : '
 COLUMN_DELIMITER = ' | '
 PATH_DELIMITER = ' > '
 
-DEFAULT_QUOTA = 0.33
+DEFAULT_SCREEN_QUOTA = 0.33
+DEFAULT_CARD_QUOTA = 0.2
 
 
 class QuantileWrapperInterface(ABC):
@@ -44,7 +45,7 @@ class QuantileWrapperInterface(ABC):
             include_header: bool = None,  # Auto
             level: int = 0,
             focus: Focus = None,
-            quota: float = DEFAULT_QUOTA,  # 0.33: share of screen space allocated for focused item
+            quota: float = DEFAULT_SCREEN_QUOTA,  # 0.33: share of screen space allocated for focused item
     ) -> Iterator[str]:
         pass
 
@@ -173,7 +174,7 @@ class SimpleQuantileWrapper(AbstractQuantileWrapper):
             include_header: bool = None,  # Auto
             level: int = 0,
             focus: Focus = None,
-            quota: float = DEFAULT_QUOTA,  # 0.33: share of screen space allocated for focused item
+            quota: float = DEFAULT_SCREEN_QUOTA,  # 0.33: share of screen space allocated for focused item
     ) -> Iterator[str]:
         header_level = level + 1
         if include_header or include_header is None:
@@ -291,7 +292,7 @@ class SimpleQuantileWrapper(AbstractQuantileWrapper):
             focus: Focus = None,
             is_header: bool = False,
             delimiter: str = COLUMN_DELIMITER,
-            quota: float = DEFAULT_QUOTA,  # 0.33 or 0.5
+            quota: float = DEFAULT_SCREEN_QUOTA,  # 0.33 or 0.5
     ) -> Iterator[str]:
         assert items_count % 2 == 1, items_count
         available_items_count = len(self.obj)
