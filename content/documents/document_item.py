@@ -326,7 +326,7 @@ class Sheet(DocumentItem, IterDataMixin, SheetMixin, SheetInterface):
         if hasattr(data, 'get_lines'):  # isinstance(data, RegularStreamInterface)
             return data.get_lines()
         elif hasattr(data, 'get_items_of_type'):  # isinstance(data, RegularStreamInterface)
-            return data.get_items_of_type('line')
+            return data.get_items_of_type('line')  # ItemType.Line
         elif hasattr(data, 'get_items()'):
             return map(str, data.get_items())
         elif isinstance(data, Iterable):
@@ -335,12 +335,22 @@ class Sheet(DocumentItem, IterDataMixin, SheetMixin, SheetInterface):
                 for row in self.get_rows(with_title=True):
                     yield struct.format(row)
             else:
-                placeholders = ['{:' + str(min_len) + '}' for min_len in self.get_column_lens()]
+                placeholders = self._get_placeholders_for_row_formatter()
                 formatter = delimiter.join(placeholders)
                 for row in self.get_formatted_rows(with_title=True):
-                    yield formatter.format(row)
+                    yield formatter.format(*row)
         else:
             raise TypeError(f'Expected RegularStream, SimpleData or Iterable, got {data}')
+
+    def _get_placeholders_for_row_formatter(self) -> list:
+        placeholders = list()
+        for min_len in self.get_column_lens():
+            if min_len is None:
+                item_placeholder = '{}'
+            else:
+                item_placeholder = '{:' + str(min_len) + '}'
+            placeholders.append(item_placeholder)
+        return placeholders
 
     def has_html_tags(self) -> bool:
         return True
@@ -414,8 +424,7 @@ class Text(DocumentItem, IterDataMixin):
             style: OptStyle = None,
             name: str = EMPTY,
     ):
-        self._style = style
-        super().__init__(data=data, name=name)
+        super().__init__(data=data, name=name, style=style)
 
     def add(
             self,
