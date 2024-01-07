@@ -8,6 +8,7 @@ try:  # Assume we're a submodule in a package.
     )
     from base.constants.text import DEFAULT_LINE_LEN, SHORT_LINE_LEN, EXAMPLE_STR_LEN, DEFAULT_INT_LEN
     from base.classes.typing import NUMERIC_TYPES, ARRAY_TYPES, COLLECTION_TYPES
+    from functions.secondary.cast_functions import number
     from content.documents.quantile_functions import (
         get_fit_line, get_empty_line, get_united_lines,
         get_compact_pair_repr, get_centred_pair_repr,
@@ -19,6 +20,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     )
     from ...base.constants.text import DEFAULT_LINE_LEN, SHORT_LINE_LEN, EXAMPLE_STR_LEN, DEFAULT_INT_LEN
     from ...base.classes.typing import NUMERIC_TYPES, ARRAY_TYPES, COLLECTION_TYPES
+    from ...functions.secondary.cast_functions import number
     from .quantile_functions import (
         get_fit_line, get_empty_line, get_united_lines,
         get_compact_pair_repr, get_centred_pair_repr,
@@ -469,7 +471,11 @@ class SimpleQuantileWrapper(AbstractQuantileWrapper):
         return get_fit_line(name, line_len, align_left=align_left, align_right=align_right)
 
     def get_value_text_repr(self, line_len: int = DEFAULT_LINE_LEN, align_left=False, align_right=False) -> str:
-        value = repr(self.obj)
+        if isinstance(self.obj, NUMERIC_TYPES):  # int, float
+            func = number(str, round_digits=2, show_plus=False)
+            value = func(self.obj)
+        else:
+            value = repr(self.obj)
         return get_fit_line(value, line_len, align_left=align_left, align_right=align_right)
 
     def get_class_text_repr(self, line_len: int = DEFAULT_LINE_LEN, align_left=False, align_right=False):
