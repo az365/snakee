@@ -4,25 +4,27 @@ try:  # Assume we're a submodule in a package.
     from base.constants.chars import EMPTY, SPACE, HTML_INDENT, PARAGRAPH_CHAR, REPR_DELIMITER
     from base.constants.text import DEFAULT_LINE_LEN
     from base.interfaces.sheet_interface import SheetInterface, Record, Row, FormattedRow, Columns, Count
-    from base.classes.typing import Name
+    from base.classes.typing import NUMERIC_TYPES, ARRAY_TYPES, Numeric, Name
     from base.classes.enum import DynamicEnum
     from base.classes.simple_sheet import SimpleSheet, SheetMixin, SheetItems
     from base.functions.arguments import get_name, get_cropped_text
     from base.abstract.simple_data import SimpleDataWrapper, MAX_BRIEF_REPR_LEN
     from base.mixin.iter_data_mixin import IterDataMixin
     from utils.external import Markdown, HTML, display
+    from content.visuals.size import Size
     from content.documents.display_mode import DisplayMode
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.constants.chars import EMPTY, SPACE, HTML_INDENT, PARAGRAPH_CHAR, REPR_DELIMITER
     from ...base.constants.text import DEFAULT_LINE_LEN
     from ...base.interfaces.sheet_interface import SheetInterface, Record, Row, FormattedRow, Columns, Count
-    from ...base.classes.typing import Name
+    from ...base.classes.typing import NUMERIC_TYPES, ARRAY_TYPES, Numeric, Name
     from ...base.classes.enum import DynamicEnum
     from ...base.classes.simple_sheet import SimpleSheet, SheetMixin, SheetItems
     from ...base.functions.arguments import get_name, get_cropped_text
     from ...base.abstract.simple_data import SimpleDataWrapper, MAX_BRIEF_REPR_LEN
     from ...base.mixin.iter_data_mixin import IterDataMixin
     from ...utils.external import Markdown, HTML, display
+    from ..visuals.size import Size
     from .display_mode import DisplayMode
 
 HtmlStyle = str
@@ -517,9 +519,55 @@ class CompositionType(DynamicEnum):
 
 
 class Container(DocumentItem, IterDataMixin):
+    def __init__(
+            self,
+            data: Optional[Items] = None,
+            style: OptStyle = None,
+            name: str = EMPTY,
+            composition: CompositionType = CompositionType.Vertical,
+            size: Optional[Size] = None,
+    ):
+        self.composition = composition
+        self._size = None
+        if data is None:
+            data = list()
+        elif isinstance(data, Iterator):
+            data = list(data)
+        super().__init__(data=data, style=style, name=name)
+        self.set_size(size, inplace=True)
+
     def set_data(self, data: Items, inplace: bool, reset_dynamic_meta: bool = True, safe=True, **kwargs) -> Native:
         data = list(data)
         return super().set_data(data, inplace=inplace, reset_dynamic_meta=reset_dynamic_meta, safe=safe, **kwargs)
+
+    def get_size(self) -> Size:
+        return self._size
+
+    def set_size(self, size: Union[Size, Numeric, None], inplace: bool) -> Native:
+        if inplace:
+            self._set_size_inplace(size)
+            return self
+        else:
+            return self.__class__(
+                self.get_data(), name=self.get_name(),
+                style=self.get_style(), composition=self.composition,
+                size=size,
+            )
+
+    def _set_size_inplace(self, size: Union[Size, Numeric, None]) -> None:
+        if not isinstance(size, Size):
+            if isinstance(size, NUMERIC_TYPES):  # int, float
+                size = Size.from_numeric(y=None, x=size, unit_type='px')
+            elif isinstance(size, ARRAY_TYPES):  # list, tuple
+                assert len(size) == 2
+                size = Size(*size)
+            elif size is None:
+                size = Size(None, None)
+            else:
+                raise TypeError(size)
+        self._size = size
+
+    size = property(get_size, _set_size_inplace)
 
     def get_html_lines(self, skip_missing: bool = True) -> Iterator[str]:
         if self.has_data() or not skip_missing:
