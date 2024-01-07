@@ -6,7 +6,6 @@ try:  # Assume we're a submodule in a package.
         TYPE_CHARS, TYPE_EMOJI,
     )
     from base.constants.text import DEFAULT_LINE_LEN, SHORT_LINE_LEN, EXAMPLE_STR_LEN, DEFAULT_INT_LEN
-    from base.classes.typing import COLLECTION_TYPES, Collection
     from content.documents.document_item import DocumentItem, Text, Paragraph, Sheet, Container, CompositionType
     from content.documents.quantile_functions import (
         get_fit_line, get_empty_line, get_united_lines,
@@ -23,7 +22,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         EMPTY, DEFAULT_STR, STAR, DOT, SPACE, PARAGRAPH_CHAR, CROP_SUFFIX,
     )
     from ...base.constants.text import DEFAULT_LINE_LEN, SHORT_LINE_LEN, EXAMPLE_STR_LEN, DEFAULT_INT_LEN
-    from ...base.classes.typing import COLLECTION_TYPES, Collection
     from .document_item import DocumentItem, Text, Paragraph, Sheet, Container, CompositionType
     from .quantile_functions import (
         get_fit_line, get_empty_line, get_united_lines,
@@ -356,11 +354,9 @@ class AdvancedQuantileWrapper(SimpleQuantileWrapper):
             line_len: int = DEFAULT_LINE_LEN,
             focus: Focus = None,
     ) -> Iterator[Container]:
-        is_collection = isinstance(self.obj, COLLECTION_TYPES) and not isinstance(self.obj, str)
-        is_empty = self.obj is None
-        if is_collection and line_len > SHORT_LINE_LEN:  # 30
+        if self.is_collection() and line_len > SHORT_LINE_LEN:  # 30
             yield from self.get_collection_items(count=lines_count, line_len=line_len, focus=focus)
-        elif is_empty:
+        elif self.is_empty():
             for _ in range(lines_count):
                 line = get_empty_line(line_len)
                 yield Paragraph([line])
@@ -459,7 +455,7 @@ class AdvancedQuantileWrapper(SimpleQuantileWrapper):
             max_items: int = 5,
             focus: Focus = None,
     ) -> Iterator[DocumentItem]:
-        items_count = len(self.obj)
+        items_count = self.get_items_count()
         if max_items < items_count:
             items_count = max_items
         if focus is None:
@@ -507,7 +503,7 @@ class AdvancedQuantileWrapper(SimpleQuantileWrapper):
         if width is None:
             width = line_len * SYMBOL_WIDTH
         assert items_count % 2 == 1, items_count
-        available_items_count = len(self.obj)
+        available_items_count = self.get_items_count()
         list_items = self.get_list_items()
         additions_count = int((items_count - 1) / 2)  # left and right items around focused item
         focused_no = None

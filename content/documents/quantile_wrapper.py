@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Optional, Iterator, Union
+from typing import Optional, Iterator, Sized, Union
 
 try:  # Assume we're a submodule in a package.
     from base.constants.chars import (
@@ -7,7 +7,7 @@ try:  # Assume we're a submodule in a package.
         TYPE_CHARS, TYPE_EMOJI,
     )
     from base.constants.text import DEFAULT_LINE_LEN, SHORT_LINE_LEN, EXAMPLE_STR_LEN, DEFAULT_INT_LEN
-    from base.classes.typing import NUMERIC_TYPES, COLLECTION_TYPES, Collection
+    from base.classes.typing import NUMERIC_TYPES, ARRAY_TYPES, COLLECTION_TYPES
     from content.documents.quantile_functions import (
         get_fit_line, get_empty_line, get_united_lines,
         get_compact_pair_repr, get_centred_pair_repr,
@@ -18,7 +18,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         EMPTY, DEFAULT_STR, STAR, DOT, SPACE, PARAGRAPH_CHAR, CROP_SUFFIX,
     )
     from ...base.constants.text import DEFAULT_LINE_LEN, SHORT_LINE_LEN, EXAMPLE_STR_LEN, DEFAULT_INT_LEN
-    from ...base.classes.typing import NUMERIC_TYPES, COLLECTION_TYPES, Collection
+    from ...base.classes.typing import NUMERIC_TYPES, ARRAY_TYPES, COLLECTION_TYPES
     from .quantile_functions import (
         get_fit_line, get_empty_line, get_united_lines,
         get_compact_pair_repr, get_centred_pair_repr,
@@ -68,6 +68,12 @@ class AbstractQuantileWrapper(QuantileWrapperInterface, ABC):
         self.obj = obj
         return self
 
+    def is_empty(self) -> bool:
+        return self.obj is None
+
+    def is_collection(self) -> bool:
+        return isinstance(self.obj, COLLECTION_TYPES) and not isinstance(self.obj, str)
+
     # @deprecated
     def show(self, lines_count: int, line_len: int = DEFAULT_LINE_LEN):
         self.print(lines_count=lines_count, line_len=line_len)
@@ -92,7 +98,7 @@ class AbstractQuantileWrapper(QuantileWrapperInterface, ABC):
             name = self.prop
         elif isinstance(self.obj, str):
             name = self.obj
-        elif isinstance(self.obj, COLLECTION_TYPES):  # list, set, tuple, dict
+        elif self.is_collection():  # list, set, tuple, dict
             count = self.get_visible_count()
             items_name = self.get_items_name()
             name = f'{count} {items_name}'
@@ -103,8 +109,8 @@ class AbstractQuantileWrapper(QuantileWrapperInterface, ABC):
     def get_visible_count(self) -> int:
         if hasattr(self.obj, 'get_count'):
             return self.obj.get_count()
-        elif isinstance(self.obj, COLLECTION_TYPES):  # list, set, tuple, dict
-            return len(self.obj)
+        elif self.is_collection():  # list, set, tuple, dict
+            return self.get_items_count()
         else:
             return len(str(self.obj))  # or None ?
 
@@ -113,7 +119,7 @@ class AbstractQuantileWrapper(QuantileWrapperInterface, ABC):
             item_name = 'digit'
         elif isinstance(self.obj, str):
             item_name = 'symbol'
-        elif isinstance(self.obj, COLLECTION_TYPES):  # list, set, tuple, dict
+        elif self.is_collection():  # list, set, tuple, dict
             item_name = 'item'
         else:
             item_name = 'symbol'
@@ -121,6 +127,14 @@ class AbstractQuantileWrapper(QuantileWrapperInterface, ABC):
             return item_name
         else:
             return f'{item_name}s'
+
+    def get_items_count(self) -> Optional[int]:
+        if isinstance(self.obj, Sized) or hasattr(self.obj, '__len__'):
+            return len(self.obj)
+        elif hasattr(self.obj, 'get_count'):
+            return self.obj.get_count()
+        else:
+            return len(self.obj.__dict__)
 
     def get_list_items(self) -> list:
         return list(self.get_paired_items())
@@ -130,14 +144,15 @@ class AbstractQuantileWrapper(QuantileWrapperInterface, ABC):
         if isinstance(self.obj, dict):
             for k, v in self.obj.items():
                 yield cls(prop=k, obj=v)
-        elif isinstance(self.obj, (list, tuple)):
+        elif isinstance(self.obj, ARRAY_TYPES):  # list, tuple
             for n, i in enumerate(self.obj):
                 yield cls(prop=f'#{n}', obj=i)
         elif isinstance(self.obj, set):
             for i in self.obj:
                 yield cls(prop=i.__class__.__name__, obj=i)
         else:
-            raise TypeError(f'got {self.obj}')
+            for k, v in self.obj.__dict__.items():
+                yield cls(prop=k, obj=v)
 
     def get_paired_props(self) -> Iterator[QuantileWrapperInterface]:
         cls = self.__class__
@@ -146,9 +161,11 @@ class AbstractQuantileWrapper(QuantileWrapperInterface, ABC):
 
     def get_prop_pairs(self) -> Iterator[tuple]:
         yield 'class', self.get_class_name()
+        yield 'value', repr(self.obj)
+        yield 'string', str(self.obj)
         if isinstance(self.obj, (str, int)):
             yield 'len', self.get_count_text_repr(centred=False)
-        elif isinstance(self.obj, (set, list, tuple, dict)):
+        elif self.is_collection():  # set, list, tuple, dict
             yield 'count', self.get_count_text_repr(centred=False)
         if hasattr(self.obj, '__dict__'):
             for k, v in self.obj.__dict__.items():
@@ -195,11 +212,9 @@ class SimpleQuantileWrapper(AbstractQuantileWrapper):
             line_len: int = DEFAULT_LINE_LEN,
             focus: Focus = None,
     ) -> Iterator[str]:
-        is_collection = isinstance(self.obj, COLLECTION_TYPES) and not isinstance(self.obj, str)
-        is_empty = self.obj is None
-        if is_collection and line_len > SHORT_LINE_LEN:  # 30
+        if self.is_collection() and line_len > SHORT_LINE_LEN:  # 30
             yield from self.get_collection_fit_text_lines(count=count, line_len=line_len, focus=focus)
-        elif is_empty:
+        elif self.is_empty():
             for _ in range(count):
                 yield get_empty_line(line_len)
         else:
@@ -217,7 +232,7 @@ class SimpleQuantileWrapper(AbstractQuantileWrapper):
             focus: Focus = None,
             axis: Optional[int] = None,
     ) -> Iterator[str]:
-        items_count = len(self.obj)
+        items_count = self.get_items_count()
         if max_items < items_count:
             items_count = max_items
         if axis is None:
@@ -241,8 +256,8 @@ class SimpleQuantileWrapper(AbstractQuantileWrapper):
         else:
             delimiter = KEY_DELIMITER
         centred = True
-        if isinstance(self.obj, (list, tuple)):
-            items_count = len(self.obj)
+        if isinstance(self.obj, ARRAY_TYPES):  # list, tuple
+            items_count = self.get_items_count()
             for n, i in enumerate(self.obj):
                 if len(str(i)) >= line_len / 2:
                     centred = False
@@ -295,7 +310,7 @@ class SimpleQuantileWrapper(AbstractQuantileWrapper):
             quota: float = DEFAULT_SCREEN_QUOTA,  # 0.33 or 0.5
     ) -> Iterator[str]:
         assert items_count % 2 == 1, items_count
-        available_items_count = len(self.obj)
+        available_items_count = self.get_items_count()
         list_items = self.get_list_items()
         additions_count = int((items_count - 1) / 2)  # left and right items around focused item
         focused_no = None
