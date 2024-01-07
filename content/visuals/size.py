@@ -32,9 +32,28 @@ class Size(Abstract2d):
         self.set_horizontal(horizontal, inplace=True)
 
     @classmethod
-    def from_tuple(cls, point_tuple) -> Native:
-        point = Point(*point_tuple)
-        return Size.from_point(point)
+    def from_numeric(
+            cls,
+            y: Optional[Numeric] = None,
+            x: Optional[Numeric] = None,
+            unit_type: Union[UnitType, str] = UnitType.Auto,
+            screen_context: Optional[ScreenContext] = ScreenContext.Auto,
+    ):
+        if isinstance(unit_type, str):
+            unit_type = UnitType(unit_type)
+        if y is None:
+            vertical = None
+        else:
+            vertical = Offset(y, unit_type=unit_type, screen_context=screen_context)
+        if x is None:
+            horizontal = None
+        else:
+            horizontal = Offset(x, unit_type=unit_type, screen_context=screen_context)
+        return Size(vertical, horizontal)
+
+    @classmethod
+    def from_tuple(cls, point_tuple: Array) -> Native:
+        return cls.from_numeric(*point_tuple)
 
     @classmethod
     def from_point(cls, point) -> Native:
