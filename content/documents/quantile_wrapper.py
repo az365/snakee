@@ -196,17 +196,26 @@ class SimpleQuantileWrapper(AbstractQuantileWrapper):
             quota: float = DEFAULT_SCREEN_QUOTA,  # 0.33: share of screen space allocated for focused item
     ) -> Iterator[str]:
         header_level = level + 1
+        header_lines_count, content_lines_count = self.get_header_and_content_lines_count(count, include_header, quota)
+        if header_lines_count:
+            yield from self.get_header_fit_text_lines(header_lines_count, line_len=line_len, header_level=header_level)
+        if content_lines_count:
+            yield from self.get_content_fit_text_lines(content_lines_count, line_len=line_len, focus=focus)
+
+    @staticmethod
+    def get_header_and_content_lines_count(
+            count: int = 1,
+            include_header: bool = None,  # Auto
+            quota: float = DEFAULT_SCREEN_QUOTA,  # 0.33: share of screen space allocated for focused item
+    ) -> tuple:
         if include_header or include_header is None:
-            header_rows_count = int(count * quota)
-            if include_header and not header_rows_count:
-                header_rows_count = 1
+            header_lines_count = int(count * quota)
+            if include_header and not header_lines_count:
+                header_lines_count = 1
         else:  # include_header == False
-            header_rows_count = 0
-        content_rows_count = count - header_rows_count
-        if header_rows_count:
-            yield from self.get_header_fit_text_lines(header_rows_count, line_len=line_len, header_level=header_level)
-        if content_rows_count:
-            yield from self.get_content_fit_text_lines(content_rows_count, line_len=line_len, focus=focus)
+            header_lines_count = 0
+        content_lines_count = count - header_lines_count
+        return header_lines_count, content_lines_count
 
     def get_content_fit_text_lines(
             self,
