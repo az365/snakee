@@ -1,14 +1,16 @@
 from typing import Optional, Tuple, Union
 
 try:  # Assume we're a submodule in a package.
+    from base.classes.typing import NUMERIC_TYPES, ARRAY_TYPES, Numeric, Array
     from content.visuals.unit_type import UnitType
-    from content.visuals.screen_context import ScreenContext, Numeric, DEFAULT_LINE_LEN
+    from content.visuals.screen_context import ScreenContext, DEFAULT_LINE_LEN
     from content.visuals.abstract_visual import AbstractVisual, Abstract2d
     from content.visuals.offset import Offset
     from content.visuals.point import Point
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
+    from ...base.classes.typing import NUMERIC_TYPES, ARRAY_TYPES, Numeric, Array
     from .unit_type import UnitType
-    from .screen_context import ScreenContext, Numeric, DEFAULT_LINE_LEN
+    from .screen_context import ScreenContext, DEFAULT_LINE_LEN
     from .abstract_visual import AbstractVisual, Abstract2d
     from .offset import Offset
     from .point import Point
@@ -72,9 +74,9 @@ class Size(Abstract2d):
             size = Size(value.vertical, value.horizontal)
         elif isinstance(value, AbstractVisual) or hasattr(value, 'x'):
             size = Size.from_visual(value)
-        elif isinstance(value, tuple):
+        elif isinstance(value, ARRAY_TYPES):  # list, tuple
             size = Size.from_tuple(value)
-        elif isinstance(value, (int, float)):
+        elif isinstance(value, NUMERIC_TYPES):  # int, float
             size = Size(Offset(value), None)
         else:
             raise TypeError

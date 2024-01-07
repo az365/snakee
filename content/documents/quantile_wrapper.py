@@ -7,6 +7,7 @@ try:  # Assume we're a submodule in a package.
         TYPE_CHARS, TYPE_EMOJI,
     )
     from base.constants.text import DEFAULT_LINE_LEN, SHORT_LINE_LEN, EXAMPLE_STR_LEN, DEFAULT_INT_LEN
+    from base.classes.typing import NUMERIC_TYPES, COLLECTION_TYPES, Collection
     from content.documents.quantile_functions import (
         get_fit_line, get_empty_line, get_united_lines,
         get_compact_pair_repr, get_centred_pair_repr,
@@ -17,6 +18,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         EMPTY, DEFAULT_STR, STAR, DOT, SPACE, PARAGRAPH_CHAR, CROP_SUFFIX,
     )
     from ...base.constants.text import DEFAULT_LINE_LEN, SHORT_LINE_LEN, EXAMPLE_STR_LEN, DEFAULT_INT_LEN
+    from ...base.classes.typing import NUMERIC_TYPES, COLLECTION_TYPES, Collection
     from .quantile_functions import (
         get_fit_line, get_empty_line, get_united_lines,
         get_compact_pair_repr, get_centred_pair_repr,
@@ -25,8 +27,6 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 Position = int
 Name = str
 Focus = Union[Position, Name, None]
-Collection = Union[list, set, tuple, dict]
-COLLECTIONS = list, set, tuple, dict
 
 TYPING_DELIMITER = ' * '
 KEY_DELIMITER = ' : '
@@ -92,7 +92,7 @@ class AbstractQuantileWrapper(QuantileWrapperInterface, ABC):
             name = self.prop
         elif isinstance(self.obj, str):
             name = self.obj
-        elif isinstance(self.obj, COLLECTIONS):
+        elif isinstance(self.obj, COLLECTION_TYPES):  # list, set, tuple, dict
             count = self.get_visible_count()
             items_name = self.get_items_name()
             name = f'{count} {items_name}'
@@ -103,17 +103,17 @@ class AbstractQuantileWrapper(QuantileWrapperInterface, ABC):
     def get_visible_count(self) -> int:
         if hasattr(self.obj, 'get_count'):
             return self.obj.get_count()
-        elif isinstance(self.obj, COLLECTIONS):
+        elif isinstance(self.obj, COLLECTION_TYPES):  # list, set, tuple, dict
             return len(self.obj)
         else:
             return len(str(self.obj))  # or None ?
 
     def get_items_name(self):
-        if isinstance(self.obj, (int, float)):
+        if isinstance(self.obj, NUMERIC_TYPES):  # int, float
             item_name = 'digit'
         elif isinstance(self.obj, str):
             item_name = 'symbol'
-        elif isinstance(self.obj, COLLECTIONS):
+        elif isinstance(self.obj, COLLECTION_TYPES):  # list, set, tuple, dict
             item_name = 'item'
         else:
             item_name = 'symbol'
@@ -195,7 +195,7 @@ class SimpleQuantileWrapper(AbstractQuantileWrapper):
             line_len: int = DEFAULT_LINE_LEN,
             focus: Focus = None,
     ) -> Iterator[str]:
-        is_collection = isinstance(self.obj, COLLECTIONS) and not isinstance(self.obj, str)
+        is_collection = isinstance(self.obj, COLLECTION_TYPES) and not isinstance(self.obj, str)
         is_empty = self.obj is None
         if is_collection and line_len > SHORT_LINE_LEN:  # 30
             yield from self.get_collection_fit_text_lines(count=count, line_len=line_len, focus=focus)

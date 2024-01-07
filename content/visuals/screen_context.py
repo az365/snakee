@@ -1,13 +1,13 @@
-from typing import Union
-
-Numeric = Union[int, float]
-NUMERIC_TYPES = int, float
+try:  # Assume we're a submodule in a package.
+    from base.classes.typing import NUMERIC_TYPES, Numeric
+except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
+    from ...base.classes.typing import NUMERIC_TYPES, Numeric
 
 DEFAULT_FONT_SIZE = 16
 DEFAULT_FRONT_PROPORTION = 0.44
-DEFAULT_SYMBOL_WIDTH = 7
+DEFAULT_SYMBOL_WIDTH = round(DEFAULT_FONT_SIZE * DEFAULT_FRONT_PROPORTION, 1)  # 7.0
 DEFAULT_CONTAINER_WIDTH, DEFAULT_CONTAINER_HEIGHT = 640, 480
-DEFAULT_LINE_LEN = DEFAULT_CONTAINER_WIDTH / DEFAULT_SYMBOL_WIDTH
+DEFAULT_LINE_LEN = int(DEFAULT_CONTAINER_WIDTH / DEFAULT_SYMBOL_WIDTH)  # 91
 
 
 class ScreenContext:

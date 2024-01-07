@@ -1,4 +1,4 @@
-from typing import Optional, Iterator, Union
+from typing import Optional, Iterator
 
 try:  # Assume we're a submodule in a package.
     from base.constants.chars import (
@@ -6,13 +6,14 @@ try:  # Assume we're a submodule in a package.
         TYPE_CHARS, TYPE_EMOJI,
     )
     from base.constants.text import DEFAULT_LINE_LEN, SHORT_LINE_LEN, EXAMPLE_STR_LEN, DEFAULT_INT_LEN
+    from base.classes.typing import COLLECTION_TYPES, Collection
     from content.documents.document_item import DocumentItem, Text, Paragraph, Sheet, Container, CompositionType
     from content.documents.quantile_functions import (
         get_fit_line, get_empty_line, get_united_lines,
         get_compact_pair_repr, get_centred_pair_repr,
     )
     from content.documents.quantile_wrapper import (
-        SimpleQuantileWrapper,
+        SimpleQuantileWrapper, Focus,
         DEFAULT_SCREEN_QUOTA, DEFAULT_CARD_QUOTA,
         KEY_DELIMITER, COLUMN_DELIMITER,
     )
@@ -22,22 +23,17 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         EMPTY, DEFAULT_STR, STAR, DOT, SPACE, PARAGRAPH_CHAR, CROP_SUFFIX,
     )
     from ...base.constants.text import DEFAULT_LINE_LEN, SHORT_LINE_LEN, EXAMPLE_STR_LEN, DEFAULT_INT_LEN
+    from ...base.classes.typing import COLLECTION_TYPES, Collection
     from .document_item import DocumentItem, Text, Paragraph, Sheet, Container, CompositionType
     from .quantile_functions import (
         get_fit_line, get_empty_line, get_united_lines,
         get_compact_pair_repr, get_centred_pair_repr,
     )
     from .quantile_wrapper import (
-        SimpleQuantileWrapper,
+        SimpleQuantileWrapper, Focus,
         DEFAULT_SCREEN_QUOTA, DEFAULT_CARD_QUOTA,
         KEY_DELIMITER, COLUMN_DELIMITER,
     )
-
-Position = int
-Name = str
-Focus = Union[Position, Name, None]
-Collection = Union[list, set, tuple, dict]
-COLLECTIONS = list, set, tuple, dict
 
 SYMBOL_WIDTH = 7
 CENTER_TEXT = 'text-align: center;'
@@ -360,7 +356,7 @@ class AdvancedQuantileWrapper(SimpleQuantileWrapper):
             line_len: int = DEFAULT_LINE_LEN,
             focus: Focus = None,
     ) -> Iterator[Container]:
-        is_collection = isinstance(self.obj, COLLECTIONS) and not isinstance(self.obj, str)
+        is_collection = isinstance(self.obj, COLLECTION_TYPES) and not isinstance(self.obj, str)
         is_empty = self.obj is None
         if is_collection and line_len > SHORT_LINE_LEN:  # 30
             yield from self.get_collection_items(count=lines_count, line_len=line_len, focus=focus)
