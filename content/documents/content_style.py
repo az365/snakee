@@ -62,7 +62,7 @@ class SimpleContentStyle(SimpleDataWrapper, MapDataMixin):
     def get_items(self) -> Iterable[Item]:
         return self.get_data().items()
 
-    def add_items(self, items: Iterable, before: bool = False, inplace: bool = False) -> Optional[Native]:
+    def add_items(self, items: Iterable, before: bool = False, inplace: bool = True) -> Optional[Native]:
         data_dict = self.get_data()
         if not inplace:
             data_dict = data_dict.copy()
@@ -88,7 +88,7 @@ class SimpleContentStyle(SimpleDataWrapper, MapDataMixin):
             return self.__class__(new_data)
 
     def get_css_items(self) -> Iterator[Item]:
-        for k, v in super().get_items():
+        for k, v in self.get_items():
             yield str(k), str(v)
 
     def get_css_line(self) -> str:
@@ -160,8 +160,8 @@ class AdvancedContentStyle(SimpleContentStyle):
 
     def get_simple_content_style(self) -> SimpleContentStyle:
         content_style = SimpleContentStyle()
-        content_style.add_items(self.get_simplified_main_items())
-        content_style.add_items(self.get_additional_items())
+        content_style.add_items(self.get_simplified_main_items(), inplace=True)
+        content_style.add_items(self.get_additional_items(), inplace=True)
         return content_style
 
     def get_css_items(self) -> Iterator[Item]:
