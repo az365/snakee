@@ -13,6 +13,7 @@ try:  # Assume we're a submodule in a package.
     from utils.external import Markdown, HTML, display
     from content.visuals.size import Size
     from content.documents.quantile_functions import get_united_lines
+    from content.documents.content_style import SimpleContentStyle
     from content.documents.display_mode import DisplayMode
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.constants.chars import EMPTY, SPACE, HTML_INDENT, PARAGRAPH_CHAR, REPR_DELIMITER, DEFAULT_STR
@@ -27,11 +28,11 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils.external import Markdown, HTML, display
     from ..visuals.size import Size
     from .quantile_functions import get_united_lines
+    from .content_style import SimpleContentStyle
     from .display_mode import DisplayMode
 
 HtmlStyle = str
-ContentStyle = Any
-Style = Union[HtmlStyle, ContentStyle]
+Style = Union[HtmlStyle, SimpleContentStyle]
 OptStyle = Optional[Style]
 DisplayObject = Union[str, Markdown, HTML]
 SizeOrWidth = Union[Size, Numeric, None]
