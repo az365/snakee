@@ -567,10 +567,10 @@ class SqlStream(WrapperStream):
         columns = self.get_output_columns()
         return map(lambda r: dict(zip(columns, r)), self.get_rows())
 
-    def to_row_stream(self) -> Stream:
+    def to_rows(self) -> Stream:
         return self.to_stream(self.get_rows(), item_type=ItemType.Row)
 
-    def to_record_stream(self) -> Stream:
+    def to_records(self) -> Stream:
         return self.to_stream(self.get_records(), item_type=ItemType.Record)
 
     def to_stream(
@@ -658,7 +658,7 @@ class SqlStream(WrapperStream):
             return Paragraph([f'Undefined struct: {struct}'])
 
     def get_struct_chapter(self, name='Columns') -> Chapter:
-        chapter = Chapter(name=name)
+        chapter = Chapter([], name=name)
         title = Paragraph(['Columns'], level=3)
         chapter.append(title, inplace=True)
         output_columns = self.get_output_columns(skip_missing=True)

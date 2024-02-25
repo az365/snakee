@@ -253,7 +253,7 @@ class DefaultDisplay(DisplayInterface):
         if hasattr(data, 'get_lines'):  # isinstance(data, DocumentItem)
             data = data.get_lines()
         if isinstance(data, Iterable) and not isinstance(data, str):
-            data = PARAGRAPH_CHAR.join(data)
+            data = PARAGRAPH_CHAR.join([str(i) for i in data])
         return data
 
     @staticmethod

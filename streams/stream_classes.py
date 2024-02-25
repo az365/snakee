@@ -48,22 +48,20 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
 TMP_FILES_TEMPLATE = 'stream_{}.tmp'
 
 DEFAULT_STREAM_CLASS = RegularStream
-STREAM_CLASSES = (
-    AbstractStream, IterableStream,
-    RegularStream,
-    PandasStream, SqlStream,
-)
 DICT_STREAM_CLASSES = dict(
     RegularStream=RegularStream,
     PandasStream=PandasStream,
     SqlStream=SqlStream,
 )
+ABSTRACT_STREAM_CLASSES = AbstractStream, IterableStream
+CONCRETE_STREAM_CLASSES = tuple(DICT_STREAM_CLASSES.values())
+STREAM_CLASSES = tuple(ABSTRACT_STREAM_CLASSES + CONCRETE_STREAM_CLASSES)
 
 # global
 _context = None  # deprecated, use StreamBuilder.context instead
 
 
-StreamType.set_default(RegularStream.__name__)
+StreamType.set_default(StreamType.RegularStream)
 StreamType.set_dict_classes(DICT_STREAM_CLASSES)
 
 

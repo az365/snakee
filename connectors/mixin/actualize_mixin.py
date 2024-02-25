@@ -105,7 +105,12 @@ class ActualizeMixin(ValidateMixin, ABC):
                 message = 'dataset not exists, expected {count} columns: {columns}'
         else:
             message = 'expected'
-        return message.format(count=self.get_column_count(), columns=ITEMS_DELIMITER.join(self.get_columns()))
+        columns = self.get_columns()
+        if columns is None:
+            columns_list_str = '(undefined)'
+        else:
+            columns_list_str = ITEMS_DELIMITER.join(columns)
+        return message.format(count=self.get_column_count(), columns=columns_list_str)
 
     def get_useful_props(self) -> dict:
         if self.is_existing():

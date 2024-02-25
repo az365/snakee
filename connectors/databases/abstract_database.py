@@ -499,13 +499,13 @@ class AbstractDatabase(AbstractStorage, ABC):
 
     @classmethod
     def _parse_credentials_file(cls, file: File, delimiter: str = PARAGRAPH_CHAR) -> Iterable:
-        if isinstance(file, File) or hasattr(file, 'to_line_stream'):
+        if isinstance(file, File) or hasattr(file, 'to_lines'):
             has_columns = delimiter != PARAGRAPH_CHAR
             if has_columns:
-                for item in file.to_line_stream().get_items():
+                for item in file.to_lines().get_items():
                     yield item.split(delimiter)
             else:
-                two_lines = file.to_line_stream().take(2)
+                two_lines = file.to_lines().take(2)
                 if isinstance(two_lines, StreamInterface) or hasattr(two_lines, 'get_list'):
                     login, password = two_lines.get_list()[:2]
                 else:
@@ -575,8 +575,8 @@ class AbstractDatabase(AbstractStorage, ABC):
     def _get_stream_from_data(data: Data, struct: Struct = None) -> StructStream:
         if isinstance(data, StreamInterface):
             stream = data
-        elif isinstance(data, File) or hasattr(data, 'to_struct_stream'):
-            stream = data.to_stream()
+        elif isinstance(data, File) or hasattr(data, 'to_stream'):
+            stream = data.to_stream()  # to_struct_stream()
             if struct:
                 stream_cols = stream.get_columns()
                 struct_cols = struct.get_columns()

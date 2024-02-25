@@ -10,6 +10,7 @@ try:  # Assume we're a submodule in a package.
     from base.constants.chars import TAB_INDENT, ITEMS_DELIMITER, CROP_SUFFIX, UNDER, NOT_SET
     from base.constants.text import DEFAULT_LINE_LEN
     from base.functions.arguments import get_name, get_names, get_cropped_text
+    from base.functions.errors import get_type_err_msg
     from base.abstract.abstract_base import AbstractBaseObject, BaseInterface
     from base.abstract.named import AbstractNamed
     from base.mixin.data_mixin import DataMixin
@@ -24,6 +25,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.constants.chars import TAB_INDENT, ITEMS_DELIMITER, CROP_SUFFIX, UNDER, NOT_SET
     from ...base.constants.text import DEFAULT_LINE_LEN
     from ...base.functions.arguments import get_name, get_names, get_cropped_text
+    from ...base.functions.errors import get_type_err_msg
     from ...base.abstract.abstract_base import AbstractBaseObject, BaseInterface
     from ...base.abstract.named import AbstractNamed
     from ...base.mixin.data_mixin import DataMixin
@@ -32,6 +34,7 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...functions.primary import items as it
 
 Native = Union[AbstractBaseObject, DataMixin]
+EXPECTED_FIELD_OBJ_TYPES = FieldName, FieldNo, FieldInterface
 
 SQL_FUNC_NAMES_DICT = dict(len='COUNT')
 SQL_TYPE_NAMES_DICT = dict(int='integer', str='varchar')
@@ -132,22 +135,23 @@ class AbstractDescription(AbstractBaseObject, DataMixin, ABC):
             function_name = function.__name__
             sql_type_name = SQL_TYPE_NAMES_DICT.get(function_name)
             if sql_type_name:
-                assert len(input_fields) == 1, 'got {}'.format(input_fields)
-                sql_function_expr = '{field}::{type}'.format(field=input_fields[0], type=sql_type_name)
+                assert len(input_fields) == 1, f'expected 1 input field, got {input_fields}'
+                field_name = input_fields[0]
+                sql_function_expr = f'{field_name}::{sql_type_name}'
             elif function_name == ALIAS_FUNCTION:
-                assert len(input_fields) == 1, 'got {}'.format(input_fields)
+                assert len(input_fields) == 1, f'expected 1 input field, got {input_fields}'
                 sql_function_expr = input_fields[0]
             else:
                 sql_function_name = SQL_FUNC_NAMES_DICT.get(function_name)
                 if not sql_function_name:
-                    self.warning('Unsupported function call: {}'.format(function_name))
+                    self.warning(f'Unsupported function call: {function_name}')
                     sql_function_name = function_name
                 input_fields = ITEMS_DELIMITER.join(input_fields)
-                sql_function_expr = '{func}({fields})'.format(func=sql_function_name, fields=input_fields)
+                sql_function_expr = f'{sql_function_name}({input_fields})'
         if target_field in (NOT_SET, None):
             return sql_function_expr
         else:
-            return '{func} AS {target}'.format(func=sql_function_expr, target=target_field)
+            return f'{sql_function_expr} AS {target_field}'
 
     @abstractmethod
     def apply_inplace(self, item: Item) -> None:
@@ -248,7 +252,8 @@ class AbstractDescription(AbstractBaseObject, DataMixin, ABC):
         try:
             func_name = get_name(self.get_function())
         except AttributeError as e:
-            raise AttributeError('{func}: {e}'.format(func=repr(self.get_function()), e=e))
+            func_repr = repr(self.get_function())
+            raise AttributeError(f'{func_repr}: {e}')
         if func_name == '<lambda>':
             func_name = 'lambda'
         if target and target != NOT_SET:
@@ -276,7 +281,7 @@ class SingleFieldDescription(AbstractDescription, ABC):
         )
         if isinstance(field, Callable):
             field = get_name(field)
-        assert isinstance(field, (FieldName, FieldNo, FieldInterface)), f'got {field} as {type(field)}'
+        assert isinstance(field, EXPECTED_FIELD_OBJ_TYPES), get_type_err_msg(field, EXPECTED_FIELD_OBJ_TYPES, 'field')
         self._target = field
         self._default = default
 

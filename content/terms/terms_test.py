@@ -95,8 +95,9 @@ def test_term():
     initial_stream_data_sepulka_state = cx.sm.RegularStream(DATA_SEPULKA_STATE, item_type=cx.sm.ItemType.Row)
     tsv_sepulka_master.write_stream(initial_stream_sepulka_master)  # (1, 'sepulka_01', 10), ..20..10..20..10)
     tsv_sepulka_state.write_stream(initial_stream_data_sepulka_state)  # (1, 0.9), (2, 0.8), ..0.7..0.6), (5, 0.5)
-    stream_sepulkarium_state = tsv_sepulka_state.to_record_stream().join(
-        tsv_sepulka_master.to_record_stream(),
+    stream_sepulkarium_state = tsv_sepulka_state.to_records(
+    ).join(
+        tsv_sepulka_master.to_records(),
         key=SEPULKA_ID,
         how=JoinType.Left,
     ).group_by(

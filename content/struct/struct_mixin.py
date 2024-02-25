@@ -42,10 +42,18 @@ class StructMixin(StructMixinInterface, ABC):
             return self
 
     def get_columns(self) -> Array:
-        return self.get_struct().get_columns()
+        struct = self.get_struct()
+        if struct is not None:
+            return struct.get_columns()
+        else:
+            return None
 
     def get_column_count(self) -> int:
-        return len(self.get_columns())
+        columns = self.get_columns()
+        if columns is not None:
+            return len(columns)
+        else:
+            return None
 
     def get_types_list(self, dialect: DialectType = DialectType.String) -> list:
         return self.get_struct().get_types_list(dialect)

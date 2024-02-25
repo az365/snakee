@@ -152,7 +152,7 @@ def test_any_select():
         float,
         str,
     ).get_list()
-    assert received_1 == expected_1, f'test case 1: AnyStream to RowStream, {received_1} vs {expected_1}'
+    assert received_1 == expected_1, f'test case 1: Any items to Row items, {received_1} vs {expected_1}'
     expected_2 = [
         {'a': 2, 'b': 2.0, 'c': '12'},
         {'a': 3, 'b': 3.0, 'c': '123'},
@@ -165,7 +165,7 @@ def test_any_select():
         b=lambda i: float(len(i)),
         c=(str, ),
     ).get_list()
-    assert received_2 == expected_2, f'test case 1: AnyStream to RowStream: {received_2} vs {expected_2}'
+    assert received_2 == expected_2, f'test case 1: Any items to Row items: {received_2} vs {expected_2}'
 
 
 def test_records_select():
@@ -176,8 +176,8 @@ def test_records_select():
     ]
     received_1 = sm.RegularStream(
         EXAMPLE_CSV_ROWS,
-    ).to_line_stream(
-    ).to_row_stream(
+    ).to_lines(
+    ).to_rows(
         delimiter=',',
     ).map_to_records(
         lambda p: {fs.first()(p): fs.second()(p)},
@@ -197,8 +197,8 @@ def test_records_select():
     ]
     received_2 = sm.RegularStream(
         EXAMPLE_CSV_ROWS,
-    ).to_line_stream(
-    ).to_row_stream(
+    ).to_lines(
+    ).to_rows(
         delimiter=',',
     ).select(
         0,
@@ -260,14 +260,14 @@ def test_add_records():
     ).map_to_records(
         lambda i: dict(item=i),
     ).add(
-        sm.RegularStream(addition).to_record_stream(),
+        sm.RegularStream(addition).to_records(),
     ).get_list()
     assert received_1 == expected_1, f'test case 1i: {received_1} vs {expected_1}'
     received_2 = sm.RegularStream(
         EXAMPLE_INT_SEQUENCE,
-    ).to_record_stream(
+    ).to_records(
     ).add(
-        sm.RegularStream(addition).to_record_stream(),
+        sm.RegularStream(addition).to_records(),
         before=True,
     ).get_list()
     assert received_2 == expected_2, f'test case 2i: {received_2} vs {expected_2}'
@@ -431,8 +431,8 @@ def test_group_by():
     ]
     received_0 = sm.RegularStream(
         example
-    ).to_row_stream(
-    ).to_record_stream(
+    ).to_rows(
+    ).to_records(
         columns=('x', 'y'),
     ).group_by(
         'x',
@@ -445,8 +445,8 @@ def test_group_by():
 
     received_1 = sm.RegularStream(
         example
-    ).to_row_stream(
-    ).to_record_stream(
+    ).to_rows(
+    ).to_records(
         columns=('x', 'y'),
     ).group_by(
         'x',
@@ -586,8 +586,8 @@ def test_to_rows():
     expected = [['a', '1'], ['b', '2,22'], ['c', '3']]
     received = sm.RegularStream(
         EXAMPLE_CSV_ROWS,
-    ).to_line_stream(
-    ).to_row_stream(
+    ).to_lines(
+    ).to_rows(
         ',',
     ).get_list()
     assert received == expected, f'{received} vs {expected}'
@@ -598,8 +598,8 @@ def test_parse_json():
     expected = [dict(a='b'), dict(_err='JSONDecodeError'), dict(d='e')]
     received = sm.RegularStream(
         example,
-    ).to_line_stream(
-    ).to_record_stream(
+    ).to_lines(
+    ).to_records(
     ).get_list()
     assert received == expected, f'{received} vs {expected}'
 
@@ -627,7 +627,7 @@ def test_unfold():
     received_rows = sm.RegularStream(
         example_records,
         item_type=sm.ItemType.Record,
-    ).to_row_stream(
+    ).to_rows(
         columns=['key', 'value'],
     ).flat_map(
         fs.unfold_lists(1, number_field=None),
@@ -638,8 +638,8 @@ def test_unfold():
 def smoke_test_show():
     stream0 = sm.RegularStream(
         EXAMPLE_CSV_ROWS,
-    ).to_line_stream(
-    ).to_row_stream(
+    ).to_lines(
+    ).to_rows(
         delimiter=',',
     ).map_to_records(
         lambda p: {fs.first()(p): fs.second()(p)},

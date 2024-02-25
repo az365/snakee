@@ -10,7 +10,10 @@ try:  # Assume we're a submodule in a package.
         increment, diff, div, mult, sqrt, log,
         var, t_test_1sample_p_value, p_log_sign,
     )
-    from functions.secondary.date_functions import int_to_date, date_to_int, round_date, next_date, date_range
+    from functions.secondary.date_functions import (
+        date, next_date, date_range,
+        date_to_int, int_to_date, int_between, round_date,
+    )
     from functions.secondary.text_functions import startswith, endswith, contains
     from functions.secondary.array_functions import (
         is_in, not_in,
@@ -40,7 +43,10 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
         increment, diff, div, mult, sqrt, log,
         var, t_test_1sample_p_value, p_log_sign,
     )
-    from .date_functions import int_to_date, date_to_int, round_date, next_date, date_range
+    from .date_functions import (
+        date, next_date, date_range,
+        date_to_int, int_to_date, int_between, round_date,
+    )
     from .text_functions import startswith, endswith, contains
     from .array_functions import (
         is_in, not_in,

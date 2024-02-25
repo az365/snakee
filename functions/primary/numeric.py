@@ -2,13 +2,21 @@ from typing import Optional, Iterable, Sequence, Union
 import math
 
 try:  # Assume we're a submodule in a package.
+    from base.classes.typing import (
+        Numeric as DefaultNumeric,
+        NUMERIC_TYPES as DEFAULT_NUMERIC_TYPES,
+    )
     from utils.external import (
         np, sp, pd, plt, stats, interpolate,
         DataFrame,
         get_use_objects_for_output,
         raise_import_error,
     )
-except ImportError:
+except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
+    from ...base.classes.typing import (
+        Numeric as DefaultNumeric,
+        NUMERIC_TYPES as DEFAULT_NUMERIC_TYPES,
+    )
     from ...utils.external import (
         np, sp, pd, plt, stats, interpolate,
         DataFrame,
@@ -17,15 +25,17 @@ except ImportError:
     )
 
 if np:
-    OptionalFloat = Union[float, np.number, np.ndarray, None]
-    NumericTypes = Union[int, float, np.number, np.ndarray]
-    NUMERIC_TYPES = int, float, np.number
+    ExtFloat = Union[float, np.number, np.ndarray]
+    OptionalFloat = Optional[ExtFloat]
+    NumericTypes = Union[DefaultNumeric, np.number, np.ndarray]
+    NUMERIC_TYPES = *DEFAULT_NUMERIC_TYPES, np.number
     MUTABLE = list, np.ndarray
     Mutable = Union[list, np.ndarray]
 else:
+    ExtFloat = float
     OptionalFloat = Optional[float]
-    NumericTypes = Union[int, float]
-    NUMERIC_TYPES = int, float
+    NumericTypes = DefaultNumeric
+    NUMERIC_TYPES = DEFAULT_NUMERIC_TYPES
     MUTABLE = list
     Mutable = list
 

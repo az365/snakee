@@ -1,28 +1,32 @@
 from typing import Optional, Callable, Iterable, Iterator, Sequence, Tuple, Union, Any
 
 try:  # Assume we're a submodule in a package.
-    from base.constants.chars import EMPTY, SPACE, HTML_INDENT, PARAGRAPH_CHAR, REPR_DELIMITER
+    from base.constants.chars import EMPTY, SPACE, HTML_INDENT, PARAGRAPH_CHAR, REPR_DELIMITER, DEFAULT_STR
     from base.constants.text import DEFAULT_LINE_LEN
     from base.interfaces.sheet_interface import SheetInterface, Record, Row, FormattedRow, Columns, Count
-    from base.classes.typing import Name
+    from base.classes.typing import NUMERIC_TYPES, ARRAY_TYPES, Numeric, Name
     from base.classes.enum import DynamicEnum
     from base.classes.simple_sheet import SimpleSheet, SheetMixin, SheetItems
     from base.functions.arguments import get_name, get_cropped_text
     from base.abstract.simple_data import SimpleDataWrapper, MAX_BRIEF_REPR_LEN
     from base.mixin.iter_data_mixin import IterDataMixin
     from utils.external import Markdown, HTML, display
+    from content.visuals.size import Size
+    from content.documents.quantile_functions import get_united_lines
     from content.documents.display_mode import DisplayMode
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from ...base.constants.chars import EMPTY, SPACE, HTML_INDENT, PARAGRAPH_CHAR, REPR_DELIMITER
+    from ...base.constants.chars import EMPTY, SPACE, HTML_INDENT, PARAGRAPH_CHAR, REPR_DELIMITER, DEFAULT_STR
     from ...base.constants.text import DEFAULT_LINE_LEN
     from ...base.interfaces.sheet_interface import SheetInterface, Record, Row, FormattedRow, Columns, Count
-    from ...base.classes.typing import Name
+    from ...base.classes.typing import NUMERIC_TYPES, ARRAY_TYPES, Numeric, Name
     from ...base.classes.enum import DynamicEnum
     from ...base.classes.simple_sheet import SimpleSheet, SheetMixin, SheetItems
     from ...base.functions.arguments import get_name, get_cropped_text
     from ...base.abstract.simple_data import SimpleDataWrapper, MAX_BRIEF_REPR_LEN
     from ...base.mixin.iter_data_mixin import IterDataMixin
     from ...utils.external import Markdown, HTML, display
+    from ..visuals.size import Size
+    from .quantile_functions import get_united_lines
     from .display_mode import DisplayMode
 
 HtmlStyle = str
@@ -30,6 +34,7 @@ ContentStyle = Any
 Style = Union[HtmlStyle, ContentStyle]
 OptStyle = Optional[Style]
 DisplayObject = Union[str, Markdown, HTML]
+SizeOrWidth = Union[Size, Numeric, None]
 
 H_STYLE = None
 P_STYLE = 'line-height: 1.1em; margin-top: 0em; margin-bottom: 0em; padding-top: 0em; padding-bottom: 0em;'
@@ -326,7 +331,7 @@ class Sheet(DocumentItem, IterDataMixin, SheetMixin, SheetInterface):
         if hasattr(data, 'get_lines'):  # isinstance(data, RegularStreamInterface)
             return data.get_lines()
         elif hasattr(data, 'get_items_of_type'):  # isinstance(data, RegularStreamInterface)
-            return data.get_items_of_type('line')
+            return data.get_items_of_type('line')  # ItemType.Line
         elif hasattr(data, 'get_items()'):
             return map(str, data.get_items())
         elif isinstance(data, Iterable):
@@ -335,12 +340,22 @@ class Sheet(DocumentItem, IterDataMixin, SheetMixin, SheetInterface):
                 for row in self.get_rows(with_title=True):
                     yield struct.format(row)
             else:
-                placeholders = ['{:' + str(min_len) + '}' for min_len in self.get_column_lens()]
+                placeholders = self._get_placeholders_for_row_formatter()
                 formatter = delimiter.join(placeholders)
                 for row in self.get_formatted_rows(with_title=True):
-                    yield formatter.format(row)
+                    yield formatter.format(*row)
         else:
             raise TypeError(f'Expected RegularStream, SimpleData or Iterable, got {data}')
+
+    def _get_placeholders_for_row_formatter(self) -> list:
+        placeholders = list()
+        for min_len in self.get_column_lens():
+            if min_len is None:
+                item_placeholder = '{}'
+            else:
+                item_placeholder = '{:' + str(min_len) + '}'
+            placeholders.append(item_placeholder)
+        return placeholders
 
     def has_html_tags(self) -> bool:
         return True
@@ -414,8 +429,7 @@ class Text(DocumentItem, IterDataMixin):
             style: OptStyle = None,
             name: str = EMPTY,
     ):
-        self._style = style
-        super().__init__(data=data, name=name)
+        super().__init__(data=data, name=name, style=style)
 
     def add(
             self,
@@ -505,14 +519,86 @@ class CompositionType(DynamicEnum):
     Vertical = 'vertical'
     Horizontal = 'horizontal'
     Gallery = 'gallery'
+    Auto = None
 
 
 class Container(DocumentItem, IterDataMixin):
+    def __init__(
+            self,
+            data: Optional[Items] = None,
+            style: OptStyle = None,
+            name: str = EMPTY,
+            composition: CompositionType = CompositionType.Vertical,
+            size: SizeOrWidth = None,
+    ):
+        self.composition = composition
+        self._size = None
+        if data is None:
+            data = list()
+        elif isinstance(data, Iterator):
+            data = list(data)
+        super().__init__(data=data, style=style, name=name)
+        self.set_size(size, inplace=True)
+
     def set_data(self, data: Items, inplace: bool, reset_dynamic_meta: bool = True, safe=True, **kwargs) -> Native:
         data = list(data)
         return super().set_data(data, inplace=inplace, reset_dynamic_meta=reset_dynamic_meta, safe=safe, **kwargs)
 
-    def get_html_lines(self, skip_missing: bool = True) -> Iterator[str]:
+    def get_size(self) -> Size:
+        return self._size
+
+    def set_size(self, size: SizeOrWidth, inplace: bool) -> Native:
+        if inplace:
+            self._set_size_inplace(size)
+            return self
+        else:
+            return self.__class__(
+                self.get_data(), name=self.get_name(),
+                style=self.get_style(), composition=self.composition,
+                size=size,
+            )
+
+    def _set_size_inplace(self, size: SizeOrWidth) -> None:
+        if not isinstance(size, Size):
+            if isinstance(size, NUMERIC_TYPES):  # int, float
+                size = Size.from_numeric(y=None, x=size, unit_type='px')
+            elif isinstance(size, ARRAY_TYPES):  # list, tuple
+                assert len(size) == 2
+                size = Size(*size)
+            elif size is None:
+                size = Size(None, None)
+            else:
+                raise TypeError(size)
+        self._size = size
+
+    size = property(get_size, _set_size_inplace)
+
+    def get_width_html_code(self) -> Optional[str]:
+        if self.size is not None:
+            if self.size.horizontal is not None:
+                return self.size.horizontal.get_html_code()
+
+    def get_html_lines(self) -> Iterator[str]:
+        if self.composition == CompositionType.Vertical:
+            return self.get_vertical_composition_html_lines()
+        elif self.composition == CompositionType.Horizontal:
+            return self.get_horizontal_composition_html_lines()
+        else:
+            raise NotImplementedError
+
+    def get_html_tag_name(self) -> str:
+        if self.composition == CompositionType.Horizontal:
+            return 'table'
+        else:
+            return None
+
+    def get_html_attributes(self) -> Iterator[Tuple[str, str]]:
+        width_html_code = self.get_width_html_code()
+        if width_html_code:
+            yield 'width', width_html_code
+        yield from super().get_html_attributes()
+
+    def get_vertical_composition_html_lines(self, skip_missing: bool = True) -> Iterator[str]:
         if self.has_data() or not skip_missing:
             tag = self.get_html_tag_name()
             if tag:
@@ -523,10 +609,76 @@ class Container(DocumentItem, IterDataMixin):
                         yield from item.get_html_lines()
                     elif isinstance(item, str):
                         yield item
+                    elif item is None:
+                        yield DEFAULT_STR
                     else:
-                        raise TypeError(f'Expected item as DocumentItem or str, got item {repr(item)} as {type(item)}')
+                        yield str(item)
             if tag:
                 yield self.get_html_close_tag()
+
+    def get_horizontal_composition_html_lines(self, count: Optional[int] = None) -> Iterator[str]:
+        yield self.get_html_open_tag()
+        yield HTML_INDENT + '<tbody>'
+        yield HTML_INDENT * 2 + '<tr>'
+        for line in self.get_items_html_lines(count=count):
+            yield HTML_INDENT * 3 + line
+        yield HTML_INDENT * 2 + '</tr>'
+        yield HTML_INDENT + '</tbody>'
+        yield self.get_html_close_tag()
+
+    def get_items_html_lines(self, count: Optional[int] = None) -> Iterator[str]:
+        style = self.get_html_style()
+        formatted_items = list(self.get_items())
+        container_width = self.get_size().get_horizontal()
+        if container_width is None:
+            item_size = None
+        else:
+            container_width_units = container_width.get_x()
+            item_width_units = int(container_width_units / len(formatted_items))
+            item_size = Size(vertical=None, horizontal=item_width_units)
+        for n, item in enumerate(formatted_items):
+            if item_size is not None:
+                width = item_size.get_html_code()
+                yield f'<td width="{width}">'
+            elif style is not None:
+                yield f'<td style="{style}">'
+            else:
+                yield f'<td>'
+            for line in item.get_html_lines():
+                yield HTML_INDENT + line
+            yield '</td>'
+            if count is not None:
+                if n + 1 >= count:
+                    break
+
+    def get_lines(
+            self,
+            horizontal_delimiter: str = REPR_DELIMITER,
+            vertical_delimiter: Optional[str] = None,
+            default_line: str = DEFAULT_STR,
+    ) -> Iterator[str]:
+        if self.composition == CompositionType.Vertical:
+            for i in self.get_items():
+                if isinstance(i, DocumentItem):
+                    yield from i.get_lines()
+                elif isinstance(i, str):
+                    yield i
+                elif isinstance(i, Iterable) and not isinstance(i, str):
+                    yield from i
+                elif i is None:
+                    yield default_line
+                else:
+                    yield str(i)
+                if vertical_delimiter is not None:
+                    yield vertical_delimiter
+        elif self.composition == CompositionType.Horizontal:
+            max_lines_count = max([len(list(i.get_lines())) for i in self.get_items()])
+            lines = [EMPTY] * max_lines_count
+            for i in self.get_items():
+                lines = get_united_lines(lines, i.get_lines(), delimiter=horizontal_delimiter)
+            yield from lines
+        else:
+            raise NotImplementedError
 
     def get_brief_repr(self) -> str:
         cls_name = self.__class__.__name__
@@ -577,7 +729,9 @@ class Paragraph(Text, Container):
         return (self.get_level() or 0) > 0
 
     def get_html_style(self) -> HtmlStyle:
-        style = super().get_html_style()
+        style = self.get_style()
+        if style is None:
+            style = super().get_html_style()
         if style is not None:
             return style
         else:

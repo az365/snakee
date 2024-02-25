@@ -32,7 +32,11 @@ class ValidateMixin(ABC):
             if expected_struct is not None:
                 expected_struct = expected_struct.copy()
             else:
-                expected_struct = self.get_struct_from_source(set_struct=True, verbose=True)
+                expected_struct = self.get_struct_from_source(
+                    set_struct=True,
+                    skip_missing=skip_disconnected,
+                    verbose=True,
+                )
         else:
             expected_struct = self.get_struct()
         actual_struct = self.get_struct_from_source(set_struct=False, verbose=False, skip_missing=skip_disconnected)
@@ -174,7 +178,7 @@ class ValidateMixin(ABC):
         filters = filters or list()
         if filter_kwargs and safe_filter:
             filter_kwargs = {k: v for k, v in filter_kwargs.items() if k in self.get_columns()}
-        stream_example = self.to_record_stream(verbose=verbose)
+        stream_example = self.to_records(verbose=verbose)
         if filters:
             stream_example = stream_example.filter(*filters or [], **filter_kwargs)
         if example_row_count:
@@ -223,7 +227,7 @@ class ValidateMixin(ABC):
             level: Optional[int] = DEFAULT_CHAPTER_TITLE_LEVEL,
             name: str = 'Columns',
     ) -> Chapter:
-        chapter = Chapter(name=name)
+        chapter = Chapter([], name=name)
         if level:
             title = Paragraph([name], level=level, name=f'{name} title')
             chapter.append(title, inplace=True)
@@ -231,7 +235,7 @@ class ValidateMixin(ABC):
             chapter.append(Paragraph([comment], name=f'{name} comment'), inplace=True)
         struct = self.get_struct()
         if struct is None:
-            struct = self.get_struct_from_source()
+            struct = self.get_struct_from_source(skip_missing=True)
         if isinstance(struct, StructInterface) or hasattr(struct, 'get_data_sheet'):
             struct_sheet = struct.get_data_sheet(example=example_item)
             chapter.append(struct_sheet, inplace=True)
