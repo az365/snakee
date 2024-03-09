@@ -1,7 +1,9 @@
 try:  # Assume we're a submodule in a package.
-    from content.visuals.visual_classes import UnitType, Offset, Point, Size
+    from content.visuals.visual_classes import UnitType, Offset, Point, Size, Align2d
+    from content.documents.content_style import AdvancedContentStyle
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
-    from .visual_classes import UnitType, Offset, Point, Size
+    from .visual_classes import UnitType, Offset, Point, Size, Align2d
+    from ..documents.content_style import AdvancedContentStyle
 
 
 def test_offset():
@@ -41,10 +43,22 @@ def test_size():
     assert size == point, f'{size} vs {point}'
 
 
+def test_align():
+    align = Align2d('top', 'left')
+    received = align.get_css_line()
+    expected = 'vertical-align: top; text-align: left; '
+    assert received == expected, f'{received} vs {expected}'
+    style = AdvancedContentStyle({'font-size': '16px'}, align=align, color='green')
+    received_style = style.get_css_line()
+    expected_style = 'vertical-align: top; text-align: left; font-size: 16px; color: green; '
+    assert received_style == expected_style, f'{received_style} vs {expected_style}'
+
+
 def main():
     test_offset()
     test_point()
     test_size()
+    test_align()
 
 
 if __name__ == '__main__':
