@@ -7,8 +7,8 @@ try:  # Assume we're a submodule in a package.
     from base.abstract.simple_data import SimpleDataWrapper
     from base.mixin.map_data_mixin import MapDataMixin
     from content.visuals.align import Align2d
-    from content.visuals.size import Size
-    from content.visuals.pair import VisualCell, PairSize, Size
+    from content.visuals.size import Offset, Size
+    from content.visuals.pair import VisualCell, PairSize
     from content.visuals.align import Align2d, VerticalAlign, HorizontalAlign
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.classes.enum import DynamicEnum
@@ -17,8 +17,8 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...base.abstract.simple_data import SimpleDataWrapper
     from ...base.mixin.map_data_mixin import MapDataMixin
     from ..visuals.align import Align2d
-    from ..visuals.size import Size
-    from ..visuals.pair import VisualCell, PairSize, Size
+    from ..visuals.size import Offset, Size
+    from ..visuals.pair import VisualCell, PairSize
     from ..visuals.align import Align2d, VerticalAlign, HorizontalAlign
 
 Native = Union[SimpleDataWrapper, MapDataMixin]
@@ -59,8 +59,11 @@ class SimpleContentStyle(SimpleDataWrapper, MapDataMixin):
                 new_data = new_data.update(data)
             return self.__class__(new_data)
 
-    def get_items(self) -> Iterable[Item]:
-        return self.get_data().items()
+    def get_items(self, sort: bool = True) -> Iterable[Item]:
+        items = self.get_data().items()
+        if sort:
+            items = sorted(items)
+        return items
 
     def add_items(self, items: Iterable, before: bool = False, inplace: bool = True) -> Optional[Native]:
         data_dict = self.get_data()
@@ -88,14 +91,33 @@ class SimpleContentStyle(SimpleDataWrapper, MapDataMixin):
             return self.__class__(new_data)
 
     def get_css_items(self) -> Iterator[Item]:
-        for k, v in self.get_items():
-            yield str(k), str(v)
+        for k, v in self.get_items(sort=True):
+            str_key = str(k).replace('_', '-')
+            str_value = str(v)
+            yield str_key, str_value
 
-    def get_css_line(self) -> str:
+    def get_css_line(self, skip_zeroes: bool = False) -> str:
         line = ''
         for k, v in self.get_css_items():
-            line += f'{k}: {v}; '
+            if v != '0' or not skip_zeroes:
+                line += f'{k}: {v}; '
         return line
+
+    @staticmethod
+    def from_css_line(line: str) -> Native:
+        style = SimpleContentStyle()
+        for i in line.split(';'):
+            if i.startswith(' '):
+                i = i[1:]
+            if len(i) > 0:
+                key, value = i.split(': ')
+                key = key.replace('-', '_')
+                try:
+                    value = Offset.from_str(value)
+                except TypeError:
+                    value = value
+                style.set_value(key, value)
+        return style
 
     @staticmethod
     def _assume_native(obj) -> Native:
@@ -154,9 +176,13 @@ class AdvancedContentStyle(SimpleContentStyle):
     def get_additional_items(self) -> Iterator[Item]:
         return self.get_data().items()
 
-    def get_items(self) -> Iterator[Item]:
-        yield from self.get_main_items()
-        yield from self.get_additional_items()
+    def get_items(self, sort: bool = False) -> Iterator[Item]:
+        if sort:
+            items = self.get_items(sort=False)
+            yield from sorted(items)
+        else:
+            yield from self.get_main_items()
+            yield from self.get_additional_items()
 
     def get_simple_content_style(self) -> SimpleContentStyle:
         content_style = SimpleContentStyle()

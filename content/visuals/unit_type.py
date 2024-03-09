@@ -81,8 +81,8 @@ class UnitType(Enum):
         number, unit_type_str_from_y = cls.split_to_number_and_suffix(line, default_number=default_number)
         if unit_type_str_from_y:
             unit_type_from_y = UnitType(unit_type_str_from_y)
-            if expected_unit_type:
-                assert unit_type_from_y == expected_unit_type
+            if expected_unit_type and expected_unit_type != UnitType.Auto:
+                assert unit_type_from_y == expected_unit_type, f'{unit_type_from_y} vs {expected_unit_type}'
             unit_type = unit_type_from_y
         else:
             unit_type = cls.get_default()

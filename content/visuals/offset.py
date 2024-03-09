@@ -1,12 +1,16 @@
 from typing import Optional, Union
 
 try:  # Assume we're a submodule in a package.
+    from base.classes.typing import Numeric, Array, NUMERIC_TYPES, ARRAY_TYPES
+    from base.functions.errors import get_type_err_msg
     from content.visuals.unit_type import UnitType
-    from content.visuals.screen_context import ScreenContext, Numeric, NUMERIC_TYPES
+    from content.visuals.screen_context import ScreenContext
     from content.visuals.abstract_visual import AbstractVisual, DEFAULT_UNIT_TYPE, DEFAULT_SCREEN_CONTEXT
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
+    from ...base.classes.typing import Numeric, Array, NUMERIC_TYPES, ARRAY_TYPES
+    from ...base.functions.errors import get_type_err_msg
     from .unit_type import UnitType
-    from .screen_context import ScreenContext, Numeric, NUMERIC_TYPES
+    from .screen_context import ScreenContext
     from .abstract_visual import AbstractVisual, DEFAULT_UNIT_TYPE, DEFAULT_SCREEN_CONTEXT
 
 Value = Union[Numeric, str]
@@ -30,6 +34,9 @@ class Offset(AbstractVisual):
             screen_context: ScreenContext = ScreenContext.Auto,
     ):
         x, unit_type = UnitType.parse(value, expected_unit_type=expected_unit_type)
+        if not isinstance(x, NUMERIC_TYPES):
+            msg = get_type_err_msg(x, expected=Numeric, arg='x', caller=cls.from_str, args=[value, expected_unit_type])
+            raise TypeError(msg)
         return Offset(x, unit_type=unit_type, screen_context=screen_context)
 
     @classmethod
@@ -63,14 +70,15 @@ class Offset(AbstractVisual):
             return Offset(value, unit_type=expected_unit_type, screen_context=screen_context)
         elif isinstance(value, str):
             return Offset.from_str(value, expected_unit_type=expected_unit_type, screen_context=screen_context)
-        elif isinstance(value, (tuple, list)):
+        elif isinstance(value, ARRAY_TYPES):  # tuple, list
             return Offset(*value)
         elif isinstance(value, AbstractVisual) or hasattr(value, 'get_x'):
             return Offset.from_visual(value, expected_unit_type=expected_unit_type, screen_context=screen_context)
         elif hasattr(value, 'get_value'):
             return Offset(value.get_value, unit_type=expected_unit_type, screen_context=screen_context)
         else:
-            raise TypeError(value)
+            msg = get_type_err_msg(got=value, expected=Union[Offset, Numeric, str, Array, AbstractVisual], arg='value')
+            raise TypeError(msg)
 
     def _set_x_inplace(self, value: Value) -> None:
         if isinstance(value, NUMERIC_TYPES):
@@ -83,11 +91,14 @@ class Offset(AbstractVisual):
             self._x = value.get_first_value()
             self._unit_type = value.get_unit_type()
         else:
-            raise TypeError(value)
+            msg = get_type_err_msg(got=value, expected=Union[Numeric, str, AbstractVisual], arg='value')
+            raise TypeError(msg)
 
     def get_value(self) -> Value:
         if self.unit_type is None or self.unit_type == UnitType.Auto:
             return self.get_x()
+        elif self.x == 0:
+            return 0  # without unit_type
         else:
             return f'{self.x}{self.unit_type.value}'
         # return str(self)
@@ -110,7 +121,8 @@ class Offset(AbstractVisual):
             self._x = value.get_first_value()
             self._unit_type = value.get_unit_type()
         else:
-            raise TypeError(value)
+            msg = get_type_err_msg(got=value, expected=Union[Numeric, str, AbstractVisual], arg='value')
+            raise TypeError(msg)
 
     def get_unit_type(self) -> UnitType:
         return super().get_unit_type()

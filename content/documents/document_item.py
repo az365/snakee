@@ -3,8 +3,9 @@ from typing import Optional, Callable, Iterable, Iterator, Sequence, Tuple, Unio
 try:  # Assume we're a submodule in a package.
     from base.constants.chars import EMPTY, SPACE, HTML_INDENT, PARAGRAPH_CHAR, REPR_DELIMITER, DEFAULT_STR
     from base.constants.text import DEFAULT_LINE_LEN
+    from base.functions.errors import get_type_err_msg
     from base.interfaces.sheet_interface import SheetInterface, Record, Row, FormattedRow, Columns, Count
-    from base.classes.typing import NUMERIC_TYPES, ARRAY_TYPES, Numeric, Name
+    from base.classes.typing import NUMERIC_TYPES, ARRAY_TYPES, Numeric, Array, Name
     from base.classes.enum import DynamicEnum
     from base.classes.simple_sheet import SimpleSheet, SheetMixin, SheetItems
     from base.functions.arguments import get_name, get_cropped_text
@@ -13,13 +14,14 @@ try:  # Assume we're a submodule in a package.
     from utils.external import Markdown, HTML, display
     from content.visuals.size import Size
     from content.documents.quantile_functions import get_united_lines
-    from content.documents.content_style import SimpleContentStyle
+    from content.documents.content_style import SimpleContentStyle, AdvancedContentStyle, HorizontalAlign, VisualCell, PairSize
     from content.documents.display_mode import DisplayMode
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.constants.chars import EMPTY, SPACE, HTML_INDENT, PARAGRAPH_CHAR, REPR_DELIMITER, DEFAULT_STR
     from ...base.constants.text import DEFAULT_LINE_LEN
+    from ...base.functions.errors import get_type_err_msg
     from ...base.interfaces.sheet_interface import SheetInterface, Record, Row, FormattedRow, Columns, Count
-    from ...base.classes.typing import NUMERIC_TYPES, ARRAY_TYPES, Numeric, Name
+    from ...base.classes.typing import NUMERIC_TYPES, ARRAY_TYPES, Numeric, Array, Name
     from ...base.classes.enum import DynamicEnum
     from ...base.classes.simple_sheet import SimpleSheet, SheetMixin, SheetItems
     from ...base.functions.arguments import get_name, get_cropped_text
@@ -28,21 +30,27 @@ except ImportError:  # Apparently no higher-level package has been imported, fal
     from ...utils.external import Markdown, HTML, display
     from ..visuals.size import Size
     from .quantile_functions import get_united_lines
-    from .content_style import SimpleContentStyle
+    from .content_style import SimpleContentStyle, AdvancedContentStyle, HorizontalAlign, VisualCell, PairSize
     from .display_mode import DisplayMode
 
 HtmlStyle = str
 Style = Union[HtmlStyle, SimpleContentStyle]
-OptStyle = Optional[Style]
 DisplayObject = Union[str, Markdown, HTML]
 SizeOrWidth = Union[Size, Numeric, None]
 
-H_STYLE = None
-P_STYLE = 'line-height: 1.1em; margin-top: 0em; margin-bottom: 0em; padding-top: 0em; padding-bottom: 0em;'
+H_CONTENT_STYLE = None
+P_CONTENT_STYLE = AdvancedContentStyle(
+    line_height='1.1em',
+    cell=VisualCell(
+        margin=PairSize(Size(0, 0), Size(0, 0)),
+        padding=PairSize(Size(0, 0), Size(0, 0)),
+        border=PairSize(Size(0, 0), Size(0, 0)),
+    )
+)
 
 
 class DocumentItem(SimpleDataWrapper):
-    def __init__(self, data, style: OptStyle = None, name: str = EMPTY):
+    def __init__(self, data, style: Optional[Style] = None, name: str = EMPTY):
         self._style = style
         super().__init__(data=data, name=name)
 
@@ -55,7 +63,8 @@ class DocumentItem(SimpleDataWrapper):
         elif isinstance(data, Iterable):
             yield from data
         elif data:
-            raise TypeError(f'Expected str, Iterable or Stream, got {data}')
+            msg = get_type_err_msg(got=data, expected=(str, Iterable, 'Stream'), arg='data', caller=self.get_items)
+            raise TypeError(msg)
 
     def get_lines(self) -> Iterator[str]:
         data = self.get_data()
@@ -74,7 +83,8 @@ class DocumentItem(SimpleDataWrapper):
                 else:
                     yield str(i)
         elif data:
-            raise TypeError(f'Expected str, Iterable or Stream, got {data}')
+            msg = get_type_err_msg(got=data, expected=(str, Iterable, 'Stream'), arg='data', caller=self.get_lines)
+            raise TypeError(msg)
 
     def get_text(self) -> str:
         data = self.get_data()
@@ -83,15 +93,20 @@ class DocumentItem(SimpleDataWrapper):
         elif isinstance(data, Iterable):
             return PARAGRAPH_CHAR.join(map(str, data))
 
-    def get_style(self) -> OptStyle:
+    def get_style(self) -> Optional[Style]:
         return self._style
 
     def get_html_style(self) -> Optional[HtmlStyle]:
         style = self.get_style()
         if isinstance(style, HtmlStyle):
             return style
+        elif isinstance(style, SimpleContentStyle) or hasattr(style, 'get_css_line'):
+            return style.get_css_line()
         elif hasattr(style, 'get_html_style'):  # isinstance(style, ContentStyle)
             return style.get_html_style()
+        elif style:
+            msg = get_type_err_msg(got=style, expected=Optional[Style], arg='style', caller=self.get_html_style)
+            raise TypeError(msg)
 
     def get_html_attributes(self) -> Iterator[Tuple[str, Any]]:
         style = self.get_html_style()
@@ -145,7 +160,8 @@ class DocumentItem(SimpleDataWrapper):
             elif isinstance(item, Iterable):
                 yield from item
             else:
-                raise TypeError(f'Expected item as DocumentItem or str, got item {item} as {type(item)}')
+                msg = get_type_err_msg(got=item, expected=Union[DocumentItem, str], arg='item')
+                raise TypeError(msg)
 
     def get_html_lines(self) -> Iterator[str]:
         if self.has_html_tags():
@@ -202,7 +218,7 @@ Items = Iterable[DocumentItem]
 
 
 class Sheet(DocumentItem, IterDataMixin, SheetMixin, SheetInterface):
-    def __init__(self, data: SheetItems, columns: Columns = None, style: OptStyle = None, name: str = EMPTY):
+    def __init__(self, data: SheetItems, columns: Columns = None, style: Optional[Style] = None, name: str = EMPTY):
         self._struct = None
         super().__init__(data=list(), style=style, name=name)
         self._set_struct_inplace(columns)
@@ -221,14 +237,15 @@ class Sheet(DocumentItem, IterDataMixin, SheetMixin, SheetInterface):
         elif isinstance(items, Iterable) and not isinstance(items, str):
             super()._set_items_inplace(items)
         else:
-            raise TypeError(f'Expected items as RegularStream, got {items} as {type(items)}')
+            msg = get_type_err_msg(got=items, expected=('items', 'RegularStream'), arg='columns')
+            raise TypeError(msg)
 
     @classmethod
     def from_records(
             cls,
             records: Iterable[Record],
             columns: Columns = None,
-            style: OptStyle = None,
+            style: Optional[Style] = None,
             name: Name = EMPTY,
     ) -> Native:
         if columns is not None:
@@ -346,7 +363,8 @@ class Sheet(DocumentItem, IterDataMixin, SheetMixin, SheetInterface):
                 for row in self.get_formatted_rows(with_title=True):
                     yield formatter.format(*row)
         else:
-            raise TypeError(f'Expected RegularStream, SimpleData or Iterable, got {data}')
+            msg = get_type_err_msg(got=data, expected=('RegularStream', SimpleDataWrapper, Iterable), arg='data')
+            raise TypeError(msg)
 
     def _get_placeholders_for_row_formatter(self) -> list:
         placeholders = list()
@@ -427,7 +445,7 @@ class Text(DocumentItem, IterDataMixin):
     def __init__(
             self,
             data: Union[str, list, None] = None,
-            style: OptStyle = None,
+            style: Optional[Style] = None,
             name: str = EMPTY,
     ):
         super().__init__(data=data, name=name, style=style)
@@ -448,7 +466,8 @@ class Text(DocumentItem, IterDataMixin):
             elif isinstance(text, Iterable):
                 lines = text
             else:
-                raise TypeError(f'Expected text as str or Iterable, got {repr(text)}')
+                msg = get_type_err_msg(got=text, expected=Union[str, Iterable], arg='text')
+                raise TypeError(msg)
             return super().add(lines, before=before, inplace=inplace)
         else:
             return self
@@ -489,7 +508,7 @@ class Link(Text):
             self,
             data: Union[str, list, None],
             url: str,
-            style: OptStyle = None,
+            style: Optional[Style] = None,
             name: str = EMPTY,
     ):
         self._url = url
@@ -503,7 +522,7 @@ class Link(Text):
 
     def get_html_open_tag(self) -> str:
         url = self.get_url()
-        style = self.get_style()
+        style = self.get_html_style()
         if style is not None:
             return f'<a href="{url}" style="{style}">'
         else:
@@ -527,7 +546,7 @@ class Container(DocumentItem, IterDataMixin):
     def __init__(
             self,
             data: Optional[Items] = None,
-            style: OptStyle = None,
+            style: Optional[Style] = None,
             name: str = EMPTY,
             composition: CompositionType = CompositionType.Vertical,
             size: SizeOrWidth = None,
@@ -569,7 +588,8 @@ class Container(DocumentItem, IterDataMixin):
             elif size is None:
                 size = Size(None, None)
             else:
-                raise TypeError(size)
+                msg = get_type_err_msg(got=size, expected=Union[Numeric, Array, None], arg='size')
+                raise TypeError(msg)
         self._size = size
 
     size = property(get_size, _set_size_inplace)
@@ -702,7 +722,7 @@ class Paragraph(Text, Container):
             self,
             data: Optional[list] = None,
             level: Optional[int] = None,
-            style: OptStyle = None,
+            style: Optional[Style] = None,
             name: str = EMPTY,
     ):
         self._level = level
@@ -729,14 +749,14 @@ class Paragraph(Text, Container):
     def is_title(self) -> bool:
         return (self.get_level() or 0) > 0
 
-    def get_html_style(self) -> HtmlStyle:
-        style = self.get_style()
-        if style is None:
-            style = super().get_html_style()
-        if style is not None:
+    def get_style(self) -> Optional[Style]:
+        style = super().get_style()
+        if style:
             return style
+        elif self.is_title():
+            return H_CONTENT_STYLE
         else:
-            return H_STYLE if self.is_title() else P_STYLE
+            return P_CONTENT_STYLE
 
     def get_html_tag_name(self) -> str:
         level = self.get_level()
@@ -747,29 +767,6 @@ class Paragraph(Text, Container):
 
     def has_html_tags(self) -> bool:
         return True
-
-    @staticmethod
-    def get_html_text_code(
-            lines: Iterable[str],
-            level: Optional[int] = None,
-            style: OptStyle = None,
-    ) -> Iterator[str]:
-        if isinstance(lines, str):
-            lines = lines.split(PARAGRAPH_CHAR)
-        assert isinstance(lines, Iterable), f'got {lines}'
-        text = f'<br>{PARAGRAPH_CHAR}'.join(lines)
-        if level:
-            tag = f'h{level}'
-            if style is None:
-                style = H_STYLE
-        else:
-            tag = 'p'
-            if style is None:
-                style = P_STYLE
-        open_tag = f'<{tag} style="{style}">' if style else f'<{tag}>'
-        close_tag = f'</{tag}>'
-        if text:
-            yield f'{open_tag}{text}{close_tag}'
 
     def get_brief_repr(self) -> str:
         cls_name = self.__class__.__name__
