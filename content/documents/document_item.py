@@ -37,6 +37,7 @@ HtmlStyle = str
 Style = Union[HtmlStyle, SimpleContentStyle]
 DisplayObject = Union[str, Markdown, HTML]
 SizeOrWidth = Union[Size, Numeric, None]
+Native = SimpleDataWrapper
 
 H_CONTENT_STYLE = None
 P_CONTENT_STYLE = AdvancedContentStyle(
@@ -51,8 +52,9 @@ P_CONTENT_STYLE = AdvancedContentStyle(
 
 class DocumentItem(SimpleDataWrapper):
     def __init__(self, data, style: Optional[Style] = None, name: str = EMPTY):
-        self._style = style
+        self._style = None
         super().__init__(data=data, name=name)
+        self._set_style_inplace(style)
 
     def get_items(self) -> Iterator:
         data = self.get_data()
@@ -96,6 +98,20 @@ class DocumentItem(SimpleDataWrapper):
     def get_style(self) -> Optional[Style]:
         return self._style
 
+    def set_style(self, style: Optional[Style], inplace: bool = True) -> Native:
+        if inplace:
+            self._set_style_inplace(style)
+            return self
+        else:
+            return self.__class__(self.get_data(), style=style, name=self.get_name())
+
+    def _set_style_inplace(self, style: Optional[Style]):
+        if style is not None and not isinstance(style, AdvancedContentStyle):
+            style = AdvancedContentStyle.from_any(style)
+        self._style = style
+
+    style = property(get_style, _set_style_inplace)
+
     def get_html_style(self) -> Optional[HtmlStyle]:
         style = self.get_style()
         if isinstance(style, HtmlStyle):
@@ -107,6 +123,19 @@ class DocumentItem(SimpleDataWrapper):
         elif style:
             msg = get_type_err_msg(got=style, expected=Optional[Style], arg='style', caller=self.get_html_style)
             raise TypeError(msg)
+
+    def set_html_style(self, style: HtmlStyle, inplace: bool = True) -> Native:
+        if inplace:
+            self._set_html_style_inplace(style)
+            return self
+        else:
+            content_style = AdvancedContentStyle.from_css_line(style)
+            return self.__class__(data=self.get_data(), style=content_style, name=self.get_name())
+
+    def _set_html_style_inplace(self, style: HtmlStyle):
+        self._style = AdvancedContentStyle.from_css_line(style)
+
+    html_style = property(get_html_style, _set_html_style_inplace)
 
     def get_html_attributes(self) -> Iterator[Tuple[str, Any]]:
         style = self.get_html_style()
@@ -558,7 +587,7 @@ class Container(DocumentItem, IterDataMixin):
         elif isinstance(data, Iterator):
             data = list(data)
         super().__init__(data=data, style=style, name=name)
-        self.set_size(size, inplace=True)
+        self._set_size_inplace(size)
 
     def set_data(self, data: Items, inplace: bool, reset_dynamic_meta: bool = True, safe=True, **kwargs) -> Native:
         data = list(data)

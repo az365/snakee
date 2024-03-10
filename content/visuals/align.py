@@ -1,4 +1,4 @@
-from typing import Optional, Iterator, Tuple
+from typing import Optional, Iterator, Tuple, Union
 
 try:  # Assume we're a submodule in a package.
     from base.classes.enum import DynamicEnum
@@ -51,6 +51,18 @@ class AbstractAlign(StyleValue):
         yield from self.get_css_items()
 
     @classmethod
+    def convert(
+            cls,
+            obj: Union[DynamicEnum, str],
+            default: Optional[DynamicEnum] = None,
+            skip_missing: bool = False,
+    ) -> StyleValue:
+        if obj is None:
+            return cls.Auto
+        else:
+            return super().convert(obj, default=default, skip_missing=skip_missing)
+
+    @classmethod
     def from_str(cls, obj: str):
         if obj in cls._dict_css.values():
             for k, v in cls._dict_css.items():
@@ -78,7 +90,9 @@ class AbstractAlign(StyleValue):
 
 class VerticalAlign(AbstractAlign):
     Top = AbstractAlign.Begin
+    Center = AbstractAlign.Center
     Bottom = AbstractAlign.End
+    Auto = None
 
     _dict_css = {
         AbstractAlign.Begin: 'top',
@@ -92,7 +106,9 @@ class VerticalAlign(AbstractAlign):
 
 class HorizontalAlign(AbstractAlign):
     Left = AbstractAlign.Begin
+    Center = AbstractAlign.Center
     Right = AbstractAlign.End
+    Auto = None
 
     _dict_css = {
         AbstractAlign.Begin: 'left',

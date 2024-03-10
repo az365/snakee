@@ -2,6 +2,7 @@ from typing import Optional, Iterable, Iterator, Tuple, Union
 
 try:  # Assume we're a submodule in a package.
     from base.classes.enum import DynamicEnum
+    from base.classes.typing import Array
     from base.functions.arguments import get_name, get_value
     from base.functions.errors import get_type_err_msg
     from base.abstract.simple_data import SimpleDataWrapper
@@ -12,6 +13,7 @@ try:  # Assume we're a submodule in a package.
     from content.visuals.align import Align2d, VerticalAlign, HorizontalAlign
 except ImportError:  # Apparently no higher-level package has been imported, fall back to a local import.
     from ...base.classes.enum import DynamicEnum
+    from ...base.classes.typing import Array
     from ...base.functions.arguments import get_name, get_value
     from ...base.functions.errors import get_type_err_msg
     from ...base.abstract.simple_data import SimpleDataWrapper
@@ -26,6 +28,8 @@ StyleData = dict
 Key = str
 Value = str
 Item = Tuple[Key, Value]
+
+KEY_VALUE_DELIMITER = ': '
 
 
 class SimpleContentStyle(SimpleDataWrapper, MapDataMixin):
@@ -99,7 +103,7 @@ class SimpleContentStyle(SimpleDataWrapper, MapDataMixin):
     def get_css_line(self, skip_zeroes: bool = False) -> str:
         line = ''
         for k, v in self.get_css_items():
-            if v != '0' or not skip_zeroes:
+            if v not in ('0', 'Auto', 'None') or not skip_zeroes:
                 line += f'{k}: {v}; '
         return line
 
@@ -109,15 +113,41 @@ class SimpleContentStyle(SimpleDataWrapper, MapDataMixin):
         for i in line.split(';'):
             if i.startswith(' '):
                 i = i[1:]
-            if len(i) > 0:
-                key, value = i.split(': ')
+            if len(i) > len(KEY_VALUE_DELIMITER):
+                try:
+                    key, value = i.split(KEY_VALUE_DELIMITER)
+                except ValueError as e:
+                    raise ValueError(f'ContentStyle.from_css_line({repr(line)}) can not parse {i}: {e}')
                 key = key.replace('-', '_')
                 try:
                     value = Offset.from_str(value)
-                except TypeError:
+                except (TypeError, ValueError):
                     value = value
                 style.set_value(key, value)
         return style
+
+    def get_filtered_data(self, exclude: Array) -> dict:
+        filtered = dict()
+        for k, v in self.get_items():
+            if k not in exclude:
+                filtered[k] = v
+        return filtered
+
+    def get_pair_size(self, component: str) -> PairSize:
+        """
+        Extracts pair-sizes by components and directions.
+        :param component: can be 'margin', 'padding', 'border'
+        :return: pair-sizes by components and directions.
+        """
+        directions = 'top', 'bottom', 'left', 'right'
+        _top, _bottom, _left, _right = [
+            Offset(self.get_value(f'{component}_{d}'))
+            for d in directions
+        ]
+        return PairSize(
+            Size(_top, _left),
+            Size(_bottom, _right),
+        )
 
     @staticmethod
     def _assume_native(obj) -> Native:
@@ -125,6 +155,7 @@ class SimpleContentStyle(SimpleDataWrapper, MapDataMixin):
 
 
 Native = SimpleContentStyle
+OptStyle = Union[SimpleContentStyle, str, None]
 MAIN_ATTRIBUTE_TYPES = Align2d, VisualCell
 
 
@@ -139,6 +170,7 @@ class AdvancedContentStyle(SimpleContentStyle):
         self.align = align
         self.cell = cell
         super().__init__(data, **kwargs)
+
 
     def get_vertical_align(self) -> Optional[VerticalAlign]:
         if self.align is None:
@@ -157,6 +189,16 @@ class AdvancedContentStyle(SimpleContentStyle):
         else:
             msg = get_type_err_msg(got=self.align, expected=Align2d, arg='self.align')
             raise TypeError(msg)
+
+    @staticmethod
+    def get_main_css_fields(delimiter='-') -> list:
+        return [
+            f'vertical{delimiter}align', f'text{delimiter}align',
+        ] + [
+            '{component}{delimiter}{direction}'.format(component=c, direction=d, delimiter=delimiter)
+            for c in ('margin', 'border', 'padding')
+            for d in ('top', 'bottom', 'left', 'right')
+        ]
 
     def get_main_attributes(self) -> Iterator:
         yield self.align

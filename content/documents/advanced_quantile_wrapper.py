@@ -37,6 +37,7 @@ SYMBOL_WIDTH = 7
 CENTER_TEXT = 'text-align: center;'
 LEFT_TEXT = 'text-align: left;'
 RIGHT_TEXT = 'text-align: right;'
+ZERO_PADDING_AND_SPACING = 'padding: 0; spacing: 0;'
 
 
 class AdvancedQuantileWrapper(SimpleQuantileWrapper):
@@ -271,7 +272,7 @@ class AdvancedQuantileWrapper(SimpleQuantileWrapper):
         items = class_container, brief_value_container, name_container
         container = Container(items, name='title container', composition=CompositionType.Horizontal, size=width)
         if space_lines_count:
-            container = Container([container], 'title container+', composition=CompositionType.Vertical, size=width)
+            container = Container([container], name='title container+', composition=CompositionType.Vertical, size=width)
             empty_line = get_empty_line(line_len)
             empty_paragraph = Paragraph([empty_line], name='empty line')
             for _ in range(space_lines_count):
@@ -301,7 +302,7 @@ class AdvancedQuantileWrapper(SimpleQuantileWrapper):
             line_len: int = DEFAULT_LINE_LEN,
             level: int = 0,
             width: Optional[int] = None,
-            style: str = 'text-align: right;'
+            style: str = RIGHT_TEXT,
     ) -> Container:
         container = Container([], name='class container', size=width)
         if lines_count > 0:
@@ -552,7 +553,7 @@ class AdvancedQuantileWrapper(SimpleQuantileWrapper):
         delimiter_len = len(delimiter) - 2
         delimiter_width = delimiter_len * SYMBOL_WIDTH
         text_width = int((width - delimiter_width) / 2)
-        container = Container([], name='props container', style='padding: 0, spacing: 0')
+        container = Container([], name='props container', style=ZERO_PADDING_AND_SPACING)
         n = 0
         for key, value in self.get_prop_pairs():
             items = [
@@ -560,7 +561,7 @@ class AdvancedQuantileWrapper(SimpleQuantileWrapper):
                 Container([Paragraph([delimiter], style=CENTER_TEXT)], size=delimiter_width),
                 Container([Paragraph([value], style=LEFT_TEXT)], size=text_width),
             ]
-            row = Container(items, composition=CompositionType.Horizontal, size=width, style='padding: 0; spacing: 0;')
+            row = Container(items, composition=CompositionType.Horizontal, size=width, style=ZERO_PADDING_AND_SPACING)
             container.append(row)
             n += 1
             if n >= count:
